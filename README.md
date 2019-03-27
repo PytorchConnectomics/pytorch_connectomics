@@ -1,4 +1,4 @@
-# Pytorch Connectomics: Deep Learning Toolbox for EM Connectomics Research
+# Pytorch Connectomics: A Deep Learning Toolbox for EM Connectomics Research
 
 ## Introduction
 
