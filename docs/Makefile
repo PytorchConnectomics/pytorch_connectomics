@@ -1,5 +1,5 @@
 SPHINXBUILD   = sphinx-build
-SPHINXPROJ    = pytorch_geometric
+SPHINXPROJ    = pytorch_connectomics
 SOURCEDIR     = source
 BUILDDIR      = build
 
