@@ -19,7 +19,7 @@ from skimage import measure
 from skimage.morphology import dilation, remove_small_objects
 
 class SynEvaluate(torch.utils.data.Dataset):
-    def __init__(self, pred_path, gt_path, iou_thres=0.2, min_size=300, margin=(14, 0, 0)):
+    def __init__(self, pred_path, gt_path, iou_thres=0.2, min_size=300, margin=(14, 0, 0), pre_process=True):
         # Evaluation of synapse prediction results 
         self.iou_thres = iou_thres
         print('IoU Thres: ', self.iou_thres)
@@ -32,9 +32,24 @@ class SynEvaluate(torch.utils.data.Dataset):
                    self.margin[1]:valid_mask.shape[1]-self.margin[1],
                    self.margin[2]:valid_mask.shape[2]-self.margin[2]] = 1
         self.gt_vol = self.gt_vol * valid_mask
-        self.pred_vol = np.array(h5py.File(pred_path, 'r')['main'])
-        self.pred_vol = self.pred_vol.astype(self.gt_vol.dtype)
-        self.pred_vol = self.pred_vol * valid_mask
+
+        if pre_process:
+            print('pre-process prediction volume.')
+            pd_data = np.array(h5py.File(pred_path, 'r')['main'])
+            print(pd_data.dtype, pd_data.shape, np.ptp(pd_data))
+
+            pd_temp = np.zeros(pd_data[2].shape, np.uint8)
+            pd_temp[np.where(pd_data[0]>128)] = 2
+            pd_temp[np.where(pd_data[1]>128)] = 1
+            print(pd_temp.dtype, pd_temp.shape)
+
+            self.pred_vol = pd_temp.astype(self.gt_vol.dtype)
+            self.pred_vol = self.pred_vol * valid_mask
+        else:
+            self.pred_vol = np.array(h5py.File(pred_path, 'r')['main'])
+            self.pred_vol = self.pred_vol.astype(self.gt_vol.dtype)
+            self.pred_vol = self.pred_vol * valid_mask
+
         #print('gt_vol: ', self.gt_vol.shape, self.gt_vol.dtype)
         #print('pred_vol: ', self.pred_vol.shape, self.pred_vol.dtype)
         assert(self.gt_vol.shape == self.pred_vol.shape)
@@ -211,9 +226,9 @@ if __name__ == "__main__":
     #gt_path = '/n/coxfs01/vcg_connectomics/human/roi215/w08_tr5_tc4_label_v3.1_polarity.h5'
     #pd_path = '/n/coxfs01/vcg_connectomics/human/roi215/tim/964355253395_w08_roi215_subset_predictions_20190207_8x8.h5'
     # pred_16nm_path = '/n/coxfs01/vcg_connectomics/human/roi215/tim/964355253395_w08_roi215_subset_predictions_20190207_16x16.h5'
-    gt_path = 'jwr_vol2/vol2_gt.h5'
-    pd_path = 'jwr_vol2/vol2_unet.h5'
-    #pd_path = 'jwr_vol2/vol2_pred.h5'
+    gt_path = '/n/coxfs01/zudilin/research/simulation/jwr_vol2/vol2_gt.h5'
+    pd_path = '/n/coxfs01/zudilin/research/pytorch_connectomics/script/outputs/fpn0325/result800k/volume_0.h5'
+
     print(gt_path)
     print(pd_path)
 

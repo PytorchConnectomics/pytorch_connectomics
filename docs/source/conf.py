@@ -1,7 +1,8 @@
 import datetime
 import sphinx_rtd_theme
 import doctest
-from torch_geometric import __version__
+#from torch_geometric import __version__
+__version__ = 0.1
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -16,8 +17,8 @@ extensions = [
 source_suffix = '.rst'
 master_doc = 'index'
 
-author = 'Matthias Fey'
-project = 'pytorch_geometric'
+author = 'Zudi Lin'
+project = 'pytorch_connectomics'
 copyright = '{}, {}'.format(datetime.datetime.now().year, author)
 
 version = 'master ({})'.format(__version__)

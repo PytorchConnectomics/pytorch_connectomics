@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>PyTorch Geometric documentation &mdash; pytorch_geometric master documentation</title>
+  <title>PyTorch Geometric documentation &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -20,12 +20,21 @@
   <script type="text/javascript" src="_static/js/modernizr.min.js"></script>
   
     
-      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'./',
+              VERSION:'master',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
         <script type="text/javascript" src="_static/jquery.js"></script>
         <script type="text/javascript" src="_static/underscore.js"></script>
         <script type="text/javascript" src="_static/doctools.js"></script>
-        <script type="text/javascript" src="_static/language_data.js"></script>
-        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
@@ -64,7 +73,7 @@
             
             
               <div class="version">
-                master (1.0.3)
+                master (0.1)
               </div>
             
           
@@ -117,16 +126,7 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="modules/nn.html">torch_geometric.nn</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.conv.message_passing">Sparse Convolutional Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.dense.dense_sage_conv">Dense Convolutional Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.glob">Global Pooling Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.pool">Sparse Hierarchical Pooling Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.dense.diff_pool">Dense Hierarchical Pooling Layers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.models">Models</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/nn.html#module-torch_geometric.nn.data_parallel">DataParallel layers</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/nn.html">torch_geometric.nn</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules/data.html">torch_geometric.data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules/datasets.html">torch_geometric.datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules/transforms.html">torch_geometric.transforms</a></li>
@@ -145,7 +145,7 @@
       <nav class="wy-nav-top" aria-label="top navigation">
         
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="#">pytorch_geometric</a>
+          <a href="#">pytorch_connectomics</a>
         
       </nav>
 
@@ -186,7 +186,7 @@
             
             
               <!-- User defined GitHub URL -->
-              <a href="https://github.com/rusty1s/pytorch_geometric" class="fa fa-github"> Edit on GitHub</a>
+              <a href="https://github.com/zudi-lin/pytorch_connectomics" class="fa fa-github"> Edit on GitHub</a>
             
           
         
@@ -202,7 +202,7 @@
             
   <div class="section" id="pytorch-geometric-documentation">
 <h1>PyTorch Geometric documentation<a class="headerlink" href="#pytorch-geometric-documentation" title="Permalink to this headline">¶</a></h1>
-<p><a class="reference external" href="https://github.com/rusty1s/pytorch_geometric">PyTorch Geometric</a> is a geometric deep learning extension library for <a class="reference external" href="https://pytorch.org/">PyTorch</a>.</p>
+<p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics">PyTorch Geometric</a> is a geometric deep learning extension library for <a class="reference external" href="https://pytorch.org/">PyTorch</a>.</p>
 <p>It consists of various methods for deep learning on graphs and other irregular structures, also known as <a class="reference external" href="http://geometricdeeplearning.com/">geometric deep learning</a>, from a variety of published papers.
 In addition, it consists of an easy-to-use mini-batch loader, a large number of common benchmark datasets (based on simple interfaces to create your own), and helpful transforms, both for learning on arbitrary graphs as well as on 3D meshes or point clouds.</p>
 <div class="toctree-wrapper compound">
@@ -251,7 +251,7 @@ In addition, it consists of an easy-to-use mini-batch loader, a large number of 
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, Matthias Fey
+        &copy; Copyright 2019, Zudi Lin
 
     </p>
   </div>
