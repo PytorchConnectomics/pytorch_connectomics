@@ -1,6 +1,9 @@
 Guidance for Harvard RC Users
 =======================
 
+.. contents::
+    :local:
+
 Step 1: `School-related Setup <https://docs.google.com/document/d/18ovdpC2Tzf_8EvDBHXRBznELUbuIQwDN7Llgp_-QbrI/edit>`_
 -----------------------
 
