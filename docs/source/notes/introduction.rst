@@ -1,7 +1,7 @@
 Introduction by example
 =======================
 
-We shortly introduce the fundamental concepts of `PyTorch Geometric <https://github.com/rusty1s/pytorch_geometric>`_ through self-contained examples.
+We shortly introduce the fundamental concepts of `PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ through self-contained examples.
 At its core, PyTorch Geometric provides the following main features:
 
 .. contents::
