@@ -29,4 +29,4 @@ pip install -r requirements.txt
 * Use TensorBoard with `tensorboard --logdir runs`  (needs to install TensorFlow).
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/adver-vis/blob/master/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
