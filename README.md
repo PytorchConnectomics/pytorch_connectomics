@@ -18,7 +18,7 @@ The code is developed and tested under the following configurations.
 
 ## Installation
 ```
-conda create -n mypython3 python=3.6
+conda create -n py3_torch python=3.6
 source activate activate py3_torch
 conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
 pip install -r requirements.txt
