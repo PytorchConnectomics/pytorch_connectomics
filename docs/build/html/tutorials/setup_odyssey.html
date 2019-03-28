@@ -1,0 +1,420 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Guidance for Harvard RC Users &mdash; pytorch_connectomics master documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+        <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="torch_geometric.nn" href="../modules/nn.html" />
+    <link rel="prev" title="Introduction by example" href="../notes/introduction.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html">
+          
+
+          
+            
+            <img src="../_static/pyg_logo_text.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                master (0.1)
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notes/installation.html#c-cuda-extensions-on-macos">C++/CUDA Extensions on macOS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/installation.html#id1">Frequently Asked Questions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/introduction.html">Introduction by example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notes/introduction.html#data-handling-of-graphs">Data handling of graphs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/introduction.html#common-benchmark-datasets">Common benchmark datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/introduction.html#mini-batches">Mini-batches</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/introduction.html#data-transforms">Data transforms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/introduction.html#learning-methods-on-graphs">Learning methods on graphs</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Guidance for Harvard RC Users</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-school-related-setup">Step 1: School-related Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-machine-setup">Step 2: Machine Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-common-practice">Step 3: Common Practice</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-4-end-to-end-connectomics-tutorial">Step 4: End-to-End Connectomics Tutorial:</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/nn.html">torch_geometric.nn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">torch_geometric.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">torch_geometric.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/transforms.html">torch_geometric.transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">torch_geometric.utils</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">pytorch_connectomics</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+      <li>Guidance for Harvard RC Users</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorials/setup_odyssey.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="guidance-for-harvard-rc-users">
+<h1>Guidance for Harvard RC Users<a class="headerlink" href="#guidance-for-harvard-rc-users" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#step-1-school-related-setup" id="id7">Step 1: School-related Setup</a></p></li>
+<li><p><a class="reference internal" href="#step-2-machine-setup" id="id8">Step 2: Machine Setup</a></p></li>
+<li><p><a class="reference internal" href="#step-3-common-practice" id="id9">Step 3: Common Practice</a></p></li>
+<li><p><a class="reference internal" href="#step-4-end-to-end-connectomics-tutorial" id="id10">Step 4: End-to-End Connectomics Tutorial:</a></p></li>
+</ul>
+</div>
+<div class="section" id="step-1-school-related-setup">
+<h2>Step 1: <a class="reference external" href="https://docs.google.com/document/d/18ovdpC2Tzf_8EvDBHXRBznELUbuIQwDN7Llgp_-QbrI/edit">School-related Setup</a><a class="headerlink" href="#step-1-school-related-setup" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="step-2-machine-setup">
+<h2><a class="toc-backref" href="#id8">Step 2: Machine Setup</a><a class="headerlink" href="#step-2-machine-setup" title="Permalink to this headline">¶</a></h2>
+<p>1. Harvard RC server
+- Get account:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>Apply for SEAS account</p></li>
+<li><p>RC account [[link]](<a class="reference external" href="https://www.rc.fas.harvard.edu/resources/access-and-login/">https://www.rc.fas.harvard.edu/resources/access-and-login/</a>)</p></li>
+<li><p>coxfs01 access [[link]](<a class="reference external" href="https://portal.rc.fas.harvard.edu/login/?next=/request/grants/add%3Fsearch%3Dcox_lab">https://portal.rc.fas.harvard.edu/login/?next=/request/grants/add%3Fsearch%3Dcox_lab</a>)</p></li>
+</ul>
+</div></blockquote>
+<ul>
+<li><p>Mount coxfs01 file system to local machine
+* Install packages: <cite>sudo apt-get install cifs-utils</cite>
+* Get your gid on your local machine: <cite>id</cite>
+* Mount it with your rc username and local machine gid:</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">`sudo</span> <span class="pre">mount</span> <span class="pre">-t</span> <span class="pre">cifs</span> <span class="pre">-o</span> <span class="pre">vers=1.0,workgroup=rc,username=${1},gid=${2}</span> <span class="pre">//coxfs01.rc.fas.harvard.edu/coxfs01</span> <span class="pre">/mnt/coxfs01`</span></code></p>
+</div></blockquote>
+</li>
+<li><p>Submit jobs through slurm scheduler [[official tutorial]](<a class="reference external" href="https://www.rc.fas.harvard.edu/resources/running-jobs/">https://www.rc.fas.harvard.edu/resources/running-jobs/</a>)
+* Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>CPU: <cite>srun –pty -p cox -t 7-00:00 –mem ${1} -n ${2} /bin/bash</cite></p></li>
+<li><p>GPU: <cite>srun –pty -p cox -t 7-00:00 –mem ${1} -n ${2} –gres=gpu:${3} /bin/bash</cite></p></li>
+</ul>
+</div></blockquote>
+<ul class="simple">
+<li><p>Submit job in the background:
++ <cite>/n/coxfs01/donglai/ppl/public/example_slurm.py</cite></p></li>
+</ul>
+</li>
+<li><p>Setup CUDA env
+* Request a GPU machine (<cite>srun</cite> or <cite>sbatch</cite>)
+* Load cuda on rc cluster: <cite>module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01</cite></p></li>
+<li><p>Deep learning env (python3/EM-network): <cite>source /n/coxfs01/donglai/lib/miniconda2/bin/activate em-net</cite></p></li>
+<li><p>ssh tunnel for port forwarding (e.g. tensorboard display)
+* Parameters:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>P1:port you want to display on localhost</p></li>
+<li><p>P2: port on rc server</p></li>
+<li><p>M1: coxgpu name, e.g. coxgpu06</p></li>
+</ul>
+</div></blockquote>
+<ul class="simple">
+<li><p>On local machine: <cite>ssh -L p1:localhost:p2 xx&#64;login.rc.fas.harvard.edu</cite></p></li>
+<li><p>On rc login server: <cite>ssh -L p2:localhost:p2 M1</cite></p></li>
+</ul>
+</li>
+</ul>
+<p>2. Group server (hp03 machine)
+- Get account and IP address: ask Admin
+- ssh: <cite>ssh ${IP}</cite>
+- Jupyter notebook: <cite>http://${IP}:9999</cite>
+- install miniconda</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>local copy (py27): <cite>sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh</cite></p></li>
+<li><p>download [[link]](<a class="reference external" href="https://conda.io/en/latest/miniconda.html">https://conda.io/en/latest/miniconda.html</a>)</p></li>
+</ul>
+</div></blockquote>
+<ul class="simple">
+<li><p>cmds for neuroglancer
+<code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">screen</span>
+<span class="pre">source</span> <span class="pre">/home/donglai/miniconda2/bin/activate</span> <span class="pre">ng</span>
+<span class="pre">python</span> <span class="pre">-i</span> <span class="pre">xxx.py</span>
+<span class="pre">`</span></code></p></li>
+</ul>
+</div>
+<div class="section" id="step-3-common-practice">
+<h2><a class="toc-backref" href="#id9">Step 3: Common Practice</a><a class="headerlink" href="#step-3-common-practice" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>Communication: Slack</p></li>
+<li><p>Coding
+* local machine: local development
+* rc server: run big jobs
+* hp03 server: public visualization (html, neuroglancer)</p></li>
+<li><p>Project managment
+* Create a new conda env for each project</p></li>
+<li><p>Unix Tips
+* Terminal (split screen)</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>On mac: try <cite>iterm2</cite></p></li>
+<li><p>On Linux: try <cite>terminator</cite> or <cite>tmux</cite></p></li>
+</ul>
+</div></blockquote>
+<ul>
+<li><p>ssh
++ Automatic login in new bashes (after the login in a bash)</p>
+<blockquote>
+<div><ul>
+<li><p>Create a file with the following content: <cite>vim ~/.ssh/config</cite>
+<a href="#id1"><span class="problematic" id="id2">``</span></a>`
+Host *</p>
+<blockquote>
+<div><p>ControlMaster auto
+ControlPath <a class="reference external" href="mailto:~/&#46;ssh/master-%r&#37;&#52;&#48;%h">~/<span>&#46;</span>ssh/master-%r<span>&#64;</span>%h</a>:%p</p>
+</div></blockquote>
+<p><a href="#id3"><span class="problematic" id="id4">``</span></a><a href="#id5"><span class="problematic" id="id6">`</span></a></p>
+</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>bash
++ Add useful alias: <cite>vim ~/.bashrc</cite></p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">alias</span> <span class="pre">csh='ssh</span> <span class="pre">${USERNAME}&#64;login.rc.fas.harvard.edu'</span>
+<span class="pre">`</span></code></p>
+</div></blockquote>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="section" id="step-4-end-to-end-connectomics-tutorial">
+<h2><a class="toc-backref" href="#id10">Step 4: End-to-End Connectomics Tutorial:</a><a class="headerlink" href="#step-4-end-to-end-connectomics-tutorial" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><dl>
+<dt>3D Data visualization with [Neuroglancer](<a class="reference external" href="https://github.com/google/neuroglancer">https://github.com/google/neuroglancer</a>)</dt><dd><ul class="simple">
+<li><p>If using jupyter notebook, copy over the kernel folder and choose the kernel <cite>ng</cite>:</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">sudo</span> <span class="pre">cp</span> <span class="pre">-r</span> <span class="pre">/home/donglai/.local/share/jupyter/kernels/</span> <span class="pre">/home/${USERNAME}/.local/share/jupyter/</span>
+<span class="pre">`</span></code>
+* If using bash, source activate the env:
+<code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">source</span> <span class="pre">/home/donglai/miniconda2/bin/activate</span> <span class="pre">ng</span>
+<span class="pre">`</span></code>
+* Example code on hp03
+<code class="docutils literal notranslate"><span class="pre">`</span>
+<span class="pre">cp</span> <span class="pre">/home/donglai/public/tutorial/ng.py</span> <span class="pre">~/</span>
+<span class="pre">`</span></code>
+* Neuroglancer [shortcuts](<a class="reference external" href="https://github.com/google/neuroglancer#keyboard-and-mouse-bindings">https://github.com/google/neuroglancer#keyboard-and-mouse-bindings</a>)</p>
+</dd>
+</dl>
+</li>
+<li><p>Image -&gt; Image: deflicker</p></li>
+</ul>
+<blockquote>
+<div><ul class="simple">
+<li><p>Installation: [[github repo]](<a class="reference external" href="https://github.com/donglaiw/EM-preprocess">https://github.com/donglaiw/EM-preprocess</a>)</p></li>
+<li><p>Run example code: <cite>python script/T_deflicker.py</cite></p></li>
+</ul>
+</div></blockquote>
+<ul class="simple">
+<li><p>Image -&gt; Affinity: Volumetric Deep learning package</p></li>
+</ul>
+<blockquote>
+<div><ul class="simple">
+<li><p>Installation: [[github repo]](<a class="reference external" href="https://github.com/donglaiw/EM-network">https://github.com/donglaiw/EM-network</a>)</p></li>
+<li><p>Tensorboard on hp03
++ Activate env: <cite>source /home/donglai/miniconda2/bin/activate tensorB</cite>
++ Run tensorboard (choose an unused port): <cite>tensorboard –logdir=xx –port=10021</cite></p></li>
+</ul>
+</div></blockquote>
+<ul class="simple">
+<li><p>Affinity -&gt; segmentation: zwatershed+waterz
+* Paper: [waterz](<a class="reference external" href="https://arxiv.org/pdf/1709.02974.pdf">https://arxiv.org/pdf/1709.02974.pdf</a>), [zwatershed](<a class="reference external" href="https://arxiv.org/abs/1505.00249">https://arxiv.org/abs/1505.00249</a>)
+* Installation (github repos): [zwatershed](<a class="reference external" href="https://github.com/donglaiw/zwatershed">https://github.com/donglaiw/zwatershed</a>), [waterz](<a class="reference external" href="https://github.com/donglaiw/waterz">https://github.com/donglaiw/waterz</a>), [evaluation](<a class="reference external" href="https://github.com/donglaiw/em-seglib">https://github.com/donglaiw/em-seglib</a>)
+* Example code (on hp03): <cite>cp /home/public/tutorial/*  ~/</cite></p></li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="../modules/nn.html" class="btn btn-neutral float-right" title="torch_geometric.nn" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../notes/introduction.html" class="btn btn-neutral float-left" title="Introduction by example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2019, Zudi Lin
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
