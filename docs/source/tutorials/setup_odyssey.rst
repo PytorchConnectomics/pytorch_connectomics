@@ -70,7 +70,7 @@ Step 2: Machine Setup
 
                         $ sbatch
 
-                #. Load cuda on rc cluster: 
+                * Load cuda on rc cluster: 
 
                 .. code-block:: none
 
@@ -83,18 +83,18 @@ Step 2: Machine Setup
                         $ source /n/coxfs01/donglai/lib/miniconda2/bin/activate em-net
         
         #. ssh tunnel for port forwarding (e.g. tensorboard display)
-                #. Parameters:
+                * Parameters:
                         + P1:port you want to display on localhost
                         + P2: port on rc server
                         + M1: coxgpu name, e.g. coxgpu06
                 
-                #. On local machine: 
+                * On local machine: 
 
                 .. code-block:: none
 
                         $ ssh -L p1:localhost:p2 xx@login.rc.fas.harvard.edu
                 
-                #. On rc login server: 
+                * On rc login server: 
 
                 .. code-block:: none
 
