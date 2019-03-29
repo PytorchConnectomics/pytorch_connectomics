@@ -17,8 +17,16 @@ Step 2: Machine Setup
     * coxfs01 access [[link]](https://portal.rc.fas.harvard.edu/login/?next=/request/grants/add%3Fsearch%3Dcox_lab)
 
   #. Mount coxfs01 file system to local machine
-    * Install packages: `sudo apt-get install cifs-utils`
-    * Get your gid on your local machine: `id`
+    * Install packages: 
+    .. code-block:: none
+
+            $ sudo apt-get install cifs-utils
+    
+    * Get your gid on your local machine: 
+    .. code-block:: none
+
+            $ id
+
     * Mount it with your rc username and local machine gid: 
 
     .. code-block:: none
