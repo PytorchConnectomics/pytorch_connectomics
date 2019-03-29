@@ -52,7 +52,7 @@ Step 2: Machine Setup
 
                 * Submit job in the background:
 
-                ..code-block:: none
+                .. code-block:: none
 
                         $ /n/coxfs01/donglai/ppl/public/example_slurm.py
 
@@ -60,25 +60,25 @@ Step 2: Machine Setup
 
                 * Request a GPU machine 
 
-                ..code-block:: none
+                .. code-block:: none
 
                         $ srun
 
                 or 
 
-                ..code-block:: none
+                .. code-block:: none
 
                         $ sbatch
 
                 #. Load cuda on rc cluster: 
 
-                ..code-block:: none
+                .. code-block:: none
 
                         $ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01
 
         #. Deep learning env (python3/EM-network): 
 
-        ..code-block:: none
+        .. code-block:: none
 
                         $ source /n/coxfs01/donglai/lib/miniconda2/bin/activate em-net
         
@@ -90,13 +90,13 @@ Step 2: Machine Setup
                 
                 #. On local machine: 
 
-                ..code-block:: none
+                .. code-block:: none
 
                         $ ssh -L p1:localhost:p2 xx@login.rc.fas.harvard.edu
                 
                 #. On rc login server: 
 
-                ..code-block:: none
+                .. code-block:: none
 
                         $ ssh -L p2:localhost:p2 M1
                 
