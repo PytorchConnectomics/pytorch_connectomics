@@ -10,21 +10,22 @@ Step 1: `School-related Setup <https://docs.google.com/document/d/18ovdpC2Tzf_8E
 
 Step 2: Machine Setup
 -----------------------
-1. Harvard RC server
-- Create account:
-  * Apply for SEAS account 
-  * RC account [[link]](https://www.rc.fas.harvard.edu/resources/access-and-login/)
-  * coxfs01 access [[link]](https://portal.rc.fas.harvard.edu/login/?next=/request/grants/add%3Fsearch%3Dcox_lab)
-- Mount coxfs01 file system to local machine
-  * Install packages: `sudo apt-get install cifs-utils`
-  * Get your gid on your local machine: `id`
-  * Mount it with your rc username and local machine gid: 
+#. Harvard RC server 
+  #. Create account:
+    * Apply for SEAS account 
+    * RC account [[link]](https://www.rc.fas.harvard.edu/resources/access-and-login/)
+    * coxfs01 access [[link]](https://portal.rc.fas.harvard.edu/login/?next=/request/grants/add%3Fsearch%3Dcox_lab)
 
-  .. code-block:: none
+  #. Mount coxfs01 file system to local machine
+    * Install packages: `sudo apt-get install cifs-utils`
+    * Get your gid on your local machine: `id`
+    * Mount it with your rc username and local machine gid: 
+
+    .. code-block:: none
 
             $ sudo mount -t cifs -o vers=1.0,workgroup=rc,username=${1},gid=${2} //coxfs01.rc.fas.harvard.edu/coxfs01 /mnt/coxfs01
             
-- Submit jobs through slurm scheduler [[official tutorial]](https://www.rc.fas.harvard.edu/resources/running-jobs/)
+  #. Submit jobs through slurm scheduler [[official tutorial]](https://www.rc.fas.harvard.edu/resources/running-jobs/)
   * Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)
     + CPU: 
     .. code-block:: none
