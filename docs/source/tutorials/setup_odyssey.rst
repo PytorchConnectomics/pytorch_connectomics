@@ -1,3 +1,4 @@
+
 Guidance for Harvard RC Users
 =======================
 
@@ -10,19 +11,32 @@ Step 1: `School-related Setup <https://docs.google.com/document/d/18ovdpC2Tzf_8E
 Step 2: Machine Setup
 -----------------------
 1. Harvard RC server
-- Get account:
+- Create account:
   * Apply for SEAS account 
   * RC account [[link]](https://www.rc.fas.harvard.edu/resources/access-and-login/)
   * coxfs01 access [[link]](https://portal.rc.fas.harvard.edu/login/?next=/request/grants/add%3Fsearch%3Dcox_lab)
 - Mount coxfs01 file system to local machine
   * Install packages: `sudo apt-get install cifs-utils`
   * Get your gid on your local machine: `id`
-  * Mount it with your rc username and local machine gid:  
-    ```sudo mount -t cifs -o vers=1.0,workgroup=rc,username=${1},gid=${2} //coxfs01.rc.fas.harvard.edu/coxfs01 /mnt/coxfs01```
+  * Mount it with your rc username and local machine gid: 
+
+  .. code-block:: none
+
+            $ sudo mount -t cifs -o vers=1.0,workgroup=rc,username=${1},gid=${2} //coxfs01.rc.fas.harvard.edu/coxfs01 /mnt/coxfs01
+            
 - Submit jobs through slurm scheduler [[official tutorial]](https://www.rc.fas.harvard.edu/resources/running-jobs/)
   * Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)
-    + CPU: `srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} /bin/bash`
-    + GPU: `srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} --gres=gpu:${3} /bin/bash`
+    + CPU: 
+    .. code-block:: none
+
+            $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} /bin/bash
+
+    + GPU: 
+
+    .. code-block:: none
+
+            $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} --gres=gpu:${3} /bin/bash
+
   * Submit job in the background:
     + `/n/coxfs01/donglai/ppl/public/example_slurm.py`
 - Setup CUDA env
