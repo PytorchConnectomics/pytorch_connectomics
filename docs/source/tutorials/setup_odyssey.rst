@@ -19,11 +19,13 @@ Step 2: Machine Setup
 
         #.  Mount coxfs01 file system to local machine
                 * Install packages: 
+
                 .. code-block:: none
 
                         $ sudo apt-get install cifs-utils
     
                 * Get your gid on your local machine: 
+
                 .. code-block:: none
 
                         $ id
@@ -35,31 +37,69 @@ Step 2: Machine Setup
                         $ sudo mount -t cifs -o vers=1.0,workgroup=rc,username=${1},gid=${2} //coxfs01.rc.fas.harvard.edu/coxfs01 /mnt/coxfs01
             
         #. Submit jobs through slurm scheduler [[official tutorial]](https://www.rc.fas.harvard.edu/resources/running-jobs/)
-                * Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)
-                + CPU: 
-                .. code-block:: none
+                #. Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)
+                        + CPU: 
 
-                        $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} /bin/bash
+                        .. code-block:: none
 
-                + GPU: 
+                                $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} /bin/bash
 
-                .. code-block:: none
+                        + GPU: 
 
-                          $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} --gres=gpu:${3} /bin/bash
+                        .. code-block:: none
 
-  * Submit job in the background:
-    + `/n/coxfs01/donglai/ppl/public/example_slurm.py`
-- Setup CUDA env
-  * Request a GPU machine (`srun` or `sbatch`)
-  * Load cuda on rc cluster: `module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01`
-- Deep learning env (python3/EM-network): `source /n/coxfs01/donglai/lib/miniconda2/bin/activate em-net`
-- ssh tunnel for port forwarding (e.g. tensorboard display)
-  * Parameters:
-    + P1:port you want to display on localhost
-    + P2: port on rc server
-    + M1: coxgpu name, e.g. coxgpu06
-  * On local machine: `ssh -L p1:localhost:p2 xx@login.rc.fas.harvard.edu`
-  * On rc login server: `ssh -L p2:localhost:p2 M1`
+                                $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} --gres=gpu:${3} /bin/bash
+
+                #. Submit job in the background:
+
+                ..code-block:: none
+
+                        $ /n/coxfs01/donglai/ppl/public/example_slurm.py
+
+        #. Setup CUDA env
+
+                #. Request a GPU machine 
+
+                ..code-block:: none
+
+                        $ srun
+
+                        or 
+
+                ..code-block:: none
+
+                        $ sbatch
+
+                #. Load cuda on rc cluster: 
+
+                ..code-block:: none
+
+                        $ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01
+
+        #. Deep learning env (python3/EM-network): 
+
+        ..code-block:: none
+
+                        $ source /n/coxfs01/donglai/lib/miniconda2/bin/activate em-net
+        
+        #. ssh tunnel for port forwarding (e.g. tensorboard display)
+                #. Parameters:
+                        + P1:port you want to display on localhost
+                        + P2: port on rc server
+                        + M1: coxgpu name, e.g. coxgpu06
+                
+                #. On local machine: 
+
+                ..code-block:: none
+
+                        $ ssh -L p1:localhost:p2 xx@login.rc.fas.harvard.edu
+                
+                #. On rc login server: 
+
+                ..code-block:: none
+
+                        $ ssh -L p2:localhost:p2 M1
+                
 
 2. Group server (hp03 machine)
 - Get account and IP address: ask Admin
