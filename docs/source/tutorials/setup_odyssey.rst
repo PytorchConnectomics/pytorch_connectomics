@@ -121,7 +121,7 @@ Step 2: Machine Setup
 
                 .. code-block:: none
 
-                        `sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh`
+                        $ sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh
 
                 * download [[link]](https://conda.io/en/latest/miniconda.html)
 
@@ -129,63 +129,106 @@ Step 2: Machine Setup
 
         .. code-block:: none
 
-                        `sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh`
+                $ screen source /home/donglai/miniconda2/bin/activate ng python -i xxx.py
 
 
 Step 3: Common Practice
 -----------------------
 
-- Communication: Slack
-- Coding
-  * local machine: local development
-  * rc server: run big jobs
-  * hp03 server: public visualization (html, neuroglancer)
-- Project managment
-  * Create a new conda env for each project
-- Unix Tips
-  * Terminal (split screen)
-    + On mac: try `iterm2`
-    + On Linux: try `terminator` or `tmux`
-  * ssh
-    + Automatic login in new bashes (after the login in a bash)
-      - Create a file with the following content: `vim ~/.ssh/config`
-        ```
-        Host *
-          ControlMaster auto
-          ControlPath ~/.ssh/master-%r@%h:%p
-        ```
-  * bash	
-    + Add useful alias: `vim ~/.bashrc`
-      ```
-      alias csh='ssh ${USERNAME}@login.rc.fas.harvard.edu'
-      ```
+        #. Communication: Slack
+        #. Coding
+                * local machine: local development
+                * rc server: run big jobs
+                * hp03 server: public visualization (html, neuroglancer)
+        #. Project managment
+                * Create a new conda env for each project
+        #. Unix Tips
+                * Terminal (split screen)
+                        + On mac: try `iterm2`
+                        + On Linux: try `terminator` or `tmux`
+                * ssh
+                        + Automatic login in new bashes (after the login in a bash)
+                        + Create a file with the following content:
+
+                        .. code-block:: none
+
+                                $ vim ~/.ssh/config
+
+
+                        + Host *
+                                ControlMaster auto
+                                ControlPath ~/.ssh/master-%r@%h:%p
+
+                * bash	
+                        + Add useful alias:
+
+                        .. code-block:: none
+
+                                $ vim ~/.bashrc
+
+                        + alias csh=
+
+                        .. code-block:: none
+
+                                $ ssh ${USERNAME}@login.rc.fas.harvard.edu
 
 Step 4: End-to-End Connectomics Tutorial:
 -----------------------
-- 3D Data visualization with [Neuroglancer](https://github.com/google/neuroglancer)
-   * If using jupyter notebook, copy over the kernel folder and choose the kernel `ng`:
-   ```
-   sudo cp -r /home/donglai/.local/share/jupyter/kernels/ /home/${USERNAME}/.local/share/jupyter/
-   ```
-   * If using bash, source activate the env: 
-   ```
-   source /home/donglai/miniconda2/bin/activate ng
-   ```
-   * Example code on hp03
-   ```
-   cp /home/donglai/public/tutorial/ng.py ~/
-   ```
-   * Neuroglancer [shortcuts](https://github.com/google/neuroglancer#keyboard-and-mouse-bindings)
-- Image -> Image: deflicker
- * Installation: [[github repo]](https://github.com/donglaiw/EM-preprocess)
- * Run example code: `python script/T_deflicker.py`
-- Image -> Affinity: Volumetric Deep learning package
- * Installation: [[github repo]](https://github.com/donglaiw/EM-network)
- * Tensorboard on hp03
-   + Activate env: `source /home/donglai/miniconda2/bin/activate tensorB`
-   + Run tensorboard (choose an unused port): `tensorboard --logdir=xx --port=10021` 
+#. 3D Data visualization with [Neuroglancer](https://github.com/google/neuroglancer)
 
-- Affinity -> segmentation: zwatershed+waterz
-  * Paper: [waterz](https://arxiv.org/pdf/1709.02974.pdf), [zwatershed](https://arxiv.org/abs/1505.00249)
-  * Installation (github repos): [zwatershed](https://github.com/donglaiw/zwatershed), [waterz](https://github.com/donglaiw/waterz), [evaluation](https://github.com/donglaiw/em-seglib)
-  * Example code (on hp03): `cp /home/public/tutorial/*  ~/`
+        * If using jupyter notebook, copy over the kernel folder and choose the kernel `ng`:
+
+        .. code-block:: none
+
+                $ sudo cp -r /home/donglai/.local/share/jupyter/kernels/ /home/${USERNAME}/.local/share/jupyter/
+
+        * If using bash, source activate the env: 
+
+        .. code-block:: none
+
+                $ source /home/donglai/miniconda2/bin/activate ng
+
+        * Example code on hp03
+
+        .. code-block:: none
+
+                $ cp /home/donglai/public/tutorial/ng.py ~/
+
+        * Neuroglancer [shortcuts](https://github.com/google/neuroglancer#keyboard-and-mouse-bindings)
+
+#. Image -> Image: deflicker
+
+        * Installation: [[github repo]](https://github.com/donglaiw/EM-preprocess)
+
+        * Run example code: 
+
+        .. code-block:: none
+
+                $ python script/T_deflicker.py
+        
+#. Image -> Affinity: Volumetric Deep learning package
+
+        * Installation: [[github repo]](https://github.com/donglaiw/EM-network)
+
+        * Tensorboard on hp03
+
+                + Activate env: 
+
+                .. code-block:: none
+
+                        $ source /home/donglai/miniconda2/bin/activate tensorB
+                
+                + Run tensorboard (choose an unused port): `tensorboard --logdir=xx --port=10021` 
+
+#. Affinity -> segmentation: zwatershed+waterz
+        * Paper: [waterz](https://arxiv.org/pdf/1709.02974.pdf), [zwatershed](https://arxiv.org/abs/1505.00249)
+
+        * Installation (github repos): [zwatershed](https://github.com/donglaiw/zwatershed), [waterz](https://github.com/donglaiw/waterz), [evaluation](https://github.com/donglaiw/em-seglib)
+
+        * Example code (on hp03): 
+
+        .. code-block:: none
+
+                        $ cp /home/public/tutorial/*  ~/
+
+
