@@ -101,19 +101,36 @@ Step 2: Machine Setup
                         $ ssh -L p2:localhost:p2 M1
                 
 
-2. Group server (hp03 machine)
-- Get account and IP address: ask Admin
-- ssh: `ssh ${IP}`
-- Jupyter notebook: `http://${IP}:9999`
-- install miniconda
-  * local copy (py27): `sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh`
-  * download [[link]](https://conda.io/en/latest/miniconda.html)
-- cmds for neuroglancer
-  ```
-  screen
-  source /home/donglai/miniconda2/bin/activate ng
-  python -i xxx.py
-  ```
+#. Group server (hp03 machine)
+        #. Get account and IP address: ask Admin
+
+                * ssh: 
+
+                .. code-block:: none
+
+                        $ ssh ${IP}
+
+                * Jupyter notebook: 
+
+                .. code-block:: none
+
+                        $ http://${IP}:9999
+
+        #. install miniconda
+                * local copy (py27):
+
+                .. code-block:: none
+
+                        `sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh`
+
+                * download [[link]](https://conda.io/en/latest/miniconda.html)
+
+        #. cmds for neuroglancer
+
+        .. code-block:: none
+
+                        `sh /home/donglai/Downloads/Miniconda2-latest-Linux-x86_64.sh`
+
 
 Step 3: Common Practice
 -----------------------
