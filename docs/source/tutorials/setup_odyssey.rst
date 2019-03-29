@@ -135,42 +135,48 @@ Step 2: Machine Setup
 Step 3: Common Practice
 -----------------------
 
-        #. Communication: Slack
-        #. Coding
-                * local machine: local development
-                * rc server: run big jobs
-                * hp03 server: public visualization (html, neuroglancer)
-        #. Project managment
-                * Create a new conda env for each project
-        #. Unix Tips
-                * Terminal (split screen)
-                        + On mac: try `iterm2`
-                        + On Linux: try `terminator` or `tmux`
-                * ssh
-                        + Automatic login in new bashes (after the login in a bash)
-                        + Create a file with the following content:
+#. Communication: Slack
+#. Coding
 
-                        .. code-block:: none
+        * local machine: local development
 
-                                $ vim ~/.ssh/config
+        * rc server: run big jobs
+
+        * hp03 server: public visualization (html, neuroglancer)
+
+#. Project managment
+
+        * Create a new conda env for each project
+#. Unix Tips
+
+        * Terminal (split screen)
+                + On mac: try `iterm2`
+                + On Linux: try `terminator` or `tmux`
+        * ssh
+                + Automatic login in new bashes (after the login in a bash)
+                + Create a file with the following content:
+
+                .. code-block:: none
+
+                        $ vim ~/.ssh/config
 
 
-                        + Host *
-                                ControlMaster auto
-                                ControlPath ~/.ssh/master-%r@%h:%p
+                + Host *
+                        ControlMaster auto
+                        ControlPath ~/.ssh/master-%r@%h:%p
 
-                * bash	
-                        + Add useful alias:
+        * bash	
+                + Add useful alias:
 
-                        .. code-block:: none
+                .. code-block:: none
 
-                                $ vim ~/.bashrc
+                        $ vim ~/.bashrc
 
-                        + alias csh=
+                + alias csh=
 
-                        .. code-block:: none
+                .. code-block:: none
 
-                                $ ssh ${USERNAME}@login.rc.fas.harvard.edu
+                        $ ssh ${USERNAME}@login.rc.fas.harvard.edu
 
 Step 4: End-to-End Connectomics Tutorial:
 -----------------------
@@ -221,6 +227,7 @@ Step 4: End-to-End Connectomics Tutorial:
                 + Run tensorboard (choose an unused port): `tensorboard --logdir=xx --port=10021` 
 
 #. Affinity -> segmentation: zwatershed+waterz
+
         * Paper: [waterz](https://arxiv.org/pdf/1709.02974.pdf), [zwatershed](https://arxiv.org/abs/1505.00249)
 
         * Installation (github repos): [zwatershed](https://github.com/donglaiw/zwatershed), [waterz](https://github.com/donglaiw/waterz), [evaluation](https://github.com/donglaiw/em-seglib)
