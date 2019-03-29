@@ -37,7 +37,7 @@ Step 2: Machine Setup
                         $ sudo mount -t cifs -o vers=1.0,workgroup=rc,username=${1},gid=${2} //coxfs01.rc.fas.harvard.edu/coxfs01 /mnt/coxfs01
             
         #. Submit jobs through slurm scheduler [[official tutorial]](https://www.rc.fas.harvard.edu/resources/running-jobs/)
-                #. Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)
+                * Get an interactive shell for debug: (${1}: memory in MB, ${2}: # of CPUs, ${3}: # of GPUs)
                         + CPU: 
 
                         .. code-block:: none
@@ -50,7 +50,7 @@ Step 2: Machine Setup
 
                                 $ srun --pty -p cox -t 7-00:00 --mem ${1} -n ${2} --gres=gpu:${3} /bin/bash
 
-                #. Submit job in the background:
+                * Submit job in the background:
 
                 ..code-block:: none
 
@@ -58,13 +58,13 @@ Step 2: Machine Setup
 
         #. Setup CUDA env
 
-                #. Request a GPU machine 
+                * Request a GPU machine 
 
                 ..code-block:: none
 
                         $ srun
 
-                        or 
+                or 
 
                 ..code-block:: none
 
