@@ -22,10 +22,10 @@ In addition, it consists of an easy-to-use mini-batch loader, a large number of 
    :caption: Tutorials
 
    tutorials/setup_odyssey
-   tutorials/Data Visualization
-   tutorials/Pre-Processing
-   tutorials/Network Training
-   tutorials/Large-Scale Inference
+   tutorials/Data_Visualization
+   tutorials/Pre_Processing
+   tutorials/Network_Training
+   tutorials/Large_Scale_Inference
    tutorials/Evaluation
 
 .. toctree::
