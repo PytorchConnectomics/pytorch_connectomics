@@ -15,9 +15,18 @@ In addition, it consists of an easy-to-use mini-batch loader, a large number of 
 
    notes/installation
    notes/introduction
-   notes/setup_odyssey
-   notes/create_gnn
-   notes/create_dataset
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+   :caption: Tutorials
+
+   tutorials/setup_odyssey
+   tutorials/data_visualization
+   tutorials/pre_processing
+   tutorials/network_training
+   tutorials/large_scale_inference
+   tutorials/evaluation
 
 .. toctree::
    :glob:

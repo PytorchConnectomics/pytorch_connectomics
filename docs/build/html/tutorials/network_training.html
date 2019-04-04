@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torch_geometric.utils &mdash; pytorch_connectomics master documentation</title>
+  <title>Network Training &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -37,7 +37,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="prev" title="torch_geometric.transforms" href="transforms.html" /> 
+    <link rel="next" title="Large Scale Inference" href="large_scale_inference.html" />
+    <link rel="prev" title="Pre Processing" href="pre_processing.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -105,27 +106,27 @@
 </li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/setup_odyssey.html">Guidance for Harvard RC Users</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/setup_odyssey.html#step-1-school-related-setup">Step 1: School-related Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/setup_odyssey.html#step-2-machine-setup">Step 2: Machine Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/setup_odyssey.html#step-3-common-practice">Step 3: Common Practice</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/setup_odyssey.html#step-4-end-to-end-connectomics-tutorial">Step 4: End-to-End Connectomics Tutorial:</a></li>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="setup_odyssey.html">Guidance for Harvard RC Users</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="setup_odyssey.html#step-1-school-related-setup">Step 1: School-related Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup_odyssey.html#step-2-machine-setup">Step 2: Machine Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup_odyssey.html#step-3-common-practice">Step 3: Common Practice</a></li>
+<li class="toctree-l2"><a class="reference internal" href="setup_odyssey.html#step-4-end-to-end-connectomics-tutorial">Step 4: End-to-End Connectomics Tutorial:</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/data_visualization.html">Data Visualization</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/pre_processing.html">Pre Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/network_training.html">Network Training</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/large_scale_inference.html">Large Scale Inference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_visualization.html">Data Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pre_processing.html">Pre Processing</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Network Training</a></li>
+<li class="toctree-l1"><a class="reference internal" href="large_scale_inference.html">Large Scale Inference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="evaluation.html">Evaluation</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="nn.html">torch_geometric.nn</a></li>
-<li class="toctree-l1"><a class="reference internal" href="data.html">torch_geometric.data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="datasets.html">torch_geometric.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="transforms.html">torch_geometric.transforms</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">torch_geometric.utils</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/nn.html">torch_geometric.nn</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">torch_geometric.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">torch_geometric.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/transforms.html">torch_geometric.transforms</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">torch_geometric.utils</a></li>
 </ul>
 
             
@@ -171,13 +172,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>torch_geometric.utils</li>
+      <li>Network Training</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/modules/utils.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/network_training.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -190,8 +191,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="torch-geometric-utils">
-<h1>torch_geometric.utils<a class="headerlink" href="#torch-geometric-utils" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="network-training">
+<h1>Network Training<a class="headerlink" href="#network-training" title="Permalink to this headline">¶</a></h1>
 </div>
 
 
@@ -202,8 +203,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
+        <a href="large_scale_inference.html" class="btn btn-neutral float-right" title="Large Scale Inference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
-        <a href="transforms.html" class="btn btn-neutral float-left" title="torch_geometric.transforms" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+        <a href="pre_processing.html" class="btn btn-neutral float-left" title="Pre Processing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
