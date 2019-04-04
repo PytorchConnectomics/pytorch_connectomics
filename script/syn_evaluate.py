@@ -227,7 +227,7 @@ if __name__ == "__main__":
     #pd_path = '/n/coxfs01/vcg_connectomics/human/roi215/tim/964355253395_w08_roi215_subset_predictions_20190207_8x8.h5'
     # pred_16nm_path = '/n/coxfs01/vcg_connectomics/human/roi215/tim/964355253395_w08_roi215_subset_predictions_20190207_16x16.h5'
     gt_path = '/n/coxfs01/zudilin/research/simulation/jwr_vol2/vol2_gt.h5'
-    pd_path = '/n/coxfs01/zudilin/research/pytorch_connectomics/script/outputs/fpn0325/result800k/volume_0.h5'
+    pd_path = '/n/coxfs01/zudilin/research/pytorch_connectomics/script/outputs/unetv2_0325/result800k/volume_0.h5'
 
     print(gt_path)
     print(pd_path)
