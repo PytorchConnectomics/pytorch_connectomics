@@ -9,6 +9,9 @@ from vcg_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatc
 
 # 1. Residual blocks
 class residual_block_2d(nn.Module):
+    """
+    Residual Block 2D
+    """
     def __init__(self, in_planes, out_planes, projection=True):
         super(residual_block_2d, self).__init__()
         self.projection = projection
