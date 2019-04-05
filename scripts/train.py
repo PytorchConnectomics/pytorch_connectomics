@@ -1,5 +1,4 @@
 import os,sys
-sys.path.append(os.path.abspath('../'))
 import numpy as np
 import h5py, time, argparse, itertools, datetime
 from scipy import ndimage
@@ -9,8 +8,11 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from model import *
-from data import *
+from vcg_connectomics.model.model_zoo import *
+from vcg_connectomics.model.loss import *
+from vcg_connectomics.data.dataset import AffinityDataset, collate_fn
+from vcg_connectomics.utils.net import AverageMeter
+from vcg_connectomics.utils.vis import visualize, visualize_aff
 
 from libs.sync import DataParallelWithCallback
 
@@ -77,12 +79,12 @@ def init(args):
 
     # select training machine
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("output path: ", sn)
+    print("device: ", device)
 
     return model_io_size, device
 
 def get_input(args, model_io_size, opt='train'):
-    # two dataLoader, can't be both multiple-cpu (pytorch issue)
-
     if opt=='train':
         dir_name = args.train.split('@')
         num_worker = args.num_cpu
@@ -115,29 +117,23 @@ def get_input(args, model_io_size, opt='train'):
 
     # original image is in [0, 255], normalize to [0, 1]
     for i in range(len(img_name)):
-        # train_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])/255.0
-        # train_label[i] = np.array(h5py.File(seg_name[i], 'r')['main'])
-        # train_input[i] = (train_input[i].transpose(2, 1, 0))[100:-100, 200:-200, 200:-200]
-        # train_label[i] = (train_label[i].transpose(2, 1, 0))[100:-100, 200:-200, 200:-200]
         train_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])/255.0
         train_label[i] = np.array(h5py.File(seg_name[i], 'r')['main'])
         train_label[i] = (train_label[i] != 0).astype(np.float32)
         train_input[i] = train_input[i].astype(np.float32)
         #train_distance[i] = train_distance[i].astype(np.float32)
-    
-        assert train_input[i].shape==train_label[i].shape[1:]
-        print("synapse pixels: ", np.sum(train_label[i][0]))
-        print("volume shape: ", train_input[i].shape)    
-
-    data_aug = True
-    print('Data augmentation: ', data_aug)
+        print("volume shape: ", train_input[i].shape)
+        print("label shape: ", train_label[i].shape)
+   
+    data_aug = False
+    print('data augmentation: ', data_aug)
     # dataset = SynapseDataset(volume=train_input, label=train_label, vol_input_size=model_io_size, \
     #                              vol_label_size=model_io_size, data_aug = data_aug, mode = 'train')
-    dataset = PolaritySynapseDataset(volume=train_input, label=train_label, vol_input_size=model_io_size,
-                                 vol_label_size=model_io_size, data_aug = data_aug, mode = 'train')                            
+    dataset = AffinityDataset(volume=train_input, label=train_label, sample_input_size=model_io_size,
+                              sample_label_size=model_io_size, augmentor = None, mode = 'train')                            
     # to have evaluation during training (two dataloader), has to set num_worker=0
     SHUFFLE = (opt=='train')
-    print('Batch size: ', args.batch_size)
+    print('batch size: ', args.batch_size)
     img_loader =  torch.utils.data.DataLoader(
             dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
             num_workers=num_worker, pin_memory=True)
@@ -154,27 +150,12 @@ def get_logger(args):
     writer = SummaryWriter('runs/'+log_name)
     return logger, writer
 
-def visualize(volume, label, output, iteration, writer):
-
-    sz = volume.size()
-    volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
-    output_visual = output.detach().cpu().expand(sz[0],3,sz[2],sz[3])
-    label_visual = label.detach().cpu().expand(sz[0],3,sz[2],sz[3])
-
-    volume_show = vutils.make_grid(volume_visual, nrow=8, normalize=True, scale_each=True)
-    output_show = vutils.make_grid(output_visual, nrow=8, normalize=True, scale_each=True)
-    label_show = vutils.make_grid(label_visual, nrow=8, normalize=True, scale_each=True)
-
-    writer.add_image('Input', volume_show, iteration)
-    writer.add_image('Label', label_show, iteration)
-    writer.add_image('Output', output_show, iteration)    
-
 def train(args, train_loader, model, device, criterion, optimizer, logger, writer):
     # switch to train mode
     model.train()
     volume_id = 0
 
-    for _, (volume, label, class_weight, _) in enumerate(train_loader):
+    for _, (pos, volume, label, class_weight, _) in enumerate(train_loader):
         volume_id += args.batch_size
 
         # if i == 0: print(volume.size())
@@ -207,7 +188,7 @@ def train(args, train_loader, model, device, criterion, optimizer, logger, write
             volume_show = volume[0].permute(1,0,2,3)
             output_show = output[0].permute(1,0,2,3)
             label_show = label[0].permute(1,0,2,3)
-            visualize(volume_show, label_show, output_show, volume_id, writer)
+            visualize_aff(volume_show, label_show, output_show, volume_id, writer)
 
         if volume_id % args.volume_save < args.batch_size or volume_id >= args.volume_total:
             torch.save(model.state_dict(), args.output+('/volume_%d.pth' % (volume_id)))
@@ -228,7 +209,7 @@ def main():
 
     print('2.0 setup model')
     #model = fpn(in_channel=1, out_channel=3)
-    model = unetv2(in_channel=1, out_channel=3)
+    model = unetv3(in_channel=1, out_channel=3)
     print('model: ', model.__class__.__name__)
     model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
     model = model.to(device)
@@ -243,7 +224,7 @@ def main():
         print(args.pre_model)
             
     print('2.1 setup loss function')
-    criterion = WeightedMSE()   
+    criterion = WeightedBCE()   
  
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 

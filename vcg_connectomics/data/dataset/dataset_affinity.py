@@ -68,26 +68,7 @@ class AffinityDataset(BaseDataset):
         out_input = out_input.unsqueeze(0)
 
         # Calculate Weight and Weight Factor
-        weight_factor = None
-        weight = None
-        if out_label is not None:
-
-            # ratio: pos/all
-            if valid_mask is not None:
-                weight_factor = out_label.float().sum() / float(valid_mask.sum()*3)
-            else:
-                weight_factor = out_label.float().sum() / torch.prod(torch.tensor(out_label.size()).float())
-            weight_factor = torch.clamp(weight_factor, min=1e-3)
-            # weighted by 0-1 distribution
-            weight = out_label*(1-weight_factor)/weight_factor + (1-out_label)
-            #weight = torch.ones(out_label.size()) 
-            #weight = weight * torch.Tensor(gaussian_blend(vol_size, 0.9))
-
-            if valid_mask is not None: # apply 0-1 mask to all channel
-                weight = weight * torch.Tensor(np.tile(valid_mask[None].astype(np.uint8),(3,1,1,1)))
-                # normalize weight to balance batches
-                # otherwise, really small loss due to large invalid region
-                weight = weight * (valid_mask.size/float(valid_mask.sum()))
-            print(weight_factor, (valid_mask.size/float(valid_mask.sum())))
+        weight_factor = 1
+        weight = torch.ones(out_label.size())
 
         return pos, out_input, out_label, weight, weight_factor
