@@ -124,7 +124,3 @@ dmypy.json
 *.pth
 *.sh
 others/
-
-# Build
-build/temp.linux-x86_64-3.6/
-build/temp.linux-x86_64-3.7/
