@@ -34,6 +34,7 @@ In addition, it consists of an easy-to-use mini-batch loader, a large number of 
    :caption: Package Reference
 
    modules/nn
+   modules/model.rst
    modules/data
    modules/datasets
    modules/transforms
