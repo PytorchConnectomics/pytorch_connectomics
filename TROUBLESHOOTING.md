@@ -14,7 +14,7 @@ vcg_connectomics/utils/seg/cpp/seg_core/cpp-seg_core.cpp:3:43: fatal error: boos
 
     ----------------------------------------
 ```
-please can try
+you can try
 ```
 conda install -c statiskit libboost-dev
 ```
