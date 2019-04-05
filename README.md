@@ -1,4 +1,4 @@
-# A Deep Learning Toolbox for EM Connectomics Research @ VCG
+# A Deep Learning Toolbox for Connectomics Research @ VCG
 
 ## Introduction
 
