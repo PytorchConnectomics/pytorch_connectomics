@@ -1,6 +1,7 @@
 scikit-learn
 matplotlib
-cython
+Cython
+h5py
 tensorflow
 tensorboard
 tensorboardX

@@ -1,9 +1,8 @@
-from distutils.core import setup
-from distutils.extension import Extension
-from distutils.sysconfig import get_python_inc
-from setuptools import find_packages
-from Cython.Distutils import build_ext
+import os, sys
 import numpy as np
+from distutils.sysconfig import get_python_inc
+from setuptools import setup, Extension
+from Cython.Distutils import build_ext
 
 def getExt():
     # extensions under segmenation/
@@ -34,11 +33,15 @@ def getExt():
         Extension(
             name='vcg_connectomics.utils.seg.seg_malis',
             sources=['vcg_connectomics/utils/seg/seg_malis.pyx',
-                     'vcg_connectomics/utils.seg/cpp/seg_malis/cpp-malis_core.cpp'],
+                     'vcg_connectomics/utils/seg/cpp/seg_malis/cpp-malis_core.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         )
     ]
+
+def getInclude():
+    dirName = get_python_inc()
+    return [dirName, os.path.dirname(dirName), np.get_include()]
 
 def setup_package():
 
@@ -49,9 +52,11 @@ def setup_package():
         version=__version__,
         url=url,
         license='MIT',
+        install_requires=['cython','scipy','boost'],
         cmdclass = {'build_ext': build_ext},
-        include_dirs=[np.get_include(), get_python_inc()], 
-        packages=find_packages()
+        include_dirs=getInclude(), 
+        packages=['vcg_connectomics'],
+        ext_modules = getExt()
     )
 
 if __name__=='__main__':

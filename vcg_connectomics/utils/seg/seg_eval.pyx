@@ -5,8 +5,8 @@ import numpy as np
 import ctypes
 import scipy.sparse as sparse
 
-from em_segLib.seg_dist import DilateData 
-from em_segLib.seg_core import RemoveSmallConnectedComponents
+from vcg_connectomics.utils.seg.seg_dist import DilateData 
+from vcg_connectomics.utils.seg.seg_core import RemoveSmallConnectedComponents
 
 cdef extern from 'cpp/seg_eval/cpp-comparestacks.h':
     void CppEvaluate(long *segmentation, long *gold, long resolution[3], unsigned char mask_ground_truth)

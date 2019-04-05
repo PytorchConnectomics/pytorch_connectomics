@@ -6,8 +6,8 @@ from libc.stdint cimport uint64_t,int32_t
 import numpy as np
 import scipy.ndimage
 
-from em_segLib.aff_util import affgraph_to_edgelist
-from em_segLib.seg_util import mknhood3d
+from vcg_connectomics.utils.seg.aff_util import affgraph_to_edgelist
+from vcg_connectomics.utils.seg.seg_util import mknhood3d
 
 cdef extern from 'cpp/seg_core/cpp-seg2seg.h':
     long *CppMapLabels(long *segmentation, long *mapping, unsigned long nentries)
