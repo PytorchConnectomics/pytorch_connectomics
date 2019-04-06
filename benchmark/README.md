@@ -4,10 +4,11 @@
 
 | Augmentation  | Unet-v0    | Unet-v1    | Unet-v2    | Unet-v3    | FPN        |
 | ------------- | ---------  | ---------- | ---------- | ---------- | ---------- |
-|               | 28x160x160 | 12x160x160 | 12x160x160 | 12x160x160 | 12x160x160 |
 | Baseline      |            |            |            |            |            |
 | Augment 1     |            |            |            |            |            |
 | Augment 2     |            |            |            |            |            |
+
+We use a mini-batch size of 8 with patches of size (18,160,160). The initial learning rate is 0.001.
 
 **Baseline:** no augmentation
 
