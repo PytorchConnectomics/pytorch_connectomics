@@ -11,21 +11,16 @@ import torchvision.utils as vutils
 from vcg_connectomics.model.model_zoo import *
 from vcg_connectomics.model.loss import *
 from vcg_connectomics.data.dataset import AffinityDataset, collate_fn
-from vcg_connectomics.utils.net import AverageMeter
+from vcg_connectomics.utils.net import AverageMeter, init, get_logger
 from vcg_connectomics.utils.vis import visualize, visualize_aff
 
-from libs.sync import DataParallelWithCallback
-
-# tensorboardX
-from tensorboardX import SummaryWriter
+from vcg_connectomics.libs.sync import DataParallelWithCallback
 
 def get_args():
     parser = argparse.ArgumentParser(description='Training Synapse Detection Model')
     # I/O
     parser.add_argument('-t','--train',  default='/n/coxfs01/',
                         help='Input folder (train)')
-    # parser.add_argument('-v','--val',  default='',
-    #                     help='input folder (test)')
     parser.add_argument('-dn','--img-name',  default='im_uint8.h5',
                         help='Image data path')
     parser.add_argument('-ln','--seg-name',  default='seg-groundtruth2-malis.h5',
@@ -47,15 +42,9 @@ def get_args():
                         help='Loss function')
     parser.add_argument('-lr', type=float, default=0.0001,
                         help='Learning rate')
-    # parser.add_argument('-lr_decay', default='inv,0.0001,0.75',
-    #                     help='learning rate decay')
-    # parser.add_argument('-betas', default='0.99,0.999',
-    #                     help='beta for adam')
-    # parser.add_argument('-wd', type=float, default=5e-6,
-    #                     help='weight decay')
-    parser.add_argument('--volume-total', type=int, default=1000,
+    parser.add_argument('--iteration-total', type=int, default=1000,
                         help='Total number of iteration')
-    parser.add_argument('--volume-save', type=int, default=100,
+    parser.add_argument('--iteration-save', type=int, default=100,
                         help='Number of iteration to save')
     parser.add_argument('-g','--num-gpu', type=int,  default=1,
                         help='Number of gpu')
@@ -64,25 +53,8 @@ def get_args():
     parser.add_argument('-b','--batch-size', type=int,  default=1,
                         help='Batch size')
 
-    # training settings:
-    parser.add_argument('-dw','--distance', default='im_uint8.h5',
-                        help='Loss weight based on distance transform.')
     args = parser.parse_args()
     return args
-
-def init(args):
-    sn = args.output+'/'
-    if not os.path.isdir(sn):
-        os.makedirs(sn)
-    # I/O size in (z,y,x), no specified channel number
-    model_io_size = np.array([int(x) for x in args.model_input.split(',')])
-
-    # select training machine
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print("output path: ", sn)
-    print("device: ", device)
-
-    return model_io_size, device
 
 def get_input(args, model_io_size, opt='train'):
     if opt=='train':
@@ -104,10 +76,6 @@ def get_input(args, model_io_size, opt='train'):
     # should be either one or the same as dir_name
     seg_name = [dir_name[0] + x for x in seg_name]
     img_name = [dir_name[0] + x for x in img_name]
-    #dis_name = [x for x in dis_name]
-    #print(dis_name)
-    #print(img_name)
-    #print(seg_name)
     
     # 1. load data
     assert len(img_name)==len(seg_name)
@@ -127,8 +95,6 @@ def get_input(args, model_io_size, opt='train'):
    
     data_aug = False
     print('data augmentation: ', data_aug)
-    # dataset = SynapseDataset(volume=train_input, label=train_label, vol_input_size=model_io_size, \
-    #                              vol_label_size=model_io_size, data_aug = data_aug, mode = 'train')
     dataset = AffinityDataset(volume=train_input, label=train_label, sample_input_size=model_io_size,
                               sample_label_size=model_io_size, augmentor = None, mode = 'train')                            
     # to have evaluation during training (two dataloader), has to set num_worker=0
@@ -139,62 +105,42 @@ def get_input(args, model_io_size, opt='train'):
             num_workers=num_worker, pin_memory=True)
     return img_loader
 
-def get_logger(args):
-    log_name = args.output+'/log'
-    date = str(datetime.datetime.now()).split(' ')[0]
-    time = str(datetime.datetime.now()).split(' ')[1].split('.')[0]
-    log_name += '_approx_'+date+'_'+time
-    logger = open(log_name+'.txt','w') # unbuffered, write instantly
-
-    # tensorboardX
-    writer = SummaryWriter('runs/'+log_name)
-    return logger, writer
-
 def train(args, train_loader, model, device, criterion, optimizer, logger, writer):
-    # switch to train mode
+    record = AverageMeter()
     model.train()
-    volume_id = 0
 
-    for _, (pos, volume, label, class_weight, _) in enumerate(train_loader):
-        volume_id += args.batch_size
+    for iteration, (pos, volume, label, class_weight, _) in enumerate(train_loader):
 
-        # if i == 0: print(volume.size())
-        # restrict the weight
-        # class_weight.clamp(max=1000)
-
-        # for gpu computing
-        # print(weight_factor)
         volume, label = volume.to(device), label.to(device)
         class_weight = class_weight.to(device)
         output = model(volume)
 
         loss = criterion(output, label, class_weight)
-        writer.add_scalar('Loss', loss.item(), volume_id) 
+        record.update(loss, args.batch_size) 
 
         # compute gradient and do Adam step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-        logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (volume_id, \
+        logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iteration, \
                 loss.item(), optimizer.param_groups[0]['lr']))
 
         # LR update
         #if args.lr > 0:
             #decay_lr(optimizer, args.lr, volume_id, lr_decay[0], lr_decay[1], lr_decay[2])
-        
-        if volume_id % 1000 < args.batch_size:
-            print('visualize: ', volume_id)
-            volume_show = volume[0].permute(1,0,2,3)
-            output_show = output[0].permute(1,0,2,3)
-            label_show = label[0].permute(1,0,2,3)
-            visualize_aff(volume_show, label_show, output_show, volume_id, writer)
 
-        if volume_id % args.volume_save < args.batch_size or volume_id >= args.volume_total:
-            torch.save(model.state_dict(), args.output+('/volume_%d.pth' % (volume_id)))
+        if iteration % 10 == 0 and iteration >= 1:
+            writer.add_scalar('Loss', record.avg, iteration)
+            record.reset()
+            visualize_aff(volume, label, output, iteration, writer)
+
+        #Save model
+        if iteration % args.iteration_save == 0 or iteration >= args.iteration_total:
+            torch.save(model.state_dict(), args.output+('/volume_%d.pth' % (iteration)))
 
         # Terminate
-        if volume_id >= args.volume_total:
+        if iteration >= args.iteration_total:
             break    #     
 
 def main():
@@ -208,14 +154,10 @@ def main():
     train_loader = get_input(args, model_io_size, 'train')
 
     print('2.0 setup model')
-    #model = fpn(in_channel=1, out_channel=3)
     model = unetv3(in_channel=1, out_channel=3)
     print('model: ', model.__class__.__name__)
     model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
     model = model.to(device)
-
-    #from torchsummary import summary
-    #summary(model, input_size=(1, 8, 160, 160))
 
     print('Fine-tune? ', bool(args.finetune))
     if bool(args.finetune):

@@ -8,6 +8,9 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
+# tensorboardX
+from tensorboardX import SummaryWriter
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -24,3 +27,29 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
+# functions
+def init(args):
+    sn = args.output+'/'
+    if not os.path.isdir(sn):
+        os.makedirs(sn)
+    # I/O size in (z,y,x), no specified channel number
+    model_io_size = np.array([int(x) for x in args.model_input.split(',')])
+
+    # select training machine
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("output path: ", sn)
+    print("device: ", device)
+
+    return model_io_size, device
+
+def get_logger(args):
+    log_name = args.output+'/log'
+    date = str(datetime.datetime.now()).split(' ')[0]
+    time = str(datetime.datetime.now()).split(' ')[1].split('.')[0]
+    log_name += '_approx_'+date+'_'+time
+    logger = open(log_name+'.txt','w') # unbuffered, write instantly
+
+    # tensorboardX
+    writer = SummaryWriter('runs/'+log_name)
+    return logger, writer

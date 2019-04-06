@@ -1,7 +1,14 @@
 import torch
 import torchvision.utils as vutils
 
+def prepare_data(volume, label, output):
+    if len(volume.size()) == 4:   # 2D Inputs
+        return volume, label, output
+    elif len(volume.size()) == 5: # 3D Inputs
+        return volume[0].permute(1,0,2,3), label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
+
 def visualize(volume, label, output, iteration, writer):
+    volume, label, output = prepare_data(volume, label, output)
 
     sz = volume.size() # z,c,y,x
     volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
@@ -17,6 +24,7 @@ def visualize(volume, label, output, iteration, writer):
     writer.add_image('Output', output_show, iteration)
 
 def visualize_aff(volume, label, output, iteration, writer):
+    volume, label, output = prepare_data(volume, label, output)
 
     sz = volume.size() # z,c,y,x
     canvas = []
