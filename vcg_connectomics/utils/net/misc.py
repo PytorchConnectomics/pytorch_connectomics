@@ -8,6 +8,9 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
+from vcg_connectomics.model.model_zoo import *
+from vcg_connectomics.libs.sync import DataParallelWithCallback
+
 # tensorboardX
 from tensorboardX import SummaryWriter
 
@@ -53,3 +56,39 @@ def get_logger(args):
     # tensorboardX
     writer = SummaryWriter('runs/'+log_name)
     return logger, writer
+
+def setup_model(args, device, exact=True, size_match=True):
+
+    MODEL_MAP = {'unetv0': unetv0,
+                 'unetv1': unetv1,
+                 'unetv2': unetv2,
+                 'unetv3': unetv3,
+                 'fpn': fpn}
+
+    model = MODEL_MAP[args.architecture](in_channel=1, out_channel=3)
+    print('model: ', model.__class__.__name__)
+    model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
+    model = model.to(device)
+
+    print('Fine-tune? ', bool(args.finetune))
+    if bool(args.finetune):
+        print('fine-tune on previous model:')
+        print(args.pre_model)
+        if exact:
+            model.load_state_dict(torch.load(args.pre_model))
+        else:
+            pretrained_dict = torch.load(args.pre_model)
+            model_dict = model.state_dict()
+            # 1. filter out unnecessary keys
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            # 2. overwrite entries in the existing state dict 
+            if size_match:
+                model_dict.update(pretrained_dict) 
+            else:
+                for param_tensor in pretrained_dict:
+                    if model_dict[param_tensor].size() == pretrained_dict[param_tensor].size():
+                        model_dict[param_tensor] = pretrained_dict[param_tensor]       
+            # 3. load the new state dict
+            model.load_state_dict(model_dict)     
+    
+    return model

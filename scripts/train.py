@@ -8,13 +8,10 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from vcg_connectomics.model.model_zoo import *
 from vcg_connectomics.model.loss import *
 from vcg_connectomics.data.dataset import AffinityDataset, collate_fn
-from vcg_connectomics.utils.net import AverageMeter, init, get_logger
+from vcg_connectomics.utils.net import *
 from vcg_connectomics.utils.vis import visualize, visualize_aff
-
-from vcg_connectomics.libs.sync import DataParallelWithCallback
 
 def get_args():
     parser = argparse.ArgumentParser(description='Training Synapse Detection Model')
@@ -105,7 +102,7 @@ def get_input(args, model_io_size, opt='train'):
             num_workers=num_worker, pin_memory=True)
     return img_loader
 
-def train(args, train_loader, model, device, criterion, optimizer, logger, writer):
+def train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer):
     record = AverageMeter()
     model.train()
 
@@ -132,6 +129,7 @@ def train(args, train_loader, model, device, criterion, optimizer, logger, write
 
         if iteration % 10 == 0 and iteration >= 1:
             writer.add_scalar('Loss', record.avg, iteration)
+            scheduler.step(record.avg)
             record.reset()
             visualize_aff(volume, label, output, iteration, writer)
 
@@ -154,16 +152,7 @@ def main():
     train_loader = get_input(args, model_io_size, 'train')
 
     print('2.0 setup model')
-    model = unetv3(in_channel=1, out_channel=3)
-    print('model: ', model.__class__.__name__)
-    model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
-    model = model.to(device)
-
-    print('Fine-tune? ', bool(args.finetune))
-    if bool(args.finetune):
-        model.load_state_dict(torch.load(args.pre_model))
-        print('fine-tune on previous model:')
-        print(args.pre_model)
+    model = setup_model(args, device)
             
     print('2.1 setup loss function')
     criterion = WeightedBCE()   
@@ -171,9 +160,13 @@ def main():
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 
                                  eps=1e-08, weight_decay=1e-6, amsgrad=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, 
+                patience=25, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, 
+                min_lr=1e-7, eps=1e-08)
+    
 
     print('4. start training')
-    train(args, train_loader, model, device, criterion, optimizer, logger, writer)
+    train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer)
   
     print('5. finish training')
     logger.close()

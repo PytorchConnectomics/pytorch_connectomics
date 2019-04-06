@@ -1,11 +1,20 @@
 import torch
 import torchvision.utils as vutils
 
+N = 8 # default maximum # of slides to show
+
 def prepare_data(volume, label, output):
     if len(volume.size()) == 4:   # 2D Inputs
-        return volume, label, output
+        if volume.size()[0] > N:
+            return volume[:N], label[:N], output[:N]
+        else:
+            return volume, label, output
     elif len(volume.size()) == 5: # 3D Inputs
-        return volume[0].permute(1,0,2,3), label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
+        volume, label, output = volume[0].permute(1,0,2,3), label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
+        if volume.size()[0] > N:
+            return volume[:N], label[:N], output[:N]
+        else:
+            return volume, label, output
 
 def visualize(volume, label, output, iteration, writer):
     volume, label, output = prepare_data(volume, label, output)
