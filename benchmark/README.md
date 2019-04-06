@@ -10,5 +10,7 @@
 | Augment 2     |            |            |            |            |            |
 
 **Baseline:** no augmentation
+
 **Augment 1:** rotation, flip, brightness, contrast, invert, wraping
+
 **Augment 2:** missing section, misalignment, out-of-focus section
