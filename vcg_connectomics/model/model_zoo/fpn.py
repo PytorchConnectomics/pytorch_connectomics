@@ -5,12 +5,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from vcg_connectomics.model.blocks import *
+from vcg_connectomics.model.utils import *
 from vcg_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 class fpn(nn.Module):
     def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256]):
         super().__init__()
-
+        
         # layers
         self.layer1 = nn.Sequential(
             residual_block_2d(in_channel, filters[0], projection=True),

@@ -70,9 +70,8 @@ def setup_model(args, device, exact=True, size_match=True):
     model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
     model = model.to(device)
 
-    print('Fine-tune? ', bool(args.finetune))
-    if bool(args.finetune):
-        print('fine-tune on previous model:')
+    if bool(args.load_model):
+        print('Load pretrained model:')
         print(args.pre_model)
         if exact:
             model.load_state_dict(torch.load(args.pre_model))
@@ -92,3 +91,17 @@ def setup_model(args, device, exact=True, size_match=True):
             model.load_state_dict(model_dict)     
     
     return model
+
+def blend(sz, sigma=0.5, mu=0.0):  
+    """
+    Gaussian blending
+    """
+    zz, yy, xx = np.meshgrid(np.linspace(-1,1,sz[0], dtype=np.float32), 
+                                np.linspace(-1,1,sz[1], dtype=np.float32),
+                                np.linspace(-1,1,sz[2], dtype=np.float32), indexing='ij')
+
+    dd = np.sqrt(zz*zz + yy*yy + xx*xx)
+    ww = 1e-4 + np.exp(-( (dd-mu)**2 / ( 2.0 * sigma**2 )))
+    print('weight shape:', ww.shape)
+
+    return ww

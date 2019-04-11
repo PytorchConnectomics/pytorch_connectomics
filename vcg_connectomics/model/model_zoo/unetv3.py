@@ -6,12 +6,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from vcg_connectomics.model.blocks import *
+from vcg_connectomics.model.utils import *
 from vcg_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 
 class unetv3(nn.Module):
-    # Superhuman Accuracy on the SNEMI3D Connectomics Challenge. Lee et al.
-    # https://arxiv.org/abs/1706.00120
+    """
+    Superhuman Accuracy on the SNEMI3D Connectomics Challenge. Lee et al.
+    https://arxiv.org/abs/1706.00120
+    """
     def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80]):
         super().__init__()
 
@@ -79,6 +82,9 @@ class unetv3(nn.Module):
         self.conv2 = conv3d_bn_elu(filters[2], filters[1], kernel_size=(1,1,1), padding=(0,0,0))
         self.conv3 = conv3d_bn_elu(filters[3], filters[2], kernel_size=(1,1,1), padding=(0,0,0)) 
         self.conv4 = conv3d_bn_elu(filters[4], filters[3], kernel_size=(1,1,1), padding=(0,0,0))
+
+        #initialization
+        ortho_init(self)
 
     def forward(self, x):
 

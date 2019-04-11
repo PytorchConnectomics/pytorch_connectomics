@@ -9,7 +9,7 @@ from vcg_connectomics.utils.seg.aff_util import seg_to_affgraph
 from vcg_connectomics.utils.seg.seg_util import mknhood3d, genSegMalis
 
 from .dataset import BaseDataset
-from .misc import crop_volume
+from .misc import crop_volume, rebalance_binary_class, affinitize
 
 class AffinityDataset(BaseDataset):
     def __init__(self,
@@ -61,14 +61,18 @@ class AffinityDataset(BaseDataset):
             out_label = genSegMalis(out_label, 1)
             # replicate-pad the aff boundary
             out_label = seg_to_affgraph(out_label, mknhood3d(1), pad='replicate').astype(np.float32)
+            #out_label = affinitize(out_label)
             out_label = torch.from_numpy(out_label.copy())
 
         # Turn input to Pytorch Tensor, unsqueeze once to include the channel dimension:
         out_input = torch.from_numpy(out_input.copy())
         out_input = out_input.unsqueeze(0)
 
-        # Calculate Weight and Weight Factor
-        weight_factor = 1
-        weight = torch.ones(out_label.size())
+        if self.mode == 'train':
+            # Rebalancing
+            temp = 1.0 - out_label.clone()
+            weight_factor, weight = rebalance_binary_class(temp)
+            return pos, out_input, out_label, weight, weight_factor
 
-        return pos, out_input, out_label, weight, weight_factor
+        else:
+            return pos, out_input
