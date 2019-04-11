@@ -217,36 +217,6 @@
 </div>
 <div class="section" id="module-vcg_connectomics.data.augmentation">
 <span id="data-augmentation"></span><h2><a class="toc-backref" href="#id1">Data Augmentation</a><a class="headerlink" href="#module-vcg_connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
-<dt id="vcg_connectomics.data.augmentation.DataAugment">
-<em class="property">class </em><code class="descname">DataAugment</code><span class="sig-paren">(</span><em>input_size</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
-<dd><p>DataAugment interface.</p>
-<ol class="arabic simple">
-<li>Randomly generate parameters for current augmentation methods.</li>
-<li>Apply the paramters to the valid_mask and generate a new one.</li>
-<li>Calculate new input size and sample from the volume.</li>
-<li>Apply the augmentation method to the new sample and crop to input_size.</li>
-</ol>
-<dl class="method">
-<dt id="vcg_connectomics.data.augmentation.DataAugment.calculate">
-<code class="descname">calculate</code><span class="sig-paren">(</span><em>param</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/augmentor.html#DataAugment.calculate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.DataAugment.calculate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate appropriate input wize with data augmentation.</p>
-<dl class="docutils">
-<dt>Some data augmentation (wrap, mis-alignment etc.) require larger</dt>
-<dd>sample size than the original, depending on the augmentation parameters
-that are randomly chosen. For such cases, here we determine random augmentation
-parameters and return an updated input size accordingly.</dd>
-</dl>
-</dd></dl>
-
-<dl class="method">
-<dt id="vcg_connectomics.data.augmentation.DataAugment.random_param">
-<code class="descname">random_param</code><span class="sig-paren">(</span><em>seed</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/augmentor.html#DataAugment.random_param"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.DataAugment.random_param" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generate random parameters for augmentation.</p>
-</dd></dl>
-
-</dd></dl>
-
 </div>
 </div>
 
