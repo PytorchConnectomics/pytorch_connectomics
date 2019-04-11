@@ -1,7 +1,7 @@
 import numpy as np
 
 class DataAugment(object):
-    """
+    r"""
     DataAugment interface.
 
     1. Randomly generate parameters for current augmentation methods.
@@ -14,7 +14,7 @@ class DataAugment(object):
         self.valid_mask = np.ones(self.input_size, dtype=np.uint8)
 
     def calculate(self, param):
-        """Calculate appropriate input wize with data augmentation.
+        r"""Calculate appropriate input wize with data augmentation.
 
         Some data augmentation (wrap, mis-alignment etc.) require larger 
 	sample size than the original, depending on the augmentation parameters
@@ -24,10 +24,10 @@ class DataAugment(object):
         raise NotImplementedError
 
     def random_param(self, seed):
-        """Generate random parameters for augmentation
+        r"""Generate random parameters for augmentation
         """
         raise NotImplementedError
 
     def __call__(self, sample, param):
-        """Apply data augmentation."""
+        r"""Apply data augmentation."""
         raise NotImplementedError
