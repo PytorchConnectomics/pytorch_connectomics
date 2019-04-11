@@ -17,9 +17,9 @@ class DataAugment(object):
         """Calculate appropriate input wize with data augmentation.
 
         Some data augmentation (wrap, mis-alignment etc.) require larger 
-	    sample size than the original, depending on the augmentation parameters
-	    that are randomly chosen. For such cases, here we determine random augmentation 
-	    parameters and return an updated input size accordingly.
+	sample size than the original, depending on the augmentation parameters
+	that are randomly chosen. For such cases, here we determine random augmentation 
+	parameters and return an updated input size accordingly.
         """
         raise NotImplementedError
 
