@@ -64,6 +64,12 @@ class Greyscale(DataAugment):
             sample[key] **= 2.0**(np.random.rand()*2 - 1)
         return sample
 
+    def invert(self, sample)
+        """
+        Invert input images
+        """
+        pass
+        
     ####################################################################
     ## Setters.
     ####################################################################

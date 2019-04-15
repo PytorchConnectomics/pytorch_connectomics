@@ -1,3 +1,5 @@
+from .composition import Compose
 from .augmentor import DataAugment
 
-__all__ = ['DataAugment']
+# augmentation methods
+from .warp import Elastic

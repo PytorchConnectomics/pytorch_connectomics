@@ -1,8 +1,11 @@
+jupyter
 scikit-learn
+opencv-python
 matplotlib
 Cython
+mahotas
 h5py
-albumentations
+imageio
 tensorflow
 tensorboard
 tensorboardX
