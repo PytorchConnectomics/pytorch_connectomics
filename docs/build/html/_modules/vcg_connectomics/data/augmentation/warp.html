@@ -212,12 +212,16 @@
 
 <div class="viewcode-block" id="Elastic"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Elastic">[docs]</a><span class="k">class</span> <span class="nc">Elastic</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Elastic deformation of images as described in [Simard2003]_ (with modifications).</span>
-<span class="sd">    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5</span>
+<span class="sd">    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5.</span>
 
 <span class="sd">    .. [Simard2003] Simard, Steinkraus and Platt, &quot;Best Practices for</span>
 <span class="sd">        Convolutional Neural Networks applied to Visual Document Analysis&quot;, in</span>
 <span class="sd">        Proc. of the International Conference on Document Analysis and</span>
 <span class="sd">        Recognition, 2003.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        alpha (float): maximum pixel-moving distance of elastic transformation.</span>
+<span class="sd">        sigma (float): standard deviation of the Gaussian filter.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">alpha</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>

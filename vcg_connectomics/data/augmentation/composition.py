@@ -10,12 +10,17 @@ class Compose(object):
     Args:
         transforms (list): list of transformations to compose.
         input_size (tuple): input size of model in (z, y, x).
+        keep_uncropped (bool): keep uncropped images and labels (default: False)
     """
-    def __init__(self, transforms, input_size = (8,196,196)):
+    def __init__(self, 
+                 transforms, 
+                 input_size = (8,196,196),
+                 keep_uncropped = False):
         self.transforms = transforms
         self.input_size = np.array(input_size)
         self.sample_size = self.input_size.copy()
         self.set_sample_params()
+        self.keep_uncropped = keep_uncropped
 
     def set_sample_params(self):
         for _, t in enumerate(self.transforms):
@@ -35,13 +40,26 @@ class Compose(object):
             low = margin
             high = margin + self.input_size[1]
             if image.ndim == 3:
-                return {'image': image[:, low:high, low:high],
-                        'label': label[:, low:high, low:high]}
+                if self.keep_uncropped == True:
+                    return {'image': image[:, low:high, low:high],
+                            'label': label[:, low:high, low:high],
+                            'image_uncropped': image,
+                            'label_uncropped': label}               
+                else:
+                    return {'image': image[:, low:high, low:high],
+                            'label': label[:, low:high, low:high]}
             else:
-                return {'image': image[:, :, low:high, low:high],
-                        'label': label[:, low:high, low:high]}           
+                if self.keep_uncropped == True:
+                    return {'image': image[:, :, low:high, low:high],
+                            'label': label[:, low:high, low:high],
+                            'image_uncropped': image,
+                            'label_uncropped': label}
+                else:
+                    return {'image': image[:, :, low:high, low:high],
+                            'label': label[:, low:high, low:high]}                                        
 
     def __call__(self, data, random_state=None):
+        data['image'] = data['image'].astype(np.float32)
         for _, t in enumerate(self.transforms):
             if random.random() < t.p:
                 data = t(data, random_state)

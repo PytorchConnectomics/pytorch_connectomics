@@ -18,15 +18,20 @@ class DataAugment(object):
 
     def set_params(self):
         """
-        Calculate appropriate input wize with data augmentation.
+        Calculate appropriate sample wize with data augmentation.
         
         Some data augmentation (wrap, mis-alignment etc.) require larger 
-        sample size than the original, depending on the augmentation parameters
-	    that are randomly chosen. For such cases, here we determine random augmentation 
-	    parameters and return an updated input size accordingly.
+        sample size than the original, depending on the augmentation parameters 
+        that are randomly chosen. For such cases, here we determine random augmentation 
+        parameters and return an updated input size accordingly.
         """
         raise NotImplementedError
 
     def __call__(self, data, random_state):
-        """Apply data augmentation
+        """
+        Apply data augmentation
+
+        For a multi-CPU dataloader, please use a unique index to generate 
+        the random seed (random_state), otherwise different workers may generate
+        the same pseudo-random number for augmentation and sampling.
         """

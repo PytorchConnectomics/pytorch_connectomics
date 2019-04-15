@@ -1,75 +1,89 @@
 import numpy as np
 from .augmentor import DataAugment
 
-class Greyscale(DataAugment):
+class Grayscale(DataAugment):
     """
-    Greyscale value augmentation.
+    Grayscale value augmentation.
 
     Randomly adjust contrast/brightness, randomly invert
     and apply random gamma correction.
     """
 
-    def __init__(self, input_size, mode='mix', skip_ratio=0.3):
+    def __init__(self, contrast_factor=0.3, brightness_factor=0.3, mode='mix', p=0.5):
         """Initialize parameters.
 
         Args:
-            input_size: (z, y, x)
-            mode: '2D', '3D', 'mix'
-            skip_ratio: Probability of skipping augmentation.
+            contrast_factor (float): intensity of contrast change
+            brightness_factor (float): intensity of brightness change
+            mode (string): '2D', '3D', 'mix'
+            p (float): probability of applying the augmentation
         """
-        super.__init__(input_size)
+        super(Grayscale, self).__init__(p=p)
         self.set_mode(mode)
-        self.set_skip_ratio(skip_ratio)
-        self.CONTRAST_FACTOR   = 0.3
-        self.BRIGHTNESS_FACTOR = 0.3
+        self.CONTRAST_FACTOR   = contrast_factor
+        self.BRIGHTNESS_FACTOR = brightness_factor
 
-    def calculate(self):
-        # No change in input size
-        return self.input_size
+    def set_params(self):
+        # No change in sample size
+        pass
 
-    def __call__(self, sample, **kwargs):
-        if not self.skip:
-            if self.mode == 'mix':
-                mode = '3D' if np.random.rand() > 0.5 else '2D'
-            else:
-                mode = self.mode
-            if mode is '2D': self.augment2D(sample, **kwargs)
-            if mode is '3D': self.augment3D(sample, **kwargs)
-        return sample
+    def __call__(self, data, random_state):
+        if random_state is None:
+            random_state = np.random.RandomState(1234)
 
-    def augment2D(self, sample, **kwargs):
+        if self.mode == 'mix':
+            mode = '3D' if random_state.rand() > 0.5 else '2D'
+        else:
+            mode = self.mode
+
+        # apply augmentations  
+        if mode is '2D': data = self.augment2D(data, random_state)
+        if mode is '3D': data = self.augment3D(data, random_state)
+        return data
+
+    def augment2D(self, data, random_state=None):
         """
         Adapted from ELEKTRONN (http://elektronn.org/).
         """
-        imgs = kwargs['imgs']
-        for key in imgs:
-            for z in xrange(sample[key].shape[-3]):
-                img = sample[key][...,z,:,:]
-                img *= 1 + (np.random.rand() - 0.5)*self.CONTRAST_FACTOR
-                img += (np.random.rand() - 0.5)*self.BRIGHTNESS_FACTOR
-                img = np.clip(img, 0, 1)
-                img **= 2.0**(np.random.rand()*2 - 1)
-                sample[key][...,z,:,:] = img
-        return sample
+        imgs = data['image']
+        transformedimgs = np.copy(imgs)
+        for z in range(transformedimgs.shape[-3]):
+            img = transformedimgs[z, :, :]
+            img *= 1 + (np.random.rand() - 0.5)*self.CONTRAST_FACTOR
+            img += (np.random.rand() - 0.5)*self.BRIGHTNESS_FACTOR
+            img = np.clip(img, 0, 1)
+            img **= 2.0**(np.random.rand()*2 - 1)
+            transformedimgs[z, :, :] = img
 
-    def augment3D(self, sample, **kwargs):
+        data['image'] = transformedimgs
+        return data    
+
+    def augment3D(self, data, random_state=None):
         """
         Adapted from ELEKTRONN (http://elektronn.org/).
         """
-        imgs = kwargs['imgs']
-        for key in imgs:
-            sample[key] *= 1 + (np.random.rand() - 0.5)*self.CONTRAST_FACTOR
-            sample[key] += (np.random.rand() - 0.5)*self.BRIGHTNESS_FACTOR
-            sample[key] = np.clip(sample[key], 0, 1)
-            sample[key] **= 2.0**(np.random.rand()*2 - 1)
-        return sample
+        imgs = data['image']
+        transformedimgs = np.copy(imgs)
+        transformedimgs *= 1 + (np.random.rand() - 0.5)*self.CONTRAST_FACTOR
+        transformedimgs += (np.random.rand() - 0.5)*self.BRIGHTNESS_FACTOR
+        transformedimgs = np.clip(transformedimgs, 0, 1)
+        transformedimgs **= 2.0**(np.random.rand()*2 - 1)
+        
+        data['image'] = transformedimgs
+        return data
 
-    def invert(self, sample)
+    def invert(self, data, random_state=None):
         """
         Invert input images
         """
-        pass
-        
+        imgs = data['image']
+        transformedimgs = np.copy(imgs)
+        transformedimgs = 1.0-transformedimgs
+        transformedimgs = np.clip(transformedimgs, 0, 1)
+
+        data['image'] = transformedimgs
+        return data
+
     ####################################################################
     ## Setters.
     ####################################################################
@@ -78,8 +92,3 @@ class Greyscale(DataAugment):
         """Set 2D/3D/mix greyscale value augmentation mode."""
         assert mode=='2D' or mode=='3D' or mode=='mix'
         self.mode = mode
-
-    def set_skip_ratio(self, ratio):
-        """Set the probability of skipping augmentation."""
-        assert ratio >= 0.0 and ratio <= 1.0
-        self.skip_ratio = ratio

@@ -6,12 +6,16 @@ from .augmentor import DataAugment
 
 class Elastic(DataAugment):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5.
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
         Convolutional Neural Networks applied to Visual Document Analysis", in
         Proc. of the International Conference on Document Analysis and
         Recognition, 2003.
+
+    Args:
+        alpha (float): maximum pixel-moving distance of elastic transformation.
+        sigma (float): standard deviation of the Gaussian filter.
     """
     def __init__(self,
                  alpha=10.0,

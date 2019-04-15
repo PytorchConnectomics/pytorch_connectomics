@@ -219,7 +219,7 @@
 <span id="data-augmentation"></span><h2><a class="toc-backref" href="#id2">Data Augmentation</a><a class="headerlink" href="#module-vcg_connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="vcg_connectomics.data.augmentation.Compose">
-<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em>, <em>keep_uncropped=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compose transforms</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -228,6 +228,7 @@
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of transformations to compose.</li>
 <li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.7)"><em>tuple</em></a>) – input size of model in (z, y, x).</li>
+<li><strong>keep_uncropped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – keep uncropped images and labels (default: False)</li>
 </ul>
 </td>
 </tr>
@@ -248,12 +249,11 @@
 <dl class="method">
 <dt id="vcg_connectomics.data.augmentation.DataAugment.set_params">
 <code class="descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate appropriate input wize with data augmentation.</p>
+<dd><p>Calculate appropriate sample wize with data augmentation.</p>
 <p>Some data augmentation (wrap, mis-alignment etc.) require larger
-sample size than the original, depending on the augmentation parameters</p>
-<blockquote>
-<div>that are randomly chosen. For such cases, here we determine random augmentation
-parameters and return an updated input size accordingly.</div></blockquote>
+sample size than the original, depending on the augmentation parameters
+that are randomly chosen. For such cases, here we determine random augmentation
+parameters and return an updated input size accordingly.</p>
 </dd></dl>
 
 </dd></dl>
@@ -262,7 +262,7 @@ parameters and return an updated input size accordingly.</div></blockquote>
 <dt id="vcg_connectomics.data.augmentation.Elastic">
 <em class="property">class </em><code class="descname">Elastic</code><span class="sig-paren">(</span><em>alpha=10.0</em>, <em>sigma=4.0</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Elastic deformation of images as described in <a class="reference internal" href="#simard2003" id="id1">[Simard2003]</a> (with modifications).
-Based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a></p>
+Based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a>.</p>
 <table class="docutils citation" frame="void" id="simard2003" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
@@ -272,6 +272,72 @@ Proc. of the International Conference on Document Analysis and
 Recognition, 2003.</td></tr>
 </tbody>
 </table>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – maximum pixel-moving distance of elastic transformation.</li>
+<li><strong>sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – standard deviation of the Gaussian filter.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="vcg_connectomics.data.augmentation.Grayscale">
+<em class="property">class </em><code class="descname">Grayscale</code><span class="sig-paren">(</span><em>contrast_factor=0.3</em>, <em>brightness_factor=0.3</em>, <em>mode='mix'</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Grayscale value augmentation.</p>
+<p>Randomly adjust contrast/brightness, randomly invert
+and apply random gamma correction.</p>
+<dl class="method">
+<dt id="vcg_connectomics.data.augmentation.Grayscale.augment2D">
+<code class="descname">augment2D</code><span class="sig-paren">(</span><em>data</em>, <em>random_state=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/grayscale.html#Grayscale.augment2D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Grayscale.augment2D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="vcg_connectomics.data.augmentation.Grayscale.augment3D">
+<code class="descname">augment3D</code><span class="sig-paren">(</span><em>data</em>, <em>random_state=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/grayscale.html#Grayscale.augment3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Grayscale.augment3D" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="vcg_connectomics.data.augmentation.Grayscale.invert">
+<code class="descname">invert</code><span class="sig-paren">(</span><em>data</em>, <em>random_state=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/grayscale.html#Grayscale.invert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Grayscale.invert" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invert input images</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="vcg_connectomics.data.augmentation.Grayscale.set_mode">
+<code class="descname">set_mode</code><span class="sig-paren">(</span><em>mode</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/grayscale.html#Grayscale.set_mode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Grayscale.set_mode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set 2D/3D/mix greyscale value augmentation mode.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="vcg_connectomics.data.augmentation.Rotate">
+<em class="property">class </em><code class="descname">Rotate</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/rotation.html#Rotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Rotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Continuous rotatation.</p>
+<p>The sample size for x- and y-axes should be at least sqrt(2) times larger
+than the input size to make sure there is no non-valid region after center-crop.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – probability of applying the augmentation</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="vcg_connectomics.data.augmentation.Flip">
+<em class="property">class </em><code class="descname">Flip</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Flip along z-, y- and x-axes as well as swap y- and x-axes</p>
 </dd></dl>
 
 </div>
