@@ -4,8 +4,6 @@ import random
 import warnings
 import numpy as np
 
-__all__ = ['Compose']
-
 class Compose(object):
     """Compose transforms
 

@@ -212,11 +212,68 @@
 <div class="contents local topic" id="contents">
 <p class="topic-title first">Contents</p>
 <ul class="simple">
-<li><a class="reference internal" href="#module-vcg_connectomics.data.augmentation" id="id1">Data Augmentation</a></li>
+<li><a class="reference internal" href="#module-vcg_connectomics.data.augmentation" id="id2">Data Augmentation</a></li>
 </ul>
 </div>
 <div class="section" id="module-vcg_connectomics.data.augmentation">
-<span id="data-augmentation"></span><h2><a class="toc-backref" href="#id1">Data Augmentation</a><a class="headerlink" href="#module-vcg_connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
+<span id="data-augmentation"></span><h2><a class="toc-backref" href="#id2">Data Augmentation</a><a class="headerlink" href="#module-vcg_connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="vcg_connectomics.data.augmentation.Compose">
+<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compose transforms</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of transformations to compose.</li>
+<li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.7)"><em>tuple</em></a>) – input size of model in (z, y, x).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="vcg_connectomics.data.augmentation.DataAugment">
+<em class="property">class </em><code class="descname">DataAugment</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
+<dd><p>DataAugment interface.</p>
+<ol class="arabic simple">
+<li>Randomly generate parameters for current augmentation methods.</li>
+<li>Apply the paramters to the valid_mask and generate a new one.</li>
+<li>Calculate new input size and sample from the volume.</li>
+<li>Apply the augmentation method to the new sample and crop to input_size.</li>
+</ol>
+<dl class="method">
+<dt id="vcg_connectomics.data.augmentation.DataAugment.set_params">
+<code class="descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate appropriate input wize with data augmentation.</p>
+<p>Some data augmentation (wrap, mis-alignment etc.) require larger
+sample size than the original, depending on the augmentation parameters</p>
+<blockquote>
+<div>that are randomly chosen. For such cases, here we determine random augmentation
+parameters and return an updated input size accordingly.</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="vcg_connectomics.data.augmentation.Elastic">
+<em class="property">class </em><code class="descname">Elastic</code><span class="sig-paren">(</span><em>alpha=10.0</em>, <em>sigma=4.0</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Elastic deformation of images as described in <a class="reference internal" href="#simard2003" id="id1">[Simard2003]</a> (with modifications).
+Based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a></p>
+<table class="docutils citation" frame="void" id="simard2003" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[Simard2003]</a></td><td>Simard, Steinkraus and Platt, “Best Practices for
+Convolutional Neural Networks applied to Visual Document Analysis”, in
+Proc. of the International Conference on Document Analysis and
+Recognition, 2003.</td></tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 </div>
 
