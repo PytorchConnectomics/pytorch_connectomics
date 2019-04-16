@@ -335,6 +335,26 @@ than the input size to make sure there is no non-valid region after center-crop.
 </dd></dl>
 
 <dl class="class">
+<dt id="vcg_connectomics.data.augmentation.Rescale">
+<em class="property">class </em><code class="descname">Rescale</code><span class="sig-paren">(</span><em>low=0.8</em>, <em>high=1.2</em>, <em>fix_aspect=False</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/rescale.html#Rescale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Rescale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rescale augmentation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>low</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – lower bound of the random scale factor.</li>
+<li><strong>high</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – higher bound of the random scale factor.</li>
+<li><strong>fix_aspect</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – fix aspect ratio or not.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – probability of applying the augmentation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
 <dt id="vcg_connectomics.data.augmentation.Flip">
 <em class="property">class </em><code class="descname">Flip</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
 <dd><p>Flip along z-, y- and x-axes as well as swap y- and x-axes</p>

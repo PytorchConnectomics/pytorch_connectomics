@@ -8,6 +8,7 @@ import torch.utils.data
 import torchvision.utils as vutils
 
 from vcg_connectomics.data.dataset import AffinityDataset, collate_fn, collate_fn_test
+from vcg_connectomics.data.augmentation import *
 
 def get_input(args, model_io_size, mode='train'):
     """
@@ -49,14 +50,21 @@ def get_input(args, model_io_size, mode='train'):
             model_label[i] = model_label[i].astype(np.float32)
             print("label shape: ", model_label[i].shape)
    
-    augmentor = None
+    # setup augmentor
+    augmentor = Compose([Rotate(p=1.0),
+                         Rescale(p=0.5),
+                         Flip(p=1.0),
+                         Elastic(alpha=10.0, p=0.5),
+                         Grayscale(p=0.75)], 
+                         input_size = model_io_size)
+
     print('data augmentation: ', augmentor is not None)
     SHUFFLE = (mode=='train')
     print('batch size: ', args.batch_size)
 
     if mode=='train':
-        dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=model_io_size,
-                                  sample_label_size=model_io_size, augmentor=augmentor, mode = 'train')    
+        dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=augmentor.sample_size,
+                                  sample_label_size=augmentor.sample_size, augmentor=augmentor, mode = 'train')    
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
                 num_workers=args.num_cpu, pin_memory=True)
@@ -65,7 +73,7 @@ def get_input(args, model_io_size, mode='train'):
     else:
         dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
                                   sample_label_size=None, sample_stride=model_io_size // 2, \
-                                  augmentor=augmentor, mode='test')      
+                                  augmentor=None, mode='test')      
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
                 num_workers=args.num_cpu, pin_memory=True)                  

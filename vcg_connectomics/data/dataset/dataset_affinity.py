@@ -42,8 +42,14 @@ class AffinityDataset(BaseDataset):
             out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
             out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
             # 3. augmentation
-            #if self.augmentor is not None:  # augmentation
-            #   out_input, out_label = self.augmentor([out_input, out_label])
+            if self.augmentor is not None:  # augmentation
+                data = {'image':out_input, 'label':out_label}
+                augmented = self.augmentor(data, random_state=seed)
+                out_input, out_label = augmented['image'], augmented['label']
+                out_input = out_input.astype(np.float32)
+                out_label = out_label.astype(np.int16)
+                #print(out_input.shape, out_label.shape) #debug
+                #print(out_input.dtype, out_label.dtype) #debug
 
         # Test Mode Specific Operations:
         elif self.mode == 'test':

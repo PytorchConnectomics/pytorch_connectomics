@@ -29,4 +29,4 @@ def ortho_init(model):
     # orthogonal initialization
     for m in model.modules():
         if isinstance(m, (nn.Conv3d, nn.Linear)):
-            nn.init.orthogonal(m.weight)
+            nn.init.orthogonal_(m.weight)
