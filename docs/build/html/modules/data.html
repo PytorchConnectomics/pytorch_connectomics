@@ -219,7 +219,7 @@
 <span id="data-augmentation"></span><h2><a class="toc-backref" href="#id2">Data Augmentation</a><a class="headerlink" href="#module-vcg_connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="vcg_connectomics.data.augmentation.Compose">
-<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em>, <em>keep_uncropped=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em>, <em>keep_uncropped=False</em>, <em>smooth=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/vcg_connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#vcg_connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
 <dd><p>Compose transforms</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -229,6 +229,7 @@
 <li><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.7)"><em>list</em></a>) – list of transformations to compose.</li>
 <li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.7)"><em>tuple</em></a>) – input size of model in (z, y, x).</li>
 <li><strong>keep_uncropped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – keep uncropped images and labels (default: False)</li>
+<li><strong>smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – smooth the boundary of segmentation masks (default: True)</li>
 </ul>
 </td>
 </tr>

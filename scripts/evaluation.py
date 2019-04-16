@@ -9,6 +9,7 @@ from vcg_connectomics.utils.seg.seg_util import relabel
 from vcg_connectomics.utils.seg.io_util import writeh5
 from vcg_connectomics.utils.seg.seg_eval import adapted_rand
 
+from skimage.morphology import dilation,erosion
 def check_volume(aff):
     # float32, range: [0,1]
     pass
@@ -23,7 +24,7 @@ if len(sys.argv)>2:
 # add affinity location
 D_aff='outputs/unetv3_none/result70k/volume_0.h5'
 aff = np.array(h5py.File(D_aff)['main']).astype(np.float32) / 255.0
-aff = 1.0 - aff
+print('shape of affinity graph:', aff.shape)
 # ground truth
 
 D0='/n/coxfs01/zudilin/research/mitoNet/data/file/snemi/label/'
@@ -52,11 +53,12 @@ elif opt =='1':
     print('waterz:', waterz.__version__)
     st = time.time()
     low=0.05; high=0.995
-    mf = 'aff85_his256'; T_thres = [0.2]
+    mf = 'aff85_his256'; T_thres = [0.5]
     out = waterz.waterz(aff, T_thres, merge_function=mf, gt_border=0,
                         aff_threshold=[low, high])[0]
     et = time.time()
     out = relabel(out)
+    print(out.shape)
     sn = '%s_%f_%f_%f_%s.h5'%(opt,low,high,T_thres[0],mf) 
     
 elif opt =='2':
@@ -100,4 +102,4 @@ if do_save==1:
     result_dir = 'result/'
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
-    writeh5( result_dir + sn + '.h5', 'main', out)
+    writeh5( result_dir + sn, 'main', out)
