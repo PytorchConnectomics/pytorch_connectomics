@@ -13,10 +13,10 @@ class Grayscale(DataAugment):
         """Initialize parameters.
 
         Args:
-            contrast_factor (float): intensity of contrast change
-            brightness_factor (float): intensity of brightness change
-            mode (string): '2D', '3D', 'mix'
-            p (float): probability of applying the augmentation
+            contrast_factor (float): intensity of contrast change.
+            brightness_factor (float): intensity of brightness change.
+            mode (string): '2D', '3D' or 'mix'.
+            p (float): probability of applying the augmentation.
         """
         super(Grayscale, self).__init__(p=p)
         self.set_mode(mode)

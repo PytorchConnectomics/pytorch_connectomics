@@ -12,7 +12,7 @@ def train(args, train_loader, model, device, criterion, optimizer, scheduler, lo
     record = AverageMeter()
     model.train()
 
-    for iteration, (pos, volume, label, class_weight, _) in enumerate(train_loader):
+    for iteration, (_, volume, label, class_weight, _) in enumerate(train_loader):
 
         volume, label = volume.to(device), label.to(device)
         class_weight = class_weight.to(device)
@@ -29,10 +29,6 @@ def train(args, train_loader, model, device, criterion, optimizer, scheduler, lo
         logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iteration, \
                 loss.item(), optimizer.param_groups[0]['lr']))
 
-        # LR update
-        #if args.lr > 0:
-            #decay_lr(optimizer, args.lr, volume_id, lr_decay[0], lr_decay[1], lr_decay[2])
-
         if iteration % 10 == 0 and iteration >= 1:
             writer.add_scalar('Loss', record.avg, iteration)
             print('[Iteration %d] train_loss=%0.4f lr=%.6f' % (iteration, \
@@ -40,6 +36,14 @@ def train(args, train_loader, model, device, criterion, optimizer, scheduler, lo
             scheduler.step(record.avg)
             record.reset()
             visualize_aff(volume, label, output, iteration, writer)
+            #print('weight factor: ', weight_factor) # debug
+            # debug
+            # if iteration < 50:
+            #     fl = h5py.File('debug_%d_h5' % (iteration), 'w')
+            #     output = label[0].cpu().detach().numpy().astype(np.uint8)
+            #     print(output.shape)
+            #     fl.create_dataset('main', data=output)
+            #     fl.close()
 
         #Save model
         if iteration % args.iteration_save == 0 or iteration >= args.iteration_total:

@@ -7,6 +7,8 @@ from .grayscale import Grayscale
 from .flip import Flip
 from .rotation import Rotate
 from .rescale import Rescale
+from .misalign import MisAlignment
+from .missing_section import MissingSection
 
 __all__ = ['Compose',
            'DataAugment', 
@@ -14,4 +16,6 @@ __all__ = ['Compose',
            'Grayscale',
            'Rotate',
            'Rescale',
+           'MisAlignment',
+           'MissingSection',
            'Flip']

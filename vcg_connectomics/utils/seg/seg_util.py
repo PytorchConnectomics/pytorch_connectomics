@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.ndimage.morphology import binary_erosion,binary_dilation
+from scipy.ndimage.morphology import binary_erosion, binary_dilation
 
 # reduce the labeling
 def relabel(segmentation):
@@ -156,20 +156,38 @@ def fill_data(shape, filler={'type':'zero'}, dtype='float32'):
         raise RuntimeError('invalid filler type [%s]' % filler['type'])
     return data
 
-def genSegMalis(gg3,iter_num): # given input seg map, widen the seg border
+# def genSegMalis(gg3, iter_num): # given input seg map, widen the seg border
+#     gg3_dz = np.zeros(gg3.shape).astype(np.uint32)
+#     gg3_dz[1:,:,:] = (np.diff(gg3, axis=0))
+#     gg3_dy = np.zeros(gg3.shape).astype(np.uint32)
+#     gg3_dy[:,1:,:] = (np.diff(gg3, axis=1))
+#     gg3_dx = np.zeros(gg3.shape).astype(np.uint32)
+#     gg3_dx[:,:,1:] = (np.diff(gg3, axis=2))
+#     gg3g = ((gg3_dx+gg3_dy)>0)
+#     #stel=np.array([[1, 1],[1,1]]).astype(bool)
+#     stel = np.array([[1,1,1], [1,1,1], [1,1,1]]).astype(bool)
+#     #stel=np.array([[1,1,1,1],[1, 1, 1, 1],[1,1,1,1],[1,1,1,1]]).astype(bool)
+#     gg3gd=np.zeros(gg3g.shape)
+#     for i in range(gg3g.shape[0]):
+#         gg3gd[i,:,:]=binary_dilation(gg3g[i,:,:], structure=stel, iterations=iter_num)
+#     out = gg3.copy()
+#     out[gg3gd==1]=0
+#     return out
+
+def widen_border(gg3, iter_num): # given input seg map, widen the seg border
     gg3_dz = np.zeros(gg3.shape).astype(np.uint32)
-    gg3_dz[1:,:,:] = (np.diff(gg3,axis=0))
+    gg3_dz[1:,:,:] = np.abs(np.diff(gg3, axis=0))
     gg3_dy = np.zeros(gg3.shape).astype(np.uint32)
-    gg3_dy[:,1:,:] = (np.diff(gg3,axis=1))
+    gg3_dy[:,1:,:] = np.abs(np.diff(gg3, axis=1))
     gg3_dx = np.zeros(gg3.shape).astype(np.uint32)
-    gg3_dx[:,:,1:] = (np.diff(gg3,axis=2))
+    gg3_dx[:,:,1:] = np.abs(np.diff(gg3, axis=2))
     gg3g = ((gg3_dx+gg3_dy)>0)
     #stel=np.array([[1, 1],[1,1]]).astype(bool)
-    stel=np.array([[1,1,1], [1,1,1], [1,1,1]]).astype(bool)
+    stel = np.array([[1,1,1], [1,1,1], [1,1,1]]).astype(bool)
     #stel=np.array([[1,1,1,1],[1, 1, 1, 1],[1,1,1,1],[1,1,1,1]]).astype(bool)
     gg3gd=np.zeros(gg3g.shape)
     for i in range(gg3g.shape[0]):
-        gg3gd[i,:,:]=binary_dilation(gg3g[i,:,:],structure=stel,iterations=iter_num)
+        gg3gd[i,:,:] = binary_dilation(gg3g[i,:,:], structure=stel, iterations=iter_num)
     out = gg3.copy()
     out[gg3gd==1]=0
     return out

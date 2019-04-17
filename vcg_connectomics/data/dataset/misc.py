@@ -70,24 +70,22 @@ def check_volume(data):
     assert data.ndim==3
     return data
 
-def affinitize(img, dst=(1,1,1), dtype=np.float32):
-    """
-    Transform segmentation to an affinity map.
+# def affinitize(img, dst=(1,1,1), dtype=np.float32):
+#     """
+#     Transform segmentation to an affinity map.
 
-    Args:
-        img: 3D indexed image, with each index corresponding to each segment.
+#     Args:
+#         img: 3D indexed image, with each index corresponding to each segment.
 
-    Returns:
-        ret: an affinity map (4D tensor).
-    """
-    img = check_volume(img)
-    if ret is None:
-        ret = np.zeros(img.shape, dtype=dtype)
+#     Returns:
+#         ret: an affinity map (4D tensor).
+#     """
+#     img = check_volume(img)
+#     if ret is None:
+#         ret = np.zeros(img.shape, dtype=dtype)
 
-    # Sanity check.
-    (dz,dy,dx) = dst
-    assert abs(dx) < img.shape[-1]
-    assert abs(dy) < img.shape[-2]
-    assert abs(dz) < img.shape[-3]
-
-    # ToDo: add python affinity transform
+#     # Sanity check.
+#     (dz,dy,dx) = dst
+#     assert abs(dx) < img.shape[-1]
+#     assert abs(dy) < img.shape[-2]
+#     assert abs(dz) < img.shape[-3]

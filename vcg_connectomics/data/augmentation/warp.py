@@ -16,6 +16,7 @@ class Elastic(DataAugment):
     Args:
         alpha (float): maximum pixel-moving distance of elastic transformation.
         sigma (float): standard deviation of the Gaussian filter.
+        p (float): probability of applying the augmentation.
     """
     def __init__(self,
                  alpha=10.0,

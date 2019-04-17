@@ -46,7 +46,6 @@ def get_input(args, model_io_size, mode='train'):
 
         if mode=='train':
             model_label[i] = np.array(h5py.File(seg_name[i], 'r')['main'])
-            model_label[i] = (model_label[i] != 0).astype(np.float32)
             model_label[i] = model_label[i].astype(np.float32)
             print("label shape: ", model_label[i].shape)
    

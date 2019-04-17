@@ -35,3 +35,4 @@ class DataAugment(object):
         the random seed (random_state), otherwise different workers may generate
         the same pseudo-random number for augmentation and sampling.
         """
+        raise NotImplementedError

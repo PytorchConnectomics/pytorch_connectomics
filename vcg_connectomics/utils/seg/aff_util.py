@@ -2,46 +2,40 @@ import numpy as np
 from scipy.misc import comb
 import scipy.sparse
 
-
-def affinitize(img, ret=None, dst=(1,1,1), dtype='float32'):
-    # PNI code
+def affinitize(img, dst=(1,1,1), dtype=np.float32):
     """
     Transform segmentation to an affinity map.
     Args:
         img: 3D indexed image, with each index corresponding to each segment.
     Returns:
-        ret: an affinity map (4D tensor).
+        aff: an affinity map with shape in (c, z, y, x).
     """
-    img = check_volume(img)
-    if ret is None:
-        ret = np.zeros(img.shape, dtype=dtype)
-
-    # Sanity check.
     (dz,dy,dx) = dst
     assert abs(dx) < img.shape[-1]
     assert abs(dy) < img.shape[-2]
     assert abs(dz) < img.shape[-3]
 
-    # Slices.
-    s0 = list()
-    s1 = list()
-    s2 = list()
-    for i in range(3):
-        if dst[i] == 0:
-            s0.append(slice(None))
-            s1.append(slice(None))
-            s2.append(slice(None))
-        elif dst[i] > 0:
-            s0.append(slice(dst[i],  None))
-            s1.append(slice(dst[i],  None))
-            s2.append(slice(None, -dst[i]))
-        else:
-            s0.append(slice(None,  dst[i]))
-            s1.append(slice(-dst[i], None))
-            s2.append(slice(None,  dst[i]))
+    z_pad = np.pad(img, ((0, dz), (0, 0), (0, 0)), mode='edge')
+    z_aff = np.diff(z_pad, n=dz, axis=0)
+    z_aff = (z_aff==0).astype(int)
 
-    ret[s0] = (img[s1]==img[s2]) & (img[s1]>0)
-    return ret[np.newaxis,...]
+    y_pad = np.pad(img, ((0, 0), (0, dy), (0, 0)), mode='edge')
+    y_aff = np.diff(y_pad, n=dy, axis=1)
+    y_aff = (y_aff==0).astype(int)
+
+    x_pad = np.pad(img, ((0, 0), (0, 0), (0, dx)), mode='edge')
+    x_aff = np.diff(x_pad, n=dx, axis=2)
+    x_aff = (x_aff==0).astype(int)
+
+    assert z_aff.shape == img.shape
+    assert y_aff.shape == img.shape
+    assert x_aff.shape == img.shape
+
+    z_aff[np.where(img==0)] = 0
+    y_aff[np.where(img==0)] = 0
+    x_aff[np.where(img==0)] = 0
+
+    return np.stack([z_aff, y_aff, x_aff], 0).astype(dtype)
 
 def bmap_to_affgraph(bmap,nhood,return_min_idx=False):
     # constructs an affinity graph from a boundary map
