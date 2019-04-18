@@ -5,9 +5,9 @@ import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-from vcg_connectomics.model.blocks import *
-from vcg_connectomics.model.utils import *
-from vcg_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
+from torch_connectomics.model.blocks import *
+from torch_connectomics.model.utils import *
+from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 
 class unetv3(nn.Module):

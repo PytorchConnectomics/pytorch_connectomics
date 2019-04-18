@@ -1,7 +1,7 @@
 import torch
 import torchvision.utils as vutils
 
-N = 8 # default maximum # of slides to show
+N = 8 # default maximum number of sections to show
 
 def prepare_data(volume, label, output):
     if len(volume.size()) == 4:   # 2D Inputs

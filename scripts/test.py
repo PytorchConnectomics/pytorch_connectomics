@@ -2,7 +2,7 @@ import os,sys
 import numpy as np
 import torch
 import h5py, time, itertools, datetime
-from vcg_connectomics.utils.net import *
+from torch_connectomics.utils.net import *
 
 def test(args, test_loader, model, device, model_io_size, volume_shape, pad_size):
     # switch to eval mode

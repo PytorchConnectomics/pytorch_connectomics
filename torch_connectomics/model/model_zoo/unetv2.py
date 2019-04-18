@@ -1,26 +1,19 @@
 import os,sys
-
 import torch
 import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-from vcg_connectomics.model.blocks import *
-from vcg_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
+from torch_connectomics.model.blocks import *
+from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
-class unetv0(nn.Module):
+class unetv2(nn.Module):
     def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256]):
         super().__init__()
 
         # encoding path
-        self.layer1_E = nn.Sequential(
-            residual_block_2d(in_channel, filters[0], projection=True),
-            squeeze_excitation_3d(channel=filters[0], channel_reduction=2, spatial_reduction=16)
-        )
-        self.layer2_E = nn.Sequential(
-            residual_block_2d(filters[0], filters[1], projection=True),
-            squeeze_excitation_3d(channel=filters[1], channel_reduction=4, spatial_reduction=8)
-        )
+        self.layer1_E = dilated_fusion_block(in_channel, filters[0], channel_reduction=2, spatial_reduction=16)
+        self.layer2_E = dilated_fusion_block(filters[0], filters[1], channel_reduction=4, spatial_reduction=8)
         self.layer3_E = nn.Sequential(
             residual_block_3d(filters[1], filters[2], projection=True),
             squeeze_excitation_3d(channel=filters[2], channel_reduction=8, spatial_reduction=4)
@@ -29,7 +22,7 @@ class unetv0(nn.Module):
             bottleneck_dilated_3d(filters[2], filters[3], projection=True),
             squeeze_excitation_3d(channel=filters[3], channel_reduction=16, spatial_reduction=2, z_reduction=2)
         )
-
+        
         # center block
         self.center = nn.Sequential(
             bottleneck_dilated_3d(filters[3], filters[4], projection=True),
@@ -37,14 +30,8 @@ class unetv0(nn.Module):
         )
 
         # decoding path
-        self.layer1_D = nn.Sequential(
-            residual_block_2d(filters[0], filters[0], projection=True),
-            squeeze_excitation_3d(channel=filters[0], channel_reduction=2, spatial_reduction=16)
-        )
-        self.layer2_D = nn.Sequential(
-            residual_block_2d(filters[1], filters[1], projection=True),
-            squeeze_excitation_3d(channel=filters[1], channel_reduction=4, spatial_reduction=8)
-        )
+        self.layer1_D = dilated_fusion_block(filters[0], filters[0], channel_reduction=2, spatial_reduction=16)
+        self.layer2_D = dilated_fusion_block(filters[1], filters[1], channel_reduction=4, spatial_reduction=8)
         self.layer3_D = nn.Sequential(
             residual_block_3d(filters[2], filters[2], projection=True),
             squeeze_excitation_3d(channel=filters[2], channel_reduction=8, spatial_reduction=4)
@@ -103,7 +90,7 @@ class unetv0(nn.Module):
         return x
 
 def test():
-    model = unetv0()
+    model = unetv2()
     print('model type: ', model.__class__.__name__)
     num_params = sum([p.data.nelement() for p in model.parameters()])
     print('number of trainable parameters: ', num_params)

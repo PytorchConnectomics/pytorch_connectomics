@@ -1,7 +1,7 @@
 # Troubleshooting
 
-Here is a compilation if common issues that you might face
-while compiling / running this code:
+Here is a summary if common compilation issues that you 
+might face while compiling / running this code:
 
 ## Compilation errors when compiling the library
 If you encounter build errors like the following:

@@ -8,32 +8,32 @@ def getExt():
     # extensions under segmenation/
     return [
         Extension(
-            name='vcg_connectomics.utils.seg.seg_dist',
-            sources=['vcg_connectomics/utils/seg/seg_dist.pyx',
-                     'vcg_connectomics/utils/seg/cpp/seg_dist/cpp-distance.cpp'],
+            name='torch_connectomics.utils.seg.seg_dist',
+            sources=['torch_connectomics/utils/seg/seg_dist.pyx',
+                     'torch_connectomics/utils/seg/cpp/seg_dist/cpp-distance.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         ),
         Extension(
-            name='vcg_connectomics.utils.seg.seg_core',
-            sources=['vcg_connectomics/utils/seg/seg_core.pyx',
-                     'vcg_connectomics/utils/seg/cpp/seg_core/cpp-seg2seg.cpp',
-                     'vcg_connectomics/utils/seg/cpp/seg_core/cpp-seg2gold.cpp',
-                     'vcg_connectomics/utils/seg/cpp/seg_core/cpp-seg_core.cpp'],
+            name='torch_connectomics.utils.seg.seg_core',
+            sources=['torch_connectomics/utils/seg/seg_core.pyx',
+                     'torch_connectomics/utils/seg/cpp/seg_core/cpp-seg2seg.cpp',
+                     'torch_connectomics/utils/seg/cpp/seg_core/cpp-seg2gold.cpp',
+                     'torch_connectomics/utils/seg/cpp/seg_core/cpp-seg_core.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         ),
         Extension(
-            name='vcg_connectomics.utils.seg.seg_eval',
-            sources=['vcg_connectomics/utils/seg/seg_eval.pyx',
-                     'vcg_connectomics/utils/seg/cpp/seg_eval/cpp-comparestacks.cpp'],
+            name='torch_connectomics.utils.seg.seg_eval',
+            sources=['torch_connectomics/utils/seg/seg_eval.pyx',
+                     'torch_connectomics/utils/seg/cpp/seg_eval/cpp-comparestacks.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         ),
         Extension(
-            name='vcg_connectomics.utils.seg.seg_malis',
-            sources=['vcg_connectomics/utils/seg/seg_malis.pyx',
-                     'vcg_connectomics/utils/seg/cpp/seg_malis/cpp-malis_core.cpp'],
+            name='torch_connectomics.utils.seg.seg_malis',
+            sources=['torch_connectomics/utils/seg/seg_malis.pyx',
+                     'torch_connectomics/utils/seg/cpp/seg_malis/cpp-malis_core.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         )
@@ -48,14 +48,16 @@ def setup_package():
     __version__ = '0.1'
     url = 'https://github.com/zudi-lin/pytorch_connectomics'
 
-    setup(name='vcg_connectomics',
+    setup(name='torch_connectomics',
+        description='Automatic Annotation of Connectomics with PyTorch',
         version=__version__,
         url=url,
         license='MIT',
+        author='Zudi Lin',
         install_requires=['cython','scipy','boost'],
         cmdclass = {'build_ext': build_ext},
         include_dirs=getInclude(), 
-        packages=['vcg_connectomics'],
+        packages=['torch_connectomics'],
         ext_modules = getExt()
     )
 

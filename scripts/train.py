@@ -4,9 +4,9 @@ import h5py, time, itertools, datetime
 
 import torch
 
-from vcg_connectomics.model.loss import *
-from vcg_connectomics.utils.net import *
-from vcg_connectomics.utils.vis import visualize, visualize_aff
+from torch_connectomics.model.loss import *
+from torch_connectomics.utils.net import *
+from torch_connectomics.utils.vis import visualize, visualize_aff
 
 def train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer):
     record = AverageMeter()
@@ -54,7 +54,7 @@ def train(args, train_loader, model, device, criterion, optimizer, scheduler, lo
             break    #     
 
 def main():
-    args = args = get_args(mode='train')
+    args = get_args(mode='train')
 
     print('0. initial setup')
     model_io_size, device = init(args) 

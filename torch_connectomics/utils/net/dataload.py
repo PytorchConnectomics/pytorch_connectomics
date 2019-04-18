@@ -7,8 +7,8 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from vcg_connectomics.data.dataset import AffinityDataset, collate_fn, collate_fn_test
-from vcg_connectomics.data.augmentation import *
+from torch_connectomics.data.dataset import AffinityDataset, collate_fn, collate_fn_test
+from torch_connectomics.data.augmentation import *
 
 def get_input(args, model_io_size, mode='train'):
     """

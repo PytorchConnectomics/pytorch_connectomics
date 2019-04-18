@@ -8,8 +8,8 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from vcg_connectomics.model.model_zoo import *
-from vcg_connectomics.libs.sync import DataParallelWithCallback
+from torch_connectomics.model.model_zoo import *
+from torch_connectomics.libs.sync import DataParallelWithCallback
 
 # tensorboardX
 from tensorboardX import SummaryWriter

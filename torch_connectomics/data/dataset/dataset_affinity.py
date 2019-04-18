@@ -5,8 +5,8 @@ import random
 import torch
 import torch.utils.data
 
-from vcg_connectomics.utils.seg.aff_util import seg_to_affgraph, affinitize
-from vcg_connectomics.utils.seg.seg_util import mknhood3d, widen_border
+from torch_connectomics.utils.seg.aff_util import seg_to_affgraph, affinitize
+from torch_connectomics.utils.seg.seg_util import mknhood3d, widen_border
 
 from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class
