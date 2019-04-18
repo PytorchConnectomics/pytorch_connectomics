@@ -16,17 +16,22 @@ The code is developed and tested under the following configurations.
 - Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.5, PyTorch>=1.0.0***
 
 ## Installation
+
+Create new conda environment:
 ```
 conda create -n py3_torch python=3.6
 source activate activate py3_torch
 conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
+```
 
+Download and install the package:
+```
 git clone git@github.com:zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
 pip install -r requirements.txt
 pip install --editable .
 ```
-For more information and frequently asked questions about installation, please check the [installation guide]().
+For more information and frequently asked questions about installation, please check the [installation guide](). If you meet compilation errors, please check [TROUBLESHOOTING.md](https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md).
 
 ## Visulazation
 
@@ -57,4 +62,4 @@ The implementation is easy to use as:
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
 
 ## Contact
-[Zudi Lin](linzudi@g.harvard.edu)
+[Zudi Lin](https://github.com/zudi-lin)
