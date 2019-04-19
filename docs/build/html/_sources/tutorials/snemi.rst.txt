@@ -1,4 +1,4 @@
-Neuron Segmentation with SNEMI3D Dataset
+Neuron Segmentation
 =======================
 
 .. contents::
