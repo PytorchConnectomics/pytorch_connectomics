@@ -2,25 +2,28 @@
 
 ## Introduction
 
-The field of connectomics aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Here we provide a deep learning toolbox for automatic and semi-automatic data annotation in connectomics.
+The field of connectomics aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic data annotation in connectomics.
 
 ## Key Features
 
 - Multitask Learning
 - Active Learning
+- CPU and GPU Parallelism
+
+If you want new features that are relatively easy to implement (e.g. loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [auther](https://github.com/zudi-lin) directly. 
 
 ## Environment
 
 The code is developed and tested under the following configurations.
 - Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```[--num-gpu GPUS]``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.5, PyTorch>=1.0.0***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.6, PyTorch>=1.0.0***
 
 ## Installation
 
-Create new conda environment:
+Create a new conda environment:
 ```
 conda create -n py3_torch python=3.6
-source activate activate py3_torch
+source activate py3_torch
 conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
 ```
 
@@ -36,7 +39,7 @@ For more information and frequently asked questions about installation, please c
 ## Visulazation
 
 ### Training
-* Visualize the training loss using [tensorboardX](https://github.com/lanpa/tensorboard-pytorch).
+* Visualize the training loss and validation images using [tensorboardX](https://github.com/lanpa/tensorboard-pytorch).
 * Use TensorBoard with `tensorboard --logdir runs`  (needs to install TensorFlow).
 
 ### Test
@@ -48,7 +51,7 @@ For more information and frequently asked questions about installation, please c
 We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g. TensorFlow). For more details about the design of the data augmentation module, please check the [documentation]().
 
 ### Model Zoo
-We provide several encoder-decoder architectures. 
+We provide several encoder-decoder architectures, which can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/torch_connectomics/model/model_zoo). Those models can be applied to any kinds of semantic segmentation tasks of 3D image stacks. We also provide benchmark results on SNEMI3D neuron segmentation challenges [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/benchmark) with detailed training specifications for users to reproduce.
 
 ### Syncronized Batch Normalization on PyTorch
 Previous works have suggested that a reasonable large batch size can improve the performance of detection and segmentation models. Here we use a syncronized batch normalization module that computes the mean and standard-deviation across all devices during training. Please refer to [Synchronized-BatchNorm-PyTorch](https://github.com/vacancy/Synchronized-BatchNorm-PyTorch) for details. The implementation is pure-python, and uses unbiased variance to update the moving average, and use `sqrt(max(var, eps))` instead of `sqrt(var + eps)`.
