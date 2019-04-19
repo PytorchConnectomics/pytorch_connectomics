@@ -1,8 +1,16 @@
 import numpy as np
 from .augmentor import DataAugment
 
+from scipy.ndimage.interpolation import map_coordinates, zoom
+import numbers
+from skimage.draw import line
+from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage.measurements import label
+from scipy.ndimage.morphology import binary_dilation
+
 class MissingParts(DataAugment):
-    """Missing-parts augmentation of image stacks
+    """Missing-parts augmentation of image stacks.
+
     Args:
         deformation_strength (int):
         iterations (int): (default: 80)
@@ -11,23 +19,25 @@ class MissingParts(DataAugment):
     """
     def __init__(self, 
                  deformation_strength=0, 
-                 iterations=80, 
+                 iterations=20, 
                  deform_ratio=0.25, 
                  p=0.5):
         super(MissingParts, self).__init__(p=p)
-        self.displacement = 16
+        self.deformation_strength = deformation_strength
+        self.iterations = iterations
+        self.set_params()
 
     def set_params(self):
         # No change in sample size
         pass
 
-    def prepare_deform_slice(slice_shape, deformation_strength, iterations):
+    def prepare_deform_slice(self, slice_shape, random_state):
         # grow slice shape by 2 x deformation strength
-        grow_by = 2 * deformation_strength
+        grow_by = 2 * self.deformation_strength
         #print ('sliceshape: '+str(slice_shape[0])+' growby: '+str(grow_by)+ ' strength: '+str(deformation_strength))
         shape = (slice_shape[0] + grow_by, slice_shape[1] + grow_by)
         # randomly choose fixed x or fixed y with p = 1/2
-        fixed_x = np.random.random() < 0.5
+        fixed_x = random_state.rand() < 0.5
         if fixed_x:
             x0, y0 = 0, np.random.randint(1, shape[1] - 2)
             x1, y1 = shape[0] - 1, np.random.randint(1, shape[1] - 2)
@@ -62,41 +72,46 @@ class MissingParts(DataAugment):
         neg_val = components[0, 0] if fixed_x else components[-1, -1]
         pos_val = components[-1, -1] if fixed_x else components[0, 0]
 
-        flow_x[components == pos_val] = deformation_strength * normal_vector[1]
-        flow_y[components == pos_val] = deformation_strength * normal_vector[0]
-        flow_x[components == neg_val] = - deformation_strength * normal_vector[1]
-        flow_y[components == neg_val] = - deformation_strength * normal_vector[0]
+        flow_x[components == pos_val] = self.deformation_strength * normal_vector[1]
+        flow_y[components == pos_val] = self.deformation_strength * normal_vector[0]
+        flow_x[components == neg_val] = - self.deformation_strength * normal_vector[1]
+        flow_y[components == neg_val] = - self.deformation_strength * normal_vector[0]
 
         # generate the flow fields
         flow_x, flow_y = (x + flow_x).reshape(-1, 1), (y + flow_y).reshape(-1, 1)
 
         # dilate the line mask
-        line_mask = binary_dilation(line_mask, iterations=iterations)#default=10
+        line_mask = binary_dilation(line_mask, iterations=self.iterations) #default=10
         
         return flow_x, flow_y, line_mask
 
-    def deform_2d(image2d, deformation_strength, iterations):
-        flow_x, flow_y, line_mask = prepare_deform_slice(image2d.shape,deformation_strength,iterations)
+    def deform_2d(self, image2d, random_state):
+        flow_x, flow_y, line_mask = self.prepare_deform_slice(image2d.shape, random_state)
         section = image2d.squeeze()
         mean = section.mean()
         shape = section.shape
         #interpolation=3
         section = map_coordinates(section, (flow_y, flow_x), mode='constant', 
-                                order=3).reshape(int(flow_x.shape[0]**0.5),int(flow_x.shape[0]**0.5))
+                        order=3).reshape(int(flow_x.shape[0]**0.5),int(flow_x.shape[0]**0.5))
         section = np.clip(section, 0., 1.)
         section[line_mask] = mean
         return section 
 
-    def apply_deform(imgs, deformation_strength=0, iterations=80, deform_ratio=0.25):
-        '''
-        imgs :3D
-        '''
+    def apply_deform(self, imgs, random_state):
         transformedimgs = np.copy(imgs)
         sectionsnum = imgs.shape[0]
         i =0
         while i < sectionsnum:
-            if random.random() <= deform_ratio:
-                transformedimgs[i] = deform_2d(imgs[i], deformation_strength, iterations)
-                i += 2
+            if random_state.rand() < self.p:
+                transformedimgs[i] = self.deform_2d(imgs[i], random_state)
+                i += 2 # only one deformed image in any consecutive 3 images
             i += 1
         return transformedimgs
+
+    def __call__(self, data, random_state):
+        if random_state is None:
+            random_state = np.random.RandomState(1234)
+
+        augmented = self.apply_deform(data['image'], random_state)
+        data['image'] = augmented
+        return data

@@ -9,6 +9,7 @@ from .rotation import Rotate
 from .rescale import Rescale
 from .misalign import MisAlignment
 from .missing_section import MissingSection
+from .missing_parts import MissingParts
 
 __all__ = ['Compose',
            'DataAugment', 
@@ -18,4 +19,5 @@ __all__ = ['Compose',
            'Rescale',
            'MisAlignment',
            'MissingSection',
+           'MissingParts',
            'Flip']

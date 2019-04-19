@@ -13,19 +13,20 @@ class Compose(object):
     Args:
         transforms (list): list of transformations to compose.
         input_size (tuple): input size of model in (z, y, x).
-        keep_uncropped (bool): keep uncropped images and labels (default: False)
-        smooth (bool): smooth the boundary of segmentation masks (default: True)
+        keep_uncropped (bool): keep uncropped images and labels (default: False).
+        keep_non_smooth (bool): return also the non-smoothed masks (default: False).
     """
     def __init__(self, 
                  transforms, 
                  input_size = (8,196,196),
                  keep_uncropped = False,
-                 smooth = True):
+                 keep_non_smoothed = False):
         self.transforms = transforms
         self.input_size = np.array(input_size)
         self.sample_size = self.input_size.copy()
         self.set_sample_params()
         self.keep_uncropped = keep_uncropped
+        self.keep_non_smoothed = keep_non_smoothed
 
     def set_sample_params(self):
         for _, t in enumerate(self.transforms):
@@ -91,6 +92,11 @@ class Compose(object):
                 data = t(data, random_state)
 
         # crop the data to input size
+        if self.keep_uncropped:
+            data['uncropped_image'] = data['image']
+            data['uncropped_label'] = data['label']
         data = self.crop(data)
+        if self.keep_non_smoothed:
+            data['non_smoothed'] = data['label']
         data = self.smooth_edge(data)
         return data
