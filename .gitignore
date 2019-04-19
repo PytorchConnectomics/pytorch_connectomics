@@ -118,7 +118,6 @@ dmypy.json
 
 # data
 *.h5
-*.ipynb
 ._*
 .DS_Store
 *.pth

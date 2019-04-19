@@ -48,15 +48,10 @@ For more information and frequently asked questions about installation, please c
 We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g. TensorFlow). For more details about the design of the data augmentation module, please check the [documentation]().
 
 ### Model Zoo
-We provide several encoder-decoder architectures.
+We provide several encoder-decoder architectures. 
 
 ### Syncronized Batch Normalization on PyTorch
-This module computes the mean and standard-deviation across all devices during training. We empirically find that a reasonable large batch size is important for segmentation. We thank [Jiayuan Mao](http://vccy.xyz/) for his kind contributions, please refer to [Synchronized-BatchNorm-PyTorch](https://github.com/vacancy/Synchronized-BatchNorm-PyTorch) for details.
-
-The implementation is easy to use as:
-- It is pure-python, no C++ extra extension libs.
-- It is completely compatible with PyTorch's implementation. Specifically, it uses unbiased variance to update the moving average, and use sqrt(max(var, eps)) instead of sqrt(var + eps).
-- It is efficient, only 20% to 30% slower than UnsyncBN.
+Previous works have suggested that a reasonable large batch size can improve the performance of detection and segmentation models. Here we use a syncronized batch normalization module that computes the mean and standard-deviation across all devices during training. Please refer to [Synchronized-BatchNorm-PyTorch](https://github.com/vacancy/Synchronized-BatchNorm-PyTorch) for details. The implementation is pure-python, and uses unbiased variance to update the moving average, and use `sqrt(max(var, eps))` instead of `sqrt(var + eps)`.
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
