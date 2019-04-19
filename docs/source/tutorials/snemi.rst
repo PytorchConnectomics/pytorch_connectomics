@@ -1,4 +1,4 @@
-Large Scale Inference
+Neuron Segmentation with SNEMI3D Dataset
 =======================
 
 .. contents::

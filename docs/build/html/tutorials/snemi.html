@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>torch_connectomics.data.datasets &mdash; pytorch_connectomics master documentation</title>
+  <title>Neuron Segmentation with SNEMI3D Dataset &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -46,8 +46,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="torch_connectomics.utils" href="utils.html" />
-    <link rel="prev" title="torch_connectomics.data.augmentation" href="augmentation.html" /> 
+    <link rel="next" title="torch_connectomics.model" href="../modules/model.html" />
+    <link rel="prev" title="Introduction by example" href="../notes/introduction.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -115,28 +115,28 @@
 </li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/snemi.html">Neuron Segmentation with SNEMI3D Dataset</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Neuron Segmentation with SNEMI3D Dataset</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="model.html">torch_connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="model.html#module-torch_connectomics.model.blocks">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">torch_connectomics.model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.blocks">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="augmentation.html">torch_connectomics.data.augmentation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="augmentation.html#module-torch_connectomics.data.augmentation">Data Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">torch_connectomics.data.augmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/augmentation.html#module-torch_connectomics.data.augmentation">Data Augmentation</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">torch_connectomics.data.datasets</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#datasets">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">torch_connectomics.data.datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/datasets.html#datasets">Datasets</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="utils.html">torch_connectomics.utils</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="utils.html#segmentation">Segmentation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="utils.html#network-training-inference">Network Training &amp; Inference</a></li>
-<li class="toctree-l2"><a class="reference internal" href="utils.html#visualization">Visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">torch_connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#segmentation">Segmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#network-training-inference">Network Training &amp; Inference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#visualization">Visualization</a></li>
 </ul>
 </li>
 </ul>
@@ -184,13 +184,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>torch_connectomics.data.datasets</li>
+      <li>Neuron Segmentation with SNEMI3D Dataset</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/modules/datasets.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/snemi.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -203,17 +203,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="torch-connectomics-data-datasets">
-<h1>torch_connectomics.data.datasets<a class="headerlink" href="#torch-connectomics-data-datasets" title="Permalink to this headline">¶</a></h1>
-<div class="contents local topic" id="contents">
-<p class="topic-title first">Contents</p>
-<ul class="simple">
-<li><a class="reference internal" href="#datasets" id="id1">Datasets</a></li>
-</ul>
-</div>
-<div class="section" id="datasets">
-<h2><a class="toc-backref" href="#id1">Datasets</a><a class="headerlink" href="#datasets" title="Permalink to this headline">¶</a></h2>
-</div>
+  <div class="section" id="neuron-segmentation-with-snemi3d-dataset">
+<h1>Neuron Segmentation with SNEMI3D Dataset<a class="headerlink" href="#neuron-segmentation-with-snemi3d-dataset" title="Permalink to this headline">¶</a></h1>
 </div>
 
 
@@ -224,10 +215,10 @@
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="utils.html" class="btn btn-neutral float-right" title="torch_connectomics.utils" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="../modules/model.html" class="btn btn-neutral float-right" title="torch_connectomics.model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="augmentation.html" class="btn btn-neutral float-left" title="torch_connectomics.data.augmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="../notes/introduction.html" class="btn btn-neutral float-left" title="Introduction by example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

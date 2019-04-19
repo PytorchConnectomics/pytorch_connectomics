@@ -1,4 +1,4 @@
-vcg_connectomics.data
+torch_connectomics.data.augmentation
 ====================
 
 .. contents:: Contents
@@ -7,5 +7,5 @@ vcg_connectomics.data
 Data Augmentation
 --------------------
 
-.. automodule:: vcg_connectomics.data.augmentation
+.. automodule:: torch_connectomics.data.augmentation
     :members:

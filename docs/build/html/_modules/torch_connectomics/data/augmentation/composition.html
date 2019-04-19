@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>vcg_connectomics.data.augmentation.composition &mdash; pytorch_connectomics master documentation</title>
+  <title>torch_connectomics.data.augmentation.composition &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -184,7 +184,7 @@
         
           <li><a href="../../../index.html">Module code</a> &raquo;</li>
         
-      <li>vcg_connectomics.data.augmentation.composition</li>
+      <li>torch_connectomics.data.augmentation.composition</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -199,7 +199,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>Source code for vcg_connectomics.data.augmentation.composition</h1><div class="highlight"><pre>
+  <h1>Source code for torch_connectomics.data.augmentation.composition</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
 
 <span class="kn">import</span> <span class="nn">random</span>
@@ -209,25 +209,26 @@
 <span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="k">import</span> <span class="n">dilation</span><span class="p">,</span><span class="n">erosion</span>
 <span class="kn">from</span> <span class="nn">skimage.filters</span> <span class="k">import</span> <span class="n">gaussian</span>
 
-<div class="viewcode-block" id="Compose"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Compose">[docs]</a><span class="k">class</span> <span class="nc">Compose</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<div class="viewcode-block" id="Compose"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Compose">[docs]</a><span class="k">class</span> <span class="nc">Compose</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Compose transforms</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        transforms (list): list of transformations to compose.</span>
 <span class="sd">        input_size (tuple): input size of model in (z, y, x).</span>
-<span class="sd">        keep_uncropped (bool): keep uncropped images and labels (default: False)</span>
-<span class="sd">        smooth (bool): smooth the boundary of segmentation masks (default: True)</span>
+<span class="sd">        keep_uncropped (bool): keep uncropped images and labels (default: False).</span>
+<span class="sd">        keep_non_smooth (bool): return also the non-smoothed masks (default: False).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
                  <span class="n">transforms</span><span class="p">,</span> 
                  <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">196</span><span class="p">,</span><span class="mi">196</span><span class="p">),</span>
                  <span class="n">keep_uncropped</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                 <span class="n">smooth</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+                 <span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transforms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_sample_params</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span> <span class="o">=</span> <span class="n">keep_uncropped</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="n">keep_non_smoothed</span>
 
     <span class="k">def</span> <span class="nf">set_sample_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">):</span>
@@ -293,7 +294,12 @@
                 <span class="n">data</span> <span class="o">=</span> <span class="n">t</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
 
         <span class="c1"># crop the data to input size</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;uncropped_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;uncropped_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;non_smoothed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_edge</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span></div>
 </pre></div>

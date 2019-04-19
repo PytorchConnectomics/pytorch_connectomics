@@ -1,5 +1,0 @@
-Evaluation
-=======================
-
-.. contents::
-    :local:

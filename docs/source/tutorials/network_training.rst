@@ -1,5 +1,0 @@
-Network Training
-=======================
-
-.. contents::
-    :local:

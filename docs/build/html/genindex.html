@@ -115,33 +115,29 @@
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/setup_odyssey.html">Guidance for Harvard RC Users</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/setup_odyssey.html#step-1-school-related-setup">Step 1: School-related Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/setup_odyssey.html#step-2-machine-setup">Step 2: Machine Setup</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/setup_odyssey.html#step-3-common-practice">Step 3: Common Practice</a></li>
-<li class="toctree-l2"><a class="reference internal" href="tutorials/setup_odyssey.html#step-4-end-to-end-connectomics-tutorial">Step 4: End-to-End Connectomics Tutorial:</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/data_visualization.html">Data Visualization</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/pre_processing.html">Pre Processing</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/network_training.html">Network Training</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/large_scale_inference.html">Large Scale Inference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="tutorials/evaluation.html">Evaluation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/snemi.html">Neuron Segmentation with SNEMI3D Dataset</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="modules/nn.html">torch_geometric.nn</a></li>
-<li class="toctree-l1"><a class="reference internal" href="modules/model.html">vcg_connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-vcg_connectomics.model.blocks">Building Blocks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/model.html">torch_connectomics.model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-torch_connectomics.model.blocks">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="modules/data.html">vcg_connectomics.data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-vcg_connectomics.data.augmentation">Data Augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/augmentation.html">torch_connectomics.data.augmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/augmentation.html#module-torch_connectomics.data.augmentation">Data Augmentation</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="modules/datasets.html">torch_geometric.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="modules/transforms.html">torch_geometric.transforms</a></li>
-<li class="toctree-l1"><a class="reference internal" href="modules/utils.html">torch_geometric.utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/datasets.html">torch_connectomics.data.datasets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/datasets.html#datasets">Datasets</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="modules/utils.html">torch_connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/utils.html#segmentation">Segmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/utils.html#network-training-inference">Network Training &amp; Inference</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/utils.html#visualization">Visualization</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -215,19 +211,20 @@
  | <a href="#F"><strong>F</strong></a>
  | <a href="#G"><strong>G</strong></a>
  | <a href="#I"><strong>I</strong></a>
+ | <a href="#M"><strong>M</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
- | <a href="#V"><strong>V</strong></a>
+ | <a href="#T"><strong>T</strong></a>
  
 </div>
 <h2 id="A">A</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Grayscale.augment2D">augment2D() (Grayscale method)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.augment2D">augment2D() (Grayscale method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Grayscale.augment3D">augment3D() (Grayscale method)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.augment3D">augment3D() (Grayscale method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -235,7 +232,7 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Compose">Compose (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Compose">Compose (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -243,7 +240,7 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.DataAugment">DataAugment (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.DataAugment">DataAugment (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -251,7 +248,7 @@
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Elastic">Elastic (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Elastic">Elastic (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -259,7 +256,7 @@
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Flip">Flip (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Flip">Flip (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -267,7 +264,7 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Grayscale">Grayscale (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale">Grayscale (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -275,7 +272,21 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Grayscale.invert">invert() (Grayscale method)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.invert">invert() (Grayscale method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.MisAlignment">MisAlignment (class in torch_connectomics.data.augmentation)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.MissingParts">MissingParts (class in torch_connectomics.data.augmentation)</a>
+</li>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.MissingSection">MissingSection (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -283,11 +294,11 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Rescale">Rescale (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Rescale">Rescale (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Rotate">Rotate (class in vcg_connectomics.data.augmentation)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Rotate">Rotate (class in torch_connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -295,23 +306,25 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.Grayscale.set_mode">set_mode() (Grayscale method)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.set_mode">set_mode() (Grayscale method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#vcg_connectomics.data.augmentation.DataAugment.set_params">set_params() (DataAugment method)</a>
+      <li><a href="modules/augmentation.html#torch_connectomics.data.augmentation.DataAugment.set_params">set_params() (DataAugment method)</a>
 </li>
   </ul></td>
 </tr></table>
 
-<h2 id="V">V</h2>
+<h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#module-vcg_connectomics.data.augmentation">vcg_connectomics.data.augmentation (module)</a>
+      <li><a href="modules/augmentation.html#module-torch_connectomics.data.augmentation">torch_connectomics.data.augmentation (module)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/model.html#module-vcg_connectomics.model.blocks">vcg_connectomics.model.blocks (module)</a>
+      <li><a href="modules/model.html#module-torch_connectomics.model.blocks">torch_connectomics.model.blocks (module)</a>
+</li>
+      <li><a href="modules/model.html#module-torch_connectomics.model.model_zoo">torch_connectomics.model.model_zoo (module)</a>
 </li>
   </ul></td>
 </tr></table>

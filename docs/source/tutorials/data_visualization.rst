@@ -1,5 +1,0 @@
-Data Visualization
-=======================
-
-.. contents::
-    :local:

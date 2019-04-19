@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>vcg_connectomics.data.augmentation.flip &mdash; pytorch_connectomics master documentation</title>
+  <title>torch_connectomics.data.augmentation.rotation &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -184,7 +184,7 @@
         
           <li><a href="../../../index.html">Module code</a> &raquo;</li>
         
-      <li>vcg_connectomics.data.augmentation.flip</li>
+      <li>torch_connectomics.data.augmentation.rotation</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -199,61 +199,57 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>Source code for vcg_connectomics.data.augmentation.flip</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+  <h1>Source code for torch_connectomics.data.augmentation.rotation</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="k">import</span> <span class="n">DataAugment</span>
 
-<div class="viewcode-block" id="Flip"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Flip">[docs]</a><span class="k">class</span> <span class="nc">Flip</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
+<div class="viewcode-block" id="Rotate"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Rotate">[docs]</a><span class="k">class</span> <span class="nc">Rotate</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Flip along z-, y- and x-axes as well as swap y- and x-axes</span>
+<span class="sd">    Continuous rotatation.</span>
+
+<span class="sd">    The sample size for x- and y-axes should be at least sqrt(2) times larger</span>
+<span class="sd">    than the input size to make sure there is no non-valid region after center-crop.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        p (float): probability of applying the augmentation</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Flip</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Rotate</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span> 
+        <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label_interpolation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># No change in sample size</span>
-        <span class="k">pass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;ratio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">flip_and_swap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">rule</span><span class="p">):</span>
-        <span class="k">assert</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span><span class="o">==</span><span class="mi">3</span> <span class="ow">or</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span><span class="o">==</span><span class="mi">4</span>
-        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-            <span class="c1"># z reflection.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
-            <span class="c1"># y reflection.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
-            <span class="c1"># x reflection.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="c1"># Transpose in xy.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">3</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># z reflection.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
-            <span class="c1"># y reflection.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
-            <span class="c1"># x reflection.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="c1"># Transpose in xy.</span>
-            <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">3</span><span class="p">]:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
-    
-    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">rotate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">interpolation</span><span class="p">):</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">imgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+        <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">transformedimgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]):</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">transformedimgs</span><span class="p">[</span><span class="n">z</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
+            <span class="n">dst</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">M</span> <span class="p">,(</span><span class="n">height</span><span class="p">,</span><span class="n">width</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span> <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">)</span>
+            <span class="n">transformedimgs</span><span class="p">[</span><span class="n">z</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">dst</span>
+
+        <span class="k">return</span> <span class="n">transformedimgs</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">random_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="mi">1234</span><span class="p">)</span>
-        
+
+        <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="kc">None</span>
+
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">getRotationMatrix2D</span><span class="p">((</span><span class="n">height</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span><span class="o">*</span><span class="mf">360.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
         <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">rule</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-        <span class="n">augmented_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">rule</span><span class="p">)</span>
-        <span class="n">augmented_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span> <span class="n">rule</span><span class="p">)</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">augmented_image</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">augmented_label</span>
+        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">output</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_interpolation</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">output</span></div>
 </pre></div>

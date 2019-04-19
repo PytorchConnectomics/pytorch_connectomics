@@ -1,4 +1,4 @@
-vcg_connectomics.model
+torch_connectomics.model
 ==================
 
 .. contents:: Contents
@@ -7,6 +7,12 @@ vcg_connectomics.model
 Building Blocks
 --------------------
 
-.. automodule:: vcg_connectomics.model.blocks
+.. automodule:: torch_connectomics.model.blocks
+    :members:
+
+Model Zoo
+--------------------
+
+.. automodule:: torch_connectomics.model.model_zoo
     :members:
 

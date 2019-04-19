@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>vcg_connectomics.data.augmentation.grayscale &mdash; pytorch_connectomics master documentation</title>
+  <title>torch_connectomics.data.augmentation.grayscale &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -184,7 +184,7 @@
         
           <li><a href="../../../index.html">Module code</a> &raquo;</li>
         
-      <li>vcg_connectomics.data.augmentation.grayscale</li>
+      <li>torch_connectomics.data.augmentation.grayscale</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -199,11 +199,11 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>Source code for vcg_connectomics.data.augmentation.grayscale</h1><div class="highlight"><pre>
+  <h1>Source code for torch_connectomics.data.augmentation.grayscale</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="k">import</span> <span class="n">DataAugment</span>
 
-<div class="viewcode-block" id="Grayscale"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Grayscale">[docs]</a><span class="k">class</span> <span class="nc">Grayscale</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
+<div class="viewcode-block" id="Grayscale"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale">[docs]</a><span class="k">class</span> <span class="nc">Grayscale</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Grayscale value augmentation.</span>
 
@@ -215,10 +215,10 @@
         <span class="sd">&quot;&quot;&quot;Initialize parameters.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            contrast_factor (float): intensity of contrast change</span>
-<span class="sd">            brightness_factor (float): intensity of brightness change</span>
-<span class="sd">            mode (string): &#39;2D&#39;, &#39;3D&#39;, &#39;mix&#39;</span>
-<span class="sd">            p (float): probability of applying the augmentation</span>
+<span class="sd">            contrast_factor (float): intensity of contrast change.</span>
+<span class="sd">            brightness_factor (float): intensity of brightness change.</span>
+<span class="sd">            mode (string): &#39;2D&#39;, &#39;3D&#39; or &#39;mix&#39;.</span>
+<span class="sd">            p (float): probability of applying the augmentation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Grayscale</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
@@ -243,7 +243,7 @@
         <span class="k">if</span> <span class="n">mode</span> <span class="ow">is</span> <span class="s1">&#39;3D&#39;</span><span class="p">:</span> <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment3D</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span>
 
-<div class="viewcode-block" id="Grayscale.augment2D"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Grayscale.augment2D">[docs]</a>    <span class="k">def</span> <span class="nf">augment2D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Grayscale.augment2D"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.augment2D">[docs]</a>    <span class="k">def</span> <span class="nf">augment2D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adapted from ELEKTRONN (http://elektronn.org/).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -260,7 +260,7 @@
         <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformedimgs</span>
         <span class="k">return</span> <span class="n">data</span>    </div>
 
-<div class="viewcode-block" id="Grayscale.augment3D"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Grayscale.augment3D">[docs]</a>    <span class="k">def</span> <span class="nf">augment3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Grayscale.augment3D"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.augment3D">[docs]</a>    <span class="k">def</span> <span class="nf">augment3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adapted from ELEKTRONN (http://elektronn.org/).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -274,7 +274,7 @@
         <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformedimgs</span>
         <span class="k">return</span> <span class="n">data</span></div>
 
-<div class="viewcode-block" id="Grayscale.invert"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Grayscale.invert">[docs]</a>    <span class="k">def</span> <span class="nf">invert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="Grayscale.invert"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.invert">[docs]</a>    <span class="k">def</span> <span class="nf">invert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Invert input images</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -290,7 +290,7 @@
     <span class="c1">## Setters.</span>
     <span class="c1">####################################################################</span>
 
-<div class="viewcode-block" id="Grayscale.set_mode"><a class="viewcode-back" href="../../../../modules/data.html#vcg_connectomics.data.augmentation.Grayscale.set_mode">[docs]</a>    <span class="k">def</span> <span class="nf">set_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">):</span>
+<div class="viewcode-block" id="Grayscale.set_mode"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.Grayscale.set_mode">[docs]</a>    <span class="k">def</span> <span class="nf">set_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Set 2D/3D/mix greyscale value augmentation mode.&quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="n">mode</span><span class="o">==</span><span class="s1">&#39;2D&#39;</span> <span class="ow">or</span> <span class="n">mode</span><span class="o">==</span><span class="s1">&#39;3D&#39;</span> <span class="ow">or</span> <span class="n">mode</span><span class="o">==</span><span class="s1">&#39;mix&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span></div></div>
