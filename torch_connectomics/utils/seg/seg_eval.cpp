@@ -599,8 +599,8 @@ static CYTHON_INLINE float __PYX_NAN() {
   #endif
 #endif
 
-#define __PYX_HAVE__vcg_connectomics__utils__seg__seg_eval
-#define __PYX_HAVE_API__vcg_connectomics__utils__seg__seg_eval
+#define __PYX_HAVE__torch_connectomics__utils__seg__seg_eval
+#define __PYX_HAVE_API__torch_connectomics__utils__seg__seg_eval
 /* Early includes */
 #include <string.h>
 #include <stdio.h>
@@ -837,7 +837,7 @@ static const char *__pyx_filename;
 
 
 static const char *__pyx_f[] = {
-  "vcg_connectomics/utils/seg/seg_eval.pyx",
+  "torch_connectomics/utils/seg/seg_eval.pyx",
   "__init__.pxd",
   "type.pxd",
 };
@@ -1742,13 +1742,13 @@ static PyTypeObject *__pyx_ptype_5numpy_ndarray = 0;
 static PyTypeObject *__pyx_ptype_5numpy_ufunc = 0;
 static CYTHON_INLINE char *__pyx_f_5numpy__util_dtypestring(PyArray_Descr *, char *, char *, int *); /*proto*/
 
-/* Module declarations from 'vcg_connectomics.utils.seg.seg_eval' */
+/* Module declarations from 'torch_connectomics.utils.seg.seg_eval' */
 static __Pyx_TypeInfo __Pyx_TypeInfo_long = { "long", NULL, sizeof(long), { 0 }, 0, IS_UNSIGNED(long) ? 'U' : 'I', IS_UNSIGNED(long), 0 };
-#define __Pyx_MODULE_NAME "vcg_connectomics.utils.seg.seg_eval"
-extern int __pyx_module_is_main_vcg_connectomics__utils__seg__seg_eval;
-int __pyx_module_is_main_vcg_connectomics__utils__seg__seg_eval = 0;
+#define __Pyx_MODULE_NAME "torch_connectomics.utils.seg.seg_eval"
+extern int __pyx_module_is_main_torch_connectomics__utils__seg__seg_eval;
+int __pyx_module_is_main_torch_connectomics__utils__seg__seg_eval = 0;
 
-/* Implementation of 'vcg_connectomics.utils.seg.seg_eval' */
+/* Implementation of 'torch_connectomics.utils.seg.seg_eval' */
 static PyObject *__pyx_builtin_map;
 static PyObject *__pyx_builtin_ValueError;
 static PyObject *__pyx_builtin_range;
@@ -1895,11 +1895,11 @@ static const char __pyx_k_Format_string_allocated_too_shor[] = "Format string al
 static const char __pyx_k_Non_native_byte_order_not_suppor[] = "Non-native byte order not supported";
 static const char __pyx_k_ndarray_is_not_Fortran_contiguou[] = "ndarray is not Fortran contiguous";
 static const char __pyx_k_numpy_core_umath_failed_to_impor[] = "numpy.core.umath failed to import";
-static const char __pyx_k_vcg_connectomics_utils_seg_seg_c[] = "vcg_connectomics.utils.seg.seg_core";
-static const char __pyx_k_vcg_connectomics_utils_seg_seg_d[] = "vcg_connectomics.utils.seg.seg_dist";
-static const char __pyx_k_vcg_connectomics_utils_seg_seg_e[] = "vcg_connectomics/utils/seg/seg_eval.pyx";
+static const char __pyx_k_torch_connectomics_utils_seg_seg[] = "torch_connectomics.utils.seg.seg_dist";
 static const char __pyx_k_Format_string_allocated_too_shor_2[] = "Format string allocated too short.";
-static const char __pyx_k_vcg_connectomics_utils_seg_seg_e_2[] = "vcg_connectomics.utils.seg.seg_eval";
+static const char __pyx_k_torch_connectomics_utils_seg_seg_2[] = "torch_connectomics.utils.seg.seg_core";
+static const char __pyx_k_torch_connectomics_utils_seg_seg_3[] = "torch_connectomics/utils/seg/seg_eval.pyx";
+static const char __pyx_k_torch_connectomics_utils_seg_seg_4[] = "torch_connectomics.utils.seg.seg_eval";
 static PyObject *__pyx_n_s_CremiEvaluate;
 static PyObject *__pyx_n_s_DilateData;
 static PyObject *__pyx_kp_u_Format_string_allocated_too_shor;
@@ -2028,12 +2028,12 @@ static PyObject *__pyx_n_s_test;
 static PyObject *__pyx_n_s_tocsc;
 static PyObject *__pyx_n_s_tocsr;
 static PyObject *__pyx_n_s_todense;
+static PyObject *__pyx_n_s_torch_connectomics_utils_seg_seg;
+static PyObject *__pyx_n_s_torch_connectomics_utils_seg_seg_2;
+static PyObject *__pyx_kp_s_torch_connectomics_utils_seg_seg_3;
+static PyObject *__pyx_n_s_torch_connectomics_utils_seg_seg_4;
 static PyObject *__pyx_n_s_total;
 static PyObject *__pyx_kp_u_unknown_dtype_code_in_numpy_pxd;
-static PyObject *__pyx_n_s_vcg_connectomics_utils_seg_seg_c;
-static PyObject *__pyx_n_s_vcg_connectomics_utils_seg_seg_d;
-static PyObject *__pyx_kp_s_vcg_connectomics_utils_seg_seg_e;
-static PyObject *__pyx_n_s_vcg_connectomics_utils_seg_seg_e_2;
 static PyObject *__pyx_n_s_vi_merge;
 static PyObject *__pyx_n_s_vi_split;
 static PyObject *__pyx_n_s_vi_tables;
@@ -2046,16 +2046,16 @@ static PyObject *__pyx_n_s_yres;
 static PyObject *__pyx_n_s_z;
 static PyObject *__pyx_n_s_zeros;
 static PyObject *__pyx_n_s_zres;
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_all_stats); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_reconstruction, PyObject *__pyx_v_groundtruth, PyObject *__pyx_v_ignore_reconstruction, PyObject *__pyx_v_ignore_groundtruth); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency_table(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_ignore_seg, PyObject *__pyx_v_ignore_gt, PyObject *__pyx_v_norm); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_columns(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_row, PyObject *__pyx_v_in_place); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_column, PyObject *__pyx_v_in_place); /* proto */
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_out, PyObject *__pyx_v_in_place); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_PrincetonEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_2CremiEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_4adapted_rand(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_all_stats); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_reconstruction, PyObject *__pyx_v_groundtruth, PyObject *__pyx_v_ignore_reconstruction, PyObject *__pyx_v_ignore_groundtruth); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_8split_vi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_10vi_tables(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_12contingency_table(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_ignore_seg, PyObject *__pyx_v_ignore_gt, PyObject *__pyx_v_norm); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_14divide_columns(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_row, PyObject *__pyx_v_in_place); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_16divide_rows(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_column, PyObject *__pyx_v_in_place); /* proto */
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_out, PyObject *__pyx_v_in_place); /* proto */
 static int __pyx_pf_5numpy_7ndarray___getbuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info, int __pyx_v_flags); /* proto */
 static void __pyx_pf_5numpy_7ndarray_2__releasebuffer__(PyArrayObject *__pyx_v_self, Py_buffer *__pyx_v_info); /* proto */
 static PyObject *__pyx_float_1_0;
@@ -2100,7 +2100,7 @@ static PyObject *__pyx_codeobj__36;
 static PyObject *__pyx_codeobj__38;
 /* Late includes */
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":14
+/* "torch_connectomics/utils/seg/seg_eval.pyx":14
  *     void CppEvaluate(long *segmentation, long *gold, long resolution[3], unsigned char mask_ground_truth)
  * 
  * def PrincetonEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
@@ -2109,9 +2109,9 @@ static PyObject *__pyx_codeobj__38;
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate = {"PrincetonEvaluate", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate, METH_VARARGS|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate = {"PrincetonEvaluate", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate, METH_VARARGS|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_segmentation = 0;
   PyObject *__pyx_v_gold = 0;
   PyObject *__pyx_v_dilate_ground_truth = 0;
@@ -2200,18 +2200,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_1PrincetonEva
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("PrincetonEvaluate", 0, 2, 5, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 14, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.PrincetonEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.PrincetonEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEvaluate(__pyx_self, __pyx_v_segmentation, __pyx_v_gold, __pyx_v_dilate_ground_truth, __pyx_v_mask_ground_truth, __pyx_v_filtersize);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_PrincetonEvaluate(__pyx_self, __pyx_v_segmentation, __pyx_v_gold, __pyx_v_dilate_ground_truth, __pyx_v_mask_ground_truth, __pyx_v_filtersize);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_PrincetonEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize) {
   PyArrayObject *__pyx_v_cpp_segmentation = 0;
   PyArrayObject *__pyx_v_cpp_gold = 0;
   PyObject *__pyx_v_zres = NULL;
@@ -2259,7 +2259,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __pyx_pybuffernd_cpp_gold.data = NULL;
   __pyx_pybuffernd_cpp_gold.rcbuffer = &__pyx_pybuffer_cpp_gold;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":16
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":16
  * def PrincetonEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):
  *     # make sure these elements are the same size
  *     assert (segmentation.shape == gold.shape)             # <<<<<<<<<<<<<<
@@ -2284,7 +2284,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   }
   #endif
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":19
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":19
  * 
  *     # remove all small connected components
  *     if filtersize > 0:             # <<<<<<<<<<<<<<
@@ -2296,7 +2296,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   if (__pyx_t_4) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":20
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":20
  *     # remove all small connected components
  *     if filtersize > 0:
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)             # <<<<<<<<<<<<<<
@@ -2353,7 +2353,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
     __Pyx_DECREF_SET(__pyx_v_segmentation, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":21
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":21
  *     if filtersize > 0:
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)             # <<<<<<<<<<<<<<
@@ -2410,7 +2410,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
     __Pyx_DECREF_SET(__pyx_v_gold, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":19
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":19
  * 
  *     # remove all small connected components
  *     if filtersize > 0:             # <<<<<<<<<<<<<<
@@ -2419,7 +2419,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
  */
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":22
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":22
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)
  *     if dilate_ground_truth > 0:             # <<<<<<<<<<<<<<
@@ -2431,7 +2431,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   if (__pyx_t_4) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":23
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":23
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)
  *     if dilate_ground_truth > 0:
  *         gold = DilateData(gold, dilate_ground_truth)             # <<<<<<<<<<<<<<
@@ -2488,7 +2488,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
     __Pyx_DECREF_SET(__pyx_v_gold, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":22
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":22
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)
  *     if dilate_ground_truth > 0:             # <<<<<<<<<<<<<<
@@ -2497,7 +2497,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
  */
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":27
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":27
  *     # convert to c++ arrays
  *     cdef np.ndarray[long, ndim=3, mode='c'] cpp_segmentation
  *     cpp_segmentation = np.ascontiguousarray(segmentation, dtype=ctypes.c_int64)             # <<<<<<<<<<<<<<
@@ -2551,7 +2551,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __pyx_v_cpp_segmentation = ((PyArrayObject *)__pyx_t_7);
   __pyx_t_7 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":30
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":30
  * 
  *     cdef np.ndarray[long, ndim=3, mode='c'] cpp_gold
  *     cpp_gold = np.ascontiguousarray(gold, dtype=ctypes.c_int64)             # <<<<<<<<<<<<<<
@@ -2605,7 +2605,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __pyx_v_cpp_gold = ((PyArrayObject *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":32
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":32
  *     cpp_gold = np.ascontiguousarray(gold, dtype=ctypes.c_int64)
  * 
  *     zres, yres, xres = segmentation.shape             # <<<<<<<<<<<<<<
@@ -2674,7 +2674,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __pyx_v_xres = __pyx_t_6;
   __pyx_t_6 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":33
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":33
  * 
  *     zres, yres, xres = segmentation.shape
  *     CppEvaluate(&(cpp_segmentation[0,0,0]), &(cpp_gold[0,0,0]), [zres, yres, xres], mask_ground_truth)             # <<<<<<<<<<<<<<
@@ -2730,7 +2730,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   __pyx_t_24 = __Pyx_PyInt_As_unsigned_char(__pyx_v_mask_ground_truth); if (unlikely((__pyx_t_24 == (unsigned char)-1) && PyErr_Occurred())) __PYX_ERR(0, 33, __pyx_L1_error)
   CppEvaluate((&(*__Pyx_BufPtrCContig3d(long *, __pyx_pybuffernd_cpp_segmentation.rcbuffer->pybuffer.buf, __pyx_t_14, __pyx_pybuffernd_cpp_segmentation.diminfo[0].strides, __pyx_t_15, __pyx_pybuffernd_cpp_segmentation.diminfo[1].strides, __pyx_t_16, __pyx_pybuffernd_cpp_segmentation.diminfo[2].strides))), (&(*__Pyx_BufPtrCContig3d(long *, __pyx_pybuffernd_cpp_gold.rcbuffer->pybuffer.buf, __pyx_t_17, __pyx_pybuffernd_cpp_gold.diminfo[0].strides, __pyx_t_18, __pyx_pybuffernd_cpp_gold.diminfo[1].strides, __pyx_t_19, __pyx_pybuffernd_cpp_gold.diminfo[2].strides))), __pyx_t_23, __pyx_t_24);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":14
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":14
  *     void CppEvaluate(long *segmentation, long *gold, long resolution[3], unsigned char mask_ground_truth)
  * 
  * def PrincetonEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
@@ -2754,7 +2754,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
     __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_cpp_gold.rcbuffer->pybuffer);
     __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_cpp_segmentation.rcbuffer->pybuffer);
   __Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.PrincetonEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.PrincetonEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   goto __pyx_L2;
   __pyx_L0:;
@@ -2773,7 +2773,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":36
+/* "torch_connectomics/utils/seg/seg_eval.pyx":36
  * 
  * 
  * def CremiEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
@@ -2782,9 +2782,9 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_PrincetonEval
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate = {"CremiEvaluate", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate, METH_VARARGS|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate = {"CremiEvaluate", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate, METH_VARARGS|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_segmentation = 0;
   PyObject *__pyx_v_gold = 0;
   PyObject *__pyx_v_dilate_ground_truth = 0;
@@ -2873,18 +2873,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_3CremiEvaluat
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("CremiEvaluate", 0, 2, 5, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 36, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.CremiEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.CremiEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluate(__pyx_self, __pyx_v_segmentation, __pyx_v_gold, __pyx_v_dilate_ground_truth, __pyx_v_mask_ground_truth, __pyx_v_filtersize);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_2CremiEvaluate(__pyx_self, __pyx_v_segmentation, __pyx_v_gold, __pyx_v_dilate_ground_truth, __pyx_v_mask_ground_truth, __pyx_v_filtersize);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_2CremiEvaluate(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_segmentation, PyObject *__pyx_v_gold, PyObject *__pyx_v_dilate_ground_truth, PyObject *__pyx_v_mask_ground_truth, PyObject *__pyx_v_filtersize) {
   PyObject *__pyx_v_vi_split = NULL;
   PyObject *__pyx_v_vi_merge = NULL;
   PyObject *__pyx_r = NULL;
@@ -2902,7 +2902,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   __Pyx_INCREF(__pyx_v_segmentation);
   __Pyx_INCREF(__pyx_v_gold);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":38
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":38
  * def CremiEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):
  *     # make sure these elements are the same size
  *     assert (segmentation.shape == gold.shape)             # <<<<<<<<<<<<<<
@@ -2927,7 +2927,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   }
   #endif
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":41
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":41
  * 
  *     # remove all small connected components
  *     if filtersize > 0:             # <<<<<<<<<<<<<<
@@ -2939,7 +2939,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   if (__pyx_t_4) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":42
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":42
  *     # remove all small connected components
  *     if filtersize > 0:
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)             # <<<<<<<<<<<<<<
@@ -2996,7 +2996,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
     __Pyx_DECREF_SET(__pyx_v_segmentation, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":43
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":43
  *     if filtersize > 0:
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)             # <<<<<<<<<<<<<<
@@ -3053,7 +3053,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
     __Pyx_DECREF_SET(__pyx_v_gold, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":41
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":41
  * 
  *     # remove all small connected components
  *     if filtersize > 0:             # <<<<<<<<<<<<<<
@@ -3062,7 +3062,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
  */
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":44
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":44
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)
  *     if dilate_ground_truth > 0:             # <<<<<<<<<<<<<<
@@ -3074,7 +3074,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   if (__pyx_t_4) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":45
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":45
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)
  *     if dilate_ground_truth > 0:
  *         gold = DilateData(gold, dilate_ground_truth)             # <<<<<<<<<<<<<<
@@ -3131,7 +3131,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
     __Pyx_DECREF_SET(__pyx_v_gold, __pyx_t_3);
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":44
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":44
  *         segmentation = RemoveSmallConnectedComponents(segmentation, filtersize)
  *         gold = RemoveSmallConnectedComponents(gold, filtersize)
  *     if dilate_ground_truth > 0:             # <<<<<<<<<<<<<<
@@ -3140,7 +3140,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
  */
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":48
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":48
  * 
  *     # run the cremi variation of information algorithm
  *     if mask_ground_truth:             # <<<<<<<<<<<<<<
@@ -3150,7 +3150,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   __pyx_t_4 = __Pyx_PyObject_IsTrue(__pyx_v_mask_ground_truth); if (unlikely(__pyx_t_4 < 0)) __PYX_ERR(0, 48, __pyx_L1_error)
   if (__pyx_t_4) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":49
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":49
  *     # run the cremi variation of information algorithm
  *     if mask_ground_truth:
  *         vi_split, vi_merge = voi(segmentation, gold, [], [0])             # <<<<<<<<<<<<<<
@@ -3272,7 +3272,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
     __pyx_v_vi_merge = __pyx_t_8;
     __pyx_t_8 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":48
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":48
  * 
  *     # run the cremi variation of information algorithm
  *     if mask_ground_truth:             # <<<<<<<<<<<<<<
@@ -3282,7 +3282,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
     goto __pyx_L5;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":54
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":54
  *         #print 'Variation of Information Split: {}'.format(vi_split)
  *     else:
  *         vi_split, vi_merge = voi(segmentation, gold, [], [])             # <<<<<<<<<<<<<<
@@ -3404,7 +3404,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   }
   __pyx_L5:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":58
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":58
  *         #print 'Variation of Information Merge: {}'.format(vi_merge)
  *         #print 'Variation of Information Split: {}'.format(vi_split)
  *     return vi_split, vi_merge             # <<<<<<<<<<<<<<
@@ -3424,7 +3424,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":36
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":36
  * 
  * 
  * def CremiEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
@@ -3440,7 +3440,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_7);
   __Pyx_XDECREF(__pyx_t_8);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.CremiEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.CremiEvaluate", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_vi_split);
@@ -3452,7 +3452,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":60
+/* "torch_connectomics/utils/seg/seg_eval.pyx":60
  *     return vi_split, vi_merge
  * 
  * def adapted_rand(seg, gt, all_stats=False):             # <<<<<<<<<<<<<<
@@ -3461,10 +3461,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_2CremiEvaluat
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_5adapted_rand(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand[] = "Compute Adapted Rand error as defined by the SNEMI3D contest [1]\n\n    Formula is given as 1 - the maximal F-score of the Rand index \n    (excluding the zero component of the original labels). Adapted \n    from the SNEMI3D MATLAB script, hence the strange style.\n\n    Parameters\n    ----------\n    seg : np.ndarray\n        the segmentation to score, where each value is the label at that point\n    gt : np.ndarray, same shape as seg\n        the groundtruth to score against, where each value is a label\n    all_stats : boolean, optional\n        whether to also return precision and recall as a 3-tuple with rand_error\n\n    Returns\n    -------\n    are : float\n        The adapted Rand error; equal to $1 - \014rac{2pr}{p + r}$,\n        where $p$ and $r$ are the precision and recall described below.\n    prec : float, optional\n        The adapted Rand precision. (Only returned when `all_stats` is ``True``.)\n    rec : float, optional\n        The adapted Rand recall.  (Only returned when `all_stats` is ``True``.)\n\n    References\n    ----------\n    [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_5adapted_rand = {"adapted_rand", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_5adapted_rand, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_5adapted_rand(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_5adapted_rand(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_4adapted_rand[] = "Compute Adapted Rand error as defined by the SNEMI3D contest [1]\n\n    Formula is given as 1 - the maximal F-score of the Rand index \n    (excluding the zero component of the original labels). Adapted \n    from the SNEMI3D MATLAB script, hence the strange style.\n\n    Parameters\n    ----------\n    seg : np.ndarray\n        the segmentation to score, where each value is the label at that point\n    gt : np.ndarray, same shape as seg\n        the groundtruth to score against, where each value is a label\n    all_stats : boolean, optional\n        whether to also return precision and recall as a 3-tuple with rand_error\n\n    Returns\n    -------\n    are : float\n        The adapted Rand error; equal to $1 - \014rac{2pr}{p + r}$,\n        where $p$ and $r$ are the precision and recall described below.\n    prec : float, optional\n        The adapted Rand precision. (Only returned when `all_stats` is ``True``.)\n    rec : float, optional\n        The adapted Rand recall.  (Only returned when `all_stats` is ``True``.)\n\n    References\n    ----------\n    [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_5adapted_rand = {"adapted_rand", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_5adapted_rand, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_4adapted_rand};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_5adapted_rand(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_seg = 0;
   PyObject *__pyx_v_gt = 0;
   PyObject *__pyx_v_all_stats = 0;
@@ -3527,18 +3527,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_5adapted_rand
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("adapted_rand", 0, 2, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 60, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.adapted_rand", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.adapted_rand", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand(__pyx_self, __pyx_v_seg, __pyx_v_gt, __pyx_v_all_stats);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_4adapted_rand(__pyx_self, __pyx_v_seg, __pyx_v_gt, __pyx_v_all_stats);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_all_stats) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_4adapted_rand(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_all_stats) {
   PyObject *__pyx_v_segA = NULL;
   PyObject *__pyx_v_segB = NULL;
   PyObject *__pyx_v_n = NULL;
@@ -3570,7 +3570,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   int __pyx_t_7;
   __Pyx_RefNannySetupContext("adapted_rand", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":91
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":91
  *     """
  *     # segA is truth, segB is query
  *     segA = np.ravel(gt)             # <<<<<<<<<<<<<<
@@ -3600,7 +3600,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_segA = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":92
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":92
  *     # segA is truth, segB is query
  *     segA = np.ravel(gt)
  *     segB = np.ravel(seg)             # <<<<<<<<<<<<<<
@@ -3630,7 +3630,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_segB = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":93
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":93
  *     segA = np.ravel(gt)
  *     segB = np.ravel(seg)
  *     n = segA.size             # <<<<<<<<<<<<<<
@@ -3642,7 +3642,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_n = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":95
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":95
  *     n = segA.size
  * 
  *     n_labels_A = np.amax(segA) + 1             # <<<<<<<<<<<<<<
@@ -3675,7 +3675,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_n_labels_A = __pyx_t_3;
   __pyx_t_3 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":96
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":96
  * 
  *     n_labels_A = np.amax(segA) + 1
  *     n_labels_B = np.amax(segB) + 1             # <<<<<<<<<<<<<<
@@ -3708,7 +3708,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_n_labels_B = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":98
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":98
  *     n_labels_B = np.amax(segB) + 1
  * 
  *     ones_data = np.ones(n,int)             # <<<<<<<<<<<<<<
@@ -3768,7 +3768,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_ones_data = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":100
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":100
  *     ones_data = np.ones(n,int)
  * 
  *     p_ij = sparse.csr_matrix((ones_data, (segA[:], segB[:])), shape=(n_labels_A, n_labels_B))             # <<<<<<<<<<<<<<
@@ -3825,7 +3825,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_p_ij = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":102
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":102
  *     p_ij = sparse.csr_matrix((ones_data, (segA[:], segB[:])), shape=(n_labels_A, n_labels_B))
  * 
  *     a = p_ij[1:n_labels_A,:]             # <<<<<<<<<<<<<<
@@ -3848,7 +3848,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_a = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":103
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":103
  * 
  *     a = p_ij[1:n_labels_A,:]
  *     b = p_ij[1:n_labels_A,1:n_labels_B]             # <<<<<<<<<<<<<<
@@ -3873,7 +3873,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_b = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":104
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":104
  *     a = p_ij[1:n_labels_A,:]
  *     b = p_ij[1:n_labels_A,1:n_labels_B]
  *     c = p_ij[1:n_labels_A,0].todense()             # <<<<<<<<<<<<<<
@@ -3914,7 +3914,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_c = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":105
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":105
  *     b = p_ij[1:n_labels_A,1:n_labels_B]
  *     c = p_ij[1:n_labels_A,0].todense()
  *     d = b.multiply(b)             # <<<<<<<<<<<<<<
@@ -3941,7 +3941,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_d = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":107
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":107
  *     d = b.multiply(b)
  * 
  *     a_i = np.array(a.sum(1))             # <<<<<<<<<<<<<<
@@ -3989,7 +3989,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_a_i = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":108
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":108
  * 
  *     a_i = np.array(a.sum(1))
  *     b_i = np.array(b.sum(0))             # <<<<<<<<<<<<<<
@@ -4037,7 +4037,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_b_i = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":110
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":110
  *     b_i = np.array(b.sum(0))
  * 
  *     sumA = np.sum(a_i * a_i)             # <<<<<<<<<<<<<<
@@ -4070,7 +4070,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_sumA = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":111
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":111
  * 
  *     sumA = np.sum(a_i * a_i)
  *     sumB = np.sum(b_i * b_i) + (np.sum(c) / n)             # <<<<<<<<<<<<<<
@@ -4130,7 +4130,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_sumB = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":112
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":112
  *     sumA = np.sum(a_i * a_i)
  *     sumB = np.sum(b_i * b_i) + (np.sum(c) / n)
  *     sumAB = np.sum(d) + (np.sum(c) / n)             # <<<<<<<<<<<<<<
@@ -4187,7 +4187,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_sumAB = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":114
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":114
  *     sumAB = np.sum(d) + (np.sum(c) / n)
  * 
  *     precision = sumAB / sumB             # <<<<<<<<<<<<<<
@@ -4199,7 +4199,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_precision = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":115
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":115
  * 
  *     precision = sumAB / sumB
  *     recall = sumAB / sumA             # <<<<<<<<<<<<<<
@@ -4211,7 +4211,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_recall = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":117
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":117
  *     recall = sumAB / sumA
  * 
  *     fScore = 2.0 * precision * recall / (precision + recall)             # <<<<<<<<<<<<<<
@@ -4232,7 +4232,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_fScore = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":118
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":118
  * 
  *     fScore = 2.0 * precision * recall / (precision + recall)
  *     are = 1.0 - fScore             # <<<<<<<<<<<<<<
@@ -4244,7 +4244,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_v_are = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":120
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":120
  *     are = 1.0 - fScore
  * 
  *     if all_stats:             # <<<<<<<<<<<<<<
@@ -4254,7 +4254,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __pyx_t_7 = __Pyx_PyObject_IsTrue(__pyx_v_all_stats); if (unlikely(__pyx_t_7 < 0)) __PYX_ERR(0, 120, __pyx_L1_error)
   if (__pyx_t_7) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":121
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":121
  * 
  *     if all_stats:
  *         return (are, precision, recall)             # <<<<<<<<<<<<<<
@@ -4277,7 +4277,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
     __pyx_t_2 = 0;
     goto __pyx_L0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":120
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":120
  *     are = 1.0 - fScore
  * 
  *     if all_stats:             # <<<<<<<<<<<<<<
@@ -4286,7 +4286,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
  */
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":123
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":123
  *         return (are, precision, recall)
  *     else:
  *         return are             # <<<<<<<<<<<<<<
@@ -4300,7 +4300,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
     goto __pyx_L0;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":60
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":60
  *     return vi_split, vi_merge
  * 
  * def adapted_rand(seg, gt, all_stats=False):             # <<<<<<<<<<<<<<
@@ -4315,7 +4315,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   __Pyx_XDECREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_5);
   __Pyx_XDECREF(__pyx_t_6);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.adapted_rand", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.adapted_rand", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_segA);
@@ -4343,7 +4343,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":127
+/* "torch_connectomics/utils/seg/seg_eval.pyx":127
  * # Evaluation code courtesy of Juan Nunez-Iglesias, taken from
  * # https://github.com/janelia-flyem/gala/blob/master/gala/evaluate.py
  * def voi(reconstruction, groundtruth, ignore_reconstruction=[], ignore_groundtruth=[0]):             # <<<<<<<<<<<<<<
@@ -4352,10 +4352,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_4adapted_rand
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_7voi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_6voi[] = "Return the conditional entropies of the variation of information metric. [1]\n\n    Let X be a reconstruction, and Y a ground truth labelling. The variation of \n    information between the two is the sum of two conditional entropies:\n\n        VI(X, Y) = H(X|Y) + H(Y|X).\n\n    The first one, H(X|Y), is a measure of oversegmentation, the second one, \n    H(Y|X), a measure of undersegmentation. These measures are referred to as \n    the variation of information split or merge error, respectively.\n\n    Parameters\n    ----------\n    seg : np.ndarray, int type, arbitrary shape\n        A candidate segmentation.\n    gt : np.ndarray, int type, same shape as `seg`\n        The ground truth segmentation.\n    ignore_seg, ignore_gt : list of int, optional\n        Any points having a label in this list are ignored in the evaluation.\n        By default, only the label 0 in the ground truth will be ignored.\n\n    Returns\n    -------\n    (split, merge) : float\n        The variation of information split and merge error, i.e., H(X|Y) and H(Y|X)\n\n    References\n    ----------\n    [1] Meila, M. (2007). Comparing clusterings - an information based \n    distance. Journal of Multivariate Analysis 98, 873-895.\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_7voi = {"voi", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_7voi, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_6voi};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_7voi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_7voi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_6voi[] = "Return the conditional entropies of the variation of information metric. [1]\n\n    Let X be a reconstruction, and Y a ground truth labelling. The variation of \n    information between the two is the sum of two conditional entropies:\n\n        VI(X, Y) = H(X|Y) + H(Y|X).\n\n    The first one, H(X|Y), is a measure of oversegmentation, the second one, \n    H(Y|X), a measure of undersegmentation. These measures are referred to as \n    the variation of information split or merge error, respectively.\n\n    Parameters\n    ----------\n    seg : np.ndarray, int type, arbitrary shape\n        A candidate segmentation.\n    gt : np.ndarray, int type, same shape as `seg`\n        The ground truth segmentation.\n    ignore_seg, ignore_gt : list of int, optional\n        Any points having a label in this list are ignored in the evaluation.\n        By default, only the label 0 in the ground truth will be ignored.\n\n    Returns\n    -------\n    (split, merge) : float\n        The variation of information split and merge error, i.e., H(X|Y) and H(Y|X)\n\n    References\n    ----------\n    [1] Meila, M. (2007). Comparing clusterings - an information based \n    distance. Journal of Multivariate Analysis 98, 873-895.\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_7voi = {"voi", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_7voi, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_6voi};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_7voi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_reconstruction = 0;
   PyObject *__pyx_v_groundtruth = 0;
   PyObject *__pyx_v_ignore_reconstruction = 0;
@@ -4431,18 +4431,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_7voi(PyObject
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("voi", 0, 2, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 127, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.voi", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.voi", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(__pyx_self, __pyx_v_reconstruction, __pyx_v_groundtruth, __pyx_v_ignore_reconstruction, __pyx_v_ignore_groundtruth);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_6voi(__pyx_self, __pyx_v_reconstruction, __pyx_v_groundtruth, __pyx_v_ignore_reconstruction, __pyx_v_ignore_groundtruth);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_reconstruction, PyObject *__pyx_v_groundtruth, PyObject *__pyx_v_ignore_reconstruction, PyObject *__pyx_v_ignore_groundtruth) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_reconstruction, PyObject *__pyx_v_groundtruth, PyObject *__pyx_v_ignore_reconstruction, PyObject *__pyx_v_ignore_groundtruth) {
   PyObject *__pyx_v_hyxg = NULL;
   PyObject *__pyx_v_hxgy = NULL;
   PyObject *__pyx_r = NULL;
@@ -4455,7 +4455,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_U
   PyObject *(*__pyx_t_6)(PyObject *);
   __Pyx_RefNannySetupContext("voi", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":159
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":159
  *     distance. Journal of Multivariate Analysis 98, 873-895.
  *     """
  *     (hyxg, hxgy) = split_vi(reconstruction, groundtruth, ignore_reconstruction, ignore_groundtruth)             # <<<<<<<<<<<<<<
@@ -4566,7 +4566,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_U
   __pyx_v_hxgy = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":160
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":160
  *     """
  *     (hyxg, hxgy) = split_vi(reconstruction, groundtruth, ignore_reconstruction, ignore_groundtruth)
  *     return (hxgy, hyxg)             # <<<<<<<<<<<<<<
@@ -4586,7 +4586,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_U
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":127
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":127
  * # Evaluation code courtesy of Juan Nunez-Iglesias, taken from
  * # https://github.com/janelia-flyem/gala/blob/master/gala/evaluate.py
  * def voi(reconstruction, groundtruth, ignore_reconstruction=[], ignore_groundtruth=[0]):             # <<<<<<<<<<<<<<
@@ -4600,7 +4600,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_U
   __Pyx_XDECREF(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_5);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.voi", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.voi", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_hyxg);
@@ -4610,7 +4610,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_U
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":162
+/* "torch_connectomics/utils/seg/seg_eval.pyx":162
  *     return (hxgy, hyxg)
  * 
  * def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -4619,10 +4619,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_6voi(CYTHON_U
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_9split_vi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi[] = "Return the symmetric conditional entropies associated with the VI.\n\n    The variation of information is defined as VI(X,Y) = H(X|Y) + H(Y|X).\n    If Y is the ground-truth segmentation, then H(Y|X) can be interpreted\n    as the amount of under-segmentation of Y and H(X|Y) is then the amount\n    of over-segmentation.  In other words, a perfect over-segmentation\n    will have H(Y|X)=0 and a perfect under-segmentation will have H(X|Y)=0.\n\n    If y is None, x is assumed to be a contingency table.\n\n    Parameters\n    ----------\n    x : np.ndarray\n        Label field (int type) or contingency table (float). `x` is\n        interpreted as a contingency table (summing to 1.0) if and only if `y`\n        is not provided.\n    y : np.ndarray of int, same shape as x, optional\n        A label field to compare to `x`.\n    ignore_x, ignore_y : list of int, optional\n        Any points having a label in this list are ignored in the evaluation.\n        Ignore 0-labeled points by default.\n\n    Returns\n    -------\n    sv : np.ndarray of float, shape (2,)\n        The conditional entropies of Y|X and X|Y.\n\n    See Also\n    --------\n    vi\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_9split_vi = {"split_vi", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_9split_vi, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_9split_vi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_9split_vi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_8split_vi[] = "Return the symmetric conditional entropies associated with the VI.\n\n    The variation of information is defined as VI(X,Y) = H(X|Y) + H(Y|X).\n    If Y is the ground-truth segmentation, then H(Y|X) can be interpreted\n    as the amount of under-segmentation of Y and H(X|Y) is then the amount\n    of over-segmentation.  In other words, a perfect over-segmentation\n    will have H(Y|X)=0 and a perfect under-segmentation will have H(X|Y)=0.\n\n    If y is None, x is assumed to be a contingency table.\n\n    Parameters\n    ----------\n    x : np.ndarray\n        Label field (int type) or contingency table (float). `x` is\n        interpreted as a contingency table (summing to 1.0) if and only if `y`\n        is not provided.\n    y : np.ndarray of int, same shape as x, optional\n        A label field to compare to `x`.\n    ignore_x, ignore_y : list of int, optional\n        Any points having a label in this list are ignored in the evaluation.\n        Ignore 0-labeled points by default.\n\n    Returns\n    -------\n    sv : np.ndarray of float, shape (2,)\n        The conditional entropies of Y|X and X|Y.\n\n    See Also\n    --------\n    vi\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_9split_vi = {"split_vi", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_9split_vi, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_8split_vi};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_9split_vi(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_x = 0;
   PyObject *__pyx_v_y = 0;
   PyObject *__pyx_v_ignore_x = 0;
@@ -4700,18 +4700,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_9split_vi(PyO
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("split_vi", 0, 1, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 162, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.split_vi", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.split_vi", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(__pyx_self, __pyx_v_x, __pyx_v_y, __pyx_v_ignore_x, __pyx_v_ignore_y);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_8split_vi(__pyx_self, __pyx_v_x, __pyx_v_y, __pyx_v_ignore_x, __pyx_v_ignore_y);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_8split_vi(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y) {
   CYTHON_UNUSED PyObject *__pyx_v__ = NULL;
   PyObject *__pyx_v_hxgy = NULL;
   PyObject *__pyx_v_hygx = NULL;
@@ -4730,7 +4730,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYT
   PyObject *(*__pyx_t_11)(PyObject *);
   __Pyx_RefNannySetupContext("split_vi", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":194
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":194
  *     vi
  *     """
  *     _, _, _ , hxgy, hygx, _, _ = vi_tables(x, y, ignore_x, ignore_y)             # <<<<<<<<<<<<<<
@@ -4873,7 +4873,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYT
   __Pyx_DECREF_SET(__pyx_v__, __pyx_t_9);
   __pyx_t_9 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":196
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":196
  *     _, _, _ , hxgy, hygx, _, _ = vi_tables(x, y, ignore_x, ignore_y)
  *     # false merges, false splits
  *     return np.array([hygx.sum(), hxgy.sum()])             # <<<<<<<<<<<<<<
@@ -4948,7 +4948,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYT
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":162
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":162
  *     return (hxgy, hyxg)
  * 
  * def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -4967,7 +4967,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYT
   __Pyx_XDECREF(__pyx_t_8);
   __Pyx_XDECREF(__pyx_t_9);
   __Pyx_XDECREF(__pyx_t_10);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.split_vi", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.split_vi", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v__);
@@ -4978,7 +4978,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYT
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":198
+/* "torch_connectomics/utils/seg/seg_eval.pyx":198
  *     return np.array([hygx.sum(), hxgy.sum()])
  * 
  * def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -4987,10 +4987,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_8split_vi(CYT
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_11vi_tables(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables[] = "Return probability tables used for calculating VI.\n\n    If y is None, x is assumed to be a contingency table.\n\n    Parameters\n    ----------\n    x, y : np.ndarray\n        Either x and y are provided as equal-shaped np.ndarray label fields\n        (int type), or y is not provided and x is a contingency table\n        (sparse.csc_matrix) that may or may not sum to 1.\n    ignore_x, ignore_y : list of int, optional\n        Rows and columns (respectively) to ignore in the contingency table.\n        These are labels that are not counted when evaluating VI.\n\n    Returns\n    -------\n    pxy : sparse.csc_matrix of float\n        The normalized contingency table.\n    px, py, hxgy, hygx, lpygx, lpxgy : np.ndarray of float\n        The proportions of each label in `x` and `y` (`px`, `py`), the\n        per-segment conditional entropies of `x` given `y` and vice-versa, the\n        per-segment conditional probability p log p.\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_11vi_tables = {"vi_tables", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_11vi_tables, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_11vi_tables(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_11vi_tables(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_10vi_tables[] = "Return probability tables used for calculating VI.\n\n    If y is None, x is assumed to be a contingency table.\n\n    Parameters\n    ----------\n    x, y : np.ndarray\n        Either x and y are provided as equal-shaped np.ndarray label fields\n        (int type), or y is not provided and x is a contingency table\n        (sparse.csc_matrix) that may or may not sum to 1.\n    ignore_x, ignore_y : list of int, optional\n        Rows and columns (respectively) to ignore in the contingency table.\n        These are labels that are not counted when evaluating VI.\n\n    Returns\n    -------\n    pxy : sparse.csc_matrix of float\n        The normalized contingency table.\n    px, py, hxgy, hygx, lpygx, lpxgy : np.ndarray of float\n        The proportions of each label in `x` and `y` (`px`, `py`), the\n        per-segment conditional entropies of `x` given `y` and vice-versa, the\n        per-segment conditional probability p log p.\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_11vi_tables = {"vi_tables", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_11vi_tables, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_10vi_tables};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_11vi_tables(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_x = 0;
   PyObject *__pyx_v_y = 0;
   PyObject *__pyx_v_ignore_x = 0;
@@ -5068,18 +5068,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_11vi_tables(P
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("vi_tables", 0, 1, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 198, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.vi_tables", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.vi_tables", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(__pyx_self, __pyx_v_x, __pyx_v_y, __pyx_v_ignore_x, __pyx_v_ignore_y);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_10vi_tables(__pyx_self, __pyx_v_x, __pyx_v_y, __pyx_v_ignore_x, __pyx_v_ignore_y);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_10vi_tables(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_y, PyObject *__pyx_v_ignore_x, PyObject *__pyx_v_ignore_y) {
   PyObject *__pyx_v_pxy = NULL;
   PyObject *__pyx_v_cont = NULL;
   double __pyx_v_total;
@@ -5109,7 +5109,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   PyObject *__pyx_t_11 = NULL;
   __Pyx_RefNannySetupContext("vi_tables", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":222
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":222
  *         per-segment conditional probability p log p.
  *     """
  *     if y is not None:             # <<<<<<<<<<<<<<
@@ -5120,7 +5120,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_t_2 = (__pyx_t_1 != 0);
   if (__pyx_t_2) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":223
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":223
  *     """
  *     if y is not None:
  *         pxy = contingency_table(x, y, ignore_x, ignore_y)             # <<<<<<<<<<<<<<
@@ -5183,7 +5183,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
     __pyx_v_pxy = __pyx_t_3;
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":222
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":222
  *         per-segment conditional probability p log p.
  *     """
  *     if y is not None:             # <<<<<<<<<<<<<<
@@ -5193,7 +5193,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
     goto __pyx_L3;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":225
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":225
  *         pxy = contingency_table(x, y, ignore_x, ignore_y)
  *     else:
  *         cont = x             # <<<<<<<<<<<<<<
@@ -5204,7 +5204,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
     __Pyx_INCREF(__pyx_v_x);
     __pyx_v_cont = __pyx_v_x;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":226
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":226
  *     else:
  *         cont = x
  *         total = float(cont.sum())             # <<<<<<<<<<<<<<
@@ -5232,7 +5232,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_v_total = __pyx_t_8;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":228
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":228
  *         total = float(cont.sum())
  *         # normalize, since it is an identity op if already done
  *         pxy = cont / total             # <<<<<<<<<<<<<<
@@ -5249,7 +5249,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   }
   __pyx_L3:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":231
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":231
  * 
  *     # Calculate probabilities
  *     px = np.array(pxy.sum(axis=1)).ravel()             # <<<<<<<<<<<<<<
@@ -5307,7 +5307,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_px = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":232
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":232
  *     # Calculate probabilities
  *     px = np.array(pxy.sum(axis=1)).ravel()
  *     py = np.array(pxy.sum(axis=0)).ravel()             # <<<<<<<<<<<<<<
@@ -5365,7 +5365,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_py = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":234
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":234
  *     py = np.array(pxy.sum(axis=0)).ravel()
  *     # Remove zero rows/cols
  *     nzx = px.nonzero()[0]             # <<<<<<<<<<<<<<
@@ -5395,7 +5395,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_nzx = __pyx_t_10;
   __pyx_t_10 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":235
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":235
  *     # Remove zero rows/cols
  *     nzx = px.nonzero()[0]
  *     nzy = py.nonzero()[0]             # <<<<<<<<<<<<<<
@@ -5425,7 +5425,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_nzy = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":236
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":236
  *     nzx = px.nonzero()[0]
  *     nzy = py.nonzero()[0]
  *     nzpx = px[nzx]             # <<<<<<<<<<<<<<
@@ -5437,7 +5437,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_nzpx = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":237
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":237
  *     nzy = py.nonzero()[0]
  *     nzpx = px[nzx]
  *     nzpy = py[nzy]             # <<<<<<<<<<<<<<
@@ -5449,7 +5449,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_nzpy = __pyx_t_4;
   __pyx_t_4 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":238
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":238
  *     nzpx = px[nzx]
  *     nzpy = py[nzy]
  *     nzpxy = pxy[nzx, :][:, nzy]             # <<<<<<<<<<<<<<
@@ -5482,7 +5482,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_nzpxy = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":241
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":241
  * 
  *     # Calculate log conditional probabilities and entropies
  *     lpygx = np.zeros(np.shape(px))             # <<<<<<<<<<<<<<
@@ -5533,7 +5533,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_lpygx = __pyx_t_5;
   __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":242
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":242
  *     # Calculate log conditional probabilities and entropies
  *     lpygx = np.zeros(np.shape(px))
  *     lpygx[nzx] = xlogx(divide_rows(nzpxy, nzpx)).sum(axis=1).ravel()             # <<<<<<<<<<<<<<
@@ -5636,7 +5636,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   if (unlikely(PyObject_SetItem(__pyx_v_lpygx, __pyx_v_nzx, __pyx_t_5) < 0)) __PYX_ERR(0, 242, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":244
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":244
  *     lpygx[nzx] = xlogx(divide_rows(nzpxy, nzpx)).sum(axis=1).ravel()
  *                         # \sum_x{p_{y|x} \log{p_{y|x}}}
  *     hygx = -(px*lpygx) # \sum_x{p_x H(Y|X=x)} = H(Y|X)             # <<<<<<<<<<<<<<
@@ -5651,7 +5651,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_hygx = __pyx_t_10;
   __pyx_t_10 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":246
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":246
  *     hygx = -(px*lpygx) # \sum_x{p_x H(Y|X=x)} = H(Y|X)
  * 
  *     lpxgy = np.zeros(np.shape(py))             # <<<<<<<<<<<<<<
@@ -5702,7 +5702,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_lpxgy = __pyx_t_10;
   __pyx_t_10 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":247
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":247
  * 
  *     lpxgy = np.zeros(np.shape(py))
  *     lpxgy[nzy] = xlogx(divide_columns(nzpxy, nzpy)).sum(axis=0).ravel()             # <<<<<<<<<<<<<<
@@ -5805,7 +5805,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   if (unlikely(PyObject_SetItem(__pyx_v_lpxgy, __pyx_v_nzy, __pyx_t_10) < 0)) __PYX_ERR(0, 247, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":248
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":248
  *     lpxgy = np.zeros(np.shape(py))
  *     lpxgy[nzy] = xlogx(divide_columns(nzpxy, nzpy)).sum(axis=0).ravel()
  *     hxgy = -(py*lpxgy)             # <<<<<<<<<<<<<<
@@ -5820,7 +5820,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_v_hxgy = __pyx_t_9;
   __pyx_t_9 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":250
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":250
  *     hxgy = -(py*lpxgy)
  * 
  *     return [pxy] + list(map(np.asarray, [px, py, hxgy, hygx, lpygx, lpxgy]))             # <<<<<<<<<<<<<<
@@ -5880,7 +5880,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __pyx_t_10 = 0;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":198
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":198
  *     return np.array([hygx.sum(), hxgy.sum()])
  * 
  * def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -5897,7 +5897,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   __Pyx_XDECREF(__pyx_t_9);
   __Pyx_XDECREF(__pyx_t_10);
   __Pyx_XDECREF(__pyx_t_11);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.vi_tables", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.vi_tables", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_pxy);
@@ -5918,7 +5918,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":252
+/* "torch_connectomics/utils/seg/seg_eval.pyx":252
  *     return [pxy] + list(map(np.asarray, [px, py, hxgy, hygx, lpygx, lpxgy]))
  * 
  * def contingency_table(seg, gt, ignore_seg=[0], ignore_gt=[0], norm=True):             # <<<<<<<<<<<<<<
@@ -5927,10 +5927,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_10vi_tables(C
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_13contingency_table(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency_table[] = "Return the contingency table for all regions in matched segmentations.\n\n    Parameters\n    ----------\n    seg : np.ndarray, int type, arbitrary shape\n        A candidate segmentation.\n    gt : np.ndarray, int type, same shape as `seg`\n        The ground truth segmentation.\n    ignore_seg : list of int, optional\n        Values to ignore in `seg`. Voxels in `seg` having a value in this list\n        will not contribute to the contingency table. (default: [0])\n    ignore_gt : list of int, optional\n        Values to ignore in `gt`. Voxels in `gt` having a value in this list\n        will not contribute to the contingency table. (default: [0])\n    norm : bool, optional\n        Whether to normalize the table so that it sums to 1.\n\n    Returns\n    -------\n    cont : scipy.sparse.csc_matrix\n        A contingency table. `cont[i, j]` will equal the number of voxels\n        labeled `i` in `seg` and `j` in `gt`. (Or the proportion of such voxels\n        if `norm=True`.)\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_13contingency_table = {"contingency_table", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_13contingency_table, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency_table};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_13contingency_table(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_13contingency_table(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_12contingency_table[] = "Return the contingency table for all regions in matched segmentations.\n\n    Parameters\n    ----------\n    seg : np.ndarray, int type, arbitrary shape\n        A candidate segmentation.\n    gt : np.ndarray, int type, same shape as `seg`\n        The ground truth segmentation.\n    ignore_seg : list of int, optional\n        Values to ignore in `seg`. Voxels in `seg` having a value in this list\n        will not contribute to the contingency table. (default: [0])\n    ignore_gt : list of int, optional\n        Values to ignore in `gt`. Voxels in `gt` having a value in this list\n        will not contribute to the contingency table. (default: [0])\n    norm : bool, optional\n        Whether to normalize the table so that it sums to 1.\n\n    Returns\n    -------\n    cont : scipy.sparse.csc_matrix\n        A contingency table. `cont[i, j]` will equal the number of voxels\n        labeled `i` in `seg` and `j` in `gt`. (Or the proportion of such voxels\n        if `norm=True`.)\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_13contingency_table = {"contingency_table", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_13contingency_table, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_12contingency_table};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_13contingency_table(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_seg = 0;
   PyObject *__pyx_v_gt = 0;
   PyObject *__pyx_v_ignore_seg = 0;
@@ -6019,18 +6019,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_13contingency
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("contingency_table", 0, 2, 5, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 252, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.contingency_table", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.contingency_table", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency_table(__pyx_self, __pyx_v_seg, __pyx_v_gt, __pyx_v_ignore_seg, __pyx_v_ignore_gt, __pyx_v_norm);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_12contingency_table(__pyx_self, __pyx_v_seg, __pyx_v_gt, __pyx_v_ignore_seg, __pyx_v_ignore_gt, __pyx_v_norm);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency_table(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_ignore_seg, PyObject *__pyx_v_ignore_gt, PyObject *__pyx_v_norm) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_12contingency_table(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_seg, PyObject *__pyx_v_gt, PyObject *__pyx_v_ignore_seg, PyObject *__pyx_v_ignore_gt, PyObject *__pyx_v_norm) {
   PyObject *__pyx_v_segr = NULL;
   PyObject *__pyx_v_gtr = NULL;
   PyObject *__pyx_v_ignored = NULL;
@@ -6052,7 +6052,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   int __pyx_t_10;
   __Pyx_RefNannySetupContext("contingency_table", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":277
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":277
  *         if `norm=True`.)
  *     """
  *     segr = seg.ravel()             # <<<<<<<<<<<<<<
@@ -6079,7 +6079,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_v_segr = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":278
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":278
  *     """
  *     segr = seg.ravel()
  *     gtr = gt.ravel()             # <<<<<<<<<<<<<<
@@ -6106,7 +6106,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_v_gtr = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":279
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":279
  *     segr = seg.ravel()
  *     gtr = gt.ravel()
  *     ignored = np.zeros(segr.shape, np.bool)             # <<<<<<<<<<<<<<
@@ -6177,7 +6177,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_v_ignored = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":280
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":280
  *     gtr = gt.ravel()
  *     ignored = np.zeros(segr.shape, np.bool)
  *     data = np.ones(len(gtr))             # <<<<<<<<<<<<<<
@@ -6211,7 +6211,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_v_data = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":281
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":281
  *     ignored = np.zeros(segr.shape, np.bool)
  *     data = np.ones(len(gtr))
  *     for i in ignore_seg:             # <<<<<<<<<<<<<<
@@ -6260,7 +6260,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
     __Pyx_XDECREF_SET(__pyx_v_i, __pyx_t_7);
     __pyx_t_7 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":282
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":282
  *     data = np.ones(len(gtr))
  *     for i in ignore_seg:
  *         ignored[segr == i] = True             # <<<<<<<<<<<<<<
@@ -6271,7 +6271,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
     if (unlikely(PyObject_SetItem(__pyx_v_ignored, __pyx_t_7, Py_True) < 0)) __PYX_ERR(0, 282, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":281
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":281
  *     ignored = np.zeros(segr.shape, np.bool)
  *     data = np.ones(len(gtr))
  *     for i in ignore_seg:             # <<<<<<<<<<<<<<
@@ -6281,7 +6281,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":283
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":283
  *     for i in ignore_seg:
  *         ignored[segr == i] = True
  *     for j in ignore_gt:             # <<<<<<<<<<<<<<
@@ -6330,7 +6330,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
     __Pyx_XDECREF_SET(__pyx_v_j, __pyx_t_7);
     __pyx_t_7 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":284
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":284
  *         ignored[segr == i] = True
  *     for j in ignore_gt:
  *         ignored[gtr == j] = True             # <<<<<<<<<<<<<<
@@ -6341,7 +6341,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
     if (unlikely(PyObject_SetItem(__pyx_v_ignored, __pyx_t_7, Py_True) < 0)) __PYX_ERR(0, 284, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":283
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":283
  *     for i in ignore_seg:
  *         ignored[segr == i] = True
  *     for j in ignore_gt:             # <<<<<<<<<<<<<<
@@ -6351,7 +6351,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":285
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":285
  *     for j in ignore_gt:
  *         ignored[gtr == j] = True
  *     data[ignored] = 0             # <<<<<<<<<<<<<<
@@ -6360,7 +6360,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
  */
   if (unlikely(PyObject_SetItem(__pyx_v_data, __pyx_v_ignored, __pyx_int_0) < 0)) __PYX_ERR(0, 285, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":286
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":286
  *         ignored[gtr == j] = True
  *     data[ignored] = 0
  *     cont = sparse.coo_matrix((data, (segr, gtr))).tocsc()             # <<<<<<<<<<<<<<
@@ -6425,7 +6425,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_v_cont = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":287
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":287
  *     data[ignored] = 0
  *     cont = sparse.coo_matrix((data, (segr, gtr))).tocsc()
  *     if norm:             # <<<<<<<<<<<<<<
@@ -6435,7 +6435,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_t_10 = __Pyx_PyObject_IsTrue(__pyx_v_norm); if (unlikely(__pyx_t_10 < 0)) __PYX_ERR(0, 287, __pyx_L1_error)
   if (__pyx_t_10) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":288
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":288
  *     cont = sparse.coo_matrix((data, (segr, gtr))).tocsc()
  *     if norm:
  *         cont /= float(cont.sum())             # <<<<<<<<<<<<<<
@@ -6468,7 +6468,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
     __Pyx_DECREF_SET(__pyx_v_cont, __pyx_t_1);
     __pyx_t_1 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":287
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":287
  *     data[ignored] = 0
  *     cont = sparse.coo_matrix((data, (segr, gtr))).tocsc()
  *     if norm:             # <<<<<<<<<<<<<<
@@ -6477,7 +6477,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
  */
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":289
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":289
  *     if norm:
  *         cont /= float(cont.sum())
  *     return cont             # <<<<<<<<<<<<<<
@@ -6489,7 +6489,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __pyx_r = __pyx_v_cont;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":252
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":252
  *     return [pxy] + list(map(np.asarray, [px, py, hxgy, hygx, lpygx, lpxgy]))
  * 
  * def contingency_table(seg, gt, ignore_seg=[0], ignore_gt=[0], norm=True):             # <<<<<<<<<<<<<<
@@ -6505,7 +6505,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   __Pyx_XDECREF(__pyx_t_4);
   __Pyx_XDECREF(__pyx_t_5);
   __Pyx_XDECREF(__pyx_t_7);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.contingency_table", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.contingency_table", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_segr);
@@ -6520,7 +6520,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":291
+/* "torch_connectomics/utils/seg/seg_eval.pyx":291
  *     return cont
  * 
  * def divide_columns(matrix, row, in_place=False):             # <<<<<<<<<<<<<<
@@ -6529,10 +6529,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_12contingency
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_15divide_columns(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_columns[] = "Divide each column of `matrix` by the corresponding element in `row`.\n\n    The result is as follows: out[i, j] = matrix[i, j] / row[j]\n\n    Parameters\n    ----------\n    matrix : np.ndarray, scipy.sparse.csc_matrix or csr_matrix, shape (M, N)\n        The input matrix.\n    column : a 1D np.ndarray, shape (N,)\n        The row dividing `matrix`.\n    in_place : bool (optional, default False)\n        Do the computation in-place.\n\n    Returns\n    -------\n    out : same type as `matrix`\n        The result of the row-wise division.\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_15divide_columns = {"divide_columns", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_15divide_columns, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_columns};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_15divide_columns(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_15divide_columns(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_14divide_columns[] = "Divide each column of `matrix` by the corresponding element in `row`.\n\n    The result is as follows: out[i, j] = matrix[i, j] / row[j]\n\n    Parameters\n    ----------\n    matrix : np.ndarray, scipy.sparse.csc_matrix or csr_matrix, shape (M, N)\n        The input matrix.\n    column : a 1D np.ndarray, shape (N,)\n        The row dividing `matrix`.\n    in_place : bool (optional, default False)\n        Do the computation in-place.\n\n    Returns\n    -------\n    out : same type as `matrix`\n        The result of the row-wise division.\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_15divide_columns = {"divide_columns", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_15divide_columns, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_14divide_columns};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_15divide_columns(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_matrix = 0;
   PyObject *__pyx_v_row = 0;
   PyObject *__pyx_v_in_place = 0;
@@ -6595,18 +6595,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_15divide_colu
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("divide_columns", 0, 2, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 291, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.divide_columns", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.divide_columns", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_columns(__pyx_self, __pyx_v_matrix, __pyx_v_row, __pyx_v_in_place);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_14divide_columns(__pyx_self, __pyx_v_matrix, __pyx_v_row, __pyx_v_in_place);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_columns(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_row, PyObject *__pyx_v_in_place) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_14divide_columns(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_row, PyObject *__pyx_v_in_place) {
   PyObject *__pyx_v_out = NULL;
   int __pyx_v_convert_to_csc;
   PyObject *__pyx_v_row_repeated = NULL;
@@ -6623,7 +6623,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   PyObject *__pyx_t_8 = NULL;
   __Pyx_RefNannySetupContext("divide_columns", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":310
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":310
  *         The result of the row-wise division.
  *     """
  *     if in_place:             # <<<<<<<<<<<<<<
@@ -6633,7 +6633,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_in_place); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 310, __pyx_L1_error)
   if (__pyx_t_1) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":311
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":311
  *     """
  *     if in_place:
  *         out = matrix             # <<<<<<<<<<<<<<
@@ -6643,7 +6643,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     __Pyx_INCREF(__pyx_v_matrix);
     __pyx_v_out = __pyx_v_matrix;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":310
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":310
  *         The result of the row-wise division.
  *     """
  *     if in_place:             # <<<<<<<<<<<<<<
@@ -6653,7 +6653,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     goto __pyx_L3;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":313
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":313
  *         out = matrix
  *     else:
  *         out = matrix.copy()             # <<<<<<<<<<<<<<
@@ -6683,7 +6683,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   }
   __pyx_L3:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":314
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":314
  *     else:
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:             # <<<<<<<<<<<<<<
@@ -6721,7 +6721,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   __pyx_t_5 = (__pyx_t_1 != 0);
   if (__pyx_t_5) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":315
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":315
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         if type(out) == sparse.csc_matrix:             # <<<<<<<<<<<<<<
@@ -6739,7 +6739,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_5) {
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":316
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":316
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         if type(out) == sparse.csc_matrix:
  *             convert_to_csc = True             # <<<<<<<<<<<<<<
@@ -6748,7 +6748,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
  */
       __pyx_v_convert_to_csc = 1;
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":317
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":317
  *         if type(out) == sparse.csc_matrix:
  *             convert_to_csc = True
  *             out = out.tocsr()             # <<<<<<<<<<<<<<
@@ -6775,7 +6775,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
       __Pyx_DECREF_SET(__pyx_v_out, __pyx_t_2);
       __pyx_t_2 = 0;
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":315
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":315
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         if type(out) == sparse.csc_matrix:             # <<<<<<<<<<<<<<
@@ -6785,7 +6785,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
       goto __pyx_L7;
     }
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":319
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":319
  *             out = out.tocsr()
  *         else:
  *             convert_to_csc = False             # <<<<<<<<<<<<<<
@@ -6797,7 +6797,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     }
     __pyx_L7:;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":320
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":320
  *         else:
  *             convert_to_csc = False
  *         row_repeated = np.take(row, out.indices)             # <<<<<<<<<<<<<<
@@ -6861,7 +6861,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     __pyx_v_row_repeated = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":321
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":321
  *             convert_to_csc = False
  *         row_repeated = np.take(row, out.indices)
  *         nz = out.data.nonzero()             # <<<<<<<<<<<<<<
@@ -6891,7 +6891,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     __pyx_v_nz = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":322
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":322
  *         row_repeated = np.take(row, out.indices)
  *         nz = out.data.nonzero()
  *         out.data[nz] /= row_repeated[nz]             # <<<<<<<<<<<<<<
@@ -6915,7 +6915,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":323
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":323
  *         nz = out.data.nonzero()
  *         out.data[nz] /= row_repeated[nz]
  *         if convert_to_csc:             # <<<<<<<<<<<<<<
@@ -6925,7 +6925,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     __pyx_t_5 = (__pyx_v_convert_to_csc != 0);
     if (__pyx_t_5) {
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":324
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":324
  *         out.data[nz] /= row_repeated[nz]
  *         if convert_to_csc:
  *             out = out.tocsc()             # <<<<<<<<<<<<<<
@@ -6952,7 +6952,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
       __Pyx_DECREF_SET(__pyx_v_out, __pyx_t_2);
       __pyx_t_2 = 0;
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":323
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":323
  *         nz = out.data.nonzero()
  *         out.data[nz] /= row_repeated[nz]
  *         if convert_to_csc:             # <<<<<<<<<<<<<<
@@ -6961,7 +6961,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
  */
     }
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":314
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":314
  *     else:
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:             # <<<<<<<<<<<<<<
@@ -6971,7 +6971,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
     goto __pyx_L4;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":326
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":326
  *             out = out.tocsc()
  *     else:
  *         out /= row[np.newaxis, :]             # <<<<<<<<<<<<<<
@@ -7003,7 +7003,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   }
   __pyx_L4:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":327
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":327
  *     else:
  *         out /= row[np.newaxis, :]
  *     return out             # <<<<<<<<<<<<<<
@@ -7015,7 +7015,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   __pyx_r = __pyx_v_out;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":291
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":291
  *     return cont
  * 
  * def divide_columns(matrix, row, in_place=False):             # <<<<<<<<<<<<<<
@@ -7030,7 +7030,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   __Pyx_XDECREF(__pyx_t_4);
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_8);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.divide_columns", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.divide_columns", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_out);
@@ -7041,7 +7041,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":329
+/* "torch_connectomics/utils/seg/seg_eval.pyx":329
  *     return out
  * 
  * def divide_rows(matrix, column, in_place=False):             # <<<<<<<<<<<<<<
@@ -7050,10 +7050,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_14divide_colu
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_17divide_rows(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows[] = "Divide each row of `matrix` by the corresponding element in `column`.\n\n    The result is as follows: out[i, j] = matrix[i, j] / column[i]\n\n    Parameters\n    ----------\n    matrix : np.ndarray, scipy.sparse.csc_matrix or csr_matrix, shape (M, N)\n        The input matrix.\n    column : a 1D np.ndarray, shape (M,)\n        The column dividing `matrix`.\n    in_place : bool (optional, default False)\n        Do the computation in-place.\n\n    Returns\n    -------\n    out : same type as `matrix`\n        The result of the row-wise division.\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_17divide_rows = {"divide_rows", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_17divide_rows, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_17divide_rows(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_17divide_rows(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_16divide_rows[] = "Divide each row of `matrix` by the corresponding element in `column`.\n\n    The result is as follows: out[i, j] = matrix[i, j] / column[i]\n\n    Parameters\n    ----------\n    matrix : np.ndarray, scipy.sparse.csc_matrix or csr_matrix, shape (M, N)\n        The input matrix.\n    column : a 1D np.ndarray, shape (M,)\n        The column dividing `matrix`.\n    in_place : bool (optional, default False)\n        Do the computation in-place.\n\n    Returns\n    -------\n    out : same type as `matrix`\n        The result of the row-wise division.\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_17divide_rows = {"divide_rows", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_17divide_rows, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_16divide_rows};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_17divide_rows(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_matrix = 0;
   PyObject *__pyx_v_column = 0;
   PyObject *__pyx_v_in_place = 0;
@@ -7116,18 +7116,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_17divide_rows
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("divide_rows", 0, 2, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 329, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.divide_rows", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.divide_rows", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows(__pyx_self, __pyx_v_matrix, __pyx_v_column, __pyx_v_in_place);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_16divide_rows(__pyx_self, __pyx_v_matrix, __pyx_v_column, __pyx_v_in_place);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_column, PyObject *__pyx_v_in_place) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_16divide_rows(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_matrix, PyObject *__pyx_v_column, PyObject *__pyx_v_in_place) {
   PyObject *__pyx_v_out = NULL;
   int __pyx_v_convert_to_csr;
   PyObject *__pyx_v_column_repeated = NULL;
@@ -7144,7 +7144,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   PyObject *__pyx_t_8 = NULL;
   __Pyx_RefNannySetupContext("divide_rows", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":348
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":348
  *         The result of the row-wise division.
  *     """
  *     if in_place:             # <<<<<<<<<<<<<<
@@ -7154,7 +7154,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_in_place); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 348, __pyx_L1_error)
   if (__pyx_t_1) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":349
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":349
  *     """
  *     if in_place:
  *         out = matrix             # <<<<<<<<<<<<<<
@@ -7164,7 +7164,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     __Pyx_INCREF(__pyx_v_matrix);
     __pyx_v_out = __pyx_v_matrix;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":348
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":348
  *         The result of the row-wise division.
  *     """
  *     if in_place:             # <<<<<<<<<<<<<<
@@ -7174,7 +7174,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     goto __pyx_L3;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":351
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":351
  *         out = matrix
  *     else:
  *         out = matrix.copy()             # <<<<<<<<<<<<<<
@@ -7204,7 +7204,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   }
   __pyx_L3:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":352
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":352
  *     else:
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:             # <<<<<<<<<<<<<<
@@ -7242,7 +7242,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   __pyx_t_5 = (__pyx_t_1 != 0);
   if (__pyx_t_5) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":353
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":353
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         if type(out) == sparse.csr_matrix:             # <<<<<<<<<<<<<<
@@ -7260,7 +7260,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     if (__pyx_t_5) {
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":354
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":354
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         if type(out) == sparse.csr_matrix:
  *             convert_to_csr = True             # <<<<<<<<<<<<<<
@@ -7269,7 +7269,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
  */
       __pyx_v_convert_to_csr = 1;
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":355
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":355
  *         if type(out) == sparse.csr_matrix:
  *             convert_to_csr = True
  *             out = out.tocsc()             # <<<<<<<<<<<<<<
@@ -7296,7 +7296,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
       __Pyx_DECREF_SET(__pyx_v_out, __pyx_t_2);
       __pyx_t_2 = 0;
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":353
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":353
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         if type(out) == sparse.csr_matrix:             # <<<<<<<<<<<<<<
@@ -7306,7 +7306,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
       goto __pyx_L7;
     }
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":357
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":357
  *             out = out.tocsc()
  *         else:
  *             convert_to_csr = False             # <<<<<<<<<<<<<<
@@ -7318,7 +7318,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     }
     __pyx_L7:;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":358
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":358
  *         else:
  *             convert_to_csr = False
  *         column_repeated = np.take(column, out.indices)             # <<<<<<<<<<<<<<
@@ -7382,7 +7382,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     __pyx_v_column_repeated = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":359
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":359
  *             convert_to_csr = False
  *         column_repeated = np.take(column, out.indices)
  *         nz = out.data.nonzero()             # <<<<<<<<<<<<<<
@@ -7412,7 +7412,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     __pyx_v_nz = __pyx_t_2;
     __pyx_t_2 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":360
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":360
  *         column_repeated = np.take(column, out.indices)
  *         nz = out.data.nonzero()
  *         out.data[nz] /= column_repeated[nz]             # <<<<<<<<<<<<<<
@@ -7436,7 +7436,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":361
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":361
  *         nz = out.data.nonzero()
  *         out.data[nz] /= column_repeated[nz]
  *         if convert_to_csr:             # <<<<<<<<<<<<<<
@@ -7446,7 +7446,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     __pyx_t_5 = (__pyx_v_convert_to_csr != 0);
     if (__pyx_t_5) {
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":362
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":362
  *         out.data[nz] /= column_repeated[nz]
  *         if convert_to_csr:
  *             out = out.tocsr()             # <<<<<<<<<<<<<<
@@ -7473,7 +7473,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
       __Pyx_DECREF_SET(__pyx_v_out, __pyx_t_2);
       __pyx_t_2 = 0;
 
-      /* "vcg_connectomics/utils/seg/seg_eval.pyx":361
+      /* "torch_connectomics/utils/seg/seg_eval.pyx":361
  *         nz = out.data.nonzero()
  *         out.data[nz] /= column_repeated[nz]
  *         if convert_to_csr:             # <<<<<<<<<<<<<<
@@ -7482,7 +7482,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
  */
     }
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":352
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":352
  *     else:
  *         out = matrix.copy()
  *     if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:             # <<<<<<<<<<<<<<
@@ -7492,7 +7492,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
     goto __pyx_L4;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":364
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":364
  *             out = out.tocsr()
  *     else:
  *         out /= column[:, np.newaxis]             # <<<<<<<<<<<<<<
@@ -7524,7 +7524,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   }
   __pyx_L4:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":365
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":365
  *     else:
  *         out /= column[:, np.newaxis]
  *     return out             # <<<<<<<<<<<<<<
@@ -7536,7 +7536,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   __pyx_r = __pyx_v_out;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":329
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":329
  *     return out
  * 
  * def divide_rows(matrix, column, in_place=False):             # <<<<<<<<<<<<<<
@@ -7551,7 +7551,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   __Pyx_XDECREF(__pyx_t_4);
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_8);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.divide_rows", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.divide_rows", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_out);
@@ -7562,7 +7562,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
   return __pyx_r;
 }
 
-/* "vcg_connectomics/utils/seg/seg_eval.pyx":367
+/* "torch_connectomics/utils/seg/seg_eval.pyx":367
  *     return out
  * 
  * def xlogx(x, out=None, in_place=False):             # <<<<<<<<<<<<<<
@@ -7571,10 +7571,10 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_16divide_rows
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_19xlogx(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-static char __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx[] = "Compute x * log_2(x).\n\n    We define 0 * log_2(0) = 0\n\n    Parameters\n    ----------\n    x : np.ndarray or scipy.sparse.csc_matrix or csr_matrix\n        The input array.\n    out : same type as x (optional)\n        If provided, use this array/matrix for the result.\n    in_place : bool (optional, default False)\n        Operate directly on x.\n\n    Returns\n    -------\n    y : same type as x\n        Result of x * log_2(x).\n    ";
-static PyMethodDef __pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_19xlogx = {"xlogx", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_19xlogx, METH_VARARGS|METH_KEYWORDS, __pyx_doc_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx};
-static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_19xlogx(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_19xlogx(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+static char __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_18xlogx[] = "Compute x * log_2(x).\n\n    We define 0 * log_2(0) = 0\n\n    Parameters\n    ----------\n    x : np.ndarray or scipy.sparse.csc_matrix or csr_matrix\n        The input array.\n    out : same type as x (optional)\n        If provided, use this array/matrix for the result.\n    in_place : bool (optional, default False)\n        Operate directly on x.\n\n    Returns\n    -------\n    y : same type as x\n        Result of x * log_2(x).\n    ";
+static PyMethodDef __pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_19xlogx = {"xlogx", (PyCFunction)(void*)(PyCFunctionWithKeywords)__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_19xlogx, METH_VARARGS|METH_KEYWORDS, __pyx_doc_18torch_connectomics_5utils_3seg_8seg_eval_18xlogx};
+static PyObject *__pyx_pw_18torch_connectomics_5utils_3seg_8seg_eval_19xlogx(PyObject *__pyx_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   PyObject *__pyx_v_x = 0;
   PyObject *__pyx_v_out = 0;
   PyObject *__pyx_v_in_place = 0;
@@ -7639,18 +7639,18 @@ static PyObject *__pyx_pw_16vcg_connectomics_5utils_3seg_8seg_eval_19xlogx(PyObj
   __pyx_L5_argtuple_error:;
   __Pyx_RaiseArgtupleInvalid("xlogx", 0, 1, 3, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 367, __pyx_L3_error)
   __pyx_L3_error:;
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.xlogx", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.xlogx", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(__pyx_self, __pyx_v_x, __pyx_v_out, __pyx_v_in_place);
+  __pyx_r = __pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_18xlogx(__pyx_self, __pyx_v_x, __pyx_v_out, __pyx_v_in_place);
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_out, PyObject *__pyx_v_in_place) {
+static PyObject *__pyx_pf_18torch_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v_x, PyObject *__pyx_v_out, PyObject *__pyx_v_in_place) {
   PyObject *__pyx_v_y = NULL;
   PyObject *__pyx_v_z = NULL;
   PyObject *__pyx_v_nz = NULL;
@@ -7666,7 +7666,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   PyObject *__pyx_t_8 = NULL;
   __Pyx_RefNannySetupContext("xlogx", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":386
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":386
  *         Result of x * log_2(x).
  *     """
  *     if in_place:             # <<<<<<<<<<<<<<
@@ -7676,7 +7676,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __pyx_t_1 = __Pyx_PyObject_IsTrue(__pyx_v_in_place); if (unlikely(__pyx_t_1 < 0)) __PYX_ERR(0, 386, __pyx_L1_error)
   if (__pyx_t_1) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":387
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":387
  *     """
  *     if in_place:
  *         y = x             # <<<<<<<<<<<<<<
@@ -7686,7 +7686,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
     __Pyx_INCREF(__pyx_v_x);
     __pyx_v_y = __pyx_v_x;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":386
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":386
  *         Result of x * log_2(x).
  *     """
  *     if in_place:             # <<<<<<<<<<<<<<
@@ -7696,7 +7696,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
     goto __pyx_L3;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":388
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":388
  *     if in_place:
  *         y = x
  *     elif out is None:             # <<<<<<<<<<<<<<
@@ -7707,7 +7707,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __pyx_t_2 = (__pyx_t_1 != 0);
   if (__pyx_t_2) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":389
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":389
  *         y = x
  *     elif out is None:
  *         y = x.copy()             # <<<<<<<<<<<<<<
@@ -7734,7 +7734,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
     __pyx_v_y = __pyx_t_3;
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":388
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":388
  *     if in_place:
  *         y = x
  *     elif out is None:             # <<<<<<<<<<<<<<
@@ -7744,7 +7744,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
     goto __pyx_L3;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":391
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":391
  *         y = x.copy()
  *     else:
  *         y = out             # <<<<<<<<<<<<<<
@@ -7757,7 +7757,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   }
   __pyx_L3:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":392
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":392
  *     else:
  *         y = out
  *     if type(y) in [sparse.csc_matrix, sparse.csr_matrix]:             # <<<<<<<<<<<<<<
@@ -7795,7 +7795,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __pyx_t_1 = (__pyx_t_2 != 0);
   if (__pyx_t_1) {
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":393
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":393
  *         y = out
  *     if type(y) in [sparse.csc_matrix, sparse.csr_matrix]:
  *         z = y.data             # <<<<<<<<<<<<<<
@@ -7807,7 +7807,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
     __pyx_v_z = __pyx_t_3;
     __pyx_t_3 = 0;
 
-    /* "vcg_connectomics/utils/seg/seg_eval.pyx":392
+    /* "torch_connectomics/utils/seg/seg_eval.pyx":392
  *     else:
  *         y = out
  *     if type(y) in [sparse.csc_matrix, sparse.csr_matrix]:             # <<<<<<<<<<<<<<
@@ -7817,7 +7817,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
     goto __pyx_L4;
   }
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":395
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":395
  *         z = y.data
  *     else:
  *         z = y             # <<<<<<<<<<<<<<
@@ -7830,7 +7830,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   }
   __pyx_L4:;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":396
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":396
  *     else:
  *         z = y
  *     nz = z.nonzero()             # <<<<<<<<<<<<<<
@@ -7857,7 +7857,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __pyx_v_nz = __pyx_t_3;
   __pyx_t_3 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":397
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":397
  *         z = y
  *     nz = z.nonzero()
  *     z[nz] *= np.log2(z[nz])             # <<<<<<<<<<<<<<
@@ -7898,7 +7898,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":398
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":398
  *     nz = z.nonzero()
  *     z[nz] *= np.log2(z[nz])
  *     return y             # <<<<<<<<<<<<<<
@@ -7908,7 +7908,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __pyx_r = __pyx_v_y;
   goto __pyx_L0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":367
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":367
  *     return out
  * 
  * def xlogx(x, out=None, in_place=False):             # <<<<<<<<<<<<<<
@@ -7924,7 +7924,7 @@ static PyObject *__pyx_pf_16vcg_connectomics_5utils_3seg_8seg_eval_18xlogx(CYTHO
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_7);
   __Pyx_XDECREF(__pyx_t_8);
-  __Pyx_AddTraceback("vcg_connectomics.utils.seg.seg_eval.xlogx", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("torch_connectomics.utils.seg.seg_eval.xlogx", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_y);
@@ -10527,12 +10527,12 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_s_tocsc, __pyx_k_tocsc, sizeof(__pyx_k_tocsc), 0, 0, 1, 1},
   {&__pyx_n_s_tocsr, __pyx_k_tocsr, sizeof(__pyx_k_tocsr), 0, 0, 1, 1},
   {&__pyx_n_s_todense, __pyx_k_todense, sizeof(__pyx_k_todense), 0, 0, 1, 1},
+  {&__pyx_n_s_torch_connectomics_utils_seg_seg, __pyx_k_torch_connectomics_utils_seg_seg, sizeof(__pyx_k_torch_connectomics_utils_seg_seg), 0, 0, 1, 1},
+  {&__pyx_n_s_torch_connectomics_utils_seg_seg_2, __pyx_k_torch_connectomics_utils_seg_seg_2, sizeof(__pyx_k_torch_connectomics_utils_seg_seg_2), 0, 0, 1, 1},
+  {&__pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_k_torch_connectomics_utils_seg_seg_3, sizeof(__pyx_k_torch_connectomics_utils_seg_seg_3), 0, 0, 1, 0},
+  {&__pyx_n_s_torch_connectomics_utils_seg_seg_4, __pyx_k_torch_connectomics_utils_seg_seg_4, sizeof(__pyx_k_torch_connectomics_utils_seg_seg_4), 0, 0, 1, 1},
   {&__pyx_n_s_total, __pyx_k_total, sizeof(__pyx_k_total), 0, 0, 1, 1},
   {&__pyx_kp_u_unknown_dtype_code_in_numpy_pxd, __pyx_k_unknown_dtype_code_in_numpy_pxd, sizeof(__pyx_k_unknown_dtype_code_in_numpy_pxd), 0, 1, 0, 0},
-  {&__pyx_n_s_vcg_connectomics_utils_seg_seg_c, __pyx_k_vcg_connectomics_utils_seg_seg_c, sizeof(__pyx_k_vcg_connectomics_utils_seg_seg_c), 0, 0, 1, 1},
-  {&__pyx_n_s_vcg_connectomics_utils_seg_seg_d, __pyx_k_vcg_connectomics_utils_seg_seg_d, sizeof(__pyx_k_vcg_connectomics_utils_seg_seg_d), 0, 0, 1, 1},
-  {&__pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_k_vcg_connectomics_utils_seg_seg_e, sizeof(__pyx_k_vcg_connectomics_utils_seg_seg_e), 0, 0, 1, 0},
-  {&__pyx_n_s_vcg_connectomics_utils_seg_seg_e_2, __pyx_k_vcg_connectomics_utils_seg_seg_e_2, sizeof(__pyx_k_vcg_connectomics_utils_seg_seg_e_2), 0, 0, 1, 1},
   {&__pyx_n_s_vi_merge, __pyx_k_vi_merge, sizeof(__pyx_k_vi_merge), 0, 0, 1, 1},
   {&__pyx_n_s_vi_split, __pyx_k_vi_split, sizeof(__pyx_k_vi_split), 0, 0, 1, 1},
   {&__pyx_n_s_vi_tables, __pyx_k_vi_tables, sizeof(__pyx_k_vi_tables), 0, 0, 1, 1},
@@ -10562,7 +10562,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":100
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":100
  *     ones_data = np.ones(n,int)
  * 
  *     p_ij = sparse.csr_matrix((ones_data, (segA[:], segB[:])), shape=(n_labels_A, n_labels_B))             # <<<<<<<<<<<<<<
@@ -10650,7 +10650,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__16);
   __Pyx_GIVEREF(__pyx_tuple__16);
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":14
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":14
  *     void CppEvaluate(long *segmentation, long *gold, long resolution[3], unsigned char mask_ground_truth)
  * 
  * def PrincetonEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
@@ -10660,9 +10660,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__18 = PyTuple_Pack(10, __pyx_n_s_segmentation, __pyx_n_s_gold, __pyx_n_s_dilate_ground_truth, __pyx_n_s_mask_ground_truth, __pyx_n_s_filtersize, __pyx_n_s_cpp_segmentation, __pyx_n_s_cpp_gold, __pyx_n_s_zres, __pyx_n_s_yres, __pyx_n_s_xres); if (unlikely(!__pyx_tuple__18)) __PYX_ERR(0, 14, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__18);
   __Pyx_GIVEREF(__pyx_tuple__18);
-  __pyx_codeobj__19 = (PyObject*)__Pyx_PyCode_New(5, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__18, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_PrincetonEvaluate, 14, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__19)) __PYX_ERR(0, 14, __pyx_L1_error)
+  __pyx_codeobj__19 = (PyObject*)__Pyx_PyCode_New(5, 0, 10, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__18, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_PrincetonEvaluate, 14, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__19)) __PYX_ERR(0, 14, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":36
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":36
  * 
  * 
  * def CremiEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
@@ -10672,9 +10672,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__20 = PyTuple_Pack(7, __pyx_n_s_segmentation, __pyx_n_s_gold, __pyx_n_s_dilate_ground_truth, __pyx_n_s_mask_ground_truth, __pyx_n_s_filtersize, __pyx_n_s_vi_split, __pyx_n_s_vi_merge); if (unlikely(!__pyx_tuple__20)) __PYX_ERR(0, 36, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__20);
   __Pyx_GIVEREF(__pyx_tuple__20);
-  __pyx_codeobj__21 = (PyObject*)__Pyx_PyCode_New(5, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__20, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_CremiEvaluate, 36, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__21)) __PYX_ERR(0, 36, __pyx_L1_error)
+  __pyx_codeobj__21 = (PyObject*)__Pyx_PyCode_New(5, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__20, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_CremiEvaluate, 36, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__21)) __PYX_ERR(0, 36, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":60
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":60
  *     return vi_split, vi_merge
  * 
  * def adapted_rand(seg, gt, all_stats=False):             # <<<<<<<<<<<<<<
@@ -10684,9 +10684,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__22 = PyTuple_Pack(23, __pyx_n_s_seg, __pyx_n_s_gt, __pyx_n_s_all_stats, __pyx_n_s_segA, __pyx_n_s_segB, __pyx_n_s_n, __pyx_n_s_n_labels_A, __pyx_n_s_n_labels_B, __pyx_n_s_ones_data, __pyx_n_s_p_ij, __pyx_n_s_a, __pyx_n_s_b, __pyx_n_s_c, __pyx_n_s_d, __pyx_n_s_a_i, __pyx_n_s_b_i, __pyx_n_s_sumA, __pyx_n_s_sumB, __pyx_n_s_sumAB, __pyx_n_s_precision, __pyx_n_s_recall, __pyx_n_s_fScore, __pyx_n_s_are); if (unlikely(!__pyx_tuple__22)) __PYX_ERR(0, 60, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__22);
   __Pyx_GIVEREF(__pyx_tuple__22);
-  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(3, 0, 23, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_adapted_rand, 60, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 60, __pyx_L1_error)
+  __pyx_codeobj__23 = (PyObject*)__Pyx_PyCode_New(3, 0, 23, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__22, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_adapted_rand, 60, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__23)) __PYX_ERR(0, 60, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":127
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":127
  * # Evaluation code courtesy of Juan Nunez-Iglesias, taken from
  * # https://github.com/janelia-flyem/gala/blob/master/gala/evaluate.py
  * def voi(reconstruction, groundtruth, ignore_reconstruction=[], ignore_groundtruth=[0]):             # <<<<<<<<<<<<<<
@@ -10696,9 +10696,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__24 = PyTuple_Pack(6, __pyx_n_s_reconstruction, __pyx_n_s_groundtruth, __pyx_n_s_ignore_reconstruction, __pyx_n_s_ignore_groundtruth, __pyx_n_s_hyxg, __pyx_n_s_hxgy); if (unlikely(!__pyx_tuple__24)) __PYX_ERR(0, 127, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__24);
   __Pyx_GIVEREF(__pyx_tuple__24);
-  __pyx_codeobj__25 = (PyObject*)__Pyx_PyCode_New(4, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__24, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_voi, 127, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__25)) __PYX_ERR(0, 127, __pyx_L1_error)
+  __pyx_codeobj__25 = (PyObject*)__Pyx_PyCode_New(4, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__24, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_voi, 127, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__25)) __PYX_ERR(0, 127, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":162
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":162
  *     return (hxgy, hyxg)
  * 
  * def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -10708,9 +10708,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__27 = PyTuple_Pack(7, __pyx_n_s_x, __pyx_n_s_y, __pyx_n_s_ignore_x, __pyx_n_s_ignore_y, __pyx_n_s__26, __pyx_n_s_hxgy, __pyx_n_s_hygx); if (unlikely(!__pyx_tuple__27)) __PYX_ERR(0, 162, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__27);
   __Pyx_GIVEREF(__pyx_tuple__27);
-  __pyx_codeobj__28 = (PyObject*)__Pyx_PyCode_New(4, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__27, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_split_vi, 162, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__28)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_codeobj__28 = (PyObject*)__Pyx_PyCode_New(4, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__27, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_split_vi, 162, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__28)) __PYX_ERR(0, 162, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":198
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":198
  *     return np.array([hygx.sum(), hxgy.sum()])
  * 
  * def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -10720,9 +10720,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__29 = PyTuple_Pack(18, __pyx_n_s_x, __pyx_n_s_y, __pyx_n_s_ignore_x, __pyx_n_s_ignore_y, __pyx_n_s_pxy, __pyx_n_s_cont, __pyx_n_s_total, __pyx_n_s_px, __pyx_n_s_py, __pyx_n_s_nzx, __pyx_n_s_nzy, __pyx_n_s_nzpx, __pyx_n_s_nzpy, __pyx_n_s_nzpxy, __pyx_n_s_lpygx, __pyx_n_s_hygx, __pyx_n_s_lpxgy, __pyx_n_s_hxgy); if (unlikely(!__pyx_tuple__29)) __PYX_ERR(0, 198, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__29);
   __Pyx_GIVEREF(__pyx_tuple__29);
-  __pyx_codeobj__30 = (PyObject*)__Pyx_PyCode_New(4, 0, 18, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__29, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_vi_tables, 198, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__30)) __PYX_ERR(0, 198, __pyx_L1_error)
+  __pyx_codeobj__30 = (PyObject*)__Pyx_PyCode_New(4, 0, 18, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__29, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_vi_tables, 198, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__30)) __PYX_ERR(0, 198, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":252
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":252
  *     return [pxy] + list(map(np.asarray, [px, py, hxgy, hygx, lpygx, lpxgy]))
  * 
  * def contingency_table(seg, gt, ignore_seg=[0], ignore_gt=[0], norm=True):             # <<<<<<<<<<<<<<
@@ -10732,9 +10732,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__31 = PyTuple_Pack(12, __pyx_n_s_seg, __pyx_n_s_gt, __pyx_n_s_ignore_seg, __pyx_n_s_ignore_gt, __pyx_n_s_norm, __pyx_n_s_segr, __pyx_n_s_gtr, __pyx_n_s_ignored, __pyx_n_s_data, __pyx_n_s_i, __pyx_n_s_j, __pyx_n_s_cont); if (unlikely(!__pyx_tuple__31)) __PYX_ERR(0, 252, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__31);
   __Pyx_GIVEREF(__pyx_tuple__31);
-  __pyx_codeobj__32 = (PyObject*)__Pyx_PyCode_New(5, 0, 12, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__31, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_contingency_table, 252, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__32)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __pyx_codeobj__32 = (PyObject*)__Pyx_PyCode_New(5, 0, 12, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__31, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_contingency_table, 252, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__32)) __PYX_ERR(0, 252, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":291
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":291
  *     return cont
  * 
  * def divide_columns(matrix, row, in_place=False):             # <<<<<<<<<<<<<<
@@ -10744,9 +10744,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__33 = PyTuple_Pack(7, __pyx_n_s_matrix, __pyx_n_s_row, __pyx_n_s_in_place, __pyx_n_s_out, __pyx_n_s_convert_to_csc, __pyx_n_s_row_repeated, __pyx_n_s_nz); if (unlikely(!__pyx_tuple__33)) __PYX_ERR(0, 291, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__33);
   __Pyx_GIVEREF(__pyx_tuple__33);
-  __pyx_codeobj__34 = (PyObject*)__Pyx_PyCode_New(3, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__33, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_divide_columns, 291, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__34)) __PYX_ERR(0, 291, __pyx_L1_error)
+  __pyx_codeobj__34 = (PyObject*)__Pyx_PyCode_New(3, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__33, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_divide_columns, 291, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__34)) __PYX_ERR(0, 291, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":329
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":329
  *     return out
  * 
  * def divide_rows(matrix, column, in_place=False):             # <<<<<<<<<<<<<<
@@ -10756,9 +10756,9 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__35 = PyTuple_Pack(7, __pyx_n_s_matrix, __pyx_n_s_column, __pyx_n_s_in_place, __pyx_n_s_out, __pyx_n_s_convert_to_csr, __pyx_n_s_column_repeated, __pyx_n_s_nz); if (unlikely(!__pyx_tuple__35)) __PYX_ERR(0, 329, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__35);
   __Pyx_GIVEREF(__pyx_tuple__35);
-  __pyx_codeobj__36 = (PyObject*)__Pyx_PyCode_New(3, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__35, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_divide_rows, 329, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__36)) __PYX_ERR(0, 329, __pyx_L1_error)
+  __pyx_codeobj__36 = (PyObject*)__Pyx_PyCode_New(3, 0, 7, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__35, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_divide_rows, 329, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__36)) __PYX_ERR(0, 329, __pyx_L1_error)
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":367
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":367
  *     return out
  * 
  * def xlogx(x, out=None, in_place=False):             # <<<<<<<<<<<<<<
@@ -10768,7 +10768,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __pyx_tuple__37 = PyTuple_Pack(6, __pyx_n_s_x, __pyx_n_s_out, __pyx_n_s_in_place, __pyx_n_s_y, __pyx_n_s_z, __pyx_n_s_nz); if (unlikely(!__pyx_tuple__37)) __PYX_ERR(0, 367, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__37);
   __Pyx_GIVEREF(__pyx_tuple__37);
-  __pyx_codeobj__38 = (PyObject*)__Pyx_PyCode_New(3, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__37, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_vcg_connectomics_utils_seg_seg_e, __pyx_n_s_xlogx, 367, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__38)) __PYX_ERR(0, 367, __pyx_L1_error)
+  __pyx_codeobj__38 = (PyObject*)__Pyx_PyCode_New(3, 0, 6, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__37, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_torch_connectomics_utils_seg_seg_3, __pyx_n_s_xlogx, 367, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__38)) __PYX_ERR(0, 367, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -11051,14 +11051,14 @@ if (!__Pyx_RefNanny) {
   #if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
   if (__Pyx_init_sys_getdefaultencoding_params() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
-  if (__pyx_module_is_main_vcg_connectomics__utils__seg__seg_eval) {
+  if (__pyx_module_is_main_torch_connectomics__utils__seg__seg_eval) {
     if (PyObject_SetAttr(__pyx_m, __pyx_n_s_name, __pyx_n_s_main) < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   }
   #if PY_MAJOR_VERSION >= 3
   {
     PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(0, 1, __pyx_L1_error)
-    if (!PyDict_GetItemString(modules, "vcg_connectomics.utils.seg.seg_eval")) {
-      if (unlikely(PyDict_SetItemString(modules, "vcg_connectomics.utils.seg.seg_eval", __pyx_m) < 0)) __PYX_ERR(0, 1, __pyx_L1_error)
+    if (!PyDict_GetItemString(modules, "torch_connectomics.utils.seg.seg_eval")) {
+      if (unlikely(PyDict_SetItemString(modules, "torch_connectomics.utils.seg.seg_eval", __pyx_m) < 0)) __PYX_ERR(0, 1, __pyx_L1_error)
     }
   }
   #endif
@@ -11079,7 +11079,7 @@ if (!__Pyx_RefNanny) {
   if (__Pyx_patch_abc() < 0) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":4
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":4
  * cimport numpy as np
  * 
  * import numpy as np             # <<<<<<<<<<<<<<
@@ -11091,7 +11091,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_np, __pyx_t_1) < 0) __PYX_ERR(0, 4, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":5
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":5
  * 
  * import numpy as np
  * import ctypes             # <<<<<<<<<<<<<<
@@ -11103,12 +11103,12 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_ctypes, __pyx_t_1) < 0) __PYX_ERR(0, 5, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":6
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":6
  * import numpy as np
  * import ctypes
  * import scipy.sparse as sparse             # <<<<<<<<<<<<<<
  * 
- * from vcg_connectomics.utils.seg.seg_dist import DilateData
+ * from torch_connectomics.utils.seg.seg_dist import DilateData
  */
   __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 6, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
@@ -11121,11 +11121,11 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_sparse, __pyx_t_2) < 0) __PYX_ERR(0, 6, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":8
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":8
  * import scipy.sparse as sparse
  * 
- * from vcg_connectomics.utils.seg.seg_dist import DilateData             # <<<<<<<<<<<<<<
- * from vcg_connectomics.utils.seg.seg_core import RemoveSmallConnectedComponents
+ * from torch_connectomics.utils.seg.seg_dist import DilateData             # <<<<<<<<<<<<<<
+ * from torch_connectomics.utils.seg.seg_core import RemoveSmallConnectedComponents
  * 
  */
   __pyx_t_2 = PyList_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 8, __pyx_L1_error)
@@ -11133,7 +11133,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_INCREF(__pyx_n_s_DilateData);
   __Pyx_GIVEREF(__pyx_n_s_DilateData);
   PyList_SET_ITEM(__pyx_t_2, 0, __pyx_n_s_DilateData);
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_vcg_connectomics_utils_seg_seg_d, __pyx_t_2, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 8, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_torch_connectomics_utils_seg_seg, __pyx_t_2, -1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 8, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = __Pyx_ImportFrom(__pyx_t_1, __pyx_n_s_DilateData); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 8, __pyx_L1_error)
@@ -11142,10 +11142,10 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":9
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":9
  * 
- * from vcg_connectomics.utils.seg.seg_dist import DilateData
- * from vcg_connectomics.utils.seg.seg_core import RemoveSmallConnectedComponents             # <<<<<<<<<<<<<<
+ * from torch_connectomics.utils.seg.seg_dist import DilateData
+ * from torch_connectomics.utils.seg.seg_core import RemoveSmallConnectedComponents             # <<<<<<<<<<<<<<
  * 
  * cdef extern from 'cpp/seg_eval/cpp-comparestacks.h':
  */
@@ -11154,7 +11154,7 @@ if (!__Pyx_RefNanny) {
   __Pyx_INCREF(__pyx_n_s_RemoveSmallConnectedComponents);
   __Pyx_GIVEREF(__pyx_n_s_RemoveSmallConnectedComponents);
   PyList_SET_ITEM(__pyx_t_1, 0, __pyx_n_s_RemoveSmallConnectedComponents);
-  __pyx_t_2 = __Pyx_Import(__pyx_n_s_vcg_connectomics_utils_seg_seg_c, __pyx_t_1, -1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 9, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_Import(__pyx_n_s_torch_connectomics_utils_seg_seg_2, __pyx_t_1, -1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 9, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_t_1 = __Pyx_ImportFrom(__pyx_t_2, __pyx_n_s_RemoveSmallConnectedComponents); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 9, __pyx_L1_error)
@@ -11163,43 +11163,43 @@ if (!__Pyx_RefNanny) {
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":14
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":14
  *     void CppEvaluate(long *segmentation, long *gold, long resolution[3], unsigned char mask_ground_truth)
  * 
  * def PrincetonEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
  *     # make sure these elements are the same size
  *     assert (segmentation.shape == gold.shape)
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 14, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_1PrincetonEvaluate, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 14, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_PrincetonEvaluate, __pyx_t_2) < 0) __PYX_ERR(0, 14, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":36
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":36
  * 
  * 
  * def CremiEvaluate(segmentation, gold, dilate_ground_truth=1, mask_ground_truth=True, filtersize=0):             # <<<<<<<<<<<<<<
  *     # make sure these elements are the same size
  *     assert (segmentation.shape == gold.shape)
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 36, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_3CremiEvaluate, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 36, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_CremiEvaluate, __pyx_t_2) < 0) __PYX_ERR(0, 36, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":60
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":60
  *     return vi_split, vi_merge
  * 
  * def adapted_rand(seg, gt, all_stats=False):             # <<<<<<<<<<<<<<
  *     """Compute Adapted Rand error as defined by the SNEMI3D contest [1]
  * 
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_5adapted_rand, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 60, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_5adapted_rand, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 60, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_adapted_rand, __pyx_t_2) < 0) __PYX_ERR(0, 60, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":127
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":127
  * # Evaluation code courtesy of Juan Nunez-Iglesias, taken from
  * # https://github.com/janelia-flyem/gala/blob/master/gala/evaluate.py
  * def voi(reconstruction, groundtruth, ignore_reconstruction=[], ignore_groundtruth=[0]):             # <<<<<<<<<<<<<<
@@ -11219,12 +11219,12 @@ if (!__Pyx_RefNanny) {
   __pyx_k__3 = __pyx_t_2;
   __Pyx_GIVEREF(__pyx_t_2);
   __pyx_t_2 = 0;
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_7voi, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 127, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_7voi, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 127, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_voi, __pyx_t_2) < 0) __PYX_ERR(0, 127, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":162
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":162
  *     return (hxgy, hyxg)
  * 
  * def split_vi(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -11247,12 +11247,12 @@ if (!__Pyx_RefNanny) {
   __pyx_k__5 = __pyx_t_2;
   __Pyx_GIVEREF(__pyx_t_2);
   __pyx_t_2 = 0;
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_9split_vi, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 162, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_9split_vi, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 162, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_split_vi, __pyx_t_2) < 0) __PYX_ERR(0, 162, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":198
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":198
  *     return np.array([hygx.sum(), hxgy.sum()])
  * 
  * def vi_tables(x, y=None, ignore_x=[0], ignore_y=[0]):             # <<<<<<<<<<<<<<
@@ -11275,12 +11275,12 @@ if (!__Pyx_RefNanny) {
   __pyx_k__7 = __pyx_t_2;
   __Pyx_GIVEREF(__pyx_t_2);
   __pyx_t_2 = 0;
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_11vi_tables, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 198, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_11vi_tables, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 198, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_vi_tables, __pyx_t_2) < 0) __PYX_ERR(0, 198, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":252
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":252
  *     return [pxy] + list(map(np.asarray, [px, py, hxgy, hygx, lpygx, lpxgy]))
  * 
  * def contingency_table(seg, gt, ignore_seg=[0], ignore_gt=[0], norm=True):             # <<<<<<<<<<<<<<
@@ -11303,48 +11303,48 @@ if (!__Pyx_RefNanny) {
   __pyx_k__9 = __pyx_t_2;
   __Pyx_GIVEREF(__pyx_t_2);
   __pyx_t_2 = 0;
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_13contingency_table, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 252, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_13contingency_table, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 252, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_contingency_table, __pyx_t_2) < 0) __PYX_ERR(0, 252, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":291
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":291
  *     return cont
  * 
  * def divide_columns(matrix, row, in_place=False):             # <<<<<<<<<<<<<<
  *     """Divide each column of `matrix` by the corresponding element in `row`.
  * 
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_15divide_columns, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 291, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_15divide_columns, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 291, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_divide_columns, __pyx_t_2) < 0) __PYX_ERR(0, 291, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":329
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":329
  *     return out
  * 
  * def divide_rows(matrix, column, in_place=False):             # <<<<<<<<<<<<<<
  *     """Divide each row of `matrix` by the corresponding element in `column`.
  * 
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_17divide_rows, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 329, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_17divide_rows, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 329, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_divide_rows, __pyx_t_2) < 0) __PYX_ERR(0, 329, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":367
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":367
  *     return out
  * 
  * def xlogx(x, out=None, in_place=False):             # <<<<<<<<<<<<<<
  *     """Compute x * log_2(x).
  * 
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_16vcg_connectomics_5utils_3seg_8seg_eval_19xlogx, NULL, __pyx_n_s_vcg_connectomics_utils_seg_seg_e_2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 367, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18torch_connectomics_5utils_3seg_8seg_eval_19xlogx, NULL, __pyx_n_s_torch_connectomics_utils_seg_seg_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 367, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (PyDict_SetItem(__pyx_d, __pyx_n_s_xlogx, __pyx_t_2) < 0) __PYX_ERR(0, 367, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "vcg_connectomics/utils/seg/seg_eval.pyx":1
+  /* "torch_connectomics/utils/seg/seg_eval.pyx":1
  * cimport cython             # <<<<<<<<<<<<<<
  * cimport numpy as np
  * 
@@ -11370,11 +11370,11 @@ if (!__Pyx_RefNanny) {
   __Pyx_XDECREF(__pyx_t_2);
   if (__pyx_m) {
     if (__pyx_d) {
-      __Pyx_AddTraceback("init vcg_connectomics.utils.seg.seg_eval", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init torch_connectomics.utils.seg.seg_eval", __pyx_clineno, __pyx_lineno, __pyx_filename);
     }
     Py_CLEAR(__pyx_m);
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init vcg_connectomics.utils.seg.seg_eval");
+    PyErr_SetString(PyExc_ImportError, "init torch_connectomics.utils.seg.seg_eval");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
