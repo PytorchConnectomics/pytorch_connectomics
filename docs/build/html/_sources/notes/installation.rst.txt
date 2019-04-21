@@ -72,4 +72,6 @@ Please follow the steps below for a successful installation:
         $ pip install -r requirements.txt
         $ pip install --editable .
 
-If you meet compilation errors, please check the `TROUBLESHOOTING.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md>`_.
+    If you meet compilation errors, please check the `TROUBLESHOOTING.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md>`_.
+    It is highly recommended to first play with the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_ scripts to make sure that
+    the installation is correct and also have intial taste of the modules.

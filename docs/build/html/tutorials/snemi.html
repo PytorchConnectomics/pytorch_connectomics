@@ -193,6 +193,23 @@
             
   <div class="section" id="neuron-segmentation">
 <h1>Neuron Segmentation<a class="headerlink" href="#neuron-segmentation" title="Permalink to this headline">¶</a></h1>
+<p>This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
+Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
+The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and
+then generate the segmentation map using a segmentation algorithm (e.g. watershed).</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
+to become familiar with the datasets and have a sense of how the affinity graphs look like.</p>
+</div>
+<ol class="arabic simple">
+<li>Get the dataset:</li>
+<li>Run the training script:</li>
+<li>Visualize the training progress:</li>
+<li>Run inference on image volumes:</li>
+<li>Gnerate segmentation and run evaluation:</li>
+<li>Conduct error analysis:</li>
+</ol>
 </div>
 
 
