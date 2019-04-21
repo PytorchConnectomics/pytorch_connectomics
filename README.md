@@ -34,7 +34,7 @@ cd pytorch_connectomics
 pip install -r requirements.txt
 pip install --editable .
 ```
-For more information and frequently asked questions about installation, please check the [installation guide](). If you meet compilation errors, please check [TROUBLESHOOTING.md](https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md).
+For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html). If you meet compilation errors, please check [TROUBLESHOOTING.md](https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md).
 
 ## Visulazation
 
