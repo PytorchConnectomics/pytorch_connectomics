@@ -3,10 +3,16 @@
 PyTorch Connectomics documentation
 ===============================
 
-`PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ is a deep learning framework for automatic and semi-automatic annotation of connectomics datasets, powered by `PyTorch <https://pytorch.org/>`_.
+`PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ is a deep learning 
+framework for automatic and semi-automatic annotation of connectomics datasets, powered by `PyTorch <https://pytorch.org/>`_.
 
-It consists of various methods for deep learning on graphs and other irregular structures, also known as `geometric deep learning <http://geometricdeeplearning.com/>`_, from a variety of published papers.
-In addition, it consists of an easy-to-use mini-batch loader, a large number of common benchmark datasets (based on simple interfaces to create your own), and helpful transforms, both for learning on arbitrary graphs as well as on 3D meshes or point clouds.
+The field of connectomics aims to reconstruct the wiring diagram of the brain by mapping the neural 
+connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled 
+the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise 
+and is super time-consuming. This package consists of various deep learning based object detection, semantic segmentation 
+and instance segmentation methods for the annotation and analysis of 3D image stacks. In addition, it consists of an easy-to-use 
+data augmentation interface, tutorials on several common benchmark datasets, and helpful image stack processing functions, both 
+for reproducing state-of-the-art results on benchmark datasets, and labelling large-scale (over 100 microns) volumes.
 
 .. toctree::
    :glob:
@@ -14,7 +20,6 @@ In addition, it consists of an easy-to-use mini-batch loader, a large number of 
    :caption: Notes
 
    notes/installation
-   notes/introduction
 
 .. toctree::
    :glob:

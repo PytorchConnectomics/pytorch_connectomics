@@ -99,19 +99,7 @@
             
               <p class="caption"><span class="caption-text">Notes</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="notes/installation.html">Installation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="notes/installation.html#c-cuda-extensions-on-macos">C++/CUDA Extensions on macOS</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notes/installation.html#id1">Frequently Asked Questions</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="notes/introduction.html">Introduction by example</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="notes/introduction.html#data-handling-of-graphs">Data handling of graphs</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notes/introduction.html#common-benchmark-datasets">Common benchmark datasets</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notes/introduction.html#mini-batches">Mini-batches</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notes/introduction.html#data-transforms">Data transforms</a></li>
-<li class="toctree-l2"><a class="reference internal" href="notes/introduction.html#learning-methods-on-graphs">Learning methods on graphs</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="notes/installation.html">Installation</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -209,14 +197,19 @@
             
   <div class="section" id="pytorch-connectomics-documentation">
 <h1>PyTorch Connectomics documentation<a class="headerlink" href="#pytorch-connectomics-documentation" title="Permalink to this headline">¶</a></h1>
-<p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics">PyTorch Connectomics</a> is a deep learning framework for automatic and semi-automatic annotation of connectomics datasets, powered by <a class="reference external" href="https://pytorch.org/">PyTorch</a>.</p>
-<p>It consists of various methods for deep learning on graphs and other irregular structures, also known as <a class="reference external" href="http://geometricdeeplearning.com/">geometric deep learning</a>, from a variety of published papers.
-In addition, it consists of an easy-to-use mini-batch loader, a large number of common benchmark datasets (based on simple interfaces to create your own), and helpful transforms, both for learning on arbitrary graphs as well as on 3D meshes or point clouds.</p>
+<p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics">PyTorch Connectomics</a> is a deep learning
+framework for automatic and semi-automatic annotation of connectomics datasets, powered by <a class="reference external" href="https://pytorch.org/">PyTorch</a>.</p>
+<p>The field of connectomics aims to reconstruct the wiring diagram of the brain by mapping the neural
+connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled
+the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise
+and is super time-consuming. This package consists of various deep learning based object detection, semantic segmentation
+and instance segmentation methods for the annotation and analysis of 3D image stacks. In addition, it consists of an easy-to-use
+data augmentation interface, tutorials on several common benchmark datasets, and helpful image stack processing functions, both
+for reproducing state-of-the-art results on benchmark datasets, and labelling large-scale (over 100 microns) volumes.</p>
 <div class="toctree-wrapper compound">
 <p class="caption"><span class="caption-text">Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="notes/installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notes/introduction.html">Introduction by example</a></li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
