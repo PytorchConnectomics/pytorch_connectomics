@@ -8,7 +8,7 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
 
 .. note::
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
-    to become familiar with the datasets and have a sense of how the affinity graphs look like.
+    to get familiar with the datasets and have a sense of how the affinity graphs look like.
 
 #. Get the dataset:
 
