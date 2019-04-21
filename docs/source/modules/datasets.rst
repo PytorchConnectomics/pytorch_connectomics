@@ -1,11 +1,5 @@
 torch_connectomics.data.datasets
 ========================
 
-.. contents:: Contents
-    :local:
-
-Datasets
---------------------
-
 .. automodule:: torch_connectomics.data.datasets
     :members:
