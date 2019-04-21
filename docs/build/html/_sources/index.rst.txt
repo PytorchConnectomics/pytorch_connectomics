@@ -6,6 +6,9 @@ PyTorch Connectomics documentation
 `PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ is a deep learning 
 framework for automatic and semi-automatic annotation of connectomics datasets, powered by `PyTorch <https://pytorch.org/>`_.
 
+.. note::
+    This package is under development and should not be considered as formally released.
+
 The field of connectomics aims to reconstruct the wiring diagram of the brain by mapping the neural 
 connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled 
 the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise 

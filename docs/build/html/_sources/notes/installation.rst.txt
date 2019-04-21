@@ -1,7 +1,7 @@
 Installation
 ============
 
-The code is developed and tested under the CentOS Linux 7.4 (Core) operation system. 
+The code is developed and tested on a machine with 8 Nvidia GPUs with the CentOS Linux 7.4 (Core) operation system. 
 
 .. note::
     We do not recommend installation as root user on your system python.
