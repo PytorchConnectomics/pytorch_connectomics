@@ -20,7 +20,8 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
             wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 
     #. Store the data into `HDF5` format (take train-input.tif as example):
-        .. highlight:: python
+        .. code-block:: python
+
             import h5py
             import imageio
 
@@ -32,6 +33,7 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
 
 #. Run the training script:
     .. code-block:: none
+
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3 python rain.py -t /path/to/snemi/
           -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
@@ -40,6 +42,7 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
 
 #. Visualize the training progress:
     .. code-block:: none
+
         $ tensorboard --logdir runs
 
 #. Run inference on image volumes:
@@ -48,6 +51,7 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
 #. Gnerate segmentation and run evaluation:
     #. Download the waterz package:
         .. code-block:: none
+        
             $ git clone git@github.com:zudi-lin/waterz.git
             $ cd waterz
             $ pip install --editable . 

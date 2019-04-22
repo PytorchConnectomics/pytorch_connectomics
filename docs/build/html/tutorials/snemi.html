@@ -212,7 +212,17 @@ wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 </li>
 <li><dl class="first docutils">
 <dt>Store the data into <cite>HDF5</cite> format (take train-input.tif as example):</dt>
-<dd></dd>
+<dd><div class="first last highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">imageio</span>
+
+<span class="n">train_image</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">volread</span><span class="p">(</span><span class="s1">&#39;train-input.tif&#39;</span><span class="p">)</span>
+
+<span class="n">fl</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;train_image.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+<span class="n">fl</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;main&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">train_image</span><span class="p">)</span>
+<span class="n">fl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</div>
+</dd>
 </dl>
 </li>
 </ol>
@@ -220,22 +230,37 @@ wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 </li>
 <li><dl class="first docutils">
 <dt>Run the training script:</dt>
-<dd></dd>
+<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3 python rain.py -t /path/to/snemi/
+  -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
+  --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
+  -g 4 -c 4 -b 8 -ac unetv3
+</pre></div>
+</div>
+</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
 <dt>Visualize the training progress:</dt>
-<dd></dd>
+<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+</pre></div>
+</div>
+</dd>
 </dl>
 </li>
 <li><p class="first">Run inference on image volumes:</p>
 </li>
 <li><dl class="first docutils">
 <dt>Gnerate segmentation and run evaluation:</dt>
-<dd><ol class="first last arabic simple">
+<dd><ol class="first last arabic">
 <li><dl class="first docutils">
 <dt>Download the waterz package:</dt>
-<dd></dd>
+<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/waterz.git
+$ cd waterz
+$ pip install --editable .
+</pre></div>
+</div>
+</dd>
 </dl>
 </li>
 </ol>
