@@ -200,19 +200,25 @@ to get familiar with the datasets and have a sense of how the affinity graphs lo
 <li><p class="first">Get the dataset:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><dl class="first docutils">
-<dt>Download the original images from our server:</dt>
-<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
+<li><p class="first">Download the original images from our server:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
 wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
 wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 </pre></div>
 </div>
-</dd>
-</dl>
+</div></blockquote>
 </li>
-<li><dl class="first docutils">
-<dt>Store the data into <cite>HDF5</cite> format (take train-input.tif as example):</dt>
-<dd><div class="first last highlight-python"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span>
+<li><p class="first">Store the data into <cite>HDF5</cite> format (take train-input.tif as example):</p>
+<blockquote>
+<div><div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span>
 <span class="kn">import</span> <span class="nn">imageio</span>
 
 <span class="n">train_image</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">volread</span><span class="p">(</span><span class="s1">&#39;train-input.tif&#39;</span><span class="p">)</span>
@@ -221,59 +227,53 @@ wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 <span class="n">fl</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;main&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">train_image</span><span class="p">)</span>
 <span class="n">fl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </pre></div>
-</div>
-</dd>
-</dl>
+</td></tr></table></div>
+</div></blockquote>
 </li>
 </ol>
 </div></blockquote>
 </li>
-<li><dl class="first docutils">
-<dt>Run the training script:</dt>
-<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<li><p class="first">Run the training script:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python rain.py -t /path/to/snemi/ \
   -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
   --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
   -g 4 -c 4 -b 8 -ac unetv3
 </pre></div>
 </div>
-</dd>
-</dl>
+</div></blockquote>
 </li>
-<li><dl class="first docutils">
-<dt>Visualize the training progress:</dt>
-<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<li><p class="first">Visualize the training progress:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
 </pre></div>
 </div>
-</dd>
-</dl>
+</div></blockquote>
 </li>
-<li><dl class="first docutils">
-<dt>Run inference on image volumes:</dt>
-<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/snemi/ \
+<li><p class="first">Run inference on image volumes:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/snemi/ \
   -dn train_image.h5 -o outputs/unetv3/result -mi 18,160,160 -g 4 \
   -c 4 -b 8 -ac unetv3 -lm True -pm outputs/unetv3/volume_50000.pth
 </pre></div>
 </div>
-</dd>
-</dl>
+</div></blockquote>
 </li>
-<li><dl class="first docutils">
-<dt>Gnerate segmentation and run evaluation:</dt>
-<dd><ol class="first last arabic">
-<li><dl class="first docutils">
-<dt>Download the waterz package:</dt>
-<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/waterz.git
+<li><p class="first">Gnerate segmentation and run evaluation:</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p class="first">Download the waterz package:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/waterz.git
 $ cd waterz
 $ pip install --editable .
 </pre></div>
 </div>
-</dd>
-</dl>
+</div></blockquote>
 </li>
 </ol>
-</dd>
-</dl>
+</div></blockquote>
 </li>
 </ol>
 </div>
