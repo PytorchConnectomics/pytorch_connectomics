@@ -113,14 +113,8 @@
 <li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">torch_connectomics.data.augmentation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/augmentation.html#module-torch_connectomics.data.augmentation">Data Augmentation</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">torch_connectomics.data.datasets</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/datasets.html#datasets">Datasets</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">torch_connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">torch_connectomics.data.datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">torch_connectomics.utils</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#segmentation">Segmentation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#network-training-inference">Network Training &amp; Inference</a></li>
@@ -202,13 +196,52 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
 <p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
 to get familiar with the datasets and have a sense of how the affinity graphs look like.</p>
 </div>
-<ol class="arabic simple">
-<li>Get the dataset:</li>
-<li>Run the training script:</li>
-<li>Visualize the training progress:</li>
-<li>Run inference on image volumes:</li>
-<li>Gnerate segmentation and run evaluation:</li>
-<li>Conduct error analysis:</li>
+<ol class="arabic">
+<li><p class="first">Get the dataset:</p>
+<blockquote>
+<div><ol class="arabic">
+<li><dl class="first docutils">
+<dt>Download the original images from our server:</dt>
+<dd><div class="first last highlight-none"><div class="highlight"><pre><span></span>wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
+wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
+wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
+</pre></div>
+</div>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Store the data into <cite>HDF5</cite> format (take train-input.tif as example):</dt>
+<dd></dd>
+</dl>
+</li>
+</ol>
+</div></blockquote>
+</li>
+<li><dl class="first docutils">
+<dt>Run the training script:</dt>
+<dd></dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Visualize the training progress:</dt>
+<dd></dd>
+</dl>
+</li>
+<li><p class="first">Run inference on image volumes:</p>
+</li>
+<li><dl class="first docutils">
+<dt>Gnerate segmentation and run evaluation:</dt>
+<dd><ol class="first last arabic simple">
+<li><dl class="first docutils">
+<dt>Download the waterz package:</dt>
+<dd></dd>
+</dl>
+</li>
+</ol>
+</dd>
+</dl>
+</li>
 </ol>
 </div>
 
