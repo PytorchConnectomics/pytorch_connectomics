@@ -10,6 +10,8 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
     to get familiar with the datasets and have a sense of how the affinity graphs look like.
 
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. 
+
 #. Get the dataset:
 
     #. Download the original images from our server:
@@ -20,7 +22,7 @@ then generate the segmentation map using a segmentation algorithm (e.g. watershe
             wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
             wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 
-    #. Store the data into `HDF5` format (take train-input.tif as example):
+    #. Store the data into ``HDF5`` format (take train-input.tif as example):
 
         .. code-block:: python
             :linenos:
