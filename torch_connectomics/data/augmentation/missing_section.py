@@ -31,5 +31,5 @@ class MissingSection(DataAugment):
     def __call__(self, data, random_state=None):
         if random_state is None:
             random_state = np.random.RandomState(1234)
-        new_images, new_labels = self.misalignment(data, random_state)
+        new_images, new_labels = self.missing_section(data, random_state)
         return {'image': new_images, 'label': new_labels}

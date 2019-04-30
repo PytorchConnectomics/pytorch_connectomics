@@ -56,7 +56,9 @@ def get_input(args, model_io_size, mode='train'):
                          Flip(p=1.0),
                          Elastic(alpha=10.0, p=0.5),
                          Grayscale(p=0.75),
-                         MissingParts(p=0.8)], 
+                         MissingParts(p=0.8),
+                         MisAlignment(p=0.5),
+                         MissingSection(p=0.5)], 
                          input_size = model_io_size)
 
     print('data augmentation: ', augmentor is not None)

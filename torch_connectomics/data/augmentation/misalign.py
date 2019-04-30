@@ -19,8 +19,8 @@ class MisAlignment(DataAugment):
     def misalignment(self, data, random_state):
         images, labels = data['image'], data['label']
         out_shape = (images.shape[0], 
-                    images.shape[1]-self.displacement, 
-                    images.shape[2]-self.displacement)    
+                     images.shape[1]-self.displacement, 
+                     images.shape[2]-self.displacement)    
         new_images = np.zeros(out_shape, images.dtype)
         new_labels = np.zeros(out_shape, labels.dtype)
 

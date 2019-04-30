@@ -61,6 +61,15 @@ class Compose(object):
         assert image.shape[-3:] == label.shape
         assert image.ndim == 3 or image.ndim == 4
         margin = (label.shape[1] - self.input_size[1]) // 2
+        
+        # whether need to crop z or not (missing section augmentation)
+        if label.shape[0] > self.input_size[0]:
+            z_low = np.random.choice(label.shape[0]-self.input_size[0]+1, 1)
+        else:
+            z_low = 0
+        z_high = z_low + self.input_size[0] 
+        z_low, z_high = int(z_low), int(z_high)
+
         if margin==0:
             return {'image': image, 'mask': label}
         else:    
@@ -68,22 +77,22 @@ class Compose(object):
             high = margin + self.input_size[1]
             if image.ndim == 3:
                 if self.keep_uncropped == True:
-                    return {'image': image[:, low:high, low:high],
-                            'label': label[:, low:high, low:high],
+                    return {'image': image[z_low:z_high, low:high, low:high],
+                            'label': label[z_low:z_high, low:high, low:high],
                             'image_uncropped': image,
                             'label_uncropped': label}               
                 else:
-                    return {'image': image[:, low:high, low:high],
-                            'label': label[:, low:high, low:high]}
+                    return {'image': image[z_low:z_high, low:high, low:high],
+                            'label': label[z_low:z_high, low:high, low:high]}
             else:
                 if self.keep_uncropped == True:
-                    return {'image': image[:, :, low:high, low:high],
-                            'label': label[:, low:high, low:high],
+                    return {'image': image[:, z_low:z_high, low:high, low:high],
+                            'label': label[z_low:z_high, low:high, low:high],
                             'image_uncropped': image,
                             'label_uncropped': label}
                 else:
-                    return {'image': image[:, :, low:high, low:high],
-                            'label': label[:, low:high, low:high]}                                        
+                    return {'image': image[:, z_low:z_high, low:high, low:high],
+                            'label': label[z_low:z_high, low:high, low:high]}                                        
 
     def __call__(self, data, random_state=None):
         data['image'] = data['image'].astype(np.float32)

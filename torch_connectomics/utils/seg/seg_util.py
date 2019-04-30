@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.ndimage.morphology import binary_erosion, binary_dilation
+from skimage.morphology import erosion, dilation
 
 # reduce the labeling
 def relabel(segmentation):
@@ -174,7 +175,7 @@ def fill_data(shape, filler={'type':'zero'}, dtype='float32'):
 #     out[gg3gd==1]=0
 #     return out
 
-def widen_border(gg3, iter_num): # given input seg map, widen the seg border
+def widen_border1(gg3, iter_num): # given input seg map, widen the seg border
     gg3_dz = np.zeros(gg3.shape).astype(np.uint32)
     gg3_dz[1:,:,:] = np.abs(np.diff(gg3, axis=0))
     gg3_dy = np.zeros(gg3.shape).astype(np.uint32)
@@ -190,6 +191,22 @@ def widen_border(gg3, iter_num): # given input seg map, widen the seg border
         gg3gd[i,:,:] = binary_dilation(gg3g[i,:,:], structure=stel, iterations=iter_num)
     out = gg3.copy()
     out[gg3gd==1]=0
+    return out
+
+def widen_border2(seg, iter_num): # given input seg map, widen the seg border
+    """
+    Return greyscale morphological erosion of an image.
+
+    Morphological erosion sets a pixel at (i,j) to the minimum over all pixels in the neighborhood 
+    centered at (i,j). Erosion shrinks bright regions and enlarges dark regions. For eroded image,
+    pixels that dis-agree with original segmentation are considered as border pixels.
+    """
+    temp = seg.copy()
+    for _ in range(iter_num):
+        for j in range(temp.shape[0]):
+            temp[j] = erosion(temp[j])
+    out = seg.copy()
+    out[np.where(seg!=temp)] = 0
     return out
 
 def markInvalid(seg, iter_num=2, do_2d=True):
