@@ -6,7 +6,7 @@ might face while compiling / running this code:
 ## Compilation errors when compiling the library
 If you encounter build errors like the following:
 ```
-vcg_connectomics/utils/seg/cpp/seg_core/cpp-seg_core.cpp:3:43: fatal error: boost/pending/disjoint_sets.hpp: No such file or directory
+torch_connectomics/utils/seg/cpp/seg_core/cpp-seg_core.cpp:3:43: fatal error: boost/pending/disjoint_sets.hpp: No such file or directory
      #include <boost/pending/disjoint_sets.hpp>
                                                ^
     compilation terminated.
