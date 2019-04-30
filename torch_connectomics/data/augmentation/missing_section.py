@@ -3,6 +3,7 @@ from .augmentor import DataAugment
 
 class MissingSection(DataAugment):
     """Missing-section augmentation of image stacks
+    
     Args:
         num_sections (int): number of missing sections.
         p (float): probability of applying the augmentation.

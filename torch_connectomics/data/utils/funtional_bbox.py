@@ -8,8 +8,8 @@ from skimage.transform import resize
 # Parameters
 #-------------------------------
 #1. JWR Dataset
-D0 = '/n/coxfs01/zudilin/research/synapseNet/data/jwr100/'
-mask_path = D0 + 'synapse_round_1'
+D0 = 'path/to/data/'
+mask_path = D0 + 'synapse'
 #bbox_path = D0 + 'bbox'
 #pfrd_path = D0 + 'proofread'
 bfly_path = D0 + 'bfly_v2-2_add8.json'
@@ -23,40 +23,6 @@ model_io_size = (4, 128, 128)
 label_io_size = tuple([3]+list(model_io_size))
 volume_size = (96, 1120, 1120)
 down_ratio = 1
-
-# 2. Cerebellum Dataset
-# print('Using parameters for cerebellum dataset.')
-# D0 = '/n/coxfs01/zudilin/research/synapseNet/data/cere/'
-# mask_path = D0 + 'synapse'
-# bfly_path = D0 + 'test_90-90-75_add6-6_nomiss.json'
-# bfly_db = json.load(open(bfly_path))
-
-# tile_sz = 3750
-# z0=0; z1=2525
-# y0=7500; y1=18750
-# x0=3750; x1=15000
-# model_io_size = (8, 160, 160)
-# label_io_size = tuple([3]+list(model_io_size))
-# volume_size = (101, 2250, 2250)
-# down_ratio = 1
-
-# 3. Human Dataset
-# D0 = '/n/coxfs01/zudilin/research/synapseNet/data/alex/'
-# mask_path = D0 + 'synapse_round_1'
-# bfly_path = D0 + 'test_220-220-30_add8-3_nomiss.json'
-# bfly_db = json.load(open(bfly_path))
-
-# tile_sz = 2048
-# # z0=8; z1=1256
-# # y0=1024; y1=27648
-# # x0=1024; x1=27648
-# z0=0; z1=1256
-# y0=0; y1=28672
-# x0=0; x1=28672
-# model_io_size = (8, 160, 160)
-# label_io_size = tuple([3]+list(model_io_size))
-# volume_size = (157, 2048, 2048)
-# down_ratio = 2
 
 # Functions
 #-------------------------------
@@ -276,7 +242,7 @@ def process_bbox(bbox, gt=True, use_gt=True):
 
 if __name__== "__main__":
     print('T_bbox')
-    # bbox_path = '/n/coxfs01/zudilin/research/simulation/data/v1_rand/'
+    # bbox_path = '/path/to/bbox/'
     # bbox_text = bbox_path + 'bb.txt'
     # g_text = bbox_path + 'pseudo_label/pseudo_label_1.0_g.txt' 
     # b_text = bbox_path + 'pseudo_label/pseudo_label_1.0_b.txt' 

@@ -3,8 +3,9 @@ from .augmentor import DataAugment
 
 class MisAlignment(DataAugment):
     """Mis-alignment augmentation of image stacks
+
     Args:
-        displacement (int): maximum pixel displacement in each direction.
+        displacement (int): maximum pixel displacement in each direction (x and y).
         p (float): probability of applying the augmentation.
     """
     def __init__(self, displacement=16, p=0.5):

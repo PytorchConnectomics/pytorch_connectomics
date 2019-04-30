@@ -65,6 +65,7 @@ def setup_model(args, device, exact=True, size_match=True):
                  'unetv3': unetv3,
                  'fpn': fpn}
 
+    assert args.architecture in MODEL_MAP.keys()
     model = MODEL_MAP[args.architecture](in_channel=1, out_channel=3)
     print('model: ', model.__class__.__name__)
     model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))

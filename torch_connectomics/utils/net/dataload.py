@@ -7,7 +7,8 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset, collate_fn, collate_fn_test
+from torch_connectomics.data.dataset import AffinityDataset
+from torch_connectomics.data.utils import collate_fn, collate_fn_test
 from torch_connectomics.data.augmentation import *
 
 def get_input(args, model_io_size, mode='train'):
@@ -54,7 +55,8 @@ def get_input(args, model_io_size, mode='train'):
                          Rescale(p=0.5),
                          Flip(p=1.0),
                          Elastic(alpha=10.0, p=0.5),
-                         Grayscale(p=0.75)], 
+                         Grayscale(p=0.75),
+                         MissingParts(p=0.8)], 
                          input_size = model_io_size)
 
     print('data augmentation: ', augmentor is not None)
