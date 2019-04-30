@@ -329,21 +329,37 @@ than the input size to make sure there is no non-valid region after center-crop.
 <dl class="class">
 <dt id="torch_connectomics.data.augmentation.MisAlignment">
 <em class="property">class </em><code class="descname">MisAlignment</code><span class="sig-paren">(</span><em>displacement=16</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
-<dd><p>Mis-alignment augmentation of image stacks
-:param displacement: maximum pixel displacement in each direction.
-:type displacement: int
-:param p: probability of applying the augmentation.
-:type p: float</p>
+<dd><p>Mis-alignment augmentation of image stacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>displacement</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – maximum pixel displacement in each direction (x and y).</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="class">
 <dt id="torch_connectomics.data.augmentation.MissingSection">
 <em class="property">class </em><code class="descname">MissingSection</code><span class="sig-paren">(</span><em>num_sections=2</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/augmentation/missing_section.html#MissingSection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.augmentation.MissingSection" title="Permalink to this definition">¶</a></dt>
-<dd><p>Missing-section augmentation of image stacks
-:param num_sections: number of missing sections.
-:type num_sections: int
-:param p: probability of applying the augmentation.
-:type p: float</p>
+<dd><p>Missing-section augmentation of image stacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>num_sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of missing sections.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.7)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="class">
