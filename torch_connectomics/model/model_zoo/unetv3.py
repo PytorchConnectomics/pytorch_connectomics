@@ -11,9 +11,9 @@ from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBa
 
 
 class unetv3(nn.Module):
-    """Lightweight U-net with residual blocks (with modifications).
+    """Lightweight U-net with residual blocks (based on [Lee2017]_ with modifications).
 
-    .. [Lee 2017] Lee, Kisuk, Jonathan Zung, Peter Li, Viren Jain, and 
+    .. [Lee2017] Lee, Kisuk, Jonathan Zung, Peter Li, Viren Jain, and 
         H. Sebastian Seung. "Superhuman accuracy on the SNEMI3D connectomics 
         challenge." arXiv preprint arXiv:1706.00120, 2017.
 
