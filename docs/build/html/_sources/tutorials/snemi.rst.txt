@@ -70,3 +70,13 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
             $ git clone git@github.com:zudi-lin/waterz.git
             $ cd waterz
             $ pip install --editable . 
+
+    #. Download the zwatershed package:
+
+        .. code-block:: none
+
+            $ git clone git@github.com:zudi-lin/zwatershed.git
+            $ cd zwatershed
+            $ pip install --editable . 
+
+    #. Run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in the demo.
