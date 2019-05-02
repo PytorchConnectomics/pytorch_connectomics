@@ -191,6 +191,8 @@
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
 The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and
 then generate the segmentation map using a segmentation algorithm (e.g. watershed).</p>
+<p>The evaluation of segmentation results is based on the <a class="reference external" href="https://en.wikipedia.org/wiki/Rand_index">Rand Index</a>
+and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_of_information">Variation of Information</a>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
@@ -264,7 +266,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python rain.py -t /path/to/snemi/ \
 <li><p class="first">Gnerate segmentation and run evaluation:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p class="first">Download the waterz package:</p>
+<li><p class="first">Download the <code class="docutils literal"><span class="pre">waterz</span></code> package:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/waterz.git
 $ cd waterz
@@ -273,7 +275,7 @@ $ pip install --editable .
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Download the zwatershed package:</p>
+<li><p class="first">Download the <code class="docutils literal"><span class="pre">zwatershed</span></code> package:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/zwatershed.git
 $ cd zwatershed
@@ -282,7 +284,15 @@ $ pip install --editable .
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb">segmentation.ipynb</a> in the demo.</p>
+<li><p class="first">Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">You can also run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb">segmentation.ipynb</a> in
+the demo, which provides more options and visualization.</p>
 </li>
 </ol>
 </div></blockquote>

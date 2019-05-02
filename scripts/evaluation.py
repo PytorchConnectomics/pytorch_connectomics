@@ -7,7 +7,7 @@ import argparse
 
 from torch_connectomics.utils.seg.seg_dist import DilateData
 from torch_connectomics.utils.seg.seg_util import relabel
-from torch_connectomics.utils.seg.io_util import writeh5
+from torch_connectomics.utils.seg.io_util import writeh5, readh5
 from torch_connectomics.utils.seg.seg_eval import adapted_rand
 
 from skimage.morphology import dilation,erosion
@@ -40,7 +40,13 @@ print('shape of affinity graph:', aff.shape)
 
 #D0='/n/coxfs01/zudilin/research/mitoNet/data/file/snemi/label/'
 D_seg = args.gt
-seg = imageio.volread(D_seg).astype(np.uint32)
+suffix = D_seg.strip().split('.')[-1]
+assert suffix in ['tif', 'h5']
+if suffix == 'tif':
+    seg = imageio.volread(D_seg).astype(np.uint32)
+else:
+    seg = readh5(D_seg).astype(np.uint32)
+
 print('shape of gt segmenation:', seg.shape)
 
 if args.mode == 0: 
@@ -67,9 +73,7 @@ elif args.mode == 1:
     low=0.05; high=0.995
     mf = 'aff85_his256'; T_thres = [0.3]
     out = waterz.waterz(aff, T_thres, merge_function=mf, gt_border=0,
-                        aff_threshold=[low, high])[0]
-    # out = waterz.waterz(aff, T_thres, merge_function=mf, gt_border=0, output_prefix=f2+nn+'_'+mf,
-    #     fragments=seg2d, aff_threshold=[low, high], return_seg=False, gt=gt)
+                        fragments=None, aff_threshold=[low, high], return_seg=True, gt=seg)[0]
     et = time.time()
     out = relabel(out)
     print(out.shape)
@@ -111,7 +115,7 @@ print('time: %.1f s'%((et-st)))
 # do evaluation
 
 score = adapted_rand(out.astype(np.uint32), seg)
-print(score) 
+print('Adaptive rand: ', score) 
     # 0: 0.22
     # 1: 0.098
     # 2: 0.137

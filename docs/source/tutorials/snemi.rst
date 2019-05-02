@@ -6,6 +6,9 @@ Dense neuron segmentation in electronic microscopy (EM) images belongs to the ca
 The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and 
 then generate the segmentation map using a segmentation algorithm (e.g. watershed). 
 
+The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
+and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
+
 .. note::
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
     to get familiar with the datasets and have a sense of how the affinity graphs look like.
@@ -63,7 +66,7 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
 
 #. Gnerate segmentation and run evaluation:
 
-    #. Download the waterz package:
+    #. Download the ``waterz`` package:
 
         .. code-block:: none
 
@@ -71,7 +74,7 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
             $ cd waterz
             $ pip install --editable . 
 
-    #. Download the zwatershed package:
+    #. Download the ``zwatershed`` package:
 
         .. code-block:: none
 
@@ -79,4 +82,11 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
             $ cd zwatershed
             $ pip install --editable . 
 
-    #. Run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in the demo.
+    #. Generate 3D segmentation and report Rand and VI score using ``waterz``:
+
+        .. code-block:: none
+
+            $ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
+
+    #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in 
+       the demo, which provides more options and visualization.
