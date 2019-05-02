@@ -129,7 +129,7 @@ class bottleneck_dilated_3d(nn.Module):
 class dilated_fusion_block(nn.Module):
     """Dilated Conv & Fusion Block
 
-        Args:
+    Args:
         in_planes (int): number of input channels.
         out_planes (int): number of output channels.
         channel_reduction (int): channel squeezing factor.
@@ -169,7 +169,7 @@ class dilated_fusion_block(nn.Module):
 class squeeze_excitation_2d(nn.Module):
     """Squeeze-and-Excitation Block 2D
 
-        Args:
+    Args:
         channel (int): number of input channels.
         channel_reduction (int): channel squeezing factor.
         spatial_reduction (int): pooling factor for x,y axes.
@@ -196,7 +196,7 @@ class squeeze_excitation_2d(nn.Module):
 class squeeze_excitation_3d(nn.Module):
     """Squeeze-and-Excitation Block 3D
 
-        Args:
+    Args:
         channel (int): number of input channels.
         channel_reduction (int): channel squeezing factor.
         spatial_reduction (int): pooling factor for x,y axes.

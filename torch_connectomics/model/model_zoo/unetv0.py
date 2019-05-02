@@ -9,6 +9,13 @@ from torch_connectomics.model.blocks import *
 from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 class unetv0(nn.Module):
+    """U-net with residual blocks.
+
+    Args:
+        in_channel (int): number of input channels.
+        out_channel (int): number of output channels.
+        filters (list): number of filters at each u-net stage.
+    """
     def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256]):
         super().__init__()
 
