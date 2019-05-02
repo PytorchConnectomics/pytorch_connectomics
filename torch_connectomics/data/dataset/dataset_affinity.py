@@ -6,7 +6,7 @@ import torch
 import torch.utils.data
 
 from torch_connectomics.utils.seg.aff_util import seg_to_affgraph, affinitize
-from torch_connectomics.utils.seg.seg_util import mknhood3d, widen_border
+from torch_connectomics.utils.seg.seg_util import mknhood3d, widen_border1, widen_border2
 
 from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class
@@ -64,7 +64,8 @@ class AffinityDataset(BaseDataset):
             seg_bad = np.array([-1]).astype(out_label.dtype)[0]
             valid_mask = out_label!=seg_bad
             out_label[out_label==seg_bad] = 0
-            out_label = widen_border(out_label, 1)
+            out_label = widen_border1(out_label, 1)
+            #out_label = widen_border2(out_label, 1)
             # replicate-pad the aff boundary
             out_label = seg_to_affgraph(out_label, mknhood3d(1), pad='replicate').astype(np.float32)
             out_label = torch.from_numpy(out_label.copy())

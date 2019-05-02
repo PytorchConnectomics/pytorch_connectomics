@@ -3,7 +3,10 @@ from .augmentor import DataAugment
 
 class Flip(DataAugment):
     """
-    Flip along z-, y- and x-axes as well as swap y- and x-axes
+    Randomly flip along z-, y- and x-axes as well as swap y- and x-axes.
+
+    Args:
+        p (float): probability of applying the augmentation.
     """
     def __init__(self, p=0.5):
         super(Flip, self).__init__(p)
