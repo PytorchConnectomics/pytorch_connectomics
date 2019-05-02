@@ -310,8 +310,16 @@
         <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elu</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">y</span>        </div>
 
-<span class="k">class</span> <span class="nc">dilated_fusion_block</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
-    <span class="c1"># Basic residual module of unet</span>
+<div class="viewcode-block" id="dilated_fusion_block"><a class="viewcode-back" href="../../../../modules/model.html#torch_connectomics.model.blocks.dilated_fusion_block">[docs]</a><span class="k">class</span> <span class="nc">dilated_fusion_block</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dilated Conv &amp; Fusion Block</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        in_planes (int): number of input channels.</span>
+<span class="sd">        out_planes (int): number of output channels.</span>
+<span class="sd">        channel_reduction (int): channel squeezing factor.</span>
+<span class="sd">        spatial_reduction (int): pooling factor for x,y axes.</span>
+<span class="sd">        z_reduction (int): pooling factor for z axis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_planes</span><span class="p">,</span> <span class="n">out_planes</span><span class="p">,</span> <span class="n">channel_reduction</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span> <span class="n">spatial_reduction</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">z_reduction</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">dilated_fusion_block</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span> 
         <span class="bp">self</span><span class="o">.</span><span class="n">se_layer</span> <span class="o">=</span> <span class="n">squeeze_excitation_3d</span><span class="p">(</span><span class="n">channel</span><span class="o">=</span><span class="n">out_planes</span><span class="p">,</span> <span class="n">channel_reduction</span><span class="o">=</span><span class="n">channel_reduction</span><span class="p">,</span> 
@@ -340,10 +348,16 @@
         <span class="n">out</span> <span class="o">=</span> <span class="n">residual</span> <span class="o">+</span> <span class="n">x1</span> <span class="o">+</span> <span class="n">x2</span> <span class="o">+</span> <span class="n">x3</span> <span class="o">+</span> <span class="n">x4</span>
         <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">se_layer</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
         <span class="n">out</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">elu</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">out</span> 
+        <span class="k">return</span> <span class="n">out</span> </div>
 
-<span class="k">class</span> <span class="nc">squeeze_excitation_2d</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
-    <span class="c1"># Squeeze-and-excitation layer</span>
+<div class="viewcode-block" id="squeeze_excitation_2d"><a class="viewcode-back" href="../../../../modules/model.html#torch_connectomics.model.blocks.squeeze_excitation_2d">[docs]</a><span class="k">class</span> <span class="nc">squeeze_excitation_2d</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Squeeze-and-Excitation Block 2D</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        channel (int): number of input channels.</span>
+<span class="sd">        channel_reduction (int): channel squeezing factor.</span>
+<span class="sd">        spatial_reduction (int): pooling factor for x,y axes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">channel_reduction</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">spatial_reduction</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">squeeze_excitation_2d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pool_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">spatial_reduction</span><span class="p">,</span> <span class="n">spatial_reduction</span><span class="p">)</span>
@@ -361,10 +375,17 @@
     <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">se</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">z</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="o">*</span><span class="n">x</span>
-        <span class="k">return</span> <span class="n">z</span>
+        <span class="k">return</span> <span class="n">z</span></div>
 
-<span class="k">class</span> <span class="nc">squeeze_excitation_3d</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
-    <span class="c1"># Squeeze-and-excitation layer</span>
+<div class="viewcode-block" id="squeeze_excitation_3d"><a class="viewcode-back" href="../../../../modules/model.html#torch_connectomics.model.blocks.squeeze_excitation_3d">[docs]</a><span class="k">class</span> <span class="nc">squeeze_excitation_3d</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Squeeze-and-Excitation Block 3D</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">        channel (int): number of input channels.</span>
+<span class="sd">        channel_reduction (int): channel squeezing factor.</span>
+<span class="sd">        spatial_reduction (int): pooling factor for x,y axes.</span>
+<span class="sd">        z_reduction (int): pooling factor for z axis.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">channel_reduction</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">spatial_reduction</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">z_reduction</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">squeeze_excitation_3d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pool_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">z_reduction</span><span class="p">,</span> <span class="n">spatial_reduction</span><span class="p">,</span> <span class="n">spatial_reduction</span><span class="p">)</span>
@@ -382,7 +403,7 @@
     <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
         <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">se</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
         <span class="n">z</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="o">*</span><span class="n">x</span>
-        <span class="k">return</span> <span class="n">z</span>
+        <span class="k">return</span> <span class="n">z</span></div>
 </pre></div>
 
            </div>

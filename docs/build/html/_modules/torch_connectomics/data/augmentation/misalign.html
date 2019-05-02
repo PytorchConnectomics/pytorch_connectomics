@@ -182,7 +182,8 @@
            <div itemprop="articleBody">
             
   <h1>Source code for torch_connectomics.data.augmentation.misalign</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">import</span> <span class="nn">math</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="k">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="MisAlignment"><a class="viewcode-back" href="../../../../modules/augmentation.html#torch_connectomics.data.augmentation.MisAlignment">[docs]</a><span class="k">class</span> <span class="nc">MisAlignment</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
@@ -198,7 +199,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">displacement</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">displacement</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> 
+                                     <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">displacement</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)),</span> 
+                                     <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">displacement</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">))]</span>
 
     <span class="k">def</span> <span class="nf">misalignment</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
         <span class="n">images</span><span class="p">,</span> <span class="n">labels</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
