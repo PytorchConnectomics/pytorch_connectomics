@@ -196,6 +196,84 @@
 </div>
 <div class="section" id="module-torch_connectomics.model.blocks">
 <span id="building-blocks"></span><h2><a class="toc-backref" href="#id1">Building Blocks</a><a class="headerlink" href="#module-torch_connectomics.model.blocks" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="torch_connectomics.model.blocks.residual_block_2d">
+<em class="property">class </em><code class="descname">residual_block_2d</code><span class="sig-paren">(</span><em>in_planes</em>, <em>out_planes</em>, <em>projection=True</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/model/blocks/residual.html#residual_block_2d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.model.blocks.residual_block_2d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Residual Block 2D</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>in_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of input channels.</li>
+<li><strong>out_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of output channels.</li>
+<li><strong>projection</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – projection of the input with a conv layer.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="torch_connectomics.model.blocks.residual_block_3d">
+<em class="property">class </em><code class="descname">residual_block_3d</code><span class="sig-paren">(</span><em>in_planes</em>, <em>out_planes</em>, <em>projection=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/model/blocks/residual.html#residual_block_3d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.model.blocks.residual_block_3d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Residual Block 3D</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>in_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of input channels.</li>
+<li><strong>out_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of output channels.</li>
+<li><strong>projection</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – projection of the input with a conv layer.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="torch_connectomics.model.blocks.bottleneck_dilated_2d">
+<em class="property">class </em><code class="descname">bottleneck_dilated_2d</code><span class="sig-paren">(</span><em>in_planes</em>, <em>out_planes</em>, <em>projection=False</em>, <em>dilate=2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/model/blocks/residual.html#bottleneck_dilated_2d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.model.blocks.bottleneck_dilated_2d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bottleneck Residual Block 2D with Dilated Convolution</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>in_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of input channels.</li>
+<li><strong>out_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of output channels.</li>
+<li><strong>projection</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – projection of the input with a conv layer.</li>
+<li><strong>dilate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – dilation rate of conv filters.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="torch_connectomics.model.blocks.bottleneck_dilated_3d">
+<em class="property">class </em><code class="descname">bottleneck_dilated_3d</code><span class="sig-paren">(</span><em>in_planes</em>, <em>out_planes</em>, <em>projection=False</em>, <em>dilate=2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/model/blocks/residual.html#bottleneck_dilated_3d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.model.blocks.bottleneck_dilated_3d" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bottleneck Residual Block 3D with Dilated Convolution</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>in_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of input channels.</li>
+<li><strong>out_planes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – number of output channels.</li>
+<li><strong>projection</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.7)"><em>bool</em></a>) – projection of the input with a conv layer.</li>
+<li><strong>dilate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – dilation rate of conv filters.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 <div class="section" id="module-torch_connectomics.model.model_zoo">
 <span id="model-zoo"></span><h2><a class="toc-backref" href="#id2">Model Zoo</a><a class="headerlink" href="#module-torch_connectomics.model.model_zoo" title="Permalink to this headline">¶</a></h2>

@@ -11,6 +11,11 @@ from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBa
 class residual_block_2d(nn.Module):
     """
     Residual Block 2D
+
+    Args:
+        in_planes (int): number of input channels.
+        out_planes (int): number of output channels.
+        projection (bool): projection of the input with a conv layer.
     """
     def __init__(self, in_planes, out_planes, projection=True):
         super(residual_block_2d, self).__init__()
@@ -32,6 +37,13 @@ class residual_block_2d(nn.Module):
         return y  
 
 class residual_block_3d(nn.Module):
+    """Residual Block 3D
+
+    Args:
+        in_planes (int): number of input channels.
+        out_planes (int): number of output channels.
+        projection (bool): projection of the input with a conv layer.
+    """
     def __init__(self, in_planes, out_planes, projection=False):
         super(residual_block_3d, self).__init__()
         self.projection = projection
@@ -52,7 +64,15 @@ class residual_block_3d(nn.Module):
         return y       
 
 class bottleneck_dilated_2d(nn.Module):
-    def __init__(self, in_planes, out_planes, projection=True, dilate=2):
+    """Bottleneck Residual Block 2D with Dilated Convolution
+
+    Args:
+        in_planes (int): number of input channels.
+        out_planes (int): number of output channels.
+        projection (bool): projection of the input with a conv layer.
+        dilate (int): dilation rate of conv filters.
+    """
+    def __init__(self, in_planes, out_planes, projection=False, dilate=2):
         super(bottleneck_dilated_2d, self).__init__()
         self.projection = projection
         self.conv = nn.Sequential(
@@ -77,12 +97,21 @@ class bottleneck_dilated_2d(nn.Module):
         return y
 
 class bottleneck_dilated_3d(nn.Module):
-    def __init__(self, in_planes, out_planes, projection=False):
+    """Bottleneck Residual Block 3D with Dilated Convolution
+
+    Args:
+        in_planes (int): number of input channels.
+        out_planes (int): number of output channels.
+        projection (bool): projection of the input with a conv layer.
+        dilate (int): dilation rate of conv filters.
+    """
+    def __init__(self, in_planes, out_planes, projection=False, dilate=2):
         super(bottleneck_dilated_3d, self).__init__()
         self.projection = projection
         self.conv = nn.Sequential(
             conv3d_bn_elu( in_planes, out_planes, kernel_size=(1,1,1), padding=(0,0,0)),
-            conv3d_bn_elu(out_planes, out_planes, kernel_size=(3,3,3), dilation=(1,2,2), padding=(1,2,2)),
+            conv3d_bn_elu(out_planes, out_planes, kernel_size=(3,3,3), 
+                          dilation=(1, dilate, dilate), padding=(1, dilate, dilate)),
             conv3d_bn_non(out_planes, out_planes, kernel_size=(1,1,1), padding=(0,0,0))
         )
         self.projector = conv3d_bn_non(in_planes, out_planes, kernel_size=(1,1,1), padding=(0,0,0))
@@ -96,27 +125,6 @@ class bottleneck_dilated_3d(nn.Module):
             y = y + x
         y = self.elu(y)
         return y        
-
-class squeeze_excitation_2d(nn.Module):
-    # Squeeze-and-excitation layer
-    def __init__(self, channel, channel_reduction=4, spatial_reduction=4):
-        super(squeeze_excitation_2d, self).__init__()
-        self.pool_size = (spatial_reduction, spatial_reduction)
-        self.se = nn.Sequential(
-                nn.AvgPool2d(kernel_size=self.pool_size, stride=self.pool_size),
-                nn.Conv2d(channel, channel // channel_reduction, kernel_size=1),
-                SynchronizedBatchNorm2d(channel // channel_reduction),
-                nn.ELU(inplace=True),
-                nn.Conv2d(channel // channel_reduction, channel, kernel_size=1),
-                SynchronizedBatchNorm3d(channel),
-                nn.Sigmoid(),
-                nn.Upsample(scale_factor=self.pool_size, mode='trilinear', align_corners=False),
-                )     
-
-    def forward(self, x):
-        y = self.se(x)
-        z = x + y*x
-        return z
 
 class dilated_fusion_block(nn.Module):
     # Basic residual module of unet
@@ -149,6 +157,27 @@ class dilated_fusion_block(nn.Module):
         out = self.se_layer(out)
         out = F.elu(out, inplace=True)
         return out 
+
+class squeeze_excitation_2d(nn.Module):
+    # Squeeze-and-excitation layer
+    def __init__(self, channel, channel_reduction=4, spatial_reduction=4):
+        super(squeeze_excitation_2d, self).__init__()
+        self.pool_size = (spatial_reduction, spatial_reduction)
+        self.se = nn.Sequential(
+                nn.AvgPool2d(kernel_size=self.pool_size, stride=self.pool_size),
+                nn.Conv2d(channel, channel // channel_reduction, kernel_size=1),
+                SynchronizedBatchNorm2d(channel // channel_reduction),
+                nn.ELU(inplace=True),
+                nn.Conv2d(channel // channel_reduction, channel, kernel_size=1),
+                SynchronizedBatchNorm3d(channel),
+                nn.Sigmoid(),
+                nn.Upsample(scale_factor=self.pool_size, mode='trilinear', align_corners=False),
+                )     
+
+    def forward(self, x):
+        y = self.se(x)
+        z = x + y*x
+        return z
 
 class squeeze_excitation_3d(nn.Module):
     # Squeeze-and-excitation layer
