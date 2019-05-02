@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from .augmentor import DataAugment
 
@@ -14,7 +15,9 @@ class MisAlignment(DataAugment):
         self.set_params()
 
     def set_params(self):
-        self.sample_params['add'] = [0, self.displacement, self.displacement]
+        self.sample_params['add'] = [0, 
+                                     int(math.ceil(self.displacement / 2.0)), 
+                                     int(math.ceil(self.displacement / 2.0))]
 
     def misalignment(self, data, random_state):
         images, labels = data['image'], data['label']

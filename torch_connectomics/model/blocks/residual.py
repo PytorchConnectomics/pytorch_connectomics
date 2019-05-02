@@ -127,7 +127,15 @@ class bottleneck_dilated_3d(nn.Module):
         return y        
 
 class dilated_fusion_block(nn.Module):
-    # Basic residual module of unet
+    """Dilated Conv & Fusion Block
+
+        Args:
+        in_planes (int): number of input channels.
+        out_planes (int): number of output channels.
+        channel_reduction (int): channel squeezing factor.
+        spatial_reduction (int): pooling factor for x,y axes.
+        z_reduction (int): pooling factor for z axis.
+    """
     def __init__(self, in_planes, out_planes, channel_reduction=16, spatial_reduction=2, z_reduction=1):
         super(dilated_fusion_block, self).__init__() 
         self.se_layer = squeeze_excitation_3d(channel=out_planes, channel_reduction=channel_reduction, 
@@ -159,7 +167,13 @@ class dilated_fusion_block(nn.Module):
         return out 
 
 class squeeze_excitation_2d(nn.Module):
-    # Squeeze-and-excitation layer
+    """Squeeze-and-Excitation Block 2D
+
+        Args:
+        channel (int): number of input channels.
+        channel_reduction (int): channel squeezing factor.
+        spatial_reduction (int): pooling factor for x,y axes.
+    """
     def __init__(self, channel, channel_reduction=4, spatial_reduction=4):
         super(squeeze_excitation_2d, self).__init__()
         self.pool_size = (spatial_reduction, spatial_reduction)
@@ -180,7 +194,14 @@ class squeeze_excitation_2d(nn.Module):
         return z
 
 class squeeze_excitation_3d(nn.Module):
-    # Squeeze-and-excitation layer
+    """Squeeze-and-Excitation Block 3D
+
+        Args:
+        channel (int): number of input channels.
+        channel_reduction (int): channel squeezing factor.
+        spatial_reduction (int): pooling factor for x,y axes.
+        z_reduction (int): pooling factor for z axis.
+    """
     def __init__(self, channel, channel_reduction=4, spatial_reduction=4, z_reduction=1):
         super(squeeze_excitation_3d, self).__init__()
         self.pool_size = (z_reduction, spatial_reduction, spatial_reduction)

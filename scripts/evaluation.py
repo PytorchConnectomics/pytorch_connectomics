@@ -21,13 +21,8 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def check_volume(aff):
-    # float32, range: [0,1]
-    pass
-
 args = get_args()
 
-## TODO:
 # add affinity location
 D_aff = args.pd
 aff = np.array(h5py.File(D_aff)['main'])

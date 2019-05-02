@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from .augmentor import DataAugment
 
@@ -14,7 +15,7 @@ class MissingSection(DataAugment):
         self.set_params()
 
     def set_params(self):
-        self.sample_params['add'] = [self.num_sections, 0, 0]
+        self.sample_params['add'] = [int(math.ceil(self.num_sections / 2.0)), 0, 0]
 
     def missing_section(self, data, random_state):
         images, labels = data['image'], data['label']

@@ -19,7 +19,7 @@ class MissingParts(DataAugment):
     """
     def __init__(self, 
                  deformation_strength=0, 
-                 iterations=20, 
+                 iterations=40, 
                  deform_ratio=0.25, 
                  p=0.5):
         super(MissingParts, self).__init__(p=p)

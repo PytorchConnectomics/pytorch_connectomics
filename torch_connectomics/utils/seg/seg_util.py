@@ -188,7 +188,10 @@ def widen_border1(gg3, iter_num): # given input seg map, widen the seg border
     #stel=np.array([[1,1,1,1],[1, 1, 1, 1],[1,1,1,1],[1,1,1,1]]).astype(bool)
     gg3gd=np.zeros(gg3g.shape)
     for i in range(gg3g.shape[0]):
-        gg3gd[i,:,:] = binary_dilation(gg3g[i,:,:], structure=stel, iterations=iter_num)
+        if iter_num == 0: # no binary dilation
+            gg3gd[i,:,:] = gg3g[i,:,:]
+        else:    
+            gg3gd[i,:,:] = binary_dilation(gg3g[i,:,:], structure=stel, iterations=iter_num)
     out = gg3.copy()
     out[gg3gd==1]=0
     return out
