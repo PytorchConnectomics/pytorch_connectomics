@@ -3,8 +3,8 @@ import numpy as np
 from .augmentor import DataAugment
 
 class MisAlignment(DataAugment):
-    """Mis-alignment augmentation of image stacks
-
+    """Mis-alignment data augmentation of image stacks.
+    
     Args:
         displacement (int): maximum pixel displacement in each direction (x and y).
         p (float): probability of applying the augmentation.
@@ -20,7 +20,9 @@ class MisAlignment(DataAugment):
                                      int(math.ceil(self.displacement / 2.0))]
 
     def misalignment(self, data, random_state):
-        images, labels = data['image'], data['label']
+        images = data['image'].copy()
+        labels = data['label'].copy()
+
         out_shape = (images.shape[0], 
                      images.shape[1]-self.displacement, 
                      images.shape[2]-self.displacement)    
@@ -33,17 +35,17 @@ class MisAlignment(DataAugment):
         y1 = random_state.randint(self.displacement)
 
         idx = np.random.choice(np.array(range(1, out_shape[0]-1)), 1)[0]
-        if random_state.rand() > 0.5:
+        if random_state.rand() < 0.5:
             # slip misalignment
             new_images = images[:, y0:y0+out_shape[1], x0:x0+out_shape[2]]
-            new_images[idx] = images[idx, y1:y1+out_shape[1], x1:x1+out_shape[2]]
             new_labels = labels[:, y0:y0+out_shape[1], x0:x0+out_shape[2]]
+            new_images[idx] = images[idx, y1:y1+out_shape[1], x1:x1+out_shape[2]]
             new_labels[idx] = labels[idx, y1:y1+out_shape[1], x1:x1+out_shape[2]]
         else:
             # translation misalignment
             new_images[:idx] = images[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
-            new_images[idx:] = images[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
             new_labels[:idx] = labels[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
+            new_images[idx:] = images[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
             new_labels[idx:] = labels[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
         
         return new_images, new_labels

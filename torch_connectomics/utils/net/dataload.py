@@ -58,9 +58,10 @@ def get_input(args, model_io_size, mode='train'):
                              Elastic(alpha=12.0, p=0.75),
                              Grayscale(p=0.75),
                              MissingParts(p=0.9),
-                             MisAlignment(p=0.5),
-                             MissingSection(p=0.5)], 
+                             MissingSection(p=0.5),
+                             MisAlignment(p=1.0, displacement=16)], 
                              input_size = model_io_size)
+        # augmentor = None # debug
     else:
         augmentor = None
 
@@ -69,8 +70,12 @@ def get_input(args, model_io_size, mode='train'):
     print('batch size: ', args.batch_size)
 
     if mode=='train':
-        dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=augmentor.sample_size,
-                                  sample_label_size=augmentor.sample_size, augmentor=augmentor, mode = 'train')    
+        if augmentor is None:
+            sample_input_size = model_io_size
+        else:
+            sample_input_size = augmentor.sample_size
+        dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+                                  sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')    
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
                 num_workers=args.num_cpu, pin_memory=True)

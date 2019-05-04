@@ -16,7 +16,7 @@ class unetv3(nn.Module):
     .. [Lee2017] Lee, Kisuk, Jonathan Zung, Peter Li, Viren Jain, and 
         H. Sebastian Seung. "Superhuman accuracy on the SNEMI3D connectomics 
         challenge." arXiv preprint arXiv:1706.00120, 2017.
-
+        
     Args:
         in_channel (int): number of input channels.
         out_channel (int): number of output channels.

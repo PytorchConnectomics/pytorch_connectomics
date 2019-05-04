@@ -61,17 +61,18 @@ class Compose(object):
         assert image.shape[-3:] == label.shape
         assert image.ndim == 3 or image.ndim == 4
         margin = (label.shape[1] - self.input_size[1]) // 2
+        margin = int(margin)
         
         # whether need to crop z or not (missing section augmentation)
         if label.shape[0] > self.input_size[0]:
-            z_low = np.random.choice(label.shape[0]-self.input_size[0]+1, 1)
+            z_low = np.random.choice(label.shape[0]-self.input_size[0]+1, 1)[0]
         else:
             z_low = 0
         z_high = z_low + self.input_size[0] 
         z_low, z_high = int(z_low), int(z_high)
 
         if margin==0:
-            return {'image': image, 'mask': label}
+            return {'image': image, 'label': label}
         else:    
             low = margin
             high = margin + self.input_size[1]
