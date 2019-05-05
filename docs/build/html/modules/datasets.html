@@ -105,6 +105,7 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/snemi.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/cremi.html">Synaptic Cleft Detection</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul class="current">
@@ -190,7 +191,7 @@
 <span class="target" id="module-torch_connectomics.data.dataset"></span><dl class="class">
 <dt id="torch_connectomics.data.dataset.AffinityDataset">
 <em class="property">class </em><code class="descname">AffinityDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_affinity.html#AffinityDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.AffinityDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>PyTorch Dataset Class for Affinity Graph</p>
+<dd><p>PyTorch ddataset class for affinity graph prediction.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -213,7 +214,7 @@
 <dl class="class">
 <dt id="torch_connectomics.data.dataset.SynapseDataset">
 <em class="property">class </em><code class="descname">SynapseDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_synapse.html#SynapseDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.SynapseDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>PyTorch Dataset Class for Synapse Detection Task</p>
+<dd><p>Pytorch dataset class for synapse detection.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />

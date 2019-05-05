@@ -12,7 +12,7 @@ from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class
 
 class AffinityDataset(BaseDataset):
-    """PyTorch Dataset Class for Affinity Graph
+    """PyTorch ddataset class for affinity graph prediction.
 
     Args:
         volume: input image stacks.

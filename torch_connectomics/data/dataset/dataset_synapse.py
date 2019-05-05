@@ -9,7 +9,7 @@ from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class
 
 class SynapseDataset(BaseDataset):
-    """PyTorch Dataset Class for Synapse Detection Task
+    """Pytorch dataset class for synapse detection.
 
     Args:
         volume: input image stacks.
