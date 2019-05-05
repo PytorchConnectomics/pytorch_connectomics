@@ -15,7 +15,7 @@ If you want new features that are relatively easy to implement (e.g. loss functi
 ## Environment
 
 The code is developed and tested under the following configurations.
-- Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```[--num-gpu GPUS]``` accordingly)
+- Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```[-g NUM_GPU]``` accordingly)
 - Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.6, PyTorch>=1.0.0***
 
 ## Installation

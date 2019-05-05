@@ -7,6 +7,11 @@ def get_args(mode='train'):
     else:
         parser = argparse.ArgumentParser(description='Specify model inference arguments.')
     
+    # define tasks
+    # {1: neuron segmentationn, 2: synapse detection, 3: mitochondira segmentation}
+    parser.add_argument('--task', type=int, default=1,
+                        help='specify the task')
+
     # I/O
     parser.add_argument('-t','--train',  default='/n/coxfs01/',
                         help='Input folder (train)')

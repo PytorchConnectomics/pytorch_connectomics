@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset
+from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test
 from torch_connectomics.data.augmentation import *
 

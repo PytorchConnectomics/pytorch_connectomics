@@ -1,20 +1,18 @@
-Neuron Segmentation
+Synaptic Cleft Detection
 =======================
 
-This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
-Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
-The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and 
-then generate the segmentation map using a segmentation algorithm (e.g. watershed). 
-
-The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
-and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
+This tutorial provides step-by-step guidance for synaptic cleft detection with `CREMI<https://cremi.org>`_ benchmark datasets.
+We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
+the models used in affinity prediction in 'neuron segmentation<https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>'_. 
+The evaluation of the synapse detection results is based on the F1 score and average distance. See `CREMI metrics<https://cremi.org/metrics/>`_
+for more details.
 
 .. note::
-    Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
-    to get familiar with the datasets and have a sense of how the affinity graphs look like.
+    We preform re-alignment of the original CREMI image stacks. Please reverse the alignment before submitting the test 
+    prediction to the CREMI challenge.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The pytorch dataset class for neuron segmentation
-is :class:`torch_connectomics.data.dataset.AffinityDataset`.
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--task 1``
+when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.SynapseDataset`.
 
 #. Get the dataset:
 

@@ -12,6 +12,17 @@ from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class
 
 class AffinityDataset(BaseDataset):
+    """PyTorch Dataset Class for Affinity Graph
+
+    Args:
+        volume: input image stacks.
+        label: segmentation stacks.
+        sample_input_size (tuple, int): model input size.
+        sample_label_size (tuple, int): model output size.
+        sample_stride (tuple, int): stride size for sampling.
+        augmentor: data augmentor.
+        mode (str): training or inference mode.
+    """
     def __init__(self,
                  volume, label=None,
                  sample_input_size=(8, 64, 64),
