@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Neuron Segmentation &mdash; pytorch_connectomics master documentation</title>
+  <title>Synaptic Cleft Detection &mdash; pytorch_connectomics master documentation</title>
   
 
   
@@ -45,9 +45,7 @@
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="torch_connectomics.model" href="../modules/model.html" />
-    <link rel="prev" title="Installation" href="../notes/installation.html" /> 
+    <link rel="search" title="Search" href="../search.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -103,8 +101,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
-<ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Neuron Segmentation</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -166,13 +164,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>Neuron Segmentation</li>
+      <li>Synaptic Cleft Detection</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/tutorials/snemi.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/cremi.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -185,21 +183,20 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="neuron-segmentation">
-<h1>Neuron Segmentation<a class="headerlink" href="#neuron-segmentation" title="Permalink to this headline">¶</a></h1>
-<p>This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
-Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
-The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and
-then generate the segmentation map using a segmentation algorithm (e.g. watershed).</p>
-<p>The evaluation of segmentation results is based on the <a class="reference external" href="https://en.wikipedia.org/wiki/Rand_index">Rand Index</a>
-and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_of_information">Variation of Information</a>.</p>
+  <div class="section" id="synaptic-cleft-detection">
+<h1>Synaptic Cleft Detection<a class="headerlink" href="#synaptic-cleft-detection" title="Permalink to this headline">¶</a></h1>
+<p>This tutorial provides step-by-step guidance for synaptic cleft detection with <a href="#id1"><span class="problematic" id="id2">`CREMI&lt;https://cremi.org&gt;`_</span></a> benchmark datasets.
+We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
+the models used in affinity prediction in ‘neuron segmentation&lt;<a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html</a>&gt;’_.
+The evaluation of the synapse detection results is based on the F1 score and average distance. See <a href="#id3"><span class="problematic" id="id4">`CREMI metrics&lt;https://cremi.org/metrics/&gt;`_</span></a>
+for more details.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
-to get familiar with the datasets and have a sense of how the affinity graphs look like.</p>
+<p class="last">We preform re-alignment of the original CREMI image stacks. Please reverse the alignment before submitting the test
+prediction to the CREMI challenge.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. The pytorch dataset class for neuron segmentation
-is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.AffinityDataset</span></code>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--task</span> <span class="pre">1</span></code>
+when executing the <code class="docutils literal"><span class="pre">train.py</span></code> and <code class="docutils literal"><span class="pre">test.py</span></code> scripts. The pytorch dataset class of synapses is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.SynapseDataset</span></code>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -306,15 +303,6 @@ the demo, which provides more options and visualization.</p>
            
           </div>
           <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="../modules/model.html" class="btn btn-neutral float-right" title="torch_connectomics.model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="../notes/installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
   
 
   <hr/>
