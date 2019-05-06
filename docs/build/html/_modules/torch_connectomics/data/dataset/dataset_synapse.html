@@ -221,6 +221,10 @@
                                              <span class="n">augmentor</span><span class="p">,</span>
                                              <span class="n">mode</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
     <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
         <span class="n">vol_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_input_size</span>
         <span class="n">valid_mask</span> <span class="o">=</span> <span class="kc">None</span>
@@ -231,8 +235,17 @@
             <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
             <span class="c1"># if elastic deformation: need different receptive field</span>
             <span class="c1"># change vol_size first</span>
-            <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pos_seed</span><span class="p">(</span><span class="n">vol_size</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span>
-            <span class="n">out_label</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            
+            <span class="k">while</span> <span class="kc">True</span><span class="p">:</span> <span class="c1"># reject sampling</span>
+                <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pos_seed</span><span class="p">(</span><span class="n">vol_size</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span>
+                <span class="n">out_label</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">out_label</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.90</span><span class="p">:</span>    
+                        <span class="k">break</span>       
+            <span class="c1">#pos = self.get_pos_seed(vol_size, seed)</span>
+            <span class="c1">#out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])</span>
             <span class="n">out_input</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
             <span class="c1"># 3. augmentation</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># augmentation</span>

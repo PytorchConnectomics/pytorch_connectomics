@@ -198,13 +198,13 @@ for more details.</p>
 <p class="last">We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
 the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--task</span> <span class="pre">2</span></code>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--task</span> <span class="pre">1</span></code>
 when executing the <code class="docutils literal"><span class="pre">train.py</span></code> and <code class="docutils literal"><span class="pre">test.py</span></code> scripts. The pytorch dataset class of synapses is <a class="reference internal" href="../modules/datasets.html#torch_connectomics.data.dataset.SynapseDataset" title="torch_connectomics.data.dataset.SynapseDataset"><code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.SynapseDataset</span></code></a>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p class="first">Download the original images from our server:</p>
+<li><p class="first">Download the images stacks from our server:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
 wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
@@ -216,12 +216,14 @@ wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 </ol>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script:</p>
+<li><p class="first">Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python -u train.py -t /path/to/cremi/ -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
-  -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 -o outputs/unetv0 -lr 1e-03 \
-  --iteration-total 100000 --iteration-save 10000 -mi 8,256,256 -g 4 -c 4 -b 8 -ac unetv0
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
+  -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
+  -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
+  -o outputs/unetv0_syn -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
+  -mi 8,256,256 -g 4 -c 4 -b 8 -ac unetv0 --task 1 --out-channel 1
 </pre></div>
 </div>
 </div></blockquote>
@@ -235,9 +237,10 @@ $ python -u train.py -t /path/to/cremi/ -dn images/im_A_v2_200.h5@images/im_B_v2
 </li>
 <li><p class="first">Run inference on image volumes:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/cremi/ \
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
   -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
-  -mi 8,256,256 -g 4 -c 4 -b 16 -ac unetv0 -lm True -pm outputs/unetv0/volume_50000.pth
+  -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
+  -lm True -pm outputs/unetv0/volume_50000.pth
 </pre></div>
 </div>
 </div></blockquote>

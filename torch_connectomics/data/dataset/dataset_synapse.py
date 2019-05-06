@@ -36,6 +36,10 @@ class SynapseDataset(BaseDataset):
                                              augmentor,
                                              mode)
 
+        if label is not None:
+            for i in range(len(self.label)):
+                self.label[i] = (self.label[i] != 0).astype(np.float32)
+
     def __getitem__(self, index):
         vol_size = self.sample_input_size
         valid_mask = None
@@ -46,8 +50,17 @@ class SynapseDataset(BaseDataset):
             seed = np.random.RandomState(index)
             # if elastic deformation: need different receptive field
             # change vol_size first
-            pos = self.get_pos_seed(vol_size, seed)
-            out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+            
+            while True: # reject sampling
+                pos = self.get_pos_seed(vol_size, seed)
+                out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+                if np.sum(out_label) > 100:
+                    break
+                else:
+                    if random.random() > 0.90:    
+                        break       
+            #pos = self.get_pos_seed(vol_size, seed)
+            #out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
             out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
             # 3. augmentation
             if self.augmentor is not None:  # augmentation

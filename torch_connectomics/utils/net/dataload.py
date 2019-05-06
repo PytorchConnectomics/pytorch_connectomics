@@ -11,10 +11,15 @@ from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test
 from torch_connectomics.data.augmentation import *
 
+TASK_MAP = {0: 'neuron segmentation',
+            1: 'synapse detection',
+            2: 'mitochondria segmentation'}
+ 
+
 def get_input(args, model_io_size, mode='train'):
+    """Prepare dataloader for training and inference.
     """
-    Prepare dataloader for training and inference.
-    """
+    print('Task: ', TASK_MAP[args.task])
     assert mode in ['train', 'test']
 
     if mode=='test':
@@ -74,17 +79,33 @@ def get_input(args, model_io_size, mode='train'):
             sample_input_size = model_io_size
         else:
             sample_input_size = augmentor.sample_size
-        dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                  sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')    
+
+        if args.task == 0: # affininty prediction
+            dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+                                    sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+        elif args.task == 1: # synapse detection
+            dataset = SynapseDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+                                    sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+        elif args.task == 2: # mitochondira segmentation
+            raise NotImplementedError
+
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
                 num_workers=args.num_cpu, pin_memory=True)
         return img_loader
 
     else:
-        dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                  sample_label_size=None, sample_stride=model_io_size // 2, \
-                                  augmentor=None, mode='test')      
+        if args.task == 0:
+            dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
+                                    sample_label_size=None, sample_stride=model_io_size // 2, \
+                                    augmentor=None, mode='test')
+        elif args.task == 1: 
+            dataset = SynapseDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
+                                    sample_label_size=None, sample_stride=model_io_size // 2, \
+                                    augmentor=None, mode='test')
+        elif args.task == 2:
+            raise NotImplementedError
+
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
                 num_workers=args.num_cpu, pin_memory=True)                  

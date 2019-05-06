@@ -11,12 +11,12 @@ for more details.
     We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse 
     the alignment before submitting the test prediction to the CREMI challenge.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--task 2``
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--task 1``
 when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.SynapseDataset`.
 
 #. Get the dataset:
 
-    #. Download the original images from our server:
+    #. Download the images stacks from our server:
 
         .. code-block:: none
 
@@ -24,14 +24,16 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
             wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
             wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
 
-#. Run the training script:
+#. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
 
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python -u train.py -t /path/to/cremi/ -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
-          -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 -o outputs/unetv0 -lr 1e-03 \
-          --iteration-total 100000 --iteration-save 10000 -mi 8,256,256 -g 4 -c 4 -b 8 -ac unetv0
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
+          -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
+          -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
+          -o outputs/unetv0_syn -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
+          -mi 8,256,256 -g 4 -c 4 -b 8 -ac unetv0 --task 1 --out-channel 1
 
 #. Visualize the training progress:
 
@@ -43,6 +45,7 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/cremi/ \
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
           -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
-          -mi 8,256,256 -g 4 -c 4 -b 16 -ac unetv0 -lm True -pm outputs/unetv0/volume_50000.pth
+          -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
+          -lm True -pm outputs/unetv0/volume_50000.pth

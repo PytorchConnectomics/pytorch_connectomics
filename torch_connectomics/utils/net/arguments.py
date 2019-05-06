@@ -8,8 +8,8 @@ def get_args(mode='train'):
         parser = argparse.ArgumentParser(description='Specify model inference arguments.')
     
     # define tasks
-    # {1: neuron segmentationn, 2: synapse detection, 3: mitochondira segmentation}
-    parser.add_argument('--task', type=int, default=1,
+    # {0: neuron segmentationn, 1: synapse detection, 2: mitochondira segmentation}
+    parser.add_argument('--task', type=int, default=0,
                         help='specify the task')
 
     # I/O
@@ -28,6 +28,8 @@ def get_args(mode='train'):
                         help='Use pre-trained model')                
     parser.add_argument('-pm','--pre-model', type=str, default='',
                         help='Pre-trained model path')      
+    parser.add_argument('--out-channel', type=int, default=3,
+                        help='Number of output channel(s).')
 
     # machine option
     parser.add_argument('-g','--num-gpu', type=int,  default=1,

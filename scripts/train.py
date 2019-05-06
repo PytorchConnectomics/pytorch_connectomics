@@ -35,7 +35,10 @@ def train(args, train_loader, model, device, criterion, optimizer, scheduler, lo
                   record.avg, optimizer.param_groups[0]['lr']))
             scheduler.step(record.avg)
             record.reset()
-            visualize_aff(volume, label, output, iteration, writer)
+            if args.task == 0:
+                visualize_aff(volume, label, output, iteration, writer)
+            elif args.task == 1:
+                visualize(volume, label, output, iteration, writer)
             #print('weight factor: ', weight_factor) # debug
             # debug
             # if iteration < 50:
