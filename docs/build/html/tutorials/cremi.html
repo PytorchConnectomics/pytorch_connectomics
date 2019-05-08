@@ -204,16 +204,15 @@ when executing the <code class="docutils literal"><span class="pre">train.py</sp
 <li><p class="first">Get the dataset:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p class="first">Download the images stacks from our server:</p>
+<li><p class="first">Download the dataset from our server:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
-wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
-wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://hp03.mindhackers.org/rhoana_product/dataset/cremi.zip
 </pre></div>
 </div>
 </div></blockquote>
 </li>
 </ol>
+<p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 </div></blockquote>
 </li>
 <li><p class="first">Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>

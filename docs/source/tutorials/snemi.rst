@@ -18,13 +18,13 @@ is :class:`torch_connectomics.data.dataset.AffinityDataset`.
 
 #. Get the dataset:
 
-    #. Download the original images from our server:
+    #. Download the dataset from our server:
 
         .. code-block:: none
 
-            wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
-            wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
-            wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
+            wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
+    
+    For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
     #. Store the data into ``HDF5`` format (take train-input.tif as example):
 

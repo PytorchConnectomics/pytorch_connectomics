@@ -1,5 +1,5 @@
 Synaptic Cleft Detection
-=======================
+==========================
 
 This tutorial provides step-by-step guidance for synaptic cleft detection with `CREMI <https://cremi.org>`_ benchmark datasets.
 We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
@@ -16,13 +16,13 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
 #. Get the dataset:
 
-    #. Download the images stacks from our server:
+    #. Download the dataset from our server:
 
         .. code-block:: none
 
-            wget http://140.247.107.75/rhoana_product/snemi/image/train-input.tif
-            wget http://140.247.107.75/rhoana_product/snemi/seg/train-labels.tif
-            wget http://140.247.107.75/rhoana_product/snemi/image/test-input.tif
+            wget http://hp03.mindhackers.org/rhoana_product/dataset/cremi.zip
+    
+    For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
 #. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
 
