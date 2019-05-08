@@ -8,7 +8,8 @@ from torch_connectomics.model.loss import *
 from torch_connectomics.utils.net import *
 from torch_connectomics.utils.vis import visualize, visualize_aff
 
-def train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer):
+def train(args, train_loader, model, device, criterion, 
+          optimizer, scheduler, logger, writer, regularization=None):
     record = AverageMeter()
     model.train()
 
@@ -18,7 +19,10 @@ def train(args, train_loader, model, device, criterion, optimizer, scheduler, lo
         class_weight = class_weight.to(device)
         output = model(volume)
 
-        loss = criterion(output, label, class_weight)
+        if regularization is not None:
+            loss = criterion(output, label, class_weight) + regularization(output)
+        else:
+            loss = criterion(output, label, class_weight)
         record.update(loss, args.batch_size) 
 
         # compute gradient and do Adam step
@@ -71,6 +75,7 @@ def main():
             
     print('2.1 setup loss function')
     criterion = WeightedBCE()   
+    regularization = BinaryReg(alpha=1.0)
  
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 

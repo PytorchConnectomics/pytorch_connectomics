@@ -4,7 +4,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# 0. main loss functions
+
 class DiceLoss(nn.Module):
+    """DICE loss.
+    """
 
     def __init__(self, size_average=True, reduce=True, smooth=100.0):
         super(DiceLoss, self).__init__(size_average, reduce)
@@ -47,6 +51,8 @@ class DiceLoss(nn.Module):
         return loss
 
 class WeightedMSE(nn.Module):
+    """Weighted mean-squared error.
+    """
 
     def __init__(self):
         super().__init__()
@@ -61,9 +67,9 @@ class WeightedMSE(nn.Module):
         #_assert_no_grad(target)
         return self.weighted_mse_loss(input, target, weight)  
 
-# define a customized loss function for future development
 class WeightedBCE(nn.Module):
-
+    """Weighted binary cross-entropy.
+    """
     def __init__(self, size_average=True, reduce=True):
         super().__init__()
         self.size_average = size_average
@@ -71,5 +77,19 @@ class WeightedBCE(nn.Module):
 
     def forward(self, input, target, weight):
         #_assert_no_grad(target)
-        return F.binary_cross_entropy(input, target, weight, self.size_average,
-                                      self.reduce)
+        return F.binary_cross_entropy(input, target, weight, reduction='mean')
+
+#. 1. Regularization
+
+class BinaryReg(nn.Module):
+    """Regularization for encouraging the outputs to be binary.
+    """
+    def __init__(self, alpha=1.0):
+        super().__init__()
+        self.alpha = alpha
+    
+    def forward(self, input):
+        diff = input - 0.5
+        diff = torch.clamp(torch.abs(diff), min=1e-2)
+        loss = 1.0 / diff.sum()
+        return self.alpha * loss
