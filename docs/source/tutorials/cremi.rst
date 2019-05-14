@@ -30,7 +30,7 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
-          -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
+          -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
           -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
           -o outputs/unetv0_syn -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
           -mi 8,256,256 -g 4 -c 4 -b 8 -ac unetv0 --task 1 --out-channel 1
@@ -46,6 +46,6 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     .. code-block:: none
 
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
-          -dn images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5 \
+          -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
           -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
           -lm True -pm outputs/unetv0/volume_50000.pth
