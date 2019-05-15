@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset
+from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, MitoDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test
 from torch_connectomics.data.augmentation import *
 
@@ -25,7 +25,9 @@ def get_input(args, model_io_size, mode='train'):
     if mode=='test':
         pad_size = model_io_size // 2
     else:
-        pad_size = (0,0,0)
+        #pad_size = (0,0,0)
+        pad_size = model_io_size // 2
+
     volume_shape = []
 
     dir_name = args.train.split('@')
@@ -54,7 +56,11 @@ def get_input(args, model_io_size, mode='train'):
             model_label[i] = np.array(h5py.File(seg_name[i], 'r')['main'])
             model_label[i] = model_label[i].astype(np.float32)
             print("label shape: ", model_label[i].shape)
-   
+            model_label[i] = np.pad(model_label[i], ((pad_size[0],pad_size[0]), 
+                                                     (pad_size[1],pad_size[1]), 
+                                                     (pad_size[2],pad_size[2])), 'reflect')
+            assert model_input[i].shape == model_label[i].shape
+
     if mode=='train':
         # setup augmentor
         augmentor = Compose([Rotate(p=1.0),
@@ -82,12 +88,13 @@ def get_input(args, model_io_size, mode='train'):
 
         if args.task == 0: # affininty prediction
             dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                    sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+                                      sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
         elif args.task == 1: # synapse detection
             dataset = SynapseDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                    sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+                                     sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
         elif args.task == 2: # mitochondira segmentation
-            raise NotImplementedError
+            dataset = MitoDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+                                  sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
 
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
@@ -97,14 +104,16 @@ def get_input(args, model_io_size, mode='train'):
     else:
         if args.task == 0:
             dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                    sample_label_size=None, sample_stride=model_io_size // 2, \
-                                    augmentor=None, mode='test')
+                                      sample_label_size=None, sample_stride=model_io_size // 2, \
+                                      augmentor=None, mode='test')
         elif args.task == 1: 
             dataset = SynapseDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                    sample_label_size=None, sample_stride=model_io_size // 2, \
-                                    augmentor=None, mode='test')
+                                     sample_label_size=None, sample_stride=model_io_size // 2, \
+                                     augmentor=None, mode='test')
         elif args.task == 2:
-            raise NotImplementedError
+            dataset = MitoDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
+                                  sample_label_size=None, sample_stride=model_io_size // 2, \
+                                  augmentor=None, mode='test')
 
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
