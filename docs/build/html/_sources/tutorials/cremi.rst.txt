@@ -48,4 +48,4 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
           -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
           -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
-          -lm True -pm outputs/unetv0/volume_50000.pth
+          -lm True -pm outputs/unetv0_syn/volume_50000.pth

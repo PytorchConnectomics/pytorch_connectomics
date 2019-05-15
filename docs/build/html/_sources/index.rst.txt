@@ -33,6 +33,7 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
 
    tutorials/snemi
    tutorials/cremi
+   tutorials/lucchi
 
 .. toctree::
    :glob:

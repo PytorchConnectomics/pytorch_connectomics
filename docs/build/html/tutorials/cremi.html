@@ -46,7 +46,7 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="torch_connectomics.model" href="../modules/model.html" />
+    <link rel="next" title="Mitochondria Segmentaion" href="lucchi.html" />
     <link rel="prev" title="Neuron Segmentation" href="snemi.html" /> 
 </head>
 
@@ -106,6 +106,7 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Cleft Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="lucchi.html">Mitochondria Segmentaion</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -239,7 +240,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
   -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
   -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
-  -lm True -pm outputs/unetv0/volume_50000.pth
+  -lm True -pm outputs/unetv0_syn/volume_50000.pth
 </pre></div>
 </div>
 </div></blockquote>
@@ -255,7 +256,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../modules/model.html" class="btn btn-neutral float-right" title="torch_connectomics.model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="lucchi.html" class="btn btn-neutral float-right" title="Mitochondria Segmentaion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="snemi.html" class="btn btn-neutral float-left" title="Neuron Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
