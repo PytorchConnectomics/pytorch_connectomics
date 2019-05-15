@@ -19,6 +19,20 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
+#. Store the data into ``HDF5`` format (take ``train_im.tif`` as example):
+
+    .. code-block:: python
+        :linenos:
+
+        import h5py
+        import imageio
+
+        train_image = imageio.volread('train_im.tif')
+
+        fl = h5py.File('train_im.h5', 'w')
+        fl.create_dataset('main', data=train_image)
+        fl.close()
+
 #. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
 
     .. code-block:: none
@@ -35,7 +49,7 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
         $ tensorboard --logdir runs
 
-#. Run inference on image volumes:
+#. Run inference on test image volumes:
 
     .. code-block:: none
 

@@ -26,7 +26,7 @@ is :class:`torch_connectomics.data.dataset.AffinityDataset`.
     
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-    #. Store the data into ``HDF5`` format (take train-input.tif as example):
+    #. Store the data into ``HDF5`` format (take ``train-input.tif`` as example):
 
         .. code-block:: python
             :linenos:

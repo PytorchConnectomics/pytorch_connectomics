@@ -210,6 +210,27 @@ when executing the <code class="docutils literal"><span class="pre">train.py</sp
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 </div></blockquote>
 </li>
+<li><p class="first">Store the data into <code class="docutils literal"><span class="pre">HDF5</span></code> format (take <code class="docutils literal"><span class="pre">train_im.tif</span></code> as example):</p>
+<blockquote>
+<div><div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3
+4
+5
+6
+7
+8</pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">imageio</span>
+
+<span class="n">train_image</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">volread</span><span class="p">(</span><span class="s1">&#39;train_im.tif&#39;</span><span class="p">)</span>
+
+<span class="n">fl</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s1">&#39;train_im.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+<span class="n">fl</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s1">&#39;main&#39;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">train_image</span><span class="p">)</span>
+<span class="n">fl</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</pre></div>
+</td></tr></table></div>
+</div></blockquote>
+</li>
 <li><p class="first">Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
@@ -228,7 +249,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/Lucchi/ \
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes:</p>
+<li><p class="first">Run inference on test image volumes:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/Lucchi/ \
   -dn img/test_im.h5 -o outputs/unetv0_mito/result -mi 8,256,256 -g 4 -c 4 -b 32 \
