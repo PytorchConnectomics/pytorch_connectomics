@@ -20,10 +20,10 @@ def crop_volume_mul(data, sz, st=(0, 0, 0)):  # C*D*W*H, for multi-channel input
 ## Rebalancing.
 ####################################################################
 
-def rebalance_binary_class(label, msk=None, base_w=1.0):
+def rebalance_binary_class(label, mask=None, base_w=1.0):
     """Binary-class rebalancing."""
     weight_factor = label.float().sum() / torch.prod(torch.tensor(label.size()).float())
-    weight_factor = torch.clamp(weight_factor, min=1e-3)
+    weight_factor = torch.clamp(weight_factor, min=1e-2)
     alpha = 1.0
     weight = alpha * label*(1-weight_factor)/weight_factor + (1-label)
     

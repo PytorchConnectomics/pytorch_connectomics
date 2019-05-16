@@ -18,6 +18,7 @@ class MitoDataset(BaseDataset):
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
         augmentor: data augmentor.
+        valid_mask: the binary mask of valid regions.
         mode (str): training or inference mode.
     """
     def __init__(self,
@@ -26,6 +27,7 @@ class MitoDataset(BaseDataset):
                  sample_label_size=None,
                  sample_stride=(1, 1, 1),
                  augmentor=None,
+                 valid_mask=None,
                  mode='train'):
 
         super(MitoDataset, self).__init__(volume,
@@ -39,10 +41,11 @@ class MitoDataset(BaseDataset):
         if label is not None:
             for i in range(len(self.label)):
                 self.label[i] = (self.label[i] != 0).astype(np.float32)
+        
+        self.valid_mask = np.float32(valid_mask)
 
     def __getitem__(self, index):
         vol_size = self.sample_input_size
-        valid_mask = None 
 
         # Train Mode Specific Operations:
         if self.mode == 'train':
@@ -51,16 +54,14 @@ class MitoDataset(BaseDataset):
             # if elastic deformation: need different receptive field
             # change vol_size first
             
-            while True: # reject sampling
-                pos = self.get_pos_seed(vol_size, seed)
-                out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
-                if np.sum(out_label) > 100:
-                    break
-                else:
-                    if random.random() > 0.50:    
-                        break       
-            #pos = self.get_pos_seed(vol_size, seed)
-            #out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+            if self.valid_mask is not None:
+                while True: # reject sampling
+                    pos = self.get_pos_seed(vol_size, seed)
+                    out_valid = crop_volume(self.valid_mask[pos[0]], vol_size, pos[1:])
+                    if np.sum(out_valid) / np.float32(np.prod(np.array(out_valid.shape))) > 0.8:
+                        break  
+
+            out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
             out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
             # 3. augmentation
             if self.augmentor is not None:  # augmentation
