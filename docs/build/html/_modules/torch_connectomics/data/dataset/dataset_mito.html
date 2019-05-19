@@ -194,6 +194,8 @@
 <span class="kn">from</span> <span class="nn">.dataset</span> <span class="k">import</span> <span class="n">BaseDataset</span>
 <span class="kn">from</span> <span class="nn">.misc</span> <span class="k">import</span> <span class="n">crop_volume</span><span class="p">,</span> <span class="n">rebalance_binary_class</span>   
 
+<span class="kn">from</span> <span class="nn">torch_connectomics.data.utils.functional_transform</span> <span class="k">import</span> <span class="n">skeleton_transform_volume</span>
+
 <div class="viewcode-block" id="MitoDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#torch_connectomics.data.dataset.MitoDataset">[docs]</a><span class="k">class</span> <span class="nc">MitoDataset</span><span class="p">(</span><span class="n">BaseDataset</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Pytorch dataset class for mitochondira segmentation.</span>
 
@@ -279,6 +281,99 @@
             <span class="n">temp</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">out_label</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
             <span class="n">weight_factor</span><span class="p">,</span> <span class="n">weight</span> <span class="o">=</span> <span class="n">rebalance_binary_class</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">weight_factor</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span></div>
+
+<div class="viewcode-block" id="MitoSkeletonDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#torch_connectomics.data.dataset.MitoSkeletonDataset">[docs]</a><span class="k">class</span> <span class="nc">MitoSkeletonDataset</span><span class="p">(</span><span class="n">BaseDataset</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Pytorch dataset class for mitochondira segmentation.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume: input image stacks.</span>
+<span class="sd">        label: synapse masks.</span>
+<span class="sd">        sample_input_size (tuple, int): model input size.</span>
+<span class="sd">        sample_label_size (tuple, int): model output size.</span>
+<span class="sd">        sample_stride (tuple, int): stride size for sampling.</span>
+<span class="sd">        augmentor: data augmentor.</span>
+<span class="sd">        valid_mask: the binary mask of valid regions.</span>
+<span class="sd">        mode (str): training or inference mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">volume</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sample_input_size</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
+                 <span class="n">sample_label_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sample_stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                 <span class="n">augmentor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">valid_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">MitoSkeletonDataset</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span>
+                                                  <span class="n">label</span><span class="p">,</span>
+                                                  <span class="n">sample_input_size</span><span class="p">,</span>
+                                                  <span class="n">sample_label_size</span><span class="p">,</span>
+                                                  <span class="n">sample_stride</span><span class="p">,</span>
+                                                  <span class="n">augmentor</span><span class="p">,</span>
+                                                  <span class="n">mode</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">valid_mask</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+        <span class="n">vol_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_input_size</span>
+
+        <span class="c1"># Train Mode Specific Operations:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span><span class="p">:</span>
+            <span class="c1"># 2. get input volume</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="c1"># if elastic deformation: need different receptive field</span>
+            <span class="c1"># change vol_size first</span>
+            
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">while</span> <span class="kc">True</span><span class="p">:</span> <span class="c1"># reject sampling</span>
+                    <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pos_seed</span><span class="p">(</span><span class="n">vol_size</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span>
+                    <span class="n">out_valid</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_mask</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">out_valid</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">out_valid</span><span class="o">.</span><span class="n">shape</span><span class="p">)))</span> <span class="o">&gt;</span> <span class="mf">0.8</span><span class="p">:</span>
+                        <span class="k">break</span>  
+
+            <span class="n">out_label</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="n">out_input</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="c1"># 3. augmentation</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># augmentation</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span><span class="n">out_input</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span><span class="n">out_label</span><span class="p">}</span>
+                <span class="n">augmented</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+                <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+                <span class="n">out_input</span> <span class="o">=</span> <span class="n">out_input</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="n">out_label</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Test Mode Specific Operations:</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;test&#39;</span><span class="p">:</span>
+            <span class="c1"># test mode</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_pos_test</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+            <span class="n">out_input</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="n">out_label</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            
+        <span class="c1"># Turn segmentation label into affinity in Pytorch Tensor</span>
+        <span class="k">if</span> <span class="n">out_label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">out_distance</span><span class="p">,</span> <span class="n">out_skeleton</span> <span class="o">=</span> <span class="n">skeleton_transform_volume</span><span class="p">(</span><span class="n">out_label</span><span class="p">)</span>
+            <span class="n">out_label</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">out_label</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+            <span class="n">out_label</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">out_distance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">out_distance</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+            <span class="n">out_distance</span> <span class="o">=</span> <span class="n">out_distance</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">out_skeleton</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">out_skeleton</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+            <span class="n">out_skeleton</span> <span class="o">=</span> <span class="n">out_skeleton</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Turn input to Pytorch Tensor, unsqueeze once to include the channel dimension:</span>
+        <span class="n">out_input</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">out_input</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+        <span class="n">out_input</span> <span class="o">=</span> <span class="n">out_input</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span><span class="p">:</span>
+            <span class="c1"># Rebalancing</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">out_label</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">weight_factor</span><span class="p">,</span> <span class="n">weight</span> <span class="o">=</span> <span class="n">rebalance_binary_class</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">weight_factor</span><span class="p">,</span> <span class="n">out_distance</span><span class="p">,</span> <span class="n">out_skeleton</span>
 
         <span class="k">else</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span></div>

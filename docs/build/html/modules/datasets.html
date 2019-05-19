@@ -282,6 +282,30 @@
 </table>
 </dd></dl>
 
+<dl class="class">
+<dt id="torch_connectomics.data.dataset.MitoSkeletonDataset">
+<em class="property">class </em><code class="descname">MitoSkeletonDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>valid_mask=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_mito.html#MitoSkeletonDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.MitoSkeletonDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pytorch dataset class for mitochondira segmentation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>volume</strong> – input image stacks.</li>
+<li><strong>label</strong> – synapse masks.</li>
+<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.7)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – model input size.</li>
+<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.7)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – model output size.</li>
+<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.7)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.7)"><em>int</em></a>) – stride size for sampling.</li>
+<li><strong>augmentor</strong> – data augmentor.</li>
+<li><strong>valid_mask</strong> – the binary mask of valid regions.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.7)"><em>str</em></a>) – training or inference mode.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 
