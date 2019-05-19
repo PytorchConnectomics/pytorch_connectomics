@@ -61,9 +61,19 @@ class MitoDataset(BaseDataset):
                     pos = self.get_pos_seed(vol_size, seed)
                     out_valid = crop_volume(self.valid_mask[pos[0]], vol_size, pos[1:])
                     if np.sum(out_valid) / np.float32(np.prod(np.array(out_valid.shape))) > 0.8:
-                        break  
+                        break
+                out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+                        
+            else:
+                while True: # reject sampling
+                    pos = self.get_pos_seed(vol_size, seed)
+                    out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+                    if np.sum(out_label) > 100:
+                        break
+                    else:
+                        if random.random() > 0.90:    
+                            break       
 
-            out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
             out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
             # 3. augmentation
             if self.augmentor is not None:  # augmentation
@@ -98,6 +108,7 @@ class MitoDataset(BaseDataset):
 
         else:
             return pos, out_input
+<<<<<<< HEAD
 
 class MitoSkeletonDataset(BaseDataset):
     """Pytorch dataset class for mitochondira segmentation.
@@ -191,3 +202,5 @@ class MitoSkeletonDataset(BaseDataset):
 
         else:
             return pos, out_input
+=======
+>>>>>>> 646a6c6de5ddb45092061116e95877caffb17ce6
