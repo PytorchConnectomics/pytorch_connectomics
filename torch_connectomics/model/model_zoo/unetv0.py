@@ -16,7 +16,7 @@ class unetv0(nn.Module):
         out_channel (int): number of output channels.
         filters (list): number of filters at each u-net stage.
     """
-    def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256]):
+    def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256], act = 'sigmoid'):
         super().__init__()
 
         # encoding path
@@ -74,6 +74,12 @@ class unetv0(nn.Module):
         # convert to probability
         self.fconv = conv3d_bn_non(filters[0], out_channel, kernel_size=(3,3,3), padding=(1,1,1))
 
+        #final layer activation
+        if act='tanh':
+            self.act = nn.tanh()
+        else:
+            self.act = nn.sigmoid()
+
     def forward(self, x):
 
         # encoding path
@@ -106,7 +112,7 @@ class unetv0(nn.Module):
         x = self.layer1_D(x)
 
         x = self.fconv(x)
-        x = torch.sigmoid(x)
+        x = self.act(x)
         return x
 
 def test():

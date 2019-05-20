@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, MitoDataset
+from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, MitoSkeletonDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test
 from torch_connectomics.data.augmentation import *
 
@@ -93,7 +93,7 @@ def get_input(args, model_io_size, mode='train'):
             dataset = SynapseDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                      sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
         elif args.task == 2: # mitochondira segmentation
-            dataset = MitoDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+            dataset = MitoSkeletonDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                   sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
 
         img_loader =  torch.utils.data.DataLoader(
@@ -111,7 +111,7 @@ def get_input(args, model_io_size, mode='train'):
                                      sample_label_size=None, sample_stride=model_io_size // 2, \
                                      augmentor=None, mode='test')
         elif args.task == 2:
-            dataset = MitoDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
+            dataset = MitoSkeletonDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
                                   sample_label_size=None, sample_stride=model_io_size // 2, \
                                   augmentor=None, mode='test')
 
