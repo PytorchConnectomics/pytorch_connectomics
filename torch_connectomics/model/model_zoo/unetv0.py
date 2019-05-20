@@ -76,9 +76,9 @@ class unetv0(nn.Module):
 
         #final layer activation
         if act='tanh':
-            self.act = nn.tanh()
+            self.act = nn.Tanh()
         else:
-            self.act = nn.sigmoid()
+            self.act = nn.Sigmoid()
 
     def forward(self, x):
 
