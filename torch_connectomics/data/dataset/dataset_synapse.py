@@ -89,7 +89,7 @@ class SynapseDataset(BaseDataset):
 
         if self.mode == 'train':
             # Rebalancing
-            temp = out_label.clone()[2] 
+            temp = out_label.clone()
             weight_factor, weight = rebalance_binary_class(temp)
             return pos, out_input, out_label, weight, weight_factor
 
