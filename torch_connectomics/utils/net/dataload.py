@@ -13,7 +13,9 @@ from torch_connectomics.data.augmentation import *
 
 TASK_MAP = {0: 'neuron segmentation',
             1: 'synapse detection',
-            2: 'mitochondria segmentation'}
+            11: 'synapse polarity detection',
+            2: 'mitochondria segmentation',
+            22:'mitochondira segmentation with skeleton transform'}
  
 
 def get_input(args, model_io_size, mode='train'):
