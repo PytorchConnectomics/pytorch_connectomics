@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, MitoSkeletonDataset
+from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, SynapsePolarityDataset, MitoDataset, MitoSkeletonDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test
 from torch_connectomics.data.augmentation import *
 
@@ -89,10 +89,16 @@ def get_input(args, model_io_size, mode='train'):
         if args.task == 0: # affininty prediction
             dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                       sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
-        elif args.task == 1: # synapse detection
+        if args.task == 1: # synapse detection
             dataset = SynapseDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                      sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
-        elif args.task == 2: # mitochondira segmentation
+        if args.task == 11: # synapse polarity detection
+            dataset = SynapsePolarityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+                                     sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+        if args.task == 2: # mitochondira segmentation
+            dataset = MitoDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
+                                  sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+        if args.task == 22: # mitochondira segmentation with skeleton transform
             dataset = MitoSkeletonDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                   sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
 
