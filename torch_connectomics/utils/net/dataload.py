@@ -8,7 +8,7 @@ import torch.utils.data
 import torchvision.utils as vutils
 
 from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, SynapsePolarityDataset, MitoDataset, MitoSkeletonDataset
-from torch_connectomics.data.utils import collate_fn, collate_fn_test
+from torch_connectomics.data.utils import collate_fn, collate_fn_test, collate_fn_skel
 from torch_connectomics.data.augmentation import *
 
 TASK_MAP = {0: 'neuron segmentation',
@@ -68,6 +68,7 @@ def get_input(args, model_io_size, mode='train'):
             model_label[i] = np.pad(model_label[i], ((pad_size[0],pad_size[0]), 
                                                      (pad_size[1],pad_size[1]), 
                                                      (pad_size[2],pad_size[2])), 'reflect')
+
             assert model_input[i].shape == model_label[i].shape
             if args.valid_mask is not None:
                 model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
@@ -118,10 +119,14 @@ def get_input(args, model_io_size, mode='train'):
         if args.task == 22: # mitochondira segmentation with skeleton transform
             dataset = MitoSkeletonDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                   sample_label_size=sample_input_size, augmentor=augmentor, valid_mask=model_mask, mode='train')
+            img_loader =  torch.utils.data.DataLoader(
+                  dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_skel,
+                  num_workers=args.num_cpu, pin_memory=True)
+            return img_loader
 
         img_loader =  torch.utils.data.DataLoader(
-                dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
-                num_workers=args.num_cpu, pin_memory=True)
+              dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
+              num_workers=args.num_cpu, pin_memory=True)
         return img_loader
 
     else:
@@ -150,3 +155,4 @@ def get_input(args, model_io_size, mode='train'):
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
                 num_workers=args.num_cpu, pin_memory=True)                  
         return img_loader, volume_shape, pad_size
+
