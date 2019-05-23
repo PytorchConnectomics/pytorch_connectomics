@@ -7,8 +7,15 @@ def get_args(mode='train'):
     else:
         parser = argparse.ArgumentParser(description='Specify model inference arguments.')
     
-    # define tasks
-    # {0: neuron segmentationn, 1: synapse detection, 2: mitochondira segmentation}
+    """
+    define tasks
+			{0: 'neuron segmentation',
+            1: 'synapse detection',
+            11: 'synapse polarity detection',
+            2: 'mitochondria segmentation',
+            22:'mitochondira segmentation with skeleton transform'}    
+	"""
+
     parser.add_argument('--task', type=int, default=0,
                         help='specify the task')
 
@@ -42,6 +49,9 @@ def get_args(mode='train'):
     if mode == 'train':
         parser.add_argument('-ln','--seg-name',  default='seg-groundtruth2-malis.h5',
                             help='Ground-truth label path')
+
+        parser.add_argument('-vm','--valid-mask', default=None,
+                            help='Mask for the train images')
 
         parser.add_argument('-ft','--finetune', type=bool, default=False,
                             help='Fine-tune on previous model [Default: False]')

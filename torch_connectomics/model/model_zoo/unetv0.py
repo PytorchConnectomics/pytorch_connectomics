@@ -75,7 +75,7 @@ class unetv0(nn.Module):
         self.fconv = conv3d_bn_non(filters[0], out_channel, kernel_size=(3,3,3), padding=(1,1,1))
 
         #final layer activation
-        if act='tanh':
+        if act == 'tanh':
             self.act = nn.Tanh()
         else:
             self.act = nn.Sigmoid()
