@@ -275,7 +275,7 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span><span class="p">:</span>
             <span class="c1"># Rebalancing</span>
-            <span class="n">temp</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">clone</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span> 
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
             <span class="n">weight_factor</span><span class="p">,</span> <span class="n">weight</span> <span class="o">=</span> <span class="n">rebalance_binary_class</span><span class="p">(</span><span class="n">temp</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">weight_factor</span>
 
