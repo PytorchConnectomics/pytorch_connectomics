@@ -21,6 +21,7 @@ def train(args, train_loader, model, device, criterion,
         else:
             _, volume, label, class_weight, _ = batch
         volume, label = volume.to(device), label.to(device)
+#        seg_mask = seg_mask.to(device)
         class_weight = class_weight.to(device)
         output = model(volume)
 
