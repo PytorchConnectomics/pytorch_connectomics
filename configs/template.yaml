@@ -1,0 +1,20 @@
+MODEL:
+  TYPE: unetv0
+  OUT_CHANNEL: 3
+  ACTIVATIONS: 'sigmoid'
+NUM_GPUS: 4
+NUM_CPUS: 4
+AUGMENTOR:
+  WARP: True
+  MISSING_SECTION: True
+SOLVER:
+  WEIGHT_DECAY: 0.0001
+  LR_POLICY: steps_with_decay
+  BASE_LR: 0.02
+  GAMMA: 0.1
+  MAX_ITER: 90000
+TRAIN:
+  Z: 12
+  Y: 196
+  X: 196
+  
