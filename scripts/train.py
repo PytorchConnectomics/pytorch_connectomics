@@ -21,6 +21,7 @@ def train(args, train_loader, model, device, criterion,
         else:
             _, volume, label, class_weight, _ = batch
         volume, label = volume.to(device), label.to(device)
+#        seg_mask = seg_mask.to(device)
         class_weight = class_weight.to(device)
         output = model(volume)
 
@@ -46,7 +47,7 @@ def train(args, train_loader, model, device, criterion,
             record.reset()
             if args.task == 0:
                 visualize_aff(volume, label, output, iteration, writer)
-            elif args.task == 1:
+            elif args.task == 1 or args.task == 2 or args.task == 22:
                 visualize(volume, label, output, iteration, writer)
             #print('weight factor: ', weight_factor) # debug
             # debug

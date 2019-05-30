@@ -161,7 +161,7 @@ class MitoSkeletonDataset(BaseDataset):
                     out_valid = crop_volume(self.valid_mask[pos[0]], vol_size, pos[1:])
                     if np.sum(out_valid) / np.float32(np.prod(np.array(out_valid.shape))) > 0.8:
                         break  
-                    out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+                out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
                         
             else:
                 while True: # reject sampling
@@ -175,6 +175,7 @@ class MitoSkeletonDataset(BaseDataset):
 
             out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
             out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
+            
             # 3. augmentation
             if self.augmentor is not None:  # augmentation
                 data = {'image':out_input, 'label':out_label}

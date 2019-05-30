@@ -57,26 +57,28 @@ def get_input(args, model_io_size, mode='train'):
         model_input[i] = np.pad(model_input[i], ((pad_size[0],pad_size[0]), 
                                                  (pad_size[1],pad_size[1]), 
                                                  (pad_size[2],pad_size[2])), 'reflect')
-        print("volume shape: ", model_input[i].shape)
+        print(f"volume shape: {model_input[i].shape}")
         volume_shape.append(model_input[i].shape)
         model_input[i] = model_input[i].astype(np.float32)
 
         if mode=='train':
             model_label[i] = np.array(h5py.File(seg_name[i], 'r')['main'])
             model_label[i] = model_label[i].astype(np.float32)
-            print("label shape: ", model_label[i].shape)
             model_label[i] = np.pad(model_label[i], ((pad_size[0],pad_size[0]), 
                                                      (pad_size[1],pad_size[1]), 
                                                      (pad_size[2],pad_size[2])), 'reflect')
-
+            print(f"label shape: {model_label[i].shape}")
+            
             assert model_input[i].shape == model_label[i].shape
+            
             if args.valid_mask is not None:
                 model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
-                model_mask[i] = model_label[i].astype(np.float32)
-                print(f"mask shape: {model_mask[i].shape}")
-                model_label[i] = np.pad(model_label[i], ((pad_size[0],pad_size[0]),
+                model_mask[i] = model_mask[i].astype(np.float32)
+                model_mask[i] = np.pad(model_mask[i], ((pad_size[0],pad_size[0]),
                                                          (pad_size[1],pad_size[1]),
                                                          (pad_size[2],pad_size[2])), 'reflect')
+                
+                print(f"mask shape: {model_mask[i].shape}")
                 assert model_input[i].shape == model_mask[i].shape
 
     if mode=='train':
