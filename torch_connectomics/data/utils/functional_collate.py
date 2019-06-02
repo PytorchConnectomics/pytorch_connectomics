@@ -58,3 +58,15 @@ def collate_fn_skel(batch):
     out_skeleton = np.stack(out_skeleton, 0)
 
     return pos, out_input, out_label, weights, weight_factor, out_distance, out_skeleton
+
+def collate_fn_long_range(batch):
+    """
+    Puts each data field into a tensor with outer dimension batch size
+    :param batch:
+    :return:
+    """
+    pos, out_input, out_label = zip(*batch)
+
+    out_input = torch.stack(out_input, 0)
+    out_label = torch.stack(out_label, 0)
+    return pos
