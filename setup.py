@@ -1,7 +1,7 @@
 import os, sys
 import numpy as np
 from distutils.sysconfig import get_python_inc
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from Cython.Distutils import build_ext
 
 def getExt():
@@ -57,7 +57,7 @@ def setup_package():
         install_requires=['cython','scipy','boost'],
         cmdclass = {'build_ext': build_ext},
         include_dirs=getInclude(), 
-        packages=['torch_connectomics'],
+        packages=find_packages(),
         ext_modules = getExt()
     )
 

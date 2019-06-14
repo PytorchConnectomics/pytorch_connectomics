@@ -71,7 +71,8 @@ def setup_model(args, device, exact=True, size_match=True):
     else:        
         model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel)
     print('model: ', model.__class__.__name__)
-    model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
+    if args.num_gpu>1:
+        model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
     model = model.to(device)
 
     if bool(args.load_model):

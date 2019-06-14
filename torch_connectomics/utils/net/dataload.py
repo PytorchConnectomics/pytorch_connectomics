@@ -18,20 +18,7 @@ TASK_MAP = {0: 'neuron segmentation',
             22:'mitochondira segmentation with skeleton transform'}
  
 
-def get_input(args, model_io_size, mode='train'):
-    """Prepare dataloader for training and inference.
-    """
-    print('Task: ', TASK_MAP[args.task])
-    assert mode in ['train', 'test']
-
-    if mode=='test':
-        pad_size = model_io_size // 2
-    else:
-        #pad_size = (0,0,0)
-        pad_size = model_io_size // 2
-
-    volume_shape = []
-
+def get_input_data(args, pad_size):
     dir_name = args.train.split('@')
     img_name = args.img_name.split('@')
     img_name = [dir_name[0] + x for x in img_name]
@@ -41,8 +28,7 @@ def get_input(args, model_io_size, mode='train'):
         if args.valid_mask is not None:
             mask_names = args.valid_mask.split('@')
             mask_locations = [dir_name[0] + x for x in mask_names]
-    
-    # 1. load data
+
     model_input = [None]*len(img_name)
     if mode=='train':
         assert len(img_name)==len(seg_name)
@@ -58,7 +44,6 @@ def get_input(args, model_io_size, mode='train'):
                                                  (pad_size[1],pad_size[1]), 
                                                  (pad_size[2],pad_size[2])), 'reflect')
         print(f"volume shape: {model_input[i].shape}")
-        volume_shape.append(model_input[i].shape)
         model_input[i] = model_input[i].astype(np.float32)
 
         if mode=='train':
@@ -80,6 +65,23 @@ def get_input(args, model_io_size, mode='train'):
                 
                 print(f"mask shape: {model_mask[i].shape}")
                 assert model_input[i].shape == model_mask[i].shape
+    return model_input, model_mask, model_label
+
+
+def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
+    """Prepare dataloader for training and inference.
+    """
+    print('Task: ', TASK_MAP[args.task])
+    assert mode in ['train', 'test']
+
+    pad_size = [int(x) for x in args.model_pad.split(',')]
+
+    # 1. load data
+    if preload_data[0] is None: # load from command line args
+        model_input, model_mask, model_label = get_input_data(args, pad_size)
+    else:
+        model_input, model_mask, model_label = preload_data
+
 
     if mode=='train':
         # setup augmentor
@@ -132,29 +134,34 @@ def get_input(args, model_io_size, mode='train'):
         return img_loader
 
     else:
+        # test stride
+        if len(args.test_stride)==0: # not defined, do default 50%
+            test_stride = np.maximum(1,model_io_size // 2)
+        else:
+            test_stride = [int(x) for x in args.test_stride.split(',')]
         if args.task == 0:
             dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                      sample_label_size=None, sample_stride=model_io_size // 2, \
+                                      sample_label_size=None, sample_stride=test_stride, \
                                       augmentor=None, mode='test')
         elif args.task == 1: 
             dataset = SynapseDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                     sample_label_size=None, sample_stride=model_io_size // 2, \
+                                     sample_label_size=None, sample_stride=test_stride, \
                                      augmentor=None, mode='test')
         elif args.task == 11:
         	dataset = SynapsePolarityDataset(volume=model_input, label=None, sample_input_size=model_io_size,
-                                     sample_label_size=None, sample_stride=model_io_size // 2, \
+                                     sample_label_size=None, sample_stride=test_stride, \
                                      augmentor=None, mode = 'test')
         elif args.task == 2:
             dataset = MitoDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                  sample_label_size=None, sample_stride=model_io_size // 2, \
+                                  sample_label_size=None, sample_stride=test_stride, \
                                   augmentor=None, mode='test')
         elif args.task == 22: 
         	dataset = MitoSkeletonDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
-                                  sample_label_size=None, sample_stride=model_io_size // 2, \
+                                  sample_label_size=None, sample_stride=test_stride, \
                                   augmentor=None, mode='test')
 
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
                 num_workers=args.num_cpu, pin_memory=True)                  
-        return img_loader, volume_shape, pad_size
+        return img_loader
 

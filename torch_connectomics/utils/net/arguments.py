@@ -27,7 +27,11 @@ def get_args(mode='train'):
     parser.add_argument('-o','--output', default='result/train/',
                         help='Output path')
     parser.add_argument('-mi','--model-input', type=str,  default='31,204,204',
-                        help='I/O size of deep network')
+                        help='Input size of deep network')
+    parser.add_argument('-mo','--model-output', type=str,  default='3,116,116',
+                        help='Output size of deep network')
+    parser.add_argument('-mp','--model-pad', type=str,  default='0,0,0',
+                        help='Pad size of the input data for maximum usage of gt data')
 
     # model option
     parser.add_argument('-ac','--architecture', help='model architecture')  
@@ -65,6 +69,9 @@ def get_args(mode='train'):
                             help='Total number of iteration')
         parser.add_argument('--iteration-save', type=int, default=100,
                             help='Number of iteration to save')
+    elif mode == 'test':
+        parser.add_argument('--test-stride', type=str, default='',
+                            help='stride during inference')
 
     args = parser.parse_args()
     return args

@@ -8,6 +8,29 @@ from .basic import *
 from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 # 1. Residual blocks
+# implemented with 2D conv
+class residual_block_2d_c2(nn.Module):
+    def __init__(self, in_planes, out_planes, projection=True):
+        super(residual_block_2d_c2, self).__init__()
+        self.projection = projection
+        self.conv = nn.Sequential(
+            conv2d_bn_elu( in_planes, out_planes, kernel_size=(3,3), padding=(1,1)),
+            conv2d_bn_non(out_planes, out_planes, kernel_size=(3,3), padding=(1,1))
+        )
+        self.projector = conv2d_bn_non(in_planes, out_planes, kernel_size=(1,1), padding=(0,0))
+        self.elu = nn.ELU(inplace=True)
+        
+    def forward(self, x):
+        y = self.conv(x)
+        if self.projection:
+            y = y + self.projector(x)
+        else:
+            y = y + x
+        y = self.elu(y)
+        return y  
+
+
+# implemented with 3D conv
 class residual_block_2d(nn.Module):
     """
     Residual Block 2D
