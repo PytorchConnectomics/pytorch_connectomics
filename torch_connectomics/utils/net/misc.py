@@ -57,7 +57,7 @@ def get_logger(args):
     writer = SummaryWriter('runs/'+log_name)
     return logger, writer
 
-def setup_model(args, device, exact=True, size_match=True):
+def setup_model(args, device, exact=True, size_match=True,filters=[8, 12, 16, 20, 24]):
 
     MODEL_MAP = {'unetv0': unetv0,
                  'unetv1': unetv1,
@@ -67,12 +67,11 @@ def setup_model(args, device, exact=True, size_match=True):
 
     assert args.architecture in MODEL_MAP.keys()
     if args.task == 2:
-        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, act='tanh')
+        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, act='tanh',filters=filters)
     else:        
-        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel)
+        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=filters)
     print('model: ', model.__class__.__name__)
-    if args.num_gpu>1:
-        model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
+    model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
     model = model.to(device)
 
     if bool(args.load_model):
@@ -97,7 +96,7 @@ def setup_model(args, device, exact=True, size_match=True):
     
     return model
 
-def blend(sz, sigma=0.5, mu=0.0):  
+def blend(sz, sigma=1, mu=0.0):  
     """
     Gaussian blending
     """
