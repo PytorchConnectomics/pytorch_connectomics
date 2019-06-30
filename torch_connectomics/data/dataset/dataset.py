@@ -43,6 +43,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.sample_stride = np.array(sample_stride, dtype=np.float32)
         self.sample_size = [count_volume(self.input_size[x], self.sample_input_size, np.array(self.sample_stride))
                             for x in range(len(self.input_size))]
+
         # total number of possible inputs for each volume
         self.sample_num = np.array([np.prod(x) for x in self.sample_size])
         # check partial label
@@ -124,7 +125,7 @@ class BaseDataset(torch.utils.data.Dataset):
         pos[0] = did
         # pick a position
         tmp_size = count_volume(self.input_size[did], vol_size, np.array(self.sample_stride))
-        tmp_pos = [np.random.randint(tmp_size[x]) for x in range(len(tmp_size))]
+        tmp_pos = [np.random.randint(tmp_size[x]) * self.sample_stride[x] for x in range(len(tmp_size))]
         if self.label_invalid[did]:
             # need to make sure the center is valid
             seg_bad = np.array([-1]).astype(self.label[did].dtype)[0]
