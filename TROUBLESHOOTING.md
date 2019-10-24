@@ -32,7 +32,7 @@ pip install --editable .
 which should show:
 ```
 Successfully built boost sqlalchemy
-Installing collected packages: asn1crypto, cryptography, http-ece, Mastodon.py, sqlalchemy, boost, vcg-connectomics
-  Running setup.py develop for vcg-connectomics
+Installing collected packages: asn1crypto, cryptography, http-ece, Mastodon.py, sqlalchemy, boost, torch_connectomics
+  Running setup.py develop for torch_connectomics
 Successfully installed Mastodon.py-1.3.1 asn1crypto-0.24.0 boost-0.1 cryptography-2.6.1 http-ece-1.1.0 sqlalchemy-1.3.2 vcg-connectomics
 ```
