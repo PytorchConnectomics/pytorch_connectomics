@@ -25,14 +25,14 @@ The following NEW packages will be INSTALLED:
      libedit            pkgs/main/linux-64::libedit-3.1.20181209-hc058e9b_0
      yaml               conda-forge/linux-64::yaml-0.1.7-h14c3975_1001
 ```
-After installing those packages, run:
+After installing those packages (may need to close and re-activate the current environment), run:
 ```
 pip install --editable .
 ```
 which should show:
 ```
 Successfully built boost sqlalchemy
-Installing collected packages: asn1crypto, cryptography, http-ece, Mastodon.py, sqlalchemy, boost, torch_connectomics
-  Running setup.py develop for torch_connectomics
+Installing collected packages: asn1crypto, cryptography, http-ece, Mastodon.py, sqlalchemy, boost, torch-connectomics
+  Running setup.py develop for torch-connectomics
 Successfully installed Mastodon.py-1.3.1 asn1crypto-0.24.0 boost-0.1 cryptography-2.6.1 http-ece-1.1.0 sqlalchemy-1.3.2 vcg-connectomics
 ```
