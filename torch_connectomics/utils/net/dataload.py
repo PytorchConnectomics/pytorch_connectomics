@@ -7,7 +7,9 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset, SynapseDataset, SynapsePolarityDataset, MitoDataset, MitoSkeletonDataset
+from torch_connectomics.data.dataset import AffinityDataset
+from torch_connectomics.data.dataset import SynapseDataset, SynapsePolarityDataset
+from torch_connectomics.data.dataset import MitoDataset, MitoSkeletonDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test, collate_fn_skel
 from torch_connectomics.data.augmentation import *
 
@@ -18,7 +20,7 @@ TASK_MAP = {0: 'neuron segmentation',
             22:'mitochondira segmentation with skeleton transform'}
  
 
-def get_input_data(args, pad_size):
+def get_input_data(args, pad_size, mode='train'):
     dir_name = args.train.split('@')
     img_name = args.img_name.split('@')
     img_name = [dir_name[0] + x for x in img_name]
@@ -94,7 +96,6 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
                              MissingSection(p=0.5),
                              MisAlignment(p=1.0, displacement=16)], 
                              input_size = model_io_size)
-        # augmentor = None # debug
     else:
         augmentor = None
 

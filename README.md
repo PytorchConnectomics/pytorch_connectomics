@@ -10,22 +10,23 @@ The field of connectomics aims to reconstruct the wiring diagram of the brain by
 - Active Learning
 - CPU and GPU Parallelism
 
-If you want new features that are relatively easy to implement (e.g. loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly. 
+If you want new features that are relatively easy to implement (e.g., loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly. 
 
 ## Environment
 
 The code is developed and tested under the following configurations.
 - Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```[-g NUM_GPU]``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.6, PyTorch>=1.0.0***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.6, PyTorch>=1.3.0***
 
 ## Installation
 
 Create a new conda environment:
 ```
-conda create -n py3_torch python=3.6
+conda create -n py3_torch python=3.7
 source activate py3_torch
-conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
+conda install pytorch torchvision cudatoolkit=9.2 -c pytorch
 ```
+Please note that this package is developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster, where the current version of the Nvidia driver installed is 396.26 that supports Cuda version 9. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
 
 Download and install the package:
 ```
@@ -48,7 +49,7 @@ For more information and frequently asked questions about installation, please c
 ## Notes
 
 ### Data Augmentation
-We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g. TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/augmentation.html).
+We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/augmentation.html).
 
 ### Model Zoo
 We provide several encoder-decoder architectures, which can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/torch_connectomics/model/model_zoo). Those models can be applied to any kinds of semantic segmentation tasks of 3D image stacks. We also provide benchmark results on SNEMI3D neuron segmentation challenges [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/benchmark) with detailed training specifications for users to reproduce.

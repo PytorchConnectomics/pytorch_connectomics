@@ -9,7 +9,7 @@ import torch.utils.data
 import torchvision.utils as vutils
 
 from torch_connectomics.model.model_zoo import *
-from torch_connectomics.libs.sync import DataParallelWithCallback
+from torch_connectomics.libs.sync import patch_replication_callback
 
 # tensorboardX
 from tensorboardX import SummaryWriter
@@ -71,13 +71,15 @@ def setup_model(args, device, exact=True, size_match=True,filters=[8, 12, 16, 20
     else:        
         model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=filters)
     print('model: ', model.__class__.__name__)
-    model = DataParallelWithCallback(model, device_ids=range(args.num_gpu))
+    model = nn.DataParallel(model, device_ids=range(args.num_gpu))
+    patch_replication_callback(model)
     model = model.to(device)
 
     if bool(args.load_model):
         print('Load pretrained model:')
         print(args.pre_model)
-        if exact:
+        if exact: 
+            # exact matching: the weights shape in pretrain model and current model are identical
             model.load_state_dict(torch.load(args.pre_model))
         else:
             pretrained_dict = torch.load(args.pre_model)

@@ -63,11 +63,6 @@ class BaseDataset(torch.utils.data.Dataset):
         self.sample_num_a = np.sum(self.sample_num)
         self.sample_num_c = np.cumsum([0] + list(self.sample_num))
 
-        '''
-        Image augmentation
-        1. self.simple_aug: Simple augmentation, including mirroring and transpose
-        2. self.intensity_aug: Intensity augmentation
-        '''
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
 
@@ -129,7 +124,6 @@ class BaseDataset(torch.utils.data.Dataset):
         if self.label_invalid[did]:
             # need to make sure the center is valid
             seg_bad = np.array([-1]).astype(self.label[did].dtype)[0]
-            #print(seg_bad,self.label[did][tmp_pos[0]+vol_size[0]//2,tmp_pos[1]+vol_size[1]//2,tmp_pos[2]+vol_size[2]//2])
             while self.label[did][tmp_pos[0]+vol_size[0]//2,\
                                   tmp_pos[1]+vol_size[1]//2,\
                                   tmp_pos[2]+vol_size[2]//2] == seg_bad:
