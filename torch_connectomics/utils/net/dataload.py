@@ -24,6 +24,9 @@ def get_input_data(args, pad_size, mode='train'):
     dir_name = args.train.split('@')
     img_name = args.img_name.split('@')
     img_name = [dir_name[0] + x for x in img_name]
+    model_mask = None
+    model_label = None
+
     if mode=='train':
         seg_name = args.seg_name.split('@')
         seg_name = [dir_name[0] + x for x in seg_name]
@@ -62,25 +65,27 @@ def get_input_data(args, pad_size, mode='train'):
                 model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
                 model_mask[i] = model_mask[i].astype(np.float32)
                 model_mask[i] = np.pad(model_mask[i], ((pad_size[0],pad_size[0]),
-                                                         (pad_size[1],pad_size[1]),
-                                                         (pad_size[2],pad_size[2])), 'reflect')
+                                                       (pad_size[1],pad_size[1]),
+                                                       (pad_size[2],pad_size[2])), 'reflect')
                 
                 print(f"mask shape: {model_mask[i].shape}")
                 assert model_input[i].shape == model_mask[i].shape
+                
     return model_input, model_mask, model_label
 
 
 def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
     """Prepare dataloader for training and inference.
     """
-    print('Task: ', TASK_MAP[args.task])
+    print('Task: ', TASK_MAP[args.task], end='\t')
+    print('Mode: ', mode)
     assert mode in ['train', 'test']
 
     pad_size = [int(x) for x in args.model_pad.split(',')]
 
     # 1. load data
     if preload_data[0] is None: # load from command line args
-        model_input, model_mask, model_label = get_input_data(args, pad_size)
+        model_input, model_mask, model_label = get_input_data(args, pad_size, mode=mode)
     else:
         model_input, model_mask, model_label = preload_data
 
@@ -88,7 +93,7 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
     if mode=='train':
         # setup augmentor
         augmentor = Compose([Rotate(p=1.0),
-                             Rescale(p=0.5),
+                             #Rescale(p=0.5),
                              Flip(p=1.0),
                              Elastic(alpha=12.0, p=0.75),
                              Grayscale(p=0.75),
@@ -109,6 +114,7 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
         else:
             sample_input_size = augmentor.sample_size
 
+        # print('sample crop size: ', sample_input_size)
         if args.task == 0: # affininty prediction
             dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
                                       sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
@@ -137,7 +143,7 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
     else:
         # test stride
         if len(args.test_stride)==0: # not defined, do default 50%
-            test_stride = np.maximum(1,model_io_size // 2)
+            test_stride = np.maximum(1, model_io_size // 2)
         else:
             test_stride = [int(x) for x in args.test_stride.split(',')]
         if args.task == 0:

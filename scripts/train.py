@@ -6,6 +6,7 @@ import torch
 
 from torch_connectomics.utils.net import *
 from torch_connectomics.run.train import train
+from torch_connectomics.model.loss import *
 
 def main():
     args = get_args(mode='train')
@@ -21,14 +22,15 @@ def main():
     model = setup_model(args, device)
             
     print('2.1 setup loss function')
-    criterion = WeightedBCE()   
+    # criterion = WeightedBCE()   
+    criterion = WeightedMSE()
     regularization = BinaryReg(alpha=10.0)
  
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 
-                                 eps=1e-08, weight_decay=1e-6, amsgrad=True)
+                                 eps=1e-08, weight_decay=1e-5, amsgrad=True)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, 
-                patience=1000, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, 
+                patience=10000, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, 
                 min_lr=1e-7, eps=1e-08)
     
 

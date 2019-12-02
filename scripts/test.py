@@ -19,7 +19,8 @@ def main():
     model = setup_model(args, device, exact=True)
 
     print('3. start testing')
-    pad_size = model_io_size//2 # 50% overlap 
+    # pad_size = model_io_size // 2 # 50% overlap 
+    pad_size = [int(x) for x in args.model_pad.split(',')]
     test(args, test_loader, model, device, model_io_size, pad_size)
   
     print('4. finish testing')

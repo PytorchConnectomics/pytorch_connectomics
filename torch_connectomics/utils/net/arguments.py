@@ -30,7 +30,7 @@ def get_args(mode='train'):
                         help='Input size of deep network')
     parser.add_argument('-mo','--model-output', type=str,  default='3,116,116',
                         help='Output size of deep network')
-    parser.add_argument('-mp','--model-pad', type=str,  default='0,0,0',
+    parser.add_argument('-mp','--model-pad', type=str,  default='4,128,128',
                         help='Pad size of the input data for maximum usage of gt data')
 
     # model option
@@ -72,6 +72,9 @@ def get_args(mode='train'):
     elif mode == 'test':
         parser.add_argument('--test-stride', type=str, default='',
                             help='stride during inference')
+        parser.add_argument('--test-augmentation', action='store_true', default=False,
+                            help='use data augmentation at test time')
 
     args = parser.parse_args()
+    print(args)
     return args

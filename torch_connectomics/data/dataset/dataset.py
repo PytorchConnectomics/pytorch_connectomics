@@ -16,7 +16,7 @@ class BaseDataset(torch.utils.data.Dataset):
     def __init__(self,
                  volume, label=None,
                  sample_input_size=(8, 64, 64),
-                 sample_label_size=None,
+                 sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),
                  augmentor=None,
                  mode='train'):
@@ -36,8 +36,9 @@ class BaseDataset(torch.utils.data.Dataset):
 
         # samples, channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
-        self.sample_input_size = np.array(sample_input_size)  # model input size
-        self.sample_label_size = np.array(sample_label_size)  # model label size
+        self.sample_input_size = np.array(sample_input_size).astype(int)  # model input size
+        if self.label is not None: 
+            self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=np.float32)

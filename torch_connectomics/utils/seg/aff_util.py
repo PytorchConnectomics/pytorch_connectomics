@@ -1,6 +1,9 @@
 import numpy as np
-from scipy.misc import comb
 import scipy.sparse
+try:  # SciPy >= 0.19
+    from scipy.special import comb, logsumexp
+except ImportError:
+    from scipy.misc import comb, logsumexp  # noqa
 
 def affinitize(img, dst=(1,1,1), dtype=np.float32):
     """

@@ -57,7 +57,7 @@ class SynapseDataset(BaseDataset):
                 if np.sum(out_label) > 100:
                     break
                 else:
-                    if random.random() > 0.90:    
+                    if random.random() > 0.70:    
                         break       
             #pos = self.get_pos_seed(vol_size, seed)
             #out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
@@ -145,11 +145,12 @@ class SynapsePolarityDataset(BaseDataset):
                 if np.sum(np.float32(out_label != 0)) > 200:
                     break
                 else:
-                    if random.random() > 0.90:    
+                    if random.random() > 0.70:    
                         break       
 
             #out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
             out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
+            # print(out_input.shape, out_label.shape)
             # 3. augmentation
             if self.augmentor is not None:  # augmentation
                 data = {'image':out_input, 'label':out_label}

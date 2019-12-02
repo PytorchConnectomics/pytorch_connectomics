@@ -16,7 +16,7 @@ def prepare_data(volume, label, output):
         else:
             return volume, label, output
 
-def visualize(volume, label, output, iteration, writer):
+def visualize(volume, label, output, iteration, writer, composite=False):
     volume, label, output = prepare_data(volume, label, output)
 
     sz = volume.size() # z,c,y,x
@@ -31,6 +31,12 @@ def visualize(volume, label, output, iteration, writer):
     writer.add_image('Input', volume_show, iteration)
     writer.add_image('Label', label_show, iteration)
     writer.add_image('Output', output_show, iteration)
+
+    if composite:
+        composite_1 = torch.max(volume_show, label_show) 
+        composite_2 = torch.max(volume_show, output_show)
+        writer.add_image('Composite_GT', composite_1, iteration)
+        writer.add_image('Composite_PD', composite_2, iteration)
 
 def visualize_aff(volume, label, output, iteration, writer):
     volume, label, output = prepare_data(volume, label, output)

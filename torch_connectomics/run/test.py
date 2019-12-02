@@ -3,7 +3,6 @@ from torch_connectomics.utils.net import *
 
 def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True, do_3d=True, model_output_id=None):
     if do_eval:
-        # switch to eval mode
         model.eval()
     else:
         model.train()
@@ -11,17 +10,19 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
     ww = blend(model_io_size)
     NUM_OUT = args.out_channel
     if len(pad_size)==3:
-        pad_size = [pad_size[0],pad_size[0],pad_size[1],pad_size[1],pad_size[2],pad_size[2]]
+        pad_size = [pad_size[0],pad_size[0],
+                    pad_size[1],pad_size[1],
+                    pad_size[2],pad_size[2]]
 
     result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in test_loader.dataset.input_size]
     weight = [np.zeros(x, dtype=np.float32) for x in test_loader.dataset.input_size]
-    #print(result[0].shape, weight[0].shape)
+    # print(result[0].shape, weight[0].shape)
 
     start = time.time()
 
-    sz = tuple([NUM_OUT]+list(model_io_size))
+    sz = tuple([NUM_OUT] + list(model_io_size))
     with torch.no_grad():
-        for i, (pos, volume) in enumerate(test_loader):
+        for _, (pos, volume) in enumerate(test_loader):
             volume_id += args.batch_size
             print('volume_id:', volume_id)
 
@@ -42,8 +43,6 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
                 st = pos[idx]
                 result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                 st[3]:st[3]+sz[3]] += output[idx] * np.expand_dims(ww, axis=0)
-                # print(idx,st,sz)
-                # import pdb; pdb.set_trace()
                 weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                 st[3]:st[3]+sz[3]] += ww
 
@@ -51,17 +50,20 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
     print("prediction time:", (end-start))
 
     for vol_id in range(len(result)):
+        if result[vol_id].ndim > weight[vol_id].ndim:
+            weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
         result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
         sz = result[vol_id].shape
         result[vol_id] = result[vol_id][:,
                     pad_size[0]:sz[1]-pad_size[1],
                     pad_size[2]:sz[2]-pad_size[3],
                     pad_size[4]:sz[3]-pad_size[5]]
+
     if args.output is None:
         return result
     else:
         print('save h5')
-        hf = h5py.File(args.output,'w')
+        hf = h5py.File(args.output + '/result.h5','w')
         for vol_id in range(len(result)): 
             hf.create_dataset('vol%d'%(vol_id), data=result[vol_id], compression='gzip')
         hf.close()
