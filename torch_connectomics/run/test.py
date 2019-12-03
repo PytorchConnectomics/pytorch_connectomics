@@ -39,9 +39,9 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
             if model_output_id is not None: # select channel
                 output = output[model_output_id]
 
-            for idx in range(output.shape[0]):
-                ii = (volume_id - args.batch_size) + idx
-                save_each(args, volume[idx], output[idx], ii)
+            # for idx in range(output.shape[0]):
+            #     ii = (volume_id - args.batch_size) + idx
+            #     save_each(args, volume[idx], output[idx], ii, pos[idx])
             
             for idx in range(output.shape[0]):
                 st = pos[idx]
@@ -130,7 +130,7 @@ def inference_aug16(model, data, mode= 'min'):
 #    utils
 # -----------------------
 
-def save_each(args, volume, output, idx):
+def save_each(args, volume, output, idx, pos):
     # volume: (C,Z,Y,X)
     volume = volume.cpu().detach().numpy()
     volume = np.concatenate([volume, volume, volume], 0).transpose((1, 2, 3, 0))
@@ -141,3 +141,9 @@ def save_each(args, volume, output, idx):
     hf = h5py.File(args.output + '/composite_%d.h5' % (idx), 'w')
     hf.create_dataset('main', data=composite)
     hf.close()
+
+    fl = open(args.output + '/pos.txt', 'a+')
+    for x in pos:
+        fl.write('%d\t' % x)
+    fl.write('%d\n' % idx)
+    fl.close()
