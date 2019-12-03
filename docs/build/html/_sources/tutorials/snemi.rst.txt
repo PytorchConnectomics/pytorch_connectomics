@@ -45,7 +45,7 @@ is :class:`torch_connectomics.data.dataset.AffinityDataset`.
     .. code-block:: none
 
         $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python rain.py -t /path/to/snemi/ \
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py -t /path/to/snemi/ \
           -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
           --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
           -g 4 -c 4 -b 8 -ac unetv3

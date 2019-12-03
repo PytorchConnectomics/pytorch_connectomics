@@ -243,7 +243,7 @@ is <a class="reference internal" href="../modules/datasets.html#torch_connectomi
 <li><p class="first">Run the training script:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python rain.py -t /path/to/snemi/ \
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py -t /path/to/snemi/ \
   -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
   --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
   -g 4 -c 4 -b 8 -ac unetv3

@@ -243,7 +243,7 @@
                 <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">out_label</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">:</span>
                     <span class="k">break</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.90</span><span class="p">:</span>    
+                    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.70</span><span class="p">:</span>    
                         <span class="k">break</span>       
             <span class="c1">#pos = self.get_pos_seed(vol_size, seed)</span>
             <span class="c1">#out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])</span>
@@ -331,11 +331,12 @@
                 <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">out_label</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">))</span> <span class="o">&gt;</span> <span class="mi">200</span><span class="p">:</span>
                     <span class="k">break</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.90</span><span class="p">:</span>    
+                    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.70</span><span class="p">:</span>    
                         <span class="k">break</span>       
 
             <span class="c1">#out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])</span>
             <span class="n">out_input</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">input</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="n">vol_size</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="c1"># print(out_input.shape, out_label.shape)</span>
             <span class="c1"># 3. augmentation</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># augmentation</span>
                 <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span><span class="n">out_input</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span><span class="n">out_label</span><span class="p">}</span>

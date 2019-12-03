@@ -105,7 +105,7 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
         augmentor = None
 
     print('data augmentation: ', augmentor is not None)
-    SHUFFLE = (mode=='train')
+    SHUFFLE = (mode == 'train')
     print('batch size: ', args.batch_size)
 
     if mode=='train':
@@ -146,6 +146,7 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
             test_stride = np.maximum(1, model_io_size // 2)
         else:
             test_stride = [int(x) for x in args.test_stride.split(',')]
+
         if args.task == 0:
             dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=model_io_size, \
                                       sample_label_size=None, sample_stride=test_stride, \
@@ -169,6 +170,7 @@ def get_input(args, model_io_size, mode='train', preload_data=[None,None,None]):
 
         img_loader =  torch.utils.data.DataLoader(
                 dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
-                num_workers=args.num_cpu, pin_memory=True)                  
+                num_workers=args.num_cpu, pin_memory=True) 
+                                 
         return img_loader
 

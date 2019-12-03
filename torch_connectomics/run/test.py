@@ -40,6 +40,10 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
                 output = output[model_output_id]
 
             for idx in range(output.shape[0]):
+                ii = (volume_id - args.batch_size) + idx
+                save_each(args, volume[idx], output[idx], ii)
+            
+            for idx in range(output.shape[0]):
                 st = pos[idx]
                 result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                 st[3]:st[3]+sz[3]] += output[idx] * np.expand_dims(ww, axis=0)
@@ -67,7 +71,6 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
         for vol_id in range(len(result)): 
             hf.create_dataset('vol%d'%(vol_id), data=result[vol_id], compression='gzip')
         hf.close()
-
 
 def inference_aug16(model, data, mode= 'min'):
     out = None
@@ -122,3 +125,19 @@ def inference_aug16(model, data, mode= 'min'):
         out = out/cc
 
     return out
+
+# -----------------------
+#    utils
+# -----------------------
+
+def save_each(args, volume, output, idx):
+    # volume: (C,Z,Y,X)
+    volume = volume.cpu().detach().numpy()
+    volume = np.concatenate([volume, volume, volume], 0).transpose((1, 2, 3, 0))
+    output = output.transpose((1, 2, 3, 0))
+    composite = np.maximum(volume, output)
+    composite = (composite*255).astype(np.uint8)
+
+    hf = h5py.File(args.output + '/composite_%d.h5' % (idx), 'w')
+    hf.create_dataset('main', data=composite)
+    hf.close()

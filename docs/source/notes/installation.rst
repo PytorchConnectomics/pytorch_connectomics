@@ -14,16 +14,16 @@ Please follow the steps below for a successful installation:
 
     .. code-block:: none
 
-        $ conda create -n py3_torch python=3.6
+        $ conda create -n py3_torch python=3.7
         $ source activate py3_torch
-        $ conda install pytorch torchvision cudatoolkit=9.0 -c pytorch
+        $ conda install pytorch torchvision cudatoolkit=9.2 -c pytorch
 
-#. Ensure that at least PyTorch 1.0.0 is installed:
+#. Ensure that at least PyTorch 1.3.0 is installed:
 
     .. code-block:: none
 
         $ python -c 'import torch; print(torch.__version__)'
-        >>> 1.0.0
+        >>> 1.3.0
 
 #. Ensure CUDA is setup correctly (optional):
 
@@ -51,17 +51,17 @@ Please follow the steps below for a successful installation:
         .. code-block:: none
 
             $ nvcc --version
-            >>> 9.0
+            >>> 9.2
 
     #. Ensure that PyTorch and system CUDA versions match:
 
         .. code-block:: none
 
             $ python -c 'import torch; print(torch.version.cuda)'
-            >>> 9.0
+            >>> 9.2
 
             $ nvcc --version
-            >>> 9.0
+            >>> 9.2
 
 #. Download and install the package:
 
@@ -72,6 +72,7 @@ Please follow the steps below for a successful installation:
         $ pip install -r requirements.txt
         $ pip install --editable .
 
+.. note::
     If you meet compilation errors, please check the `TROUBLESHOOTING.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md>`_.
     It is highly recommended to first play with the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_ scripts to make sure that
     the installation is correct and also have intial taste of the modules.
