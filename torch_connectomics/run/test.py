@@ -110,7 +110,7 @@ def inference_aug16(model, data, mode='min', num_aug=4):
         if yflip:
             vout = vout[:,:, :, ::-1]
         if xflip:
-            vout = vout[:,:, :, :, :, ::-1]
+            vout = vout[:,:, :, :, ::-1]
         if out is None:
             if mode == 'min':
                 out = np.ones(vout.shape,dtype=np.float32)
