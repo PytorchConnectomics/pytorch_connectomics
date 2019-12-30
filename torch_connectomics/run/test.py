@@ -1,18 +1,19 @@
 import numpy as np
-from torch_connectomics.utils.net import *
+from torch_connectomics.utils.io import *
 
-def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True, do_3d=True, model_output_id=None):
+def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None):
     if do_eval:
         model.eval()
     else:
         model.train()
     volume_id = 0
-    ww = blend(model_io_size)
+    ww = blend(args.test_size)
     NUM_OUT = args.out_channel
-    if len(pad_size)==3:
-        pad_size = [pad_size[0],pad_size[0],
-                    pad_size[1],pad_size[1],
-                    pad_size[2],pad_size[2]]
+    pad_size = args.pad_size
+    if len(args.pad_size)==3:
+        pad_size = [args.pad_size[0],args.pad_size[0],
+                    args.pad_size[1],args.pad_size[1],
+                    args.pad_size[2],args.pad_size[2]]
 
     result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in test_loader.dataset.input_size]
     weight = [np.zeros(x, dtype=np.float32) for x in test_loader.dataset.input_size]
@@ -20,31 +21,28 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
 
     start = time.time()
 
-    sz = tuple([NUM_OUT] + list(model_io_size))
+    sz = tuple([NUM_OUT] + list(args.test_size))
     with torch.no_grad():
         for _, (pos, volume) in enumerate(test_loader):
             volume_id += args.batch_size
             print('volume_id:', volume_id)
 
             # for gpu computing
-            volume = volume.to(device)
+            volume = volume.to(args.device)
             if not do_3d:
                 volume = volume.squeeze(1)
 
-            if args.test_augmentation:
-                output = inference_aug16(model, volume, mode= 'mean')
+            if args.test_aug_num!=0:
+                output = inference_aug16(model, volume,args.test_aug_mode, args.test_aug_num)
             else:
                 output = model(volume).cpu().detach().numpy()
 
             if model_output_id is not None: # select channel
                 output = output[model_output_id]
 
-            # for idx in range(output.shape[0]):
-            #     ii = (volume_id - args.batch_size) + idx
-            #     save_each(args, volume[idx], output[idx], ii, pos[idx])
-            
             for idx in range(output.shape[0]):
                 st = pos[idx]
+                print(st)
                 result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                 st[3]:st[3]+sz[3]] += output[idx] * np.expand_dims(ww, axis=0)
                 weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
@@ -72,11 +70,15 @@ def test(args, test_loader, model, device, model_io_size, pad_size, do_eval=True
             hf.create_dataset('vol%d'%(vol_id), data=result[vol_id], compression='gzip')
         hf.close()
 
-def inference_aug16(model, data, mode= 'min'):
+def inference_aug16(model, data, mode='min', num_aug=4):
     out = None
     cc = 0
-    for xflip, yflip, zflip, transpose in itertools.product(
-                    (False, ), (False, True), (False, True), (False, )):
+    if num_aug ==4:
+        opts = itertools.product((False, ), (False, True), (False, True), (False, ))
+    else:
+        opts = itertools.product((False, True), (False, True), (False, True), (False, True))
+
+    for xflip, yflip, zflip, transpose in opts:
         extension = ""
         if transpose:
             extension += "t"
@@ -118,9 +120,7 @@ def inference_aug16(model, data, mode= 'min'):
             out = np.minimum(out,vout)
         elif mode == 'mean':
             out += vout
-
         cc+=1
-
     if mode == 'mean':
         out = out/cc
 
@@ -129,6 +129,17 @@ def inference_aug16(model, data, mode= 'min'):
 # -----------------------
 #    utils
 # -----------------------
+def blend(sz, sigma=1, mu=0.0):  
+    """
+    Gaussian blending
+    """
+    zz, yy, xx = np.meshgrid(np.linspace(-1,1,sz[0], dtype=np.float32), 
+                                np.linspace(-1,1,sz[1], dtype=np.float32),
+                                np.linspace(-1,1,sz[2], dtype=np.float32), indexing='ij')
+    dd = np.sqrt(zz*zz + yy*yy + xx*xx)
+    ww = 1e-4 + np.exp(-( (dd-mu)**2 / ( 2.0 * sigma**2 )))
+
+    return ww
 
 def save_each(args, volume, output, idx, pos):
     # volume: (C,Z,Y,X)

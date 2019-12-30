@@ -1,23 +1,23 @@
 from torch_connectomics.model.loss import *
 from torch_connectomics.utils.vis import visualize, visualize_aff
-from torch_connectomics.utils.net import *
+from torch_connectomics.utils.io import *
 import numpy as np
 
-def train(args, train_loader, model, device, criterion, 
+def train(args, train_loader, model, criterion, 
           optimizer, scheduler, logger, writer, regularization=None):
     record = AverageMeter()
     model.train()
 
     # for iteration, (_, volume, label, class_weight, _) in enumerate(train_loader):
+    optimizer.zero_grad()
     for iteration, batch in enumerate(train_loader):
 
         if args.task == 22:
             _, volume, seg_mask, class_weight, _, label, out_skeleton = batch
         else:
             _, volume, label, class_weight, _ = batch
-        volume, label = volume.to(device), label.to(device)
-#        seg_mask = seg_mask.to(device)
-        class_weight = class_weight.to(device)
+        volume, label = volume.to(args.device), label.to(args.device)
+        class_weight = class_weight.to(args.device)
         output = model(volume)
 
         if regularization is not None:
@@ -27,9 +27,10 @@ def train(args, train_loader, model, device, criterion,
         record.update(loss, args.batch_size) 
 
         # compute gradient and do Adam step
-        optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        if (iteration+1) % args.iteration_step == 0:
+            optimizer.step()
+            optimizer.zero_grad()
 
         logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iteration, \
                 loss.item(), optimizer.param_groups[0]['lr']))

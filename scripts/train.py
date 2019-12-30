@@ -4,7 +4,7 @@ import h5py, time, itertools, datetime
 
 import torch
 
-from torch_connectomics.utils.net import *
+from torch_connectomics.utils.io import *
 from torch_connectomics.run.train import train
 from torch_connectomics.model.loss import *
 
@@ -12,14 +12,13 @@ def main():
     args = get_args(mode='train')
 
     print('0. initial setup')
-    model_io_size, device = init(args) 
     logger, writer = get_logger(args)
 
     print('1. setup data')
-    train_loader = get_input(args, model_io_size, 'train')
+    train_loader = get_dataloader(args, 'train')
 
     print('2.0 setup model')
-    model = setup_model(args, device)
+    model = get_model(args)
             
     print('2.1 setup loss function')
     # criterion = WeightedBCE()   
@@ -35,7 +34,7 @@ def main():
     
 
     print('4. start training')
-    train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer)
+    train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
   
     print('5. finish training')
     logger.close()
