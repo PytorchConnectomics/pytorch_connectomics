@@ -43,8 +43,6 @@ def get_args(mode='train'):
                         help='number of filters per unet block')
 
     # model option
-    parser.add_argument('-lm','--load-model', type=bool, default=False,
-                        help='Use pre-trained model')                
     parser.add_argument('-pm','--pre-model', type=str, default='',
                         help='Pre-trained model path')      
     parser.add_argument('--out-channel', type=int, default=3,
@@ -65,8 +63,8 @@ def get_args(mode='train'):
         parser.add_argument('-vm','--valid-mask', default=None,
                             help='Mask for the train images')
 
-        parser.add_argument('-ft','--finetune', type=bool, default=False,
-                            help='Fine-tune on previous model [Default: False]')
+        parser.add_argument('-ft','--finetune', type=str, default='',
+                            help='Fine-tune suffix for model saving')
 
         # optimization option
         parser.add_argument('-lt', '--loss', type=int, default=1,

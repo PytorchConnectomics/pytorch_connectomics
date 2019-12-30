@@ -59,7 +59,7 @@ def train(args, train_loader, model, criterion,
 
         #Save model
         if iteration % args.iteration_save == 0 or iteration >= args.iteration_total:
-            torch.save(model.state_dict(), args.output+('/volume_%d.pth' % (iteration)))
+            torch.save(model.state_dict(), args.output+('/volume_%d%s.pth' % (iteration, args.finetune)))
 
         # Terminate
         if iteration >= args.iteration_total:

@@ -21,9 +21,8 @@ def get_model(args, exact=True, size_match=True):
     patch_replication_callback(model)
     model = model.to(args.device)
 
-    if bool(args.load_model):
-        print('Load pretrained model:')
-        print(args.pre_model)
+    if args.pre_model!='':
+        print('Load pretrained model:',args.pre_model)
         if exact: 
             # exact matching: the weights shape in pretrain model and current model are identical
             model.load_state_dict(torch.load(args.pre_model))
