@@ -69,7 +69,7 @@ def get_args(mode='train'):
                             help='Fine-tune suffix for model saving')
 
         # optimization option
-        parser.add_argument('-lt', '--loss', type=int, default=1,
+        parser.add_argument('-lt', '--loss-type', type=int, default=0,
                             help='Loss function')
         parser.add_argument('-lr', type=float, default=0.0001,
                             help='Learning rate')

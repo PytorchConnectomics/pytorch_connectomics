@@ -4,6 +4,13 @@ import torch.nn as nn
 from torch_connectomics.model.model_zoo import *
 from torch_connectomics.libs.sync import patch_replication_callback
 
+def get_criterion(args):
+    if args.task == 0:
+        if args.loss_type==0:
+            return WeightedMSE()
+        elif args.loss_type==1:
+            return WeightedBCE()   
+
 def get_model(args, exact=True, size_match=True):
     MODEL_MAP = {'unetv0': unetv0,
                  'unetv1': unetv1,

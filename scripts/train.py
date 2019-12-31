@@ -21,9 +21,8 @@ def main():
     model = get_model(args)
             
     print('2.1 setup loss function')
-    # criterion = WeightedBCE()   
-    criterion = WeightedMSE()
- 
+    criterion = get_criterion(args)
+
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 
                                  eps=1e-08, weight_decay=1e-5, amsgrad=True)
@@ -31,7 +30,6 @@ def main():
                 patience=10000, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, 
                 min_lr=1e-7, eps=1e-08)
     
-
     print('4. start training')
     train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
   
