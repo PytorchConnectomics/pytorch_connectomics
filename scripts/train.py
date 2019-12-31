@@ -23,7 +23,6 @@ def main():
     print('2.1 setup loss function')
     # criterion = WeightedBCE()   
     criterion = WeightedMSE()
-    regularization = BinaryReg(alpha=10.0)
  
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 

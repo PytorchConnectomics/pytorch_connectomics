@@ -13,6 +13,7 @@ from torch_connectomics.data.dataset import SynapseDataset, SynapsePolarityDatas
 from torch_connectomics.data.dataset import MitoDataset, MitoSkeletonDataset
 from torch_connectomics.data.utils import collate_fn, collate_fn_test, collate_fn_skel
 from torch_connectomics.data.augmentation import *
+from torch_connectomics.libs.seg.seg_util import widen_border3
 
 TASK_MAP = {0: 'neuron segmentation',
             1: 'synapse detection',
@@ -60,7 +61,7 @@ def get_data(args, mode='train'):
             if (args.data_scale!=1).any():
                 model_label[i] = zoom(model_label[i], args.data_scale, order=0) 
             if args.label_erosion!=0:
-                model_label[i] = gtPreprocess(model_label[i],args.label_erosion)
+                model_label[i] = widen_border3(model_label[i],args.label_erosion)
             model_label[i] = np.pad(model_label[i], ((args.pad_size[0],args.pad_size[0]), 
                                                      (args.pad_size[1],args.pad_size[1]), 
                                                      (args.pad_size[2],args.pad_size[2])), 'reflect')
@@ -177,35 +178,4 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None]):
         return img_loader
 
 
-def im2col(A, BSZ, stepsize=1):
-    # Parameters
-    M,N = A.shape
-    # Get Starting block indices
-    start_idx = np.arange(0,M-BSZ[0]+1,stepsize)[:,None]*N + np.arange(0,N-BSZ[1]+1,stepsize)
-    # Get offsetted indices across the height and width of input array
-    offset_idx = np.arange(BSZ[0])[:,None]*N + np.arange(BSZ[1])
-    # Get all actual indices & index into input array for final output
-    return np.take(A,start_idx.ravel()[:,None] + offset_idx.ravel())
 
-def gtPreprocess(seg, tsz_h=1):
-    # Kisuk Lee's thesis (A.1.4) 
-    # we preprocessed the ground truth segmentation such that any voxel centered on a 3 × 3 × 1 window containing more than one positive segment ID (zero is reserved for background) is marked as background
-    # seg=0: background
-    tsz = 2*tsz_h+1
-    sz = seg.shape
-    if len(sz)==3:
-        for z in range(sz[0]):
-            mm = seg[z].max()
-            patch = im2col(np.pad(seg[z],((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
-            p0=patch.max(axis=1)
-            patch[patch==0] = mm+1
-            p1=patch.min(axis=1)
-            seg[z] =seg[z]*((p0==p1).reshape(sz[1:]))
-    else:
-        mm = seg.max()
-        patch = im2col(np.pad(seg,((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
-        p0=patch.max(axis=1)
-        patch[patch==0] = mm+1
-        p1=patch.min(axis=1)
-        seg =seg*((p0==p1).reshape(sz[1:]))
-    return seg

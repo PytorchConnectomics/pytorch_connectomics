@@ -32,38 +32,41 @@ def train(args, train_loader, model, criterion,
             optimizer.step()
             optimizer.zero_grad()
 
-        logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iteration, \
-                loss.item(), optimizer.param_groups[0]['lr']))
-        logger.flush()
 
-        if iteration+1 % 10 == 0:
-            writer.add_scalar('Loss', record.avg, iteration)
-            print('[Iteration %d] train_loss=%0.4f lr=%.6f' % (iteration, \
+        if (iteration+1) % 10 == 0:
+            print('[Iteration %d] train_loss=%0.4f lr=%.5f' % (iteration, \
                   record.avg, optimizer.param_groups[0]['lr']))
+
+            writer.add_scalar('Loss', record.avg, iteration)
+
+            # if tensorboard not available
+            #logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iteration, \
+            #        loss.item(), optimizer.param_groups[0]['lr']))
+            #logger.flush()
+
             scheduler.step(record.avg)
             record.reset()
             
-            if args.task == 0:
-                visualize_aff(volume, label, output, iteration, writer)
-            elif args.task == 1 or args.task == 2 or args.task == 22:
-                visualize(volume, label, output, iteration, writer)
-            elif args.task == 11:
-                visualize(volume, label, output, iteration, writer, composite=True)
-            #print('weight factor: ', weight_factor) # debug
-            # debug
-            # if iteration < 50:
-            #     fl = h5py.File('debug_%d_h5' % (iteration), 'w')
-            #     output = label[0].cpu().detach().numpy().astype(np.uint8)
-            #     print(output.shape)
-            #     fl.create_dataset('main', data=output)
-            #     fl.close()
+            if (iteration+1) % 100 == 0:
+                if args.task == 0:
+                    visualize_aff(volume, label, output, iteration, writer)
+                elif args.task == 1 or args.task == 2 or args.task == 22:
+                    visualize(volume, label, output, iteration, writer)
+                elif args.task == 11:
+                    visualize(volume, label, output, iteration, writer, composite=True)
+                #print('weight factor: ', weight_factor) # debug
+                # debug
+                # if iteration < 50:
+                #     fl = h5py.File('debug_%d_h5' % (iteration), 'w')
+                #     output = label[0].cpu().detach().numpy().astype(np.uint8)
+                #     print(output.shape)
+                #     fl.create_dataset('main', data=output)
+                #     fl.close()
 
         #Save model
-        if iteration % args.iteration_save == 0 or iteration >= args.iteration_total:
+        if (iteration+1) % args.iteration_save == 0 or iteration >= args.iteration_total:
             torch.save(model.state_dict(), args.output+('/volume_%d%s.pth' % (iteration, args.finetune)))
 
         # Terminate
         if iteration >= args.iteration_total:
             break    #     
-
-

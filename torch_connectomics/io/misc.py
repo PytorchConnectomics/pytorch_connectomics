@@ -29,7 +29,7 @@ def get_logger(args):
     log_name = args.output+'/log'
     date = str(datetime.datetime.now()).split(' ')[0]
     time = str(datetime.datetime.now()).split(' ')[1].split('.')[0]
-    log_name += '_approx_'+date+'_'+time
+    log_name += date+'_'+time
     logger = open(log_name+'.txt','w') # unbuffered, write instantly
 
     # tensorboardX

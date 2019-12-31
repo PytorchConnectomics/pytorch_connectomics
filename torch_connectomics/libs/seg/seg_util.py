@@ -157,24 +157,6 @@ def fill_data(shape, filler={'type':'zero'}, dtype='float32'):
         raise RuntimeError('invalid filler type [%s]' % filler['type'])
     return data
 
-# def genSegMalis(gg3, iter_num): # given input seg map, widen the seg border
-#     gg3_dz = np.zeros(gg3.shape).astype(np.uint32)
-#     gg3_dz[1:,:,:] = (np.diff(gg3, axis=0))
-#     gg3_dy = np.zeros(gg3.shape).astype(np.uint32)
-#     gg3_dy[:,1:,:] = (np.diff(gg3, axis=1))
-#     gg3_dx = np.zeros(gg3.shape).astype(np.uint32)
-#     gg3_dx[:,:,1:] = (np.diff(gg3, axis=2))
-#     gg3g = ((gg3_dx+gg3_dy)>0)
-#     #stel=np.array([[1, 1],[1,1]]).astype(bool)
-#     stel = np.array([[1,1,1], [1,1,1], [1,1,1]]).astype(bool)
-#     #stel=np.array([[1,1,1,1],[1, 1, 1, 1],[1,1,1,1],[1,1,1,1]]).astype(bool)
-#     gg3gd=np.zeros(gg3g.shape)
-#     for i in range(gg3g.shape[0]):
-#         gg3gd[i,:,:]=binary_dilation(gg3g[i,:,:], structure=stel, iterations=iter_num)
-#     out = gg3.copy()
-#     out[gg3gd==1]=0
-#     return out
-
 def widen_border1(gg3, iter_num): # given input seg map, widen the seg border
     gg3_dz = np.zeros(gg3.shape).astype(np.uint32)
     gg3_dz[1:,:,:] = np.abs(np.diff(gg3, axis=0))
@@ -211,6 +193,39 @@ def widen_border2(seg, iter_num): # given input seg map, widen the seg border
     out = seg.copy()
     out[np.where(seg!=temp)] = 0
     return out
+
+def im2col(A, BSZ, stepsize=1):
+    # Parameters
+    M,N = A.shape
+    # Get Starting block indices
+    start_idx = np.arange(0,M-BSZ[0]+1,stepsize)[:,None]*N + np.arange(0,N-BSZ[1]+1,stepsize)
+    # Get offsetted indices across the height and width of input array
+    offset_idx = np.arange(BSZ[0])[:,None]*N + np.arange(BSZ[1])
+    # Get all actual indices & index into input array for final output
+    return np.take(A,start_idx.ravel()[:,None] + offset_idx.ravel())
+
+def widen_border3(seg, tsz_h=1):
+    # Kisuk Lee's thesis (A.1.4) 
+    # we preprocessed the ground truth segmentation such that any voxel centered on a 3 × 3 × 1 window containing more than one positive segment ID (zero is reserved for background) is marked as background
+    # seg=0: background
+    tsz = 2*tsz_h+1
+    sz = seg.shape
+    if len(sz)==3:
+        for z in range(sz[0]):
+            mm = seg[z].max()
+            patch = im2col(np.pad(seg[z],((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+            p0=patch.max(axis=1)
+            patch[patch==0] = mm+1
+            p1=patch.min(axis=1)
+            seg[z] =seg[z]*((p0==p1).reshape(sz[1:]))
+    else:
+        mm = seg.max()
+        patch = im2col(np.pad(seg,((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+        p0=patch.max(axis=1)
+        patch[patch==0] = mm+1
+        p1=patch.min(axis=1)
+        seg =seg*((p0==p1).reshape(sz[1:]))
+    return seg
 
 def markInvalid(seg, iter_num=2, do_2d=True):
     # find invalid 
