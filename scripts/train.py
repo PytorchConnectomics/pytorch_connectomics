@@ -4,7 +4,7 @@ import h5py, time, itertools, datetime
 
 import torch
 
-from torch_connectomics.utils.io import *
+from torch_connectomics.io import *
 from torch_connectomics.run.train import train
 from torch_connectomics.model.loss import *
 

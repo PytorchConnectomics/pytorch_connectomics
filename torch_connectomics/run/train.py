@@ -1,6 +1,6 @@
 from torch_connectomics.model.loss import *
-from torch_connectomics.utils.vis import visualize, visualize_aff
-from torch_connectomics.utils.io import *
+from torch_connectomics.libs.vis import visualize, visualize_aff
+from torch_connectomics.io import *
 import numpy as np
 
 def train(args, train_loader, model, criterion, 
@@ -34,8 +34,9 @@ def train(args, train_loader, model, criterion,
 
         logger.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iteration, \
                 loss.item(), optimizer.param_groups[0]['lr']))
+        logger.flush()
 
-        if iteration % 10 == 0 and iteration >= 1:
+        if iteration+1 % 10 == 0:
             writer.add_scalar('Loss', record.avg, iteration)
             print('[Iteration %d] train_loss=%0.4f lr=%.6f' % (iteration, \
                   record.avg, optimizer.param_groups[0]['lr']))

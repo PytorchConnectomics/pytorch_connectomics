@@ -25,21 +25,20 @@ def get_data(args, mode='train'):
     dir_name = args.train.split('@')
     img_name = args.img_name.split('@')
     img_name = [dir_name[0] + x for x in img_name]
-    data_scale = np.array([int(x) for x in args.data_scale.split(',')])
     model_mask = None
     model_label = None
 
     if mode=='train':
-        seg_name = args.seg_name.split('@')
-        seg_name = [dir_name[0] + x for x in seg_name]
+        label_name = args.label_name.split('@')
+        label_name = [dir_name[0] + x for x in label_name]
         if args.valid_mask is not None:
             mask_names = args.valid_mask.split('@')
             mask_locations = [dir_name[0] + x for x in mask_names]
 
     model_input = [None]*len(img_name)
     if mode=='train':
-        assert len(img_name)==len(seg_name)
-        model_label = [None]*len(seg_name)
+        assert len(img_name)==len(label_name)
+        model_label = [None]*len(label_name)
         if args.valid_mask is not None:
             assert len(img_name) == len(mask_locations)
             model_mask = [None] * len(mask_locations)
@@ -48,18 +47,20 @@ def get_data(args, mode='train'):
     for i in range(len(img_name)):
         model_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])/255.0
         model_input[i] = model_input[i].astype(np.float32)
-        if (data_scale!=1).any():
-            model_input[i] = zoom(model_input[i], data_scale, order=1) 
+        if (args.data_scale!=1).any():
+            model_input[i] = zoom(model_input[i], args.data_scale, order=1) 
         model_input[i] = np.pad(model_input[i], ((args.pad_size[0],args.pad_size[0]), 
                                                  (args.pad_size[1],args.pad_size[1]), 
                                                  (args.pad_size[2],args.pad_size[2])), 'reflect')
         print(f"volume shape: {model_input[i].shape}")
 
         if mode=='train':
-            model_label[i] = np.array(h5py.File(seg_name[i], 'r')['main'])
+            model_label[i] = np.array(h5py.File(label_name[i], 'r')['main'])
             model_label[i] = model_label[i].astype(np.float32)
-            if (data_scale!=1).any():
-                model_label[i] = zoom(model_label[i], data_scale, order=0) 
+            if (args.data_scale!=1).any():
+                model_label[i] = zoom(model_label[i], args.data_scale, order=0) 
+            if args.label_erosion!=0:
+                model_label[i] = gtPreprocess(model_label[i],args.label_erosion)
             model_label[i] = np.pad(model_label[i], ((args.pad_size[0],args.pad_size[0]), 
                                                      (args.pad_size[1],args.pad_size[1]), 
                                                      (args.pad_size[2],args.pad_size[2])), 'reflect')
@@ -70,8 +71,8 @@ def get_data(args, mode='train'):
             if args.valid_mask is not None:
                 model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
                 model_mask[i] = model_mask[i].astype(np.float32)
-                if (data_scale!=1).any():
-                    model_mask[i] = zoom(model_mask[i], data_scale, order=0) 
+                if (args.data_scale!=1).any():
+                    model_mask[i] = zoom(model_mask[i], args.data_scale, order=0) 
                 model_mask[i] = np.pad(model_mask[i], ((args.pad_size[0],args.pad_size[0]),
                                                        (args.pad_size[1],args.pad_size[1]),
                                                        (args.pad_size[2],args.pad_size[2])), 'reflect')
@@ -175,3 +176,36 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None]):
                                  
         return img_loader
 
+
+def im2col(A, BSZ, stepsize=1):
+    # Parameters
+    M,N = A.shape
+    # Get Starting block indices
+    start_idx = np.arange(0,M-BSZ[0]+1,stepsize)[:,None]*N + np.arange(0,N-BSZ[1]+1,stepsize)
+    # Get offsetted indices across the height and width of input array
+    offset_idx = np.arange(BSZ[0])[:,None]*N + np.arange(BSZ[1])
+    # Get all actual indices & index into input array for final output
+    return np.take(A,start_idx.ravel()[:,None] + offset_idx.ravel())
+
+def gtPreprocess(seg, tsz_h=1):
+    # Kisuk Lee's thesis (A.1.4) 
+    # we preprocessed the ground truth segmentation such that any voxel centered on a 3 × 3 × 1 window containing more than one positive segment ID (zero is reserved for background) is marked as background
+    # seg=0: background
+    tsz = 2*tsz_h+1
+    sz = seg.shape
+    if len(sz)==3:
+        for z in range(sz[0]):
+            mm = seg[z].max()
+            patch = im2col(np.pad(seg[z],((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+            p0=patch.max(axis=1)
+            patch[patch==0] = mm+1
+            p1=patch.min(axis=1)
+            seg[z] =seg[z]*((p0==p1).reshape(sz[1:]))
+    else:
+        mm = seg.max()
+        patch = im2col(np.pad(seg,((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+        p0=patch.max(axis=1)
+        patch[patch==0] = mm+1
+        p1=patch.min(axis=1)
+        seg =seg*((p0==p1).reshape(sz[1:]))
+    return seg

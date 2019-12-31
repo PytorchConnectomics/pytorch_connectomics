@@ -1,5 +1,5 @@
 import numpy as np
-from torch_connectomics.utils.io import *
+from torch_connectomics.io import *
 
 def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None):
     if do_eval:

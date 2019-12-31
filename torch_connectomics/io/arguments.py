@@ -57,8 +57,10 @@ def get_args(mode='train'):
                         help='Batch size')
 
     if mode == 'train':
-        parser.add_argument('-ln','--seg-name',  default='seg-groundtruth2-malis.h5',
+        parser.add_argument('-ln','--label-name',  default='seg-groundtruth2-malis.h5',
                             help='Ground-truth label path')
+        parser.add_argument('-le','--label-erosion', type=int,  default=0,
+                            help='Half Patch size for 2D label erosion')
 
         parser.add_argument('-vm','--valid-mask', default=None,
                             help='Mask for the train images')
@@ -105,6 +107,8 @@ def get_args(mode='train'):
         args.pad_size = [int(x) for x in args.data_pad.split(',')]
 
     args.filters = [int(x) for x in args.model_filters.split(',')]
+
+    args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
 
     if mode == 'test':
         # test stride

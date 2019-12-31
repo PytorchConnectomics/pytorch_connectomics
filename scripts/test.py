@@ -2,7 +2,7 @@ import os,sys
 import numpy as np
 import torch
 import h5py, time, itertools, datetime
-from torch_connectomics.utils.io import *
+from torch_connectomics.io import *
 from torch_connectomics.run.test import test
 
 def main():

@@ -5,7 +5,6 @@ from scipy import ndimage
 
 import torchvision.utils as vutils
 
-
 # tensorboardX
 from tensorboardX import SummaryWriter
 
@@ -26,8 +25,6 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-# functions
-
 def get_logger(args):
     log_name = args.output+'/log'
     date = str(datetime.datetime.now()).split(' ')[0]
@@ -38,5 +35,4 @@ def get_logger(args):
     # tensorboardX
     writer = SummaryWriter('runs/'+log_name)
     return logger, writer
-
 
