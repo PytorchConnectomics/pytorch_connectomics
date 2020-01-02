@@ -8,32 +8,32 @@ def getExt():
     # extensions under segmenation/
     return [
         Extension(
-            name='torch_connectomics.utils.seg.seg_dist',
-            sources=['torch_connectomics/utils/seg/seg_dist.pyx',
-                     'torch_connectomics/utils/seg/cpp/seg_dist/cpp-distance.cpp'],
+            name='torch_connectomics.libs.seg.seg_dist',
+            sources=['torch_connectomics/libs/seg/seg_dist.pyx',
+                     'torch_connectomics/libs/seg/cpp/seg_dist/cpp-distance.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         ),
         Extension(
-            name='torch_connectomics.utils.seg.seg_core',
-            sources=['torch_connectomics/utils/seg/seg_core.pyx',
-                     'torch_connectomics/utils/seg/cpp/seg_core/cpp-seg2seg.cpp',
-                     'torch_connectomics/utils/seg/cpp/seg_core/cpp-seg2gold.cpp',
-                     'torch_connectomics/utils/seg/cpp/seg_core/cpp-seg_core.cpp'],
+            name='torch_connectomics.libs.seg.seg_core',
+            sources=['torch_connectomics/libs/seg/seg_core.pyx',
+                     'torch_connectomics/libs/seg/cpp/seg_core/cpp-seg2seg.cpp',
+                     'torch_connectomics/libs/seg/cpp/seg_core/cpp-seg2gold.cpp',
+                     'torch_connectomics/libs/seg/cpp/seg_core/cpp-seg_core.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         ),
         Extension(
-            name='torch_connectomics.utils.seg.seg_eval',
-            sources=['torch_connectomics/utils/seg/seg_eval.pyx',
-                     'torch_connectomics/utils/seg/cpp/seg_eval/cpp-comparestacks.cpp'],
+            name='torch_connectomics.libs.seg.seg_eval',
+            sources=['torch_connectomics/libs/seg/seg_eval.pyx',
+                     'torch_connectomics/libs/seg/cpp/seg_eval/cpp-comparestacks.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         ),
         Extension(
-            name='torch_connectomics.utils.seg.seg_malis',
-            sources=['torch_connectomics/utils/seg/seg_malis.pyx',
-                     'torch_connectomics/utils/seg/cpp/seg_malis/cpp-malis_core.cpp'],
+            name='torch_connectomics.libs.seg.seg_malis',
+            sources=['torch_connectomics/libs/seg/seg_malis.pyx',
+                     'torch_connectomics/libs/seg/cpp/seg_malis/cpp-malis_core.cpp'],
             extra_compile_args=['-O4', '-std=c++0x'],
             language='c++'
         )

@@ -62,6 +62,7 @@ This project is built upon numerous previous projects. Especially, we'd like to 
 - [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
 - [EM-affinity](https://github.com/donglaiw/EM-affinity): Harvard Visual Computing Group
+- [ibex](https://github.com/bmatejek/ibex): Harvard Visual Computing Group
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.

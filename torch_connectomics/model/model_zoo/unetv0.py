@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch_connectomics.model.blocks import *
-from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 class unetv0(nn.Module):
     """U-net with residual blocks.

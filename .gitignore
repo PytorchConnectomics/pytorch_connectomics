@@ -122,3 +122,8 @@ dmypy.json
 others/
 
 build/
+
+# vim
+*.swp
+*.swo
+.github/

@@ -6,8 +6,8 @@ from libc.stdint cimport uint64_t,int32_t
 import numpy as np
 import scipy.ndimage
 
-from torch_connectomics.utils.seg.aff_util import affgraph_to_edgelist
-from torch_connectomics.utils.seg.seg_util import mknhood3d
+from torch_connectomics.libs.seg.aff_util import affgraph_to_edgelist
+from torch_connectomics.libs.seg.seg_util import mknhood3d
 
 cdef extern from 'cpp/seg_core/cpp-seg2seg.h':
     long *CppMapLabels(long *segmentation, long *mapping, unsigned long nentries)

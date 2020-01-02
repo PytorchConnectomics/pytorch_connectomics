@@ -4,28 +4,24 @@ import h5py, time, itertools, datetime
 
 import torch
 
-from torch_connectomics.utils.net import *
+from torch_connectomics.io import *
 from torch_connectomics.run.train import train
-from torch_connectomics.model.loss import *
 
 def main():
     args = get_args(mode='train')
 
     print('0. initial setup')
-    model_io_size, device = init(args) 
     logger, writer = get_logger(args)
 
     print('1. setup data')
-    train_loader = get_input(args, model_io_size, 'train')
+    train_loader = get_dataloader(args, 'train')
 
     print('2.0 setup model')
-    model = setup_model(args, device)
+    model = get_model(args)
             
     print('2.1 setup loss function')
-    # criterion = WeightedBCE()   
-    criterion = WeightedMSE()
-    regularization = BinaryReg(alpha=10.0)
- 
+    criterion = get_criterion(args)
+
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 
                                  eps=1e-08, weight_decay=1e-5, amsgrad=True)
@@ -33,9 +29,8 @@ def main():
                 patience=10000, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, 
                 min_lr=1e-7, eps=1e-08)
     
-
     print('4. start training')
-    train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer)
+    train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
   
     print('5. finish training')
     logger.close()

@@ -6,7 +6,6 @@ import torch.nn.functional as F
 
 from torch_connectomics.model.blocks import *
 from torch_connectomics.model.utils import *
-from torch_connectomics.libs.sync import SynchronizedBatchNorm1d, SynchronizedBatchNorm2d, SynchronizedBatchNorm3d
 
 class fpn(nn.Module):
     def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256]):
