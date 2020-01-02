@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 
 from torch_connectomics.model.model_zoo import *
-from torch_connectomics.libs.sync import patch_replication_callback
+from torch_connectomics.model.loss import *
+from torch_connectomics.model.norm import patch_replication_callback
 
 def get_criterion(args):
     if args.task == 0:
@@ -16,13 +17,15 @@ def get_model(args, exact=True, size_match=True):
                  'unetv1': unetv1,
                  'unetv2': unetv2,
                  'unetv3': unetv3,
+                 'unet_residual': unet_residual,
                  'fpn': fpn}
 
     assert args.architecture in MODEL_MAP.keys()
     if args.task == 2:
         model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, act='tanh',filters=args.filters)
     else:        
-        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters)
+        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters, \
+                                             pad_mode=args.model_pad_mode, norm_mode=args.model_norm_mode, act_mode=args.model_act_mode)
     print('model: ', model.__class__.__name__)
     model = nn.DataParallel(model, device_ids=range(args.num_gpu))
     patch_replication_callback(model)

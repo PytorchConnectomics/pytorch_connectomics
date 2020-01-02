@@ -41,6 +41,8 @@ def get_args(mode='train'):
     parser.add_argument('-ma','--architecture', help='model architecture')  
     parser.add_argument('-mf','--model-filters', type=str,  default='28,36,48,64,80',
                         help='number of filters per unet block')
+    parser.add_argument('-mcm','--model-conv-mode', type=str,  default='rep,bn,elu',
+                        help='convolution layer mode: padding,normalization,activation')
 
     # model option
     parser.add_argument('-pm','--pre-model', type=str, default='',
@@ -73,11 +75,11 @@ def get_args(mode='train'):
                             help='Loss function')
         parser.add_argument('-lr', type=float, default=0.0001,
                             help='Learning rate')
-        parser.add_argument('--iteration-total', type=int, default=1000,
+        parser.add_argument('-it', '--iteration-total', type=int, default=1000,
                             help='Total number of iteration')
-        parser.add_argument('--iteration-save', type=int, default=100,
+        parser.add_argument('-isa', '--iteration-save', type=int, default=100,
                             help='Number of iteration to save')
-        parser.add_argument('--iteration-step', type=int, default=1,
+        parser.add_argument('-ist', '--iteration-step', type=int, default=1,
                             help='Number of steps to update')
     elif mode == 'test':
         parser.add_argument('-tsz', '--test-size', type=str, default='18,160,160',
@@ -107,6 +109,7 @@ def get_args(mode='train'):
         args.pad_size = [int(x) for x in args.data_pad.split(',')]
 
     args.filters = [int(x) for x in args.model_filters.split(',')]
+    args.model_pad_mode,args.model_norm_mode,args.model_act_mode = args.model_conv_mode.split(',')
 
     args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
 

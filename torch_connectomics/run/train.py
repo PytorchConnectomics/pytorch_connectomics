@@ -33,7 +33,7 @@ def train(args, train_loader, model, criterion,
             optimizer.zero_grad()
 
 
-        if (iteration+1) % 10 == 0:
+        if (iteration+1) % (10*args.iteration_step) == 0:
             print('[Iteration %d] train_loss=%0.4f lr=%.5f' % (iteration, \
                   record.avg, optimizer.param_groups[0]['lr']))
 
@@ -47,7 +47,7 @@ def train(args, train_loader, model, criterion,
             scheduler.step(record.avg)
             record.reset()
             
-            if (iteration+1) % 100 == 0:
+            if (iteration+1) % (50*args.iteration_step) == 0:
                 if args.task == 0:
                     visualize_aff(volume, label, output, iteration, writer)
                 elif args.task == 1 or args.task == 2 or args.task == 22:

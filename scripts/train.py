@@ -6,7 +6,6 @@ import torch
 
 from torch_connectomics.io import *
 from torch_connectomics.run.train import train
-from torch_connectomics.model.loss import *
 
 def main():
     args = get_args(mode='train')
