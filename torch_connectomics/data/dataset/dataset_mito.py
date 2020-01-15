@@ -43,8 +43,9 @@ class MitoDataset(BaseDataset):
         if label is not None:
             for i in range(len(self.label)):
                 self.label[i] = (self.label[i] != 0).astype(np.float32)
-        
-        self.valid_mask = np.float32(valid_mask)
+        self.valid_mask = valid_mask
+        if valid_mask is not None:
+            self.valid_mask = np.float32(valid_mask)
 
     def __getitem__(self, index):
         vol_size = self.sample_input_size
@@ -55,7 +56,6 @@ class MitoDataset(BaseDataset):
             seed = np.random.RandomState(index)
             # if elastic deformation: need different receptive field
             # change vol_size first
-            
             if self.valid_mask is not None:
                 while True: # reject sampling
                     pos = self.get_pos_seed(vol_size, seed)
