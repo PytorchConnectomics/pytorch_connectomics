@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
 
-def writeh5(filename, datasetname, dtarray):
+def writeh5(filename, dtarray, datasetname='main'):
     fid=h5py.File(filename,'w')
     ds = fid.create_dataset(datasetname, dtarray.shape, compression="gzip", dtype=dtarray.dtype)
     ds[:] = dtarray

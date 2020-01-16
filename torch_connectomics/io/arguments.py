@@ -114,8 +114,8 @@ def get_args(mode='train'):
     # select training machine
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    args.data_chunk_stride = int(args.data_chunk_num[-1:])==1
     args.data_chunk_num = np.array([int(x) for x in args.data_chunk_num.split(',')[:-1]])
-    args.data_chunk_stride = int(args.data_chunk_num[-1:])
 
     if args.data_pad=='':
         args.pad_size = args.model_io_size//2
