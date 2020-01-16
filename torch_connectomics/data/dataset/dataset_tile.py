@@ -89,7 +89,7 @@ class TileDataset(BaseDataset):
         import pdb; pdb.set_trace()
         label = None
         if self.json_label is not None: 
-            label = tileToVolume(self.json_label['sections'], x0, x1, y0, y1, z0, z1,\
+            label = tileToVolume(self.json_label['image'], x0, x1, y0, y1, z0, z1,\
                                  tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
                                  tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'], resize_order=0)
             import pdb; pdb.set_trace()
