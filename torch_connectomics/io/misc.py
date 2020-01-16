@@ -36,3 +36,4 @@ def get_logger(args):
     writer = SummaryWriter('runs/'+log_name)
     return logger, writer
 
+

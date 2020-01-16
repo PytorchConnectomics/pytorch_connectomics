@@ -72,7 +72,6 @@ class unetv0(nn.Module):
 
         # convert to probability
         self.fconv = conv3d_norm_act(filters[0], out_channel, kernel_size=(3,3,3), padding=(1,1,1),norm_mode='bn')
-
         #final layer activation
         if act == 'tanh':
             self.act = nn.Tanh()
