@@ -6,7 +6,7 @@ from torch_connectomics.model.loss import *
 from torch_connectomics.model.norm import patch_replication_callback
 
 def get_criterion(args):
-    if args.task == 0:
+    if args.task == 0 or args.task==2:
         if args.loss_type==0:
             return WeightedMSE()
         elif args.loss_type==1:
@@ -23,6 +23,8 @@ def get_model(args, exact=True, size_match=True):
     assert args.architecture in MODEL_MAP.keys()
     if args.task == 2:
         model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, act='tanh',filters=args.filters)
+    elif args.task == 0:
+        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters)
     else:        
         model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters, \
                                              pad_mode=args.model_pad_mode, norm_mode=args.model_norm_mode, act_mode=args.model_act_mode)
