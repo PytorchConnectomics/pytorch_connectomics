@@ -14,7 +14,6 @@ def main():
     logger, writer = get_logger(args)
 
     print('1. setup data')
-    train_loader = get_dataloader(args, 'train')
 
     print('2.0 setup model')
     model = get_model(args)
@@ -30,7 +29,17 @@ def main():
                 min_lr=1e-7, eps=1e-08)
     
     print('4. start training')
-    train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
+    if args.do_tile == 0:
+        train_loader = get_dataloader(args, 'train')
+        train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
+    else:
+        train_dataset = get_dataloader(args, 'train')
+        num_chunk = (args.iteration_total+args.data_chunk_iter-1) // args.data_chunk_iter
+        for chunk in range(num_chunk):
+            train_dataset.updatechunk()
+            import pdb; pdb.set_trace()
+            train_loader = get_dataloader(args, 'train', dataset=train_dataset.dataset)
+            train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
   
     print('5. finish training')
     logger.close()

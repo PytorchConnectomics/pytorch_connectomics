@@ -23,12 +23,23 @@ def get_args(mode='train'):
                         help='specify the task')
 
     # I/O
+
     parser.add_argument('-t','--train',  default='/n/coxfs01/',
                         help='Input folder (train)')
-    parser.add_argument('-dn','--img-name',  default='im_uint8.h5',
-                        help='Image data path')
     parser.add_argument('-o','--output', default='result/train/',
                         help='Output path')
+
+
+    # data layout: h5 or folders of tiles 
+    parser.add_argument('-dt','--do-tile',  type=int, default=0,
+                        help='Data in tile format or not')
+    parser.add_argument('-dcn','--data-chunk-num', type=str,  default='1,1,1,1',
+                        help='Chunk parameters for tile format: chunk_num, chunk_stride')
+    parser.add_argument('-dci','--data-chunk-iter', type=int,  default='1000',
+                        help='Chunk parameters for tile format: chunk_iter_num')
+
+    parser.add_argument('-dn','--img-name',  default='im_uint8.h5',
+                        help='Image data path')
     parser.add_argument('-dp','--data-pad', type=str,  default='',
                         help='Pad size of the input data for maximum usage of gt data')
     parser.add_argument('-ds','--data-scale', type=str,  default='1,1,1',
@@ -102,6 +113,9 @@ def get_args(mode='train'):
 
     # select training machine
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    args.data_chunk_num = np.array([int(x) for x in args.data_chunk_num.split(',')[:-1]])
+    args.data_chunk_stride = int(args.data_chunk_num[-1:])
 
     if args.data_pad=='':
         args.pad_size = args.model_io_size//2

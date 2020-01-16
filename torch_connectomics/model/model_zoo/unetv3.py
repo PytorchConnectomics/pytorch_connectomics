@@ -21,7 +21,7 @@ class unetv3(nn.Module):
         out_channel (int): number of output channels.
         filters (list): number of filters at each u-net stage.
     """
-    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80]):
+    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80], pad_mode='rep', norm_mode='bn', act_mode='elu'):
         super().__init__()
 
         # encoding path

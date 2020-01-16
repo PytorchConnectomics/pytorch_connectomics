@@ -10,12 +10,13 @@ def train(args, train_loader, model, criterion,
 
     # for iteration, (_, volume, label, class_weight, _) in enumerate(train_loader):
     optimizer.zero_grad()
-    for iteration, batch in enumerate(train_loader):
 
+    for iteration, batch in enumerate(train_loader):
         if args.task == 22:
             _, volume, seg_mask, class_weight, _, label, out_skeleton = batch
         else:
             _, volume, label, class_weight, _ = batch
+
         volume, label = volume.to(args.device), label.to(args.device)
         class_weight = class_weight.to(args.device)
         output = model(volume)

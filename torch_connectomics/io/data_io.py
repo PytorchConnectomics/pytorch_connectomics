@@ -8,9 +8,7 @@ import torch.nn as nn
 import torch.utils.data
 import torchvision.utils as vutils
 
-from torch_connectomics.data.dataset import AffinityDataset
-from torch_connectomics.data.dataset import SynapseDataset, SynapsePolarityDataset
-from torch_connectomics.data.dataset import MitoDataset, MitoSkeletonDataset
+from torch_connectomics.data.dataset import *
 from torch_connectomics.data.utils import collate_fn, collate_fn_test, collate_fn_skel
 from torch_connectomics.data.augmentation import *
 from torch_connectomics.libs.seg.seg_util import widen_border3
@@ -84,23 +82,39 @@ def get_data(args, mode='train'):
     return model_input, model_mask, model_label
 
 
-def get_dataloader(args, mode='train', preload_data=[None,None,None]):
+def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=None):
     """Prepare dataloader for training and inference.
     """
     print('Task: ', TASK_MAP[args.task], end='\t')
     print('Mode: ', mode)
     assert mode in ['train', 'test']
-
-
-    # 1. load data
-    if preload_data[0] is None: # load from command line args
-        model_input, model_mask, model_label = get_data(args, mode=mode)
-    else:
-        model_input, model_mask, model_label = preload_data
-
+    SHUFFLE = (mode == 'train')
 
     if mode=='train':
-        # setup augmentor
+        if args.task == 22:
+            cf = collate_fn 
+        else:
+            cf = collate_fn_skel 
+    else:
+        cf = collate_fn_test 
+
+    # given dataset
+    if dataset is not None:
+        img_loader =  torch.utils.data.DataLoader(
+              dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = cf,
+              num_workers=args.num_cpu, pin_memory=True)
+        return img_loader
+
+    # 1. load data
+    if args.do_tile==0:
+        if preload_data[0] is None: # load from command line args
+            model_input, model_mask, model_label = get_data(args, mode=mode)
+        else:
+            model_input, model_mask, model_label = preload_data
+
+
+    # setup augmentor
+    if mode=='train':
         augmentor = Compose([Rotate(p=1.0),
                              Rescale(p=0.5),
                              Flip(p=1.0),
@@ -114,68 +128,59 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None]):
         augmentor = None
 
     print('data augmentation: ', augmentor is not None)
-    SHUFFLE = (mode == 'train')
     print('batch size: ', args.batch_size)
 
     if mode=='train':
+        if args.task == 22:
+            cf = collate_fn 
+        else:
+            cf = collate_fn_skel 
         if augmentor is None:
             sample_input_size = args.model_io_size
         else:
             sample_input_size = augmentor.sample_size
+        sample_label_size=sample_input_size
+        sample_stride = None
+    else:
+        cf = collate_fn_test 
+        sample_input_size = args.test_size
+        sample_label_size=None
+        sample_stride = args.test_stride
 
+    # dataset
+    if args.do_tile==1:
+        dataset = TileDataset(dataset_type=args.task, chunk_num=args.data_chunk_num, chunk_iter=args.data_chunk_iter, chunk_stride=args.data_chunk_stride,
+                              volume_json=args.train+args.img_name, label_json=args.train+args.label_name,
+                              sample_input_size=sample_input_size, sample_label_size=sample_label_size,sample_stride=sample_stride,
+                              augmentor=augmentor, mode = mode)
+    else:
         # print('sample crop size: ', sample_input_size)
         if args.task == 0: # affininty prediction
-            dataset = AffinityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                      sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+            dataset = AffinityDataset(volume=model_input, label=model_label, 
+                                      sample_input_size=sample_input_size, sample_label_size=sample_label_size,sample_stride=sample_stride, 
+                                      augmentor=augmentor, mode = mode)
         if args.task == 1: # synapse detection
-            dataset = SynapseDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                     sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+            dataset = SynapseDataset(volume=model_input, label=model_label, 
+                                     sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride, 
+                                     augmentor=augmentor, mode = mode)
         if args.task == 11: # synapse polarity detection
-            dataset = SynapsePolarityDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                     sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+            dataset = SynapsePolarityDataset(volume=model_input, label=model_label, 
+                                             sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride, 
+                                             augmentor=augmentor, mode = mode)
         if args.task == 2: # mitochondira segmentation
-            dataset = MitoDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                  sample_label_size=sample_input_size, augmentor=augmentor, mode = 'train')
+            dataset = MitoDataset(volume=model_input, label=model_label,
+                                  sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride,
+                                  augmentor=augmentor, mode = mode)
         if args.task == 22: # mitochondira segmentation with skeleton transform
-            dataset = MitoSkeletonDataset(volume=model_input, label=model_label, sample_input_size=sample_input_size,
-                                  sample_label_size=sample_input_size, augmentor=augmentor, valid_mask=model_mask, mode='train')
-            img_loader =  torch.utils.data.DataLoader(
-                  dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_skel,
-                  num_workers=args.num_cpu, pin_memory=True)
-            return img_loader
+            dataset = MitoSkeletonDataset(volume=model_input, label=model_label,
+                                          sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride,
+                                          augmentor=augmentor, valid_mask=model_mask, mode=mode)
 
-        img_loader =  torch.utils.data.DataLoader(
-              dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn,
-              num_workers=args.num_cpu, pin_memory=True)
-        return img_loader
-
+    if args.do_tile==1:
+        return dataset
     else:
-        if args.task == 0:
-            dataset = AffinityDataset(volume=model_input, label=None, sample_input_size=args.test_size, \
-                                      sample_label_size=None, sample_stride=args.test_stride, \
-                                      augmentor=None, mode='test')
-        elif args.task == 1: 
-            dataset = SynapseDataset(volume=model_input, label=None, sample_input_size=args.test_size, \
-                                     sample_label_size=None, sample_stride=args.test_stride, \
-                                     augmentor=None, mode='test')
-        elif args.task == 11:
-        	dataset = SynapsePolarityDataset(volume=model_input, label=None, sample_input_size=args.test_size,
-                                     sample_label_size=None, sample_stride=args.test_stride, \
-                                     augmentor=None, mode = 'test')
-        elif args.task == 2:
-            dataset = MitoDataset(volume=model_input, label=None, sample_input_size=args.test_size, \
-                                  sample_label_size=None, sample_stride=args.test_stride, \
-                                  augmentor=None, mode='test')
-        elif args.task == 22: 
-        	dataset = MitoSkeletonDataset(volume=model_input, label=None, sample_input_size=args.test_size, \
-                                  sample_label_size=None, sample_stride=args.test_stride, \
-                                  augmentor=None, mode='test')
-
         img_loader =  torch.utils.data.DataLoader(
-                dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = collate_fn_test,
-                num_workers=args.num_cpu, pin_memory=True) 
-                                 
+              dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = cf,
+              num_workers=args.num_cpu, pin_memory=True)
+
         return img_loader
-
-
-
