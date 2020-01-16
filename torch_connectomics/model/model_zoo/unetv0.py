@@ -15,7 +15,7 @@ class unetv0(nn.Module):
         out_channel (int): number of output channels.
         filters (list): number of filters at each u-net stage.
     """
-    def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256], act = 'sigmoid'):
+    def __init__(self, in_channel=1, out_channel=3, filters=[32,64,128,256,256], act = 'sigmoid', pad_mode='rep', norm_mode='bn', act_mode='elu'):
         super().__init__()
 
         # encoding path
@@ -65,14 +65,13 @@ class unetv0(nn.Module):
         self.up = nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)
 
         # conv + upsample
-        self.conv1 = conv3d_norm_act(filters[1], filters[0], kernel_size=(1,1,1), padding=(0,0,0), norm_mode='bn', act_mode='elu')
-        self.conv2 = conv3d_norm_act(filters[2], filters[1], kernel_size=(1,1,1), padding=(0,0,0), norm_mode='bn', act_mode='elu')
-        self.conv3 = conv3d_norm_act(filters[3], filters[2], kernel_size=(1,1,1), padding=(0,0,0), norm_mode='bn', act_mode='elu') 
-        self.conv4 = conv3d_norm_act(filters[4], filters[3], kernel_size=(1,1,1), padding=(0,0,0), norm_mode='bn', act_mode='elu')
+        self.conv1 = conv3d_norm_act(filters[1], filters[0], kernel_size=(1,1,1), padding=(0,0,0),norm_mode='bn', act_mode='elu')
+        self.conv2 = conv3d_norm_act(filters[2], filters[1], kernel_size=(1,1,1), padding=(0,0,0),norm_mode='bn', act_mode='elu')
+        self.conv3 = conv3d_norm_act(filters[3], filters[2], kernel_size=(1,1,1), padding=(0,0,0),norm_mode='bn', act_mode='elu') 
+        self.conv4 = conv3d_norm_act(filters[4], filters[3], kernel_size=(1,1,1), padding=(0,0,0),norm_mode='bn', act_mode='elu')
 
         # convert to probability
-        self.fconv = conv3d_norm_act(filters[0], out_channel, kernel_size=(3,3,3), padding=(1,1,1), norm_mode='bn')
-
+        self.fconv = conv3d_norm_act(filters[0], out_channel, kernel_size=(3,3,3), padding=(1,1,1),norm_mode='bn')
         #final layer activation
         if act == 'tanh':
             self.act = nn.Tanh()
