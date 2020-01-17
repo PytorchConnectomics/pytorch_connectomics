@@ -34,7 +34,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.label = label
         self.augmentor = augmentor  # data augmentation
 
-        # samples, channels, depths, rows, cols
+        # dataset: channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
         self.sample_input_size = np.array(sample_input_size).astype(int)  # model input size
         if self.label is not None: 
@@ -42,7 +42,8 @@ class BaseDataset(torch.utils.data.Dataset):
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=np.float32)
-        self.sample_size = [count_volume(self.input_size[x], self.sample_input_size, np.array(self.sample_stride))
+       
+        self.sample_size = [count_volume(self.input_size[x], self.sample_input_size, np.array(self.sample_stride,int))
                             for x in range(len(self.input_size))]
 
         # total number of possible inputs for each volume

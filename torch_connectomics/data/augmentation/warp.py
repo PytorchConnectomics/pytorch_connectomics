@@ -64,8 +64,7 @@ class Elastic(DataAugment):
                         borderMode=self.border_mode) for channel in range(image.shape[0])]     
                 transformed_image.append(np.stack(temp, 0))          
             if 'label' in data and data['label'] is not None:
-                transformed_label.append(cv2.remap(label[i], mapx, mapy, 
-                                    self.label_interpolation, borderMode=self.border_mode))
+                transformed_label.append(cv2.remap(label[i].astype(np.float32), mapx, mapy, self.label_interpolation, borderMode=self.border_mode))
 
         if image.ndim == 3: # (z,y,x)
             transformed_image = np.stack(transformed_image, 0)
