@@ -82,16 +82,16 @@ class TileDataset(BaseDataset):
         y0,y1 = np.floor(np.array([yid,yid+self.chunk_step])/(self.chunk_num[1]+self.chunk_step-1)*self.json_size[1]).astype(int)
         z0,z1 = np.floor(np.array([zid,zid+self.chunk_step])/(self.chunk_num[0]+self.chunk_step-1)*self.json_size[0]).astype(int)
 
-        volume = [tileToVolume(self.json_volume['image'], x0, x1, y0, y1, z0, z1,\
+        volume = [(tileToVolume(self.json_volume['image'], x0, x1, y0, y1, z0, z1,\
                              tile_sz=self.json_volume['tile_size'],tile_st=self.json_volume['tile_st'],
-                              tile_ratio=self.json_volume['tile_ratio'])]
+                              tile_ratio=self.json_volume['tile_ratio'])/255.0).astype(np.float32)]
         label = None
         if self.json_label is not None: 
             dt={'uint8':np.uint8,'uint16':np.uint16,'uint32':np.uint32,'uint64':np.uint64}
             label = [tileToVolume(self.json_label['image'], x0, x1, y0, y1, z0, z1,\
                                  tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
                                  tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
-                                 dt=dt[self.json_label['dtype']], resize_order=0)]
+                                 dt=dt[self.json_label['dtype']], resize_order=0).astype(np.float32)]
         self.dataset = self.dataset_type(volume,
                               label,
                               self.sample_input_size,
