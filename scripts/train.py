@@ -34,10 +34,10 @@ def main():
         train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
     else:
         train_dataset = get_dataloader(args, 'train')
-        num_chunk = (args.iteration_total+args.data_chunk_iter-1) // args.data_chunk_iter
+        num_chunk = args.iteration_total // args.data_chunk_iter
+        args.iteration_total = args.data_chunk_iter
         for chunk in range(num_chunk):
             train_dataset.updatechunk()
-            import pdb; pdb.set_trace()
             train_loader = get_dataloader(args, 'train', dataset=train_dataset.dataset)
             train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
   

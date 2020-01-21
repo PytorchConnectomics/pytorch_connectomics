@@ -92,12 +92,11 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
 
     if mode=='train':
         if args.task == 22:
-            cf = collate_fn 
+            cf = collate_fn_skel
         else:
-            cf = collate_fn_skel 
+            cf = collate_fn
     else:
         cf = collate_fn_test 
-
     # given dataset
     if dataset is not None:
         img_loader =  torch.utils.data.DataLoader(
@@ -131,18 +130,13 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
     print('batch size: ', args.batch_size)
 
     if mode=='train':
-        if args.task == 22:
-            cf = collate_fn 
-        else:
-            cf = collate_fn_skel 
         if augmentor is None:
             sample_input_size = args.model_io_size
         else:
             sample_input_size = augmentor.sample_size
         sample_label_size=sample_input_size
-        sample_stride = None
+        sample_stride = (1,1,1)
     else:
-        cf = collate_fn_test 
         sample_input_size = args.test_size
         sample_label_size=None
         sample_stride = args.test_stride
