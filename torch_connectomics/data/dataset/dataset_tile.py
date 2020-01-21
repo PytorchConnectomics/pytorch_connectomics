@@ -11,6 +11,7 @@ from .misc import crop_volume, rebalance_binary_class
 from torch_connectomics.data.utils.functional_transform import skeleton_transform_volume
 from torch_connectomics.data.dataset import *
 from torch_connectomics.data.dataset.misc import tileToVolume
+from torch_connectomics.libs.seg.seg_util import relabel
 
 class TileDataset(BaseDataset):
     """Pytorch dataset class for large-scale tile-based dataset.
