@@ -72,7 +72,7 @@ class TileDataset(BaseDataset):
         if len(self.chunk_id_done)==self.chunk_num_total:
             self.chunk_id_done = []
         id_rest = list(set(range(self.chunk_num_total))-set(self.chunk_id_done))
-        id_sample = id_rest[int(np.floor(np.random.random()*self.chunk_num_total))]
+        id_sample = id_rest[int(np.floor(np.random.random()*len(id_rest))]
         self.chunk_id_done += [id_sample]
 
         zid = float(id_sample//(self.chunk_num[1]*self.chunk_num[2]))
@@ -89,10 +89,11 @@ class TileDataset(BaseDataset):
         label = None
         if self.json_label is not None: 
             dt={'uint8':np.uint8,'uint16':np.uint16,'uint32':np.uint32,'uint64':np.uint64}
-            label = [tileToVolume(self.json_label['image'], x0, x1, y0, y1, z0, z1,\
+            # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
+            label = [relabel(tileToVolume(self.json_label['image'], x0, x1, y0, y1, z0, z1,\
                                  tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
                                  tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
-                                 dt=dt[self.json_label['dtype']], resize_order=0).astype(np.float32)]
+                                 dt=dt[self.json_label['dtype']], resize_order=0)).astype(np.float32)]
         self.dataset = self.dataset_type(volume,
                               label,
                               self.sample_input_size,
