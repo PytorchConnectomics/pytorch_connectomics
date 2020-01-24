@@ -19,7 +19,7 @@ class BaseDataset(torch.utils.data.Dataset):
                  sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),
                  augmentor=None,
-                 mode='train'):
+                 mode='train', weight_opt=0):
 
         self.mode = mode
         # for partially labeled data
@@ -33,6 +33,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.input = volume
         self.label = label
         self.augmentor = augmentor  # data augmentation
+        self.weight_opt = weight_opt  # data augmentation
 
         # dataset: channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input

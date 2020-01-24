@@ -7,7 +7,6 @@ import torch.utils.data
 
 from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class   
-
 from torch_connectomics.data.utils.functional_transform import skeleton_transform_volume
 
 class MitoDataset(BaseDataset):
@@ -30,15 +29,14 @@ class MitoDataset(BaseDataset):
                  sample_stride=(1, 1, 1),
                  augmentor=None,
                  valid_mask=None,
-                 mode='train'):
+                 mode='train', weight_opt=0):
 
-        super(MitoDataset, self).__init__(volume,
-                                          label,
+        super(MitoDataset, self).__init__(volume,label,
                                           sample_input_size,
                                           sample_label_size,
                                           sample_stride,
                                           augmentor,
-                                          mode)
+                                          mode, weight_opt)
 
         if label is not None:
             for i in range(len(self.label)):
@@ -92,19 +90,24 @@ class MitoDataset(BaseDataset):
             
         # Turn segmentation label into affinity in Pytorch Tensor
         if out_label is not None:
-            out_label = torch.from_numpy(out_label.copy())
+            out_label = torch.from_numpy(out_label)
             if len(out_label.size()) == 3:
                 out_label = out_label.unsqueeze(0)
 
         # Turn input to Pytorch Tensor, unsqueeze once to include the channel dimension:
-        out_input = torch.from_numpy(out_input.copy())
+        out_input = torch.from_numpy(out_input)
         out_input = out_input.unsqueeze(0)
 
         if self.mode == 'train':
             # Rebalancing
-            temp = out_label.clone()
-            weight_factor, weight = rebalance_binary_class(temp)
-            return pos, out_input, out_label, weight, weight_factor
+            if self.weight_opt == 0: # fg/bg balance re-weight
+                weight_factor, weight = rebalance_binary_class(out_label)
+                return pos, out_input, out_label, weight
+            elif self.weight_opt == 1: # focus on small object
+                raise NotImplementedError("Need to implement weight_opt = 1 !")
+                weight_factor, weight = rebalance_binary_class(out_label)
+                obj_small_mask = rebalance_small_object(out_label)
+                return pos, out_input, out_label, weight
 
         else:
             return pos, out_input
@@ -194,22 +197,21 @@ class MitoSkeletonDataset(BaseDataset):
         # Turn segmentation label into affinity in Pytorch Tensor
         if out_label is not None:
             out_distance, out_skeleton = skeleton_transform_volume(out_label)
-            out_label = torch.from_numpy(out_label.copy())
+            out_label = torch.from_numpy(out_label)
             out_label = out_label.unsqueeze(0)
-            out_distance = torch.from_numpy(out_distance.copy())
+            out_distance = torch.from_numpy(out_distance)
             out_distance = out_distance.unsqueeze(0)
-            out_skeleton = torch.from_numpy(np.float32(out_skeleton).copy())
+            out_skeleton = torch.from_numpy(np.float32(out_skeleton))
             out_skeleton = out_skeleton.unsqueeze(0)
 
         # Turn input to Pytorch Tensor, unsqueeze once to include the channel dimension:
-        out_input = torch.from_numpy(out_input.copy())
+        out_input = torch.from_numpy(out_input)
         out_input = out_input.unsqueeze(0)
 
         if self.mode == 'train':
             # Rebalancing
-            temp = out_label.clone()
-            weight_factor, weight = rebalance_binary_class(temp)
-            return pos, out_input, out_label, weight, weight_factor, out_distance, out_skeleton
+            weight_factor, weight = rebalance_binary_class(out_label)
+            return pos, out_input, out_label, weight, out_distance, out_skeleton
 
         else:
             return pos, out_input

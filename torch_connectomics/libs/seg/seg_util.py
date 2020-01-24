@@ -2,6 +2,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.ndimage.morphology import binary_erosion, binary_dilation
 from skimage.morphology import erosion, dilation
+from skimage.measure import label
 
 # reduce the labeling
 def relabel(segmentation):
@@ -226,6 +227,40 @@ def widen_border3(seg, tsz_h=1):
         p1=patch.min(axis=1)
         seg =seg*((p0==p1).reshape(sz[1:]))
     return seg
+
+def get_small_seg(seg,thres=25,rr=2):
+    # rr: z/x-y resolution ratio
+    sz = seg.shape
+    mask = np.zeros(sz,np.uint8)
+    for z in range(sz[0]):
+        tmp = label(seg[z])
+        ui,uc = np.unique(tmp,return_counts=True)
+        rl = np.zeros(ui[-1]+1,np.uint8)
+        rl[ui[uc<thres]]=1;rl[0]=0
+        mask[z] += rl[tmp]
+    for y in range(sz[1]):
+        tmp = label(seg[:,y])
+        ui,uc = np.unique(tmp,return_counts=True)
+        rl = np.zeros(ui[-1]+1,np.uint8)
+        rl[ui[uc<thres//rr]]=1;rl[0]=0
+        mask[:,y] += rl[tmp]
+    for x in range(sz[2]):
+        tmp = label(seg[:,:,x])
+        ui,uc = np.unique(tmp,return_counts=True)
+        rl = np.zeros(ui[-1]+1,np.uint8)
+        rl[ui[uc<thres//rr]]=1;rl[0]=0
+        mask[:,:,x] += rl[tmp]
+    return mask
+
+def get_instance_bd(seg, tsz_h=7):
+    tsz = tsz_h*2+1
+    mm = seg.max()
+    patch = im2col(np.pad(seg,((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+    p0 = patch.max(axis=1)
+    patch[patch==0] = mm+1
+    p1 = patch.min(axis=1)
+    bd = (((p0!=0)*(p1!=0)*(p0!=p1)).reshape(sz)).astype(np.uint8)
+    return bd
 
 def markInvalid(seg, iter_num=2, do_2d=True):
     # find invalid 

@@ -1,5 +1,5 @@
 import argparse
-import os
+import os, datetime
 import torch
 import numpy as np
 
@@ -23,7 +23,6 @@ def get_args(mode='train'):
                         help='specify the task')
 
     # I/O
-
     parser.add_argument('-t','--train',  default='/n/coxfs01/',
                         help='Input folder (train)')
     parser.add_argument('-o','--output', default='result/train/',
@@ -35,30 +34,32 @@ def get_args(mode='train'):
                         help='Data in tile format or not')
     parser.add_argument('-dcn','--data-chunk-num', type=str,  default='1,1,1,1',
                         help='Chunk parameters for tile format: chunk_num, chunk_stride')
+    parser.add_argument('-dcni','--data-chunk-num-ind', type=str,  default='',
+                        help='Predefined data chunk to iterate through')
     parser.add_argument('-dci','--data-chunk-iter', type=int,  default='1000',
                         help='Chunk parameters for tile format: chunk_iter_num')
 
-    parser.add_argument('-dn','--img-name',  default='im_uint8.h5',
+    parser.add_argument('-dn', '--img-name',  default='im_uint8.h5',
                         help='Image data path')
-    parser.add_argument('-dp','--data-pad', type=str,  default='',
+    parser.add_argument('-dp', '--data-pad', type=str,  default='',
                         help='Pad size of the input data for maximum usage of gt data')
-    parser.add_argument('-ds','--data-scale', type=str,  default='1,1,1',
+    parser.add_argument('-ds', '--data-scale', type=str,  default='1,1,1',
                         help='Scale size of the input data for different resolutions')
 
-    parser.add_argument('-mi','--model-input', type=str,  default='31,204,204',
+    parser.add_argument('-mi', '--model-input', type=str,  default='18,160,160',
                         help='Input size of deep network')
-    parser.add_argument('-mo','--model-output', type=str,  default='3,116,116',
+    parser.add_argument('-mo', '--model-output', type=str,  default='18,160,160',
                         help='Output size of deep network')
-    parser.add_argument('-ma','--architecture', help='model architecture')  
-    parser.add_argument('-mf','--model-filters', type=str,  default='28,36,48,64,80',
+    parser.add_argument('-ma', '--architecture', help='model architecture')  
+    parser.add_argument('-mf', '--model-filters', type=str,  default='28,36,48,64,80',
                         help='number of filters per unet block')
-    parser.add_argument('-mcm','--model-conv-mode', type=str,  default='rep,bn,elu',
+    parser.add_argument('-mcm', '--model-conv-mode', type=str,  default='rep,bn,elu',
                         help='convolution layer mode: padding,normalization,activation')
 
     # model option
-    parser.add_argument('-pm','--pre-model', type=str, default='',
+    parser.add_argument('-pm', '--pre-model', type=str, default='',
                         help='Pre-trained model path')      
-    parser.add_argument('--out-channel', type=int, default=3,
+    parser.add_argument('-oc', '--out-channel', type=int, default=3,
                         help='Number of output channel(s).')
 
     # machine option
@@ -68,6 +69,11 @@ def get_args(mode='train'):
                         help='Number of cpu')
     parser.add_argument('-b','--batch-size', type=int,  default=1,
                         help='Batch size')
+
+    parser.add_argument('-vtb','--visualize-tensorboard', type=int,  default=1,
+                        help='tensorboard visualization. default: 1')
+    parser.add_argument('-vtxt','--visualize-txt', type=int,  default=0,
+                        help='txt logging. default: 0')
 
     if mode == 'train':
         parser.add_argument('-ln','--label-name',  default='seg-groundtruth2-malis.h5',
@@ -81,9 +87,11 @@ def get_args(mode='train'):
         parser.add_argument('-ft','--finetune', type=str, default='',
                             help='Fine-tune suffix for model saving')
 
-        # optimization option
+        # loss/optimization option
         parser.add_argument('-lt', '--loss-type', type=int, default=0,
                             help='Loss function')
+        parser.add_argument('-lw', '--loss-weight-opt', type=int, default=0,
+                            help='Type of weight for rebalancing')
         parser.add_argument('-lr', type=float, default=0.0001,
                             help='Learning rate')
         parser.add_argument('-it', '--iteration-total', type=int, default=1000,
@@ -105,9 +113,13 @@ def get_args(mode='train'):
     args = parser.parse_args()
 
     ## pre-process
-    sn = args.output+'/'
-    if not os.path.isdir(sn):
-        os.makedirs(sn)
+    time_now = str(datetime.datetime.now()).split(' ')
+    date = time_now[0]
+    time = time_now[1].split('.')[0].replace(':','-')
+    args.output += '/log'+date+'_'+time+'/'
+    if not os.path.isdir(args.output):
+        os.makedirs(args.output)
+
     # I/O size in (z,y,x), no specified channel number
     args.model_io_size = np.array([int(x) for x in args.model_input.split(',')])
 
@@ -116,6 +128,7 @@ def get_args(mode='train'):
 
     args.data_chunk_stride = int(args.data_chunk_num[-1:])==1
     args.data_chunk_num = np.array([int(x) for x in args.data_chunk_num.split(',')[:-1]])
+    args.data_chunk_num_ind = np.array([int(x) for x in args.data_chunk_num_ind.split(',')])
 
     if args.data_pad=='':
         args.pad_size = args.model_io_size//2

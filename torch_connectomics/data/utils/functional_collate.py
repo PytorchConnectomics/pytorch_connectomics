@@ -13,12 +13,11 @@ def collate_fn(batch):
     :param batch:
     :return:
     """
-    pos, out_input, out_label, weights, weight_factor = zip(*batch)
+    pos, out_input, out_label, weights = zip(*batch)
     out_input = torch.stack(out_input, 0)
     out_label = torch.stack(out_label, 0)
     weights = torch.stack(weights, 0)
-    weight_factor = np.stack(weight_factor, 0)
-    return pos, out_input, out_label, weights, weight_factor
+    return pos, out_input, out_label, weights
 
 def collate_fn_test(batch):
     pos, out_input = zip(*batch)
@@ -31,17 +30,16 @@ def collate_fn_plus(batch):
     :param batch:
     :return:
     """
-    pos, out_input, out_label, weights, weight_factor, others = zip(*batch)
+    pos, out_input, out_label, weights, others = zip(*batch)
     out_input = torch.stack(out_input, 0)
     out_label = torch.stack(out_label, 0)
     weights = torch.stack(weights, 0)
-    weight_factor = np.stack(weight_factor, 0)
 
-    extra = [None]*len(others)
-    for i in range(len(others)):
-        extra[i] = torch.stack(others[i], 0)
+    extra = [None]*len(others[0])
+    for i in range(len(others[0])):
+        extra[i] = torch.stack([others[x][i] for x in range(len(others))], 0)
 
-    return pos, out_input, out_label, weights, weight_factor, extra
+    return pos, out_input, out_label, weights, extra
 
 def collate_fn_skel(batch):
     """
@@ -49,15 +47,14 @@ def collate_fn_skel(batch):
     :param batch:
     :return:
     """
-    pos, out_input, out_label, weights, weight_factor, out_distance, out_skeleton = zip(*batch)
+    pos, out_input, out_label, weights, out_distance, out_skeleton = zip(*batch)
     out_input = torch.stack(out_input, 0)
     out_label = torch.stack(out_label, 0)
     weights = torch.stack(weights, 0)
-    weight_factor = np.stack(weight_factor, 0)
     out_distance = torch.stack(out_distance, 0)
     out_skeleton = np.stack(out_skeleton, 0)
 
-    return pos, out_input, out_label, weights, weight_factor, out_distance, out_skeleton
+    return pos, out_input, out_label, weights, out_distance, out_skeleton
 
 def collate_fn_long_range(batch):
     """
