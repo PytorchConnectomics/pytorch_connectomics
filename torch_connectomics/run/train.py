@@ -17,26 +17,23 @@ def train(args, train_loader, model, criterion,
         else:
             if args.loss_weight_opt == 0:
                 _, volume, label, class_weight = batch
-            elif args.loss_weight_opt in [1,2]:
+            elif args.loss_weight_opt in [1,2,3]:
                 _, volume, label, class_weight, extra = batch
                 extra_label, extra_weight = extra
 
-        volume, label = volume.to(args.device), label.to(args.device)
-        class_weight = class_weight.to(args.device)
-        if args.loss_weight_opt in [1,2]:
-            extra_label, extra_weight = extra_label.to(args.device), extra_weight.to(args.device)
-
+        volume = volume.to(args.device)
         output = model(volume)
-       
-        #visualize_aff(volume, label, output, iter_total, writer)
-        # overall loss
-        if args.loss_weight_opt == 0:
-            loss = criterion(output, label, class_weight)
-        else:
-            loss = criterion(output[:,:label.shape[1]], label, class_weight)
 
-        if args.loss_weight_opt in [1,2]:
-            loss += criterion(output[:, label.shape[1]:], extra_label, extra_weight)
+        if args.loss_weight_opt in [1,2,3]:
+            if extra_label.ndim<output.ndim: # if batch_size =1
+                extra_label = extra_label[None,:]
+                extra_weight = extra_weight[None,:]
+            label = torch.cat((label,extra_label),1)
+            class_weight = torch.cat((class_weight,extra_weight*args.loss_weight_val[args.loss_weight_opt]),1)
+        label, class_weight = label.to(args.device), class_weight.to(args.device)
+       
+        # overall loss
+        loss = criterion(output, label, class_weight)
 
         if regularization is not None:
             loss += regularization(output)

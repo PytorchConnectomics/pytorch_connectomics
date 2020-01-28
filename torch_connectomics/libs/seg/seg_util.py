@@ -252,14 +252,21 @@ def get_small_seg(seg,thres=25,rr=2):
         mask[:,:,x] += rl[tmp]
     return mask
 
-def get_instance_bd(seg, tsz_h=7):
+def get_instance_bd(seg, tsz_h=7, do_bg=False):
     tsz = tsz_h*2+1
     mm = seg.max()
-    patch = im2col(np.pad(seg,((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
-    p0 = patch.max(axis=1)
-    patch[patch==0] = mm+1
-    p1 = patch.min(axis=1)
-    bd = (((p0!=0)*(p1!=0)*(p0!=p1)).reshape(sz)).astype(np.uint8)
+    sz = seg.shape
+    bd = np.zeros(sz, np.uint8)
+    for z in range(seg.shape[0]):
+        patch = im2col(np.pad(seg[z], ((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+        p0 = patch.max(axis=1)
+        if do_bg: # at least one non-zero seg
+            p1 = patch.min(axis=1)
+            bd[z] = ((p0>0)*(p0!=p1)).reshape(sz[1:])
+        else: # between two non-zero seg
+            patch[patch==0] = mm+1
+            p1 = patch.min(axis=1)
+            bd[z] = ((p0!=0)*(p1!=0)*(p0!=p1)).reshape(sz[1:])
     return bd
 
 def markInvalid(seg, iter_num=2, do_2d=True):

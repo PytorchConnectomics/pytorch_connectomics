@@ -47,6 +47,7 @@ def visualize_aff(volume, label, output, iteration, writer):
     volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
     canvas.append(volume_visual)
 
+    sz = output.size() # z,c,y,x
     output_visual = [output[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
     label_visual = [label[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
     canvas = canvas + output_visual

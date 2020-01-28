@@ -48,7 +48,7 @@ class AffinityDataset(BaseDataset):
         self.weight_zratio = ratio # resolution ration between z and x/y
         self.weight_small_dilate = dilate # size of the border
 
-    def setWeightInstanceBd(self, bd_dist=6):
+    def setWeightInstanceBd(self, bd_dist=4):
         self.weight_instance_bd = bd_dist # filter size
 
     def __getitem__(self, index):
@@ -87,12 +87,14 @@ class AffinityDataset(BaseDataset):
             seg_bad = np.array([-1]).astype(out_label.dtype)[0]
             valid_mask = out_label!=seg_bad
             out_label[out_label==seg_bad] = 0
-            # process during data_io
+            # gt-widen process during data_io
             #out_label = widen_border1(out_label, 1)
             #out_label = widen_border2(out_label, 1)
             # replicate-pad the aff boundary
             if self.weight_opt == 1:
                 out_label_orig = out_label>0
+            elif self.weight_opt in [2,3]:
+                out_label_orig = out_label.copy()
             out_label = seg_to_affgraph(out_label, mknhood3d(1), pad='replicate').astype(np.float32)
             out_label = torch.from_numpy(out_label)
 
@@ -109,16 +111,18 @@ class AffinityDataset(BaseDataset):
                 weight_factor, weight = rebalance_binary_class(1.0 - out_label)
 
                 label_small = get_small_seg(out_label_orig, self.weight_small_size, self.weight_zratio)
-                label_small_mask = binary_dilation(label_small, iterations=self.weight_small_dilate).astype(np.uint8)
-                label_small = (out_label_orig * label_small_mask).astype(np.uint8)
-
+                label_small_weight = binary_dilation(label_small, iterations=self.weight_small_dilate).astype(np.float32)
+                label_small = (out_label_orig * label_small_weight).astype(np.float32)
                 return pos, out_input, out_label, weight, [torch.from_numpy(label_small), torch.from_numpy(label_small_mask)]
-            elif self.weight_opt == 2: # find instance bd
+
+            elif self.weight_opt in [2,3]: # find instance bd
                 weight_factor, weight = rebalance_binary_class(1.0 - out_label)
-
-                label_instance_bd = get_instance_bd(out_label_orig, self.weight_instance_bd)
+                
+                do_bg = False if self.weight_opt==2 else True
+                label_instance_bd = get_instance_bd(out_label_orig, self.weight_instance_bd, do_bg=do_bg).astype(np.float32)
+                label_instance_bd = torch.from_numpy(label_instance_bd)
                 weight_factor_bd, weight_bd = rebalance_binary_class(label_instance_bd)
+                return pos, out_input, out_label, weight, [label_instance_bd, weight_bd]
 
-                return pos, out_input, out_label, weight, [torch.from_numpy(label_instance_bd), torch.from_numpy(weight_bd)]
         else:
             return pos, out_input

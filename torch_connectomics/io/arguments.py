@@ -92,6 +92,8 @@ def get_args(mode='train'):
                             help='Loss function')
         parser.add_argument('-lw', '--loss-weight-opt', type=int, default=0,
                             help='Type of weight for rebalancing')
+        parser.add_argument('-lwv', '--loss-weight-val', type=str, default='1,1,1,1',
+                            help='weight value')
         parser.add_argument('-lr', type=float, default=0.0001,
                             help='Learning rate')
         parser.add_argument('-it', '--iteration-total', type=int, default=1000,
@@ -128,7 +130,7 @@ def get_args(mode='train'):
 
     args.data_chunk_stride = int(args.data_chunk_num[-1:])==1
     args.data_chunk_num = np.array([int(x) for x in args.data_chunk_num.split(',')[:-1]])
-    args.data_chunk_num_ind = np.array([int(x) for x in args.data_chunk_num_ind.split(',')])
+    args.data_chunk_num_ind = np.array([int(x) for x in args.data_chunk_num_ind.split(',')]) if len(args.data_chunk_num_ind)>0 else []
 
     if args.data_pad=='':
         args.pad_size = args.model_io_size//2
@@ -139,6 +141,8 @@ def get_args(mode='train'):
     args.model_pad_mode,args.model_norm_mode,args.model_act_mode = args.model_conv_mode.split(',')
 
     args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
+
+    args.loss_weight_val = np.array([int(x) for x in args.loss_weight_val.split(',')])
 
     if mode == 'test':
         # test stride
