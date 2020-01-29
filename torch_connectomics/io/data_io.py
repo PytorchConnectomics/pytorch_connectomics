@@ -44,8 +44,7 @@ def get_data(args, mode='train'):
 
 
     for i in range(len(img_name)):
-        model_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])/255.0
-        model_input[i] = model_input[i].astype(np.float32)
+        model_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])
         if (args.data_scale!=1).any():
             model_input[i] = zoom(model_input[i], args.data_scale, order=1) 
         model_input[i] = np.pad(model_input[i], ((args.pad_size[0],args.pad_size[0]), 
@@ -55,7 +54,6 @@ def get_data(args, mode='train'):
 
         if mode=='train':
             model_label[i] = np.array(h5py.File(label_name[i], 'r')['main'])
-            model_label[i] = model_label[i].astype(np.float32)
             if (args.data_scale!=1).any():
                 model_label[i] = zoom(model_label[i], args.data_scale, order=0) 
             if args.label_erosion!=0:
@@ -69,7 +67,6 @@ def get_data(args, mode='train'):
             
             if args.valid_mask is not None:
                 model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
-                model_mask[i] = model_mask[i].astype(np.float32)
                 if (args.data_scale!=1).any():
                     model_mask[i] = zoom(model_mask[i], args.data_scale, order=0) 
                 model_mask[i] = np.pad(model_mask[i], ((args.pad_size[0],args.pad_size[0]),

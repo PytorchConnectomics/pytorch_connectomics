@@ -5,16 +5,29 @@ from skimage.morphology import erosion, dilation
 from skimage.measure import label
 
 # reduce the labeling
-def relabel(segmentation):
+def getSegType(mid):
+    m_type = np.uint64
+    if mid<2**8:
+        m_type = np.uint8
+    elif mid<2**16:
+        m_type = np.uint16
+    elif mid<2**32:
+        m_type = np.uint32
+    return m_type
+
+def relabel(seg, do_type=False):
     # get the unique labels
-    uid = np.unique(segmentation)
+    uid = np.unique(seg)
     # get the maximum label for the segment
     mid = int(uid.max()) + 1
 
     # create an array from original segment id to reduced id
-    mapping = np.zeros(mid, dtype=segmentation.dtype)
-    mapping[uid] = np.arange(len(uid), dtype=segmentation.dtype)
-    return mapping[segmentation]
+    m_type = seg.dtype
+    if do_type:
+        m_type = getSegType(mid)
+    mapping = np.zeros(mid, dtype=m_type)
+    mapping[uid] = np.arange(len(uid), dtype=m_type)
+    return mapping[seg]
 
 def remove_small(seg, thres=100):                                                                    
     sz = seg.shape                                                                                   
@@ -185,7 +198,7 @@ def widen_border2(seg, iter_num): # given input seg map, widen the seg border
 
     Morphological erosion sets a pixel at (i,j) to the minimum over all pixels in the neighborhood 
     centered at (i,j). Erosion shrinks bright regions and enlarges dark regions. For eroded image,
-    pixels that dis-agree with original segmentation are considered as border pixels.
+    pixels that dis-agree with original seg are considered as border pixels.
     """
     temp = seg.copy()
     for _ in range(iter_num):
@@ -207,7 +220,7 @@ def im2col(A, BSZ, stepsize=1):
 
 def widen_border3(seg, tsz_h=1):
     # Kisuk Lee's thesis (A.1.4) 
-    # we preprocessed the ground truth segmentation such that any voxel centered on a 3 × 3 × 1 window containing more than one positive segment ID (zero is reserved for background) is marked as background
+    # we preprocessed the ground truth seg such that any voxel centered on a 3 × 3 × 1 window containing more than one positive segment ID (zero is reserved for background) is marked as background
     # seg=0: background
     tsz = 2*tsz_h+1
     sz = seg.shape
@@ -257,7 +270,7 @@ def get_instance_bd(seg, tsz_h=7, do_bg=False):
     mm = seg.max()
     sz = seg.shape
     bd = np.zeros(sz, np.uint8)
-    for z in range(seg.shape[0]):
+    for z in range(sz[0]):
         patch = im2col(np.pad(seg[z], ((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
         p0 = patch.max(axis=1)
         if do_bg: # at least one non-zero seg

@@ -101,9 +101,10 @@ class TileDataset(BaseDataset):
             z1 = min(z1+self.pad_size[0], self.json_volume['depth'])
             y1 = min(y1+self.pad_size[1], self.json_volume['height'])
             x1 = min(x1+self.pad_size[2], self.json_volume['width'])
-        volume = [(tileToVolume(self.json_volume['image'], x0, x1, y0, y1, z0, z1,\
+        # keep it in uint8 to save memory
+        volume = [tileToVolume(self.json_volume['image'], x0, x1, y0, y1, z0, z1,\
                              tile_sz=self.json_volume['tile_size'],tile_st=self.json_volume['tile_st'],
-                              tile_ratio=self.json_volume['tile_ratio'])/255.0).astype(np.float32)]
+                              tile_ratio=self.json_volume['tile_ratio'])]
         if self.mode=='test': # padding or not
             to_pad = [(0,0),(0,0),(0,0)]
             to_pad[0] = (self.pad_size[0]-(coord[0]-z0), self.pad_size[0]-(z1-coord[1]))
@@ -120,7 +121,7 @@ class TileDataset(BaseDataset):
             label = [relabel(tileToVolume(self.json_label['image'], x0, x1, y0, y1, z0, z1,\
                                  tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
                                  tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
-                                 dt=dt[self.json_label['dtype']], resize_order=0)).astype(np.float32)]
+                                 dt=dt[self.json_label['dtype']], resize_order=0), do_type=True)]
             if self.label_erosion != 0:
                 label[0] = widen_border3(label[0], self.label_erosion)
         self.dataset = self.dataset_type(volume,label,

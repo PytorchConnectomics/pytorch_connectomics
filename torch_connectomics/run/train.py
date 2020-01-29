@@ -25,9 +25,6 @@ def train(args, train_loader, model, criterion,
         output = model(volume)
 
         if args.loss_weight_opt in [1,2,3]:
-            if extra_label.ndim<output.ndim: # if batch_size =1
-                extra_label = extra_label[None,:]
-                extra_weight = extra_weight[None,:]
             label = torch.cat((label,extra_label),1)
             class_weight = torch.cat((class_weight,extra_weight*args.loss_weight_val[args.loss_weight_opt]),1)
         label, class_weight = label.to(args.device), class_weight.to(args.device)

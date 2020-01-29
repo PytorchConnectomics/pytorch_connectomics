@@ -12,6 +12,7 @@ from .dataset import BaseDataset
 from .misc import crop_volume, rebalance_binary_class
 
 from scipy.ndimage.morphology import binary_dilation
+from torch_connectomics.libs.seg.seg_util import relabel
 
 class AffinityDataset(BaseDataset):
     """PyTorch ddataset class for affinity graph prediction.
@@ -48,7 +49,7 @@ class AffinityDataset(BaseDataset):
         self.weight_zratio = ratio # resolution ration between z and x/y
         self.weight_small_dilate = dilate # size of the border
 
-    def setWeightInstanceBd(self, bd_dist=4):
+    def setWeightInstanceBd(self, bd_dist=2):
         self.weight_instance_bd = bd_dist # filter size
 
     def __getitem__(self, index):
@@ -62,8 +63,9 @@ class AffinityDataset(BaseDataset):
             # if elastic deformation: need different receptive field
             # change vol_size first
             pos = self.get_pos_seed(vol_size, seed)
-            out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
-            out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
+            # make labels index smaller. o/w uint32 and float32 are not the same for some values
+            out_label = relabel(crop_volume(self.label[pos[0]], vol_size, pos[1:])).astype(np.float32)
+            out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
             # 3. augmentation
             if self.augmentor is not None:  # augmentation
                 data = {'image':out_input, 'label':out_label}
@@ -120,7 +122,7 @@ class AffinityDataset(BaseDataset):
                 
                 do_bg = False if self.weight_opt==2 else True
                 label_instance_bd = get_instance_bd(out_label_orig, self.weight_instance_bd, do_bg=do_bg).astype(np.float32)
-                label_instance_bd = torch.from_numpy(label_instance_bd)
+                label_instance_bd = torch.from_numpy(label_instance_bd[None,:]) # add "channel" dim
                 weight_factor_bd, weight_bd = rebalance_binary_class(label_instance_bd)
                 return pos, out_input, out_label, weight, [label_instance_bd, weight_bd]
 
