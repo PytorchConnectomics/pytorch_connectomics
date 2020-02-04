@@ -33,10 +33,13 @@ def collate_fn_plus(batch):
     pos, out_input, out_label, others = zip(*batch)
     out_input = torch.stack(out_input, 0)
     out_label = torch.stack(out_label, 0)
-
-    extra = [None]*len(others[0])
-    for i in range(len(others[0])):
-        extra[i] = torch.stack([others[x][i] for x in range(len(others))], 0)
+    
+    if isinstance(others, list):
+        extra = [None]*len(others[0])
+        for i in range(len(others[0])):
+            extra[i] = torch.stack([others[x][i] for x in range(len(others))], 0)
+    else: # just one more var
+        extra = torch.stack(others, 0)
 
     return pos, out_input, out_label, extra
 
