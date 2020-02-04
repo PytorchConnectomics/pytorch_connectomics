@@ -30,17 +30,16 @@ class MitoDataset(BaseDataset):
                  augmentor=None,
                  valid_mask=None,
                  mode='train', weight_opt=0):
-
+        # convert to binary mask 
+        for i in range(len(label)):
+            label[i] = label[i]//255
         super(MitoDataset, self).__init__(volume,label,
                                           sample_input_size,
                                           sample_label_size,
                                           sample_stride,
                                           augmentor,
                                           mode, weight_opt)
-
-        if label is not None:
-            for i in range(len(self.label)):
-                self.label[i] = (self.label[i] != 0).astype(np.float32)
+        
         self.valid_mask = valid_mask
         if valid_mask is not None:
             self.valid_mask = np.float32(valid_mask)
@@ -60,26 +59,28 @@ class MitoDataset(BaseDataset):
                     out_valid = crop_volume(self.valid_mask[pos[0]], vol_size, pos[1:])
                     if np.sum(out_valid) / np.float32(np.prod(np.array(out_valid.shape))) > 0.8:
                         break
-                out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+                out_label = (crop_volume(self.label[pos[0]], vol_size, pos[1:])>0).astype(np.float32)
                         
             else:
                 while True: # reject sampling
                     pos = self.get_pos_seed(vol_size, seed)
-                    out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
-                    if np.sum(out_label) > 100:
+                    out_label = (crop_volume(self.label[pos[0]], vol_size, pos[1:])>0).astype(np.float32)
+                    break
+                    """
+                    # for partial label
+                    if np.sum(out_label) > np.prod(vol_size)*0.6:
                         break
                     else:
                         if random.random() > 0.90:    
                             break       
+                    """
 
-            out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
+            out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:]).astype(np.float32)/255
             # 3. augmentation
             if self.augmentor is not None:  # augmentation
                 data = {'image':out_input, 'label':out_label}
                 augmented = self.augmentor(data, random_state=seed)
-                out_input, out_label = augmented['image'], augmented['label']
-                out_input = out_input.astype(np.float32)
-                out_label = out_label.astype(np.float32)
+                out_input, out_label = augmented['image'].astype(np.float32), augmented['label'].astype(np.float32)
 
         # Test Mode Specific Operations:
         elif self.mode == 'test':
@@ -100,6 +101,9 @@ class MitoDataset(BaseDataset):
 
         if self.mode == 'train':
             # Rebalancing
+            if self.weight_opt == -1: # no need for weight
+                return pos, out_input, out_label
+
             if self.weight_opt == 0: # fg/bg balance re-weight
                 weight_factor, weight = rebalance_binary_class(out_label)
                 return pos, out_input, out_label, weight

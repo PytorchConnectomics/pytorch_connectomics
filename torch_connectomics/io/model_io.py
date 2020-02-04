@@ -11,6 +11,10 @@ def get_criterion(args):
             return WeightedMSE()
         elif args.loss_type==1:
             return WeightedBCE()   
+        elif args.loss_type==2:
+            return JaccardLoss()
+        elif args.loss_type==3:
+            return DiceLoss()
 
 def get_model(args, exact=True, size_match=True):
     MODEL_MAP = {'unetv0': unetv0,
@@ -21,13 +25,9 @@ def get_model(args, exact=True, size_match=True):
                  'fpn': fpn}
 
     assert args.architecture in MODEL_MAP.keys()
-    if args.task == 2:
-        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, act='tanh',filters=args.filters)
-    elif args.task == 0:
-        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters)
-    else:        
-        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters, \
-                                             pad_mode=args.model_pad_mode, norm_mode=args.model_norm_mode, act_mode=args.model_act_mode)
+    model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.out_channel, filters=args.filters, \
+                                         pad_mode=args.model_pad_mode, norm_mode=args.model_norm_mode, act_mode=args.model_act_mode,                                             do_embedding=(args.model_embedding==1))
+
     print('model: ', model.__class__.__name__)
     model = nn.DataParallel(model, device_ids=range(args.num_gpu))
     patch_replication_callback(model)

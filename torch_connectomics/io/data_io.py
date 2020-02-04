@@ -88,17 +88,15 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
     SHUFFLE = (mode == 'train')
 
 
-    wopt = 0
+    wopt = -1
     cf = collate_fn_test 
     if mode=='train':
-        wopt =args.loss_weight_opt
+        cf = collate_fn
+        if args.loss_type == 1:
+            wopt = args.loss_weight_opt
+            cf = collate_fn_plus
         if args.task == 22:
             cf = collate_fn_skel
-        else:
-            if wopt == 0: 
-                cf = collate_fn
-            else: 
-                cf = collate_fn_plus
     # given dataset
     if dataset is not None:
         img_loader =  torch.utils.data.DataLoader(
@@ -113,7 +111,7 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
     if mode=='train':
         augmentor = Compose([Rotate(p=1.0),
                              Rescale(p=0.5),
-                             Flip(p=1.0),
+                             Flip(p=1.0, do_ztrans=args.data_aug_ztrans),
                              Elastic(alpha=12.0, p=0.75),
                              Grayscale(p=0.75),
                              MissingParts(p=0.9),

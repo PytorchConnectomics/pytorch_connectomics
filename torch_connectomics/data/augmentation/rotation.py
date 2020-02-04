@@ -20,6 +20,7 @@ class Rotate(DataAugment):
         self.set_params()
 
     def set_params(self):
+        # sqrt(2)
         self.sample_params['ratio'] = [1.0, 1.42, 1.42]
 
     def rotate(self, imgs, M, interpolation):

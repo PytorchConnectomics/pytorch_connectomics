@@ -46,6 +46,9 @@ def get_args(mode='train'):
     parser.add_argument('-ds', '--data-scale', type=str,  default='1,1,1',
                         help='Scale size of the input data for different resolutions')
 
+    parser.add_argument('-daz','--data-aug-ztrans', type=int,  default=0,
+                        help='apply xz transponse for data augmentation (for isotropic data)')
+
     parser.add_argument('-mi', '--model-input', type=str,  default='18,160,160',
                         help='Input size of deep network')
     parser.add_argument('-mo', '--model-output', type=str,  default='18,160,160',
@@ -55,6 +58,8 @@ def get_args(mode='train'):
                         help='number of filters per unet block')
     parser.add_argument('-mcm', '--model-conv-mode', type=str,  default='rep,bn,elu',
                         help='convolution layer mode: padding,normalization,activation')
+    parser.add_argument('-me', '--model-embedding', type=int, default=1,
+                        help='do 2d embedding or not')  
 
     # model option
     parser.add_argument('-pm', '--pre-model', type=str, default='',
@@ -142,9 +147,9 @@ def get_args(mode='train'):
 
     args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
 
-    args.loss_weight_val = np.array([int(x) for x in args.loss_weight_val.split(',')])
-
-    if mode == 'test':
+    if mode == 'train':
+        args.loss_weight_val = np.array([int(x) for x in args.loss_weight_val.split(',')])
+    elif mode == 'test':
         # test stride
         if args.test_size=='': # not defined, do default model input size
             args.test_size = args.model_io_size

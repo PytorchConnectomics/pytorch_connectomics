@@ -6,14 +6,59 @@ import torch.nn.functional as F
 
 # 0. main loss functions
 
+class JaccardLoss(nn.Module):
+    """Jaccard loss.
+    """
+    # binary case
+
+    def __init__(self, size_average=True, reduce=True, smooth=1.0):
+        super(JaccardLoss, self).__init__()
+        self.smooth = smooth
+        self.reduce = reduce
+
+    def jaccard_loss(self, input, target):
+        loss = 0.
+        # for each sample in the batch
+        for index in range(input.size()[0]):
+            iflat = input[index].view(-1)
+            tflat = target[index].view(-1)
+            intersection = (iflat * tflat).sum()
+            loss += 1 - ((intersection + self.smooth) / 
+                    ( iflat.sum() + tflat.sum() - intersection + self.smooth))
+            #print('loss:',intersection, iflat.sum(), tflat.sum())
+
+        # size_average=True for the jaccard loss
+        return loss / float(input.size()[0])
+
+    def jaccard_loss_batch(self, input, target):
+        iflat = input.view(-1)
+        tflat = target.view(-1)
+        intersection = (iflat * tflat).sum()
+        loss = 1 - ((intersection + self.smooth) / 
+               ( iflat.sum() + tflat.sum() - intersection + self.smooth))
+        #print('loss:',intersection, iflat.sum(), tflat.sum())
+        return loss
+
+    def forward(self, input, target):
+        #_assert_no_grad(target)
+        if not (target.size() == input.size()):
+            raise ValueError("Target size ({}) must be the same as input size ({})".format(target.size(), input.size()))
+        if self.reduce:
+            loss = self.jaccard_loss(input, target)
+        else:    
+            loss = self.jaccard_loss_batch(input, target)
+        return loss
+
 class DiceLoss(nn.Module):
     """DICE loss.
     """
+    # https://lars76.github.io/neural-networks/object-detection/losses-for-segmentation/
 
-    def __init__(self, size_average=True, reduce=True, smooth=100.0):
-        super(DiceLoss, self).__init__(size_average, reduce)
+    def __init__(self, size_average=True, reduce=True, smooth=100.0, power=1):
+        super(DiceLoss, self).__init__()
         self.smooth = smooth
         self.reduce = reduce
+        self.power = power
 
     def dice_loss(self, input, target):
         loss = 0.
@@ -22,9 +67,12 @@ class DiceLoss(nn.Module):
             iflat = input[index].view(-1)
             tflat = target[index].view(-1)
             intersection = (iflat * tflat).sum()
-
-            loss += 1 - ((2. * intersection + self.smooth) / 
-                    ( (iflat**2).sum() + (tflat**2).sum() + self.smooth))
+            if self.power==1:
+                loss += 1 - ((2. * intersection + self.smooth) / 
+                        ( iflat.sum() + tflat.sum() + self.smooth))
+            else:
+                loss += 1 - ((2. * intersection + self.smooth) / 
+                        ( (iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
 
         # size_average=True for the dice loss
         return loss / float(input.size()[0])
@@ -34,9 +82,13 @@ class DiceLoss(nn.Module):
         iflat = input.view(-1)
         tflat = target.view(-1)
         intersection = (iflat * tflat).sum()
-
-        loss = 1 - ((2. * intersection + self.smooth) / 
-               ( (iflat**2).sum() + (tflat**2).sum() + self.smooth))
+        
+        if self.power==1:
+            loss = 1 - ((2. * intersection + self.smooth) / 
+                   (iflat.sum() + tflat.sum() + self.smooth))
+        else:
+            loss = 1 - ((2. * intersection + self.smooth) / 
+                   ( (iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
         return loss
 
     def forward(self, input, target):

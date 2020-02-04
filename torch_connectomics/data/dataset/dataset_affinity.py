@@ -80,8 +80,8 @@ class AffinityDataset(BaseDataset):
         elif self.mode == 'test':
             # test mode
             pos = self.get_pos_test(index)
-            out_input = crop_volume(self.input[pos[0]], vol_size, pos[1:])
-            out_label = None if self.label is None else crop_volume(self.label[pos[0]], vol_size, pos[1:])
+            out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
+            out_label = None if self.label is None else crop_volume(self.label[pos[0]], vol_size, pos[1:]).astype(np.float32)
             
         # Turn segmentation label into affinity in Pytorch Tensor
         if out_label is not None:

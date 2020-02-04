@@ -15,22 +15,28 @@ def train(args, train_loader, model, criterion,
         if args.task == 22:
             _, volume, seg_mask, class_weight, _, label, out_skeleton = batch
         else:
-            if args.loss_weight_opt == 0:
-                _, volume, label, class_weight = batch
-            elif args.loss_weight_opt in [1,2,3]:
-                _, volume, label, class_weight, extra = batch
-                extra_label, extra_weight = extra
+            if args.loss_type == 1:
+                if args.loss_weight_opt == 0:
+                    _, volume, label, class_weight = batch
+                elif args.loss_weight_opt in [1,2,3]:
+                    _, volume, label, extra = batch
+                    class_weight, extra_label, extra_weight = extra
+            else:
+                _, volume, label = batch
 
         volume = volume.to(args.device)
         output = model(volume)
+        #print(volume.size(), output.size())
 
-        if args.loss_weight_opt in [1,2,3]:
-            label = torch.cat((label,extra_label),1)
-            class_weight = torch.cat((class_weight,extra_weight*args.loss_weight_val[args.loss_weight_opt]),1)
-        label, class_weight = label.to(args.device), class_weight.to(args.device)
-       
-        # overall loss
-        loss = criterion(output, label, class_weight)
+        if args.loss_type == 1:
+            if args.loss_weight_opt in [1,2,3]:
+                label = torch.cat((label,extra_label),1)
+                class_weight = torch.cat((class_weight,extra_weight*args.loss_weight_val[args.loss_weight_opt]),1)
+            label, class_weight = label.to(args.device), class_weight.to(args.device)
+            loss = criterion(output, label, class_weight)
+        else:
+            label = label.to(args.device)
+            loss = criterion(output, label)
 
         if regularization is not None:
             loss += regularization(output)
