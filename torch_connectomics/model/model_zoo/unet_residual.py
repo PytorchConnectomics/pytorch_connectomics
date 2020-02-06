@@ -21,7 +21,7 @@ class unet_residual(nn.Module):
         out_channel (int): number of output channels.
         filters (list): number of filters at each u-net stage.
     """
-    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80], pad_mode='rep', norm_mode='bn', act_mode='elu', do_embedding=True):
+    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80], pad_mode='rep', norm_mode='bn', act_mode='elu', do_embedding=True, head_depth=1):
         super().__init__()
 
         self.depth = len(filters)-2
@@ -80,12 +80,13 @@ class unet_residual(nn.Module):
                             conv3d_norm_act(filters[x+1], filters[x], kernel_size=(1,1,1), padding=0, norm_mode=norm_mode, act_mode=act_mode),
                             nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)) for x in range(self.depth+1)])
         else:
-            self.upS = nn.ModuleList([conv3d_norm_act(filters[1], out_channel, kernel_size=(1,1,1), padding=0, norm_mode=norm_mode)]+ \
+            head_pred = [residual_block_3d(filters[1], filters[1], projection=False)
+                                    for x in range(head_depth-1)] + \
+                              [conv3d_norm_act(filters[1], out_channel, kernel_size=(1,1,1), padding=0, norm_mode=norm_mode)]
+            self.upS = nn.ModuleList( [nn.Sequential(*head_pred)] + \
                                  [nn.Sequential(
                         conv3d_norm_act(filters[x+1], filters[x], kernel_size=(1,1,1), padding=0, norm_mode=norm_mode, act_mode=act_mode),
                         nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)) for x in range(1,self.depth+1)])
-
-
 
 
         #initialization

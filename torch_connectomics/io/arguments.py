@@ -56,6 +56,8 @@ def get_args(mode='train'):
     parser.add_argument('-ma', '--architecture', help='model architecture')  
     parser.add_argument('-mf', '--model-filters', type=str,  default='28,36,48,64,80',
                         help='number of filters per unet block')
+    parser.add_argument('-mhd', '--model-head-depth', type=int,  default=1,
+                        help='last decoder head depth')
     parser.add_argument('-mcm', '--model-conv-mode', type=str,  default='rep,bn,elu',
                         help='convolution layer mode: padding,normalization,activation')
     parser.add_argument('-me', '--model-embedding', type=int, default=1,
