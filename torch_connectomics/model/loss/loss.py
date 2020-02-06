@@ -16,11 +16,11 @@ class JaccardLoss(nn.Module):
         self.smooth = smooth
         self.reduce = reduce
 
-    def jaccard_loss(self, input, target):
+    def jaccard_loss(self, pred, target):
         loss = 0.
         # for each sample in the batch
-        for index in range(input.size()[0]):
-            iflat = input[index].view(-1)
+        for index in range(pred.size()[0]):
+            iflat = pred[index].view(-1)
             tflat = target[index].view(-1)
             intersection = (iflat * tflat).sum()
             loss += 1 - ((intersection + self.smooth) / 
@@ -28,10 +28,10 @@ class JaccardLoss(nn.Module):
             #print('loss:',intersection, iflat.sum(), tflat.sum())
 
         # size_average=True for the jaccard loss
-        return loss / float(input.size()[0])
+        return loss / float(pred.size()[0])
 
-    def jaccard_loss_batch(self, input, target):
-        iflat = input.view(-1)
+    def jaccard_loss_batch(self, pred, target):
+        iflat = pred.view(-1)
         tflat = target.view(-1)
         intersection = (iflat * tflat).sum()
         loss = 1 - ((intersection + self.smooth) / 
@@ -39,14 +39,14 @@ class JaccardLoss(nn.Module):
         #print('loss:',intersection, iflat.sum(), tflat.sum())
         return loss
 
-    def forward(self, input, target):
+    def forward(self, pred, target):
         #_assert_no_grad(target)
-        if not (target.size() == input.size()):
-            raise ValueError("Target size ({}) must be the same as input size ({})".format(target.size(), input.size()))
+        if not (target.size() == pred.size()):
+            raise ValueError("Target size ({}) must be the same as pred size ({})".format(target.size(), pred.size()))
         if self.reduce:
-            loss = self.jaccard_loss(input, target)
+            loss = self.jaccard_loss(pred, target)
         else:    
-            loss = self.jaccard_loss_batch(input, target)
+            loss = self.jaccard_loss_batch(pred, target)
         return loss
 
 class DiceLoss(nn.Module):
@@ -60,11 +60,11 @@ class DiceLoss(nn.Module):
         self.reduce = reduce
         self.power = power
 
-    def dice_loss(self, input, target):
+    def dice_loss(self, pred, target):
         loss = 0.
 
-        for index in range(input.size()[0]):
-            iflat = input[index].view(-1)
+        for index in range(pred.size()[0]):
+            iflat = pred[index].view(-1)
             tflat = target[index].view(-1)
             intersection = (iflat * tflat).sum()
             if self.power==1:
@@ -75,11 +75,11 @@ class DiceLoss(nn.Module):
                         ( (iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
 
         # size_average=True for the dice loss
-        return loss / float(input.size()[0])
+        return loss / float(pred.size()[0])
 
-    def dice_loss_batch(self, input, target):
+    def dice_loss_batch(self, pred, target):
 
-        iflat = input.view(-1)
+        iflat = pred.view(-1)
         tflat = target.view(-1)
         intersection = (iflat * tflat).sum()
         
@@ -91,15 +91,15 @@ class DiceLoss(nn.Module):
                    ( (iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
         return loss
 
-    def forward(self, input, target):
+    def forward(self, pred, target):
         #_assert_no_grad(target)
-        if not (target.size() == input.size()):
-            raise ValueError("Target size ({}) must be the same as input size ({})".format(target.size(), input.size()))
+        if not (target.size() == pred.size()):
+            raise ValueError("Target size ({}) must be the same as pred size ({})".format(target.size(), pred.size()))
 
         if self.reduce:
-            loss = self.dice_loss(input, target)
+            loss = self.dice_loss(pred, target)
         else:    
-            loss = self.dice_loss_batch(input, target)
+            loss = self.dice_loss_batch(pred, target)
         return loss
 
 class WeightedMSE(nn.Module):
@@ -109,15 +109,15 @@ class WeightedMSE(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def weighted_mse_loss(self, input, target, weight):
-        s1 = torch.prod(torch.tensor(input.size()[2:]).float())
-        s2 = input.size()[0]
+    def weighted_mse_loss(self, pred, target, weight):
+        s1 = torch.prod(torch.tensor(pred.size()[2:]).float())
+        s2 = pred.size()[0]
         norm_term = (s1 * s2).cuda()
-        return torch.sum(weight * (input - target) ** 2) / norm_term
+        return torch.sum(weight * (pred - target) ** 2) / norm_term
 
-    def forward(self, input, target, weight):
+    def forward(self, pred, target, weight):
         #_assert_no_grad(target)
-        return self.weighted_mse_loss(input, target, weight)  
+        return self.weighted_mse_loss(pred, target, weight)  
 
 class WeightedBCE(nn.Module):
     """Weighted binary cross-entropy.
@@ -127,9 +127,9 @@ class WeightedBCE(nn.Module):
         self.size_average = size_average
         self.reduce = reduce
 
-    def forward(self, input, target, weight):
+    def forward(self, pred, target, weight):
         #_assert_no_grad(target)
-        return F.binary_cross_entropy(input, target, weight, reduction='mean')
+        return F.binary_cross_entropy(pred, target, weight, reduction='mean')
 
 #. 1. Regularization
 
@@ -140,8 +140,8 @@ class BinaryReg(nn.Module):
         super().__init__()
         self.alpha = alpha
     
-    def forward(self, input):
-        diff = input - 0.5
+    def forward(self, pred):
+        diff = pred - 0.5
         diff = torch.clamp(torch.abs(diff), min=1e-2)
         loss = 1.0 / diff.sum()
         return self.alpha * loss

@@ -22,7 +22,7 @@ def train(args, train_loader, model, criterion,
                     _, volume, label, extra = batch
                     class_weight, extra_label, extra_weight = extra
             else:
-                _, volume, label = batch
+                pos, volume, label = batch
 
         volume = volume.to(args.device)
         output = model(volume)
@@ -37,6 +37,9 @@ def train(args, train_loader, model, criterion,
         else:
             label = label.to(args.device)
             loss = criterion(output, label)
+        # writeh5('pred.h5','main',(output.cpu().detach().numpy().squeeze()*255).astype(np.uint8))
+        # writeh5('input.h5','main',(volume.cpu().detach().numpy().squeeze()*255).astype(np.uint8))
+        # writeh5('gt.h5','main',(label.cpu().detach().numpy().squeeze()*255).astype(np.uint8))
 
         if regularization is not None:
             loss += regularization(output)
