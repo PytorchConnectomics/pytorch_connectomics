@@ -20,11 +20,21 @@
   <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
   
     
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../',
+              VERSION:'master',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -101,8 +111,8 @@
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">torch_connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#building-blocks">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#model-zoo">Model Zoo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.blocks">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">torch_connectomics.data.augmentation</a></li>
@@ -185,19 +195,19 @@ the models used in affinity prediction in <a class="reference external" href="ht
 The evaluation of the synapse detection results is based on the F1 score and average distance. See <a class="reference external" href="https://cremi.org/metrics/">CREMI metrics</a>
 for more details.</p>
 <div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
+<p class="first admonition-title">Note</p>
+<p class="last">We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
 the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal notranslate"><span class="pre">--task</span> <span class="pre">1</span></code>
-when executing the <code class="docutils literal notranslate"><span class="pre">train.py</span></code> and <code class="docutils literal notranslate"><span class="pre">test.py</span></code> scripts. The pytorch dataset class of synapses is <code class="xref py py-class docutils literal notranslate"><span class="pre">torch_connectomics.data.dataset.SynapseDataset</span></code>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--task</span> <span class="pre">1</span></code>
+when executing the <code class="docutils literal"><span class="pre">train.py</span></code> and <code class="docutils literal"><span class="pre">test.py</span></code> scripts. The pytorch dataset class of synapses is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.SynapseDataset</span></code>.</p>
 <ol class="arabic">
-<li><p>Get the dataset:</p>
+<li><p class="first">Get the dataset:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p>Download the dataset from our server:</p>
+<li><p class="first">Download the dataset from our server:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://hp03.mindhackers.org/rhoana_product/dataset/cremi.zip
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://hp03.mindhackers.org/rhoana_product/dataset/cremi.zip
 </pre></div>
 </div>
 </div></blockquote>
@@ -206,9 +216,9 @@ when executing the <code class="docutils literal notranslate"><span class="pre">
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 </div></blockquote>
 </li>
-<li><p>Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
+<li><p class="first">Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
   -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
   -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
@@ -218,16 +228,16 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
 </div>
 </div></blockquote>
 </li>
-<li><p>Visualize the training progress:</p>
+<li><p class="first">Visualize the training progress:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p>Run inference on image volumes:</p>
+<li><p class="first">Run inference on image volumes:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
   -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
   -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
   -lm True -pm outputs/unetv0_syn/volume_50000.pth

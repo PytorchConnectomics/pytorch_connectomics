@@ -194,8 +194,9 @@
 <span class="sd">    Args:</span>
 <span class="sd">        p (float): probability of applying the augmentation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">do_ztrans</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Flip</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span> <span class="o">=</span> <span class="n">do_ztrans</span>
 
     <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># No change in sample size</span>
@@ -216,6 +217,9 @@
             <span class="c1"># Transpose in xy.</span>
             <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">3</span><span class="p">]:</span>
                 <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># Transpose in xz.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span><span class="o">==</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">rule</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># z reflection.</span>
             <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
@@ -229,6 +233,9 @@
             <span class="c1"># Transpose in xy.</span>
             <span class="k">if</span> <span class="n">rule</span><span class="p">[</span><span class="mi">3</span><span class="p">]:</span>
                 <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># Transpose in xz.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span><span class="o">==</span><span class="mi">1</span> <span class="ow">and</span> <span class="n">rule</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span>
     
     <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
@@ -236,7 +243,7 @@
             <span class="n">random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">(</span><span class="mi">1234</span><span class="p">)</span>
         
         <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">rule</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+        <span class="n">rule</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span><span class="p">)</span>
         <span class="n">augmented_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">rule</span><span class="p">)</span>
         <span class="n">augmented_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span> <span class="n">rule</span><span class="p">)</span>
         <span class="n">output</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">augmented_image</span>
@@ -255,7 +262,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, Zudi Lin
+        &copy; Copyright 2020, Zudi Lin
 
     </p>
   </div>
