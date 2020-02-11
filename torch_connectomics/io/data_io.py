@@ -92,7 +92,7 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
     cf = collate_fn_test 
     if mode=='train':
         cf = collate_fn
-        if args.loss_type == 1:
+        if args.loss_type in [1,4]:
             wopt = args.loss_weight_opt
             cf = collate_fn_plus
         if args.task == 22:

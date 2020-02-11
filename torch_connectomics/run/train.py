@@ -15,7 +15,7 @@ def train(args, train_loader, model, criterion,
         if args.task == 22:
             _, volume, seg_mask, class_weight, _, label, out_skeleton = batch
         else:
-            if args.loss_type == 1:
+            if args.loss_type in [1,4]:
                 if args.loss_weight_opt == 0:
                     _, volume, label, class_weight = batch
                 elif args.loss_weight_opt in [1,2,3]:
@@ -27,16 +27,20 @@ def train(args, train_loader, model, criterion,
         volume = volume.to(args.device)
         output = model(volume)
         #print(volume.size(), output.size())
-
-        if args.loss_type == 1:
+        
+        loss = 0
+        if args.loss_type in [0,1,4]:
             if args.loss_weight_opt in [1,2,3]:
                 label = torch.cat((label,extra_label),1)
                 class_weight = torch.cat((class_weight,extra_weight*args.loss_weight_val[args.loss_weight_opt]),1)
             label, class_weight = label.to(args.device), class_weight.to(args.device)
-            loss = criterion(output, label, class_weight)
-        else:
+            loss += criterion[1][0]*criterion[0][0](output, label, class_weight)
+
+        if args.loss_type in [2,3,4]:
             label = label.to(args.device)
-            loss = criterion(output, label)
+            criterion_st = 0 if args.loss_type in [2,3] else 1
+            for x in range(criterion_st,len(criterion[0])):
+                loss += criterion[1][x]*criterion[0][x](output, label)
         # writeh5('pred.h5','main',(output.cpu().detach().numpy().squeeze()*255).astype(np.uint8))
         # writeh5('input.h5','main',(volume.cpu().detach().numpy().squeeze()*255).astype(np.uint8))
         # writeh5('gt.h5','main',(label.cpu().detach().numpy().squeeze()*255).astype(np.uint8))

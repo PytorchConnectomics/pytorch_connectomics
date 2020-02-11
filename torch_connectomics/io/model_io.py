@@ -8,13 +8,15 @@ from torch_connectomics.model.norm import patch_replication_callback
 def get_criterion(args):
     if args.task == 0 or args.task==2:
         if args.loss_type==0:
-            return WeightedMSE()
+            return [WeightedMSE()],[1.]
         elif args.loss_type==1:
-            return WeightedBCE()   
+            return [WeightedBCE()],[1.]
         elif args.loss_type==2:
-            return JaccardLoss()
+            return [JaccardLoss()],[1.]
         elif args.loss_type==3:
-            return DiceLoss()
+            return [DiceLoss()],[1.]
+        elif args.loss_type==4:
+            return [WeightedBCE(),DiceLoss()],[1.,1.]
 
 def get_model(args, exact=True, size_match=True):
     MODEL_MAP = {'unetv0': unetv0,
