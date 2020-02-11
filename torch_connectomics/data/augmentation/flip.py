@@ -8,8 +8,9 @@ class Flip(DataAugment):
     Args:
         p (float): probability of applying the augmentation.
     """
-    def __init__(self, p=0.5):
+    def __init__(self, p=0.5, do_ztrans=0):
         super(Flip, self).__init__(p)
+        self.do_ztrans = do_ztrans
 
     def set_params(self):
         # No change in sample size
@@ -30,6 +31,9 @@ class Flip(DataAugment):
             # Transpose in xy.
             if rule[3]:
                 data = data.transpose(0, 2, 1)
+            # Transpose in xz.
+            if self.do_ztrans==1 and rule[4]:
+                data = data.transpose(0, 1, 2)
         else:
             # z reflection.
             if rule[0]:
@@ -43,6 +47,9 @@ class Flip(DataAugment):
             # Transpose in xy.
             if rule[3]:
                 data = data.transpose(0, 1, 3, 2)
+            # Transpose in xz.
+            if self.do_ztrans==1 and rule[4]:
+                data = data.transpose(0, 2, 1, 3)
         return data
     
     def __call__(self, data, random_state):
@@ -50,7 +57,7 @@ class Flip(DataAugment):
             random_state = np.random.RandomState(1234)
         
         output = {}
-        rule = random_state.randint(2, size=4)
+        rule = random_state.randint(2, size=4+self.do_ztrans)
         augmented_image = self.flip_and_swap(data['image'], rule)
         augmented_label = self.flip_and_swap(data['label'], rule)
         output['image'] = augmented_image

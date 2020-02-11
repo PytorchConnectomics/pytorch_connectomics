@@ -20,21 +20,11 @@
   <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'master',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -111,8 +101,8 @@
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="model.html">torch_connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="model.html#module-torch_connectomics.model.blocks">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model.html#building-blocks">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model.html#model-zoo">Model Zoo</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="augmentation.html">torch_connectomics.data.augmentation</a></li>
@@ -189,123 +179,6 @@
             
   <div class="section" id="torch-connectomics-data-datasets">
 <h1>torch_connectomics.data.datasets<a class="headerlink" href="#torch-connectomics-data-datasets" title="Permalink to this headline">¶</a></h1>
-<span class="target" id="module-torch_connectomics.data.dataset"></span><dl class="class">
-<dt id="torch_connectomics.data.dataset.AffinityDataset">
-<em class="property">class </em><code class="descname">AffinityDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_affinity.html#AffinityDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.AffinityDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>PyTorch ddataset class for affinity graph prediction.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>volume</strong> – input image stacks.</li>
-<li><strong>label</strong> – segmentation stacks.</li>
-<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
-<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
-<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>augmentor</strong> – data augmentor.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="torch_connectomics.data.dataset.SynapseDataset">
-<em class="property">class </em><code class="descname">SynapseDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_synapse.html#SynapseDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.SynapseDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pytorch dataset class for synapse detection.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>volume</strong> – input image stacks.</li>
-<li><strong>label</strong> – synapse masks.</li>
-<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
-<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
-<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>augmentor</strong> – data augmentor.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="torch_connectomics.data.dataset.SynapsePolarityDataset">
-<em class="property">class </em><code class="descname">SynapsePolarityDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_synapse.html#SynapsePolarityDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.SynapsePolarityDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pytorch dataset class for synapse detection (polarity mask).</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>volume</strong> – input image stacks.</li>
-<li><strong>label</strong> – synapse masks.</li>
-<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
-<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
-<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>augmentor</strong> – data augmentor.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="torch_connectomics.data.dataset.MitoDataset">
-<em class="property">class </em><code class="descname">MitoDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>valid_mask=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_mito.html#MitoDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.MitoDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pytorch dataset class for mitochondira segmentation.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>volume</strong> – input image stacks.</li>
-<li><strong>label</strong> – synapse masks.</li>
-<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
-<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
-<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>augmentor</strong> – data augmentor.</li>
-<li><strong>valid_mask</strong> – the binary mask of valid regions.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="torch_connectomics.data.dataset.MitoSkeletonDataset">
-<em class="property">class </em><code class="descname">MitoSkeletonDataset</code><span class="sig-paren">(</span><em>volume</em>, <em>label=None</em>, <em>sample_input_size=(8</em>, <em>64</em>, <em>64)</em>, <em>sample_label_size=None</em>, <em>sample_stride=(1</em>, <em>1</em>, <em>1)</em>, <em>augmentor=None</em>, <em>valid_mask=None</em>, <em>mode='train'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/torch_connectomics/data/dataset/dataset_mito.html#MitoSkeletonDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#torch_connectomics.data.dataset.MitoSkeletonDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pytorch dataset class for mitochondira segmentation.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>volume</strong> – input image stacks.</li>
-<li><strong>label</strong> – synapse masks.</li>
-<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
-<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
-<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>augmentor</strong> – data augmentor.</li>
-<li><strong>valid_mask</strong> – the binary mask of valid regions.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
 </div>
 
 
@@ -328,7 +201,7 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, Zudi Lin
+        &copy; Copyright 2020, Zudi Lin
 
     </p>
   </div>

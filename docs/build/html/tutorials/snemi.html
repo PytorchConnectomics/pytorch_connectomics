@@ -20,21 +20,11 @@
   <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'master',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -111,8 +101,8 @@
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">torch_connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.blocks">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-torch_connectomics.model.model_zoo">Model Zoo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#building-blocks">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#model-zoo">Model Zoo</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">torch_connectomics.data.augmentation</a></li>
@@ -196,19 +186,19 @@ then generate the segmentation map using a segmentation algorithm (e.g., watersh
 <p>The evaluation of segmentation results is based on the <a class="reference external" href="https://en.wikipedia.org/wiki/Rand_index">Rand Index</a>
 and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_of_information">Variation of Information</a>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
+<p class="admonition-title">Note</p>
+<p>Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
 to get familiar with the datasets and have a sense of how the affinity graphs look like.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. The pytorch dataset class for neuron segmentation
-is <a class="reference internal" href="../modules/datasets.html#torch_connectomics.data.dataset.AffinityDataset" title="torch_connectomics.data.dataset.AffinityDataset"><code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.AffinityDataset</span></code></a>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. The pytorch dataset class for neuron segmentation
+is <code class="xref py py-class docutils literal notranslate"><span class="pre">torch_connectomics.data.dataset.AffinityDataset</span></code>.</p>
 <ol class="arabic">
-<li><p class="first">Get the dataset:</p>
+<li><p>Get the dataset:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p class="first">Download the dataset from our server:</p>
+<li><p>Download the dataset from our server:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
 </pre></div>
 </div>
 </div></blockquote>
@@ -216,9 +206,9 @@ is <a class="reference internal" href="../modules/datasets.html#torch_connectomi
 </ol>
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 <ol class="arabic">
-<li><p class="first">Store the data into <code class="docutils literal"><span class="pre">HDF5</span></code> format (take <code class="docutils literal"><span class="pre">train-input.tif</span></code> as example):</p>
+<li><p>Store the data into <code class="docutils literal notranslate"><span class="pre">HDF5</span></code> format (take <code class="docutils literal notranslate"><span class="pre">train-input.tif</span></code> as example):</p>
 <blockquote>
-<div><div class="highlight-python"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+<div><div class="highlight-python notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
 2
 3
 4
@@ -240,9 +230,9 @@ is <a class="reference internal" href="../modules/datasets.html#torch_connectomi
 </ol>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script:</p>
+<li><p>Run the training script:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py -t /path/to/snemi/ \
   -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
   --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
@@ -251,53 +241,52 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py -t /path/to/snemi/ \
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress:</p>
+<li><p>Visualize the training progress:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes:</p>
+<li><p>Run inference on image volumes:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/snemi/ \
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/snemi/ \
   -dn train_image.h5 -o outputs/unetv3/result -mi 18,160,160 -g 4 \
   -c 4 -b 8 -ac unetv3 -lm True -pm outputs/unetv3/volume_50000.pth
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Gnerate segmentation and run evaluation:</p>
+<li><p>Gnerate segmentation and run evaluation:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p class="first">Download the <code class="docutils literal"><span class="pre">waterz</span></code> package:</p>
+<li><p>Download the <code class="docutils literal notranslate"><span class="pre">waterz</span></code> package:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/waterz.git
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/waterz.git
 $ cd waterz
 $ pip install --editable .
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Download the <code class="docutils literal"><span class="pre">zwatershed</span></code> package:</p>
+<li><p>Download the <code class="docutils literal notranslate"><span class="pre">zwatershed</span></code> package:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/zwatershed.git
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ git clone git@github.com:zudi-lin/zwatershed.git
 $ cd zwatershed
 $ pip install --editable .
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>:</p>
+<li><p>Generate 3D segmentation and report Rand and VI score using <code class="docutils literal notranslate"><span class="pre">waterz</span></code>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">You can also run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb">segmentation.ipynb</a> in
-the demo, which provides more options and visualization.</p>
-</li>
+<li><p>You can also run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb">segmentation.ipynb</a> in
+the demo, which provides more options and visualization.</p></li>
 </ol>
 </div></blockquote>
 </li>
@@ -324,7 +313,7 @@ the demo, which provides more options and visualization.</p>
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2019, Zudi Lin
+        &copy; Copyright 2020, Zudi Lin
 
     </p>
   </div>

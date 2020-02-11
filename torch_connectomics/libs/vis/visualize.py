@@ -40,13 +40,16 @@ def visualize(volume, label, output, iteration, writer, composite=False):
 
 def visualize_aff(volume, label, output, iteration, writer):
     volume, label, output = prepare_data(volume, label, output)
+    #print('ho:',volume.shape,label.shape)
 
     sz = volume.size() # z,c,y,x
     canvas = []
     volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
     canvas.append(volume_visual)
-    output_visual = [output[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(3)]
-    label_visual = [label[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(3)]
+
+    sz = output.size() # z,c,y,x
+    output_visual = [output[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
+    label_visual = [label[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
     canvas = canvas + output_visual
     canvas = canvas + label_visual
     canvas_merge = torch.cat(canvas, 0)

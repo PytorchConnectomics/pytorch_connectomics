@@ -9,7 +9,7 @@ import torch.utils.data
 import torchvision.utils as vutils
 
 from torch_connectomics.data.dataset import *
-from torch_connectomics.data.utils import collate_fn, collate_fn_test, collate_fn_skel
+from torch_connectomics.data.utils import collate_fn, collate_fn_plus, collate_fn_test, collate_fn_skel
 from torch_connectomics.data.augmentation import *
 from torch_connectomics.libs.seg.seg_util import widen_border3
 
@@ -44,8 +44,7 @@ def get_data(args, mode='train'):
 
 
     for i in range(len(img_name)):
-        model_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])/255.0
-        model_input[i] = model_input[i].astype(np.float32)
+        model_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])
         if (args.data_scale!=1).any():
             model_input[i] = zoom(model_input[i], args.data_scale, order=1) 
         model_input[i] = np.pad(model_input[i], ((args.pad_size[0],args.pad_size[0]), 
@@ -55,7 +54,6 @@ def get_data(args, mode='train'):
 
         if mode=='train':
             model_label[i] = np.array(h5py.File(label_name[i], 'r')['main'])
-            model_label[i] = model_label[i].astype(np.float32)
             if (args.data_scale!=1).any():
                 model_label[i] = zoom(model_label[i], args.data_scale, order=0) 
             if args.label_erosion!=0:
@@ -69,7 +67,6 @@ def get_data(args, mode='train'):
             
             if args.valid_mask is not None:
                 model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
-                model_mask[i] = model_mask[i].astype(np.float32)
                 if (args.data_scale!=1).any():
                     model_mask[i] = zoom(model_mask[i], args.data_scale, order=0) 
                 model_mask[i] = np.pad(model_mask[i], ((args.pad_size[0],args.pad_size[0]),
@@ -90,13 +87,16 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
     assert mode in ['train', 'test']
     SHUFFLE = (mode == 'train')
 
+
+    wopt = -1
+    cf = collate_fn_test 
     if mode=='train':
+        cf = collate_fn
+        if args.loss_type in [1,4]:
+            wopt = args.loss_weight_opt
+            cf = collate_fn_plus
         if args.task == 22:
             cf = collate_fn_skel
-        else:
-            cf = collate_fn
-    else:
-        cf = collate_fn_test 
     # given dataset
     if dataset is not None:
         img_loader =  torch.utils.data.DataLoader(
@@ -104,6 +104,32 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
               num_workers=args.num_cpu, pin_memory=True)
         return img_loader
 
+    augmentor = None
+    label_json = ''
+    label_erosion = 0
+    sample_label_size=None
+    if mode=='train':
+        augmentor = Compose([Rotate(p=1.0),
+                             Rescale(p=0.5),
+                             Flip(p=1.0, do_ztrans=args.data_aug_ztrans),
+                             Elastic(alpha=12.0, p=0.75),
+                             Grayscale(p=0.75),
+                             MissingParts(p=0.9),
+                             MissingSection(p=0.5),
+                             MisAlignment(p=1.0, displacement=16)], 
+                             input_size = args.model_io_size)
+        label_json = args.train+args.label_name
+        label_erosion = args.label_erosion
+        if augmentor is None:
+            sample_input_size = args.model_io_size
+        else:
+            sample_input_size = augmentor.sample_size
+        sample_label_size=sample_input_size
+        sample_stride = (1,1,1)
+    elif mode=='test':
+        sample_input_size = args.test_size
+        sample_stride = args.test_stride
+       
     # 1. load data
     if args.do_tile==0:
         if preload_data[0] is None: # load from command line args
@@ -111,60 +137,34 @@ def get_dataloader(args, mode='train', preload_data=[None,None,None], dataset=No
         else:
             model_input, model_mask, model_label = preload_data
 
-
-    # setup augmentor
-    if mode=='train':
-        augmentor = Compose([Rotate(p=1.0),
-                             Rescale(p=0.5),
-                             Flip(p=1.0),
-                             Elastic(alpha=12.0, p=0.75),
-                             Grayscale(p=0.75),
-                             MissingParts(p=0.9),
-                             MissingSection(p=0.5),
-                             MisAlignment(p=1.0, displacement=16)], 
-                             input_size = args.model_io_size)
-    else:
-        augmentor = None
-
     print('data augmentation: ', augmentor is not None)
     print('batch size: ', args.batch_size)
 
-    if mode=='train':
-        if augmentor is None:
-            sample_input_size = args.model_io_size
-        else:
-            sample_input_size = augmentor.sample_size
-        sample_label_size=sample_input_size
-        sample_stride = (1,1,1)
-    else:
-        sample_input_size = args.test_size
-        sample_label_size=None
-        sample_stride = args.test_stride
 
     # dataset
     if args.do_tile==1:
-        dataset = TileDataset(dataset_type=args.task, chunk_num=args.data_chunk_num, chunk_iter=args.data_chunk_iter, chunk_stride=args.data_chunk_stride,
-                              volume_json=args.train+args.img_name, label_json=args.train+args.label_name,
+        dataset = TileDataset(dataset_type=args.task, chunk_num=args.data_chunk_num, chunk_num_ind=args.data_chunk_num_ind, chunk_iter=args.data_chunk_iter, chunk_stride=args.data_chunk_stride,
+                              volume_json=args.train+args.img_name, label_json=label_json,
                               sample_input_size=sample_input_size, sample_label_size=sample_label_size,sample_stride=sample_stride,
-                              augmentor=augmentor, mode = mode)
+                              augmentor=augmentor, mode = mode, weight_opt=wopt, label_erosion = label_erosion, pad_size=args.pad_size)
     else:
         # print('sample crop size: ', sample_input_size)
         if args.task == 0: # affininty prediction
             dataset = AffinityDataset(volume=model_input, label=model_label, 
                                       sample_input_size=sample_input_size, sample_label_size=sample_label_size,sample_stride=sample_stride, 
-                                      augmentor=augmentor, mode = mode)
+                                      augmentor=augmentor, mode = mode, weight_opt=wopt)
         if args.task == 1: # synapse detection
             dataset = SynapseDataset(volume=model_input, label=model_label, 
                                      sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride, 
-                                     augmentor=augmentor, mode = mode)
+                                     augmentor=augmentor, mode = mode, weight_opt=wopt)
         if args.task == 11: # synapse polarity detection
             dataset = SynapsePolarityDataset(volume=model_input, label=model_label, 
                                              sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride, 
-                                             augmentor=augmentor, mode = mode)
+                                             augmentor=augmentor, mode = mode, weight_opt=wopt)
         if args.task == 2: # mitochondira segmentation
             dataset = MitoDataset(volume=model_input, label=model_label,
                                   sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride,
-                                  augmentor=augmentor, mode = mode)
+                                  augmentor=augmentor, mode = mode, weight_opt=wopt)
         if args.task == 22: # mitochondira segmentation with skeleton transform
             dataset = MitoSkeletonDataset(volume=model_input, label=model_label,
                                           sample_input_size=sample_input_size,sample_label_size=sample_label_size,sample_stride=sample_stride,

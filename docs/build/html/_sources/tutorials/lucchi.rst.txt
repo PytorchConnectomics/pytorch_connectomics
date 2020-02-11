@@ -19,29 +19,16 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-#. Store the data into ``HDF5`` format (take ``train_im.tif`` as example):
-
-    .. code-block:: python
-        :linenos:
-
-        import h5py
-        import imageio
-
-        train_image = imageio.volread('train_im.tif')
-
-        fl = h5py.File('train_im.h5', 'w')
-        fl.create_dataset('main', data=train_image)
-        fl.close()
-
 #. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
 
     .. code-block:: none
 
+        $ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01 boost # on Harvard rc cluster
         $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/Lucchi/ \
-          -dn img/train_im.h5 -ln label/train_label.h5 -o outputs/unetv0_mito -lr 1e-03 \
-          --iteration-total 100000 --iteration-save 10000 -mi 8,256,256 -g 4 -c 4 -b 8 \
-          -ac unetv0 --task 2 --out-channel 1
+        $ python -u train.py -t /path/to/Lucchi/ \
+          -dn img/train_im.tif -ln label/train_label.tif -o outputs/unet_res_mito\
+          -lr 1e-03 --iteration-total 60000 --iteration-save 10000  -g 4 -c 4 -b 4 \
+          -mi 112,112,112 -mo 112,112,112 -ma unet_residual -mf 28,36,48,64,80 -me 0 -daz 1 --task 2 -oc 1 -lt 1
 
 #. Visualize the training progress:
 
@@ -49,10 +36,11 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
         $ tensorboard --logdir runs
 
-#. Run inference on test image volumes:
+#. Run inference on test image volumes (change ``LOG-FOLDER``): VOC-test=0.945
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/Lucchi/ \
-          -dn img/test_im.h5 -o outputs/unetv0_mito/result -mi 8,256,256 -g 4 -c 4 -b 32 \
-          -ac unetv0 -lm True -pm outputs/unetv0_mito/volume_50000.pth --task 2
+        $ python -u test.py -t /path/to/Lucchi/ \
+          -dn img/test_im.tif -o outputs/unetv0_mito/result\
+          -mi 112,112,112 -mo 112,112,112 -g 4 -c 4 -b 4 -ma unet_residual -mf 28,36,48,64,80 -me 0 -oc 1 
+          -pm outputs/unet_res_mito/LOG-FOLDER/volume_59999.pth -tam mean -tan 4 -tsz 112,224,224
