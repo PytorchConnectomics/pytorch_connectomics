@@ -30,9 +30,6 @@ class MitoDataset(BaseDataset):
                  augmentor=None,
                  valid_mask=None,
                  mode='train', weight_opt=0):
-        # convert to binary mask 
-        for i in range(len(label)):
-            label[i] = label[i]//255
         super(MitoDataset, self).__init__(volume,label,
                                           sample_input_size,
                                           sample_label_size,

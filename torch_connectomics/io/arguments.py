@@ -87,6 +87,8 @@ def get_args(mode='train'):
                             help='Ground-truth label path')
         parser.add_argument('-le','--label-erosion', type=int,  default=0,
                             help='Half Patch size for 2D label erosion')
+        parser.add_argument('-lb','--label-binary', type=bool,  default=False,
+                            help='if it is binary label')
 
         parser.add_argument('-vm','--valid-mask', default=None,
                             help='Mask for the train images')

@@ -1,6 +1,5 @@
 import os,sys
 import numpy as np
-import h5py
 from scipy.ndimage import zoom
 
 import torch
@@ -12,6 +11,7 @@ from torch_connectomics.data.dataset import *
 from torch_connectomics.data.utils import collate_fn, collate_fn_plus, collate_fn_test, collate_fn_skel
 from torch_connectomics.data.augmentation import *
 from torch_connectomics.libs.seg.seg_util import widen_border3
+from torch_connectomics.io.misc import readvol
 
 TASK_MAP = {0: 'neuron segmentation',
             1: 'synapse detection',
@@ -44,7 +44,7 @@ def get_data(args, mode='train'):
 
 
     for i in range(len(img_name)):
-        model_input[i] = np.array(h5py.File(img_name[i], 'r')['main'])
+        model_input[i] = readvol(img_name[i])
         if (args.data_scale!=1).any():
             model_input[i] = zoom(model_input[i], args.data_scale, order=1) 
         model_input[i] = np.pad(model_input[i], ((args.pad_size[0],args.pad_size[0]), 
@@ -53,11 +53,13 @@ def get_data(args, mode='train'):
         print(f"volume shape: {model_input[i].shape}")
 
         if mode=='train':
-            model_label[i] = np.array(h5py.File(label_name[i], 'r')['main'])
+            model_label[i] = readvol(label_name[i])
             if (args.data_scale!=1).any():
                 model_label[i] = zoom(model_label[i], args.data_scale, order=0) 
             if args.label_erosion!=0:
                 model_label[i] = widen_border3(model_label[i],args.label_erosion)
+            if args.label_binary and model_label[i].max()>1:
+                model_label[i] = model_label[i]//255
             model_label[i] = np.pad(model_label[i], ((args.pad_size[0],args.pad_size[0]), 
                                                      (args.pad_size[1],args.pad_size[1]), 
                                                      (args.pad_size[2],args.pad_size[2])), 'reflect')
@@ -66,7 +68,7 @@ def get_data(args, mode='train'):
             assert model_input[i].shape == model_label[i].shape
             
             if args.valid_mask is not None:
-                model_mask[i] = np.array(h5py.File(mask_locations[i], 'r')['main'])
+                model_mask[i] = readvol(mask_locations[i])
                 if (args.data_scale!=1).any():
                     model_mask[i] = zoom(model_mask[i], args.data_scale, order=0) 
                 model_mask[i] = np.pad(model_mask[i], ((args.pad_size[0],args.pad_size[0]),
@@ -75,7 +77,7 @@ def get_data(args, mode='train'):
                 
                 print(f"mask shape: {model_mask[i].shape}")
                 assert model_input[i].shape == model_mask[i].shape
-                
+    
     return model_input, model_mask, model_label
 
 

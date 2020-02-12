@@ -91,12 +91,6 @@ def get_dataset(dataset_dict, x0p, x1p, y0p, y1p, z0p, z1p, tile_sz):
     print('input shape: ', result.shape)
     return result
 
-def writeh5(filename, datasetname, dtarray):
-    fid=h5py.File(filename,'w')
-    ds = fid.create_dataset(datasetname, dtarray.shape, compression="gzip", dtype=dtarray.dtype)
-    ds[:] = dtarray
-    fid.close()
-
 def get_dest_path(x, y, z):
     return os.path.join(destination, str(x), str(y), str(z))
 

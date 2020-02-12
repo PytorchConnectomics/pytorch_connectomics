@@ -106,7 +106,9 @@ class AffinityDataset(BaseDataset):
         
         if self.mode == 'train':
             # Rebalancing affinity
-            if self.weight_opt == 0: # binary mask only
+            if self.weight_opt == -1: # no need for weight
+                return pos, out_input, out_label
+            elif self.weight_opt == 0: # binary mask only
                 weight_factor, weight = rebalance_binary_class(1.0 - out_label)
                 return pos, out_input, out_label, weight
             elif self.weight_opt == 1: # find small seg region

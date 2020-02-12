@@ -2,11 +2,35 @@ import os,sys
 import numpy as np
 import h5py, time, argparse, itertools
 from scipy import ndimage
+import imageio
 
 import torchvision.utils as vutils
 
 # tensorboardX
 from tensorboardX import SummaryWriter
+
+# data io
+def writeh5(filename, dtarray, datasetname='main'):
+    fid=h5py.File(filename,'w')
+    ds = fid.create_dataset(datasetname, dtarray.shape, compression="gzip", dtype=dtarray.dtype)
+    ds[:] = dtarray
+    fid.close()
+
+def readvol(filename, datasetname=''):
+    img_suf = filename[filename.rfind('.')+1:]
+    if img_suf == 'h5':
+        fid = h5py.File(filename, 'r')
+        if datasetname=='':
+            datasetname = list(fid)[0]
+        data = np.array(fid[datasetname])
+        fid.close()
+    elif 'tif' in img_suf:
+        data = imageio.volread(filename).squeeze()
+    else:
+        raise ValueError('unrecognizable file format for %s'%(filename))
+
+    return data
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
