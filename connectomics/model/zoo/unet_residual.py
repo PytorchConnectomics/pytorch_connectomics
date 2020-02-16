@@ -5,7 +5,7 @@ import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..blocks import *
+from ..block import *
 from ..utils import *
 
 

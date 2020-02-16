@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import h5py, yaml, json
-from scipy.misc import imread
+from imageio import imread
 import itertools
 
 # model
