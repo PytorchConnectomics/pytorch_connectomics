@@ -61,11 +61,18 @@ Previous works have suggested that a reasonable large batch size can improve the
 This project is built upon numerous previous projects. Especially, we'd like to thank the contributors of the following github repositories:
 - [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
-- [EM-affinity](https://github.com/donglaiw/EM-affinity): Harvard Visual Computing Group
-- [ibex](https://github.com/bmatejek/ibex): Harvard Visual Computing Group
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
 
-## Contact
-[Zudi Lin](https://github.com/zudi-lin)
+## Citation
+If you find PyTorch Connectomics useful in your research, please cite:
+
+```bibtex
+@misc{lin2019pytorchconnectomics,
+  author =       {Zudi Lin and Donglai Wei},
+  title =        {PyTorch Connectomics},
+  howpublished = {\url{https://github.com/zudi-lin/pytorch_connectomics}},
+  year =         {2019}
+}
+```
