@@ -2,7 +2,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.ndimage.morphology import binary_erosion, binary_dilation
 from skimage.morphology import erosion, dilation
-from skimage.measure import label
+from skimage.measure import label as label_cc # avoid namespace conflict
 
 from .data_affinity import seg_to_aff
 
@@ -76,19 +76,19 @@ def seg_to_small_seg(seg,thres=25,rr=2):
     sz = seg.shape
     mask = np.zeros(sz,np.uint8)
     for z in range(sz[0]):
-        tmp = label(seg[z])
+        tmp = label_cc(seg[z])
         ui,uc = np.unique(tmp,return_counts=True)
         rl = np.zeros(ui[-1]+1,np.uint8)
         rl[ui[uc<thres]]=1;rl[0]=0
         mask[z] += rl[tmp]
     for y in range(sz[1]):
-        tmp = label(seg[:,y])
+        tmp = label_cc(seg[:,y])
         ui,uc = np.unique(tmp,return_counts=True)
         rl = np.zeros(ui[-1]+1,np.uint8)
         rl[ui[uc<thres//rr]]=1;rl[0]=0
         mask[:,y] += rl[tmp]
     for x in range(sz[2]):
-        tmp = label(seg[:,:,x])
+        tmp = label_cc(seg[:,:,x])
         ui,uc = np.unique(tmp,return_counts=True)
         rl = np.zeros(ui[-1]+1,np.uint8)
         rl[ui[uc<thres//rr]]=1;rl[0]=0
@@ -133,10 +133,10 @@ def markInvalid(seg, iter_num=2, do_2d=True):
 
 def label_to_weight(lopt, label, mask=None):
     out = None
-    if lopt in [0, 1]: 
+    if lopt in ['0','1']: 
         out = rebalance_binary_class(label, mask)
-    elif int(lopt) in [2,3]:
-        if lopt!=2 and lopt!=3:
+    elif lopt[0] in ['2','3']:
+        if lopt!='2'and lopt!='3':
             out = [rebalance_binary_class(label, mask), None]
     return out
 
@@ -146,14 +146,14 @@ def label_to_target(topt, label):
     # synapse polarity: topt = 1.2,0 
     sz = list(label.shape)
     if topt == '0': # binary
-        out = label
+        out = (label>0).astype(np.float32)
     elif topt[0] == '1': # multi-channel, e.g. 1.2
         num_channel = int(topt[2:])
         tmp = [None]*num_channel 
         for j in range(num_channel):
             tmp[j] = label==(j+1)
         # concatenate at channel
-        out = np.concatenate(tmp,1).astype(label.dtype)
+        out = np.concatenate(tmp,1).astype(np.float32)
     elif topt[0] == '2': # affinity
         out = np.zeros([sz[0],3]+sz[2:], np.float32)
         for i in range(sz[0]):

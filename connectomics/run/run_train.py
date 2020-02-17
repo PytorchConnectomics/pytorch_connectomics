@@ -19,7 +19,7 @@ def train(args, train_loader, model, criterion,
         pred = model(volume)
         #print(volume.size(), output.size())
        
-        loss = criterion.eval(label, pred, mask)
+        loss = criterion.eval(pred, label, mask)
 
         # compute gradient
         loss.backward()

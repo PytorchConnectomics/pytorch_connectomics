@@ -17,64 +17,44 @@ def _get_input(args, mode='train'):
     dir_name = args.input_path.split('@')
     img_name = args.img_name.split('@')
     img_name = [dir_name[0] + x for x in img_name]
-    model_mask = None
-    model_label = None
 
+    label = None
+    volume = [None]*len(img_name)
     if mode=='train':
         label_name = args.label_name.split('@')
         label_name = [dir_name[0] + x for x in label_name]
-        if args.valid_mask is not None:
-            mask_names = args.valid_mask.split('@')
-            mask_locations = [dir_name[0] + x for x in mask_names]
-
-    model_input = [None]*len(img_name)
-    if mode=='train':
         assert len(img_name)==len(label_name)
-        model_label = [None]*len(label_name)
-        if args.valid_mask is not None:
-            assert len(img_name) == len(mask_locations)
-            model_mask = [None] * len(mask_locations)
-
+        label = [None]*len(label_name)
 
     for i in range(len(img_name)):
-        model_input[i] = readvol(img_name[i])
+        volume[i] = readvol(img_name[i])
         if (args.data_scale!=1).any():
-            model_input[i] = zoom(model_input[i], args.data_scale, order=1) 
-        model_input[i] = np.pad(model_input[i], ((args.pad_size[0],args.pad_size[0]), 
+            volume[i] = zoom(volume[i], args.data_scale, order=1) 
+        volume[i] = np.pad(volume[i], ((args.pad_size[0],args.pad_size[0]), 
                                                  (args.pad_size[1],args.pad_size[1]), 
                                                  (args.pad_size[2],args.pad_size[2])), 'reflect')
-        print(f"volume shape: {model_input[i].shape}")
+        print(f"volume shape: {volume[i].shape}")
 
         if mode=='train':
-            model_label[i] = readvol(label_name[i])
+            label[i] = readvol(label_name[i])
             if (args.data_scale!=1).any():
-                model_label[i] = zoom(model_label[i], args.data_scale, order=0) 
+                label[i] = zoom(label[i], args.data_scale, order=0) 
             if args.label_erosion!=0:
-                model_label[i] = widen_border3(model_label[i],args.label_erosion)
-            if args.label_binary and model_label[i].max()>1:
-                model_label[i] = model_label[i]//255
-            model_label[i] = np.pad(model_label[i], ((args.pad_size[0],args.pad_size[0]), 
+                label[i] = widen_border3(label[i],args.label_erosion)
+            if args.label_binary and label[i].max()>1:
+                label[i] = label[i]//255
+            label[i] = np.pad(label[i], ((args.pad_size[0],args.pad_size[0]), 
                                                      (args.pad_size[1],args.pad_size[1]), 
                                                      (args.pad_size[2],args.pad_size[2])), 'reflect')
-            print(f"label shape: {model_label[i].shape}")
+            print(f"label shape: {label[i].shape}")
             
-            assert model_input[i].shape == model_label[i].shape
+            assert volume[i].shape == label[i].shape
             
-            if args.valid_mask is not None:
-                model_mask[i] = readvol(mask_locations[i])
-                if (args.data_scale!=1).any():
-                    model_mask[i] = zoom(model_mask[i], args.data_scale, order=0) 
-                model_mask[i] = np.pad(model_mask[i], ((args.pad_size[0],args.pad_size[0]),
-                                                       (args.pad_size[1],args.pad_size[1]),
-                                                       (args.pad_size[2],args.pad_size[2])), 'reflect')
                 
-                print(f"mask shape: {model_mask[i].shape}")
-                assert model_input[i].shape == model_mask[i].shape
-    
-    return model_input, model_mask, model_label
+    return volume, label
 
 
-def get_dataset(args, mode='train', preload_data=[None,None,None]):
+def get_dataset(args, mode='train', preload_data=[None,None]):
     """Prepare dataset for training and inference.
     """
     assert mode in ['train', 'test']
@@ -114,10 +94,10 @@ def get_dataset(args, mode='train', preload_data=[None,None,None]):
                               label_erosion = label_erosion, pad_size=args.pad_size)
     else:
         if preload_data[0] is None: # load from command line args
-            model_input, model_mask, model_label = _get_input(args, mode=mode)
+            volume, label = _get_input(args, mode=mode)
         else:
-            model_input, model_mask, model_label = preload_data
-        dataset = VolumeDataset(volume=model_input, label=model_label, 
+            volume, label = preload_data
+        dataset = VolumeDataset(volume=volume, label=label, 
                               sample_input_size=sample_input_size, sample_label_size=sample_label_size,
                               sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
                               augmentor=augmentor, mode = mode)

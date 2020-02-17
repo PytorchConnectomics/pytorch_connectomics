@@ -54,7 +54,7 @@ def get_args(mode='train'):
                         help='Pre-trained model path')      
     parser.add_argument('-mi', '--model-input', type=str,  default='18,160,160',
                         help='Input size of deep network')
-    parser.add_argument('-mo', '--model-output', type=str,  default='18,160,160',
+    parser.add_argument('-mo', '--model-output', type=str,  default='',
                         help='Output size of deep network')
     parser.add_argument('-moc', '--model-out-channel', type=int, default=3,
                         help='Number of output channel(s).')
@@ -153,7 +153,7 @@ def get_args(mode='train'):
 
     if mode == 'train':
         args.target_opt = [x for x in args.target_opt.split(',')]
-        args.loss_opt = [float(x) for x in args.loss_opt.split(',')]
+        args.loss_opt = [x for x in args.loss_opt.split(',')]
         args.loss_weight = [float(x) for x in args.loss_weight.split(',')]
         assert(len(args.target_opt)==len(args.loss_opt))
         assert(len(args.target_opt)==len(args.loss_weight))
