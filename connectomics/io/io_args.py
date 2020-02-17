@@ -18,7 +18,7 @@ def get_args(mode='train'):
 
 
     # data layout: h5 or folders of tiles 
-    parser.add_argument('-dc','--do-tile-chunk',  type=int, default=0,
+    parser.add_argument('-dct','--do-chunk-tile',  type=int, default=0,
                         help='Data in tile format or not')
     parser.add_argument('-dcn','--data-chunk-num', type=str,  default='1,1,1,1',
                         help='Chunk parameters for tile format: chunk_num (z,y,x), chunk_stride')

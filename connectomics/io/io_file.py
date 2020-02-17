@@ -1,4 +1,5 @@
 import h5py
+import os
 import numpy as np
 
 def readh5(filename, dataset=''):

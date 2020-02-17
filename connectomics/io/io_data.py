@@ -104,7 +104,7 @@ def get_dataset(args, mode='train', preload_data=[None,None,None]):
         sample_stride = args.test_stride
        
     # dataset
-    if args.do_tile_chunk==1:
+    if args.do_chunk_tile==1:
         label_json = args.input_path+args.label_name if mode=='train' else ''
         dataset = TileDataset(chunk_num=args.data_chunk_num, chunk_num_ind=args.data_chunk_num_ind, chunk_iter=args.data_chunk_iter, chunk_stride=args.data_chunk_stride,
                               volume_json=args.input_path+args.img_name, label_json=label_json,

@@ -110,9 +110,10 @@ class TileDataset(torch.utils.data.Dataset):
                                  dt=dt[self.json_label['dtype']], resize_order=0), do_type=True)]
             if self.label_erosion != 0:
                 label[0] = seg_widen_border(label[0], self.label_erosion)
-        self.dataset = self.VolumeDataset(volume,label,
+        self.dataset = VolumeDataset(volume,label,
                               self.sample_input_size,
                               self.sample_label_size,
                               self.sample_stride,
+                              self.sample_invalid_thres,
                               self.augmentor,
-                              self.mode, self.weight_opt)
+                              self.mode)

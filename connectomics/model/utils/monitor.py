@@ -56,7 +56,7 @@ class Monitor(object):
             avg = self.logger.output(iter_total, lr)
             self.logger.reset()
             if (iter_total+1) % self.vis_iter == 0:
-                scheduler.step()
+                scheduler.step(avg)
                 do_vis = self.do_vis
         return do_vis
 
