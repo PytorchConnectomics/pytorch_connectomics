@@ -142,7 +142,7 @@ def label_to_target(topt, label):
     # with batch_size
     # mito/synapse cleft binary: topt = 0 
     # synapse polarity: topt = 1.2,0 
-    sz = label.shape
+    sz = list(label.shape)
     if topt == '0': # binary
         out = label
     elif topt[0] == '1': # multi-channel, e.g. 1.2
