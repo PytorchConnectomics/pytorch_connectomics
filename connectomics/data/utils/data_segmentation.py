@@ -4,6 +4,8 @@ from scipy.ndimage.morphology import binary_erosion, binary_dilation
 from skimage.morphology import erosion, dilation
 from skimage.measure import label
 
+from .data_affinity import seg_to_aff
+
 # reduce the labeling
 def getSegType(mid):
     m_type = np.uint64
