@@ -69,15 +69,14 @@ class Criterion(object):
         pred_st = 0
         for i in range(self.num_loss):
             label_target = label_to_target(self.target_opt[i], label)
-            numC = label_target.shape[0]
+            numC = label_target.shape[1]
             weight = label_to_weight(self.loss_opt[i], label_target, mask)
-            weight = None if weight is None else self.to_torch(weight)
             label_target = self.to_torch(label_target)
             for j in range(len(self.loss[i])):
-                if weight is None:
-                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[pred_st:pred_st+numC], label_target)
+                if weight[j] is None:
+                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[:,pred_st:pred_st+numC], label_target)
                 else:
-                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[pred_st:pred_st+numC], label_target, weight)
+                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[:,pred_st:pred_st+numC], label_target, self.to_torch(weight[j]))
             pred_st += numC
 
         for i in range(self.num_regu):

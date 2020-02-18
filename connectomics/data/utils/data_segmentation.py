@@ -134,7 +134,7 @@ def markInvalid(seg, iter_num=2, do_2d=True):
 def label_to_weight(lopt, label, mask=None):
     out = None
     if lopt in ['0','1']: 
-        out = rebalance_binary_class(label, mask)
+        out = [rebalance_binary_class(label, mask)]
     elif lopt[0] in ['2','3']:
         if lopt!='2'and lopt!='3':
             out = [rebalance_binary_class(label, mask), None]
