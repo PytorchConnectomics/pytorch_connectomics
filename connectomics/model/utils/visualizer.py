@@ -3,19 +3,23 @@ import torchvision.utils as vutils
 
 class Visualizer(object):
     def __init__(self, vis_opt=0, N=8):
-        self.N = N # default maximum number of sections to show
         self.vis_opt = vis_opt
+        self.N = N # default maximum number of sections to show
+        self.N_ind = None
 
     def _prepare_data(self, volume, label, output):
+        if self.N_ind is None and volume.size()[0] > self.N:
+            self.N_ind = (np.linspace(0,1,self.N)*(volume.size()[0]-1)).astype(int) 
         if len(volume.size()) == 4:   # 2D Inputs
-            if volume.size()[0] > N:
-                return volume[:N], label[:N], output[:N]
+            if self.N_ind is not None:
+                return volume[self.N_ind], label[self.N_ind], output[self.N_ind]
             else:
                 return volume, label, output
         elif len(volume.size()) == 5: # 3D Inputs
+            # first instance
             volume, label, output = volume[0].permute(1,0,2,3), label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
-            if volume.size()[0] > N:
-                return volume[:N], label[:N], output[:N]
+            if self.N_ind is not None:
+                return volume[self.N_ind], label[self.N_ind], output[self.N_ind]
             else:
                 return volume, label, output
 
