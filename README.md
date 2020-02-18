@@ -37,7 +37,7 @@ pip install --editable .
 ```
 For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html). If you meet compilation errors, please check [TROUBLESHOOTING.md](https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md).
 
-## Visulazation
+## Visualization
 
 ### Training
 * Visualize the training loss and validation images using [tensorboardX](https://github.com/lanpa/tensorboard-pytorch).

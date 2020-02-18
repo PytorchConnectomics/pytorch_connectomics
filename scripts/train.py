@@ -11,15 +11,12 @@ def main():
     args = get_args(mode='train')
 
     print('0. initial setup')
-    logger, writer = get_logger(args)
 
-    print('1. setup data')
 
     print('2.0 setup model')
     model = get_model(args)
-            
-    print('2.1 setup loss function')
     criterion = get_criterion(args)
+    monitor = get_monitor(args)
 
     print('3. setup optimizer')
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999), 
@@ -29,9 +26,9 @@ def main():
                 min_lr=1e-7, eps=1e-08)
     
     print('4. start training')
-    if args.do_tile == 0:
+    if args.do_chunk_tile == 0:
         train_loader = get_dataloader(args, 'train')
-        train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer)
+        train(args, train_loader, model, criterion, optimizer, scheduler, monitor)
     else:
         train_dataset = get_dataset(args, 'train')
         num_chunk = args.iteration_total // args.data_chunk_iter
@@ -40,7 +37,7 @@ def main():
             train_dataset.updatechunk()
             train_loader = get_dataloader(args, 'train', dataset=train_dataset.dataset)
             pre_iter = chunk*args.data_chunk_iter
-            train(args, train_loader, model, criterion, optimizer, scheduler, logger, writer, pre_iter=pre_iter)
+            train(args, train_loader, model, criterion, optimizer, scheduler, monitor, pre_iter=pre_iter)
   
     print('5. finish training')
     if logger is not None:
