@@ -60,8 +60,8 @@ class Monitor(object):
                 do_vis = self.do_vis
         return do_vis
 
-    def vis(self, volume, label, output, iter_total):
-        self.vis(volume, label, output, iter_total, self.logger.log_tb)
+    def visualize(self, volume, label, output, iter_total):
+        self.vis.visualize(volume, label, output, iter_total, self.logger.log_tb)
 
     def reset(self):
         self.logger.reset()

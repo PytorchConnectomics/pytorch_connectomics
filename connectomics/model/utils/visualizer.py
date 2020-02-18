@@ -6,7 +6,7 @@ class Visualizer(object):
         self.N = N # default maximum number of sections to show
         self.vis_opt = vis_opt
 
-    def _prepare_data(volume, label, output):
+    def _prepare_data(self, volume, label, output):
         if len(volume.size()) == 4:   # 2D Inputs
             if volume.size()[0] > N:
                 return volume[:N], label[:N], output[:N]
@@ -19,16 +19,16 @@ class Visualizer(object):
             else:
                 return volume, label, output
 
-    def visualize(volume, label, output, iteration, writer):
+    def visualize(self, volume, label, output, iter_total, writer):
         if self.vis_opt == 0:
-            visualize_combine(volume, label, output, iter_total, writer)
+            self.visualize_combine(volume, label, output, iter_total, writer)
         elif self.vis_opt == 1:
-            visualize_individual(volume, label, output, iter_total, writer)
+            self.visualize_individual(volume, label, output, iter_total, writer)
         elif self.vis_opt == 2:
-            visualize_individual(volume, label, output, iter_total, writer, composite=True)
+            self.visualize_individual(volume, label, output, iter_total, writer, composite=True)
 
-    def visualize_individual(volume, label, output, iteration, writer, composite=False):
-        volume, label, output = _prepare_data(volume, label, output)
+    def visualize_individual(self, volume, label, output, iteration, writer, composite=False):
+        volume, label, output = self._prepare_data(volume, label, output)
 
         sz = volume.size() # z,c,y,x
         volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
@@ -49,8 +49,8 @@ class Visualizer(object):
             writer.add_image('Composite_GT', composite_1, iteration)
             writer.add_image('Composite_PD', composite_2, iteration)
 
-    def visualize_combine(volume, label, output, iteration, writer):
-        volume, label, output = _prepare_data(volume, label, output)
+    def visualize_combine(self, volume, label, output, iteration, writer):
+        volume, label, output = self._prepare_data(volume, label, output)
         sz = volume.size() # z,c,y,x
         canvas = []
         volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
