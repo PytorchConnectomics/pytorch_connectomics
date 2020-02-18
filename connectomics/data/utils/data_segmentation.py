@@ -161,8 +161,8 @@ def label_to_target(topt, label):
     elif topt[0] == '3': # small object mask
         # size_thres: 2d threshold for small size
         # zratio: resolution ration between z and x/y
-        # border_size: size of the border
-        _, size_thres, zratio, border_size = [int(x) for x in topt.split('-')]
+        # mask_dsize: mask dilation size
+        _, size_thres, zratio, _ = [int(x) for x in topt.split('-')]
         out = np.zeros(sz, np.float32)
         for i in range(sz[0]):
             out[i,0] = seg_to_small_seg(label[i,0], size_thres, zratio)
