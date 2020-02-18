@@ -36,7 +36,9 @@ class Visualizer(object):
 
         sz = volume.size() # z,c,y,x
         volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
+        sz = output.size() # z,c,y,x
         output_visual = output.detach().cpu().expand(sz[0],3,sz[2],sz[3])
+        sz = label.size() # z,c,y,x
         label_visual = label.detach().cpu().expand(sz[0],3,sz[2],sz[3])
 
         volume_show = vutils.make_grid(volume_visual, nrow=8, normalize=True, scale_each=True)
@@ -62,6 +64,7 @@ class Visualizer(object):
 
         sz = output.size() # z,c,y,x
         output_visual = [output[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
+        sz = label.size() # z,c,y,x
         label_visual = [label[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
         canvas = canvas + output_visual
         canvas = canvas + label_visual
