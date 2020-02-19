@@ -167,10 +167,10 @@ def label_to_target(topt, label):
         for i in range(sz[0]):
             out[i,0] = seg_to_small_seg(label[i,0], size_thres, zratio)
     elif topt[0] == '4': # instance boundary mask
-        _, bd_thres,do_bg = [int(x) for x in topt.split('-')]
+        _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
         out = np.zeros(sz, np.float32)
         for i in range(sz[0]):
-            out[i,0] = seg_to_instance_bd(label[i,0], bd_thres, do_bg)
+            out[i,0] = seg_to_instance_bd(label[i,0], bd_sz, do_bg)
     return out
 
 def rebalance_binary_class(label, mask=None, alpha=1.0, return_factor=False):
