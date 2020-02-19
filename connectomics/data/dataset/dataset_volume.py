@@ -153,5 +153,3 @@ class VolumeDataset(torch.utils.data.Dataset):
             pos = self.get_pos_test(index)
             out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
             return pos, np.expand_dims(out_input,0)
-        # choice 1: do get_label_target for each 3D label, pain to separate which is what
-        # choice 2: do get_label_target for whole batch, pain to do label transform

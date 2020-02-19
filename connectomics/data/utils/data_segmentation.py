@@ -75,19 +75,19 @@ def seg_to_small_seg(seg,thres=25,rr=2):
     # rr: z/x-y resolution ratio
     sz = seg.shape
     mask = np.zeros(sz,np.uint8)
-    for z in range(sz[0]):
+    for z in np.where(seg.max(axis=1).max(axis=1)>0)[0]:
         tmp = label_cc(seg[z])
         ui,uc = np.unique(tmp,return_counts=True)
         rl = np.zeros(ui[-1]+1,np.uint8)
         rl[ui[uc<thres]]=1;rl[0]=0
         mask[z] += rl[tmp]
-    for y in range(sz[1]):
+    for y in np.where(seg.max(axis=2).max(axis=0)>0)[0]:
         tmp = label_cc(seg[:,y])
         ui,uc = np.unique(tmp,return_counts=True)
         rl = np.zeros(ui[-1]+1,np.uint8)
         rl[ui[uc<thres//rr]]=1;rl[0]=0
         mask[:,y] += rl[tmp]
-    for x in range(sz[2]):
+    for x in np.where(seg.max(axis=0).max(axis=0)>0)[0]:
         tmp = label_cc(seg[:,:,x])
         ui,uc = np.unique(tmp,return_counts=True)
         rl = np.zeros(ui[-1]+1,np.uint8)
