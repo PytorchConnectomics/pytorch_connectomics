@@ -12,14 +12,14 @@ def train(args, train_loader, model, criterion,
         iter_total = pre_iter+iteration
 
         # load data
-        _, volume, label, mask = batch
+        _, volume, target, weight = batch
 
         # prediction
         volume = torch.from_numpy(volume).to(args.device)
         pred = model(volume)
         #print(volume.size(), output.size())
        
-        loss = criterion.eval(pred, label, mask)
+        loss = criterion.eval(pred, target, weight)
 
         # compute gradient
         loss.backward()
@@ -30,7 +30,7 @@ def train(args, train_loader, model, criterion,
         # logging and update record
         do_vis = monitor.update(scheduler, iter_total, loss, optimizer.param_groups[0]['lr']) 
         if do_vis:
-            monitor.visualize(volume, torch.from_numpy(label), pred, iter_total)
+            monitor.visualize(volume, torch.from_numpy(target[0]), pred, iter_total)
         #Save model
         if (iter_total+1) % args.iteration_save == 0:
             torch.save(model.state_dict(), args.output_path+('/volume_%d%s.pth' % (iter_total, args.finetune)))

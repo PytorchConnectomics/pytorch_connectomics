@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from ...data.utils import label_to_target, label_to_weight
 from ..loss import *
 
 class Criterion(object):
@@ -60,24 +59,21 @@ class Criterion(object):
     def to_torch(self, data):
         return torch.from_numpy(data).to(self.device)
 
-    def eval(self, pred, label, mask=None):
-        # label: numpy
+    def eval(self, pred, target, weight):
+        # target, weight: numpy
         # pred: torch
-        # mask: torch
         # compute loss
         loss = 0
-        pred_st = 0
+        cid = 0 # channel index for prediction
         for i in range(self.num_loss):
-            label_target = label_to_target(self.target_opt[i], label)
-            numC = label_target.shape[1]
-            weight = label_to_weight(self.loss_opt[i], label_target, mask)
-            label_target = self.to_torch(label_target)
+            numC = target[i].shape[1]
+            target_t = self.to_torch(target[i])
             for j in range(len(self.loss[i])):
-                if weight[j] is None:
-                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[:,pred_st:pred_st+numC], label_target)
+                if weight[i][j].shape[-1] == 1: # placeholder for no weight
+                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[:,cid:cid+numC], target_t)
                 else:
-                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[:,pred_st:pred_st+numC], label_target, self.to_torch(weight[j]))
-            pred_st += numC
+                    loss += self.loss_weight[i]*self.loss_w[i][j]*self.loss[i][j](pred[:,cid:cid+numC], target_t, self.to_torch(weight[i][j]))
+            cid += numC
 
         for i in range(self.num_regu):
             loss += self.regu[i](pred)*self.regu_w[i]

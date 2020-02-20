@@ -131,46 +131,47 @@ def markInvalid(seg, iter_num=2, do_2d=True):
         seg[out==0] = -1
     return seg
 
-def label_to_weight(lopt, label, mask=None):
-    out = None
-    if lopt in ['0','1']: 
-        out = [rebalance_binary_class(label, mask)]
-    elif lopt[0] in ['2','3']:
-        if lopt!='2'and lopt!='3':
-            out = [rebalance_binary_class(label, mask), None]
+
+def label_to_weight(label, lopts, mask=None):
+    out=[None]*len(lopts)
+    foo = np.zeros((1),int)
+    for lid, lopt in enumerate(lopts):
+        out[lid] = foo
+        if lopt in ['0','1']: 
+            # if 0.1 or 1.1: no weight
+            out[lid] = [np.expand_dims(rebalance_binary_class(label, mask), 0)]
+        elif lopt[0] in ['2','3']:
+            if lopt != '2'and lopt != '3':
+                out[lid] = [np.expand_dims(rebalance_binary_class(label, mask), 0), foo]
     return out
 
-def label_to_target(topt, label):
-    # with batch_size
+def label_to_target(label, topts):
+    # input: DHW
+    # output: CDHW
     # mito/synapse cleft binary: topt = 0 
     # synapse polarity: topt = 1.2,0 
-    sz = list(label.shape)
-    if topt == '0': # binary
-        out = (label>0).astype(np.float32)
-    elif topt[0] == '1': # multi-channel, e.g. 1.2
-        num_channel = int(topt[2:])
-        tmp = [None]*num_channel 
-        for j in range(num_channel):
-            tmp[j] = label==(j+1)
-        # concatenate at channel
-        out = np.concatenate(tmp,1).astype(np.float32)
-    elif topt[0] == '2': # affinity
-        out = np.zeros([sz[0],3]+sz[2:], np.float32)
-        for i in range(sz[0]):
-            out[i] = seg_to_aff(label[i,0])
-    elif topt[0] == '3': # small object mask
-        # size_thres: 2d threshold for small size
-        # zratio: resolution ration between z and x/y
-        # mask_dsize: mask dilation size
-        _, size_thres, zratio, _ = [int(x) for x in topt.split('-')]
-        out = np.zeros(sz, np.float32)
-        for i in range(sz[0]):
-            out[i,0] = seg_to_small_seg(label[i,0], size_thres, zratio)
-    elif topt[0] == '4': # instance boundary mask
-        _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
-        out = np.zeros(sz, np.float32)
-        for i in range(sz[0]):
-            out[i,0] = seg_to_instance_bd(label[i,0], bd_sz, do_bg)
+    out = [None]*len(topts)
+    for tid,topt in enumerate(topts):
+        if topt == '0': # binary
+            out[tid] = np.expand_dims((label>0).astype(np.float32),0)
+        elif topt[0] == '1': # multi-channel, e.g. 1.2
+            num_channel = int(topt[2:])
+            tmp = [None]*num_channel 
+            for j in range(num_channel):
+                tmp[j] = label==(j+1)
+            # concatenate at channel
+            out[tid] = np.stack(tmp,0).astype(np.float32)
+        elif topt[0] == '2': # affinity
+            out[tid] = seg_to_aff(label)
+        elif topt[0] == '3': # small object mask
+            # size_thres: 2d threshold for small size
+            # zratio: resolution ration between z and x/y
+            # mask_dsize: mask dilation size
+            _, size_thres, zratio, _ = [int(x) for x in topt.split('-')]
+            out[tid] = np.expand_dims(seg_to_small_seg(label, size_thres, zratio), 0)
+        elif topt[0] == '4': # instance boundary mask
+            _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
+            out[tid] = np.expand_dims(seg_to_instance_bd(label, bd_sz, do_bg), 0)
     return out
 
 def rebalance_binary_class(label, mask=None, alpha=1.0, return_factor=False):

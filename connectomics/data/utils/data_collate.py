@@ -28,24 +28,26 @@ def collate_fn(batch):
     return pos, out_input, out_label, out_mask
 
 
-def collate_fn_plus(batch):
+def collate_fn_target(batch):
     """
     Puts each data field into a tensor with outer dimension batch size
     :param batch:
     :return:
     """
-    pos, out_input, out_label, others = zip(*batch)
+    pos, out_input, out_target, out_weight = zip(*batch)
     out_input = np.stack(out_input, 0)
-    out_label = np.stack(out_label, 0)
-    
-    if len(others[0]) >1:
-        extra = [None]*len(others[0])
-        for i in range(len(others[0])):
-            extra[i] = np.stack([others[x][i] for x in range(len(others))], 0)
-    else: # just one more var
-        extra = np.stack(others[0], 0)
+    out_target_l = [None]*len(out_target[0]) 
+    out_weight_l = [[None]*len(out_weight[0][x]) for x in range(len(out_weight[0]))] 
+   
+    for i in range(len(out_target[0])):
+        out_target_l[i] = np.stack([out_target[x][i] for x in range(len(out_target))], 0)
 
-    return pos, out_input, out_label, extra
+    # each target can have multiple loss/weights
+    for i in range(len(out_weight[0])):
+        for j in range(len(out_weight[0][i])):
+            out_weight_l[i][j] = np.stack([out_weight[x][i][j] for x in range(len(out_weight))], 0)
+
+    return pos, out_input, out_target_l, out_weight_l
 
 def collate_fn_skel(batch):
     """

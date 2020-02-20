@@ -8,7 +8,7 @@ import torch.utils.data
 import torchvision.utils as vutils
 
 from ..data.dataset import *
-from ..data.utils import collate_fn, collate_fn_plus, collate_fn_test, collate_fn_skel,seg_widen_border
+from ..data.utils import collate_fn_target, collate_fn_test, seg_widen_border
 from ..data.augmentation import *
 from .io_file import readvol
 
@@ -40,7 +40,7 @@ def _get_input(args, mode='train'):
             if (args.data_scale!=1).any():
                 label[i] = zoom(label[i], args.data_scale, order=0) 
             if args.label_erosion!=0:
-                label[i] = widen_border3(label[i],args.label_erosion)
+                label[i] = seg_widen_border(label[i],args.label_erosion)
             if args.label_binary and label[i].max()>1:
                 label[i] = label[i]//255
             label[i] = np.pad(label[i], ((args.pad_size[0],args.pad_size[0]), 
@@ -90,7 +90,7 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
                               volume_json=args.input_path+args.img_name, label_json=label_json,
                               sample_input_size=sample_input_size, sample_label_size=sample_label_size,
                               sample_stride=sample_stride, sample_invalid_thres = sample_invalid_thres,
-                              augmentor=augmentor, mode = mode,
+                              augmentor=augmentor, target_opt = args.target_opt, loss_opt = args.loss_opt, mode = mode, 
                               label_erosion = label_erosion, pad_size=args.pad_size)
     else:
         if preload_data[0] is None: # load from command line args
@@ -100,7 +100,7 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
         dataset = VolumeDataset(volume=volume, label=label, 
                               sample_input_size=sample_input_size, sample_label_size=sample_label_size,
                               sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
-                              augmentor=augmentor, mode = mode)
+                              augmentor=augmentor, target_opt = args.target_opt, loss_opt = args.loss_opt, mode = mode)
 
     return dataset
 
@@ -112,7 +112,7 @@ def get_dataloader(args, mode='train', dataset=None, preload_data=[None,None,Non
     SHUFFLE = (mode == 'train')
     cf = collate_fn_test 
     if mode=='train':
-        cf = collate_fn
+        cf = collate_fn_target
 
     if dataset == None:
         dataset = get_dataset(args, mode, preload_data)

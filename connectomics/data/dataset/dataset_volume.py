@@ -4,7 +4,7 @@ import random
 
 import torch
 import torch.utils.data
-from ..utils import count_volume, crop_volume, relabel
+from ..utils import count_volume, crop_volume, relabel, label_to_target, label_to_weight
 
 # 3d volume dataset class
 class VolumeDataset(torch.utils.data.Dataset):
@@ -17,7 +17,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0, 0],
-                 augmentor=None,
+                 augmentor=None, target_opt=['1'], loss_opt=['1'],
                  mode='train'):
 
         self.mode = mode
@@ -32,6 +32,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.input = volume
         self.label = label
         self.augmentor = augmentor  # data augmentation
+        self.target_opt = target_opt  # target opt
+        self.loss_opt = loss_opt  # loss opt 
 
         # dataset: channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
@@ -144,9 +146,12 @@ class VolumeDataset(torch.utils.data.Dataset):
                 data = {'image':out_input, 'label':out_label}
                 augmented = self.augmentor(data)
                 out_input, out_label = augmented['image'], augmented['label']
-                out_input = out_input
-                out_label = out_label
-            return pos, np.expand_dims(out_input,0), np.expand_dims(out_label,0), out_mask
+            out_input = np.expand_dims(out_input, 0)
+            # output list
+            out_target = label_to_target(out_label, self.target_opt)
+            out_weight = label_to_weight(out_label, self.loss_opt)
+
+            return pos, out_input, out_target, out_weight
 
         elif self.mode == 'test':
             # test mode
