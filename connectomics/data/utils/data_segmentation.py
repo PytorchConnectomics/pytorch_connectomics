@@ -168,7 +168,7 @@ def label_to_target(label, topts):
             # zratio: resolution ration between z and x/y
             # mask_dsize: mask dilation size
             _, size_thres, zratio, _ = [int(x) for x in topt.split('-')]
-            out[tid] = np.expand_dims(seg_to_small_seg(label, size_thres, zratio), 0)
+            out[tid] = np.expand_dims((seg_to_small_seg(label, size_thres, zratio)>0).astype(np.float32), 0)
         elif topt[0] == '4': # instance boundary mask
             _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
             out[tid] = np.expand_dims(seg_to_instance_bd(label, bd_sz, do_bg), 0)

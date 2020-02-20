@@ -78,7 +78,6 @@ class DiceLoss(nn.Module):
         return loss / float(pred.size()[0])
 
     def dice_loss_batch(self, pred, target):
-
         iflat = pred.view(-1)
         tflat = target.view(-1)
         intersection = (iflat * tflat).sum()
@@ -129,7 +128,7 @@ class WeightedBCE(nn.Module):
 
     def forward(self, pred, target, weight=None):
         #_assert_no_grad(target)
-        return F.binary_cross_entropy(pred, target, weight, reduction='mean')
+        return F.binary_cross_entropy(pred, target, weight)
 
 #. 1. Regularization
 
