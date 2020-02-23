@@ -111,7 +111,6 @@ class VolumeDataset(torch.utils.data.Dataset):
         # pick a position
         tmp_size = count_volume(self.input_size[did], vol_size, np.array(self.sample_stride))
         tmp_pos = [random.randint(0,tmp_size[x]-1) * self.sample_stride[x] for x in range(len(tmp_size))]
-        print(did,tmp_pos)
         if self.sample_invalid[did]:
             # make sure the ratio of valid is high
             seg_bad = np.array([-1]).astype(self.label[did].dtype)[0]
