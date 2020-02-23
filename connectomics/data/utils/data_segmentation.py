@@ -178,19 +178,23 @@ def rebalance_binary_class(label, mask=None, alpha=1.0, return_factor=False):
     """Binary-class rebalancing."""
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 100*alpha
-    if mask is None:
-        weight_factor = float(label.sum()) / np.prod(label.shape)
+    if label.max()==0:
+        weight_factor = 0
+        weight = np.zeros_like(label, np.float32)
     else:
-        weight_factor = float((label*mask).sum()) / mask.sum()
-    weight_factor = np.clip(weight_factor, a_min=1e-2, a_max=0.99)
+        if mask is None:
+            weight_factor = float(label.sum()) / np.prod(label.shape)
+        else:
+            weight_factor = float((label*mask).sum()) / mask.sum()
+        weight_factor = np.clip(weight_factor, a_min=1e-2, a_max=0.99)
 
-    if weight_factor>0.5:
-        weight = label + alpha*weight_factor/(1-weight_factor)*(1-label)
-    else:
-        weight = alpha*(1-weight_factor)/weight_factor*label + (1-label)
+        if weight_factor>0.5:
+            weight = label + alpha*weight_factor/(1-weight_factor)*(1-label)
+        else:
+            weight = alpha*(1-weight_factor)/weight_factor*label + (1-label)
 
-    if mask is not None:
-        weight = weight*mask
+        if mask is not None:
+            weight = weight*mask
 
     if return_factor: 
         return weight_factor, weight
