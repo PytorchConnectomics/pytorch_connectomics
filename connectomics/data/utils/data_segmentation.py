@@ -132,20 +132,20 @@ def markInvalid(seg, iter_num=2, do_2d=True):
     return seg
 
 
-def label_to_weight(label, lopts, mask=None):
+def seg_to_weight(target, lopts, mask=None):
     out=[None]*len(lopts)
     foo = np.zeros((1),int)
     for lid, lopt in enumerate(lopts):
         out[lid] = foo
         if lopt in ['0','1']: 
             # if 0.1 or 1.1: no weight
-            out[lid] = [np.expand_dims(rebalance_binary_class(label, mask), 0)]
+            out[lid] = [rebalance_binary_class(target[lid], mask)]
         elif lopt[0] in ['2','3']:
             if lopt != '2'and lopt != '3':
-                out[lid] = [np.expand_dims(rebalance_binary_class(label, mask), 0), foo]
+                out[lid] = [rebalance_binary_class(target[lid], mask), foo]
     return out
 
-def label_to_target(label, topts):
+def seg_to_target(label, topts):
     # input: DHW
     # output: CDHW
     # mito/synapse cleft binary: topt = 0 

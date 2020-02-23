@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import numpy as np
 import json
+import random
 
 import torch
 import torch.utils.data
@@ -66,7 +67,7 @@ class TileDataset(torch.utils.data.Dataset):
             self.chunk_id_done = []
         id_rest = list(set(self.chunk_num_ind)-set(self.chunk_id_done))
         if self.mode == 'train':
-            id_sample = id_rest[int(np.floor(np.random.random()*len(id_rest)))]
+            id_sample = id_rest[int(np.floor(random.random()*len(id_rest)))]
         elif self.mode == 'test':
             id_sample = id_rest[0]
         self.chunk_id_done += [id_sample]

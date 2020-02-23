@@ -4,7 +4,7 @@ import random
 
 import torch
 import torch.utils.data
-from ..utils import count_volume, crop_volume, relabel, label_to_target, label_to_weight
+from ..utils import count_volume, crop_volume, relabel, seg_to_target, seg_to_weight
 
 # 3d volume dataset class
 class VolumeDataset(torch.utils.data.Dataset):
@@ -102,13 +102,16 @@ class VolumeDataset(torch.utils.data.Dataset):
         return pos
 
     def _get_pos_train(self, vol_size):
+        # random: multithread
+        # np.random: same seed
         pos = [0, 0, 0, 0]
         # pick a dataset
-        did = self._index_to_dataset(np.random.randint(self.sample_num_a))
+        did = self._index_to_dataset(random.randint(0,self.sample_num_a-1))
         pos[0] = did
         # pick a position
         tmp_size = count_volume(self.input_size[did], vol_size, np.array(self.sample_stride))
-        tmp_pos = [np.random.randint(tmp_size[x]) * self.sample_stride[x] for x in range(len(tmp_size))]
+        tmp_pos = [random.randint(0,tmp_size[x]-1) * self.sample_stride[x] for x in range(len(tmp_size))]
+        print(did,tmp_pos)
         if self.sample_invalid[did]:
             # make sure the ratio of valid is high
             seg_bad = np.array([-1]).astype(self.label[did].dtype)[0]
@@ -148,8 +151,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_input, out_label = augmented['image'], augmented['label']
             out_input = np.expand_dims(out_input, 0)
             # output list
-            out_target = label_to_target(out_label, self.target_opt)
-            out_weight = label_to_weight(out_label, self.loss_opt)
+            out_target = seg_to_target(out_label, self.target_opt)
+            out_weight = seg_to_weight(out_target, self.loss_opt)
 
             return pos, out_input, out_target, out_weight
 
