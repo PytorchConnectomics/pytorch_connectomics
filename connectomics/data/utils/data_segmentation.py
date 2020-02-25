@@ -171,7 +171,7 @@ def seg_to_target(label, topts):
             out[tid] = np.expand_dims((seg_to_small_seg(label, size_thres, zratio)>0).astype(np.float32), 0)
         elif topt[0] == '4': # instance boundary mask
             _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
-            out[tid] = np.expand_dims(seg_to_instance_bd(label, bd_sz, do_bg), 0)
+            out[tid] = np.expand_dims(seg_to_instance_bd(label, bd_sz, do_bg).astype(np.float32), 0)
     return out
 
 def rebalance_binary_class(label, mask=None, alpha=1.0, return_factor=False):

@@ -8,8 +8,8 @@ class Visualizer(object):
         self.N_ind = None
 
     def _prepare_data(self, volume, label, output):
-        if self.N_ind is None and volume.size()[0] > self.N:
-            self.N_ind = (np.linspace(0,1,self.N)*(volume.size()[0]-1)).astype(int) 
+        if self.N_ind is None and volume.size()[0]*volume.size()[2] > self.N:
+            self.N_ind = (np.linspace(0,1,self.N)*(volume.size()[0]*volume.size()[2]-1)).astype(int) 
         if len(volume.size()) == 4:   # 2D Inputs
             if self.N_ind is not None:
                 return volume[self.N_ind], label[self.N_ind], output[self.N_ind]
@@ -17,7 +17,11 @@ class Visualizer(object):
                 return volume, label, output
         elif len(volume.size()) == 5: # 3D Inputs
             # first instance
-            volume, label, output = volume[0].permute(1,0,2,3), label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
+            # volume, label, output = volume[0].permute(1,0,2,3), label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
+            # stack instance
+            # bczyx -> (bz)cyx
+            volume, label, output = volume.permute(0,2,1,3,4), label.permute(0,2,1,3,4), output.permute(0,2,1,3,4)
+            volume, label, output = volume.reshape([-1]+list(volume.shape[2:])), label.reshape([-1]+list(label.shape[2:])), output.reshape([-1]+list(output.shape[2:]))
             if self.N_ind is not None:
                 return volume[self.N_ind], label[self.N_ind], output[self.N_ind]
             else:
