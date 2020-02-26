@@ -93,13 +93,12 @@ class TileDataset(torch.utils.data.Dataset):
 
     def loadchunk(self):
         coord_p = self.coord+[-self.pad_size[0],self.pad_size[0],-self.pad_size[1],self.pad_size[1],-self.pad_size[2],self.pad_size[2]]
-        print(self.coord)
+        print('load tile',self.coord)
         # keep it in uint8 to save memory
         volume = [tileToVolume(self.json_volume['image'], coord_p, self.coord_m,\
                              tile_sz=self.json_volume['tile_size'],tile_st=self.json_volume['tile_st'],
                               tile_ratio=self.json_volume['tile_ratio'])]
         label = None
-        print('load tile %d-%d-%d-%d-%d-%d'%(z0,z1,y0,y1,x0,x1))
         if self.json_label is not None: 
             dt={'uint8':np.uint8,'uint16':np.uint16,'uint32':np.uint32,'uint64':np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
