@@ -130,19 +130,19 @@ def process_message(classifier, x0a, x1a, y0a, y1a, z0a, z1a):
                 volume = volume.transpose(0, 2, 1)
             # synapse: 3*z*y*x
 
-            model_io_size = np.array(in_sz, dtype=int)
+            model_input_size = np.array(in_sz, dtype=int)
             #print('volume shape: ', volume.shape)
-            #print('model_io_size: ', model_io_size)
-            dataset = SynapseDataset(volume=[volume], label=None, vol_input_size=model_io_size,
-                             vol_label_size=None, sample_stride=model_io_size/2,
+            #print('model_input_size: ', model_input_size)
+            dataset = SynapseDataset(volume=[volume], label=None, vol_input_size=model_input_size,
+                             vol_label_size=None, sample_stride=model_input_size/2,
                              data_aug=None, mode='test')
 
             test_loader = torch.utils.data.DataLoader(
                     dataset, batch_size=28, shuffle=False, collate_fn = collate_fn_test,
                     num_workers=0, pin_memory=True)
             
-            ww = blend(sz=model_io_size)
-            sz = tuple([3]+list(model_io_size))
+            ww = blend(sz=model_input_size)
+            sz = tuple([3]+list(model_input_size))
             #print(tuple([3]+list(volume.shape)))
             result = np.zeros(tuple([3]+list(volume.shape))).astype(np.float32)
             weight = np.zeros(volume.shape).astype(np.float32)

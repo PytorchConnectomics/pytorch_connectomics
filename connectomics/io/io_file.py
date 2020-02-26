@@ -1,6 +1,8 @@
 import h5py
 import os
 import numpy as np
+import imageio
+from scipy.ndimage import zoom
 
 def readh5(filename, dataset=''):
     fid = h5py.File(filename,'r')
@@ -17,9 +19,17 @@ def readvol(filename, dataset=''):
         data = imageio.volread(filename).squeeze()
     else:
         raise ValueError('unrecognizable file format for %s'%(filename))
-
     return data
 
+def readim(filename, do_channel=False):
+    # x,y,c
+    if not os.path.exists(filename): 
+        im = None
+    else:# note: cv2 do "bgr" channel order
+        im = imageio.imread(filename)
+        if do_channel and im.ndim==2:
+            im=im[:,:,None]
+    return im
 
 def writeh5(filename, dtarray, dataset='main'):
     fid=h5py.File(filename,'w')
@@ -38,14 +48,24 @@ def writeh5(filename, dtarray, dataset='main'):
 ####################################################################
 def vast2Seg(seg):
     # convert to 24 bits
-    return seg[:,:,0].astype(np.uint32)*65536+seg[:,:,1].astype(np.uint32)*256+seg[:,:,2].astype(np.uint32)
+    if seg.ndim==2:
+        return seg
+    else: #vast: rgb
+        return seg[:,:,0].astype(np.uint32)*65536+seg[:,:,1].astype(np.uint32)*256+seg[:,:,2].astype(np.uint32)
 
-def tileToVolume(tiles, x0, x1, y0, y1, z0, z1, tile_sz, dt=np.uint8, tile_st=[0,0], tile_ratio=1, resize_order=1, ndim=1, black=128):
+def tileToVolume(tiles, coord, coord_m, tile_sz, dt=np.uint8, tile_st=[0,0], tile_ratio=1, do_im=True, ndim=1, black=128):
     # x: column
     # y: row
     # no padding at the boundary
     # st: starting index 0 or 1
-    result = np.zeros((z1-z0, y1-y0, x1-x0), dt)
+    z0o, z1o, y0o, y1o, x0o, x1o = coord # region to crop
+    z0m, z1m, y0m, y1m, x0m, x1m = coord_m # tile boundary
+
+    bd = [max(-z0o,z0m), max(0,z1o-z1m), max(-y0o,y0m), max(0,y1o-y1m), max(-x0o,x0m), max(0,x1o-x1m)]
+    z0, y0, x0 = max(z0o,z0m), max(y0o,y0m), max(x0o,x0m)
+    z1, y1, x1 = min(z1o,z1m), min(y1o,y1m), min(x1o,x1m)
+
+    result = black*np.ones((z1-z0, y1-y0, x1-x0), dt)
     c0 = x0 // tile_sz # floor
     c1 = (x1 + tile_sz-1) // tile_sz # ceil
     r0 = y0 // tile_sz
@@ -58,41 +78,24 @@ def tileToVolume(tiles, x0, x1, y0, y1, z0, z1, tile_sz, dt=np.uint8, tile_st=[0
                     path = pattern.format(row=row+tile_st[0], column=column+tile_st[1])
                 else:
                     path = pattern
-                if not os.path.exists(path): 
-                    #return None
-                    patch = black*np.ones((tile_sz,tile_sz),dtype=dt)
-                else:
-                    if path[-3:]=='tif':
-                        import tifffile
-                        patch = tifffile.imread(path)
-                    else:
-                        from imageio import imread
-                        patch = imread(path)
-                    if tile_ratio != 1:
-                        # scipy.misc.imresize: only do uint8
-                        from scipy.ndimage import zoom
-                        patch = zoom(patch, [tile_ratio,tile_ratio,1], order=resize_order)
-                    if patch.ndim==2:
-                        patch=patch[:,:,None]
-                
-                # last tile may not be full
-                xp0 = column * tile_sz
-                xp1 = xp0 + patch.shape[1]
-                #xp1 = (column+1) * tile_sz
-                yp0 = row * tile_sz
-                yp1 = yp0 + patch.shape[0]
-                #yp1 = (row + 1) * tile_sz
+                patch = readim(path, do_channel=True)
                 if patch is not None:
+                    if tile_ratio != 1: # im ->1, label->0 
+                        patch = zoom(patch, [tile_ratio,tile_ratio,1], order=int(do_im))
+                
+                    # last tile may not be of the same size
+                    xp0 = column * tile_sz
+                    xp1 = xp0 + patch.shape[1]
+                    yp0 = row * tile_sz
+                    yp1 = yp0 + patch.shape[0]
                     x0a = max(x0, xp0)
                     x1a = min(x1, xp1)
                     y0a = max(y0, yp0)
                     y1a = min(y1, yp1)
-                    sz = result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0].shape
-                    if resize_order==0: # label
-                        if ndim==1: # 1-channel coding
-                            result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0,0].reshape(sz)
-                        else: # 3-channel coding
-                            result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = vast2Seg(patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0]).reshape(sz)
-                    else: # image
-                        result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0].reshape(sz)
+                    if do_im:# image
+                        result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0,0]
+                    else: # label
+                        result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = vast2Seg(patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0])
+    if max(bd)>0:
+        result = np.pad(result,((bd[0], bd[1]),(bd[2], bd[3]),(bd[4], bd[5])),'reflect')
     return result

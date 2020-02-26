@@ -42,9 +42,9 @@ class VolumeDataset(torch.utils.data.Dataset):
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
 
         # compute number of samples for each dataset (multi-volume input)
-        self.sample_stride = np.array(sample_stride, dtype=np.float32)
+        self.sample_stride = np.array(sample_stride, dtype=int)
        
-        self.sample_size = [count_volume(self.input_size[x], self.sample_input_size, np.array(self.sample_stride,int))
+        self.sample_size = [count_volume(self.input_size[x], self.sample_input_size, self.sample_stride)
                             for x in range(len(self.input_size))]
 
         # total number of possible inputs for each volume
@@ -83,7 +83,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         pos = [0, 0, 0]
         pos[0] = np.floor(index/sz[0])
         pz_r = index % sz[0]
-        pos[1] = np.floor(pz_r/sz[1])
+        pos[1] = int(np.floor(pz_r/sz[1]))
         pos[2] = pz_r % sz[1]
         return pos
 
@@ -109,7 +109,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         did = self._index_to_dataset(random.randint(0,self.sample_num_a-1))
         pos[0] = did
         # pick a position
-        tmp_size = count_volume(self.input_size[did], vol_size, np.array(self.sample_stride))
+        tmp_size = count_volume(self.input_size[did], vol_size, self.sample_stride)
         tmp_pos = [random.randint(0,tmp_size[x]-1) * self.sample_stride[x] for x in range(len(tmp_size))]
         if self.sample_invalid[did]:
             # make sure the ratio of valid is high
@@ -157,6 +157,6 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         elif self.mode == 'test':
             # test mode
-            pos = self.get_pos_test(index)
+            pos = self._get_pos_test(index)
             out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
             return pos, np.expand_dims(out_input,0)

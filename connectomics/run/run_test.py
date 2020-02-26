@@ -1,5 +1,8 @@
+import time
 import numpy as np
-from ..io import *
+from ..data.utils import blend_gaussian
+from ..io import writeh5
+import torch
 
 def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None):
     if do_eval:
@@ -7,8 +10,8 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
     else:
         model.train()
     volume_id = 0
-    ww = blend(args.test_size)
-    NUM_OUT = args.out_channel
+    ww = blend_gaussian(args.model_input_size)
+    NUM_OUT = args.model_out_channel
     pad_size = args.pad_size
     if len(args.pad_size)==3:
         pad_size = [args.pad_size[0],args.pad_size[0],
@@ -21,14 +24,14 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
 
     start = time.time()
 
-    sz = tuple([NUM_OUT] + list(args.test_size))
+    sz = tuple([NUM_OUT] + list(args.model_input_size))
     with torch.no_grad():
         for _, (pos, volume) in enumerate(test_loader):
             volume_id += args.batch_size
             print('volume_id:', volume_id)
 
             # for gpu computing
-            volume = volume.to(args.device)
+            volume = torch.from_numpy(volume).to(args.device)
             if not do_3d:
                 volume = volume.squeeze(1)
 
@@ -61,14 +64,11 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
                     pad_size[2]:sz[2]-pad_size[3],
                     pad_size[4]:sz[3]-pad_size[5]]
 
-    if args.output is None:
+    if args.output_path is None:
         return result
     else:
         print('save h5')
-        hf = h5py.File(args.output + '/result.h5','w')
-        for vol_id in range(len(result)): 
-            hf.create_dataset('vol%d'%(vol_id), data=result[vol_id], compression='gzip')
-        hf.close()
+        writeh5(args.output_path + '/result.h5', result,['vol%d'%(x) for x in range(len(result))])
 
 def inference_aug16(model, data, mode='min', num_aug=4):
     out = None
@@ -125,36 +125,3 @@ def inference_aug16(model, data, mode='min', num_aug=4):
         out = out/cc
 
     return out
-
-# -----------------------
-#    utils
-# -----------------------
-def blend(sz, sigma=1, mu=0.0):  
-    """
-    Gaussian blending
-    """
-    zz, yy, xx = np.meshgrid(np.linspace(-1,1,sz[0], dtype=np.float32), 
-                                np.linspace(-1,1,sz[1], dtype=np.float32),
-                                np.linspace(-1,1,sz[2], dtype=np.float32), indexing='ij')
-    dd = np.sqrt(zz*zz + yy*yy + xx*xx)
-    ww = 1e-4 + np.exp(-( (dd-mu)**2 / ( 2.0 * sigma**2 )))
-
-    return ww
-
-def save_each(args, volume, output, idx, pos):
-    # volume: (C,Z,Y,X)
-    volume = volume.cpu().detach().numpy()
-    volume = np.concatenate([volume, volume, volume], 0).transpose((1, 2, 3, 0))
-    output = output.transpose((1, 2, 3, 0))
-    composite = np.maximum(volume, output)
-    composite = (composite*255).astype(np.uint8)
-
-    hf = h5py.File(args.output + '/composite_%d.h5' % (idx), 'w')
-    hf.create_dataset('main', data=composite)
-    hf.close()
-
-    fl = open(args.output + '/pos.txt', 'a+')
-    for x in pos:
-        fl.write('%d\t' % x)
-    fl.write('%d\n' % idx)
-    fl.close()

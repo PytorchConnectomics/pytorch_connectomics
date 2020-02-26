@@ -3,7 +3,7 @@ import os, datetime
 import torch
 import numpy as np
 
-def get_args(mode='train'):
+def get_args(mode='train', do_output=True):
     assert mode in ['train', 'test']
     if mode == 'train':
         parser = argparse.ArgumentParser(description='Specify model training arguments.')
@@ -15,7 +15,6 @@ def get_args(mode='train'):
                         help='Input folder (train)')
     parser.add_argument('-o','--output-path', default='result/train/',
                         help='Output path')
-
 
     # data layout: h5 or folders of tiles 
     parser.add_argument('-dct','--do-chunk-tile',  type=int, default=0,
@@ -95,14 +94,16 @@ def get_args(mode='train'):
         parser.add_argument('-ist', '--iteration-step', type=int, default=1,
                             help='Number of steps to update')
     elif mode == 'test':
-        parser.add_argument('-tsz', '--test-size', type=str, default='18,160,160',
-                            help='input size during inference')
         parser.add_argument('-tsd', '--test-stride', type=str, default='',
                             help='stride during inference')
         parser.add_argument('-tam', '--test-aug-mode', type=str, default='min',
                             help='use data augmentation at test time: "mean", "min"')
         parser.add_argument('-tan', '--test-aug-num', type=int, default=0,
                             help='use data augmentation 4-fold, 16-fold')
+        parser.add_argument('-tid', '--test-id', type=int, default=0,
+                            help='test worker id')
+        parser.add_argument('-tn', '--test-num', type=int, default=1,
+                            help='number of test workers')
 
     # machine option
     parser.add_argument('-g','--num-gpu', type=int,  default=1,
@@ -123,15 +124,16 @@ def get_args(mode='train'):
     args = parser.parse_args()
 
     ## pre-process
-    time_now = str(datetime.datetime.now()).split(' ')
-    date = time_now[0]
-    time = time_now[1].split('.')[0].replace(':','-')
-    args.output_path += '/log'+date+'_'+time+'/'
-    if not os.path.isdir(args.output_path):
-        os.makedirs(args.output_path)
+    if do_output:
+        time_now = str(datetime.datetime.now()).split(' ')
+        date = time_now[0]
+        time = time_now[1].split('.')[0].replace(':','-')
+        args.output_path += '/log'+date+'_'+time+'/'
+        if not os.path.isdir(args.output_path):
+            os.makedirs(args.output_path)
 
     # I/O size in (z,y,x), no specified channel number
-    args.model_io_size = np.array([int(x) for x in args.model_input.split(',')])
+    args.model_input_size = np.array([int(x) for x in args.model_input.split(',')])
 
     # select training machine
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -141,13 +143,12 @@ def get_args(mode='train'):
     args.data_chunk_num_ind = np.array([int(x) for x in args.data_chunk_num_ind.split(',')]) if len(args.data_chunk_num_ind)>0 else []
 
     if args.data_pad=='':
-        args.pad_size = args.model_io_size//2
+        args.pad_size = args.model_input_size//4
     else:
-        args.pad_size = [int(x) for x in args.data_pad.split(',')]
+        args.pad_size = np.array([int(x) for x in args.data_pad.split(',')])
 
     args.filters = [int(x) for x in args.model_filters.split(',')]
     args.model_pad_mode,args.model_norm_mode,args.model_act_mode = args.model_conv_mode.split(',')
-
     args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
     args.data_invalid_thres = np.array([float(x) for x in args.data_invalid_thres.split(',')])
 
@@ -167,13 +168,8 @@ def get_args(mode='train'):
 
     elif mode == 'test':
         # test stride
-        if args.test_size=='': # not defined, do default model input size
-            args.test_size = args.model_io_size
-        else:
-            args.test_size = [int(x) for x in args.test_size.split(',')]
-
         if args.test_stride=='': # not defined, do default 50%
-            args.test_stride = np.maximum(1, args.test_size - args.model_io_size // 2)
+            args.test_stride = np.maximum(1, args.model_input_size - args.pad_size)
         else:
             args.test_stride = [int(x) for x in args.test_stride.split(',')]
     print(args)

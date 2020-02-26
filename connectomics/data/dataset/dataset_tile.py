@@ -81,36 +81,22 @@ class TileDataset(torch.utils.data.Dataset):
         z0,z1 = np.floor(np.array([zid,zid+self.chunk_step])/(self.chunk_num[0]+self.chunk_step-1)*self.json_size[0]).astype(int)
 
 
-        if self.mode=='test': # padding or not
-            coord = np.array([z0,z1,y0,y1,x0,x1],int)
-            z0 = max(0, z0-self.pad_size[0])
-            y0 = max(0, y0-self.pad_size[1])
-            x0 = max(0, x0-self.pad_size[2])
-            z1 = min(z1+self.pad_size[0], self.json_volume['depth'])
-            y1 = min(y1+self.pad_size[1], self.json_volume['height'])
-            x1 = min(x1+self.pad_size[2], self.json_volume['width'])
+        coord = np.array([z0,z1,y0,y1,x0,x1],int)+[-self.pad_size[0],self.pad_size[0],-self.pad_size[1],self.pad_size[1],-self.pad_size[2],self.pad_size[2]]
+        coord_m = np.array([0,self.json_volume['depth'],0,self.json_volume['height'],0,self.json_volume['width']],int)
+        print(coord)
         # keep it in uint8 to save memory
-        volume = [tileToVolume(self.json_volume['image'], x0, x1, y0, y1, z0, z1,\
+        volume = [tileToVolume(self.json_volume['image'], coord, coord_m,\
                              tile_sz=self.json_volume['tile_size'],tile_st=self.json_volume['tile_st'],
                               tile_ratio=self.json_volume['tile_ratio'])]
-        if self.mode=='test': # padding or not
-            to_pad = [(0,0),(0,0),(0,0)]
-            to_pad[0] = (self.pad_size[0]-(coord[0]-z0), self.pad_size[0]-(z1-coord[1]))
-            to_pad[1] = (self.pad_size[1]-(coord[2]-y0), self.pad_size[1]-(y1-coord[3]))
-            to_pad[2] = (self.pad_size[2]-(coord[4]-x0), self.pad_size[2]-(x1-coord[5]))
-            print('test:', to_pad)
-            if max(to_pad[0])+max(to_pad[1])+max(to_pad[2]) > 0:
-                volume[0] = np.pad(volume[0],to_pad,mode='reflect')
-            
         label = None
         print('load tile %d-%d-%d-%d-%d-%d'%(z0,z1,y0,y1,x0,x1))
         if self.json_label is not None: 
             dt={'uint8':np.uint8,'uint16':np.uint16,'uint32':np.uint32,'uint64':np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
-            label = [relabel(tileToVolume(self.json_label['image'], x0, x1, y0, y1, z0, z1,\
+            label = [relabel(tileToVolume(self.json_label['image'], coord, coord_m,\
                                  tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
                                  tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
-                                 dt=dt[self.json_label['dtype']], resize_order=0), do_type=True)]
+                                 dt=dt[self.json_label['dtype']], do_im=0), do_type=True)]
             if self.label_erosion != 0:
                 label[0] = seg_widen_border(label[0], self.label_erosion)
         self.dataset = VolumeDataset(volume,label,

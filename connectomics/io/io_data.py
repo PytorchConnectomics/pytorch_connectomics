@@ -62,6 +62,8 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
     label_erosion = 0
     sample_label_size=None
     sample_invalid_thres=args.data_invalid_thres
+    augmentor = None
+    topt,lopt = -1,-1
     if mode=='train':
         augmentor = Compose([Rotate(p=1.0),
                              Rescale(p=0.5),
@@ -71,18 +73,18 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
                              MissingParts(p=0.9),
                              MissingSection(p=0.5),
                              MisAlignment(p=1.0, displacement=16)], 
-                             input_size = args.model_io_size)
+                             input_size = args.model_input_size)
         label_erosion = args.label_erosion
-        if augmentor is None:
-            sample_input_size = args.model_io_size
-        else:
-            sample_input_size = augmentor.sample_size
         sample_label_size=sample_input_size
         sample_stride = (1,1,1)
+        topt,lopt = args.target_opt,args.loss_opt
     elif mode=='test':
-        sample_input_size = args.test_size
         sample_stride = args.test_stride
-       
+    if augmentor is None:
+        sample_input_size = args.model_input_size
+    else:
+        sample_input_size = augmentor.sample_size
+      
     # dataset
     if args.do_chunk_tile==1:
         label_json = args.input_path+args.label_name if mode=='train' else ''
@@ -90,7 +92,7 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
                               volume_json=args.input_path+args.img_name, label_json=label_json,
                               sample_input_size=sample_input_size, sample_label_size=sample_label_size,
                               sample_stride=sample_stride, sample_invalid_thres = sample_invalid_thres,
-                              augmentor=augmentor, target_opt = args.target_opt, loss_opt = args.loss_opt, mode = mode, 
+                              augmentor=augmentor, target_opt = topt, loss_opt = lopt, mode = mode, 
                               label_erosion = label_erosion, pad_size=args.pad_size)
     else:
         if preload_data[0] is None: # load from command line args
