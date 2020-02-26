@@ -1,10 +1,10 @@
-import time
+import os,time
 import numpy as np
 from ..data.utils import blend_gaussian
 from ..io import writeh5
 import torch
 
-def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None):
+def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None, output_name='result.h5'):
     if do_eval:
         model.eval()
     else:
@@ -68,7 +68,7 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
         return result
     else:
         print('save h5')
-        writeh5(args.output_path + '/result.h5', result,['vol%d'%(x) for x in range(len(result))])
+        writeh5(os.path.join(args.output_path, output_name), result,['vol%d'%(x) for x in range(len(result))])
 
 def inference_aug16(model, data, mode='min', num_aug=4):
     out = None

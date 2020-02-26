@@ -60,9 +60,15 @@ class TileDataset(torch.utils.data.Dataset):
         self.json_label = json.load(open(label_json)) if (label_json is not None and label_json!='') else None 
         self.json_size = [self.json_volume['depth'],self.json_volume['height'],self.json_volume['width']]
 
+        self.coord_m = np.array([0,self.json_volume['depth'],0,self.json_volume['height'],0,self.json_volume['width']],int)
+        self.coord = np.zeros(6,int)
 
 
-    def updatechunk(self):
+
+    def get_coord_name(self):
+        return '-'.join([str(x) for x in self.coord])
+
+    def updatechunk(self, do_load=True):
         if len(self.chunk_id_done)==len(self.chunk_num_ind):
             self.chunk_id_done = []
         id_rest = list(set(self.chunk_num_ind)-set(self.chunk_id_done))
@@ -80,12 +86,16 @@ class TileDataset(torch.utils.data.Dataset):
         y0,y1 = np.floor(np.array([yid,yid+self.chunk_step])/(self.chunk_num[1]+self.chunk_step-1)*self.json_size[1]).astype(int)
         z0,z1 = np.floor(np.array([zid,zid+self.chunk_step])/(self.chunk_num[0]+self.chunk_step-1)*self.json_size[0]).astype(int)
 
+        self.coord = np.array([z0,z1,y0,y1,x0,x1],int)
 
-        coord = np.array([z0,z1,y0,y1,x0,x1],int)+[-self.pad_size[0],self.pad_size[0],-self.pad_size[1],self.pad_size[1],-self.pad_size[2],self.pad_size[2]]
-        coord_m = np.array([0,self.json_volume['depth'],0,self.json_volume['height'],0,self.json_volume['width']],int)
-        print(coord)
+        if do_load:
+            self.loadchunk()
+
+    def loadchunk(self):
+        coord_p = self.coord+[-self.pad_size[0],self.pad_size[0],-self.pad_size[1],self.pad_size[1],-self.pad_size[2],self.pad_size[2]]
+        print(self.coord)
         # keep it in uint8 to save memory
-        volume = [tileToVolume(self.json_volume['image'], coord, coord_m,\
+        volume = [tileToVolume(self.json_volume['image'], coord_p, self.coord_m,\
                              tile_sz=self.json_volume['tile_size'],tile_st=self.json_volume['tile_st'],
                               tile_ratio=self.json_volume['tile_ratio'])]
         label = None
@@ -93,7 +103,7 @@ class TileDataset(torch.utils.data.Dataset):
         if self.json_label is not None: 
             dt={'uint8':np.uint8,'uint16':np.uint16,'uint32':np.uint32,'uint64':np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
-            label = [relabel(tileToVolume(self.json_label['image'], coord, coord_m,\
+            label = [relabel(tileToVolume(self.json_label['image'], coord_p, self.coord_m,\
                                  tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
                                  tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
                                  dt=dt[self.json_label['dtype']], do_im=0), do_type=True)]
