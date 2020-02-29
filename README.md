@@ -67,5 +67,14 @@ This project is built upon numerous previous projects. Especially, we'd like to 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
 
-## Contact
-[Zudi Lin](https://github.com/zudi-lin)
+## Citation
+If you find PyTorch Connectomics useful in your research, please cite:
+
+```bibtex
+@misc{lin2019pytorchconnectomics,
+  author =       {Zudi Lin and Donglai Wei},
+  title =        {PyTorch Connectomics},
+  howpublished = {\url{https://github.com/zudi-lin/pytorch_connectomics}},
+  year =         {2019}
+}
+```
