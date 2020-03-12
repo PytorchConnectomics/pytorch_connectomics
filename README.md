@@ -37,7 +37,7 @@ pip install --editable .
 ```
 For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html). If you meet compilation errors, please check [TROUBLESHOOTING.md](https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md).
 
-## Visulazation
+## Visualization
 
 ### Training
 * Visualize the training loss and validation images using [tensorboardX](https://github.com/lanpa/tensorboard-pytorch).
@@ -61,8 +61,6 @@ Previous works have suggested that a reasonable large batch size can improve the
 This project is built upon numerous previous projects. Especially, we'd like to thank the contributors of the following github repositories:
 - [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
-- [EM-affinity](https://github.com/donglaiw/EM-affinity): Harvard Visual Computing Group
-- [ibex](https://github.com/bmatejek/ibex): Harvard Visual Computing Group
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.

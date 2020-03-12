@@ -4,9 +4,9 @@ import h5py, time, itertools, datetime
 
 import torch
 
-from torch_connectomics.model.loss import *
-from torch_connectomics.utils.net import *
-from torch_connectomics.utils.vis import visualize, visualize_aff
+from connectomics.model.loss import *
+from connectomics.utils.net import *
+from connectomics.utils.vis import visualize, visualize_aff
 
 def train(args, train_loader, model, device, criterion, optimizer, scheduler, logger, writer):
     for iteration, (_, volume, label, class_weight, _) in enumerate(train_loader):

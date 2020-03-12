@@ -5,10 +5,10 @@ import time
 import imageio
 import argparse
 
-from torch_connectomics.utils.seg.seg_dist import DilateData
-from torch_connectomics.utils.seg.seg_util import relabel
-from torch_connectomics.utils.seg.io_util import writeh5, readh5
-from torch_connectomics.utils.seg.seg_eval import adapted_rand
+from connectomics.utils.seg.seg_dist import DilateData
+from connectomics.utils.seg.seg_util import relabel
+from connectomics.utils.seg.io_util import writeh5, readh5
+from connectomics.utils.seg.seg_eval import adapted_rand
 
 from skimage.morphology import dilation,erosion
 

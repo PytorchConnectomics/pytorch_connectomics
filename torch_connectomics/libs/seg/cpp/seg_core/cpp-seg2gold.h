@@ -1,1 +1,0 @@
-long *CppMapping(long *segmentation, int *gold, long nentries, double low_threshold, double high_threshold);

@@ -127,3 +127,4 @@ build/
 *.swp
 *.swo
 .github/
+*~
