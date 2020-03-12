@@ -73,11 +73,14 @@ def get_args(mode='train', do_output=True):
                             help='Fine-tune suffix for model saving')
 
         # loss/optimization option
+        # for each target representation, we have a list of weight, loss-type, loss-weight
         # label, bd, bd-bg, small obj
         parser.add_argument('-to', '--target-opt', type=str, default='0',
-                            help='loss function for each target')
+                            help='target opt')
         parser.add_argument('-lo', '--loss-opt', type=str, default='1',
                             help='loss function for each target')
+        parser.add_argument('-wo', '--weight-opt', type=str, default='0',
+                            help='weight for each loss')
         parser.add_argument('-lw', '--loss-weight', type=str, default='1',
                             help='weight for each loss function')
         parser.add_argument('-lro', '--regu-opt', type=str, default='',
@@ -153,11 +156,15 @@ def get_args(mode='train', do_output=True):
     args.data_invalid_thres = np.array([float(x) for x in args.data_invalid_thres.split(',')])
 
     if mode == 'train':
+        # each target has a list of loss/weight/loss-weight
         args.target_opt = [x for x in args.target_opt.split(',')]
-        args.loss_opt = [x for x in args.loss_opt.split(',')]
-        args.loss_weight = [float(x) for x in args.loss_weight.split(',')]
+        # further split by '-'
+        args.weight_opt = [[y for y in x.split('-')] for x in args.weight_opt.split(',')]
+        args.loss_opt = [[y for y in x.split('-')] for x in args.loss_opt.split(',')]
+        args.loss_weight = [[float(y) for y in x.split('-')] for x in args.loss_weight.split(',')]
         assert(len(args.target_opt)==len(args.loss_opt))
         assert(len(args.target_opt)==len(args.loss_weight))
+
         args.regu_opt = [] if len(args.regu_opt)==0 else [float(x) for x in args.regu_opt.split(',')]
         args.regu_weight = [] if len(args.regu_opt)==0 else [float(x) for x in args.regu_weight.split(',')]
         assert(len(args.regu_opt)==len(args.regu_weight))

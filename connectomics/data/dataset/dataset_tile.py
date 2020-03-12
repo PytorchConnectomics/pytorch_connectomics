@@ -8,7 +8,7 @@ import torch.utils.data
 
 
 from . import VolumeDataset
-from ..utils import crop_volume, rebalance_binary_class,relabel,seg_widen_border
+from ..utils import crop_volume, relabel,seg_widen_border
 from ...io import tileToVolume 
 
 class TileDataset(torch.utils.data.Dataset):
@@ -31,7 +31,7 @@ class TileDataset(torch.utils.data.Dataset):
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0.5,0],
                  augmentor=None,
-                 valid_mask=None, target_opt=['0'], loss_opt=['1'],
+                 valid_mask=None, target_opt=['0'], weight_opt=['1'],
                  mode='train', label_erosion=0, pad_size=[0,0,0]):
         # TODO: merge mito/mitoskel, syn/synpolarity
         self.sample_input_size = sample_input_size
@@ -39,8 +39,10 @@ class TileDataset(torch.utils.data.Dataset):
         self.sample_stride = sample_stride
         self.sample_invalid_thres = sample_invalid_thres
         self.augmentor = augmentor
+
         self.target_opt = target_opt
-        self.loss_opt = loss_opt
+        self.weight_opt = weight_opt
+
         self.mode = mode
         self.label_erosion = label_erosion
         self.pad_size = pad_size
@@ -113,5 +115,5 @@ class TileDataset(torch.utils.data.Dataset):
                               self.sample_label_size,
                               self.sample_stride,
                               self.sample_invalid_thres,
-                              self.augmentor, self.target_opt, self.loss_opt,
+                              self.augmentor, self.target_opt, self.weight_opt,
                               self.mode)

@@ -1,5 +1,6 @@
 import torch
 import torchvision.utils as vutils
+import numpy as np
 
 class Visualizer(object):
     def __init__(self, vis_opt=0, N=8):
