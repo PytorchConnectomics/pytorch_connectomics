@@ -51,6 +51,8 @@ def get_args(mode='train', do_output=True):
     # model option
     parser.add_argument('-mpt', '--pre-model', type=str, default='',
                         help='Pre-trained model path')      
+    parser.add_argument('-mpi', '--pre-model-iter', type=int, default=0,
+                        help='Pre-trained model iteration')      
     parser.add_argument('-mi', '--model-input', type=str,  default='18,160,160',
                         help='Input size of deep network')
     parser.add_argument('-mo', '--model-output', type=str,  default='',
@@ -128,12 +130,19 @@ def get_args(mode='train', do_output=True):
 
     ## pre-process
     if do_output:
-        time_now = str(datetime.datetime.now()).split(' ')
-        date = time_now[0]
-        time = time_now[1].split('.')[0].replace(':','-')
-        args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time)
-        if not os.path.isdir(args.output_path):
-            os.makedirs(args.output_path)
+        if args.pre_model=='': # new folder
+            time_now = str(datetime.datetime.now()).split(' ')
+            date = time_now[0]
+            time = time_now[1].split('.')[0].replace(':','-')
+            args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time)
+            if not os.path.isdir(args.output_path):
+                os.makedirs(args.output_path)
+        else:
+            args.output_path = args.pre_model[:args.pre_model.rfind('/')]
+            if mode =='test': # create test folder
+                args.output_path = os.path.join(args.output_path, 'test_%d'%(args.pre_model_iter))
+                if not os.path.isdir(args.output_path):
+                    os.makedirs(args.output_path)
 
     # I/O size in (z,y,x), no specified channel number
     args.model_input_size = np.array([int(x) for x in args.model_input.split(',')])
@@ -161,6 +170,7 @@ def get_args(mode='train', do_output=True):
         # further split by '-'
         args.weight_opt = [[y for y in x.split('-')] for x in args.weight_opt.split(',')]
         args.loss_opt = [[y for y in x.split('-')] for x in args.loss_opt.split(',')]
+
         args.loss_weight = [[float(y) for y in x.split('-')] for x in args.loss_weight.split(',')]
         assert(len(args.target_opt)==len(args.loss_opt))
         assert(len(args.target_opt)==len(args.loss_weight))

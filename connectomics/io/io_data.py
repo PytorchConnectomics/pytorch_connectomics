@@ -63,7 +63,7 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
     sample_label_size=None
     sample_invalid_thres=args.data_invalid_thres
     augmentor = None
-    topt,lopt = -1,-1
+    topt,wopt = -1,-1
     if mode=='train':
         augmentor = Compose([Rotate(p=1.0),
                              Rescale(p=0.5),
@@ -116,7 +116,7 @@ def get_dataloader(args, mode='train', dataset=None, preload_data=[None,None,Non
 
     if dataset == None:
         dataset = get_dataset(args, mode, preload_data)
-
+    
     img_loader =  torch.utils.data.DataLoader(
           dataset, batch_size=args.batch_size, shuffle=SHUFFLE, collate_fn = cf,
           num_workers=args.num_cpu, pin_memory=True)
