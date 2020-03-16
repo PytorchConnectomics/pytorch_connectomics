@@ -167,6 +167,8 @@ def get_args(mode='train', do_output=True):
     args.model_pad_mode,args.model_norm_mode,args.model_act_mode = args.model_conv_mode.split(',')
     args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
     args.data_invalid_thres = np.array([float(x) for x in args.data_invalid_thres.split(',')])
+    args.pre_model_layer = args.pre_model_layer.split('@')
+    args.pre_model_layer_select = np.array([int(x) for x in args.pre_model_layer_select.split('@')])
 
     if mode == 'train':
         # each target has a list of loss/weight/loss-weight
@@ -187,9 +189,6 @@ def get_args(mode='train', do_output=True):
         args.mon_vis_opt = [int(x) for x in args.mon_vis_opt.split(',')]
         args.mon_iter_num = np.array([int(x) for x in args.mon_iter_num.split(',')])*args.iteration_step
         
-        args.pre_model_layer = args.pre_model_layer.split('@')
-        args.pre_model_layer_select = np.array([int(x) for x in args.pre_model_layer_select.split('@')])
-
     elif mode == 'test':
         # test stride
         if args.test_stride=='': # not defined, do default 50%
