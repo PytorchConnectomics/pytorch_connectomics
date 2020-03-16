@@ -63,7 +63,6 @@ class Criterion(object):
                 else:
                     loss += self.loss_weight[i][j]*self.loss_w[i][j]*self.loss[i][j](pred[:,cid:cid+numC], target_t, self.to_torch(weight[i][j]))
             cid += numC
-
         for i in range(self.num_regu):
             loss += self.regu[i](pred)*self.regu_w[i]
         return loss

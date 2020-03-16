@@ -186,8 +186,8 @@ def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 100*alpha
     if label.max()==0:
-        weight_factor = 0
-        weight = np.zeros_like(label, np.float32)
+        weight_factor = 1
+        weight = np.ones_like(label, np.float32)
     else:
         if mask is None:
             weight_factor = float(label.sum()) / np.prod(label.shape)
