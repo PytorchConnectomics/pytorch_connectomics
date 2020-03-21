@@ -13,8 +13,7 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
     to get familiar with the datasets and have a sense of how the affinity graphs look like.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The pytorch dataset class for neuron segmentation
-is :class:`torch_connectomics.data.dataset.AffinityDataset`.
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The pytorch target affinity generation is :class:`connectomics.data.utils.data_segmentation`.
 
 #. Get the dataset:
 
