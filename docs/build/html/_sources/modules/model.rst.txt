@@ -1,5 +1,5 @@
-torch_connectomics.model
-==================
+connectomics.model
+====================
 
 .. contents:: Contents
     :local:
@@ -7,12 +7,12 @@ torch_connectomics.model
 Building Blocks
 --------------------
 
-.. automodule:: torch_connectomics.model.blocks
+.. automodule:: connectomics.model.block
     :members:
 
 Model Zoo
 --------------------
 
-.. automodule:: torch_connectomics.model.model_zoo
+.. automodule:: connectomics.model.zoo
     :members:
 

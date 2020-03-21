@@ -1,25 +1,5 @@
-torch_connectomics.utils
+connectomics.data.utils
 =====================
 
-.. contents:: Contents
-    :local:
-
-Segmentation
---------------------
-
-.. automodule:: torch_connectomics.data.utils.seg
-    :members:
-
-
-Network Training & Inference
---------------------
-
-.. automodule:: torch_connectomics.data.utils.net
-    :members:
-
-
-Visualization
---------------------
-
-.. automodule:: torch_connectomics.data.utils.vis
+.. automodule:: connectomics.data.utils
     :members:

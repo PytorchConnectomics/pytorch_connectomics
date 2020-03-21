@@ -1,7 +1,7 @@
 :github_url: https://github.com/zudi-lin/pytorch_connectomics
 
 PyTorch Connectomics documentation
-===============================
+===================================
 
 `PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ is a deep learning 
 framework for automatic and semi-automatic annotation of connectomics datasets, powered by `PyTorch <https://pytorch.org/>`_.
@@ -46,7 +46,7 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
    modules/utils
 
 Indices and Tables
-==================
+====================
 
 * :ref:`genindex`
 * :ref:`modindex`

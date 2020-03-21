@@ -191,7 +191,7 @@ def get_args(mode='train', do_output=True):
         
     elif mode == 'test':
         # test stride
-        if args.test_stride=='': # not defined, do default 50%
+        if args.test_stride=='': # if not defined, overlap by args.pad_size
             args.test_stride = np.maximum(1, args.model_input_size - args.pad_size)
         else:
             args.test_stride = [int(x) for x in args.test_stride.split(',')]
