@@ -30,12 +30,12 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
           -mi 112,112,112 -ma unet_residual_3d -mf 28,36,48,64,80 -me 0 -daz 1 -moc 1\
           -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 4
 
-    - Data: i/o/din/dln (input folder/output folder/train volume/train label)
-    - Optimization: lr/iteration-total/iteration-save (learning rate/total #iterations/#iterations to save)
-    - Model: mi/ma/mf/moc/me/daz (input size/architecture/#filter/#output
-      channel/with 2D embedding module/z-data-augmentation)
-    - Loss: to/lo/wo (target option/loss option/weight option)
-    - System: g/c/b (#GPU/#CPU/batch size)
+    - Data: ``i/o/din/dln`` input folder/output folder/train volume/train label
+    - Optimization: ``lr/iteration-total/iteration-save`` learning rate/total #iterations/#iterations to save
+    - Model: ``mi/ma/mf/moc/me/daz`` input size/architecture/#filter/#output
+      channel/with 2D embedding module/z-data-augmentation
+    - Loss: ``to/lo/wo`` target option/loss option/weight option
+    - System: ``g/c/b`` #GPU/#CPU/batch size
 
 #. Visualize the training progress:
 
@@ -47,7 +47,6 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
     .. code-block:: none
 
-        $ python -u test.py -t /path/to/Lucchi/ \
-          -dn img/test_im.tif -o outputs/unetv0_mito/result\
-          -mi 112,112,112 -mo 112,112,112 -g 4 -c 4 -b 4 -ma unet_residual -mf 28,36,48,64,80 -me 0 -oc 1 
-          -pm outputs/unet_res_mito/LOG-FOLDER/volume_59999.pth -tam mean -tan 4 -tsz 112,224,224
+        $ python -u test.py -i /path/to/Lucchi/ -din img/test_im.tif -o outputs/unetv0_mito/result\
+          -mi 112,256,256  -g 1 -c 1 -b 1 -ma unet_residual -mf 28,36,48,64,80 -me 0 -moc 1 
+          -mpt outputs/unet_res_mito/LOG-FOLDER/volume_59999.pth -mpi 59999 -dp 8,64,64
