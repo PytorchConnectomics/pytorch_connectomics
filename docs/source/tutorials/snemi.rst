@@ -29,10 +29,16 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python scripts/train.py -i /{path-to-snemi}/ \
-          -din train-input.tif -dln train-labels.tif -o outputs/unetv3 -lr 1e-03 \
-          --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
-          -g 4 -c 4 -b 8 -ma unet_residual_3d -to 2 -moc 3 -wo 1
+        $ python scripts/train.py -i /{path-to-snemi}/ -o outputs/unetv3 -din train-input.tif -dln train-labels.tif \
+            -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
+            -mi 18,160,160 -ma unet_residual_3d -moc 3 \
+            -to 2 -lo 1 -wo 1 -g 4 -c 4 -b 8 
+
+    - Data: i/o/din/dln (input folder/output folder/train volume/train label)
+    - Optimization: lr/iteration-total/iteration-save (learning rate/total #iterations/#iterations to save)
+    - Model: mi/ma/moc (input size/architecture/#output channel)
+    - Loss: to/lo/wo (target option/loss option/weight option)
+    - System: g/c/b (#GPU/#CPU/batch size)
 
 #. Visualize the training progress:
 

@@ -192,19 +192,27 @@ when executing the <code class="docutils literal notranslate"><span class="pre">
 </div></blockquote>
 </li>
 </ol>
-<p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
+<p>For description of the data please check <a class="reference external" href="https://www.epfl.ch/labs/cvlab/data/data-em/">the author page</a>.</p>
 </div></blockquote>
 </li>
 <li><p>Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
 <div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01 boost # on Harvard rc cluster
 $ source activate py3_torch
-$ python -u train.py -t /path/to/Lucchi/ \
-  -dn img/train_im.tif -ln label/train_label.tif -o outputs/unet_res_mito\
-  -lr 1e-03 --iteration-total 60000 --iteration-save 10000  -g 4 -c 4 -b 4 \
-  -mi 112,112,112 -mo 112,112,112 -ma unet_residual -mf 28,36,48,64,80 -me 0 -daz 1 --task 2 -oc 1 -lt 1
+$ python -u train.py -i /path/to/Lucchi/ -din img/train_im.tif -dln label/train_label.tif -o outputs/unet_res_mito\
+  -lr 1e-03 --iteration-total 60000 --iteration-save 10000 \
+  -mi 112,112,112 -ma unet_residual_3d -mf 28,36,48,64,80 -me 0 -daz 1 -moc 1\
+  -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 4
 </pre></div>
 </div>
+<ul class="simple">
+<li><p>Data: i/o/din/dln (input folder/output folder/train volume/train label)</p></li>
+<li><p>Optimization: lr/iteration-total/iteration-save (learning rate/total #iterations/#iterations to save)</p></li>
+<li><p>Model: mi/ma/mf/moc/me/daz (input size/architecture/#filter/#output
+channel/with 2D embedding module/z-data-augmentation)</p></li>
+<li><p>Loss: to/lo/wo (target option/loss option/weight option)</p></li>
+<li><p>System: g/c/b (#GPU/#CPU/batch size)</p></li>
+</ul>
 </div></blockquote>
 </li>
 <li><p>Visualize the training progress:</p>

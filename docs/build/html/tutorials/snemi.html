@@ -200,12 +200,19 @@ to get familiar with the datasets and have a sense of how the affinity graphs lo
 <li><p>Run the training script:</p>
 <blockquote>
 <div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python scripts/train.py -i /{path-to-snemi}/ \
-  -din train-input.tif -dln train-labels.tif -o outputs/unetv3 -lr 1e-03 \
-  --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
-  -g 4 -c 4 -b 8 -ma unet_residual_3d -to 2 -moc 3 -wo 1
+$ python scripts/train.py -i /{path-to-snemi}/ -o outputs/unetv3 -din train-input.tif -dln train-labels.tif \
+    -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
+    -mi 18,160,160 -ma unet_residual_3d -moc 3 \
+    -to 2 -lo 1 -wo 1 -g 4 -c 4 -b 8
 </pre></div>
 </div>
+<ul class="simple">
+<li><p>Data: i/o/din/dln (input folder/output folder/train volume/train label)</p></li>
+<li><p>Optimization: lr/iteration-total/iteration-save (learning rate/total #iterations/#iterations to save)</p></li>
+<li><p>Model: mi/ma/moc (input size/architecture/#output channel)</p></li>
+<li><p>Loss: to/lo/wo (target option/loss option/weight option)</p></li>
+<li><p>System: g/c/b (#GPU/#CPU/batch size)</p></li>
+</ul>
 </div></blockquote>
 </li>
 <li><p>Visualize the training progress:</p>
