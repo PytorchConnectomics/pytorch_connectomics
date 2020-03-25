@@ -9,11 +9,11 @@ from ..utils import count_volume, crop_volume, relabel, seg_to_targets, seg_to_w
 # 3d volume dataset class
 class VolumeDataset(torch.utils.data.Dataset):
     """
-    # sample_input_size: sample input size
+    # sample_volume_size: sample input size
     """
     def __init__(self,
                  volume, label=None,
-                 sample_input_size=(8, 64, 64),
+                 sample_volume_size=(8, 64, 64),
                  sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0, 0],
@@ -39,14 +39,14 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         # dataset: channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
-        self.sample_input_size = np.array(sample_input_size).astype(int)  # model input size
+        self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=int)
        
-        self.sample_size = [count_volume(self.input_size[x], self.sample_input_size, self.sample_stride)
+        self.sample_size = [count_volume(self.input_size[x], self.sample_volume_size, self.sample_stride)
                             for x in range(len(self.input_size))]
 
         # total number of possible inputs for each volume
@@ -58,7 +58,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         if sample_invalid_thres[0] > 0:
             # [invalid_ratio, max_num_trial]
             if self.label is not None:
-                self.sample_invalid_thres[0] = int(self.sample_label_size * sample_invalid_thres[0])
+                self.sample_invalid_thres[0] = int(np.prod(self.sample_label_size) * sample_invalid_thres[0])
                 for i in range(len(self.sample_num)):
                     seg_bad = np.array([-1]).astype(self.label[i].dtype)[0]
                     if np.any(self.label[i] == seg_bad):
@@ -68,6 +68,7 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.sample_num_a = np.sum(self.sample_num)
         self.sample_num_c = np.cumsum([0] + list(self.sample_num))
+        self.label_vol_ratio = self.sample_label_size/self.sample_volume_size
 
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
@@ -100,7 +101,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             if pos[i] != self.sample_size[pos[0]][i-1]-1:
                 pos[i] = int(pos[i] * self.sample_stride[i-1])
             else:
-                pos[i] = int(self.input_size[pos[0]][i-1]-self.sample_input_size[i-1])
+                pos[i] = int(self.input_size[pos[0]][i-1]-self.sample_volume_size[i-1])
         return pos
 
     def _get_pos_train(self, vol_size):
@@ -129,13 +130,17 @@ class VolumeDataset(torch.utils.data.Dataset):
         # orig input: keep uint format to save cpu memory
         # sample: need float32
 
-        vol_size = self.sample_input_size
+        vol_size = self.sample_volume_size
         if self.mode in ['train','valid']:
             # train mode
             # if elastic deformation: need different receptive field
+            # position in the volume
             pos = self._get_pos_train(vol_size)
             out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
-            out_label = crop_volume(self.label[pos[0]], vol_size, pos[1:])
+            # position in the label 
+            pos_l = np.round(pos[1:]*self.label_vol_ratio)
+            out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
+
             if self.sample_invalid_thres[0]>0:
                 seg_bad = np.array([-1]).astype(out_label.dtype)[0]
                 out_mask = out_label!=seg_bad

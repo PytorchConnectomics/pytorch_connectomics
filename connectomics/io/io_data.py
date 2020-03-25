@@ -60,12 +60,22 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
     assert mode in ['train', 'test']
 
     label_erosion = 0
-    sample_label_size=None
-    sample_invalid_thres=args.data_invalid_thres
+    sample_label_size = args.model_output_size
+    sample_invalid_thres = args.data_invalid_thres
     augmentor = None
     topt,wopt = -1,-1
     if mode=='train':
-        augmentor = Compose([Rotate(p=1.0),
+        sample_input_size = args.model_input_size
+        if args.data_aug_mode==1:
+            augmentor = Compose([Flip(p=1.0, do_ztrans=args.data_aug_ztrans),
+                             Grayscale(p=0.75),
+                             MissingParts(p=0.9),
+                             MissingSection(p=0.5),
+                             MisAlignment(p=1.0, displacement=16)], 
+                             input_size = args.model_input_size)
+            sample_input_size = augmentor.sample_size
+        elif args.data_aug_mode==2:
+            augmentor = Compose([Rotate(p=1.0),
                              Rescale(p=0.5),
                              Flip(p=1.0, do_ztrans=args.data_aug_ztrans),
                              Elastic(alpha=12.0, p=0.75),
@@ -74,9 +84,8 @@ def get_dataset(args, mode='train', preload_data=[None,None]):
                              MissingSection(p=0.5),
                              MisAlignment(p=1.0, displacement=16)], 
                              input_size = args.model_input_size)
+            sample_input_size = augmentor.sample_size
         label_erosion = args.label_erosion
-        sample_input_size = augmentor.sample_size
-        sample_label_size=sample_input_size
         sample_stride = (1,1,1)
         topt, wopt = args.target_opt, args.weight_opt
     elif mode=='test':

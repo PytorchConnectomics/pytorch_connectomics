@@ -33,6 +33,8 @@ def get_args(mode='train', do_output=True):
     parser.add_argument('-ds', '--data-scale', type=str,  default='1,1,1',
                         help='Scale size of the input data for different resolutions')
 
+    parser.add_argument('-dam','--data-aug-mode', type=int,  default=2,
+                        help='data augmentation mode. 0: none, 1: no shape change, 2: all')
     parser.add_argument('-daz','--data-aug-ztrans', type=int,  default=0,
                         help='apply xz transponse for data augmentation (for isotropic data)')
     parser.add_argument('-dvt','--data-invalid-thres', type=str,  default='0,0',
@@ -150,6 +152,10 @@ def get_args(mode='train', do_output=True):
 
     # I/O size in (z,y,x), no specified channel number
     args.model_input_size = np.array([int(x) for x in args.model_input.split(',')])
+    if args.model_output=='':
+        args.model_output_size = args.model_input_size
+    else:
+        args.model_output_size = np.array([int(x) for x in args.model_output.split(',')])
 
     # select training machine
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

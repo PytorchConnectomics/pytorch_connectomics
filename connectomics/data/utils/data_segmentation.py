@@ -159,7 +159,9 @@ def seg_to_targets(label, topts):
     # synapse polarity: topt = 1.2,0 
     out = [None]*len(topts)
     for tid,topt in enumerate(topts):
-        if topt == '0': # binary
+        if topt == '-1': # direct copy
+            out[tid] = label
+        elif topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
         elif topt[0] == '1': # multi-channel, e.g. 1.2
             num_channel = int(topt[2:])
