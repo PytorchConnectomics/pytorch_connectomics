@@ -53,7 +53,11 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
-          -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-          -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
-          -lm True -pm outputs/unetv0_syn/volume_50000.pth
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -i /path/to/CREMI/ \
+          -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
+          -o outputs/unetv0_syn/result -mi 8,256,256 -ma unet_residual_3d -moc 1 \
+          -g 4 -c 4 -b 32 
+          -mpt outputs/unetv0_syn/volume_49999.pth -mpi 49999 -dp 8,64,64 -tam mean -tan 4
+
+    - pre-train model: ``mpt/mpi`` (model path/iteration number)
+    - test configuration: ``dp/tam/tan`` (data padding/augmentation mode/augmentation number)
