@@ -29,11 +29,19 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     .. code-block:: none
 
         $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py -t /path/to/CREMI/ \
-          -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-          -ln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
-          -o outputs/unetv0_syn -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
-          -mi 8,256,256 -g 4 -c 4 -b 8 -ac unetv0 --task 1 --out-channel 1
+        $ python -u train.py -i /path/to/CREMI/ \
+          -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
+          -dln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
+          -o outputs/unetv0_syn -lr 1e-03 --iteration-total 50000 --iteration-save 5000 \
+          -mi 8,256,256 -ma unet_residual_3d -moc 1 \
+          -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 8 
+
+    - data: ``i/o/din/dln`` (input folder/output folder/train volume/train label)
+    - optimization: ``lr/iteration-total/iteration-save`` (learning rate/total #iterations/#iterations to save)
+    - model: ``mi/ma/moc`` (input size/architecture/#output channel)
+    - loss: ``to/lo/wo`` (target option/loss option/weight option)
+    - system: ``g/c/b`` (#GPU/#CPU/batch size)
+
 
 #. Visualize the training progress:
 
@@ -45,7 +53,11 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -t /path/to/CREMI/ \
-          -dn image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-          -o outputs/unetv0_syn/result -mi 8,256,256 -g 4 -c 4 -b 32 -ac unetv0 \
-          -lm True -pm outputs/unetv0_syn/volume_50000.pth
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -i /path/to/CREMI/ \
+          -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
+          -o outputs/unetv0_syn/result -mi 8,256,256 -ma unet_residual_3d -moc 1 \
+          -g 4 -c 4 -b 32 
+          -mpt outputs/unetv0_syn/volume_49999.pth -mpi 49999 -dp 8,64,64 -tam mean -tan 4
+
+    - pre-train model: ``mpt/mpi`` (model path/iteration number)
+    - test configuration: ``dp/tam/tan`` (data padding/augmentation mode/augmentation number)

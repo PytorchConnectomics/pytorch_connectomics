@@ -47,7 +47,7 @@ class MisAlignment(DataAugment):
             new_labels[:idx] = labels[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
             new_images[idx:] = images[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
             new_labels[idx:] = labels[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
-        
+    
         return new_images, new_labels
 
     def __call__(self, data, random_state=np.random):
