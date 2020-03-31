@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import numpy as np
 import random
 import torch
+import pudb
 
 ####################################################################
 ## Collate Functions
@@ -24,6 +25,7 @@ def collate_fn_target(batch):
     out_weight_l = [[None]*len(out_weight[0][x]) for x in range(len(out_weight[0]))] 
    
     for i in range(len(out_target[0])):
+        #pudb.set_trace()
         out_target_l[i] = np.stack([out_target[x][i] for x in range(len(out_target))], 0)
 
     # each target can have multiple loss/weights

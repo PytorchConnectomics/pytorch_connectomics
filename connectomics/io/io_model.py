@@ -9,11 +9,15 @@ from ..model.utils import Monitor, Criterion
 
 def get_model(args, exact=True, size_match=True):
     MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
-                 'fpn': fpn}
+                 'fpn': fpn,
+                'super':SuperResolution}
 
     assert args.architecture in MODEL_MAP.keys()
-    model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.model_out_channel, filters=args.filters, \
-                                         pad_mode=args.model_pad_mode, norm_mode=args.model_norm_mode, act_mode=args.model_act_mode,                                             do_embedding=(args.model_embedding==1), head_depth=args.model_head_depth)
+    if args.architecture == 'super':
+        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.model_out_channel, filters=args.filters)
+    else:
+        model = MODEL_MAP[args.architecture](in_channel=1, out_channel=args.model_out_channel, filters=args.filters, \
+                                             pad_mode=args.model_pad_mode, norm_mode=args.model_norm_mode, act_mode=args.model_act_mode,                                             do_embedding=(args.model_embedding==1), head_depth=args.model_head_depth)
 
     print('model: ', model.__class__.__name__)
     model = nn.DataParallel(model, device_ids=range(args.num_gpu))

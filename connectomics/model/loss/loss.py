@@ -112,9 +112,12 @@ class WeightedMSE(nn.Module):
         s1 = torch.prod(torch.tensor(pred.size()[2:]).float())
         s2 = pred.size()[0]
         norm_term = (s1 * s2).cuda()
-        return torch.sum(weight * (pred - target) ** 2) / norm_term
+        if weight is None:
+            return torch.sum((pred - target) ** 2) / norm_term
+        else:
+            return torch.sum(weight * (pred - target) ** 2) / norm_term
 
-    def forward(self, pred, target, weight):
+    def forward(self, pred, target, weight=None):
         #_assert_no_grad(target)
         return self.weighted_mse_loss(pred, target, weight)  
 

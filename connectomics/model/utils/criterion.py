@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import pudb
 
 from ..loss import *
 
@@ -58,6 +59,7 @@ class Criterion(object):
             numC = target[i].shape[1]
             target_t = self.to_torch(target[i])
             for j in range(len(self.loss[i])):
+                #pudb.set_trace()
                 if weight[i][j].shape[-1] == 1: # placeholder for no weight
                     loss += self.loss_weight[i][j]*self.loss_w[i][j]*self.loss[i][j](pred[:,cid:cid+numC], target_t)
                 else:

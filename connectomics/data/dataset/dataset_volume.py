@@ -146,8 +146,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_mask = out_label!=seg_bad
             else:
                 out_mask = torch.ones((1),dtype=torch.uint8)
-
-            out_label = relabel(out_label).astype(np.float32)
+            
+            #out_label = relabel(out_label).astype(np.float32)
             # augmentation
             if self.augmentor is not None:  # augmentation
                 # for warping: cv2.remap require input to be float32
