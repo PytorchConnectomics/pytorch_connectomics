@@ -121,8 +121,6 @@ dmypy.json
 *.sh
 others/
 
-build/
-
 # vim
 *.swp
 *.swo
