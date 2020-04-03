@@ -24,7 +24,18 @@ def get_model(args, exact=True, size_match=True):
         print('Load pretrained model:',args.pre_model)
         if exact: 
             # exact matching: the weights shape in pretrain model and current model are identical
-            model.load_state_dict(torch.load(args.pre_model))
+            weight = torch.load(args.pre_model)
+            # change channels if needed
+            if args.pre_model_layer[0] != '':
+                if args.pre_model_layer_select[0]==-1: # replicate channels
+                    for kk in args.pre_model_layer:
+                        sz = list(np.ones(weight[kk][0:1].ndim,int))
+                        sz[0] = args.model_out_channel
+                        weight[kk] = weight[kk][0:1].repeat(sz)
+                else: # select channels
+                    for kk in args.pre_model_layer:
+                        weight[kk] = weight[kk][args.pre_model_layer_select]
+            model.load_state_dict(weight)
         else:
             pretrained_dict = torch.load(args.pre_model)
             model_dict = model.state_dict()

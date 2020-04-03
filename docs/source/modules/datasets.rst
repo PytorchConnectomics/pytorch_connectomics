@@ -1,5 +1,5 @@
-torch_connectomics.data.datasets
-========================
+connectomics.data.datasets
+============================
 
-.. automodule:: torch_connectomics.data.dataset
+.. automodule:: connectomics.data.dataset
     :members:

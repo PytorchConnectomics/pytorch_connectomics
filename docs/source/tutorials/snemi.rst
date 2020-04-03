@@ -13,12 +13,9 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
     to get familiar with the datasets and have a sense of how the affinity graphs look like.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The pytorch dataset class for neuron segmentation
-is :class:`torch_connectomics.data.dataset.AffinityDataset`.
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The pytorch target affinity generation is :class:`connectomics.data.utils.data_segmentation`.
 
 #. Get the dataset:
-
-    #. Download the dataset from our server:
 
         .. code-block:: none
 
@@ -26,29 +23,22 @@ is :class:`torch_connectomics.data.dataset.AffinityDataset`.
     
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-    #. Store the data into ``HDF5`` format (take ``train-input.tif`` as example):
-
-        .. code-block:: python
-            :linenos:
-
-            import h5py
-            import imageio
-
-            train_image = imageio.volread('train-input.tif')
-
-            fl = h5py.File('train_image.h5', 'w')
-            fl.create_dataset('main', data=train_image)
-            fl.close()
 
 #. Run the training script:
 
     .. code-block:: none
 
         $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python train.py -t /path/to/snemi/ \
-          -dn train_image.h5 -ln train_label.h5 -o outputs/unetv3 -lr 1e-03 \
-          --iteration-total 100000 --iteration-save 10000 -mi 18,160,160 \
-          -g 4 -c 4 -b 8 -ac unetv3
+        $ python scripts/train.py -i /{path-to-snemi}/ -o outputs/unetv3 -din train-input.tif -dln train-labels.tif \
+            -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
+            -mi 18,160,160 -ma unet_residual_3d -moc 3 \
+            -to 2 -lo 1 -wo 1 -g 4 -c 4 -b 8 
+
+    - data: ``i/o/din/dln`` (input folder/output folder/train volume/train label)
+    - optimization: ``lr/iteration-total/iteration-save`` (learning rate/total #iterations/#iterations to save)
+    - model: ``mi/ma/moc`` (input size/architecture/#output channel)
+    - loss: ``to/lo/wo`` (target option/loss option/weight option)
+    - system: ``g/c/b`` (#GPU/#CPU/batch size)
 
 #. Visualize the training progress:
 
@@ -56,13 +46,13 @@ is :class:`torch_connectomics.data.dataset.AffinityDataset`.
 
         $ tensorboard --logdir runs
 
-#. Run inference on image volumes:
+#. Run inference on image volumes (min over 4-aug):
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python test.py -t /path/to/snemi/ \
-          -dn train_image.h5 -o outputs/unetv3/result -mi 18,160,160 -g 4 \
-          -c 4 -b 8 -ac unetv3 -lm True -pm outputs/unetv3/volume_50000.pth
+        $ python scripts/test.py -i /{path-to-snemi}/ \
+          -din train-input.tif -mi 116,256,256 -g 4 -c 4 -b 4 \
+          -ma unet_residual_3d -mpt outputs/unetv3/{log-folder}/volume_100000.pth -mpi 99999 -dp 8,64,64 -tam min -tan 4 
 
 
 #. Gnerate segmentation and run evaluation:

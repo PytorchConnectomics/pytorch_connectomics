@@ -28,16 +28,18 @@ def main():
     print('4. start training')
     if args.do_chunk_tile == 0:
         train_loader = get_dataloader(args, 'train')
-        train(args, train_loader, model, criterion, optimizer, scheduler, monitor)
+        train(args, train_loader, model, criterion, optimizer, scheduler, monitor, pre_iter=args.pre_model_iter)
     else:
-        train_dataset = get_dataset(args, 'train')
-        num_chunk = args.iteration_total // args.data_chunk_iter
+        pre_iter = args.pre_model_iter
+        tile_dataset = get_dataset(args, 'train')
+        num_chunk = (args.iteration_total-pre_iter) // args.data_chunk_iter
         args.iteration_total = args.data_chunk_iter
         for chunk in range(num_chunk):
-            train_dataset.updatechunk()
-            train_loader = get_dataloader(args, 'train', dataset=train_dataset.dataset)
-            pre_iter = chunk*args.data_chunk_iter
+            tile_dataset.updatechunk()
+            train_loader = get_dataloader(args, 'train', dataset=tile_dataset.dataset)
             train(args, train_loader, model, criterion, optimizer, scheduler, monitor, pre_iter=pre_iter)
+            pre_iter += args.data_chunk_iter
+            del train_loader
   
     print('5. finish training')
     if logger is not None:

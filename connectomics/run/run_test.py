@@ -3,6 +3,7 @@ import numpy as np
 from ..data.utils import blend_gaussian
 from ..io import writeh5
 import torch
+import itertools
 
 def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None, output_name='result.h5'):
     if do_eval:

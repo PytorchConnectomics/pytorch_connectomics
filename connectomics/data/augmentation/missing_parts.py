@@ -100,7 +100,7 @@ class MissingParts(DataAugment):
     def apply_deform(self, imgs, random_state):
         transformedimgs = np.copy(imgs)
         sectionsnum = imgs.shape[0]
-        i =0
+        i=0
         while i < sectionsnum:
             if random_state.rand() < self.p:
                 transformedimgs[i] = self.deform_2d(imgs[i], random_state)

@@ -17,8 +17,8 @@ extensions = [
 source_suffix = '.rst'
 master_doc = 'index'
 
-author = 'Zudi Lin'
-project = 'pytorch_connectomics'
+author = 'Zudi Lin and Donglai Wei'
+project = 'connectomics'
 copyright = '{}, {}'.format(datetime.datetime.now().year, author)
 
 version = 'master ({})'.format(__version__)

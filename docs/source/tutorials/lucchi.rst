@@ -17,7 +17,7 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
             wget https://hp03.mindhackers.org/rhoana_product/dataset/lucchi.zip
     
-    For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
+    For description of the data please check `the author page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
 
 #. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
 
@@ -25,10 +25,17 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
         $ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01 boost # on Harvard rc cluster
         $ source activate py3_torch
-        $ python -u train.py -t /path/to/Lucchi/ \
-          -dn img/train_im.tif -ln label/train_label.tif -o outputs/unet_res_mito\
-          -lr 1e-03 --iteration-total 60000 --iteration-save 10000  -g 4 -c 4 -b 4 \
-          -mi 112,112,112 -mo 112,112,112 -ma unet_residual -mf 28,36,48,64,80 -me 0 -daz 1 --task 2 -oc 1 -lt 1
+        $ python -u train.py -i /path/to/Lucchi/ -din img/train_im.tif -dln label/train_label.tif -o outputs/unet_res_mito\
+          -lr 1e-03 --iteration-total 60000 --iteration-save 10000 \
+          -mi 112,112,112 -ma unet_residual_3d -mf 28,36,48,64,80 -me 0 -daz 1 -moc 1\
+          -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 4
+
+    - Data: ``i/o/din/dln`` input folder/output folder/train volume/train label
+    - Optimization: ``lr/iteration-total/iteration-save`` learning rate/total #iterations/#iterations to save
+    - Model: ``mi/ma/mf/moc/me/daz`` input size/architecture/#filter/#output
+      channel/with 2D embedding module/z-data-augmentation
+    - Loss: ``to/lo/wo`` target option/loss option/weight option
+    - System: ``g/c/b`` #GPU/#CPU/batch size
 
 #. Visualize the training progress:
 
@@ -40,7 +47,6 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
     .. code-block:: none
 
-        $ python -u test.py -t /path/to/Lucchi/ \
-          -dn img/test_im.tif -o outputs/unetv0_mito/result\
-          -mi 112,112,112 -mo 112,112,112 -g 4 -c 4 -b 4 -ma unet_residual -mf 28,36,48,64,80 -me 0 -oc 1 
-          -pm outputs/unet_res_mito/LOG-FOLDER/volume_59999.pth -tam mean -tan 4 -tsz 112,224,224
+        $ python -u test.py -i /path/to/Lucchi/ -din img/test_im.tif -o outputs/unetv0_mito/result\
+          -mi 112,256,256  -g 1 -c 1 -b 1 -ma unet_residual -mf 28,36,48,64,80 -me 0 -moc 1 
+          -mpt outputs/unet_res_mito/LOG-FOLDER/volume_59999.pth -mpi 59999 -dp 8,64,64

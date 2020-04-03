@@ -1,5 +1,5 @@
-torch_connectomics.data.augmentation
-====================
+connectomics.data.augmentation
+================================
 
-.. automodule:: torch_connectomics.data.augmentation
+.. automodule:: connectomics.data.augmentation
     :members:

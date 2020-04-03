@@ -13,7 +13,7 @@ def get_args(mode='train', do_output=True):
     # I/O
     parser.add_argument('-i','--input-path',  default='/n/pfister_lab2/',
                         help='Input folder (train)')
-    parser.add_argument('-o','--output-path', default='result/train/',
+    parser.add_argument('-o','--output-path', default='',
                         help='Output path')
 
     # data layout: h5 or folders of tiles 
@@ -33,6 +33,8 @@ def get_args(mode='train', do_output=True):
     parser.add_argument('-ds', '--data-scale', type=str,  default='1,1,1',
                         help='Scale size of the input data for different resolutions')
 
+    parser.add_argument('-dam','--data-aug-mode', type=int,  default=2,
+                        help='data augmentation mode. 0: none, 1: no shape change, 2: all')
     parser.add_argument('-daz','--data-aug-ztrans', type=int,  default=0,
                         help='apply xz transponse for data augmentation (for isotropic data)')
     parser.add_argument('-dvt','--data-invalid-thres', type=str,  default='0,0',
@@ -51,6 +53,13 @@ def get_args(mode='train', do_output=True):
     # model option
     parser.add_argument('-mpt', '--pre-model', type=str, default='',
                         help='Pre-trained model path')      
+    parser.add_argument('-mpi', '--pre-model-iter', type=int, default=0,
+                        help='Pre-trained model iteration')      
+    parser.add_argument('-mpl', '--pre-model-layer', type=str, default='',
+                        help='Pre-trained model layers to be changed')
+    parser.add_argument('-mpls', '--pre-model-layer-select', type=str, default='-1',
+                        help='Pre-trained model channels to be selected')
+
     parser.add_argument('-mi', '--model-input', type=str,  default='18,160,160',
                         help='Input size of deep network')
     parser.add_argument('-mo', '--model-output', type=str,  default='',
@@ -128,15 +137,25 @@ def get_args(mode='train', do_output=True):
 
     ## pre-process
     if do_output:
-        time_now = str(datetime.datetime.now()).split(' ')
-        date = time_now[0]
-        time = time_now[1].split('.')[0].replace(':','-')
-        args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time)
+        if args.output_path!='': # new folder
+            time_now = str(datetime.datetime.now()).split(' ')
+            date = time_now[0]
+            time = time_now[1].split('.')[0].replace(':','-')
+            args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time)
+        else:
+            if args.pre_model!='':
+                args.output_path = args.pre_model[:args.pre_model.rfind('/')]
+                if mode =='test': # create test folder
+                    args.output_path = os.path.join(args.output_path, 'test_%d'%(args.pre_model_iter))
         if not os.path.isdir(args.output_path):
             os.makedirs(args.output_path)
 
     # I/O size in (z,y,x), no specified channel number
     args.model_input_size = np.array([int(x) for x in args.model_input.split(',')])
+    if args.model_output=='':
+        args.model_output_size = args.model_input_size
+    else:
+        args.model_output_size = np.array([int(x) for x in args.model_output.split(',')])
 
     # select training machine
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -154,6 +173,8 @@ def get_args(mode='train', do_output=True):
     args.model_pad_mode,args.model_norm_mode,args.model_act_mode = args.model_conv_mode.split(',')
     args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
     args.data_invalid_thres = np.array([float(x) for x in args.data_invalid_thres.split(',')])
+    args.pre_model_layer = args.pre_model_layer.split('@')
+    args.pre_model_layer_select = np.array([int(x) for x in args.pre_model_layer_select.split('@')])
 
     if mode == 'train':
         # each target has a list of loss/weight/loss-weight
@@ -161,6 +182,7 @@ def get_args(mode='train', do_output=True):
         # further split by '-'
         args.weight_opt = [[y for y in x.split('-')] for x in args.weight_opt.split(',')]
         args.loss_opt = [[y for y in x.split('-')] for x in args.loss_opt.split(',')]
+
         args.loss_weight = [[float(y) for y in x.split('-')] for x in args.loss_weight.split(',')]
         assert(len(args.target_opt)==len(args.loss_opt))
         assert(len(args.target_opt)==len(args.loss_weight))
@@ -172,10 +194,10 @@ def get_args(mode='train', do_output=True):
         args.mon_log_opt = [int(x) for x in args.mon_log_opt.split(',')]
         args.mon_vis_opt = [int(x) for x in args.mon_vis_opt.split(',')]
         args.mon_iter_num = np.array([int(x) for x in args.mon_iter_num.split(',')])*args.iteration_step
-
+        
     elif mode == 'test':
         # test stride
-        if args.test_stride=='': # not defined, do default 50%
+        if args.test_stride=='': # if not defined, overlap by args.pad_size
             args.test_stride = np.maximum(1, args.model_input_size - args.pad_size)
         else:
             args.test_stride = [int(x) for x in args.test_stride.split(',')]

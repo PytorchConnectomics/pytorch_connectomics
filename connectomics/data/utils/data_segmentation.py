@@ -159,7 +159,9 @@ def seg_to_targets(label, topts):
     # synapse polarity: topt = 1.2,0 
     out = [None]*len(topts)
     for tid,topt in enumerate(topts):
-        if topt == '0': # binary
+        if topt == '-1': # direct copy
+            out[tid] = label
+        elif topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
         elif topt[0] == '1': # multi-channel, e.g. 1.2
             num_channel = int(topt[2:])
@@ -185,9 +187,9 @@ def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
     """Binary-class rebalancing."""
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 100*alpha
-    if label.max()==0:
-        weight_factor = 0
-        weight = np.zeros_like(label, np.float32)
+    if label.max()==0 or label.min()==0:
+        weight_factor = 1
+        weight = np.ones_like(label, np.float32)
     else:
         if mask is None:
             weight_factor = float(label.sum()) / np.prod(label.shape)
