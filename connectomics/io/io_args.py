@@ -32,6 +32,8 @@ def get_args(mode='train', do_output=True):
                         help='Pad size of the input data for maximum usage of gt data')
     parser.add_argument('-ds', '--data-scale', type=str,  default='1,1,1',
                         help='Scale size of the input data for different resolutions')
+    parser.add_argument('-dlm', '--label-mag', type=float,  default=0,
+                        help='divide...')
 
     parser.add_argument('-dam','--data-aug-mode', type=int,  default=2,
                         help='data augmentation mode. 0: none, 1: no shape change, 2: all')
