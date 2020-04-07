@@ -128,3 +128,5 @@ build/
 *.swo
 .github/
 *~
+
+outputs/

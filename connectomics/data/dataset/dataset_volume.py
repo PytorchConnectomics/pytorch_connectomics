@@ -42,7 +42,12 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
-        self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
+        #self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
+            # shrink input_size for valid label sample
+            for vid in range(len(self.input)):
+                self.input_size[vid] = np.minimum(self.input_size[vid],(np.array(self.label[vid].shape)/self.sample_label_size*self.sample_volume_size).astype(int))
+                
+
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=int)
        
