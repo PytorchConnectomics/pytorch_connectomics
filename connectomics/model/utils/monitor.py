@@ -36,7 +36,7 @@ class Logger(object):
             self.log_tb.add_scalar('Loss', avg, iter_total)
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))
-            logger.flush()
+            self.log_txt.flush() 
         return avg
 
 class Monitor(object):

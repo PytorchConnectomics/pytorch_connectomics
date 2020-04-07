@@ -4,6 +4,7 @@ from ..data.utils import blend_gaussian
 from ..io import writeh5
 import torch
 import itertools
+import pudb
 
 def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None, output_name='result.h5'):
     if do_eval:
@@ -11,21 +12,27 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
     else:
         model.train()
     volume_id = 0
-    ww = blend_gaussian(args.model_input_size)
+#     pudb.set_trace()
+    ww = blend_gaussian(args.model_output_size)#!MB
     NUM_OUT = args.model_out_channel
     pad_size = args.pad_size
     if len(args.pad_size)==3:
         pad_size = [args.pad_size[0],args.pad_size[0],
                     args.pad_size[1],args.pad_size[1],
                     args.pad_size[2],args.pad_size[2]]
+#     pudb.set_trace()
+    result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in [args.model_output_size]]
+    weight = [np.zeros(x, dtype=np.float32) for x in [args.model_output_size]]
+    result = [np.zeros([1,32,96,96])]
+    weight = [np.zeros([32,96,96])]
+#     result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in test_loader.dataset.input_size]
+#     weight = [np.zeros(x, dtype=np.float32) for x in test_loader.dataset.input_size]
 
-    result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in test_loader.dataset.input_size]
-    weight = [np.zeros(x, dtype=np.float32) for x in test_loader.dataset.input_size]
     # print(result[0].shape, weight[0].shape)
 
     start = time.time()
 
-    sz = tuple([NUM_OUT] + list(args.model_input_size))
+    sz = tuple([NUM_OUT] + list(args.model_output_size))
     with torch.no_grad():
         for _, (pos, volume) in enumerate(test_loader):
             volume_id += args.batch_size
@@ -46,24 +53,23 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
 
             for idx in range(output.shape[0]):
                 st = pos[idx]
-                print(st)
                 result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                st[3]:st[3]+sz[3]] += output[idx] * np.expand_dims(ww, axis=0)
+                st[3]:st[3]+sz[3]] += output[idx] #* np.expand_dims(ww, axis=0)
                 weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                 st[3]:st[3]+sz[3]] += ww
 
     end = time.time()
     print("prediction time:", (end-start))
 
-    for vol_id in range(len(result)):
-        if result[vol_id].ndim > weight[vol_id].ndim:
-            weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
-        result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
-        sz = result[vol_id].shape
-        result[vol_id] = result[vol_id][:,
-                    pad_size[0]:sz[1]-pad_size[1],
-                    pad_size[2]:sz[2]-pad_size[3],
-                    pad_size[4]:sz[3]-pad_size[5]]
+#     for vol_id in range(len(result)):
+#         if result[vol_id].ndim > weight[vol_id].ndim:
+#             weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
+#         result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
+#         sz = result[vol_id].shape
+#         result[vol_id] = result[vol_id][:,
+#                     pad_size[0]:sz[1]-pad_size[1],
+#                     pad_size[2]:sz[2]-pad_size[3],
+#                     pad_size[4]:sz[3]-pad_size[5]]
 
     if args.output_path is None:
         return result
