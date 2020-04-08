@@ -70,16 +70,16 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
     end = time.time()
     print("prediction time:", (end-start))
 
-    if args.architecture == "super":#!MB not
-        for vol_id in range(len(result)):
-            if result[vol_id].ndim > weight[vol_id].ndim:
-                weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
-            result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
-            sz = result[vol_id].shape
-            result[vol_id] = result[vol_id][:,
-                        pad_size[0]:sz[1]-pad_size[1],
-                        pad_size[2]:sz[2]-pad_size[3],
-                        pad_size[4]:sz[3]-pad_size[5]]
+    
+    for vol_id in range(len(result)):
+        if result[vol_id].ndim > weight[vol_id].ndim:
+            weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
+        result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
+        sz = result[vol_id].shape
+        result[vol_id] = result[vol_id][:,
+                    pad_size[0]:sz[1]-pad_size[1],
+                    pad_size[2]:sz[2]-pad_size[3],
+                    pad_size[4]:sz[3]-pad_size[5]]
 
     if args.output_path is None:
         return result
