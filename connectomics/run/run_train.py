@@ -32,8 +32,6 @@ def train(args, train_loader, model, criterion,
         if do_vis:
             monitor.visualize(volume, torch.from_numpy(target[0]), pred, iter_total)
         #Save model
-#         import pudb # !MB
-#         pudb.set_trace()
         if (iter_total+1) % args.iteration_save == 0:
             torch.save(model.state_dict(), args.output_path+('/volume_%d%s.pth' % (iter_total, args.finetune)))
 

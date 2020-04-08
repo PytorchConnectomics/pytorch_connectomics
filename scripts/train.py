@@ -6,13 +6,13 @@ import torch
 
 from connectomics.io import *
 from connectomics.run import train
-import pudb
+
 
 def main():
     args = get_args(mode='train')
 
     print('0. initial setup')
-    pudb.set_trace()
+
 
     print('2.0 setup model')
     model = get_model(args)
