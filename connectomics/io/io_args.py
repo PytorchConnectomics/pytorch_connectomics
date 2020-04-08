@@ -142,7 +142,7 @@ def get_args(mode='train', do_output=True):
             time_now = str(datetime.datetime.now()).split(' ')
             date = time_now[0]
             time = time_now[1].split('.')[0].replace(':','-')
-            #args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time) #!MB
+            args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time) 
         else:
             if args.pre_model!='':
                 args.output_path = args.pre_model[:args.pre_model.rfind('/')]
