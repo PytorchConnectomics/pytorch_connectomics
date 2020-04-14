@@ -21,7 +21,8 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
                     args.pad_size[1],args.pad_size[1],
                     args.pad_size[2],args.pad_size[2]]
     
-    if(args.architecture == "super"):
+    #if(args.architecture == "super"):
+    if ("super" in args.architecture):
         output_size = np.array(test_loader.dataset.input_size)*np.array(args.scale_factor).tolist()
         result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in output_size]
         weight = [np.zeros(x, dtype=np.float32) for x in output_size]
@@ -51,7 +52,7 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
 
             if model_output_id is not None: # select channel
                 output = output[model_output_id]
-            if args.architecture != "super":
+            if not "super" in args.architecture:
                 for idx in range(output.shape[0]):
                     st = pos[idx]
                     result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
@@ -74,6 +75,7 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
     for vol_id in range(len(result)):
         if result[vol_id].ndim > weight[vol_id].ndim:
             weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
+        # For segmentation masks, use uint16
         result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
         sz = result[vol_id].shape
         result[vol_id] = result[vol_id][:,
