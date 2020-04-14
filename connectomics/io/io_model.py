@@ -11,7 +11,8 @@ from ..model.utils import Monitor, Criterion
 def get_model(args, exact=True, size_match=True):
     MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
                  'fpn': fpn,
-                'super':SuperResolution}
+                'super':SuperResolution,
+                'unet_super':Unet_super}
 
     assert args.architecture in MODEL_MAP.keys()
     if args.architecture == 'super':
