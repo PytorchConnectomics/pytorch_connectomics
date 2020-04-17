@@ -120,7 +120,6 @@ dmypy.json
 *.pth
 others/
 
-
 # vim
 *.swp
 *.swo
@@ -128,4 +127,3 @@ others/
 *~
 
 outputs/
-build/

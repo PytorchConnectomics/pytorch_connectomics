@@ -20,11 +20,21 @@
   <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
   
     
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../',
+              VERSION:'master',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -101,8 +111,8 @@
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="model.html">connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="model.html#building-blocks">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="model.html#model-zoo">Model Zoo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model.html#module-connectomics.model.block">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model.html#module-connectomics.model.zoo">Model Zoo</a></li>
 </ul>
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data.augmentation</a></li>
@@ -172,8 +182,207 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="connectomics-data-augmentation">
-<h1>connectomics.data.augmentation<a class="headerlink" href="#connectomics-data-augmentation" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="module-connectomics.data.augmentation">
+<span id="connectomics-data-augmentation"></span><h1>connectomics.data.augmentation<a class="headerlink" href="#module-connectomics.data.augmentation" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="connectomics.data.augmentation.Compose">
+<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em>, <em>keep_uncropped=False</em>, <em>keep_non_smoothed=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compose transforms</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.8)"><em>list</em></a>) – list of transformations to compose.</li>
+<li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a>) – input size of model in (z, y, x).</li>
+<li><strong>keep_uncropped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – keep uncropped images and labels (default: False).</li>
+<li><strong>keep_non_smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – return also the non-smoothed masks (default: False).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.DataAugment">
+<em class="property">class </em><code class="descname">DataAugment</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
+<dd><p>DataAugment interface.</p>
+<ol class="arabic simple">
+<li>Randomly generate parameters for current augmentation methods.</li>
+<li>Apply the paramters to the valid_mask and generate a new one.</li>
+<li>Calculate new input size and sample from the volume.</li>
+<li>Apply the augmentation method to the new sample and crop to input_size.</li>
+</ol>
+<dl class="method">
+<dt id="connectomics.data.augmentation.DataAugment.set_params">
+<code class="descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate appropriate sample wize with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes parameters for random data augmentation
+parameters and returns an updated input size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.Elastic">
+<em class="property">class </em><code class="descname">Elastic</code><span class="sig-paren">(</span><em>alpha=10.0</em>, <em>sigma=4.0</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Elastic deformation of images as described in <a class="reference internal" href="#simard2003" id="id1">[Simard2003]</a> (with modifications).
+Based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a>.</p>
+<table class="docutils citation" frame="void" id="simard2003" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[Simard2003]</a></td><td>Simard, Steinkraus and Platt, “Best Practices for
+Convolutional Neural Networks applied to Visual Document Analysis”, in
+Proc. of the International Conference on Document Analysis and
+Recognition, 2003.</td></tr>
+</tbody>
+</table>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – maximum pixel-moving distance of elastic transformation.</li>
+<li><strong>sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – standard deviation of the Gaussian filter.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.Grayscale">
+<em class="property">class </em><code class="descname">Grayscale</code><span class="sig-paren">(</span><em>contrast_factor=0.3</em>, <em>brightness_factor=0.3</em>, <em>mode='mix'</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Grayscale intensity augmentation, adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
+<p>Randomly adjust contrast/brightness, randomly invert
+and apply random gamma correction.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>contrast_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – intensity of contrast change.</li>
+<li><strong>brightness_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – intensity of brightness change.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/string.html#module-string" title="(in Python v3.8)"><em>string</em></a>) – ‘2D’, ‘3D’ or ‘mix’.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.Rotate">
+<em class="property">class </em><code class="descname">Rotate</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Continuous rotatation.</p>
+<p>The sample size for x- and y-axes should be at least sqrt(2) times larger
+than the input size to make sure there is no non-valid region after center-crop.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.Rescale">
+<em class="property">class </em><code class="descname">Rescale</code><span class="sig-paren">(</span><em>low=0.8</em>, <em>high=1.2</em>, <em>fix_aspect=False</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rescale augmentation.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>low</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – lower bound of the random scale factor.</li>
+<li><strong>high</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – higher bound of the random scale factor.</li>
+<li><strong>fix_aspect</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – fix aspect ratio or not.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.MisAlignment">
+<em class="property">class </em><code class="descname">MisAlignment</code><span class="sig-paren">(</span><em>displacement=16</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mis-alignment data augmentation of image stacks.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>displacement</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – maximum pixel displacement in each direction (x and y).</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.MissingSection">
+<em class="property">class </em><code class="descname">MissingSection</code><span class="sig-paren">(</span><em>num_sections=2</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Missing-section augmentation of image stacks</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>num_sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – number of missing sections.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.MissingParts">
+<em class="property">class </em><code class="descname">MissingParts</code><span class="sig-paren">(</span><em>deformation_strength=0</em>, <em>iterations=40</em>, <em>deform_ratio=0.25</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Missing-parts augmentation of image stacks.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>deformation_strength</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – </li>
+<li><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – (default: 80)</li>
+<li><strong>deform_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – </li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.Flip">
+<em class="property">class </em><code class="descname">Flip</code><span class="sig-paren">(</span><em>p=0.5</em>, <em>do_ztrans=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly flip along z-, y- and x-axes as well as swap y- and x-axes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 

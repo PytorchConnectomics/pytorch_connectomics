@@ -9,7 +9,6 @@ from ..utils import count_volume, crop_volume, relabel, seg_to_targets, seg_to_w
 # 3d volume dataset class
 class VolumeDataset(torch.utils.data.Dataset):
     """
-    # sample_volume_size: sample input size
     """
     def __init__(self,
                  volume, label=None,
