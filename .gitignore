@@ -118,10 +118,8 @@ dmypy.json
 ._*
 .DS_Store
 *.pth
-*.sh
 others/
 
-build/
 
 # vim
 *.swp
@@ -130,3 +128,4 @@ build/
 *~
 
 outputs/
+build/
