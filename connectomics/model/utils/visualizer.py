@@ -1,6 +1,7 @@
 import torch
 import torchvision.utils as vutils
 import numpy as np
+import pudb
 
 class Visualizer(object):
     def __init__(self, vis_opt=0, N=8):
@@ -35,30 +36,6 @@ class Visualizer(object):
             self.visualize_individual(volume, label, output, iter_total, writer)
         elif self.vis_opt == 2:
             self.visualize_individual(volume, label, output, iter_total, writer, composite=True)
-        elif self.vis_opt == 3:
-            self.visualize_superres(volume, label, output, iter_total, writer, composite=True)
-
-    def visualize_superres(self, volume, label, output, iteration, writer, composite=False):
-        volume, label, output = self._prepare_data(volume, label, output)
-
-        sz0 = volume.size() # z,c,y,x
-        volume_visual = volume.detach().cpu().expand(sz0[0],3,sz0[2],sz0[3])
-        sz = output.size() # z,c,y,x
-        output_visual = output.detach().cpu().expand(sz[0],3,sz[2],sz[3])
-        label_visual = label.detach().cpu().expand(sz[0],3,sz[2],sz[3])
-        sz_m = np.minimum(sz,sz0)
-        volume_visual=volume_visual[:sz_m[0],:sz_m[2],:sz_m[3]]
-        label_visual=label_visual[:sz_m[0],:sz_m[2],:sz_m[3]]
-        output_visual=output_visual[:sz_m[0],:sz_m[2],:sz_m[3]]
-
-        volume_show = vutils.make_grid(volume_visual, nrow=8, normalize=True, scale_each=True)
-        output_show = vutils.make_grid(output_visual, nrow=8, normalize=True, scale_each=True)
-        label_show = vutils.make_grid(label_visual, nrow=8, normalize=True, scale_each=True)
-
-        writer.add_image('Input', volume_show, iteration)
-        writer.add_image('Label', label_show, iteration)
-        writer.add_image('Output', output_show, iteration)
-
 
     def visualize_individual(self, volume, label, output, iteration, writer, composite=False):
         volume, label, output = self._prepare_data(volume, label, output)

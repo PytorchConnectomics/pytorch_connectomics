@@ -1,3 +1,4 @@
+import os,datetime
 import torch
 import torch.nn as nn
 import numpy as np
@@ -10,7 +11,8 @@ from ..model.utils import Monitor, Criterion
 def get_model(args, exact=True, size_match=True):
     MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
                  'fpn': fpn,
-                'super':SuperResolution}
+                'super':SuperResolution,
+                'unet_super':Unet_super}
 
     assert args.architecture in MODEL_MAP.keys()
     if args.architecture == 'super':
@@ -58,7 +60,13 @@ def get_model(args, exact=True, size_match=True):
     return model
 
 def get_monitor(args):
-    return Monitor(args.output_path, args.mon_log_opt+[args.batch_size],\
+    time_now = str(datetime.datetime.now()).split(' ')
+    date = time_now[0]
+    time = time_now[1].split('.')[0].replace(':','-')
+    log_path = os.path.join(args.output_path, 'log'+date+'_'+time)
+    if not os.path.isdir(log_path):
+        os.makedirs(log_path)
+    return Monitor(log_path, args.mon_log_opt+[args.batch_size],\
                    args.mon_vis_opt, args.mon_iter_num)
 
 def get_criterion(args):
