@@ -20,10 +20,10 @@ class DataAugment(object):
         """
         Calculate appropriate sample wize with data augmentation.
         
-        Some data augmentation (wrap, mis-alignment etc.) require larger 
-        sample size than the original, depending on the augmentation parameters 
-        that are randomly chosen. For such cases, here we determine random augmentation 
-        parameters and return an updated input size accordingly.
+        Some data augmentations (wrap, misalignment, etc.) require a larger sample 
+        size than the original, depending on the augmentation parameters that are 
+        randomly chosen. This function takes parameters for random data augmentation 
+        parameters and returns an updated input size accordingly.
         """
         raise NotImplementedError
 
@@ -31,7 +31,7 @@ class DataAugment(object):
         """
         Apply data augmentation
 
-        For a multi-CPU dataloader, please use a unique index to generate 
+        For a multi-CPU dataloader, may need to use a unique index to generate 
         the random seed (random_state), otherwise different workers may generate
         the same pseudo-random number for augmentation and sampling.
         """

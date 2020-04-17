@@ -16,7 +16,7 @@ class Logger(object):
         # txt
         self.log_txt = None 
         if log_opt[2] > 0:
-            self.log_txt = open(log_path+'log.txt','w') # unbuffered, write instantly
+            self.log_txt = open(log_path+'/log.txt','w') # unbuffered, write instantly
 
     def reset(self):
         self.val = 0
@@ -36,7 +36,7 @@ class Logger(object):
             self.log_tb.add_scalar('Loss', avg, iter_total)
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))
-            logger.flush()
+            self.log_txt.flush() 
         return avg
 
 class Monitor(object):

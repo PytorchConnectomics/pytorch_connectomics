@@ -201,10 +201,10 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Calculate appropriate sample wize with data augmentation.</span>
 <span class="sd">        </span>
-<span class="sd">        Some data augmentation (wrap, mis-alignment etc.) require larger </span>
-<span class="sd">        sample size than the original, depending on the augmentation parameters </span>
-<span class="sd">        that are randomly chosen. For such cases, here we determine random augmentation </span>
-<span class="sd">        parameters and return an updated input size accordingly.</span>
+<span class="sd">        Some data augmentations (wrap, misalignment, etc.) require a larger sample </span>
+<span class="sd">        size than the original, depending on the augmentation parameters that are </span>
+<span class="sd">        randomly chosen. This function takes parameters for random data augmentation </span>
+<span class="sd">        parameters and returns an updated input size accordingly.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
@@ -212,7 +212,7 @@
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Apply data augmentation</span>
 
-<span class="sd">        For a multi-CPU dataloader, please use a unique index to generate </span>
+<span class="sd">        For a multi-CPU dataloader, may need to use a unique index to generate </span>
 <span class="sd">        the random seed (random_state), otherwise different workers may generate</span>
 <span class="sd">        the same pseudo-random number for augmentation and sampling.</span>
 <span class="sd">        &quot;&quot;&quot;</span>

@@ -43,12 +43,15 @@ def _get_input(args, mode='train'):
                 label[i] = seg_widen_border(label[i],args.label_erosion)
             if args.label_binary and label[i].max()>1:
                 label[i] = label[i]//255
+            if args.label_mag !=0:
+                label[i] = (label[i]/args.label_mag).astype(np.float32)
+                
             label[i] = np.pad(label[i], ((args.pad_size[0],args.pad_size[0]), 
                                                      (args.pad_size[1],args.pad_size[1]), 
                                                      (args.pad_size[2],args.pad_size[2])), 'reflect')
             print(f"label shape: {label[i].shape}")
             
-            assert volume[i].shape == label[i].shape
+            #assert volume[i].shape == label[i].shape !MB
             
                 
     return volume, label

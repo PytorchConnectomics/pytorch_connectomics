@@ -218,10 +218,10 @@
 <dt id="connectomics.data.augmentation.DataAugment.set_params">
 <code class="descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate appropriate sample wize with data augmentation.</p>
-<p>Some data augmentation (wrap, mis-alignment etc.) require larger
-sample size than the original, depending on the augmentation parameters
-that are randomly chosen. For such cases, here we determine random augmentation
-parameters and return an updated input size accordingly.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes parameters for random data augmentation
+parameters and returns an updated input size accordingly.</p>
 </dd></dl>
 
 </dd></dl>
@@ -258,33 +258,23 @@ Recognition, 2003.</td></tr>
 <dl class="class">
 <dt id="connectomics.data.augmentation.Grayscale">
 <em class="property">class </em><code class="descname">Grayscale</code><span class="sig-paren">(</span><em>contrast_factor=0.3</em>, <em>brightness_factor=0.3</em>, <em>mode='mix'</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
-<dd><p>Grayscale value augmentation.</p>
+<dd><p>Grayscale intensity augmentation, adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
 <p>Randomly adjust contrast/brightness, randomly invert
 and apply random gamma correction.</p>
-<dl class="method">
-<dt id="connectomics.data.augmentation.Grayscale.augment2D">
-<code class="descname">augment2D</code><span class="sig-paren">(</span><em>data</em>, <em>random_state=&lt;module 'numpy.random' from '/n/home06/zudilin/app/anaconda3/envs/py3_torch/lib/python3.7/site-packages/numpy/random/__init__.py'&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.augment2D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.augment2D" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="connectomics.data.augmentation.Grayscale.augment3D">
-<code class="descname">augment3D</code><span class="sig-paren">(</span><em>data</em>, <em>random_state=&lt;module 'numpy.random' from '/n/home06/zudilin/app/anaconda3/envs/py3_torch/lib/python3.7/site-packages/numpy/random/__init__.py'&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.augment3D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.augment3D" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="connectomics.data.augmentation.Grayscale.invert">
-<code class="descname">invert</code><span class="sig-paren">(</span><em>data</em>, <em>random_state=&lt;module 'numpy.random' from '/n/home06/zudilin/app/anaconda3/envs/py3_torch/lib/python3.7/site-packages/numpy/random/__init__.py'&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.invert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.invert" title="Permalink to this definition">¶</a></dt>
-<dd><p>Invert input images</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="connectomics.data.augmentation.Grayscale.set_mode">
-<code class="descname">set_mode</code><span class="sig-paren">(</span><em>mode</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.set_mode"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.set_mode" title="Permalink to this definition">¶</a></dt>
-<dd><p>Set 2D/3D/mix greyscale value augmentation mode.</p>
-</dd></dl>
-
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>contrast_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – intensity of contrast change.</li>
+<li><strong>brightness_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – intensity of brightness change.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/string.html#module-string" title="(in Python v3.8)"><em>string</em></a>) – ‘2D’, ‘3D’ or ‘mix’.</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="class">
