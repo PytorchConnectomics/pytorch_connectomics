@@ -39,11 +39,10 @@ class Visualizer(object):
     def visualize_individual(self, volume, label, output, iteration, writer, composite=False):
         volume, label, output = self._prepare_data(volume, label, output)
 
-        sz = volume.size() # z,c,y,x
-        volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
+        sz0 = volume.size() # z,c,y,x
+        volume_visual = volume.detach().cpu().expand(sz0[0],3,sz0[2],sz0[3])
         sz = output.size() # z,c,y,x
         output_visual = output.detach().cpu().expand(sz[0],3,sz[2],sz[3])
-        sz = label.size() # z,c,y,x
         label_visual = label.detach().cpu().expand(sz[0],3,sz[2],sz[3])
 
         volume_show = vutils.make_grid(volume_visual, nrow=8, normalize=True, scale_each=True)

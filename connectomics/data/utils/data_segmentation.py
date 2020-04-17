@@ -160,7 +160,7 @@ def seg_to_targets(label, topts):
     out = [None]*len(topts)
     for tid,topt in enumerate(topts):
         if topt == '-1': # direct copy
-            out[tid] = label
+            out[tid] = label[None,:].astype(np.float32)
         elif topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
         elif topt[0] == '1': # multi-channel, e.g. 1.2

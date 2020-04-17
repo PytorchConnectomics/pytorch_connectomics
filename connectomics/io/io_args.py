@@ -32,6 +32,8 @@ def get_args(mode='train', do_output=True):
                         help='Pad size of the input data for maximum usage of gt data')
     parser.add_argument('-ds', '--data-scale', type=str,  default='1,1,1',
                         help='Scale size of the input data for different resolutions')
+    parser.add_argument('-dlm', '--label-mag', type=float,  default=0,
+                        help='divide...')
 
     parser.add_argument('-dam','--data-aug-mode', type=int,  default=2,
                         help='data augmentation mode. 0: none, 1: no shape change, 2: all')
@@ -66,8 +68,10 @@ def get_args(mode='train', do_output=True):
                         help='Output size of deep network')
     parser.add_argument('-moc', '--model-out-channel', type=int, default=3,
                         help='Number of output channel(s).')
-
+    parser.add_argument('-sf','--scale-factor',  type=list, default=[2,3,3],
+                            help='Scaling factor for super resolution')
     if mode == 'train':
+        
         parser.add_argument('-dln','--label-name',  default='seg-groundtruth2-malis.h5',
                             help='Ground-truth label path')
         parser.add_argument('-dle','--label-erosion', type=int,  default=0,
@@ -138,10 +142,8 @@ def get_args(mode='train', do_output=True):
     ## pre-process
     if do_output:
         if args.output_path!='': # new folder
-            time_now = str(datetime.datetime.now()).split(' ')
-            date = time_now[0]
-            time = time_now[1].split('.')[0].replace(':','-')
-            args.output_path = os.path.join(args.output_path, 'log'+date+'_'+time)
+            pass
+
         else:
             if args.pre_model!='':
                 args.output_path = args.pre_model[:args.pre_model.rfind('/')]
@@ -171,7 +173,7 @@ def get_args(mode='train', do_output=True):
 
     args.filters = [int(x) for x in args.model_filters.split(',')]
     args.model_pad_mode,args.model_norm_mode,args.model_act_mode = args.model_conv_mode.split(',')
-    args.data_scale = np.array([int(x) for x in args.data_scale.split(',')])
+    args.data_scale = np.array([float(x) for x in args.data_scale.split(',')])
     args.data_invalid_thres = np.array([float(x) for x in args.data_invalid_thres.split(',')])
     args.pre_model_layer = args.pre_model_layer.split('@')
     args.pre_model_layer_select = np.array([int(x) for x in args.pre_model_layer_select.split('@')])

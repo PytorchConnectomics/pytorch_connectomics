@@ -41,6 +41,11 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
+        #self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
+            # shrink input_size for valid label sample
+            for vid in range(len(self.input)):
+                self.input_size[vid] = np.minimum(self.input_size[vid],(np.array(self.label[vid].shape)/self.sample_label_size*self.sample_volume_size).astype(int))
+                
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=int)
@@ -67,7 +72,8 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.sample_num_a = np.sum(self.sample_num)
         self.sample_num_c = np.cumsum([0] + list(self.sample_num))
-        self.label_vol_ratio = self.sample_label_size/self.sample_volume_size
+        if self.label is not None:
+            self.label_vol_ratio = self.sample_label_size/self.sample_volume_size
 
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
@@ -145,8 +151,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_mask = out_label!=seg_bad
             else:
                 out_mask = torch.ones((1),dtype=torch.uint8)
-
-            out_label = relabel(out_label).astype(np.float32)
+            
+            #out_label = relabel(out_label).astype(np.float32)
             # augmentation
             if self.augmentor is not None:  # augmentation
                 # for warping: cv2.remap require input to be float32

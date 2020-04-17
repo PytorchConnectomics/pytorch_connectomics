@@ -118,7 +118,6 @@ dmypy.json
 ._*
 .DS_Store
 *.pth
-*.sh
 others/
 
 # vim
@@ -126,3 +125,5 @@ others/
 *.swo
 .github/
 *~
+
+outputs/
