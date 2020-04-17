@@ -4,7 +4,6 @@ from ..data.utils import blend_gaussian
 from ..io import writeh5
 import torch
 import itertools
-import pudb
 
 def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=None, output_name='result.h5'):
     if do_eval:
@@ -12,7 +11,7 @@ def test(args, test_loader, model, do_eval=True, do_3d=True, model_output_id=Non
     else:
         model.train()
     volume_id = 0
-    pudb.set_trace()
+
     ww = blend_gaussian(args.model_output_size)
     NUM_OUT = args.model_out_channel
     pad_size = args.pad_size

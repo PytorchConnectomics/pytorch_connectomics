@@ -1,5 +1,4 @@
 import os,sys
-import pudb
 import torch
 import math
 import torch.nn as nn
@@ -13,7 +12,6 @@ class Unet_super(unet_residual_3d):
     
     def __init__(self, in_channel=1, out_channel=3, filters=[1, 64, 1, 28, 36, 48, 64, 80], pad_mode='rep',\
                  norm_mode='bn', act_mode='elu', do_embedding=True, head_depth=1):
-#         pudb.set_trace()
         super().__init__(in_channel=in_channel, out_channel=out_channel,\
                                               filters=filters[3:], pad_mode=pad_mode, norm_mode=norm_mode,\
                                               act_mode=act_mode, do_embedding=do_embedding,\
