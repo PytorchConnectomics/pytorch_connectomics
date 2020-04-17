@@ -11,7 +11,7 @@ def get_args(mode='train', do_output=True):
         parser = argparse.ArgumentParser(description='Specify model inference arguments.')
     
     # I/O
-    parser.add_argument('-i','--input-path',  default='/n/pfister_lab2/',
+    parser.add_argument('-i','--input-path',  default='/n/home12/zijzhao/CREMI/',
                         help='Input folder (train)')
     parser.add_argument('-o','--output-path', default='',
                         help='Output path')

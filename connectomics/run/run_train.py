@@ -15,7 +15,7 @@ def train(args, train_loader, model, criterion,
         _, volume, target, weight = batch
 
         # prediction
-        volume = torch.from_numpy(volume).to(args.device)
+        volume = torch.from_numpy(volume).to(args.device, dtype=torch.float)
         pred = model(volume)
         #print(volume.size(), output.size())
        
