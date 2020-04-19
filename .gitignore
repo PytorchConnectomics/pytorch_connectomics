@@ -115,6 +115,7 @@ dmypy.json
 
 # data
 *.h5
+*.sh
 ._*
 .DS_Store
 *.pth
