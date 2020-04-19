@@ -4,7 +4,7 @@ import torch
 
 
 from connectomics.config import get_cfg_defaults
-from connectomics.run import trainer
+from connectomics.engine import trainer
 
 
 def get_args():
@@ -36,5 +36,5 @@ def main():
     else:
         trainer.train()
 
-if __name__ == "__main__":
-   main()
+#if __name__ == "__main__":
+ #  main()
