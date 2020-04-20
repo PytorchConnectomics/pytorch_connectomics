@@ -85,7 +85,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             # train mode
             # if elastic deformation: need different receptive field
             # position in the volume
-            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=-1, background=0, p=0.9):
+            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=-1, background=0, p=0.9)
 
             # augmentation
             if self.augmentor is not None:  # augmentation
