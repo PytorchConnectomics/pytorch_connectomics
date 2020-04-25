@@ -41,6 +41,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
+            self.label_vol_ratio = self.sample_label_size / self.sample_volume_size
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=int)
@@ -67,7 +68,6 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.sample_num_a = np.sum(self.sample_num)
         self.sample_num_c = np.cumsum([0] + list(self.sample_num))
-        self.label_vol_ratio = self.sample_label_size/self.sample_volume_size
 
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
