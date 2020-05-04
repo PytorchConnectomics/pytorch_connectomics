@@ -18,7 +18,9 @@ class VolumeDataset(torch.utils.data.Dataset):
                  sample_invalid_thres = [0, 0],
                  augmentor=None, 
                  target_opt=['1'], weight_opt=['1'],
-                 mode='train'):
+                 mode='train',
+                 rejsamp_size_thres= 100, 
+                 rejsamp_p= 0.98):
 
         self.mode = mode
         # for partially labeled data
@@ -35,12 +37,15 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.target_opt = target_opt  # target opt
         self.weight_opt = weight_opt  # loss opt 
+        self.rejsamp_size_thres = rejsamp_size_thres
+        self.rejsamp_p = rejsamp_p
 
         # dataset: channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
         self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
+            self.label_vol_ratio = self.sample_label_size / self.sample_volume_size
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=int)
@@ -67,7 +72,6 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.sample_num_a = np.sum(self.sample_num)
         self.sample_num_c = np.cumsum([0] + list(self.sample_num))
-        self.label_vol_ratio = self.sample_label_size/self.sample_volume_size
 
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
@@ -85,7 +89,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             # train mode
             # if elastic deformation: need different receptive field
             # position in the volume
-            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=100, background=0, p=0.9)
+            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=self.rejsamp_size_thres, background=0, p=self.rejsamp_p)
 
             # augmentation
             if self.augmentor is not None:  # augmentation
@@ -175,6 +179,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                     break
             else: # no rejection sampling for the foreground mask
                 break
+
         return pos, out_input, out_label
 
     def _random_sampling(self, vol_size):
