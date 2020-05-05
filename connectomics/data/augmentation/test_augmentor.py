@@ -2,12 +2,16 @@ import numpy as np
 import itertools
 import torch
 
-
 class TestAugmentor(object):
+	"""Augmentor for the test.
+	Args:
+        mode (str): training or inference mode.
+        num_aug (int): use data augmentation 4-fold, 16-fold
+	"""
 	def __init__(self, mode='min', num_aug=4):
 		self.mode = mode
 		self.num_aug = num_aug
-
+	
 	def __call__(self, model, data):
 		out = None
 		cc = 0
