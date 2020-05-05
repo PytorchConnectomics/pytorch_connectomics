@@ -55,6 +55,8 @@ class TestAugmentor(object):
 					out = np.zeros(vout.shape,dtype=np.float32)
 			if self.mode == 'min':
 				out = np.minimum(out,vout)
+			if self.mode == 'max':
+				out = np.maximum(out,vout)
 			elif self.mode == 'mean':
 				out += vout
 			cc+=1
