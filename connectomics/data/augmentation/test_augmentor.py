@@ -2,6 +2,7 @@ import numpy as np
 import itertools
 import torch
 
+
 class TestAugmentor(object):
 	def __init__(self, mode='min', num_aug=4):
 		self.mode = mode
