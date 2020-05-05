@@ -9,8 +9,7 @@ from .solver import *
 from connectomics.model import *
 from connectomics.data.augmentation import build_train_augmentor, TestAugmentor
 from connectomics.data.dataset import build_dataloader
-from connectomics.data.utils import blend_gaussian
-from connectomics.io import writeh5
+from connectomics.data.utils import blend_gaussian, writeh5
 
 
 class Trainer(object):
@@ -21,12 +20,6 @@ class Trainer(object):
         self.mode = mode
         
         self.model = build_model(self.cfg, self.device, checkpoint)
-        
-        # test our implementation
-        # test_vol = torch.rand((8,1,8,256,256)).to(device)
-        # output = self.model(test_vol)
-        # print(output.dtype, output.size)
-        
         self.optimizer = build_optimizer(self.cfg, self.model)
         self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
         if self.mode == 'train':

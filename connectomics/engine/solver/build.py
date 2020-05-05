@@ -89,7 +89,7 @@ def build_lr_scheduler(
     elif name == "MultiStepLR":
         return MultiStepLR(
             optimizer,
-            milestones = cfg.SOLVER.MILESTONES,
+            milestones = cfg.SOLVER.STEPS,
             gamma = cfg.SOLVER.GAMMA)
     else:
         raise ValueError("Unknown LR scheduler: {}".format(name))

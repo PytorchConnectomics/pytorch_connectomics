@@ -9,9 +9,8 @@ import torchvision.utils as vutils
 
 from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
-from ..utils import collate_fn_target, collate_fn_test, seg_widen_border
+from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol
 from ..augmentation import *
-from connectomics.io.io_file import readvol
 
 
 def _get_input(cfg, mode='train'):
@@ -97,7 +96,7 @@ def get_dataset(cfg, augmentor, mode='train'):
                               sample_volume_size=sample_volume_size, sample_label_size=sample_label_size,
                               sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
                               augmentor=augmentor, target_opt= topt, weight_opt= wopt, mode= mode,
-                              rejsamp_size_thres= cfg.DATASET.REJSAMP_SIZE_THRES, rejsamp_p= cfg.DATASET.REJSAMP_P)
+                              reject_size_thres= cfg.DATASET.REJECT_SIZE_THRES, reject_p= cfg.DATASET.REJECT_P)
 
     return dataset
 

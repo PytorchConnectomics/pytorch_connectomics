@@ -9,6 +9,17 @@ from ..utils import count_volume, crop_volume, relabel, seg_to_targets, seg_to_w
 # 3d volume dataset class
 class VolumeDataset(torch.utils.data.Dataset):
     """
+    Dataset class for 3D image volumes.
+    
+    Args:
+        sample_input_size (tuple, int): model input size.
+        sample_label_size (tuple, int): model output size.
+        sample_stride (tuple, int): stride size for sampling.
+        augmentor: data augmentor.
+        mode (str): training or inference mode.
+        sample_invalid_thres (float): probability of applying the augmentation.
+        reject_size_thres (int): threshold to decide if a image contains synapse.
+        reject_p (float): probability of rejecting non-foreward images.
     """
     def __init__(self,
                  volume, label=None,
@@ -19,8 +30,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                  augmentor=None, 
                  target_opt=['1'], weight_opt=['1'],
                  mode='train',
-                 rejsamp_size_thres= 100, 
-                 rejsamp_p= 0.98):
+                 reject_size_thres= 100, 
+                 reject_p= 0.98):
 
         self.mode = mode
         # for partially labeled data
@@ -37,8 +48,8 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.target_opt = target_opt  # target opt
         self.weight_opt = weight_opt  # loss opt 
-        self.rejsamp_size_thres = rejsamp_size_thres
-        self.rejsamp_p = rejsamp_p
+        self.reject_size_thres = reject_size_thres
+        self.reject_p = reject_p
 
         # dataset: channels, depths, rows, cols
         self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
@@ -89,7 +100,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             # train mode
             # if elastic deformation: need different receptive field
             # position in the volume
-            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=self.rejsamp_size_thres, background=0, p=self.rejsamp_p)
+            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=self.reject_size_thres, background=0, p=self.reject_p)
 
             # augmentation
             if self.augmentor is not None:  # augmentation

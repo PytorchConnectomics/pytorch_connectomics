@@ -137,9 +137,9 @@ _C.DATASET.DATA_INVALID_THRES = [0., 0.]
 _C.DATASET.PRE_LOAD_DATA = [None,None,None]
 
 # Reject sampling
-_C.DATASET.REJSAMP_SIZE_THRES = 100
+_C.DATASET.REJECT_SIZE_THRES = 100
 
-_C.DATASET.REJSAMP_P = 0.98
+_C.DATASET.REJECT_P = 0.98
 
 
 # -----------------------------------------------------------------------------
@@ -227,12 +227,11 @@ _C.SOLVER.WEIGHT_DECAY = 0.0001
 
 _C.SOLVER.WEIGHT_DECAY_NORM = 0.0
 
-_C.SOLVER.MILESTONES = (30000, 35000)
-
 # The iteration number to decrease learning rate by GAMMA
 _C.SOLVER.GAMMA = 0.1
 
-_C.SOLVER.STEPS = (30000,)
+# should be a tuple like (30000,)
+_C.SOLVER.STEPS = (30000, 35000)
 
 _C.SOLVER.WARMUP_FACTOR = 1.0 / 1000
 
