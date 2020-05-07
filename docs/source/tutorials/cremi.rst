@@ -30,7 +30,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
           --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
-          --output "outputs/unetv0_syn_baseline_encap_train"  
+          --output "outputs/cremi_synapse_train"  
 
     - config-file: configuration setting for current experiments.
     - output: the training results save path.
@@ -48,7 +48,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
 
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
           --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
-          --output "outputs/unetv0_syn_baseline_encap_train" \
+          --output "outputs/cremi_synapse_inference" \
           --inference 
 
     - config-file: configuration setting for current experiments.
