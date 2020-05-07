@@ -50,7 +50,7 @@ class Monitor(object):
         self.do_vis = False if self.logger.log_tb is None else True
 
     def update(self, scheduler, iter_total, loss, lr=0.1):
-        do_vis = False
+        do_vis = True
         self.logger.update(loss)
         if (iter_total+1) % self.log_iter == 0:
             avg = self.logger.output(iter_total, lr)

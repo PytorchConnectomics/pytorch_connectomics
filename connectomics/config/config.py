@@ -1,0 +1,292 @@
+from yacs.config import CfgNode as CN
+
+# -----------------------------------------------------------------------------
+# Config definition
+# -----------------------------------------------------------------------------
+_C = CN()
+
+# -----------------------------------------------------------------------------
+# System
+# -----------------------------------------------------------------------------
+_C.SYSTEM = CN()
+
+_C.SYSTEM.NUM_GPUS = 4
+
+_C.SYSTEM.NUM_CPUS = 4
+
+# -----------------------------------------------------------------------------
+# Model
+# -----------------------------------------------------------------------------
+_C.MODEL = CN()
+
+# Other options: Unet_super, SuperResolution, fpn, unet_2d
+_C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
+
+_C.MODEL.BATCH_SIZE = 8
+
+# Number of filters per unet block
+_C.MODEL.FILTERS = [28, 36, 48, 64, 80] 
+
+_C.MODEL.TARGET_OPT = ['0']
+
+_C.MODEL.WEIGHT_OPT = [['1']]
+
+# Loss function for each target: possible options: 'WeightedMSE', 'WeightedBCE', 
+#								 'JaccardLoss', 'DiceLoss'
+_C.MODEL.LOSS_OPTION = [['WeightedBCE']]
+
+# Weight for each loss function
+_C.MODEL.LOSS_WEIGHT = [[1.0]]
+
+# Number of input channel
+_C.MODEL.IN_PLANES = 1 
+
+# Number of output channel
+_C.MODEL.OUT_PLANES = 1 
+
+# Padding mode, possible options: 'zeros','circular', 'rep'
+_C.MODEL.PAD_MODE = 'rep' 
+
+# Normalization mode, possible options: 'bn', 'abn', 'in', 'bin'
+_C.MODEL.NORM_MODE = 'bn'
+
+# Activation mode, possible options: 'relu', 'elu', 'leaky'
+_C.MODEL.ACT_MODE = 'elu'
+
+# If MODEL.EMBEDDING = 1 will do embedding
+_C.MODEL.EMBEDDING = 1
+
+# Last decoder head depth
+_C.MODEL.HEAD_DEPTH = 1
+
+_C.MODEL.INPUT_SIZE = [8, 256, 256]
+
+_C.MODEL.OUTPUT_SIZE = [8, 256, 256]
+
+_C.MODEL.REGU_OPT = []
+
+_C.MODEL.REGU_WEIGHT = []
+
+# Fine-tune suffix for model saving
+_C.MODEL.FINETUNE = ''
+
+# Exact matching: the weights shape in pretrain model and current model are identical
+_C.MODEL.EXACT = True
+
+_C.MODEL.SIZE_MATCH = True
+
+_C.MODEL.PRE_MODEL = ''
+
+_C.MODEL.PRE_MODEL_LAYER = ''
+
+_C.MODEL.PRE_MODEL_ITER = 0
+
+_C.MODEL.PRE_MODEL_LAYER_SELECT = -1
+
+
+# -----------------------------------------------------------------------------
+# Dataset
+# -----------------------------------------------------------------------------
+_C.DATASET = CN()
+
+_C.DATASET.AUG_ZTRANS = 0
+
+# Scale size of the input data for different resolutions
+_C.DATASET.DATA_SCALE = [1., 1., 1.]
+
+# Scaling factor for super resolution
+_C.DATASET.SCALE_FACTOR = [2, 3, 3]
+
+_C.DATASET.IMAGE_NAME = ''
+
+_C.DATASET.INPUT_PATH = ''
+
+_C.DATASET.OUTPUT_PATH = ''
+
+_C.DATASET.LABEL_NAME = ''
+
+# Padding size, default should be input_size//4
+_C.DATASET.PAD_SIZE = [ 2, 64, 64] 
+
+# Half Patch size for 2D label erosion
+_C.DATASET.LABEL_EROSION = 0
+
+# If it's a binary label
+_C.DATASET.LABEL_BINARY = False
+
+_C.DATASET.LABEL_MAG = 0
+
+# Data in tile format or not.
+_C.DATASET.DO_CHUNK_TITLE = 0
+
+# Chunk parameters for tile format: chunk_num (z,y,x), chunk_stride
+_C.DATASET.DATA_CHUNK_NUM = [1, 1, 1]
+
+# Predefined data chunk to iterate through
+_C.DATASET.DATA_CHUNK_NUM_IND = []
+
+# Boolean variable, euqal to 'int(args.data_chunk_num[-1:])==1'
+_C.DATASET.DATA_CHUNK_STRIDE = True
+
+# Chunk parameters for tile format: chunk_iter_num
+_C.DATASET.DATA_CHUNK_ITER = 1000
+
+# Number of voxel to exceed for a valid sample
+_C.DATASET.DATA_INVALID_THRES = [0., 0.]
+
+_C.DATASET.PRE_LOAD_DATA = [None,None,None]
+
+# Reject sampling
+_C.DATASET.REJECT_SIZE_THRES = 100
+
+_C.DATASET.REJECT_P = 0.98
+
+
+# -----------------------------------------------------------------------------
+# Augmentor
+# -----------------------------------------------------------------------------
+_C.AUGMENTOR = CN()
+
+_C.AUGMENTOR.ROTATE = True
+
+# Probability of applying the rotation augmentation
+_C.AUGMENTOR.ROTATE_P = 0.1
+
+_C.AUGMENTOR.RESCALE = True
+
+# Probability of applying the rescale augmentation
+_C.AUGMENTOR.RESCALE_P = 0.5
+
+_C.AUGMENTOR.FLIP = True
+
+# Probability of applying the flip augmentation
+_C.AUGMENTOR.FLIP_P = 1.0
+
+# Whether transform Z-axis or not
+_C.AUGMENTOR.FLIP_DO_ZTRANS = 0
+
+_C.AUGMENTOR.ELASTIC = True
+
+# Maximum pixel-moving distance of elastic transformation
+_C.AUGMENTOR.ELASTIC_ALPHA = 12.0
+
+# Standard deviation of the Gaussian filter
+_C.AUGMENTOR.ELASTIC_SIGMA = 4.0
+
+# Probability of applying the elastic augmentation
+_C.AUGMENTOR.ELASTIC_P = 0.75
+
+_C.AUGMENTOR.GRAYSCALE = True
+
+# Probability of applying the grayscale augmentation
+_C.AUGMENTOR.GRAYSCALE_P = 0.75
+
+_C.AUGMENTOR.MISSINGPARTS = True
+
+# Probability of applying the missingparts augmentation
+_C.AUGMENTOR.MISSINGPARTS_P = 0.9
+
+_C.AUGMENTOR.MISSINGSECTION = True
+
+# Probability of applying the missingsection augmentation
+_C.AUGMENTOR.MISSINGSECTION_P = 0.5
+
+_C.AUGMENTOR.MISALIGNMENT = True
+
+# Probability of applying the misalignment augmentation
+_C.AUGMENTOR.MISALIGNMENT_P = 1.0
+
+# Maximum pixel displacement in each direction (x and y) (int)
+_C.AUGMENTOR.MISALIGNMENT_DISPLACEMENT = 16
+
+
+# -----------------------------------------------------------------------------
+# Solver
+# -----------------------------------------------------------------------------
+_C.SOLVER = CN()
+
+_C.SOLVER.LR_SCHEDULER_NAME = "MultiStepLR"
+
+_C.SOLVER.ITERATION_STEP = 1
+
+_C.SOLVER.ITERATION_SAVE = 5000
+
+_C.SOLVER.ITERATION_TOTAL = 40000
+
+_C.SOLVER.BASE_LR = 0.001
+
+_C.SOLVER.BIAS_LR_FACTOR = 1.0
+
+_C.SOLVER.WEIGHT_DECAY_BIAS = 0.0
+
+_C.SOLVER.MOMENTUM = 0.9
+
+# The weight decay that's applied to parameters of normalization layers
+# (typically the affine transformation)
+_C.SOLVER.WEIGHT_DECAY = 0.0001
+
+_C.SOLVER.WEIGHT_DECAY_NORM = 0.0
+
+# The iteration number to decrease learning rate by GAMMA
+_C.SOLVER.GAMMA = 0.1
+
+# should be a tuple like (30000,)
+_C.SOLVER.STEPS = (30000, 35000)
+
+_C.SOLVER.WARMUP_FACTOR = 1.0 / 1000
+
+_C.SOLVER.WARMUP_ITERS = 1000
+
+_C.SOLVER.WARMUP_METHOD = "linear"
+
+# Save a checkpoint after every this number of iterations
+_C.SOLVER.CHECKPOINT_PERIOD = 5000
+
+# Number of samples per batch across all machines.
+# If we have 16 GPUs and IMS_PER_BATCH = 32,
+# each GPU will see 2 images per batch.
+_C.SOLVER.SAMPLES_PER_BATCH = 16
+
+# -----------------------------------------------------------------------------
+# Monitor
+# -----------------------------------------------------------------------------
+_C.MONITOR = CN()
+
+_C.MONITOR.LOG_OPT = [1, 1, 0]
+
+_C.MONITOR.VIS_OPT = [0, 8]
+
+_C.MONITOR.ITERATION_NUM = [10, 500]
+
+# # -----------------------------------------------------------------------------
+# # Inference
+# # -----------------------------------------------------------------------------
+_C.INFERENCE = CN()
+
+_C.INFERENCE.OUTPUT_NAME = 'result.h5'
+
+_C.INFERENCE.STRIDE = [1, 192, 192]
+
+_C.INFERENCE.AUG_MODE = 'mean'
+
+_C.INFERENCE.AUG_NUM = 4
+
+_C.INFERENCE.DO_EVAL = True
+
+_C.INFERENCE.DO_3D = True
+
+# If not None then select channel of output
+_C.INFERENCE.MODEL_OUTPUT_ID = [None] 
+
+# Number of test workers
+_C.INFERENCE.TEST_NUM = 1 
+
+# Test worker id
+_C.INFERENCE.TEST_ID = 0 
+
+
+def get_cfg_defaults():
+    """Get a yacs CfgNode object with default values for my_project."""
+    # Return a clone so that the defaults will not be altered
+    # This is for the "local variable" use pattern
+    return _C.clone()

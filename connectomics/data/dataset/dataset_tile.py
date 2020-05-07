@@ -8,8 +8,7 @@ import torch.utils.data
 
 
 from . import VolumeDataset
-from ..utils import crop_volume, relabel,seg_widen_border
-from ...io import tileToVolume 
+from ..utils import crop_volume, relabel,seg_widen_border, tileToVolume 
 
 class TileDataset(torch.utils.data.Dataset):
     """Pytorch dataset class for large-scale tile-based dataset.

@@ -5,7 +5,7 @@ import torch.nn as nn
 from ..loss import *
 
 class Criterion(object):
-    def __init__(self, device=0, target_opt=['1'], loss_opt=[['0']], loss_weight=[[1.]], regu_opt=[], regu_weight=[]):
+    def __init__(self, device=0, target_opt=['1'], loss_opt=[['WeightedBCE']], loss_weight=[[1.]], regu_opt=[], regu_weight=[]):
         self.device = device
         self.target_opt = target_opt
         self.loss_opt = loss_opt
@@ -33,14 +33,16 @@ class Criterion(object):
         for i in range(self.num_target):
             out[i] = [None]*len(self.loss_opt[i])
             for j,lopt in enumerate(self.loss_opt[i]):
-                if lopt == '0':
+                if lopt == 'WeightedMSE':
                     out[i][j] = WeightedMSE()
-                elif lopt == '1':
+                elif lopt == 'WeightedBCE':
                     out[i][j] = WeightedBCE()
-                elif lopt == '2':
+                elif lopt == 'JaccardLoss':
                     out[i][j] = JaccardLoss()
-                elif lopt == '3':
+                elif lopt == 'DiceLoss':
                     out[i][j] = DiceLoss()
+                else:
+                    print('Unknown loss option {}'.format(lopt))
         return out
 
 
