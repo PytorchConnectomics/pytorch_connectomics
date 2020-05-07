@@ -19,7 +19,7 @@ _C.SYSTEM.NUM_CPUS = 4
 # -----------------------------------------------------------------------------
 _C.MODEL = CN()
 
-# Model architectures defined in the package: unet_super, super, fpn
+# Model architectures defined in the package: unet_super, super, fpn, unet_residual_3d
 _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
 
 # Number of filters per unet block
@@ -29,17 +29,18 @@ _C.MODEL.TARGET_OPT = ['0']
 
 _C.MODEL.WEIGHT_OPT = [['1']]
 
-# Loss function for each target: possible options: 'WeightedMSE', 'WeightedBCE', 
-#								 'JaccardLoss', 'DiceLoss'
+# Choose the right loss function for each target: 
+# 'WeightedMSE', 'WeightedBCE', 'JaccardLoss', 'DiceLoss'
 _C.MODEL.LOSS_OPTION = [['WeightedBCE']]
 
 # Weight for each loss function
 _C.MODEL.LOSS_WEIGHT = [[1.0]]
 
-# Number of input channel
+# Define the number of input channels. Usually EM images are
+# single-channel gray-scale image. 
 _C.MODEL.IN_PLANES = 1 
 
-# Number of output channel
+# Define the number of output channels.
 _C.MODEL.OUT_PLANES = 1 
 
 # Padding mode, possible options: 'zeros','circular', 'rep'
@@ -86,8 +87,6 @@ _C.MODEL.PRE_MODEL_LAYER_SELECT = -1
 # Dataset
 # -----------------------------------------------------------------------------
 _C.DATASET = CN()
-
-_C.DATASET.AUG_ZTRANS = 0
 
 # Scale size of the input data for different resolutions
 _C.DATASET.DATA_SCALE = [1., 1., 1.]
@@ -160,7 +159,7 @@ _C.AUGMENTOR.FLIP = True
 # Probability of applying the flip augmentation
 _C.AUGMENTOR.FLIP_P = 1.0
 
-# Whether transform Z-axis or not
+# Conducting x-z and y-z flip only when the dataset is isotropic. 
 _C.AUGMENTOR.FLIP_DO_ZTRANS = 0
 
 _C.AUGMENTOR.ELASTIC = True
@@ -203,6 +202,7 @@ _C.AUGMENTOR.MISALIGNMENT_DISPLACEMENT = 16
 # -----------------------------------------------------------------------------
 _C.SOLVER = CN()
 
+# Specify the learning rate scheduler.
 _C.SOLVER.LR_SCHEDULER_NAME = "MultiStepLR"
 
 _C.SOLVER.ITERATION_STEP = 1
@@ -281,7 +281,6 @@ _C.INFERENCE.TEST_NUM = 1
 
 # Test worker id
 _C.INFERENCE.TEST_ID = 0 
-
 
 def get_cfg_defaults():
     """Get a yacs CfgNode object with default values for my_project."""
