@@ -46,7 +46,6 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="connectomics.data.utils" href="utils.html" />
     <link rel="prev" title="connectomics.data.augmentation" href="augmentation.html" /> 
 </head>
 
@@ -117,7 +116,6 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="augmentation.html">connectomics.data.augmentation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.data.utils</a></li>
 </ul>
 
             
@@ -184,6 +182,54 @@
             
   <div class="section" id="module-connectomics.data.dataset">
 <span id="connectomics-data-datasets"></span><h1>connectomics.data.datasets<a class="headerlink" href="#module-connectomics.data.dataset" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="connectomics.data.dataset.VolumeDataset">
+<em class="property">class </em><code class="descname">VolumeDataset</code><span class="sig-paren">(</span><em>volume, label=None, sample_volume_size=(8, 64, 64), sample_label_size=(8, 64, 64), sample_stride=(1, 1, 1), sample_invalid_thres=[0, 0], augmentor=None, target_opt=['1'], weight_opt=['1'], mode='train', reject_size_thres=100, reject_p=0.98</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dataset class for 3D image volumes.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
+<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
+<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
+<li><strong>augmentor</strong> – data augmentor.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
+<li><strong>sample_invalid_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+<li><strong>reject_size_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – threshold to decide if a image contains synapse.</li>
+<li><strong>reject_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of rejecting non-foreward images.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.dataset.TileDataset">
+<em class="property">class </em><code class="descname">TileDataset</code><span class="sig-paren">(</span><em>chunk_num, chunk_num_ind, chunk_iter, chunk_stride, volume_json, label_json=None, sample_input_size=(8, 64, 64), sample_label_size=None, sample_stride=(1, 1, 1), sample_invalid_thres=[0.5, 0], augmentor=None, valid_mask=None, target_opt=['0'], weight_opt=['1'], mode='train', label_erosion=0, pad_size=[0, 0, 0]</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Pytorch dataset class for large-scale tile-based dataset.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>volume_json</strong> – json file for input image.</li>
+<li><strong>label_json</strong> – json file for label.</li>
+<li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
+<li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
+<li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
+<li><strong>augmentor</strong> – data augmentor.</li>
+<li><strong>valid_mask</strong> – the binary mask of valid regions.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 
 
@@ -193,8 +239,6 @@
           <footer>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="utils.html" class="btn btn-neutral float-right" title="connectomics.data.utils" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="augmentation.html" class="btn btn-neutral float-left" title="connectomics.data.augmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

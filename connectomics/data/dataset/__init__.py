@@ -12,6 +12,8 @@ from .dataset_tile import TileDataset
 from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol
 from ..augmentation import *
 
+__all__ = ['VolumeDataset',
+           'TileDataset']
 
 def _get_input(cfg, mode='train'):
     dir_name = cfg.DATASET.INPUT_PATH.split('@')

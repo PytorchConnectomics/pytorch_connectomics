@@ -117,7 +117,6 @@
 </li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.data.utils</a></li>
 </ul>
 
             
@@ -378,6 +377,24 @@ than the input size to make sure there is no non-valid region after center-crop.
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.TestAugmentor">
+<em class="property">class </em><code class="descname">TestAugmentor</code><span class="sig-paren">(</span><em>mode='min'</em>, <em>num_aug=4</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test Augmentor.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – inference mode (‘min’, ‘max’, ‘mean’).</li>
+<li><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – number of data augmentations: 4-fold, 16-fold</li>
+</ul>
+</td>
 </tr>
 </tbody>
 </table>
