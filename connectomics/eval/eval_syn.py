@@ -36,26 +36,14 @@ class Clefts:
     def acc_false_positives(self):
 
         mask = np.invert(self.test_clefts_mask)
-        false_positives = self.truth_clefts_edt[mask]
-        stats = {
-            'mean': np.mean(false_positives),
-            'std': np.std(false_positives),
-            'max': np.amax(false_positives),
-            'count': false_positives.size,
-            'median': np.median(false_positives)}
-        return stats
+        ADGT = (self.truth_clefts_edt * mask).sum() / mask.sum()
+        return ADGT
 
     def acc_false_negatives(self):
 
         mask = np.invert(self.truth_clefts_mask)
-        false_negatives = self.test_clefts_edt[mask]
-        stats = {
-            'mean': np.mean(false_negatives),
-            'std': np.std(false_negatives),
-            'max': np.amax(false_negatives),
-            'count': false_negatives.size,
-            'median': np.median(false_negatives)}
-        return stats
+        ADF = (self.test_clefts_edt * mask).sum() / mask.sum()
+        return ADF
 
 
 
@@ -72,35 +60,37 @@ def main():
 
     print('0. load data')
     test = h5py.File(name=args.prediction, mode='r',  libver='latest')['main']
-    test = np.array(test)[14:-14, 400:-400, 400:-400]
+    test = np.array(test)
     test[test < 128] = 0
     test = (test != 0).astype(np.uint8)
 
     truth = h5py.File(name=args.groundtruth, mode='r',  libver='latest')['main']
-    truth = np.array(truth)[14:-14, 400:-400, 400:-400]
+    truth = np.array(truth)
     truth = (truth != 0).astype(np.uint8)
 
     assert (test.shape == truth.shape)
     print('Test volume shape:', test.shape)
-    print('Test volume dtype:', test.dtype)
-    print('Total number of pixels:', np.prod(test.shape))
+    total_pixels = np.prod(test.shape)
+    print('Total number of pixels:', total_pixels)
 
     print('1. Start evaluation:')
-
     clefts_evaluation = Clefts(test, truth)
-
     false_positive_count = clefts_evaluation.count_false_positives()
     false_negative_count = clefts_evaluation.count_false_negatives()
+    false_positive_rate = false_positive_count/total_pixels
+    false_negative_rate = false_negative_count/total_pixels
+    true_positive_rate = 1 - false_negative_rate
+    f1_score = 2*true_positive_rate/(2*true_positive_rate+false_positive_rate+false_negative_rate)
+    ADGT = clefts_evaluation.acc_false_positives()
+    ADF = clefts_evaluation.acc_false_negatives()
+    CRIME_score = (ADGT+ADF)/2
 
-    print('\tfalse positives: ' + str(false_positive_count))
-    print('\tfalse negatives: ' + str(false_negative_count))
-
-    false_positive_stats = clefts_evaluation.acc_false_positives()
-    false_negative_stats = clefts_evaluation.acc_false_negatives()
-
-    print('\tdistance to ground truth: ' + str(false_positive_stats))
-    print('\tdistance to proposal    : ' + str(false_negative_stats))
-
+    print('\tFalse positive rate: %.4f' %(false_positive_rate))
+    print('\tFalse negative rate: %.4f' %(false_negative_rate))
+    print('\tF1 score: %.4f' %(f1_score))
+    print('\tADGT: %.4f' %(ADGT))
+    print('\tADF: %.4f' %(ADF))
+    print('\tCRIME_score: %.4f' %(CRIME_score))
     print('2. End evaluation.')
 
 if __name__ == "__main__":
