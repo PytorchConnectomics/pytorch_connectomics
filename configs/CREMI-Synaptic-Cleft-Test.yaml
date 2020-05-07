@@ -5,7 +5,6 @@ SYSTEM:
   NUM_CPUS: 4
 MODEL:
   ARCHITECTURE: 'unet_residual_3d'
-  BATCH_SIZE: 32
   INPUT_SIZE: [8, 256, 256]
   OUTPUT_SIZE: [8, 256, 256]
   IN_PLANES: 1
@@ -13,12 +12,12 @@ MODEL:
   LOSS_OPTION: [['WeightedBCE']]
   TARGET_OPT: ['0']
   WEIGHT_OPT: [['1']]
-  PRE_MODEL: '/n/home12/zijzhao/outputs/unetv0_syn_baseline/volume_39999.pth'
+  PRE_MODEL: 'CREMI_syn_baseline/volume_39999.pth'
   PRE_MODEL_ITER: 39999
 DATASET:
   IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
-  INPUT_PATH: '/n/home12/zijzhao/CREMI/'
-  OUTPUT_PATH: '/n/pfister_lab2/Lab/zijie/outputs/unetv0_syn_baseline_encap_test'
+  INPUT_PATH: 'data/CREMI/'
+  OUTPUT_PATH: 'CREMI_syn_baseline/test'
   PAD_SIZE: [8, 64, 64]
 AUGMENTOR:
   ROTATE: True
@@ -35,6 +34,7 @@ SOLVER:
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 40000
+  SAMPLES_PER_BATCH: 32
 INFERENCE:
   AUG_MODE: 'mean'
   AUG_NUM: 4

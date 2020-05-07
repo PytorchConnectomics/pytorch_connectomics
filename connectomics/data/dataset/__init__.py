@@ -114,6 +114,6 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None):
         dataset = get_dataset(cfg, augmentor, mode)
     
     img_loader =  torch.utils.data.DataLoader(
-          dataset, batch_size=cfg.MODEL.BATCH_SIZE, shuffle=SHUFFLE, collate_fn = cf,
+          dataset, batch_size=cfg.SOLVER.SAMPLES_PER_BATCH, shuffle=SHUFFLE, collate_fn = cf,
           num_workers=cfg.SYSTEM.NUM_CPUS, pin_memory=True)
     return img_loader

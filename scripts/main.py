@@ -5,7 +5,6 @@ import torch
 from connectomics.config import get_cfg_defaults
 from connectomics.engine import Trainer
 
-
 def get_args():
     parser = argparse.ArgumentParser(description="Fast Training")
     parser.add_argument('--config-file', type=str, help='configuration file (yaml)')
@@ -39,7 +38,6 @@ def main():
         trainer.test()
     else:
         trainer.train()
-
 
 if __name__ == "__main__":
   main()

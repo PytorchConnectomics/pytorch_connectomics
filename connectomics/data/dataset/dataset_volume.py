@@ -87,7 +87,6 @@ class VolumeDataset(torch.utils.data.Dataset):
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
 
-
     def __len__(self):  # number of possible position
         return self.sample_num_a
 

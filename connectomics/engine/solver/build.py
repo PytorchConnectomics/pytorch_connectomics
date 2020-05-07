@@ -1,4 +1,4 @@
-# Code adapted from Detectron2(https://github.com/facebookresearch/detectron2)
+# Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 from typing import Any, Dict, List, Set
 import torch
 from torch.optim.lr_scheduler import MultiStepLR
@@ -14,7 +14,6 @@ from connectomics.model.norm import BatchInstanceNorm3d
 from connectomics.model.norm import SynchronizedBatchNorm1d
 from connectomics.model.norm import SynchronizedBatchNorm2d
 from connectomics.model.norm import SynchronizedBatchNorm3d
-
 
 def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimizer:
     """

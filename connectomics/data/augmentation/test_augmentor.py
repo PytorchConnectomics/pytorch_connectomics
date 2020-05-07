@@ -3,10 +3,11 @@ import itertools
 import torch
 
 class TestAugmentor(object):
-    """Augmentor for the test.
+    """Test Augmentor.
+
     Args:
-    mode (str): training or inference mode.
-    num_aug (int): use data augmentation 4-fold, 16-fold
+        mode (str): inference mode ('min', 'max', 'mean').
+        num_aug (int): number of data augmentations: 4-fold, 16-fold
     """
     def __init__(self, mode='min', num_aug=4):
         self.mode = mode

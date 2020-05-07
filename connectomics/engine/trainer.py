@@ -11,7 +11,6 @@ from connectomics.data.augmentation import build_train_augmentor, TestAugmentor
 from connectomics.data.dataset import build_dataloader
 from connectomics.data.utils import blend_gaussian, writeh5
 
-
 class Trainer(object):
     def __init__(self, cfg, device, mode, output_dir='outputs/', checkpoint=None):
         self.cfg = cfg

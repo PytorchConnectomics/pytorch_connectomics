@@ -19,10 +19,8 @@ _C.SYSTEM.NUM_CPUS = 4
 # -----------------------------------------------------------------------------
 _C.MODEL = CN()
 
-# Other options: Unet_super, SuperResolution, fpn, unet_2d
+# Model architectures defined in the package: unet_super, super, fpn
 _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
-
-_C.MODEL.BATCH_SIZE = 8
 
 # Number of filters per unet block
 _C.MODEL.FILTERS = [28, 36, 48, 64, 80] 

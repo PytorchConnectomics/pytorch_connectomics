@@ -10,8 +10,8 @@ from .utils import Monitor, Criterion
 def build_model(cfg, device, checkpoint):
     MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
                  'fpn': fpn,
-                'super':SuperResolution,
-                'unet_super':Unet_super}
+                 'super':SuperResolution,
+                 'unet_super':Unet_super}
 
     assert cfg.MODEL.ARCHITECTURE in MODEL_MAP.keys()
     if cfg.MODEL.ARCHITECTURE == 'super':
@@ -66,7 +66,7 @@ def build_monitor(cfg):
     log_path = os.path.join(cfg.DATASET.OUTPUT_PATH, 'log'+date+'_'+time)
     if not os.path.isdir(log_path):
         os.makedirs(log_path)
-    return Monitor(log_path, cfg.MONITOR.LOG_OPT+[cfg.MODEL.BATCH_SIZE],\
+    return Monitor(log_path, cfg.MONITOR.LOG_OPT+[cfg.SOLVER.SAMPLES_PER_BATCH],\
                    cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM)
 
 def build_criterion(cfg, device):

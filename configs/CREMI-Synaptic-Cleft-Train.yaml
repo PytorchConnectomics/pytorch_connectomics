@@ -5,7 +5,6 @@ SYSTEM:
   NUM_CPUS: 4
 MODEL:
   ARCHITECTURE: 'unet_residual_3d'
-  BATCH_SIZE: 8
   INPUT_SIZE: [8, 256, 256]
   OUTPUT_SIZE: [8, 256, 256]
   IN_PLANES: 1
@@ -16,9 +15,9 @@ MODEL:
 DATASET:
   IMAGE_NAME: 'images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5'
   LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
-  INPUT_PATH: '/n/home12/zijzhao/CREMI/'
-  OUTPUT_PATH: '/n/pfister_lab2/Lab/zijie/outputs/unetv0_syn_baseline_encap_train'
-  PAD_SIZE: [2, 64, 64]
+  INPUT_PATH: 'data/CREMI/'
+  OUTPUT_PATH: 'CREMI_syn_baseline'
+  PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
   RESCALE: True
@@ -34,6 +33,7 @@ SOLVER:
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 40000
+  SAMPLES_PER_BATCH: 8
 
 
 
