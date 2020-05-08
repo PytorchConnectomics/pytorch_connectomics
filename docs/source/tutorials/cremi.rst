@@ -11,8 +11,7 @@ for more details.
     We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse 
     the alignment before submitting the test prediction to the CREMI challenge.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--task 1``
-when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.SynapseDataset`.
+Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. YAML files can be found at ``pytorch_connectomics/configs/``, where stores the common setting for current experiment's configuration. Default config file can be found at ``pytorch_connectomics/connectomics/config/``, where stores all the configuration. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.SynapseDataset`.
 
 #. Get the dataset:
 
@@ -24,23 +23,17 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-#. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
+#. Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.
 
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python -u train.py -i /path/to/CREMI/ \
-          -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-          -dln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
-          -o outputs/unetv0_syn -lr 1e-03 --iteration-total 50000 --iteration-save 5000 \
-          -mi 8,256,256 -ma unet_residual_3d -moc 1 \
-          -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 8 
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+          --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
+          --output "outputs/cremi_synapse_train"  
 
-    - data: ``i/o/din/dln`` (input folder/output folder/train volume/train label)
-    - optimization: ``lr/iteration-total/iteration-save`` (learning rate/total #iterations/#iterations to save)
-    - model: ``mi/ma/moc`` (input size/architecture/#output channel)
-    - loss: ``to/lo/wo`` (target option/loss option/weight option)
-    - system: ``g/c/b`` (#GPU/#CPU/batch size)
+    - config-file: configuration setting for current experiments.
+    - output: the training results save path.
 
 
 #. Visualize the training progress:
@@ -49,15 +42,15 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
 
         $ tensorboard --logdir runs
 
-#. Run inference on image volumes:
+#. Run the main.py script for inference:
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -i /path/to/CREMI/ \
-          -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-          -o outputs/unetv0_syn/result -mi 8,256,256 -ma unet_residual_3d -moc 1 \
-          -g 4 -c 4 -b 32 
-          -mpt outputs/unetv0_syn/volume_49999.pth -mpi 49999 -dp 8,64,64 -tam mean -tan 4
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+          --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
+          --output "outputs/cremi_synapse_inference" \
+          --inference 
 
-    - pre-train model: ``mpt/mpi`` (model path/iteration number)
-    - test configuration: ``dp/tam/tan`` (data padding/augmentation mode/augmentation number)
+    - config-file: configuration setting for current experiments.
+    - output: the inference results save path. 
+    - inference: will run inference when given, otherwise will run training instead.
