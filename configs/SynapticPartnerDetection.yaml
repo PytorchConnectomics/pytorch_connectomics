@@ -1,0 +1,42 @@
+# All other configurations are set by default. If you want to change them,
+# please modify ../connectomics/config/config.py
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 4
+MODEL:
+  ARCHITECTURE: 'unet_residual_3d'
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 1
+  LOSS_OPTION: [['WeightedBCE']]
+  TARGET_OPT: ['1,2', '0']
+  WEIGHT_OPT: [['1'], ['1']]
+  PRE_MODEL: 'outputs/unetv0_syn/log2020-04-17_18-55-44/volume_49999.pth'
+  PRE_MODEL_ITER: 49999
+DATASET:
+  IMAGE_NAME: 'gt-syn/syn_0922_im_orig.h5'
+  INPUT_PATH: '/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/'
+  OUTPUT_PATH: 'outputs/unetv0_syn'
+  PAD_SIZE: [8, 64, 64]
+AUGMENTOR:
+  ROTATE: True
+  RESCALE: True
+  FLIP: True
+  ELASTIC: True
+  GRAYSCALE: True
+  MISSINGPARTS: True
+  MISSINGSECTION: True
+  MISALIGNMENT: True
+SOLVER:
+  LR_SCHEDULER_NAME: "MultiStepLR"
+  BASE_LR: 0.001
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 50000
+  SAMPLES_PER_BATCH: 32
+INFERENCE:
+  AUG_MODE: 'mean'
+  AUG_NUM: 4
+  OUTPUT_NAME: 'pd_instances.h5'
+  STRIDE: [1, 192, 192]
