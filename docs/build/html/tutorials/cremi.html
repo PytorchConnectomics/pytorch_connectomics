@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Synaptic Cleft Detection &mdash; connectomics master documentation</title>
+  <title>Synaptic Cleft Segmentation &mdash; connectomics master documentation</title>
   
 
   
@@ -105,7 +105,7 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Cleft Detection</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lucchi.html">Mitochondria Segmentaion</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
@@ -117,6 +117,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">connectomics.data.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 </ul>
 
             
@@ -162,7 +163,7 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>Synaptic Cleft Detection</li>
+      <li>Synaptic Cleft Segmentation</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -181,8 +182,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="synaptic-cleft-detection">
-<h1>Synaptic Cleft Detection<a class="headerlink" href="#synaptic-cleft-detection" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="synaptic-cleft-segmentation">
+<h1>Synaptic Cleft Segmentation<a class="headerlink" href="#synaptic-cleft-segmentation" title="Permalink to this headline">¶</a></h1>
 <p>This tutorial provides step-by-step guidance for synaptic cleft detection with <a class="reference external" href="https://cremi.org">CREMI</a> benchmark datasets.
 We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
@@ -193,8 +194,7 @@ for more details.</p>
 <p class="last">We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
 the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--task</span> <span class="pre">1</span></code>
-when executing the <code class="docutils literal"><span class="pre">train.py</span></code> and <code class="docutils literal"><span class="pre">test.py</span></code> scripts. The pytorch dataset class of synapses is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.SynapseDataset</span></code>.</p>
+<p>Script needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. YAML files can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/</span></code>, where stores the common setting for current experiment’s configuration. Default config file can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>, where stores all the configuration. The pytorch dataset class of synapses is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -210,23 +210,17 @@ when executing the <code class="docutils literal"><span class="pre">train.py</sp
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
+<li><p class="first">Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python -u train.py -i /path/to/CREMI/ \
-  -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-  -dln gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5 \
-  -o outputs/unetv0_syn -lr 1e-03 --iteration-total 50000 --iteration-save 5000 \
-  -mi 8,256,256 -ma unet_residual_3d -moc 1 \
-  -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 8
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+  --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
+  --output &quot;outputs/cremi_synapse_train&quot;
 </pre></div>
 </div>
 <ul class="simple">
-<li>data: <code class="docutils literal"><span class="pre">i/o/din/dln</span></code> (input folder/output folder/train volume/train label)</li>
-<li>optimization: <code class="docutils literal"><span class="pre">lr/iteration-total/iteration-save</span></code> (learning rate/total #iterations/#iterations to save)</li>
-<li>model: <code class="docutils literal"><span class="pre">mi/ma/moc</span></code> (input size/architecture/#output channel)</li>
-<li>loss: <code class="docutils literal"><span class="pre">to/lo/wo</span></code> (target option/loss option/weight option)</li>
-<li>system: <code class="docutils literal"><span class="pre">g/c/b</span></code> (#GPU/#CPU/batch size)</li>
+<li>config-file: configuration setting for the current experiment.</li>
+<li>output: the training results saving path.</li>
 </ul>
 </div></blockquote>
 </li>
@@ -237,18 +231,19 @@ $ python -u train.py -i /path/to/CREMI/ \
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes:</p>
+<li><p class="first">Run the main.py script for inference:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u test.py -i /path/to/CREMI/ \
-  -din image/im_A_v2_200.h5@image/im_B_v2_200.h5@image/im_C_v2_200.h5 \
-  -o outputs/unetv0_syn/result -mi 8,256,256 -ma unet_residual_3d -moc 1 \
-  -g 4 -c 4 -b 32
-  -mpt outputs/unetv0_syn/volume_49999.pth -mpi 49999 -dp 8,64,64 -tam mean -tan 4
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+  --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
+  --output &quot;outputs/cremi_synapse_inference&quot; \
+  --inference --checkpoint outputs/cremi_synapse_inference/volume_30000.pth.tar
 </pre></div>
 </div>
 <ul class="simple">
-<li>pre-train model: <code class="docutils literal"><span class="pre">mpt/mpi</span></code> (model path/iteration number)</li>
-<li>test configuration: <code class="docutils literal"><span class="pre">dp/tam/tan</span></code> (data padding/augmentation mode/augmentation number)</li>
+<li>config-file: configuration setting for current experiments.</li>
+<li>output: the inference results saving path.</li>
+<li>inference: will run inference when given, otherwise will run training instead.</li>
+<li>checkpoint: the pre-trained checkpoint file for inference.</li>
 </ul>
 </div></blockquote>
 </li>

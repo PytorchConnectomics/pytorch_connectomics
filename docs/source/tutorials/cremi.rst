@@ -1,5 +1,5 @@
-Synaptic Cleft Detection
-==========================
+Synaptic Cleft Segmentation
+============================
 
 This tutorial provides step-by-step guidance for synaptic cleft detection with `CREMI <https://cremi.org>`_ benchmark datasets.
 We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
@@ -11,7 +11,7 @@ for more details.
     We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse 
     the alignment before submitting the test prediction to the CREMI challenge.
 
-Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. YAML files can be found at ``pytorch_connectomics/configs/``, where stores the common setting for current experiment's configuration. Default config file can be found at ``pytorch_connectomics/connectomics/config/``, where stores all the configuration. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.SynapseDataset`.
+Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. YAML files can be found at ``pytorch_connectomics/configs/``, where stores the common setting for current experiment's configuration. Default config file can be found at ``pytorch_connectomics/connectomics/config/``, where stores all the configuration. The pytorch dataset class of synapses is :class:`connectomics.data.dataset.VolumeDataset`.
 
 #. Get the dataset:
 
@@ -32,9 +32,8 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
           --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
           --output "outputs/cremi_synapse_train"  
 
-    - config-file: configuration setting for current experiments.
-    - output: the training results save path.
-
+    - config-file: configuration setting for the current experiment.
+    - output: the training results saving path.
 
 #. Visualize the training progress:
 
@@ -49,8 +48,9 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
           --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
           --output "outputs/cremi_synapse_inference" \
-          --inference 
+          --inference --checkpoint outputs/cremi_synapse_inference/volume_30000.pth.tar
 
     - config-file: configuration setting for current experiments.
-    - output: the inference results save path. 
+    - output: the inference results saving path. 
     - inference: will run inference when given, otherwise will run training instead.
+    - checkpoint: the pre-trained checkpoint file for inference.

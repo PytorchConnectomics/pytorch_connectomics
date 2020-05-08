@@ -18,8 +18,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         augmentor: data augmentor.
         mode (str): training or inference mode.
         sample_invalid_thres (float): probability of applying the augmentation.
-        reject_size_thres (int): threshold to decide if a image contains synapse.
-        reject_p (float): probability of rejecting non-foreward images.
+        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.
+        reject_p (float): probability of rejecting non-foreground volumes.
     """
     def __init__(self,
                  volume, label=None,
@@ -30,7 +30,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  augmentor=None, 
                  target_opt=['1'], weight_opt=['1'],
                  mode='train',
-                 reject_size_thres= 100, 
+                 reject_size_thres= 0, 
                  reject_p= 0.98):
 
         self.mode = mode

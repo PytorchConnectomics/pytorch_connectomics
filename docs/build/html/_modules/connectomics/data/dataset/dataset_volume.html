@@ -103,7 +103,7 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/snemi.html">Neuron Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/cremi.html">Synaptic Cleft Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/cremi.html">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/lucchi.html">Mitochondria Segmentaion</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
@@ -115,6 +115,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/datasets.html">connectomics.data.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/engine.html">connectomics.engine</a></li>
 </ul>
 
             
@@ -198,8 +199,8 @@
 <span class="sd">        augmentor: data augmentor.</span>
 <span class="sd">        mode (str): training or inference mode.</span>
 <span class="sd">        sample_invalid_thres (float): probability of applying the augmentation.</span>
-<span class="sd">        reject_size_thres (int): threshold to decide if a image contains synapse.</span>
-<span class="sd">        reject_p (float): probability of rejecting non-foreward images.</span>
+<span class="sd">        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.</span>
+<span class="sd">        reject_p (float): probability of rejecting non-foreground volumes.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
                  <span class="n">volume</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -210,7 +211,7 @@
                  <span class="n">augmentor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
                  <span class="n">target_opt</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">],</span> <span class="n">weight_opt</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">],</span>
                  <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span>
-                 <span class="n">reject_size_thres</span><span class="o">=</span> <span class="mi">100</span><span class="p">,</span> 
+                 <span class="n">reject_size_thres</span><span class="o">=</span> <span class="mi">0</span><span class="p">,</span> 
                  <span class="n">reject_p</span><span class="o">=</span> <span class="mf">0.98</span><span class="p">):</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>

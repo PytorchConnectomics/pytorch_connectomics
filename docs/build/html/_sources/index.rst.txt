@@ -43,7 +43,7 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
    modules/model
    modules/augmentation
    modules/datasets
-   modules/utils
+   modules/engine
 
 Indices and Tables
 ====================
