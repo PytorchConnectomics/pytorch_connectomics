@@ -184,11 +184,12 @@ class VolumeDataset(torch.utils.data.Dataset):
             if size_thres > 0:
 
                 if self.augmentor is not None:
+                    assert np.array_equal(self.augmentor.sample_size, self.sample_label_size)
                     # restrict the foreground mask at the center region after data augmentation
                     z, y, x = self.augmentor.input_size
-                    z_start = self.sample_label_size[0] // 2
-                    y_start = self.sample_label_size[1] // 2
-                    x_start = self.sample_label_size[2] // 2
+                    z_start = (self.sample_label_size[0] - z) // 2
+                    y_start = (self.sample_label_size[1] - y) // 2
+                    x_start = (self.sample_label_size[2] - x) // 2
 
                     temp = out_label.copy()
                     temp = temp[z_start:z_start+z, y_start:y_start+y, x_start:x_start+x]
