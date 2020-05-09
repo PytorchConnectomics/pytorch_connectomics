@@ -182,11 +182,26 @@ class VolumeDataset(torch.utils.data.Dataset):
         while True:
             pos, out_input, out_label = self._random_sampling(vol_size)
             if size_thres > 0:
-                temp = (out_label!=background).astype(int).sum()
+
+                if self.augmentor is not None:
+                    # restrict the foreground mask at the center region after data augmentation
+                    z, y, x = self.augmentor.input_size
+                    z_start = self.sample_label_size[0] // 2
+                    y_start = self.sample_label_size[1] // 2
+                    x_start = self.sample_label_size[2] // 2
+
+                    temp = out_label.copy()
+                    temp = temp[z_start:z_start+z, y_start:y_start+y, x_start:x_start+x]
+                    temp = (temp!=background).astype(int).sum()
+                else:
+                    temp = (out_label!=background).astype(int).sum()
+
+                # reject sampling
                 if temp > size_thres:
                     break
                 elif random.random() > p:
                     break
+
             else: # no rejection sampling for the foreground mask
                 break
 
