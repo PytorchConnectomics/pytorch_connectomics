@@ -12,10 +12,10 @@ from connectomics.data.dataset import build_dataloader
 from connectomics.data.utils import blend_gaussian, writeh5
 
 class Trainer(object):
-    def __init__(self, cfg, device, mode, output_dir='outputs/', checkpoint=None):
+    def __init__(self, cfg, device, mode, checkpoint=None):
         self.cfg = cfg
         self.device = device
-        self.output_dir = output_dir
+        self.output_dir = cfg.DATASET.OUTPUT_PATH
         self.mode = mode
         
         self.model = build_model(self.cfg, self.device, checkpoint)
