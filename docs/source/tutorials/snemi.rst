@@ -3,8 +3,8 @@ Neuron Segmentation
 
 This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
-The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and 
-then generate the segmentation map using a segmentation algorithm (e.g., watershed). 
+The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and
+then generate the segmentation map using a segmentation algorithm (e.g., watershed).
 
 The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
 and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
@@ -13,49 +13,50 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
     to get familiar with the datasets and have a sense of how the affinity graphs look like.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The pytorch target affinity generation is :class:`connectomics.data.utils.data_segmentation`.
+The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch target affinity generation is :class:`connectomics.data.utils.data_segmentation`.
 
 #. Get the dataset:
 
         .. code-block:: none
 
             wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
-    
+
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
 
-#. Run the training script:
+#. Provide the ``yaml`` configuration file to run training:
 
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python scripts/train.py -i /{path-to-snemi}/ -o outputs/unetv3 -din train-input.tif -dln train-labels.tif \
-            -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
-            -mi 18,160,160 -ma unet_residual_3d -moc 3 \
-            -to 2 -lo 1 -wo 1 -g 4 -c 4 -b 8 
+        $ python scripts/main.py --config-file configs/SNEMI-Train.yaml
 
-    - data: ``i/o/din/dln`` (input folder/output folder/train volume/train label)
-    - optimization: ``lr/iteration-total/iteration-save`` (learning rate/total #iterations/#iterations to save)
-    - model: ``mi/ma/moc`` (input size/architecture/#output channel)
-    - loss: ``to/lo/wo`` (target option/loss option/weight option)
-    - system: ``g/c/b`` (#GPU/#CPU/batch size)
+    The configuration file for training is in ``configs/SNEMI-Train.yaml``, modify the following accordingly:
+ 
+    - ``IMAGE_NAME``: Name of the volume file
+    - ``LABEL_NAME``: Name of the label file
+    - ``INPUT_PATH``: Path to both files above 
+    - ``OUTPUT_PATH``: Path to store outputs (Model and Tensorboard files)
+    -  ``NUM_GPUS``: Number of GPUs to use
+    - ``NUM_CPUS``: Number of CPU cores to use
+    To run training starting from pretrained weights, add to configuration file:
+
+    - ``PRE_MODEL``: path to weights ``.pth``
+    - ``PRE_MODEL_ITER``: weights iteration
 
 #. Visualize the training progress:
 
     .. code-block:: none
 
-        $ tensorboard --logdir runs
-
-#. Run inference on image volumes (min over 4-aug):
+        $ tensorboard --logdir outputs/SNEMI/
+                                                                              
+#. Run inference on image volumes, The test configuration file can have bigger input, augmentation at inference:
 
     .. code-block:: none
 
-        $ python scripts/test.py -i /{path-to-snemi}/ \
-          -din train-input.tif -mi 116,256,256 -g 4 -c 4 -b 4 \
-          -ma unet_residual_3d -mpt outputs/unetv3/{log-folder}/volume_100000.pth -mpi 99999 -dp 8,64,64 -tam min -tan 4 
+        $ python scripts/main.py --config-file configs/SNEMI-Test.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
 
-
-#. Gnerate segmentation and run evaluation:
+#. Generate segmentation and run evaluation:
 
     #. Download the ``waterz`` package:
 
@@ -63,7 +64,7 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
 
             $ git clone git@github.com:zudi-lin/waterz.git
             $ cd waterz
-            $ pip install --editable . 
+            $ pip install --editable .
 
     #. Download the ``zwatershed`` package:
 
@@ -71,13 +72,14 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
 
             $ git clone git@github.com:zudi-lin/zwatershed.git
             $ cd zwatershed
-            $ pip install --editable . 
+            $ pip install --editable .
 
     #. Generate 3D segmentation and report Rand and VI score using ``waterz``:
 
         .. code-block:: none
 
-            $ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
+            $
 
-    #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in 
+    #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in
        the demo, which provides more options and visualization.
+
