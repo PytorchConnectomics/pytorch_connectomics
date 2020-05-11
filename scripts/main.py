@@ -8,7 +8,6 @@ from connectomics.engine import Trainer
 def get_args():
     parser = argparse.ArgumentParser(description="Fast Training")
     parser.add_argument('--config-file', type=str, help='configuration file (yaml)')
-    parser.add_argument('--output', type=str, help='output path')
     parser.add_argument('--inference', action='store_true', help='inference mode')
     parser.add_argument('--checkpoint', type=str, default=None, help='path to load the checkpoint')
     args = parser.parse_args()
@@ -26,18 +25,18 @@ def main():
     print("Configuration details:")
     print(cfg)
 
-    if not os.path.exists(args.output):
-        os.mkdir(args.output)
+    if not os.path.exists(cfg.DATASET.OUTPUT_PATH):
+        os.mkdir(cfg.DATASET.OUTPUT_PATH)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device: ", device)
 
     mode = 'test' if args.inference else 'train'
-    trainer = Trainer(cfg, device, mode, args.output, args.checkpoint)
+    trainer = Trainer(cfg, device, mode, args.checkpoint)
     if args.inference:
         trainer.test()
     else:
         trainer.train()
 
 if __name__ == "__main__":
-  main()
+    main()
