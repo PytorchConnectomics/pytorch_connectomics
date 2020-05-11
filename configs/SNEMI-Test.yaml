@@ -15,9 +15,9 @@ MODEL:
   PRE_MODEL: 'outputs/SNEMI/volume_39999.pth'
   PRE_MODEL_ITER: 39999
 DATASET:
-  IMAGE_NAME: 'test_normal.h5'
-  LABEL_NAME: 'test_gt_normal.h5'
-  INPUT_PATH: '/n/home11/mbelhamissi/data/SNEMI3D/super_resolution/'
+  IMAGE_NAME: 'test.h5'
+  LABEL_NAME: 'test_label.h5'
+  INPUT_PATH: '/path/to/snemi/'
   OUTPUT_PATH: 'outputs/SNEMI/test/'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
