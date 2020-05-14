@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Synaptic Cleft Segmentation &mdash; connectomics master documentation</title>
+  <title>Synaptic Partner Detection &mdash; connectomics master documentation</title>
   
 
   
@@ -46,8 +46,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Mitochondria Segmentaion" href="lucchi.html" />
-    <link rel="prev" title="Neuron Segmentation" href="snemi.html" /> 
+    <link rel="next" title="connectomics.model" href="../modules/model.html" />
+    <link rel="prev" title="Mitochondria Segmentaion" href="lucchi.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -105,9 +105,9 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Cleft Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cremi.html">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lucchi.html">Mitochondria Segmentaion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Detection</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Partner Detection</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -164,13 +164,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>Synaptic Cleft Segmentation</li>
+      <li>Synaptic Partner Detection</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/tutorials/cremi.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/synaptic_partner.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -183,76 +183,54 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="synaptic-cleft-segmentation">
-<h1>Synaptic Cleft Segmentation<a class="headerlink" href="#synaptic-cleft-segmentation" title="Permalink to this headline">¶</a></h1>
-<p>This tutorial provides step-by-step guidance for synaptic cleft detection with <a class="reference external" href="https://cremi.org">CREMI</a> benchmark datasets.
-We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
+  <div class="section" id="synaptic-partner-detection">
+<h1>Synaptic Partner Detection<a class="headerlink" href="#synaptic-partner-detection" title="Permalink to this headline">¶</a></h1>
+<p>This tutorial provides step-by-step guidance for synaptic partner detection with the benchmark datasets.
+We consider the task as a semantic segmentation task and predict both the pre-synaptic and post-synaptic pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
-The evaluation of the synapse detection results is based on the F1 score and average distance. See <a class="reference external" href="https://cremi.org/metrics/">CREMI metrics</a>
-for more details.</p>
+The evaluation of the synapse detection results is based on the F1 score.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
-the alignment before submitting the test prediction to the CREMI challenge.</p>
+<p class="last">Our segmentation task consists of 2 targets and 3 channels. Targets are background and synapses whereas channels are pre-synapse, post-synapse and background.</p>
 </div>
-<p>Script needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. YAML files can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/</span></code>, where stores the common setting for current experiment’s configuration. Default config file can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>, where stores all the configuration. The pytorch dataset class of synapses is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.  The pytorch dataset class of synapses is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
 <ol class="arabic">
-<li><p class="first">Get the dataset:</p>
+<li><p class="first">Dataset examples can be found on the Harvard RC server here:</p>
 <blockquote>
-<div><ol class="arabic">
-<li><p class="first">Download the dataset from our server:</p>
-<blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://hp03.mindhackers.org/rhoana_product/dataset/cremi.zip
+<div><p>Image:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_im_orig.h5
+</pre></div>
+</div>
+<p>Label:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_seg.h5
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-</ol>
-<p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
-</div></blockquote>
-</li>
-</ol>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
-different from the default ones. In such case, please change the corresponding entries, including <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>,
-<code class="docutils literal"><span class="pre">LABEL_NAME</span></code> and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> in the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft-Train.yaml">CREMI config file</a>.</p>
-</div>
-<ol class="arabic">
-<li><p class="first">Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.</p>
+<li><p class="first">Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
-  --config-file configs/CREMI-Synaptic-Cleft-Train.yaml
-</pre></div>
-</div>
-<ul class="simple">
-<li>config-file: configuration setting for the current experiment.</li>
-<li>output: the training results saving path.</li>
-</ul>
-</div></blockquote>
-</li>
-<li><p class="first">Visualize the training progress:</p>
-<blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Synaptic-Partner-Segmentation.yaml
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run the main.py script for inference:</p>
+<li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
-  --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
-  --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">Run inference on image volumes:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Synaptic-Partner-Segmentation.yaml \
   --inference
 </pre></div>
 </div>
-<ul class="simple">
-<li>config-file: configuration setting for current experiments.</li>
-<li>output: the inference results saving path.</li>
-<li>inference: will run inference when given, otherwise will run training instead.</li>
-<li>checkpoint: the pre-trained checkpoint file for inference.</li>
-</ul>
 </div></blockquote>
 </li>
 </ol>
@@ -266,10 +244,10 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="lucchi.html" class="btn btn-neutral float-right" title="Mitochondria Segmentaion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="../modules/model.html" class="btn btn-neutral float-right" title="connectomics.model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="snemi.html" class="btn btn-neutral float-left" title="Neuron Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="lucchi.html" class="btn btn-neutral float-left" title="Mitochondria Segmentaion" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

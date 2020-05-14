@@ -29,20 +29,24 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python scripts/main.py --config-file configs/SNEMI-Train.yaml
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml
 
-    The configuration file for training is in ``configs/SNEMI-Train.yaml``, modify the following accordingly:
+    The configuration file for training is in ``configs/SNEMI-Neuron-Train.yaml``, modify the following accordingly:
  
     - ``IMAGE_NAME``: Name of the volume file
     - ``LABEL_NAME``: Name of the label file
     - ``INPUT_PATH``: Path to both files above 
     - ``OUTPUT_PATH``: Path to store outputs (Model and Tensorboard files)
-    -  ``NUM_GPUS``: Number of GPUs to use
+    - ``NUM_GPUS``: Number of GPUs to use
     - ``NUM_CPUS``: Number of CPU cores to use
-    To run training starting from pretrained weights, add to configuration file:
 
-    - ``PRE_MODEL``: path to weights ``.pth``
-    - ``PRE_MODEL_ITER``: weights iteration
+    To run training starting from pretrained weights, add a checkpoint file:
+
+    .. code-block:: none
+
+        $ source activate py3_torch
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml \
+        $ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
 
 #. Visualize the training progress:
 
@@ -54,7 +58,7 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
     .. code-block:: none
 
-        $ python scripts/main.py --config-file configs/SNEMI-Test.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron-Test.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
 
 #. Generate segmentation and run evaluation:
 
@@ -82,4 +86,3 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
     #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in
        the demo, which provides more options and visualization.
-
