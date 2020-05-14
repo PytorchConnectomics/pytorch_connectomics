@@ -108,6 +108,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                 data = {'image':out_input, 'label':out_label}
                 augmented = self.augmentor(data)
                 out_input, out_label = augmented['image'], augmented['label']
+                
             out_input = np.expand_dims(out_input, 0)
             # output list
             out_target = seg_to_targets(out_label, self.target_opt)

@@ -1,4 +1,4 @@
-# All other configurations are set by default. If you want to change them,
+# All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
 SYSTEM:
   NUM_GPUS: 4
@@ -12,13 +12,11 @@ MODEL:
   LOSS_OPTION: [['WeightedBCE']]
   TARGET_OPT: ['2']
   WEIGHT_OPT: [['1']]
-  PRE_MODEL: 'outputs/SNEMI/volume_39999.pth'
-  PRE_MODEL_ITER: 39999
 DATASET:
-  IMAGE_NAME: 'test.h5'
-  LABEL_NAME: 'test_label.h5'
+  IMAGE_NAME: 'train.h5'
+  LABEL_NAME: 'label.h5'
   INPUT_PATH: '/path/to/snemi/'
-  OUTPUT_PATH: 'outputs/SNEMI/test/'
+  OUTPUT_PATH: 'outputs/SNEMI/'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
@@ -36,8 +34,3 @@ SOLVER:
   ITERATION_SAVE: 1000
   ITERATION_TOTAL: 40000
   SAMPLES_PER_BATCH: 8
-INFERENCE:
-  AUG_MODE: 'mean'
-  AUG_NUM: 4
-  OUTPUT_NAME: 'result.h5'
-  STRIDE: [1, 192, 192]

@@ -156,20 +156,21 @@ def seg_to_targets(label, topts):
     # input: DHW
     # output: CDHW
     # mito/synapse cleft binary: topt = 0 
-    # synapse polarity: topt = 1.2,0 
+    # synapse polarity: topt = 1
     out = [None]*len(topts)
     for tid,topt in enumerate(topts):
         if topt == '-1': # direct copy
             out[tid] = label[None,:].astype(np.float32)
         elif topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
-        elif topt[0] == '1': # multi-channel, e.g. 1.2
-            num_channel = int(topt[2:])
-            tmp = [None]*num_channel 
-            for j in range(num_channel):
-                tmp[j] = label==(j+1)
+        elif topt[0] == '1': 
+            # synaptic polarity (multi-channel):
+            tmp = [None]*3 
+            tmp[0] = np.logical_and((label % 2) == 1, label > 0)
+            tmp[1] = np.logical_and((label % 2) == 0, label > 0)
+            tmp[2] = (label > 0)
             # concatenate at channel
-            out[tid] = np.stack(tmp,0).astype(np.float32)
+            out[tid] = np.stack(tmp, 0).astype(np.float32)
         elif topt[0] == '2': # affinity
             out[tid] = seg_to_aff(label)
         elif topt[0] == '3': # small object mask

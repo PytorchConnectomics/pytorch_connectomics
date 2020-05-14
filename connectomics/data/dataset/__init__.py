@@ -30,32 +30,32 @@ def _get_input(cfg, mode='train'):
 
     for i in range(len(img_name)):
         volume[i] = readvol(img_name[i])
+        print(f"volume shape (original): {volume[i].shape}")
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1) 
         volume[i] = np.pad(volume[i], ((cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                                                 (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                                                 (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
-        print(f"volume shape: {volume[i].shape}")
+                                       (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
+                                       (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
+        print(f"volume shape (after scale and padding): {volume[i].shape}")
 
         if mode=='train':
             label[i] = readvol(label_name[i])
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0) 
             if cfg.DATASET.LABEL_EROSION!=0:
-                label[i] = seg_widen_border(label[i],DATASET.LABEL_EROSION)
+                label[i] = seg_widen_border(label[i], cfg.DATASET.LABEL_EROSION)
             if cfg.DATASET.LABEL_BINARY and label[i].max()>1:
-                label[i] = label[i]//255
+                label[i] = label[i] // 255
             if cfg.DATASET.LABEL_MAG !=0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
                 
             label[i] = np.pad(label[i], ((cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                                                     (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                                                     (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
+                                         (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
+                                         (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
             print(f"label shape: {label[i].shape}")
             
             #assert volume[i].shape == label[i].shape !MB
-            
-                
+                 
     return volume, label
 
 

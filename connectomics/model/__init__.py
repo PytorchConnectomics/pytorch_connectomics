@@ -7,7 +7,7 @@ from .zoo import *
 from .norm import patch_replication_callback
 from .utils import Monitor, Criterion
 
-def build_model(cfg, device, checkpoint):
+def build_model(cfg, device, checkpoint=None):
     MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
                  'fpn': fpn,
                  'super':SuperResolution,

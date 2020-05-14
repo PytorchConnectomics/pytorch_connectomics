@@ -1,1 +1,1 @@
-from .config import get_cfg_defaults
+from .config import get_cfg_defaults, save_all_cfg

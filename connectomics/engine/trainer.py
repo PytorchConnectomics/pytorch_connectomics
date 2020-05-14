@@ -17,10 +17,14 @@ class Trainer(object):
         self.device = device
         self.output_dir = cfg.DATASET.OUTPUT_PATH
         self.mode = mode
-        
-        self.model = build_model(self.cfg, self.device, checkpoint)
+
+        self.model = build_model(self.cfg, self.device)
         self.optimizer = build_optimizer(self.cfg, self.model)
         self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
+        self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
+        if checkpoint is not None:
+            self.update_checkpoint(checkpoint)
+
         if self.mode == 'train':
             self.augmentor = build_train_augmentor(self.cfg)
         else:
@@ -37,8 +41,8 @@ class Trainer(object):
         self.monitor.reset()
         self.optimizer.zero_grad()
 
-        for iteration in range(self.cfg.SOLVER.ITERATION_TOTAL):
-            iter_total = self.cfg.MODEL.PRE_MODEL_ITER+iteration
+        for iteration in range(self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter):
+            iter_total = self.start_iter + iteration
             start = time.perf_counter()
 
             # load data
@@ -61,13 +65,16 @@ class Trainer(object):
             # logging and update record
             do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, self.optimizer.param_groups[0]['lr']) 
             if do_vis:
-                self.monitor.visualize(volume, torch.from_numpy(target[0]), pred, iter_total)
-            #Save model
+                self.monitor.visualize(self.cfg, volume, target, pred, iter_total)
+            # Save model
             if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
-                torch.save(self.model.state_dict(), self.output_dir+('/volume_%d%s.pth' % (iter_total, self.cfg.MODEL.FINETUNE)))
+                self.save_checkpoint(iter_total)
+
+            # update learning rate
+            self.lr_scheduler.step(loss) if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau' else self.lr_scheduler.step()
 
             end = time.perf_counter()
-            print('[Iteration %05d] Data time: %.5f, Iter time:  %.5f' % (iteration, time1 - start, end - start))
+            print('[Iteration %05d] Data time: %.5f, Iter time:  %.5f' % (iter_total, time1 - start, end - start))
 
     def test(self):
         if self.cfg.INFERENCE.DO_EVAL:
@@ -85,12 +92,12 @@ class Trainer(object):
                         self.cfg.DATASET.PAD_SIZE[2],self.cfg.DATASET.PAD_SIZE[2]]
         
         if ("super" in self.cfg.MODEL.ARCHITECTURE):
-            output_size = np.array(self.dataloader.dataset.input_size)*np.array(self.cfg.DATASET.SCALE_FACTOR).tolist()
+            output_size = np.array(self.dataloader._dataset.input_size)*np.array(self.cfg.DATASET.SCALE_FACTOR).tolist()
             result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in output_size]
             weight = [np.zeros(x, dtype=np.float32) for x in output_size]
         else:
-            result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader.dataset.input_size]
-            weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader.dataset.input_size]
+            result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.input_size]
+            weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.input_size]
 
         # print(result[0].shape, weight[0].shape)
 
@@ -99,7 +106,7 @@ class Trainer(object):
         sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
         with torch.no_grad():
             for _, (pos, volume) in enumerate(self.dataloader):
-                volume_id += self.cfg.MODEL.BATCH_SIZE
+                volume_id += self.cfg.INFERENCE.SAMPLES_PER_BATCH
                 print('volume_id:', volume_id)
 
                 # for gpu computing
@@ -108,8 +115,8 @@ class Trainer(object):
                     volume = volume.squeeze(1)
 
                 if self.cfg.INFERENCE.AUG_NUM!=0:
-                    output = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, self.cfg.INFERENCE.AUG_NUM)
-                    output = output(self.model, volume)
+                    test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, self.cfg.INFERENCE.AUG_NUM)
+                    output = test_augmentor(self.model, volume)
                 else:
                     output = self.model(volume).cpu().detach().numpy()
 
@@ -134,7 +141,6 @@ class Trainer(object):
         end = time.time()
         print("Prediction time:", (end-start))
 
-        
         for vol_id in range(len(result)):
             if result[vol_id].ndim > weight[vol_id].ndim:
                 weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
@@ -152,3 +158,44 @@ class Trainer(object):
             print('save h5')
             writeh5(os.path.join(self.output_dir, self.cfg.INFERENCE.OUTPUT_NAME), result,['vol%d'%(x) for x in range(len(result))])
 
+    # -----------------------------------------------------------------------------
+    # Misc functions
+    # -----------------------------------------------------------------------------
+    def save_checkpoint(self, iteration):
+        state = {'iteration': iteration + 1,
+                 'state_dict': self.model.module.state_dict(), # Saving torch.nn.DataParallel Models
+                 'optimizer': self.optimizer.state_dict(),
+                 'lr_scheduler': self.lr_scheduler.state_dict()}
+                 
+        # Saves checkpoint to experiment directory
+        filename = 'checkpoint_%05d.pth.tar' % (iteration + 1)
+        filename = os.path.join(self.output_dir, filename)
+        torch.save(state, filename)
+
+    def update_checkpoint(self, checkpoint):
+        # load pre-trained model
+        print('Load pretrained checkpoint: ', checkpoint)
+        checkpoint = torch.load(checkpoint)
+        print('checkpoints: ', checkpoint.keys())
+        
+        # update model weights
+        if 'state_dict' in checkpoint.keys():
+            pretrained_dict = checkpoint['state_dict']
+            model_dict = self.model.module.state_dict() # nn.DataParallel
+            # 1. filter out unnecessary keys
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            # 2. overwrite entries in the existing state dict 
+            model_dict.update(pretrained_dict)    
+            # 3. load the new state dict
+            self.model.module.load_state_dict(model_dict) # nn.DataParallel   
+
+        # update optimizer
+        if 'optimizer' in checkpoint.keys():
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
+
+        # update lr scheduler
+        if 'lr_scheduler' in checkpoint.keys():
+            self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+
+        if 'iteration' in checkpoint.keys():
+            self.start_iter = checkpoint['iteration']

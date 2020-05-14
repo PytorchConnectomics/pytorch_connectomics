@@ -1,4 +1,4 @@
-# All other configurations are set by default. If you want to change them,
+# All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
 SYSTEM:
   NUM_GPUS: 4
@@ -17,7 +17,7 @@ MODEL:
 DATASET:
   IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
   INPUT_PATH: 'data/CREMI/'
-  OUTPUT_PATH: 'CREMI_syn_baseline/test'
+  OUTPUT_PATH: 'outputs/CREMI_syn_baseline/test'
   PAD_SIZE: [8, 64, 64]
 AUGMENTOR:
   ROTATE: True
@@ -34,6 +34,7 @@ SOLVER:
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 40000
+  STEPS: (30000, 35000)
   SAMPLES_PER_BATCH: 32
 INFERENCE:
   AUG_MODE: 'mean'

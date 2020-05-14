@@ -1,3 +1,4 @@
+import os
 from yacs.config import CfgNode as CN
 
 # -----------------------------------------------------------------------------
@@ -88,22 +89,25 @@ _C.MODEL.PRE_MODEL_LAYER_SELECT = -1
 # -----------------------------------------------------------------------------
 _C.DATASET = CN()
 
-# Scale size of the input data for different resolutions
+# Scale ratio of the input data for different resolutions.
+# Using a DATA_SCALE of [1., 0.5, 0.5] will downsample the 
+# original image by two times (e.g., 4nm -> 8nm).
 _C.DATASET.DATA_SCALE = [1., 1., 1.]
 
 # Scaling factor for super resolution
 _C.DATASET.SCALE_FACTOR = [2, 3, 3]
 
+# Specify the data path in the *.yaml files for different experiments.
 _C.DATASET.IMAGE_NAME = ''
+
+_C.DATASET.LABEL_NAME = ''
 
 _C.DATASET.INPUT_PATH = ''
 
 _C.DATASET.OUTPUT_PATH = ''
 
-_C.DATASET.LABEL_NAME = ''
-
-# Padding size, default should be input_size//4
-_C.DATASET.PAD_SIZE = [ 2, 64, 64] 
+# Padding size for the input volumes
+_C.DATASET.PAD_SIZE = [2, 64, 64] 
 
 # Half Patch size for 2D label erosion
 _C.DATASET.LABEL_EROSION = 0
@@ -136,7 +140,7 @@ _C.DATASET.PRE_LOAD_DATA = [None,None,None]
 # Reject sampling
 _C.DATASET.REJECT_SIZE_THRES = 100
 
-_C.DATASET.REJECT_P = 0.98
+_C.DATASET.REJECT_P = 0.95
 
 
 # -----------------------------------------------------------------------------
@@ -254,7 +258,7 @@ _C.MONITOR.LOG_OPT = [1, 1, 0]
 
 _C.MONITOR.VIS_OPT = [0, 8]
 
-_C.MONITOR.ITERATION_NUM = [10, 500]
+_C.MONITOR.ITERATION_NUM = [10, 50]
 
 # # -----------------------------------------------------------------------------
 # # Inference
@@ -282,8 +286,20 @@ _C.INFERENCE.TEST_NUM = 1
 # Test worker id
 _C.INFERENCE.TEST_ID = 0 
 
+# Batchsize for inference
+_C.INFERENCE.SAMPLES_PER_BATCH = 32
+
 def get_cfg_defaults():
     """Get a yacs CfgNode object with default values for my_project."""
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern
     return _C.clone()
+
+def save_all_cfg(cfg, output_dir):
+    """Save configs in the output directory."""
+    # Save config.yaml in the experiment directory after combine all 
+    # non-default configurations from yaml file and command line.
+    path = os.path.join(output_dir, "config.yaml")
+    with open(path, "w") as f:
+        f.write(cfg.dump())
+    print("Full config saved to {}".format(path))

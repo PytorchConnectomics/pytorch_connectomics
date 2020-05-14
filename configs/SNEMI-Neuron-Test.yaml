@@ -1,4 +1,4 @@
-# All other configurations are set by default. If you want to change them,
+# All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
 SYSTEM:
   NUM_GPUS: 4
@@ -8,17 +8,18 @@ MODEL:
   INPUT_SIZE: [8, 256, 256]
   OUTPUT_SIZE: [8, 256, 256]
   IN_PLANES: 1
-  OUT_PLANES: 1
+  OUT_PLANES: 3
   LOSS_OPTION: [['WeightedBCE']]
-  TARGET_OPT: ['1,2', '0']
-  WEIGHT_OPT: [['1'], ['1']]
-  PRE_MODEL: 'outputs/unetv0_syn/log2020-04-17_18-55-44/volume_49999.pth'
-  PRE_MODEL_ITER: 49999
+  TARGET_OPT: ['2']
+  WEIGHT_OPT: [['1']]
+  PRE_MODEL: 'outputs/SNEMI/volume_39999.pth'
+  PRE_MODEL_ITER: 39999
 DATASET:
-  IMAGE_NAME: 'gt-syn/syn_0922_im_orig.h5'
-  INPUT_PATH: '/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/'
-  OUTPUT_PATH: 'outputs/unetv0_syn'
-  PAD_SIZE: [8, 64, 64]
+  IMAGE_NAME: 'test.h5'
+  LABEL_NAME: 'test_label.h5'
+  INPUT_PATH: '/path/to/snemi/'
+  OUTPUT_PATH: 'outputs/SNEMI/test/'
+  PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
   RESCALE: True
@@ -32,11 +33,11 @@ SOLVER:
   LR_SCHEDULER_NAME: "MultiStepLR"
   BASE_LR: 0.001
   ITERATION_STEP: 1
-  ITERATION_SAVE: 5000
-  ITERATION_TOTAL: 50000
-  SAMPLES_PER_BATCH: 32
+  ITERATION_SAVE: 1000
+  ITERATION_TOTAL: 40000
+  SAMPLES_PER_BATCH: 8
 INFERENCE:
   AUG_MODE: 'mean'
   AUG_NUM: 4
-  OUTPUT_NAME: 'pd_instances.h5'
+  OUTPUT_NAME: 'result.h5'
   STRIDE: [1, 192, 192]

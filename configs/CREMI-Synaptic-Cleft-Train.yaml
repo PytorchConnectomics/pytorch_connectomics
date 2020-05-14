@@ -1,4 +1,4 @@
-# All other configurations are set by default. If you want to change them,
+# All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
 SYSTEM:
   NUM_GPUS: 4
@@ -9,14 +9,15 @@ MODEL:
   OUTPUT_SIZE: [8, 256, 256]
   IN_PLANES: 1
   OUT_PLANES: 1
-  LOSS_OPTION: [['WeightedBCE']]
+  LOSS_OPTION: [['WeightedBCE', 'DiceLoss']]
+  LOSS_WEIGHT: [[1.0, 0.25]]
   TARGET_OPT: ['0']
-  WEIGHT_OPT: [['1']]
+  WEIGHT_OPT: [['1', '0']]
 DATASET:
   IMAGE_NAME: 'images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5'
   LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
   INPUT_PATH: 'data/CREMI/'
-  OUTPUT_PATH: 'CREMI_syn_baseline'
+  OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
