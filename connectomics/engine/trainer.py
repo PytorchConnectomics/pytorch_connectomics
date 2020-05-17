@@ -33,6 +33,9 @@ class Trainer(object):
         self.monitor = build_monitor(self.cfg)
         self.criterion = build_criterion(self.cfg, self.device)
 
+        # add config details to tensorboard
+        self.monitor.load_config(self.cfg)
+
         self.dataloader = iter(self.dataloader)
 
     def train(self):
