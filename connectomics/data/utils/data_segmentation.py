@@ -142,14 +142,14 @@ def seg_to_weights(targets, wopts, mask=None):
 
 def seg_to_weight(target, wopts, mask=None):
     out=[None]*len(wopts)
-    foo = np.zeros((1),int)
+    foo = np.zeros((1), int)
     for wid, wopt in enumerate(wopts):
         # 0: no weight
         out[wid] = foo
         if wopt == '1': # 1: by gt-target ratio 
-            out[wid] = weight_binary_ratio(target[wid], mask)[None,:]
+            out[wid] = weight_binary_ratio(target, mask)
         elif wopt == '2': # 2: unet weight
-            out[wid] = weight_unet3d(target[wid])[None,:]
+            out[wid] = weight_unet3d(target)
     return out
 
 def seg_to_targets(label, topts):
@@ -188,17 +188,17 @@ def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
     """Binary-class rebalancing."""
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 100*alpha
-    if label.max()==0 or label.min()==0:
-        weight_factor = 1
+    if label.max()==0 and label.min()==0:
+        weight_factor = 1.0
         weight = np.ones_like(label, np.float32)
     else:
         if mask is None:
             weight_factor = float(label.sum()) / np.prod(label.shape)
         else:
             weight_factor = float((label*mask).sum()) / mask.sum()
-        weight_factor = np.clip(weight_factor, a_min=1e-2, a_max=0.99)
+        weight_factor = np.clip(weight_factor, a_min=5e-2, a_max=0.99)
 
-        if weight_factor>0.5:
+        if weight_factor > 0.5:
             weight = label + alpha*weight_factor/(1-weight_factor)*(1-label)
         else:
             weight = alpha*(1-weight_factor)/weight_factor*label + (1-label)

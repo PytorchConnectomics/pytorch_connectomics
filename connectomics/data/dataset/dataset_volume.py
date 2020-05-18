@@ -16,8 +16,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
         augmentor: data augmentor.
-        mode (str): training or inference mode.
         sample_invalid_thres (float): probability of applying the augmentation.
+        mode (str): training or inference mode.
         reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.
         reject_p (float): probability of rejecting non-foreground volumes.
     """
@@ -28,7 +28,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0, 0],
                  augmentor=None, 
-                 target_opt=['1'], weight_opt=['1'],
+                 target_opt=['1'], 
+                 weight_opt=[['1']],
                  mode='train',
                  reject_size_thres= 0, 
                  reject_p= 0.98):

@@ -69,14 +69,14 @@ def get_dataset(cfg, augmentor, mode='train'):
     sample_invalid_thres = cfg.DATASET.DATA_INVALID_THRES
     augmentor = augmentor
     topt,wopt = -1,-1
-    if mode=='train':
+    if mode == 'train':
         sample_volume_size = cfg.MODEL.INPUT_SIZE
         sample_volume_size = augmentor.sample_size
         sample_label_size = sample_volume_size
         label_erosion = cfg.DATASET.LABEL_EROSION
         sample_stride = (1,1,1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
-    elif mode=='test':
+    elif mode == 'test':
         sample_stride = cfg.INFERENCE.STRIDE
         sample_volume_size = cfg.MODEL.INPUT_SIZE
       
@@ -95,10 +95,10 @@ def get_dataset(cfg, augmentor, mode='train'):
         else:
             volume, label = cfg.DATASET.PRE_LOAD_DATA
         dataset = VolumeDataset(volume=volume, label=label, 
-                              sample_volume_size=sample_volume_size, sample_label_size=sample_label_size,
-                              sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
-                              augmentor=augmentor, target_opt= topt, weight_opt= wopt, mode= mode,
-                              reject_size_thres= cfg.DATASET.REJECT_SIZE_THRES, reject_p= cfg.DATASET.REJECT_P)
+                                sample_volume_size=sample_volume_size, sample_label_size=sample_label_size,
+                                sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
+                                augmentor=augmentor, target_opt= topt, weight_opt= wopt, mode= mode,
+                                reject_size_thres= cfg.DATASET.REJECT_SIZE_THRES, reject_p= cfg.DATASET.REJECT_P)
 
     return dataset
 

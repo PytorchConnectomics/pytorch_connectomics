@@ -4,7 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# 0. main loss functions
+#######################################################
+# 0. Main loss functions
+#######################################################
 
 class JaccardLoss(nn.Module):
     """Jaccard loss.
@@ -133,7 +135,9 @@ class WeightedBCE(nn.Module):
         #_assert_no_grad(target)
         return F.binary_cross_entropy(pred, target, weight)
 
-#. 1. Regularization
+#######################################################
+# 1. Regularization
+#######################################################
 
 class BinaryReg(nn.Module):
     """Regularization for encouraging the outputs to be binary.
