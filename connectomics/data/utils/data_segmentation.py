@@ -188,7 +188,7 @@ def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
     """Binary-class rebalancing."""
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 100*alpha
-    if label.max()==0 and label.min()==0:
+    if label.max() == label.min(): # uniform weights for volume with a single label
         weight_factor = 1.0
         weight = np.ones_like(label, np.float32)
     else:

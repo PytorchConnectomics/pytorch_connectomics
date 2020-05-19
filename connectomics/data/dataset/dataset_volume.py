@@ -12,17 +12,22 @@ class VolumeDataset(torch.utils.data.Dataset):
     Dataset class for 3D image volumes.
     
     Args:
+        volume (list): list of image volumes.
+        label (list): list of label volumes (default: None).
         sample_input_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
-        augmentor: data augmentor.
-        sample_invalid_thres (float): probability of applying the augmentation.
+        sample_invalid_thres (float): threshold for invalid regions.
+        augmentor: data augmentor for training (default: None).
+        target_opt (list): list the model targets generated from segmentation labels.
+        weight_opt (list): list of options for generating pixel-wise weight masks.
         mode (str): training or inference mode.
         reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.
         reject_p (float): probability of rejecting non-foreground volumes.
     """
     def __init__(self,
-                 volume, label=None,
+                 volume, 
+                 label=None,
                  sample_volume_size=(8, 64, 64),
                  sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),

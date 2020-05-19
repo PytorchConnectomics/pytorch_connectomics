@@ -187,19 +187,23 @@
 <span id="connectomics-data-datasets"></span><h1>connectomics.data.datasets<a class="headerlink" href="#module-connectomics.data.dataset" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="connectomics.data.dataset.VolumeDataset">
-<em class="property">class </em><code class="descname">VolumeDataset</code><span class="sig-paren">(</span><em>volume, label=None, sample_volume_size=(8, 64, 64), sample_label_size=(8, 64, 64), sample_stride=(1, 1, 1), sample_invalid_thres=[0, 0], augmentor=None, target_opt=['1'], weight_opt=['1'], mode='train', reject_size_thres=0, reject_p=0.98</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descname">VolumeDataset</code><span class="sig-paren">(</span><em>volume, label=None, sample_volume_size=(8, 64, 64), sample_label_size=(8, 64, 64), sample_stride=(1, 1, 1), sample_invalid_thres=[0, 0], augmentor=None, target_opt=['1'], weight_opt=[['1']], mode='train', reject_size_thres=0, reject_p=0.98</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dataset class for 3D image volumes.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>volume</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.8)"><em>list</em></a>) – list of image volumes.</li>
+<li><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.8)"><em>list</em></a>) – list of label volumes (default: None).</li>
 <li><strong>sample_input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model input size.</li>
 <li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – model output size.</li>
 <li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>augmentor</strong> – data augmentor.</li>
+<li><strong>sample_invalid_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – threshold for invalid regions.</li>
+<li><strong>augmentor</strong> – data augmentor for training (default: None).</li>
+<li><strong>target_opt</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.8)"><em>list</em></a>) – list the model targets generated from segmentation labels.</li>
+<li><strong>weight_opt</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.8)"><em>list</em></a>) – list of options for generating pixel-wise weight masks.</li>
 <li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – training or inference mode.</li>
-<li><strong>sample_invalid_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
 <li><strong>reject_size_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – threshold to decide if a sampled volumes contains foreground objects.</li>
 <li><strong>reject_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of rejecting non-foreground volumes.</li>
 </ul>

@@ -185,15 +185,16 @@
             
   <div class="section" id="synaptic-partner-detection">
 <h1>Synaptic Partner Detection<a class="headerlink" href="#synaptic-partner-detection" title="Permalink to this headline">¶</a></h1>
-<p>This tutorial provides step-by-step guidance for synaptic partner detection with the benchmark datasets.
+<p>This tutorial provides step-by-step guidance for synaptic partner detection with our benchmark datasets.
 We consider the task as a semantic segmentation task and predict both the pre-synaptic and post-synaptic pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
-The evaluation of the synapse detection results is based on the F1 score.</p>
+The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Our segmentation task consists of 2 targets and 3 channels. Targets are background and synapses whereas channels are pre-synapse, post-synapse and background.</p>
+<p class="last">Our segmentation task consists of a target of three channels. The three channels are pre-synaptic region, post-synaptic region and synaptic
+region (union of the first two channels), respectively.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.  The pytorch dataset class of synapses is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.  The pytorch dataset class of synaptic partners is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
 <ol class="arabic">
 <li><p class="first">Dataset examples can be found on the Harvard RC server here:</p>
 <blockquote>
@@ -214,6 +215,12 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Partner-Segmentation.yaml
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">We add higher weights to the foreground pixels and apply rejection sampling to reject samples without synapes during training to heavily penalize
+false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
+vast volumes.</p>
+</div>
 </div></blockquote>
 </li>
 <li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
@@ -227,8 +234,8 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-  --config-file configs/Synaptic-Partner-Segmentation.yaml \
-  --inference
+  --config-file configs/Synaptic-Partner-Segmentation.yaml --inference \
+  --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
 </pre></div>
 </div>
 </div></blockquote>

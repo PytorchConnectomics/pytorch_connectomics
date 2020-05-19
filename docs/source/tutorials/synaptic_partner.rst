@@ -1,15 +1,16 @@
 Synaptic Partner Detection
 ===========================
 
-This tutorial provides step-by-step guidance for synaptic partner detection with the benchmark datasets.
+This tutorial provides step-by-step guidance for synaptic partner detection with our benchmark datasets. 
 We consider the task as a semantic segmentation task and predict both the pre-synaptic and post-synaptic pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_. 
-The evaluation of the synapse detection results is based on the F1 score. 
+The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging. 
 
 .. note::
-    Our segmentation task consists of 2 targets and 3 channels. Targets are background and synapses whereas channels are pre-synapse, post-synapse and background.
+    Our segmentation task consists of a target of three channels. The three channels are pre-synaptic region, post-synaptic region and synaptic 
+    region (union of the first two channels), respectively.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.  The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.VolumeDataset`.
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.  The pytorch dataset class of synaptic partners is :class:`torch_connectomics.data.dataset.VolumeDataset`.
 
 
 #. Dataset examples can be found on the Harvard RC server here:
@@ -34,6 +35,11 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
           --config-file configs/Synaptic-Partner-Segmentation.yaml
 
+    .. note::
+        We add higher weights to the foreground pixels and apply rejection sampling to reject samples without synapes during training to heavily penalize
+        false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
+        vast volumes.
+
 #. Visualize the training progress. More info `here <https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html>`_:
 
     .. code-block:: none
@@ -46,5 +52,5 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
 
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-          --config-file configs/Synaptic-Partner-Segmentation.yaml \
-          --inference
+          --config-file configs/Synaptic-Partner-Segmentation.yaml --inference \
+          --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
