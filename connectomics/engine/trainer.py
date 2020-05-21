@@ -12,6 +12,14 @@ from connectomics.data.dataset import build_dataloader
 from connectomics.data.utils import blend_gaussian, writeh5
 
 class Trainer(object):
+    r"""Trainer
+
+    Args:
+        cfg: YACS configurations.
+        device (torch.device): by default all training and inference are conducted on GPUs.
+        mode (str): running mode of the trainer (``'train'`` or ``'test'``).
+        checkpoint (optional): the checkpoint file to be loaded (default: `None`)
+    """
     def __init__(self, cfg, device, mode, checkpoint=None):
         self.cfg = cfg
         self.device = device
@@ -39,6 +47,8 @@ class Trainer(object):
         self.dataloader = iter(self.dataloader)
 
     def train(self):
+        r"""Training function.
+        """
         # setup
         self.model.train()
         self.monitor.reset()
@@ -80,6 +90,8 @@ class Trainer(object):
             print('[Iteration %05d] Data time: %.5f, Iter time:  %.5f' % (iter_total, time1 - start, end - start))
 
     def test(self):
+        r"""Inference function.
+        """
         if self.cfg.INFERENCE.DO_EVAL:
             self.model.eval()
         else:
