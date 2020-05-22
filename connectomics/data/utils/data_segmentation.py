@@ -142,34 +142,35 @@ def seg_to_weights(targets, wopts, mask=None):
 
 def seg_to_weight(target, wopts, mask=None):
     out=[None]*len(wopts)
-    foo = np.zeros((1),int)
+    foo = np.zeros((1), int)
     for wid, wopt in enumerate(wopts):
         # 0: no weight
         out[wid] = foo
         if wopt == '1': # 1: by gt-target ratio 
-            out[wid] = weight_binary_ratio(target[wid], mask)[None,:]
+            out[wid] = weight_binary_ratio(target, mask)
         elif wopt == '2': # 2: unet weight
-            out[wid] = weight_unet3d(target[wid])[None,:]
+            out[wid] = weight_unet3d(target)
     return out
 
 def seg_to_targets(label, topts):
     # input: DHW
     # output: CDHW
     # mito/synapse cleft binary: topt = 0 
-    # synapse polarity: topt = 1.2,0 
+    # synapse polarity: topt = 1
     out = [None]*len(topts)
     for tid,topt in enumerate(topts):
         if topt == '-1': # direct copy
             out[tid] = label[None,:].astype(np.float32)
         elif topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
-        elif topt[0] == '1': # multi-channel, e.g. 1.2
-            num_channel = int(topt[2:])
-            tmp = [None]*num_channel 
-            for j in range(num_channel):
-                tmp[j] = label==(j+1)
+        elif topt[0] == '1': 
+            # synaptic polarity (multi-channel):
+            tmp = [None]*3 
+            tmp[0] = np.logical_and((label % 2) == 1, label > 0)
+            tmp[1] = np.logical_and((label % 2) == 0, label > 0)
+            tmp[2] = (label > 0)
             # concatenate at channel
-            out[tid] = np.stack(tmp,0).astype(np.float32)
+            out[tid] = np.stack(tmp, 0).astype(np.float32)
         elif topt[0] == '2': # affinity
             out[tid] = seg_to_aff(label)
         elif topt[0] == '3': # small object mask
@@ -187,17 +188,17 @@ def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
     """Binary-class rebalancing."""
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 100*alpha
-    if label.max()==0 or label.min()==0:
-        weight_factor = 1
+    if label.max() == label.min(): # uniform weights for volume with a single label
+        weight_factor = 1.0
         weight = np.ones_like(label, np.float32)
     else:
         if mask is None:
             weight_factor = float(label.sum()) / np.prod(label.shape)
         else:
             weight_factor = float((label*mask).sum()) / mask.sum()
-        weight_factor = np.clip(weight_factor, a_min=1e-2, a_max=0.99)
+        weight_factor = np.clip(weight_factor, a_min=5e-2, a_max=0.99)
 
-        if weight_factor>0.5:
+        if weight_factor > 0.5:
             weight = label + alpha*weight_factor/(1-weight_factor)*(1-label)
         else:
             weight = alpha*(1-weight_factor)/weight_factor*label + (1-label)

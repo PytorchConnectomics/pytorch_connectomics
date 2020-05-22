@@ -28,12 +28,13 @@ class Logger(object):
         self.sum += val * self.n
         self.count += self.n
     
-    def output(self,iter_total, lr):
+    def output(self, iter_total, lr):
         avg = self.sum / self.count
         if self.do_print:
-            print('[Iteration %d] train_loss=%0.4f lr=%.5f' % (iter_total, avg, lr))
+            print('[Iteration %05d] train_loss=%.5f lr=%.5f' % (iter_total, avg, lr))
         if self.log_tb is not None:
             self.log_tb.add_scalar('Loss', avg, iter_total)
+            self.log_tb.add_scalar('Learning Rate', lr, iter_total)
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))
             self.log_txt.flush() 
@@ -50,18 +51,21 @@ class Monitor(object):
         self.do_vis = False if self.logger.log_tb is None else True
 
     def update(self, scheduler, iter_total, loss, lr=0.1):
-        do_vis = True
+        do_vis = False
         self.logger.update(loss)
         if (iter_total+1) % self.log_iter == 0:
             avg = self.logger.output(iter_total, lr)
             self.logger.reset()
             if (iter_total+1) % self.vis_iter == 0:
-                scheduler.step(avg)
+                # scheduler.step(avg)
                 do_vis = self.do_vis
         return do_vis
 
-    def visualize(self, volume, label, output, iter_total):
-        self.vis.visualize(volume, label, output, iter_total, self.logger.log_tb)
+    def visualize(self, cfg, volume, label, output, iter_total):
+        self.vis.visualize(cfg, volume, label, output, iter_total, self.logger.log_tb)
+
+    def load_config(self, cfg):
+        self.logger.log_tb.add_text('Config', '%s' % cfg, 0)
 
     def reset(self):
         self.logger.reset()

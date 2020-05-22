@@ -30,32 +30,32 @@ def _get_input(cfg, mode='train'):
 
     for i in range(len(img_name)):
         volume[i] = readvol(img_name[i])
+        print(f"volume shape (original): {volume[i].shape}")
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1) 
         volume[i] = np.pad(volume[i], ((cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                                                 (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                                                 (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
-        print(f"volume shape: {volume[i].shape}")
+                                       (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
+                                       (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
+        print(f"volume shape (after scale and padding): {volume[i].shape}")
 
         if mode=='train':
             label[i] = readvol(label_name[i])
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0) 
             if cfg.DATASET.LABEL_EROSION!=0:
-                label[i] = seg_widen_border(label[i],DATASET.LABEL_EROSION)
+                label[i] = seg_widen_border(label[i], cfg.DATASET.LABEL_EROSION)
             if cfg.DATASET.LABEL_BINARY and label[i].max()>1:
-                label[i] = label[i]//255
+                label[i] = label[i] // 255
             if cfg.DATASET.LABEL_MAG !=0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
                 
             label[i] = np.pad(label[i], ((cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                                                     (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                                                     (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
+                                         (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
+                                         (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
             print(f"label shape: {label[i].shape}")
             
             #assert volume[i].shape == label[i].shape !MB
-            
-                
+                 
     return volume, label
 
 
@@ -69,14 +69,14 @@ def get_dataset(cfg, augmentor, mode='train'):
     sample_invalid_thres = cfg.DATASET.DATA_INVALID_THRES
     augmentor = augmentor
     topt,wopt = -1,-1
-    if mode=='train':
+    if mode == 'train':
         sample_volume_size = cfg.MODEL.INPUT_SIZE
         sample_volume_size = augmentor.sample_size
         sample_label_size = sample_volume_size
         label_erosion = cfg.DATASET.LABEL_EROSION
         sample_stride = (1,1,1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
-    elif mode=='test':
+    elif mode == 'test':
         sample_stride = cfg.INFERENCE.STRIDE
         sample_volume_size = cfg.MODEL.INPUT_SIZE
       
@@ -95,10 +95,10 @@ def get_dataset(cfg, augmentor, mode='train'):
         else:
             volume, label = cfg.DATASET.PRE_LOAD_DATA
         dataset = VolumeDataset(volume=volume, label=label, 
-                              sample_volume_size=sample_volume_size, sample_label_size=sample_label_size,
-                              sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
-                              augmentor=augmentor, target_opt= topt, weight_opt= wopt, mode= mode,
-                              reject_size_thres= cfg.DATASET.REJECT_SIZE_THRES, reject_p= cfg.DATASET.REJECT_P)
+                                sample_volume_size=sample_volume_size, sample_label_size=sample_label_size,
+                                sample_stride=sample_stride, sample_invalid_thres=sample_invalid_thres, 
+                                augmentor=augmentor, target_opt= topt, weight_opt= wopt, mode= mode,
+                                reject_size_thres= cfg.DATASET.REJECT_SIZE_THRES, reject_p= cfg.DATASET.REJECT_P)
 
     return dataset
 
@@ -107,15 +107,21 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None):
     """
     print('Mode: ', mode)
     assert mode in ['train', 'test']
+
     SHUFFLE = (mode == 'train')
-    cf = collate_fn_test 
-    if mode=='train':
+
+    if mode ==  'train':
         cf = collate_fn_target
+        batch_size = cfg.SOLVER.SAMPLES_PER_BATCH
+    else:
+        cf = collate_fn_test
+        batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH
 
     if dataset == None:
         dataset = get_dataset(cfg, augmentor, mode)
     
     img_loader =  torch.utils.data.DataLoader(
-          dataset, batch_size=cfg.SOLVER.SAMPLES_PER_BATCH, shuffle=SHUFFLE, collate_fn = cf,
+          dataset, batch_size=batch_size, shuffle=SHUFFLE, collate_fn = cf,
           num_workers=cfg.SYSTEM.NUM_CPUS, pin_memory=True)
+
     return img_loader

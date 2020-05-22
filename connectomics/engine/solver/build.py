@@ -1,7 +1,7 @@
 # Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 from typing import Any, Dict, List, Set
 import torch
-from torch.optim.lr_scheduler import MultiStepLR
+from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
 from yacs.config import CfgNode
 
@@ -89,6 +89,14 @@ def build_lr_scheduler(
         return MultiStepLR(
             optimizer,
             milestones = cfg.SOLVER.STEPS,
-            gamma = cfg.SOLVER.GAMMA)
+            gamma = cfg.SOLVER.GAMMA
+        )
+    elif name == "ReduceLROnPlateau":
+        return ReduceLROnPlateau(
+            optimizer,
+            mode='min', factor=cfg.SOLVER.GAMMA, patience=1000, 
+            threshold=0.001, threshold_mode='rel', cooldown=0, 
+            min_lr=1e-06, eps=1e-08
+        )
     else:
         raise ValueError("Unknown LR scheduler: {}".format(name))

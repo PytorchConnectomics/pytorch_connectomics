@@ -1,5 +1,5 @@
-Synaptic Cleft Detection
-==========================
+Synaptic Cleft Segmentation
+============================
 
 This tutorial provides step-by-step guidance for synaptic cleft detection with `CREMI <https://cremi.org>`_ benchmark datasets.
 We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
@@ -11,7 +11,7 @@ for more details.
     We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse 
     the alignment before submitting the test prediction to the CREMI challenge.
 
-Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. YAML files can be found at ``pytorch_connectomics/configs/``, where stores the common setting for current experiment's configuration. Default config file can be found at ``pytorch_connectomics/connectomics/config/``, where stores all the configuration. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.SynapseDataset`.
+Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. YAML files can be found at ``pytorch_connectomics/configs/``, where stores the common setting for current experiment's configuration. Default config file can be found at ``pytorch_connectomics/connectomics/config/``, where stores all the configuration. The pytorch dataset class of synapses is :class:`connectomics.data.dataset.VolumeDataset`.
 
 #. Get the dataset:
 
@@ -23,18 +23,20 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
     
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
+    .. note::
+        If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
+        different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``, 
+        ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft-Train.yaml>`_.
+
 #. Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.
 
     .. code-block:: none
 
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
-          --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
-          --output "outputs/cremi_synapse_train"  
+          --config-file configs/CREMI-Synaptic-Cleft-Train.yaml
 
-    - config-file: configuration setting for current experiments.
-    - output: the training results save path.
-
+    - ``config-file``: configuration setting for the current experiment.
 
 #. Visualize the training progress:
 
@@ -48,9 +50,9 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
 
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
           --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
-          --output "outputs/cremi_synapse_inference" \
-          --inference 
+          --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
+          --inference
 
-    - config-file: configuration setting for current experiments.
-    - output: the inference results save path. 
-    - inference: will run inference when given, otherwise will run training instead.
+    - ``config-file``: configuration setting for current experiments.
+    - ``inference``: will run inference when given, otherwise will run training instead.
+    - ``checkpoint``: the pre-trained checkpoint file for inference.

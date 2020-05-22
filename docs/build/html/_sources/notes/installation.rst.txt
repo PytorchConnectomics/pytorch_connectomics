@@ -63,7 +63,7 @@ Please follow the steps below for a successful installation:
             $ nvcc --version
             >>> 9.2
     
-    Note: Load Conda modules from the `RC server module list<https://portal.rc.fas.harvard.edu/p3/build-reports/>`_ during development on the RC server.
+    Note: Load Conda modules from the `RC server module list <https://portal.rc.fas.harvard.edu/p3/build-reports/>`_ during development on the RC server.
      
 #. Download and install the package:
 

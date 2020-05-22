@@ -12,25 +12,31 @@ class VolumeDataset(torch.utils.data.Dataset):
     Dataset class for 3D image volumes.
     
     Args:
+        volume (list): list of image volumes.
+        label (list): list of label volumes (default: None).
         sample_input_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
-        augmentor: data augmentor.
+        sample_invalid_thres (float): threshold for invalid regions.
+        augmentor: data augmentor for training (default: None).
+        target_opt (list): list the model targets generated from segmentation labels.
+        weight_opt (list): list of options for generating pixel-wise weight masks.
         mode (str): training or inference mode.
-        sample_invalid_thres (float): probability of applying the augmentation.
-        reject_size_thres (int): threshold to decide if a image contains synapse.
-        reject_p (float): probability of rejecting non-foreward images.
+        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.
+        reject_p (float): probability of rejecting non-foreground volumes.
     """
     def __init__(self,
-                 volume, label=None,
+                 volume, 
+                 label=None,
                  sample_volume_size=(8, 64, 64),
                  sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0, 0],
                  augmentor=None, 
-                 target_opt=['1'], weight_opt=['1'],
+                 target_opt=['1'], 
+                 weight_opt=[['1']],
                  mode='train',
-                 reject_size_thres= 100, 
+                 reject_size_thres= 0, 
                  reject_p= 0.98):
 
         self.mode = mode
@@ -108,6 +114,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                 data = {'image':out_input, 'label':out_label}
                 augmented = self.augmentor(data)
                 out_input, out_label = augmented['image'], augmented['label']
+                
             out_input = np.expand_dims(out_input, 0)
             # output list
             out_target = seg_to_targets(out_label, self.target_opt)
@@ -182,11 +189,27 @@ class VolumeDataset(torch.utils.data.Dataset):
         while True:
             pos, out_input, out_label = self._random_sampling(vol_size)
             if size_thres > 0:
-                temp = (out_label!=background).astype(int).sum()
+
+                if self.augmentor is not None:
+                    assert np.array_equal(self.augmentor.sample_size, self.sample_label_size)
+                    # restrict the foreground mask at the center region after data augmentation
+                    z, y, x = self.augmentor.input_size
+                    z_start = (self.sample_label_size[0] - z) // 2
+                    y_start = (self.sample_label_size[1] - y) // 2
+                    x_start = (self.sample_label_size[2] - x) // 2
+
+                    temp = out_label.copy()
+                    temp = temp[z_start:z_start+z, y_start:y_start+y, x_start:x_start+x]
+                    temp = (temp!=background).astype(int).sum()
+                else:
+                    temp = (out_label!=background).astype(int).sum()
+
+                # reject sampling
                 if temp > size_thres:
                     break
                 elif random.random() > p:
                     break
+
             else: # no rejection sampling for the foreground mask
                 break
 

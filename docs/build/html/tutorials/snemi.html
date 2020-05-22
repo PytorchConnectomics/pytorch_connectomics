@@ -46,7 +46,7 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Synaptic Cleft Detection" href="cremi.html" />
+    <link rel="next" title="Synaptic Cleft Segmentation" href="cremi.html" />
     <link rel="prev" title="Installation" href="../notes/installation.html" /> 
 </head>
 
@@ -105,8 +105,9 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Neuron Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="cremi.html">Synaptic Cleft Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cremi.html">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lucchi.html">Mitochondria Segmentaion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Detection</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -117,6 +118,7 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">connectomics.data.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 </ul>
 
             
@@ -194,7 +196,7 @@ and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_
 <p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
 to get familiar with the datasets and have a sense of how the affinity graphs look like.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. The pytorch target affinity generation is <code class="xref py py-class docutils literal"><span class="pre">connectomics.data.utils.data_segmentation</span></code>.</p>
+<p>The main script is at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>. The pytorch target affinity generation is <code class="xref py py-class docutils literal"><span class="pre">connectomics.data.utils.data_segmentation</span></code>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -206,41 +208,44 @@ to get familiar with the datasets and have a sense of how the affinity graphs lo
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script:</p>
+<li><p class="first">Provide the <code class="docutils literal"><span class="pre">yaml</span></code> configuration file to run training:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python scripts/train.py -i /{path-to-snemi}/ -o outputs/unetv3 -din train-input.tif -dln train-labels.tif \
-    -lr 1e-03 --iteration-total 100000 --iteration-save 10000 \
-    -mi 18,160,160 -ma unet_residual_3d -moc 3 \
-    -to 2 -lo 1 -wo 1 -g 4 -c 4 -b 8
+$ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml
 </pre></div>
 </div>
+<p>The configuration file for training is in <code class="docutils literal"><span class="pre">configs/SNEMI-Neuron-Train.yaml</span></code>, modify the following accordingly:</p>
 <ul class="simple">
-<li>data: <code class="docutils literal"><span class="pre">i/o/din/dln</span></code> (input folder/output folder/train volume/train label)</li>
-<li>optimization: <code class="docutils literal"><span class="pre">lr/iteration-total/iteration-save</span></code> (learning rate/total #iterations/#iterations to save)</li>
-<li>model: <code class="docutils literal"><span class="pre">mi/ma/moc</span></code> (input size/architecture/#output channel)</li>
-<li>loss: <code class="docutils literal"><span class="pre">to/lo/wo</span></code> (target option/loss option/weight option)</li>
-<li>system: <code class="docutils literal"><span class="pre">g/c/b</span></code> (#GPU/#CPU/batch size)</li>
+<li><code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>: Name of the volume file</li>
+<li><code class="docutils literal"><span class="pre">LABEL_NAME</span></code>: Name of the label file</li>
+<li><code class="docutils literal"><span class="pre">INPUT_PATH</span></code>: Path to both files above</li>
+<li><code class="docutils literal"><span class="pre">OUTPUT_PATH</span></code>: Path to store outputs (Model and Tensorboard files)</li>
+<li><code class="docutils literal"><span class="pre">NUM_GPUS</span></code>: Number of GPUs to use</li>
+<li><code class="docutils literal"><span class="pre">NUM_CPUS</span></code>: Number of CPU cores to use</li>
 </ul>
+<p>To run training starting from pretrained weights, add a checkpoint file:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml \
+$ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
+</pre></div>
+</div>
 </div></blockquote>
 </li>
 <li><p class="first">Visualize the training progress:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/SNEMI/
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes (min over 4-aug):</p>
+<li><p class="first">Run inference on image volumes, The test configuration file can have bigger input, augmentation at inference:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/test.py -i /{path-to-snemi}/ \
-  -din train-input.tif -mi 116,256,256 -g 4 -c 4 -b 4 \
-  -ma unet_residual_3d -mpt outputs/unetv3/{log-folder}/volume_100000.pth -mpi 99999 -dp 8,64,64 -tam min -tan 4
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/main.py --config-file configs/SNEMI-Neuron-Test.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Gnerate segmentation and run evaluation:</p>
+<li><p class="first">Generate segmentation and run evaluation:</p>
 <blockquote>
 <div><ol class="arabic">
 <li><p class="first">Download the <code class="docutils literal"><span class="pre">waterz</span></code> package:</p>
@@ -263,7 +268,7 @@ $ pip install --editable .
 </li>
 <li><p class="first">Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$
 </pre></div>
 </div>
 </div></blockquote>
@@ -285,7 +290,7 @@ the demo, which provides more options and visualization.</p>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="cremi.html" class="btn btn-neutral float-right" title="Synaptic Cleft Detection" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="cremi.html" class="btn btn-neutral float-right" title="Synaptic Cleft Segmentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="../notes/installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

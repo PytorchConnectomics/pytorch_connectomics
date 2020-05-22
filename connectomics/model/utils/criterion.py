@@ -18,7 +18,6 @@ class Criterion(object):
         self.regu = self.get_regu(regu_opt)
         self.regu_w = regu_weight
 
-
     def get_regu(self, regu_opt=[]):
         regu = None
         if len(regu_opt)>0:
@@ -44,7 +43,6 @@ class Criterion(object):
                 else:
                     print('Unknown loss option {}'.format(lopt))
         return out
-
 
     def to_torch(self, data):
         return torch.from_numpy(data).to(self.device)
