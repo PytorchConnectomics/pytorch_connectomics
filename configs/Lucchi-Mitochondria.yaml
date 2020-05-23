@@ -1,1 +1,49 @@
-
+# All other configurations are set by default. If you want to add new config options,
+# please modify ../connectomics/config/config.py
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 4
+MODEL:
+  ARCHITECTURE: 'unet_residual_3d'
+  INPUT_SIZE: [112, 112, 112]
+  OUTPUT_SIZE: [8, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 1
+  LOSS_OPTION: [['WeightedBCE', 'DiceLoss']]
+  LOSS_WEIGHT: [[1.0, 1.0]]
+  TARGET_OPT: ['0']
+  WEIGHT_OPT: ['1']
+DATASET:
+  IMAGE_NAME: 'images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5'
+  LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
+  INPUT_PATH: 'data/CREMI/'
+  OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
+  PAD_SIZE: [4, 128, 128]
+AUGMENTOR:
+  ROTATE: True
+  RESCALE: True
+  FLIP: True
+  ELASTIC: True
+  GRAYSCALE: True
+  MISSINGPARTS: True
+  MISSINGSECTION: True
+  MISALIGNMENT: True
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  BASE_LR: 0.001
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 10000
+  ITERATION_TOTAL: 60000
+  SAMPLES_PER_BATCH: 4
+  STEPS: (30000, 35000)
+INFERENCE:
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
+  OUTPUT_PATH: 'outputs/CREMI_syn_baseline/test'
+  OUTPUT_NAME: 'result.h5'
+  PAD_SIZE: [8, 64, 64]
+  AUG_MODE: 'mean'
+  AUG_NUM: 4
+  STRIDE: [1, 192, 192]
+  SAMPLES_PER_BATCH: 32
