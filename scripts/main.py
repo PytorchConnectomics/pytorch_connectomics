@@ -22,7 +22,7 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def update_inference_conifg(cfg):
+def update_inference_config(cfg):
     r"""Update configurations (cfg) when case is inference.
     """
     cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
@@ -30,7 +30,6 @@ def update_inference_conifg(cfg):
     cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
     cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
     cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
-    cfg.SOLVER.SAMPLES_PER_BATCH = cfg.INFERENCE.SAMPLES_PER_BATCH
 
 def main():
     r"""Main function.
@@ -46,7 +45,7 @@ def main():
     cfg.merge_from_list(args.opts)
 
     if args.inference:
-        update_inference_conifg(cfg)
+        update_inference_config(cfg)
 
     cfg.freeze()
     print("Configuration details:")
