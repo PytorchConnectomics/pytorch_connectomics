@@ -22,13 +22,13 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     
     For description of the data please check `the author page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
 
-#. Run the training script.
+#. Run the training script:
 
     .. code-block:: none
 
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py \
-          --config-file configs/Mitochondria-Segmentation.yaml
+          --config-file configs/Lucchi-Mitochondria.yaml
           
       .. note::
       The training and inference script can take a Tlist of volumes and conduct training/inference at the same time.
