@@ -14,10 +14,10 @@ MODEL:
   TARGET_OPT: ['0']
   WEIGHT_OPT: [['1', '0']]
 DATASET:
-  IMAGE_NAME: 'images/im_A_v2_200_train.h5@images/im_B_v2_200_train.h5@images/im_C_v2_200_train.h5'
-  LABEL_NAME: 'gt-syn/syn_A_v2_200_train.h5@gt-syn/syn_B_v2_200_train.h5@gt-syn/syn_C_v2_200_train.h5'
-  INPUT_PATH: '/n/pfister_lab2/Lab/zijie/CRIME_slice/'
-  OUTPUT_PATH: '/n/pfister_lab2/Lab/zijie/outputs/CREMI_syn'
+  IMAGE_NAME: 'images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5'
+  LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
+  INPUT_PATH: 'data/CREMI/'
+  OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
@@ -39,8 +39,8 @@ SOLVER:
 INFERENCE:
   INPUT_SIZE: [8, 256, 256]
   OUTPUT_SIZE: [8, 256, 256]
-  IMAGE_NAME: 'images/im_A_v2_200_valid.h5@images/im_B_v2_200_valid.h5@images/im_C_v2_200_valid.h5'
-  OUTPUT_PATH: '/n/pfister_lab2/Lab/zijie/outputs/CREMI_syn/test'
+  IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
+  OUTPUT_PATH: 'outputs/CREMI_syn_baseline/test'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [8, 64, 64]
   AUG_MODE: 'mean'
