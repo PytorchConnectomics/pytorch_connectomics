@@ -39,8 +39,6 @@ SOLVER:
 INFERENCE:
   INPUT_SIZE: [8, 256, 256]
   OUTPUT_SIZE: [8, 256, 256]
-  IN_PLANES: 1
-  OUT_PLANES: 1
   IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline/test'
   OUTPUT_NAME: 'result.h5'
