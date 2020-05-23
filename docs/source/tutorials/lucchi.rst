@@ -6,8 +6,11 @@ We consider the task as a semantic segmentation task and predict the mitochondri
 the models used in affinity prediction in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_. 
 The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).
 
+.. note::
+    Our input and output sizes are 512 * 512 pixels, respectively, with the input being fed in as a grayscale image and the output being a binary mask, highlighting mitochondria as the positive class.
+
 All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--task 2``
-when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset class of synapses is :class:`torch_connectomics.data.dataset.MitoDataset`.
+when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset class of lucchi data is:class:`torch_connectomics.data.dataset.MitoDataset`.
 
 #. Get the dataset:
 
@@ -19,23 +22,16 @@ when executing the ``train.py`` and ``test.py`` scripts. The pytorch dataset cla
     
     For description of the data please check `the author page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
 
-#. Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.
+#. Run the training script.
 
     .. code-block:: none
 
-        $ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01 boost # on Harvard rc cluster
         $ source activate py3_torch
-        $ python -u train.py -i /path/to/Lucchi/ -din img/train_im.tif -dln label/train_label.tif -o outputs/unet_res_mito\
-          -lr 1e-03 --iteration-total 60000 --iteration-save 10000 \
-          -mi 112,112,112 -ma unet_residual_3d -mf 28,36,48,64,80 -me 0 -daz 1 -moc 1\
-          -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 4
-
-    - Data: ``i/o/din/dln`` input folder/output folder/train volume/train label
-    - Optimization: ``lr/iteration-total/iteration-save`` learning rate/total #iterations/#iterations to save
-    - Model: ``mi/ma/mf/moc/me/daz`` input size/architecture/#filter/#output
-      channel/with 2D embedding module/z-data-augmentation
-    - Loss: ``to/lo/wo`` target option/loss option/weight option
-    - System: ``g/c/b`` #GPU/#CPU/batch size
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u train.py \
+          --config-file configs/Mitochondria-Segmentation.yaml
+          
+      .. note::
+      The training and inference script can take a Tlist of volumes and conduct training/inference at the same time.
 
 #. Visualize the training progress:
 
