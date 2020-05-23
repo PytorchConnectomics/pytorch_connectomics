@@ -14,10 +14,10 @@ MODEL:
   TARGET_OPT: ['0']
   WEIGHT_OPT: ['1']
 DATASET:
-  IMAGE_NAME: 'images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5'
-  LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
-  INPUT_PATH: 'data/CREMI/'
-  OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
+  IMAGE_NAME: 'img/train_im.tif'
+  LABEL_NAME: 'label/train_label.tif'
+  INPUT_PATH: 'path/to/Lucchi/'
+  OUTPUT_PATH: 'outputs/unet_res_mito'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
