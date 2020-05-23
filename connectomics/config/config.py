@@ -265,7 +265,17 @@ _C.MONITOR.ITERATION_NUM = [10, 50]
 # # -----------------------------------------------------------------------------
 _C.INFERENCE = CN()
 
+_C.INFERENCE.INPUT_SIZE = [8, 256, 256]
+
+_C.INFERENCE.OUTPUT_SIZE = [8, 256, 256]
+
+_C.INFERENCE.IMAGE_NAME = ''
+
+_C.INFERENCE.OUTPUT_PATH = ''
+
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
+
+_C.INFERENCE.PAD_SIZE = [8, 64, 64]
 
 _C.INFERENCE.STRIDE = [1, 192, 192]
 
