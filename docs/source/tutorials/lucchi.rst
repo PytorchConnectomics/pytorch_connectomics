@@ -1,4 +1,4 @@
-Mitochondria Segmentaion
+Mitochondria Segmentation
 ==========================
 
 This tutorial provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by `Lucchi et al. <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`_.
