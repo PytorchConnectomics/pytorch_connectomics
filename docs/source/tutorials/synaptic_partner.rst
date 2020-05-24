@@ -1,5 +1,5 @@
-Synaptic Partner Detection
-===========================
+Synaptic Partner Segmentation
+==============================
 
 This tutorial provides step-by-step guidance for synaptic partner detection with our benchmark datasets. 
 We consider the task as a semantic segmentation task and predict both the pre-synaptic and post-synaptic pixels with encoder-decoder ConvNets similar to

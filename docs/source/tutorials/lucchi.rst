@@ -43,4 +43,4 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
           --config-file configs/Lucchi-Mitochondria.yaml --inference \
-          --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
+          --checkpoint outputs/Lucchi_mito_baseline/volume_50000.pth.tar

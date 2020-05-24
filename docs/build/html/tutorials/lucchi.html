@@ -107,7 +107,7 @@
 <li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Mitochondria Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cremi.html">Synaptic Cleft Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Segmentation</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -231,7 +231,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Lucchi-Mitochondria.yaml --inference \
-  --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
+  --checkpoint outputs/Lucchi_mito_baseline/volume_50000.pth.tar
 </pre></div>
 </div>
 </div></blockquote>
