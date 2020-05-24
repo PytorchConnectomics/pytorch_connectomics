@@ -104,8 +104,8 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/snemi.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/lucchi.html">Mitochondria Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/cremi.html">Synaptic Cleft Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/lucchi.html">Mitochondria Segmentaion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/synaptic_partner.html">Synaptic Partner Detection</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
@@ -184,6 +184,37 @@
             
   <div class="section" id="module-connectomics.engine">
 <span id="connectomics-engine"></span><h1>connectomics.engine<a class="headerlink" href="#module-connectomics.engine" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="connectomics.engine.Trainer">
+<em class="property">class </em><code class="descname">Trainer</code><span class="sig-paren">(</span><em>cfg</em>, <em>device</em>, <em>mode</em>, <em>checkpoint=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cfg</strong> – YACS configurations.</li>
+<li><strong>device</strong> (<em>torch.device</em>) – by default all training and inference are conducted on GPUs.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – running mode of the trainer (<code class="docutils literal"><span class="pre">'train'</span></code> or <code class="docutils literal"><span class="pre">'test'</span></code>).</li>
+<li><strong>checkpoint</strong> (<em>optional</em>) – the checkpoint file to be loaded (default: <cite>None</cite>)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="connectomics.engine.Trainer.test">
+<code class="descname">test</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer.test" title="Permalink to this definition">¶</a></dt>
+<dd><p>Inference function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="connectomics.engine.Trainer.train">
+<code class="descname">train</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer.train" title="Permalink to this definition">¶</a></dt>
+<dd><p>Training function.</p>
+</dd></dl>
+
+</dd></dl>
+
 </div>
 
 

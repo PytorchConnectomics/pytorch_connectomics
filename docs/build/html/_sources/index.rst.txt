@@ -32,8 +32,8 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
    :caption: Tutorials
 
    tutorials/snemi
-   tutorials/cremi
    tutorials/lucchi
+   tutorials/cremi
    tutorials/synaptic_partner
 
 .. toctree::

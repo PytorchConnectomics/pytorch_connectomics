@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Mitochondria Segmentaion &mdash; connectomics master documentation</title>
+  <title>Mitochondria Segmentation &mdash; connectomics master documentation</title>
   
 
   
@@ -46,8 +46,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Synaptic Partner Detection" href="synaptic_partner.html" />
-    <link rel="prev" title="Synaptic Cleft Segmentation" href="cremi.html" /> 
+    <link rel="next" title="Synaptic Cleft Segmentation" href="cremi.html" />
+    <link rel="prev" title="Neuron Segmentation" href="snemi.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -105,8 +105,8 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Mitochondria Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cremi.html">Synaptic Cleft Segmentation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Mitochondria Segmentaion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Detection</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
@@ -164,7 +164,7 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>Mitochondria Segmentaion</li>
+      <li>Mitochondria Segmentation</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -183,14 +183,18 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="mitochondria-segmentaion">
-<h1>Mitochondria Segmentaion<a class="headerlink" href="#mitochondria-segmentaion" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="mitochondria-segmentation">
+<h1>Mitochondria Segmentation<a class="headerlink" href="#mitochondria-segmentation" title="Permalink to this headline">¶</a></h1>
 <p>This tutorial provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by <a class="reference external" href="https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/">Lucchi et al.</a>.
 We consider the task as a semantic segmentation task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
-the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
-The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).</p>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--task</span> <span class="pre">2</span></code>
-when executing the <code class="docutils literal"><span class="pre">train.py</span></code> and <code class="docutils literal"><span class="pre">test.py</span></code> scripts. The pytorch dataset class of synapses is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.MitoDataset</span></code>.</p>
+the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset,
+which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x
+and z-y planes besides x-y planes are preferred.</p>
+</div>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task. The pytorch dataset class of lucchi data is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -206,24 +210,13 @@ when executing the <code class="docutils literal"><span class="pre">train.py</sp
 <p>For description of the data please check <a class="reference external" href="https://www.epfl.ch/labs/cvlab/data/data-em/">the author page</a>.</p>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script. The training and inference script can take a list of volumes and conduct training/inference at the same time.</p>
+<li><p class="first">Run the training script:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ module load cuda/9.0-fasrc02 cudnn/7.0_cuda9.0-fasrc01 boost # on Harvard rc cluster
-$ source activate py3_torch
-$ python -u train.py -i /path/to/Lucchi/ -din img/train_im.tif -dln label/train_label.tif -o outputs/unet_res_mito\
-  -lr 1e-03 --iteration-total 60000 --iteration-save 10000 \
-  -mi 112,112,112 -ma unet_residual_3d -mf 28,36,48,64,80 -me 0 -daz 1 -moc 1\
-  -to 0 -lo 1 -wo 1 -g 4 -c 4 -b 4
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Lucchi-Mitochondria.yaml
 </pre></div>
 </div>
-<ul class="simple">
-<li>Data: <code class="docutils literal"><span class="pre">i/o/din/dln</span></code> input folder/output folder/train volume/train label</li>
-<li>Optimization: <code class="docutils literal"><span class="pre">lr/iteration-total/iteration-save</span></code> learning rate/total #iterations/#iterations to save</li>
-<li>Model: <code class="docutils literal"><span class="pre">mi/ma/mf/moc/me/daz</span></code> input size/architecture/#filter/#output
-channel/with 2D embedding module/z-data-augmentation</li>
-<li>Loss: <code class="docutils literal"><span class="pre">to/lo/wo</span></code> target option/loss option/weight option</li>
-<li>System: <code class="docutils literal"><span class="pre">g/c/b</span></code> #GPU/#CPU/batch size</li>
-</ul>
 </div></blockquote>
 </li>
 <li><p class="first">Visualize the training progress:</p>
@@ -233,11 +226,12 @@ channel/with 2D embedding module/z-data-augmentation</li>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on test image volumes (change <code class="docutils literal"><span class="pre">LOG-FOLDER</span></code>): VOC-test=0.945</p>
+<li><p class="first">Run inference on test image volumes. Our model achieves a VOC-test score of 0.945.</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python -u test.py -i /path/to/Lucchi/ -din img/test_im.tif -o outputs/unetv0_mito/result\
-  -mi 112,256,256  -g 1 -c 1 -b 1 -ma unet_residual -mf 28,36,48,64,80 -me 0 -moc 1
-  -mpt outputs/unet_res_mito/LOG-FOLDER/volume_59999.pth -mpi 59999 -dp 8,64,64
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Lucchi-Mitochondria.yaml --inference \
+  --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
 </pre></div>
 </div>
 </div></blockquote>
@@ -253,10 +247,10 @@ channel/with 2D embedding module/z-data-augmentation</li>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="synaptic_partner.html" class="btn btn-neutral float-right" title="Synaptic Partner Detection" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="cremi.html" class="btn btn-neutral float-right" title="Synaptic Cleft Segmentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="cremi.html" class="btn btn-neutral float-left" title="Synaptic Cleft Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="snemi.html" class="btn btn-neutral float-left" title="Neuron Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

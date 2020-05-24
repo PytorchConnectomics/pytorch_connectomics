@@ -26,7 +26,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
     .. note::
         If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
         different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``, 
-        ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft-Train.yaml>`_.
+        ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml>`_.
 
 #. Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.
 
@@ -34,7 +34,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
 
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
-          --config-file configs/CREMI-Synaptic-Cleft-Train.yaml
+          --config-file configs/CREMI-Synaptic-Cleft.yaml
 
     - ``config-file``: configuration setting for the current experiment.
 
@@ -49,7 +49,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
     .. code-block:: none
 
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
-          --config-file configs/CREMI-Synaptic-Cleft-Train.yaml \
+          --config-file configs/CREMI-Synaptic-Cleft.yaml \
           --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
           --inference
 
