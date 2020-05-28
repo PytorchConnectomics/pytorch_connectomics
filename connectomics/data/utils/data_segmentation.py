@@ -29,7 +29,7 @@ def relabel(seg, do_type=False):
     if do_type:
         m_type = getSegType(mid)
     mapping = np.zeros(mid, dtype=m_type)
-    mapping[uid] = np.arange(len(uid), dtype=m_type)
+    mapping[uid] = np.arange(1, len(uid) + 1, dtype=m_type)
     return mapping[seg]
 
 def remove_small(seg, thres=100):                                                                    
