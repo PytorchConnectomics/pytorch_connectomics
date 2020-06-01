@@ -25,6 +25,7 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
    :caption: Notes
 
    notes/installation
+   notes/config
 
 .. toctree::
    :glob:

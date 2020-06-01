@@ -1,5 +1,5 @@
 Neuron Segmentation
-=======================
+=====================
 
 This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
@@ -13,7 +13,7 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
     Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
     to get familiar with the datasets and have a sense of how the affinity graphs look like.
 
-The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch target affinity generation is :class:`connectomics.data.utils.data_segmentation`.
+The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch target affinity generation is :class:`torch_connectomics.data.dataset.VolumeDataset`.
 
 #. Get the dataset:
 
@@ -29,7 +29,7 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 
     The configuration file for training is in ``configs/SNEMI-Neuron-Train.yaml``, modify the following accordingly:
  
@@ -45,7 +45,7 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml \
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml \
         $ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
 
 #. Visualize the training progress:
@@ -58,7 +58,7 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
     .. code-block:: none
 
-        $ python scripts/main.py --config-file configs/SNEMI-Neuron-Test.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
 
 #. Generate segmentation and run evaluation:
 
@@ -82,7 +82,7 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
         .. code-block:: none
 
-            $
+            $ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
 
-    #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb>`_ in
+    #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demos/segmentation.ipynb>`_ in
        the demo, which provides more options and visualization.

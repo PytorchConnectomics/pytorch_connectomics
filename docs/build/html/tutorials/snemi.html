@@ -47,7 +47,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Mitochondria Segmentation" href="lucchi.html" />
-    <link rel="prev" title="Installation" href="../notes/installation.html" /> 
+    <link rel="prev" title="Configurations" href="../notes/config.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -101,6 +101,7 @@
               <p class="caption"><span class="caption-text">Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -196,7 +197,7 @@ and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_
 <p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
 to get familiar with the datasets and have a sense of how the affinity graphs look like.</p>
 </div>
-<p>The main script is at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>. The pytorch target affinity generation is <code class="xref py py-class docutils literal"><span class="pre">connectomics.data.utils.data_segmentation</span></code>.</p>
+<p>The main script is at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>. The pytorch target affinity generation is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -211,7 +212,7 @@ to get familiar with the datasets and have a sense of how the affinity graphs lo
 <li><p class="first">Provide the <code class="docutils literal"><span class="pre">yaml</span></code> configuration file to run training:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml
+$ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 </pre></div>
 </div>
 <p>The configuration file for training is in <code class="docutils literal"><span class="pre">configs/SNEMI-Neuron-Train.yaml</span></code>, modify the following accordingly:</p>
@@ -225,7 +226,7 @@ $ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml
 </ul>
 <p>To run training starting from pretrained weights, add a checkpoint file:</p>
 <div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python scripts/main.py --config-file configs/SNEMI-Neuron-Train.yaml \
+$ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml \
 $ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
 </pre></div>
 </div>
@@ -240,7 +241,7 @@ $ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
 </li>
 <li><p class="first">Run inference on image volumes, The test configuration file can have bigger input, augmentation at inference:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/main.py --config-file configs/SNEMI-Neuron-Test.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
 </pre></div>
 </div>
 </div></blockquote>
@@ -268,12 +269,12 @@ $ pip install --editable .
 </li>
 <li><p class="first">Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">You can also run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demo/segmentation.ipynb">segmentation.ipynb</a> in
+<li><p class="first">You can also run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demos/segmentation.ipynb">segmentation.ipynb</a> in
 the demo, which provides more options and visualization.</p>
 </li>
 </ol>
@@ -293,7 +294,7 @@ the demo, which provides more options and visualization.</p>
         <a href="lucchi.html" class="btn btn-neutral float-right" title="Mitochondria Segmentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="../notes/installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="../notes/config.html" class="btn btn-neutral float-left" title="Configurations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   
