@@ -249,6 +249,19 @@ _C.SOLVER.CHECKPOINT_PERIOD = 5000
 # each GPU will see 2 images per batch.
 _C.SOLVER.SAMPLES_PER_BATCH = 16
 
+# Gradient clipping
+_C.SOLVER.CLIP_GRADIENTS = CN({"ENABLED": False})
+# Type of gradient clipping, currently 2 values are supported:
+# - "value": the absolute values of elements of each gradients are clipped
+# - "norm": the norm of the gradient for each parameter is clipped thus
+#   affecting all elements in the parameter
+_C.SOLVER.CLIP_GRADIENTS.CLIP_TYPE = "value"
+# Maximum absolute value used for clipping gradients
+_C.SOLVER.CLIP_GRADIENTS.CLIP_VALUE = 1.0
+# Floating point number p for L-p norm to be used with the "norm"
+# gradient clipping type; for L-inf, please specify .inf
+_C.SOLVER.CLIP_GRADIENTS.NORM_TYPE = 2.0
+
 # -----------------------------------------------------------------------------
 # Monitor
 # -----------------------------------------------------------------------------

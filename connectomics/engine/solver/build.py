@@ -1,7 +1,7 @@
 # Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
-from typing import Any, Dict, List, Set
+from enum import Enum
+from typing import Any, Callable, Dict, Iterable, List, Set, Type, Union
 import torch
-from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
 from yacs.config import CfgNode
 
@@ -14,6 +14,86 @@ from connectomics.model.norm import BatchInstanceNorm3d
 from connectomics.model.norm import SynchronizedBatchNorm1d
 from connectomics.model.norm import SynchronizedBatchNorm2d
 from connectomics.model.norm import SynchronizedBatchNorm3d
+
+# 0. Gradient Clipping
+
+_GradientClipperInput = Union[torch.Tensor, Iterable[torch.Tensor]]
+_GradientClipper = Callable[[_GradientClipperInput], None]
+
+class GradientClipType(Enum):
+    VALUE = "value"
+    NORM = "norm"
+
+def _create_gradient_clipper(cfg: CfgNode) -> _GradientClipper:
+    """
+    Creates gradient clipping closure to clip by value or by norm,
+    according to the provided config.
+    """
+    cfg = cfg.clone()
+
+    def clip_grad_norm(p: _GradientClipperInput):
+        torch.nn.utils.clip_grad_norm_(p, cfg.CLIP_VALUE, cfg.NORM_TYPE)
+
+    def clip_grad_value(p: _GradientClipperInput):
+        torch.nn.utils.clip_grad_value_(p, cfg.CLIP_VALUE)
+
+    _GRADIENT_CLIP_TYPE_TO_CLIPPER = {
+        GradientClipType.VALUE: clip_grad_value,
+        GradientClipType.NORM: clip_grad_norm,
+    }
+    return _GRADIENT_CLIP_TYPE_TO_CLIPPER[GradientClipType(cfg.CLIP_TYPE)]
+
+def _generate_optimizer_class_with_gradient_clipping(
+    optimizer_type: Type[torch.optim.Optimizer], gradient_clipper: _GradientClipper
+) -> Type[torch.optim.Optimizer]:
+    """
+    Dynamically creates a new type that inherits the type of a given instance
+    and overrides the `step` method to add gradient clipping
+    """
+
+    def optimizer_wgc_step(self, closure=None):
+        for group in self.param_groups:
+            for p in group["params"]:
+                gradient_clipper(p)
+        super(type(self), self).step(closure)
+
+    OptimizerWithGradientClip = type(
+        optimizer_type.__name__ + "WithGradientClip",
+        (optimizer_type,),
+        {"step": optimizer_wgc_step},
+    )
+    return OptimizerWithGradientClip
+
+def maybe_add_gradient_clipping(
+    cfg: CfgNode, optimizer: torch.optim.Optimizer
+) -> torch.optim.Optimizer:
+    """
+    If gradient clipping is enabled through config options, wraps the existing
+    optimizer instance of some type OptimizerType to become an instance
+    of the new dynamically created class OptimizerTypeWithGradientClip
+    that inherits OptimizerType and overrides the `step` method to
+    include gradient clipping.
+    Args:
+        cfg: CfgNode
+            configuration options
+        optimizer: torch.optim.Optimizer
+            existing optimizer instance
+    Return:
+        optimizer: torch.optim.Optimizer
+            either the unmodified optimizer instance (if gradient clipping is
+            disabled), or the same instance with adjusted __class__ to override
+            the `step` method and include gradient clipping
+    """
+    if not cfg.SOLVER.CLIP_GRADIENTS.ENABLED:
+        return optimizer
+    grad_clipper = _create_gradient_clipper(cfg.SOLVER.CLIP_GRADIENTS)
+    OptimizerWithGradientClip = _generate_optimizer_class_with_gradient_clipping(
+        type(optimizer), grad_clipper
+    )
+    optimizer.__class__ = OptimizerWithGradientClip
+    return optimizer
+
+# 1. Build Optimizer
 
 def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimizer:
     """
@@ -58,8 +138,11 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
             params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
 
     optimizer = torch.optim.SGD(params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM)
+    optimizer = maybe_add_gradient_clipping(cfg, optimizer)
+    print('Optimizer: ', optimizer.__class__.__name__)
     return optimizer
 
+# 2. Build LR Scheduler
 
 def build_lr_scheduler(
     cfg: CfgNode, optimizer: torch.optim.Optimizer
