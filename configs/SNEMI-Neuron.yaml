@@ -12,13 +12,11 @@ MODEL:
   LOSS_OPTION: [['WeightedBCE']]
   TARGET_OPT: ['2']
   WEIGHT_OPT: [['1']]
-  PRE_MODEL: 'outputs/SNEMI/volume_39999.pth'
-  PRE_MODEL_ITER: 39999
 DATASET:
-  IMAGE_NAME: 'test.h5'
-  LABEL_NAME: 'test_label.h5'
-  INPUT_PATH: '/path/to/snemi/'
-  OUTPUT_PATH: 'outputs/SNEMI/test/'
+  IMAGE_NAME: 'img/train-input.tif'
+  LABEL_NAME: 'label/train_labels.tif'
+  INPUT_PATH: '/path/to/SNEMI/'
+  OUTPUT_PATH: 'outputs/SNEMI/'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:
   ROTATE: True
@@ -37,7 +35,13 @@ SOLVER:
   ITERATION_TOTAL: 40000
   SAMPLES_PER_BATCH: 8
 INFERENCE:
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  IMAGE_NAME: 'img/test-input.tif'
+  OUTPUT_PATH: 'outputs/SNEMI/test'
+  OUTPUT_NAME: 'result.h5'
+  PAD_SIZE: [8, 64, 64]
   AUG_MODE: 'mean'
   AUG_NUM: 4
-  OUTPUT_NAME: 'result.h5'
-  STRIDE: [1, 192, 192]
+  STRIDE: [4, 128, 128]
+  SAMPLES_PER_BATCH: 32
