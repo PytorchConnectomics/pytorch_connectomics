@@ -65,7 +65,7 @@ class Monitor(object):
         self.vis.visualize(cfg, volume, label, output, iter_total, self.logger.log_tb)
 
     def load_config(self, cfg):
-        self.logger.log_tb.add_text('Config', '%s' % cfg, 0)
+        self.logger.log_tb.add_text('Config', str(cfg), 0)
 
     def reset(self):
         self.logger.reset()

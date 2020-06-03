@@ -204,13 +204,15 @@ class Trainer(object):
             # 3. load the new state dict
             self.model.module.load_state_dict(model_dict) # nn.DataParallel   
 
-        # update optimizer
-        if 'optimizer' in checkpoint.keys():
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
+        if not self.cfg.SOLVER.ITERATION_RESTART:
+            # update optimizer
+            if 'optimizer' in checkpoint.keys():
+                self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        # update lr scheduler
-        if 'lr_scheduler' in checkpoint.keys():
-            self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
+            # update lr scheduler
+            if 'lr_scheduler' in checkpoint.keys():
+                self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
 
-        if 'iteration' in checkpoint.keys():
-            self.start_iter = checkpoint['iteration']
+            # load iteration
+            if 'iteration' in checkpoint.keys():
+                self.start_iter = checkpoint['iteration']

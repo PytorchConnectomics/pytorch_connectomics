@@ -83,7 +83,6 @@ _C.MODEL.PRE_MODEL_ITER = 0
 
 _C.MODEL.PRE_MODEL_LAYER_SELECT = -1
 
-
 # -----------------------------------------------------------------------------
 # Dataset
 # -----------------------------------------------------------------------------
@@ -214,6 +213,11 @@ _C.SOLVER.ITERATION_STEP = 1
 _C.SOLVER.ITERATION_SAVE = 5000
 
 _C.SOLVER.ITERATION_TOTAL = 40000
+
+# Whether or not to restart training from iteration 0 regardless
+# of the 'iteration' key in the checkpoint file. This option only 
+# works when a pretrained checkpoint is loaded (default: False).
+_C.SOLVER.ITERATION_RESTART = False
 
 _C.SOLVER.BASE_LR = 0.001
 

@@ -1,5 +1,6 @@
 import h5py
-import os
+import os, sys
+import glob
 import numpy as np
 import imageio
 from scipy.ndimage import zoom
@@ -10,13 +11,14 @@ def readh5(filename, dataset=''):
         dataset = list(fid)[0]
     return np.array(fid[dataset])
 
-
 def readvol(filename, dataset=''):
     img_suf = filename[filename.rfind('.')+1:]
     if img_suf == 'h5':
         data = readh5(filename, dataset)
     elif 'tif' in img_suf:
         data = imageio.volread(filename).squeeze()
+    elif 'png' in img_suf:
+        data = readimgs(filename)
     else:
         raise ValueError('unrecognizable file format for %s'%(filename))
     return data
@@ -30,6 +32,22 @@ def readim(filename, do_channel=False):
         if do_channel and im.ndim==2:
             im=im[:,:,None]
     return im
+
+def readimgs(filename):
+    filelist = sorted(glob.glob(filename))
+    num_imgs = len(filelist)
+
+    # decide numpy array shape:
+    img = imageio.imread(filelist[0])
+    data = np.zeros((num_imgs, img.shape[0], img.shape[1]), dtype=np.uint8)
+    data[0] = img
+
+    # load all images
+    if num_imgs > 1:
+        for i in range(1, num_imgs):
+            data[i] = imageio.imread(filelist[i])
+
+    return data
 
 def writeh5(filename, dtarray, dataset='main'):
     fid=h5py.File(filename,'w')
