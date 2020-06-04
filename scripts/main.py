@@ -23,7 +23,7 @@ def get_args():
     return args
 
 def update_inference_config(cfg):
-    r"""Update configurations (cfg) when case is inference.
+    r"""Update configurations (cfg) when running mode is inference.
     """
     cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
     cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
