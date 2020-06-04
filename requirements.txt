@@ -6,6 +6,7 @@ matplotlib
 Cython
 mahotas
 h5py
+gputil
 imageio
 tensorflow
 tensorboard

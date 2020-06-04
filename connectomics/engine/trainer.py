@@ -1,4 +1,6 @@
-import os, sys, glob, time, itertools
+import os, sys, glob 
+import time, itertools
+import GPUtil
 
 import torch
 import torch.nn as nn
@@ -79,6 +81,9 @@ class Trainer(object):
             do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, self.optimizer.param_groups[0]['lr']) 
             if do_vis:
                 self.monitor.visualize(self.cfg, volume, target, pred, iter_total)
+                # Display GPU stats using the GPUtil package.
+                GPUtil.showUtilization(all=True)
+
             # Save model
             if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
                 self.save_checkpoint(iter_total)
@@ -88,6 +93,10 @@ class Trainer(object):
 
             end = time.perf_counter()
             print('[Iteration %05d] Data time: %.5f, Iter time:  %.5f' % (iter_total, time1 - start, end - start))
+
+            # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
+            # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
+            del loss, pred
 
     def test(self):
         r"""Inference function.
