@@ -386,6 +386,25 @@ than the input size to make sure there is no non-valid region after center-crop.
 </dd></dl>
 
 <dl class="class">
+<dt id="connectomics.data.augmentation.MotionBlur">
+<em class="property">class </em><code class="descname">MotionBlur</code><span class="sig-paren">(</span><em>sections=2</em>, <em>kernel_size=11</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur" title="Permalink to this definition">¶</a></dt>
+<dd><p>Motion blur data augmentation of image stacks.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – number of sections along z dimension to apply motion blur (default: 2).</li>
+<li><strong>kernel_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – kernel size for motion blur (default: 11).</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
 <dt id="connectomics.data.augmentation.TestAugmentor">
 <em class="property">class </em><code class="descname">TestAugmentor</code><span class="sig-paren">(</span><em>mode='min'</em>, <em>num_aug=4</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Test Augmentor.</p>
