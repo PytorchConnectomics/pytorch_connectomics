@@ -311,6 +311,19 @@ _C.INFERENCE.TEST_ID = 0
 # Batchsize for inference
 _C.INFERENCE.SAMPLES_PER_BATCH = 32
 
+#######################################################
+# Util functions
+#######################################################
+
+def update_inference_cfg(cfg):
+    r"""Update configurations (cfg) when running mode is inference.
+    """
+    cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
+    cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+    cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
+    cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
+    cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
+
 def get_cfg_defaults():
     """Get a yacs CfgNode object with default values for my_project."""
     # Return a clone so that the defaults will not be altered

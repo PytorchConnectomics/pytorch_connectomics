@@ -16,7 +16,7 @@ MODEL:
 DATASET:
   IMAGE_NAME: 'images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5'
   LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
-  INPUT_PATH: 'data/CREMI/'
+  INPUT_PATH: 'datasets/CREMI/'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
   PAD_SIZE: [4, 128, 128]
 AUGMENTOR:

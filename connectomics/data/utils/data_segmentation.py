@@ -21,9 +21,12 @@ def getSegType(mid):
 def relabel(seg, do_type=False):
     # get the unique labels
     uid = np.unique(seg)
+    # ignore all background sample
+    if len(uid)==1 and uid[0] == 0:
+        return seg
+
     uid = uid[uid > 0]
-    # get the maximum label for the segment
-    mid = int(uid.max()) + 1
+    mid = int(uid.max()) + 1 # get the maximum label for the segment
 
     # create an array from original segment id to reduced id
     m_type = seg.dtype
