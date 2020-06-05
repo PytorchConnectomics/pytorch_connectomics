@@ -147,58 +147,53 @@ _C.DATASET.REJECT_P = 0.95
 # -----------------------------------------------------------------------------
 _C.AUGMENTOR = CN()
 
-_C.AUGMENTOR.ROTATE = True
-
+_C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
 # Probability of applying the rotation augmentation
-_C.AUGMENTOR.ROTATE_P = 0.1
+_C.AUGMENTOR.ROTATE.P = 0.5
 
-_C.AUGMENTOR.RESCALE = True
-
+_C.AUGMENTOR.RESCALE = CN({"ENABLED": True})
 # Probability of applying the rescale augmentation
-_C.AUGMENTOR.RESCALE_P = 0.5
+_C.AUGMENTOR.RESCALE.P = 0.5
 
-_C.AUGMENTOR.FLIP = True
-
+_C.AUGMENTOR.FLIP = CN({"ENABLED": True})
 # Probability of applying the flip augmentation
-_C.AUGMENTOR.FLIP_P = 1.0
-
+_C.AUGMENTOR.FLIP.P = 0.5
 # Conducting x-z and y-z flip only when the dataset is isotropic. 
-_C.AUGMENTOR.FLIP_DO_ZTRANS = 0
+_C.AUGMENTOR.FLIP.DO_ZTRANS = 0
 
-_C.AUGMENTOR.ELASTIC = True
-
+_C.AUGMENTOR.ELASTIC = CN({"ENABLED": True})
 # Maximum pixel-moving distance of elastic transformation
-_C.AUGMENTOR.ELASTIC_ALPHA = 12.0
-
+_C.AUGMENTOR.ELASTIC.ALPHA = 12.0
 # Standard deviation of the Gaussian filter
-_C.AUGMENTOR.ELASTIC_SIGMA = 4.0
-
+_C.AUGMENTOR.ELASTIC.SIGMA = 4.0
 # Probability of applying the elastic augmentation
-_C.AUGMENTOR.ELASTIC_P = 0.75
+_C.AUGMENTOR.ELASTIC.P = 0.75
 
-_C.AUGMENTOR.GRAYSCALE = True
-
+_C.AUGMENTOR.GRAYSCALE = CN({"ENABLED": True})
 # Probability of applying the grayscale augmentation
-_C.AUGMENTOR.GRAYSCALE_P = 0.75
+_C.AUGMENTOR.GRAYSCALE.P = 0.75
 
-_C.AUGMENTOR.MISSINGPARTS = True
-
+_C.AUGMENTOR.MISSINGPARTS = CN({"ENABLED": True})
 # Probability of applying the missingparts augmentation
-_C.AUGMENTOR.MISSINGPARTS_P = 0.9
+_C.AUGMENTOR.MISSINGPARTS.P = 0.9
 
-_C.AUGMENTOR.MISSINGSECTION = True
-
+_C.AUGMENTOR.MISSINGSECTION = CN({"ENABLED": True})
 # Probability of applying the missingsection augmentation
-_C.AUGMENTOR.MISSINGSECTION_P = 0.5
+_C.AUGMENTOR.MISSINGSECTION.P = 0.5
 
-_C.AUGMENTOR.MISALIGNMENT = True
-
+_C.AUGMENTOR.MISALIGNMENT = CN({"ENABLED": True})
 # Probability of applying the misalignment augmentation
-_C.AUGMENTOR.MISALIGNMENT_P = 1.0
-
+_C.AUGMENTOR.MISALIGNMENT.P = 0.5
 # Maximum pixel displacement in each direction (x and y) (int)
-_C.AUGMENTOR.MISALIGNMENT_DISPLACEMENT = 16
+_C.AUGMENTOR.MISALIGNMENT.DISPLACEMENT = 16
 
+_C.AUGMENTOR.MOTIONBLUR = CN({"ENABLED": True})
+# Probability of applying the rotation augmentation
+_C.AUGMENTOR.MOTIONBLUR.P = 0.5
+# Number of sections along z dimension to apply motion blur
+_C.AUGMENTOR.MOTIONBLUR.SECTIONS = 2
+# Kernel size of motion blur
+_C.AUGMENTOR.MOTIONBLUR.KERNEL_SIZE = 11
 
 # -----------------------------------------------------------------------------
 # Solver
