@@ -126,6 +126,6 @@ dmypy.json
 .github/
 *~
 
-data/
+datasets/
 others/
 outputs/
