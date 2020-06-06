@@ -47,4 +47,68 @@ Best Practice with Configs
 
 #. Keep the configs you write simple: don’t include keys that do not affect the experimental setting.
 
-  
+
+Specifing multiple loss for a single learning target
+=========================================================
+
+We can also specify multiple loss functions as a criterion for training the segmentation models, i.e Binary cross-entropy loss, Dice 
+loss by changing the key-value pairs of ``_LOSS_OPTION`` in the ``config.yaml`` file or by giving it explicitly as command-line 
+arguments, multiple loss functions can be put to use for a single learning target.
+
+
+#. Say, you want to use Weighted Binary cross-entropy loss as well as Dice loss as criterions for mitochondria segmentation task.
+
+.. code-block:: none
+
+   python -u scripts/main.py --config-file configs/Lucchi-Mitochondria.yaml \
+   MODEL.LOSS_OPTION [[‘WeightedBCE’, ‘DiceLoss’]] MODEL.LOSS_WEIGHT [[1.0, 1.0]]
+   
+ 
+``LOSS_OPTION`` specifies the loss criterions to be used while training
+``LOSS_WEIGHT`` specifies the weight or emphasis to be given to each loss criterion, i.e In the above case both the loss criterion
+will contribute equally to the overall loss.
+
+
+#. Say, you want to use Weighted Binary cross-entropy loss as well as Dice loss as criterions with a weight of 1.0, 0.5 .
+
+.. code-block:: none
+
+   python -u scripts/main.py --config-file configs/Lucchi-Mitochondria.yaml \
+   MODEL.LOSS_OPTION [[‘WeightedBCE’, ‘DiceLoss’]] MODEL.LOSS_WEIGHT [[1.0, 0.5]]
+   
+ 
+``LOSS_OPTION`` specifies the loss criterions to be used while training
+``LOSS_WEIGHT`` specifies the weight or emphasis to be given to each loss criterion, i.e. In the above case cross-entropy will 
+contribute twice times more than dice loss to the overall loss.
+
+
+
+#. Say, you want to use only Weighted Binary cross-entropy loss as a criterion for mitochondria segmentation task.
+
+.. code-block:: none
+
+   python -u scripts/main.py --config-file configs/Lucchi-Mitochondria.yaml \
+   MODEL.LOSS_OPTION [[‘WeightedBCE’]] MODEL.LOSS_WEIGHT [[1.0]]
+   
+ 
+``LOSS_OPTION`` specifies only W Binary cross-entropy as loss criterions to be used while training.
+``LOSS_WEIGHT`` specifies the weight emphasis to be given to each loss criterion, i.e. In the above case, only cross-entropy will 
+contribute to the overall loss.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
