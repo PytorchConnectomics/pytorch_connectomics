@@ -67,7 +67,7 @@ arguments, multiple loss functions can be put to use for a single learning targe
  
 ``LOSS_OPTION`` specifies the loss criterions to be used while training
 ``LOSS_WEIGHT`` specifies the weight or emphasis to be given to each loss criterion, i.e In the above case both the loss criterion
-  will contribute equally to the overall loss.
+will contribute equally to the overall loss.
 
 
 #. Say, you want to use Weighted Binary cross-entropy loss as well as Dice loss as criterions with a weight of 1.0, 0.5 .
@@ -80,7 +80,7 @@ arguments, multiple loss functions can be put to use for a single learning targe
  
 ``LOSS_OPTION`` specifies the loss criterions to be used while training
 ``LOSS_WEIGHT`` specifies the weight or emphasis to be given to each loss criterion, i.e. In the above case cross-entropy will 
-  contribute twice times more than dice loss to the overall loss.
+contribute twice times more than dice loss to the overall loss.
 
 
 
@@ -94,7 +94,7 @@ arguments, multiple loss functions can be put to use for a single learning targe
  
 ``LOSS_OPTION`` specifies only W Binary cross-entropy as loss criterions to be used while training.
 ``LOSS_WEIGHT`` specifies the weight emphasis to be given to each loss criterion, i.e. In the above case, only cross-entropy will 
-  contribute to the overall loss.
+contribute to the overall loss.
 
 
 
