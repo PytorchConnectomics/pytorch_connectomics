@@ -12,11 +12,11 @@ MODEL:
   LOSS_OPTION: [['WeightedBCE', 'DiceLoss']]
   LOSS_WEIGHT: [[1.0, 1.0]]
   TARGET_OPT: ['0']
-  WEIGHT_OPT: ['1']
+  WEIGHT_OPT: [['1', '0']]
 DATASET:
   IMAGE_NAME: 'img/train_im.tif'
   LABEL_NAME: 'label/train_label.tif'
-  INPUT_PATH: 'path/to/Lucchi/'
+  INPUT_PATH: 'datasets/Lucchi/'
   OUTPUT_PATH: 'outputs/Lucchi_mito_baseline'
   PAD_SIZE: [56, 56, 56]
 AUGMENTOR:
@@ -49,7 +49,7 @@ SOLVER:
 INFERENCE:
   INPUT_SIZE: [112, 112, 112]
   OUTPUT_SIZE: [112, 112, 112]
-  IMAGE_NAME: ''img/train_im.tif'
+  IMAGE_NAME: 'img/train_im.tif'
   OUTPUT_PATH: 'outputs/Lucchi_mito_baseline/test'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [32, 32, 32]
