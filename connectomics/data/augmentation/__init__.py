@@ -62,6 +62,6 @@ def build_train_augmentor(cfg):
                                    sections=cfg.AUGMENTOR.MOTIONBLUR.SECTIONS, 
                                    kernel_size=cfg.AUGMENTOR.MOTIONBLUR.KERNEL_SIZE))
 
-    augmentor = Compose(aug_list, input_size = cfg.MODEL.INPUT_SIZE)
+    augmentor = Compose(aug_list, input_size = cfg.MODEL.INPUT_SIZE, smooth=cfg.AUGMENTOR.SMOOTH)
 
     return augmentor

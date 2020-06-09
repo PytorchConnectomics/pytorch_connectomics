@@ -12,18 +12,23 @@ class Compose(object):
     Args:
         transforms (list): list of transformations to compose.
         input_size (tuple): input size of model in (z, y, x).
+        smooth (bool): smooth the gt object mask with Gaussian filtering (default: True).
         keep_uncropped (bool): keep uncropped images and labels (default: False).
         keep_non_smooth (bool): return also the non-smoothed masks (default: False).
     """
     def __init__(self, 
                  transforms, 
                  input_size = (8,196,196),
+                 smooth = True,
                  keep_uncropped = False,
                  keep_non_smoothed = False):
+
         self.transforms = transforms
         self.input_size = np.array(input_size)
         self.sample_size = self.input_size.copy()
         self.set_sample_params()
+
+        self.smooth = smooth
         self.keep_uncropped = keep_uncropped
         self.keep_non_smoothed = keep_non_smoothed
 
@@ -109,5 +114,7 @@ class Compose(object):
         data = self.crop(data)
         if self.keep_non_smoothed:
             data['non_smoothed'] = data['label']
-        data = self.smooth_edge(data)
+
+        if self.smooth:
+            data = self.smooth_edge(data)
         return data

@@ -147,6 +147,11 @@ _C.DATASET.REJECT_P = 0.95
 # -----------------------------------------------------------------------------
 _C.AUGMENTOR = CN()
 
+# The nearest interpolation for the label mask during data augmentation
+# can result in masks with coarse boundaries. Thus we apply Gaussian filtering
+# to smooth the object boundary (default: True).
+_C.AUGMENTOR.SMOOTH = True
+
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
 # Probability of applying the rotation augmentation
 _C.AUGMENTOR.ROTATE.P = 0.5
