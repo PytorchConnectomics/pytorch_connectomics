@@ -195,18 +195,23 @@
 <span class="sd">    Args:</span>
 <span class="sd">        transforms (list): list of transformations to compose.</span>
 <span class="sd">        input_size (tuple): input size of model in (z, y, x).</span>
+<span class="sd">        smooth (bool): smooth the gt object mask with Gaussian filtering (default: True).</span>
 <span class="sd">        keep_uncropped (bool): keep uncropped images and labels (default: False).</span>
 <span class="sd">        keep_non_smooth (bool): return also the non-smoothed masks (default: False).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
                  <span class="n">transforms</span><span class="p">,</span> 
                  <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">196</span><span class="p">,</span><span class="mi">196</span><span class="p">),</span>
+                 <span class="n">smooth</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                  <span class="n">keep_uncropped</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transforms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">input_size</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_sample_params</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">smooth</span> <span class="o">=</span> <span class="n">smooth</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span> <span class="o">=</span> <span class="n">keep_uncropped</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="n">keep_non_smoothed</span>
 
@@ -292,7 +297,9 @@
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span><span class="p">:</span>
             <span class="n">data</span><span class="p">[</span><span class="s1">&#39;non_smoothed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_edge</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_edge</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span></div>
 </pre></div>
 

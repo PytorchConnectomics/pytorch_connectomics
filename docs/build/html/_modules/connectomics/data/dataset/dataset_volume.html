@@ -205,7 +205,8 @@
 <span class="sd">        target_opt (list): list the model targets generated from segmentation labels.</span>
 <span class="sd">        weight_opt (list): list of options for generating pixel-wise weight masks.</span>
 <span class="sd">        mode (str): training or inference mode.</span>
-<span class="sd">        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.</span>
+<span class="sd">        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects (default: 0).</span>
+<span class="sd">        reject_after_aug (bool): decide whether to reject a sample after data augmentation (default: False) </span>
 <span class="sd">        reject_p (float): probability of rejecting non-foreground volumes.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
@@ -214,12 +215,14 @@
                  <span class="n">sample_volume_size</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
                  <span class="n">sample_label_size</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
                  <span class="n">sample_stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
-                 <span class="n">sample_invalid_thres</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+                 <span class="n">sample_invalid_thres</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
                  <span class="n">augmentor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
                  <span class="n">target_opt</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">],</span> 
                  <span class="n">weight_opt</span><span class="o">=</span><span class="p">[[</span><span class="s1">&#39;1&#39;</span><span class="p">]],</span>
                  <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span>
-                 <span class="n">reject_size_thres</span><span class="o">=</span> <span class="mi">0</span><span class="p">,</span> 
+                 <span class="c1"># options for rejection sampling</span>
+                 <span class="n">reject_size_thres</span><span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+                 <span class="n">reject_after_aug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
                  <span class="n">reject_p</span><span class="o">=</span> <span class="mf">0.98</span><span class="p">):</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
@@ -237,7 +240,10 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">target_opt</span> <span class="o">=</span> <span class="n">target_opt</span>  <span class="c1"># target opt</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">weight_opt</span> <span class="o">=</span> <span class="n">weight_opt</span>  <span class="c1"># loss opt </span>
+
+        <span class="c1"># rejection samping</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reject_size_thres</span> <span class="o">=</span> <span class="n">reject_size_thres</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reject_after_aug</span> <span class="o">=</span> <span class="n">reject_after_aug</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reject_p</span> <span class="o">=</span> <span class="n">reject_p</span>
 
         <span class="c1"># dataset: channels, depths, rows, cols</span>
@@ -288,15 +294,21 @@
             <span class="c1"># train mode</span>
             <span class="c1"># if elastic deformation: need different receptive field</span>
             <span class="c1"># position in the volume</span>
-            <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rejection_sampling</span><span class="p">(</span><span class="n">vol_size</span><span class="p">,</span> <span class="n">size_thres</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reject_size_thres</span><span class="p">,</span> <span class="n">background</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reject_p</span><span class="p">)</span>
+            <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rejection_sampling</span><span class="p">(</span><span class="n">vol_size</span><span class="p">,</span> 
+                            <span class="n">size_thres</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reject_size_thres</span><span class="p">,</span> 
+                            <span class="n">background</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> 
+                            <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">reject_p</span><span class="p">)</span>
 
             <span class="c1"># augmentation</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>  <span class="c1"># augmentation</span>
-                <span class="c1"># for warping: cv2.remap require input to be float32</span>
-                <span class="c1"># make labels index smaller. o/w uint32 and float32 are not the same for some values</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span><span class="n">out_input</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span><span class="n">out_label</span><span class="p">}</span>
-                <span class="n">augmented</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-                <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="o">.</span><span class="n">sample_size</span><span class="p">,</span> <span class="n">out_label</span><span class="o">.</span><span class="n">shape</span><span class="p">):</span>
+                    <span class="c1"># for warping: cv2.remap require input to be float32</span>
+                    <span class="c1"># make labels index smaller. o/w uint32 and float32 are not the same for some values</span>
+                    <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span><span class="n">out_input</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span><span class="n">out_label</span><span class="p">}</span>
+                    <span class="n">augmented</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                    <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span> <span class="c1"># the data is already augmented in the rejection sampling step</span>
+                    <span class="k">pass</span>
                 
             <span class="n">out_input</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">out_input</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
             <span class="c1"># output list</span>
@@ -372,18 +384,26 @@
         <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
             <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_random_sampling</span><span class="p">(</span><span class="n">vol_size</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">size_thres</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">array_equal</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="o">.</span><span class="n">sample_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">)</span>
-                    <span class="c1"># restrict the foreground mask at the center region after data augmentation</span>
-                    <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="o">.</span><span class="n">input_size</span>
-                    <span class="n">z_start</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-                    <span class="n">y_start</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-                    <span class="n">x_start</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reject_after_aug</span><span class="p">:</span>
+                        <span class="c1"># decide whether to reject the sample after data augmentation</span>
+                        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span><span class="n">out_input</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span><span class="n">out_label</span><span class="p">}</span>
+                        <span class="n">augmented</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                        <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
 
-                    <span class="n">temp</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-                    <span class="n">temp</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="n">z_start</span><span class="p">:</span><span class="n">z_start</span><span class="o">+</span><span class="n">z</span><span class="p">,</span> <span class="n">y_start</span><span class="p">:</span><span class="n">y_start</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="n">x_start</span><span class="p">:</span><span class="n">x_start</span><span class="o">+</span><span class="n">x</span><span class="p">]</span>
-                    <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">!=</span><span class="n">background</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                        <span class="n">temp</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+                        <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">!=</span><span class="n">background</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># restrict the foreground mask at the center region after data augmentation</span>
+                        <span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="o">.</span><span class="n">input_size</span>
+                        <span class="n">z_start</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">z</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+                        <span class="n">y_start</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">y</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+                        <span class="n">x_start</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+
+                        <span class="n">temp</span> <span class="o">=</span> <span class="n">out_label</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                        <span class="n">temp</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="n">z_start</span><span class="p">:</span><span class="n">z_start</span><span class="o">+</span><span class="n">z</span><span class="p">,</span> <span class="n">y_start</span><span class="p">:</span><span class="n">y_start</span><span class="o">+</span><span class="n">y</span><span class="p">,</span> <span class="n">x_start</span><span class="p">:</span><span class="n">x_start</span><span class="o">+</span><span class="n">x</span><span class="p">]</span>
+                        <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">!=</span><span class="n">background</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">out_label</span><span class="o">!=</span><span class="n">background</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
 
