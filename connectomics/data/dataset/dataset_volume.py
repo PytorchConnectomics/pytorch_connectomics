@@ -22,7 +22,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         target_opt (list): list the model targets generated from segmentation labels.
         weight_opt (list): list of options for generating pixel-wise weight masks.
         mode (str): training or inference mode.
-        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects.
+        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects (default: 0).
+        reject_after_aug (bool): decide whether to reject a sample after data augmentation (default: False) 
         reject_p (float): probability of rejecting non-foreground volumes.
     """
     def __init__(self,
@@ -31,12 +32,14 @@ class VolumeDataset(torch.utils.data.Dataset):
                  sample_volume_size=(8, 64, 64),
                  sample_label_size=(8, 64, 64),
                  sample_stride=(1, 1, 1),
-                 sample_invalid_thres = [0, 0],
+                 sample_invalid_thres=[0, 0],
                  augmentor=None, 
                  target_opt=['1'], 
                  weight_opt=[['1']],
                  mode='train',
-                 reject_size_thres= 0, 
+                 # options for rejection sampling
+                 reject_size_thres= 0,
+                 reject_after_aug=False, 
                  reject_p= 0.98):
 
         self.mode = mode
@@ -54,7 +57,10 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         self.target_opt = target_opt  # target opt
         self.weight_opt = weight_opt  # loss opt 
+
+        # rejection samping
         self.reject_size_thres = reject_size_thres
+        self.reject_after_aug = reject_after_aug
         self.reject_p = reject_p
 
         # dataset: channels, depths, rows, cols
@@ -105,15 +111,21 @@ class VolumeDataset(torch.utils.data.Dataset):
             # train mode
             # if elastic deformation: need different receptive field
             # position in the volume
-            pos, out_input, out_label = self._rejection_sampling(vol_size, size_thres=self.reject_size_thres, background=0, p=self.reject_p)
+            pos, out_input, out_label = self._rejection_sampling(vol_size, 
+                            size_thres=self.reject_size_thres, 
+                            background=0, 
+                            p=self.reject_p)
 
             # augmentation
             if self.augmentor is not None:  # augmentation
-                # for warping: cv2.remap require input to be float32
-                # make labels index smaller. o/w uint32 and float32 are not the same for some values
-                data = {'image':out_input, 'label':out_label}
-                augmented = self.augmentor(data)
-                out_input, out_label = augmented['image'], augmented['label']
+                if np.array_equal(self.augmentor.sample_size, out_label.shape):
+                    # for warping: cv2.remap require input to be float32
+                    # make labels index smaller. o/w uint32 and float32 are not the same for some values
+                    data = {'image':out_input, 'label':out_label}
+                    augmented = self.augmentor(data)
+                    out_input, out_label = augmented['image'], augmented['label']
+                else: # the data is already augmented in the rejection sampling step
+                    pass
                 
             out_input = np.expand_dims(out_input, 0)
             # output list
@@ -189,18 +201,26 @@ class VolumeDataset(torch.utils.data.Dataset):
         while True:
             pos, out_input, out_label = self._random_sampling(vol_size)
             if size_thres > 0:
-
                 if self.augmentor is not None:
                     assert np.array_equal(self.augmentor.sample_size, self.sample_label_size)
-                    # restrict the foreground mask at the center region after data augmentation
-                    z, y, x = self.augmentor.input_size
-                    z_start = (self.sample_label_size[0] - z) // 2
-                    y_start = (self.sample_label_size[1] - y) // 2
-                    x_start = (self.sample_label_size[2] - x) // 2
+                    if self.reject_after_aug:
+                        # decide whether to reject the sample after data augmentation
+                        data = {'image':out_input, 'label':out_label}
+                        augmented = self.augmentor(data)
+                        out_input, out_label = augmented['image'], augmented['label']
 
-                    temp = out_label.copy()
-                    temp = temp[z_start:z_start+z, y_start:y_start+y, x_start:x_start+x]
-                    temp = (temp!=background).astype(int).sum()
+                        temp = out_label.copy().astype(int)
+                        temp = (temp!=background).astype(int).sum()
+                    else:
+                        # restrict the foreground mask at the center region after data augmentation
+                        z, y, x = self.augmentor.input_size
+                        z_start = (self.sample_label_size[0] - z) // 2
+                        y_start = (self.sample_label_size[1] - y) // 2
+                        x_start = (self.sample_label_size[2] - x) // 2
+
+                        temp = out_label.copy()
+                        temp = temp[z_start:z_start+z, y_start:y_start+y, x_start:x_start+x]
+                        temp = (temp!=background).astype(int).sum()
                 else:
                     temp = (out_label!=background).astype(int).sum()
 

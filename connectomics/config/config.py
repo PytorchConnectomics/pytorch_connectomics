@@ -136,11 +136,16 @@ _C.DATASET.DATA_INVALID_THRES = [0., 0.]
 
 _C.DATASET.PRE_LOAD_DATA = [None,None,None]
 
-# Reject sampling
-_C.DATASET.REJECT_SIZE_THRES = 100
-
-_C.DATASET.REJECT_P = 0.95
-
+# For some datasets the foreground mask is sparse in the volume. Therefore
+# we perform reject sampling to decrease (all completely avoid) regions
+# without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
+_C.DATASET.REJECT_SAMPLING = CN()
+_C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
+# By default, we conduct rejection sampling before data augmentation to
+# save data loading time. However, the final output after augmentation
+# may not satisfy the SIZE_THRES. Thus some tasks require AFTER_AUG=True.
+_C.DATASET.REJECT_SAMPLING.AFTER_AUG = False
+_C.DATASET.REJECT_SAMPLING.P = 0.95
 
 # -----------------------------------------------------------------------------
 # Augmentor

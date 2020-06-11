@@ -19,6 +19,9 @@ DATASET:
   INPUT_PATH: 'datasets/CREMI/'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
   PAD_SIZE: [4, 128, 128]
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 0.95
 AUGMENTOR:
   ROTATE: 
     ENABLED: True

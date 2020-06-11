@@ -23,9 +23,10 @@ DATASET:
   INPUT_PATH: '<path/to/data>'
   OUTPUT_PATH: 'outputs/synaptic_polarity/'
   PAD_SIZE: [4, 128, 128]
-  REJECT_SIZE_THRES: 1000
-  REJECT_P: 0.95
   DATA_SCALE: [1.0, 0.5, 0.5]
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 0.95
 AUGMENTOR:
   ROTATE: 
     ENABLED: True
