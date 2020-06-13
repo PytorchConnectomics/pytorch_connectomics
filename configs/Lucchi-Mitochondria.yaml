@@ -24,8 +24,11 @@ AUGMENTOR:
     ENABLED: True
   RESCALE:
     ENABLED: True
+  # Since the Lucchi dataset is isotropic (each voxel is cubic), we
+  # apply flip augmentation also to x-z and z-y axes by default.
   FLIP:
     ENABLED: True
+    DO_ZTRANS: 1
   ELASTIC:
     ENABLED: True
   GRAYSCALE:
@@ -52,7 +55,7 @@ INFERENCE:
   IMAGE_NAME: 'img/train_im.tif'
   OUTPUT_PATH: 'outputs/Lucchi_mito_baseline/test'
   OUTPUT_NAME: 'result.h5'
-  PAD_SIZE: [32, 32, 32]
+  PAD_SIZE: [56, 56, 56]
   AUG_MODE: 'mean'
   AUG_NUM: 4
   STRIDE: [56, 56, 56]

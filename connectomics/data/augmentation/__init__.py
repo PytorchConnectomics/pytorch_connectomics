@@ -37,7 +37,8 @@ def build_train_augmentor(cfg):
         aug_list.append(Rescale(p=cfg.AUGMENTOR.RESCALE.P))
     #3. flip
     if cfg.AUGMENTOR.FLIP.ENABLED:
-        aug_list.append(Flip(p=cfg.AUGMENTOR.FLIP.P, do_ztrans=cfg.AUGMENTOR.FLIP.DO_ZTRANS))
+        aug_list.append(Flip(p=cfg.AUGMENTOR.FLIP.P, 
+                             do_ztrans=cfg.AUGMENTOR.FLIP.DO_ZTRANS))
     #4. elastic
     if cfg.AUGMENTOR.ELASTIC.ENABLED:
         aug_list.append(Elastic(alpha=cfg.AUGMENTOR.ELASTIC.ALPHA, 
@@ -56,7 +57,7 @@ def build_train_augmentor(cfg):
     if cfg.AUGMENTOR.MISALIGNMENT.ENABLED:
         aug_list.append(MisAlignment(p=cfg.AUGMENTOR.MISALIGNMENT.P, 
                                      displacement=cfg.AUGMENTOR.MISALIGNMENT.DISPLACEMENT))
-    #8. motion-blur
+    #9. motion-blur
     if cfg.AUGMENTOR.MOTIONBLUR.ENABLED:
         aug_list.append(MotionBlur(p=cfg.AUGMENTOR.MOTIONBLUR.P, 
                                    sections=cfg.AUGMENTOR.MOTIONBLUR.SECTIONS, 

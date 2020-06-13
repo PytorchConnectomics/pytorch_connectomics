@@ -16,10 +16,12 @@ class TestAugmentor(object):
     def __call__(self, model, data):
         out = None
         cc = 0
-        if self.num_aug ==4:
+        if self.num_aug == 4:
             opts = itertools.product((False, ), (False, True), (False, True), (False, ))
-        else:
+        elif self.num_aug == 16:
             opts = itertools.product((False, True), (False, True), (False, True), (False, True))
+        else:
+            raise ValueError('TestAugmentor.num_aug should be either 4 or 16!')
 
         for xflip, yflip, zflip, transpose in opts:
             extension = ""
