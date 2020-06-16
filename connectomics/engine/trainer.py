@@ -123,10 +123,14 @@ class Trainer(object):
             result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.input_size]
             weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.input_size]
 
-        # print(result[0].shape, weight[0].shape)
+        # build test-time augmentor and update output filename
+        output_filename = self.cfg.INFERENCE.OUTPUT_NAME
+        if self.cfg.INFERENCE.AUG_NUM!=0:
+            test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, 
+                                           self.cfg.INFERENCE.AUG_NUM)
+            output_filename = test_augmentor.update_name(output_filename)
 
         start = time.time()
-
         sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
         with torch.no_grad():
             for _, (pos, volume) in enumerate(self.dataloader):
@@ -139,7 +143,6 @@ class Trainer(object):
                     volume = volume.squeeze(1)
 
                 if self.cfg.INFERENCE.AUG_NUM!=0:
-                    test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, self.cfg.INFERENCE.AUG_NUM)
                     output = test_augmentor(self.model, volume)
                 else:
                     output = self.model(volume).cpu().detach().numpy()
@@ -180,7 +183,7 @@ class Trainer(object):
             return result
         else:
             print('save h5')
-            writeh5(os.path.join(self.output_dir, self.cfg.INFERENCE.OUTPUT_NAME), result,['vol%d'%(x) for x in range(len(result))])
+            writeh5(os.path.join(self.output_dir, output_filename), result,['vol%d'%(x) for x in range(len(result))])
 
     # -----------------------------------------------------------------------------
     # Misc functions

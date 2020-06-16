@@ -12,29 +12,19 @@ class TestAugmentor(object):
     def __init__(self, mode='min', num_aug=4):
         self.mode = mode
         self.num_aug = num_aug
+        assert num_aug in [4, 16], "TestAugmentor.num_aug should be either 4 or 16!"
 
     def __call__(self, model, data):
         out = None
         cc = 0
         if self.num_aug == 4:
-            opts = itertools.product((False, ), (False, True), (False, True), (False, ))
-        elif self.num_aug == 16:
-            opts = itertools.product((False, True), (False, True), (False, True), (False, True))
+            opts = itertools.product((False, ), (False, ), (False, True), (False, True))
         else:
-            raise ValueError('TestAugmentor.num_aug should be either 4 or 16!')
+            opts = itertools.product((False, True), (False, True), (False, True), (False, True))
 
         for xflip, yflip, zflip, transpose in opts:
-            extension = ""
-            if transpose:
-                extension += "t"
-            if zflip:
-                extension += "z"
-            if yflip:
-                extension += "y"
-            if xflip:
-                extension += "x"
             volume = data.clone()
-            # batch_size,channel,z,y,x 
+            # b,c,z,y,x 
 
             if xflip:
                 volume = torch.flip(volume, [4])
@@ -45,25 +35,26 @@ class TestAugmentor(object):
             if transpose:
                 volume = torch.transpose(volume, 3, 4)
             # aff: 3*z*y*x 
-            vout = model(volume).cpu().detach().numpy()
+            vout = model(volume).detach().cpu()
 
             if transpose: # swap x-/y-affinity
-                vout = vout.transpose(0, 1, 2, 4, 3)
-                vout[:,[1,2]] = vout[:,[2,1]]
+                vout = torch.transpose(vout, 3, 4)
             if zflip:
-                vout = vout[:,:,::-1]
+                vout = torch.flip(vout, [2])
             if yflip:
-                vout = vout[:,:, :, ::-1]
+                vout = torch.flip(vout, [3])
             if xflip:
-                vout = vout[:,:, :, :, ::-1]
+                vout = torch.flip(vout, [4])
                 
+            # cast to numpy array
+            vout = vout.numpy()
             if out is None:
                 if self.mode == 'min':
-                    out = np.ones(vout.shape,dtype=np.float32)
+                    out = np.ones(vout.shape, dtype=np.float32)
                 elif self.mode == 'max':
-                    out = np.zeros(vout.shape,dtype=np.float32)
+                    out = np.zeros(vout.shape, dtype=np.float32)
                 elif self.mode == 'mean':
-                    out = np.zeros(vout.shape,dtype=np.float32)
+                    out = np.zeros(vout.shape, dtype=np.float32)
 
             if self.mode == 'min':
                 out = np.minimum(out, vout)
@@ -77,3 +68,15 @@ class TestAugmentor(object):
             out = out/cc
 
         return out
+
+    def update_name(self, name):
+        extension = "_"
+        if self.num_aug == 4:
+            extension += "tz"
+        else:
+            extension += "tzyx"
+        # Update the suffix of the output filename to indicate
+        # the use of test-time data augmentation.
+        name_list = name.split('.')
+        new_filename = name_list[0] + extension + "." + name_list[1]
+        return new_filename
