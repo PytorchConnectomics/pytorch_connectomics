@@ -6,6 +6,8 @@ import numpy as np
 from skimage.morphology import dilation,erosion
 from skimage.filters import gaussian
 
+from .flip import Flip
+
 class Compose(object):
     """Compose transforms
 
@@ -24,6 +26,8 @@ class Compose(object):
                  keep_non_smoothed = False):
 
         self.transforms = transforms
+        self.set_flip()
+
         self.input_size = np.array(input_size)
         self.sample_size = self.input_size.copy()
         self.set_sample_params()
@@ -31,6 +35,18 @@ class Compose(object):
         self.smooth = smooth
         self.keep_uncropped = keep_uncropped
         self.keep_non_smoothed = keep_non_smoothed
+
+    def set_flip(self):
+        self.flip_aug = None
+        flip_idx = None
+
+        for i, t in enumerate(self.transforms):
+            if t.__class__.__name__ == 'Flip':
+                self.flip_aug = t
+                flip_idx = i
+
+        if flip_idx is not None:
+            del self.transforms[flip_idx]
 
     def set_sample_params(self):
         for _, t in enumerate(self.transforms):
@@ -99,12 +115,15 @@ class Compose(object):
                     return {'image': image[:, z_low:z_high, low:high, low:high],
                             'label': label[z_low:z_high, low:high, low:high]}                                        
 
-    def __call__(self, data, random_state=np.random):
+    def __call__(self, data, random_state=np.random.RandomState()):
+        # According thie blog post (https://www.sicara.ai/blog/2019-01-28-how-computer-generate-random-numbers):
+        # we need to be careful when using numpy.random in multiprocess application as it can always generate the 
+        # same output for different processes. Therefore we use np.random.RandomState().
         data['image'] = data['image'].astype(np.float32)
 
         ran = random_state.rand(len(self.transforms))
         for tid, t in enumerate(reversed(self.transforms)):
-            if  ran[tid] < t.p:
+            if ran[tid] < t.p:
                 data = t(data, random_state)
 
         # crop the data to input size
@@ -112,6 +131,12 @@ class Compose(object):
             data['uncropped_image'] = data['image']
             data['uncropped_label'] = data['label']
         data = self.crop(data)
+
+        # flip augmentation
+        if self.flip_aug is not None:
+            if random_state.rand() < self.flip_aug.p:
+                data = self.flip_aug(data, random_state)
+
         if self.keep_non_smoothed:
             data['non_smoothed'] = data['label']
 

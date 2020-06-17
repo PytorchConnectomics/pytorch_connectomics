@@ -166,8 +166,8 @@ _C.AUGMENTOR.RESCALE = CN({"ENABLED": True})
 _C.AUGMENTOR.RESCALE.P = 0.5
 
 _C.AUGMENTOR.FLIP = CN({"ENABLED": True})
-# Probability of applying the flip augmentation
-_C.AUGMENTOR.FLIP.P = 0.5
+# Probability of applying the flip augmentation (always applied by default)
+_C.AUGMENTOR.FLIP.P = 1.0
 # Conducting x-z and y-z flip only when the dataset is isotropic. 
 _C.AUGMENTOR.FLIP.DO_ZTRANS = 0
 
