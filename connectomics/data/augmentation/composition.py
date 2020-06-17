@@ -6,8 +6,6 @@ import numpy as np
 from skimage.morphology import dilation,erosion
 from skimage.filters import gaussian
 
-from .flip import Flip
-
 class Compose(object):
     """Compose transforms
 
@@ -37,6 +35,10 @@ class Compose(object):
         self.keep_non_smoothed = keep_non_smoothed
 
     def set_flip(self):
+        # Some data augmentation techniques (e.g., elastic wrap, missing parts) are designed only
+        # for x-y planes while some (e.g., missing section, mis-alignment) are only applied along
+        # the z axis. Thus we let flip augmentation the last one to be applied otherwise shape mis-match
+        # can happen when do_ztrans is 1 for cubic input volumes.
         self.flip_aug = None
         flip_idx = None
 

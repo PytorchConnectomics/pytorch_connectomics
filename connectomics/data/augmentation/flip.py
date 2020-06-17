@@ -55,7 +55,7 @@ class Flip(DataAugment):
                 data = data.transpose(0, 3, 2, 1)
         return data
     
-    def __call__(self, data, random_state):
+    def __call__(self, data, random_state=np.random):
         output = {}
 
         rule = random_state.randint(2, size=4+self.do_ztrans)
