@@ -31,7 +31,7 @@ class Visualizer(object):
 
     def visualize(self, cfg, volume, label, output, iter_total, writer):
         # split the prediction into chunks along the channel dimension
-        split_channels = [self.num_channels_dict[x] for x in cfg.MODEL.TARGET_OPT]
+        split_channels = [self.num_channels_dict[x.split('-')[0]] for x in cfg.MODEL.TARGET_OPT]
         output = torch.split(output, split_channels, dim=1)
         assert len(output) == len(label)
 
