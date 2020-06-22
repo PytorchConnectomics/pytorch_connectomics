@@ -13,8 +13,8 @@ MODEL:
   TARGET_OPT: ['2']
   WEIGHT_OPT: [['1']]
 DATASET:
-  IMAGE_NAME: 'img/train-input.tif'
-  LABEL_NAME: 'label/train_labels.tif'
+  IMAGE_NAME: 'train_image.h5'
+  LABEL_NAME: 'train_label.h5'
   INPUT_PATH: '/path/to/SNEMI/'
   OUTPUT_PATH: 'outputs/SNEMI/'
   PAD_SIZE: [4, 128, 128]
