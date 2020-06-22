@@ -16,7 +16,7 @@ If you want new features that are relatively easy to implement (e.g., loss funct
 
 The code is developed and tested under the following configurations.
 - Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```SYSTEM.NUM_GPU``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=9.0, Python>=3.7, PyTorch>=1.4.0***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.7, PyTorch>=1.5.0***
 
 ## Installation
 
@@ -24,9 +24,9 @@ Create a new conda environment:
 ```
 conda create -n py3_torch python=3.7
 source activate py3_torch
-conda install pytorch torchvision cudatoolkit=9.2 -c pytorch
+conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 ```
-Please note that this package is developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster, where the current version of the Nvidia driver installed is 396.26 that supports Cuda version 9. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
+Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
 
 Download and install the package:
 ```
@@ -35,7 +35,7 @@ cd pytorch_connectomics
 pip install -r requirements.txt
 pip install --editable .
 ```
-For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html). If you meet compilation errors, please check [TROUBLESHOOTING.md](https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md).
+For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
 
 ## Visualization
 
@@ -44,7 +44,7 @@ For more information and frequently asked questions about installation, please c
 * Use TensorBoard with `tensorboard --logdir runs`  (needs to install TensorFlow).
 
 ### Test
-* Visualize the affinity graph and segmentation using Neuroglancer.
+* Visualize the affinity graph and segmentation using [Neuroglancer](https://github.com/google/neuroglancer). 
 
 ## Notes
 
