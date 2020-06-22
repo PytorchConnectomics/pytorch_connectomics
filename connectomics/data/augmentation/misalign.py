@@ -1,3 +1,4 @@
+import cv2
 import math
 import numpy as np
 from .augmentor import DataAugment
@@ -9,9 +10,13 @@ class MisAlignment(DataAugment):
         displacement (int): maximum pixel displacement in each direction (x and y).
         p (float): probability of applying the augmentation.
     """
-    def __init__(self, displacement=16, p=0.5):
+    def __init__(self, 
+                 displacement=16, 
+                 rotate_ratio=0.0,
+                 p=0.5):
         super(MisAlignment, self).__init__(p=p)
-        self.displacement = 16
+        self.displacement = displacement
+        self.rotate_ratio = rotate_ratio
         self.set_params()
 
     def set_params(self):
@@ -50,6 +55,45 @@ class MisAlignment(DataAugment):
     
         return new_images, new_labels
 
+    def misalignment_rotate(self, data, random_state):
+        images = data['image'].copy()
+        labels = data['label'].copy()
+
+        height, width = images.shape[-2:]
+        assert height == width
+        M = self.random_rotate_matrix(height, random_state)
+        idx = random_state.choice(np.array(range(1, images.shape[0]-1)), 1)[0]
+
+        if random_state.rand() < 0.5:
+            # slip misalignment
+            images[idx] = cv2.warpAffine(images[idx], M, (height,width), 1.0, 
+                    flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+            labels[idx] = cv2.warpAffine(labels[idx], M, (height,width), 1.0, 
+                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT)
+        else:
+            # translation misalignment
+            for i in range(idx, images.shape[0]):
+                images[i] = cv2.warpAffine(images[i], M, (height,width), 1.0, 
+                    flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+                labels[i] = cv2.warpAffine(labels[i], M, (height,width), 1.0, 
+                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT)
+
+        new_images = images.copy()
+        new_labels = labels.copy()
+
+        return new_images, new_labels
+
+    def random_rotate_matrix(self, height, random_state):
+        x = (self.displacement / 2.0)
+        y = ((height - self.displacement) / 2.0) * 1.42
+        angle = math.asin(x/y) * 2.0 * 57.2958 # convert radians to degrees
+        rand_angle = (random_state.rand() - 0.5) * 2.0 * angle
+        M = cv2.getRotationMatrix2D((height/2, height/2), rand_angle, 1)
+        return M
+
     def __call__(self, data, random_state=np.random):
-        new_images, new_labels = self.misalignment(data, random_state)
+        if random_state.rand() < self.rotate_ratio:
+            new_images, new_labels = self.misalignment_rotate(data, random_state)
+        else:
+            new_images, new_labels = self.misalignment(data, random_state)
         return {'image': new_images, 'label': new_labels}
