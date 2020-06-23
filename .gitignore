@@ -123,6 +123,7 @@ dmypy.json
 # vim
 *.swp
 *.swo
+.vscode/
 .github/
 *~
 

@@ -1,7 +1,7 @@
 Installation
 ============
 
-The code is developed and tested on a machine with 8 Nvidia GPUs with the CentOS Linux 7.4 (Core) operation system. 
+The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS Linux 7.4 (Core) operation system. 
 
 .. note::
     We do not recommend installation as root user on your system python.
@@ -16,14 +16,14 @@ Please follow the steps below for a successful installation:
 
         $ conda create -n py3_torch python=3.7
         $ source activate py3_torch
-        $ conda install pytorch torchvision cudatoolkit=9.2 -c pytorch
+        $ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 
-#. Ensure that at least PyTorch 1.3.0 is installed:
+#. Ensure that at least PyTorch 1.5.0 is installed:
 
     .. code-block:: none
 
         $ python -c 'import torch; print(torch.__version__)'
-        >>> 1.3.0
+        >>> 1.5.0
 
 #. Ensure CUDA is setup correctly (optional):
 
@@ -51,30 +51,35 @@ Please follow the steps below for a successful installation:
         .. code-block:: none
 
             $ nvcc --version
-            >>> 9.2
+            >>> 10.2
 
     #. Ensure that PyTorch and system CUDA versions match:
 
         .. code-block:: none
 
             $ python -c 'import torch; print(torch.version.cuda)'
-            >>> 9.2
+            >>> 10.2
 
             $ nvcc --version
-            >>> 9.2
+            >>> 10.2
     
-    Note: Load Conda modules from the `RC server module list <https://portal.rc.fas.harvard.edu/p3/build-reports/>`_ during development on the RC server.
+    The codebased is mainly developed and tested on the Harvard `FASRC <https://www.rc.fas.harvard.edu>`_ cluster. 
+    Please load required CUDA modules from the `RC server module list <https://portal.rc.fas.harvard.edu/p3/build-reports/>`_ during 
+    running and development on the RC server.
      
 #. Download and install the package:
 
     .. code-block:: none
 
-        $ git clone git@github.com:zudi-lin/pytorch_connectomics.git
+        $ git clone https://github.com/zudi-lin/pytorch_connectomics.git
         $ cd pytorch_connectomics
         $ pip install -r requirements.txt
         $ pip install --editable .
 
+    We install the package in editable mode by default so that there is no need to
+    re-install it when making changes to the code. 
+
 .. note::
-    If you meet compilation errors, please check the `TROUBLESHOOTING.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/TROUBLESHOOTING.md>`_.
-    It is highly recommended to first play with the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_ scripts to make sure that
-    the installation is correct and also have intial taste of the modules.
+    If you meet compilation errors, please open an issue and describe the steps to reproduce the errors.
+    It is highly recommended to first play with the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demos>`_ Jupyter notebooks to 
+    make sure that the installation is correct and also have an intial taste of the modules.

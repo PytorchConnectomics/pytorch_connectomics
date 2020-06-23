@@ -1,19 +1,16 @@
 Configurations
 ===============
 
-Connectomics uses a key-value based configuration system that can be used to carry outstandard and commonly used tasks.
-
-The config system of Connectomics uses YAML, a human-readable data-serialization language and yacs package, a simple experiment 
-configuration system for research. In addition to the general tasks, that access and update a config, we provide the following extra 
-functionalities:
+`PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ uses a key-value based configuration system 
+that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
+that uses YAML, a human-readable data-serialization language, to manage options.
 
 #. The config have ``_C.key:value``  field, which will use a pre-defined config first. Values in the pre-defined config will 
-   be overwritten in sub-configs, if there are any according to requirements. We provided several base configs for standard model 
-   architectures as ``task.yaml`` files.
+   be overwritten in sub-configs, if there are any according to requirements. We provided several base configs for standard tasks
+   in connectomics research as ``task.yaml`` files at `configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
 
-``config`` has a very limited abstraction. We do not expect all features in Connectomics to be available through configs. If you need 
-something that’s not available in the config space, please modify the keys-value pairs in the file at 
-``/connectomics/config/config.py``
+``config`` has a very limited abstraction. We do not expect all features in the package to be available through configs. If you need 
+to add some options that are not available in the version, please modify the keys-value pairs in ``/connectomics/config/config.py``
 
 Basic Usage
 ============
@@ -28,88 +25,65 @@ Some basic usage of the ``CfgNode`` object is shown here.
     _C.MODEL = CN()      # Model architectures defined in the package
     _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
    
-The configs in Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will 
+The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will 
 overwrite the existing values in the config file. For example, ``main.py`` can be used with to modify input file name :
 
 .. code-block:: none
 
     python -u scripts/main.py \
-    --config-file configs/Lucchi-Mitochondria.yaml DATASET.IMAGE_NAME ‘img/train_im.h5’
+    --config-file configs/Lucchi-Mitochondria.yaml SOLVER.ITERATION_TOTAL 30000
   
-To see a list of available configs in Connectomics and what they mean, check `Config References <https://github.com/zudi-
-lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_
+To see a list of available configs in PyTorch Connectomics and what they mean, check `Config References <https://github.com/zudi-
+lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_.
 
 
-Best Practice with Configs
-==========================
+Multiple Losses for a Single Learning Target
+=============================================
 
-#. Treat the configs you write as “code”: avoid copying them or duplicating them; use ``_BASE_`` to share common parts between 
-configs.
+Sometimes training with a single loss function does not produce favorable predictions. Thus we provide a simple way to specify multiple loss functions
+for training the segmentation models. For example, to use the weighted binary cross-entropy loss (``WeightedBCE``) and the soft Sørensen–Dice  
+loss (``DiceLoss``) at the same time, we can change the key-value pairs of ``LOSS_OPTION`` in the ``config.yaml`` file by doing:
 
-#. Keep the configs you write simple: don’t include keys that do not affect the experimental setting.
+.. code-block:: yaml
 
+   MODEL:
+     LOSS_OPTION: [['WeightedBCE', 'DiceLoss']]
+     LOSS_WEIGHT: [[1.0, 0.5]]
+     WEIGHT_OPT: [['1', '0']]
 
-Specifing multiple loss for a single learning target
-=========================================================
+``LOSS_OPTION``: the loss criterions to be used during training.
+``LOSS_WEIGHT``: the relative weight of each loss function.
+``WEIGHT_OPT``: the option for generating pixel-wise loss mask (set to '0' disable).
 
-We can also specify multiple loss functions as a criterion for training the segmentation models, i.e Binary cross-entropy loss, Dice 
-loss by changing the key-value pairs of ``_LOSS_OPTION`` in the ``config.yaml`` file or by giving it explicitly as command-line 
-arguments, multiple loss functions can be put to use for a single learning target.
+If you only want to use weighted binary cross-entropy loss, do:
 
+.. code-block:: yaml
 
-#. Say, you want to use Weighted Binary cross-entropy loss as well as Dice loss as criterions for mitochondria segmentation task.
+   MODEL:
+     LOSS_OPTION: [['WeightedBCE']]
+     LOSS_WEIGHT: [[1.0]]
+     WEIGHT_OPT: [['1']]
 
-.. code-block:: none
+Multitask Learning
+===================
 
-   python -u scripts/main.py --config-file configs/Lucchi-Mitochondria.yaml \
-   MODEL.LOSS_OPTION [[‘WeightedBCE’, ‘DiceLoss’]] MODEL.LOSS_WEIGHT [[1.0, 1.0]]
-   
- 
-``LOSS_OPTION`` specifies the loss criterions to be used while training
-``LOSS_WEIGHT`` specifies the weight or emphasis to be given to each loss criterion, i.e In the above case both the loss criterion
-will contribute equally to the overall loss.
+To conduct multitask learning, which predicts multiple targets given a image volume, we can further adjust the ``TARGET_OPT`` option.
+For example, to conduct instance segmentation of mitochondria, we can predict not only the binary foreground mask but also the instance
+boundary to distinguish closely touching objects. Specifically, we can use the following options:
 
+.. code-block:: yaml
 
-#. Say, you want to use Weighted Binary cross-entropy loss as well as Dice loss as criterions with a weight of 1.0, 0.5 .
+   MODEL:
+     TARGET_OPT: ['0', '4-2-1']
+     LOSS_OPTION: [['WeightedBCE', 'DiceLoss'], ['WeightedBCE']]
+     LOSS_WEIGHT: [[1.0, 1.0], [1.0]]
+     WEIGHT_OPT: [['1', '0'], ['1']]
 
-.. code-block:: none
+``TARGET_OPT``: a list of the targets to learn.
 
-   python -u scripts/main.py --config-file configs/Lucchi-Mitochondria.yaml \
-   MODEL.LOSS_OPTION [[‘WeightedBCE’, ‘DiceLoss’]] MODEL.LOSS_WEIGHT [[1.0, 0.5]]
-   
- 
-``LOSS_OPTION`` specifies the loss criterions to be used while training
-``LOSS_WEIGHT`` specifies the weight or emphasis to be given to each loss criterion, i.e. In the above case cross-entropy will 
-contribute twice times more than dice loss to the overall loss.
-
-
-
-#. Say, you want to use only Weighted Binary cross-entropy loss as a criterion for mitochondria segmentation task.
-
-.. code-block:: none
-
-   python -u scripts/main.py --config-file configs/Lucchi-Mitochondria.yaml \
-   MODEL.LOSS_OPTION [[‘WeightedBCE’]] MODEL.LOSS_WEIGHT [[1.0]]
-   
- 
-``LOSS_OPTION`` specifies only W Binary cross-entropy as loss criterions to be used while training.
-``LOSS_WEIGHT`` specifies the weight emphasis to be given to each loss criterion, i.e. In the above case, only cross-entropy will 
-contribute to the overall loss.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Currently five kinds of ``TARGET_OPT`` are supported:
+- ``'0'``: binary foreground mask (see more details in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_)..
+- ``'1'``: synaptic polarity mask (see more details in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
+- ``'2'``: affinity map (see more details in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
+- ``'3'``: small object masks.
+- ``'4'``: instance boundaries.

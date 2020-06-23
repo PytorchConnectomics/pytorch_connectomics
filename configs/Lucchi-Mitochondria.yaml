@@ -20,27 +20,11 @@ DATASET:
   OUTPUT_PATH: 'outputs/Lucchi_mito_baseline'
   PAD_SIZE: [56, 56, 56]
 AUGMENTOR:
-  ROTATE: 
-    ENABLED: True
-  RESCALE:
-    ENABLED: True
   # Since the Lucchi dataset is isotropic (each voxel is cubic), we
   # apply flip augmentation also to x-z and z-y axes by default.
   FLIP:
     ENABLED: True
     DO_ZTRANS: 1
-  ELASTIC:
-    ENABLED: True
-  GRAYSCALE:
-    ENABLED: True
-  MISSINGPARTS:
-    ENABLED: True
-  MISSINGSECTION:
-    ENABLED: True
-  MISALIGNMENT:
-    ENABLED: True
-  MOTIONBLUR:
-    ENABLED: True
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
   BASE_LR: 0.01

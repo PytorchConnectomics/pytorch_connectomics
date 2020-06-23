@@ -30,7 +30,7 @@ Please note that this package is mainly developed on the Harvard [FASRC](https:/
 
 Download and install the package:
 ```
-git clone git@github.com:zudi-lin/pytorch_connectomics.git
+git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
 pip install -r requirements.txt
 pip install --editable .
