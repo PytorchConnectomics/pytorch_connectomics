@@ -7,13 +7,13 @@ that uses YAML, a human-readable data-serialization language, to manage options.
 
 #. The config have ``_C.key:value``  field, which will use a pre-defined config first. Values in the pre-defined config will 
    be overwritten in sub-configs, if there are any according to requirements. We provided several base configs for standard tasks
-   in connectomics research as ``task.yaml`` files at `configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
+   in connectomics research as ``task.yaml`` files at `pytorch_connectomics/configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
 
-``config`` has a very limited abstraction. We do not expect all features in the package to be available through configs. If you need 
+We do not expect all features in the package to be available through configs. If you need 
 to add some options that are not available in the version, please modify the keys-value pairs in ``/connectomics/config/config.py``
 
 Basic Usage
-============
+-------------
 
 Some basic usage of the ``CfgNode`` object is shown here.
 
@@ -38,7 +38,7 @@ lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_.
 
 
 Multiple Losses for a Single Learning Target
-=============================================
+----------------------------------------------
 
 Sometimes training with a single loss function does not produce favorable predictions. Thus we provide a simple way to specify multiple loss functions
 for training the segmentation models. For example, to use the weighted binary cross-entropy loss (``WeightedBCE``) and the soft Sørensen–Dice  
@@ -65,7 +65,7 @@ If you only want to use weighted binary cross-entropy loss, do:
      WEIGHT_OPT: [['1']]
 
 Multitask Learning
-===================
+-----------------------
 
 To conduct multitask learning, which predicts multiple targets given a image volume, we can further adjust the ``TARGET_OPT`` option.
 For example, to conduct instance segmentation of mitochondria, we can predict not only the binary foreground mask but also the instance
@@ -82,8 +82,8 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 ``TARGET_OPT``: a list of the targets to learn.
 
 Currently five kinds of ``TARGET_OPT`` are supported:
-- ``'0'``: binary foreground mask (see more details in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_)..
-- ``'1'``: synaptic polarity mask (see more details in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
-- ``'2'``: affinity map (see more details in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
-- ``'3'``: small object masks.
-- ``'4'``: instance boundaries.
+# ``'0'``: binary foreground mask (see more details in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_)..
+# ``'1'``: synaptic polarity mask (see more details in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
+# ``'2'``: affinity map (see more details in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
+# ``'3'``: small object masks.
+# ``'4'``: instance boundaries.
