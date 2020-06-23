@@ -101,10 +101,12 @@
               <p class="caption"><span class="caption-text">Notes</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#basic-usage">Basic Usage</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multitask-learning">Multitask Learning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#multitask-learning">Multitask Learning</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -198,7 +200,8 @@ the models used in affinity prediction in <a class="reference external" href="ht
 which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x
 and z-y planes besides x-y planes are preferred.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task. The pytorch dataset class of lucchi data is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task.
+The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>

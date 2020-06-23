@@ -82,5 +82,4 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
             $ cd zwatershed
             $ pip install --editable .
 
-    #. Generate 3D segmentation and report Rand and VI score using ``waterz``.
-    Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.
+    #. Generate 3D segmentation and report Rand and VI score using ``waterz``. Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.

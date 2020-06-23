@@ -10,7 +10,8 @@ the models used in affinity prediction in `neuron segmentation <https://zudi-lin
     which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x
     and z-y planes besides x-y planes are preferred.
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--config-file configs/Lucchi-Mitochondria.yaml`` during training and inference to load the required configurations for this task. The pytorch dataset class of lucchi data is :class:`torch_connectomics.data.dataset.VolumeDataset`.
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--config-file configs/Lucchi-Mitochondria.yaml`` during training and inference to load the required configurations for this task. 
+The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.VolumeDataset`.
 
 #. Get the dataset:
 

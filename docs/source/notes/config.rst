@@ -1,6 +1,9 @@
 Configurations
 ===============
 
+.. contents::
+   :local:
+
 `PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ uses a key-value based configuration system 
 that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
 that uses YAML, a human-readable data-serialization language, to manage options.
@@ -82,6 +85,7 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 ``TARGET_OPT``: a list of the targets to learn.
 
 Currently five kinds of ``TARGET_OPT`` are supported:
+
 # ``'0'``: binary foreground mask (see more details in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_)..
 # ``'1'``: synaptic polarity mask (see more details in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
 # ``'2'``: affinity map (see more details in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
