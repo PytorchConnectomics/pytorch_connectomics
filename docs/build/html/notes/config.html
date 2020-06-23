@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Configurations &mdash; connectomics master documentation</title>
+  <title>Configurations &mdash; connectomics latest documentation</title>
   
 
   
@@ -23,7 +23,7 @@
       <script type="text/javascript">
           var DOCUMENTATION_OPTIONS = {
               URL_ROOT:'../',
-              VERSION:'master',
+              VERSION:'latest',
               LANGUAGE:'None',
               COLLAPSE_INDEX:false,
               FILE_SUFFIX:'.html',
@@ -74,7 +74,7 @@
             
             
               <div class="version">
-                master (0.1)
+                latest
               </div>
             
           
@@ -102,6 +102,9 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Configurations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#basic-usage">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#multitask-learning">Multitask Learning</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -186,7 +189,76 @@
             
   <div class="section" id="configurations">
 <h1>Configurations<a class="headerlink" href="#configurations" title="Permalink to this headline">¶</a></h1>
-<p>We will add detailed guidance for using the configuration system soon!</p>
+<p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics">PyTorch Connectomics</a> uses a key-value based configuration system
+that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with <a class="reference external" href="https://github.com/rbgirshick/yacs">YACS</a>
+that uses YAML, a human-readable data-serialization language, to manage options.</p>
+<ol class="arabic simple">
+<li>The config have <code class="docutils literal"><span class="pre">_C.key:value</span></code>  field, which will use a pre-defined config first. Values in the pre-defined config will
+be overwritten in sub-configs, if there are any according to requirements. We provided several base configs for standard tasks
+in connectomics research as <code class="docutils literal"><span class="pre">task.yaml</span></code> files at <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs">configs/</a>.</li>
+</ol>
+<p><code class="docutils literal"><span class="pre">config</span></code> has a very limited abstraction. We do not expect all features in the package to be available through configs. If you need
+to add some options that are not available in the version, please modify the keys-value pairs in <code class="docutils literal"><span class="pre">/connectomics/config/config.py</span></code></p>
+</div>
+<div class="section" id="basic-usage">
+<h1>Basic Usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h1>
+<p>Some basic usage of the <code class="docutils literal"><span class="pre">CfgNode</span></code> object is shown here.</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>from yacs.config import CfgNode as CN
+_C = CN()            # config definition
+_C.SYSTEM = CN()     # config definition for GPU and CPU
+_C.MODEL = CN()      # Model architectures defined in the package
+_C.MODEL.ARCHITECTURE = &#39;unet_residual_3d&#39;
+</pre></div>
+</div>
+<p>The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will
+overwrite the existing values in the config file. For example, <code class="docutils literal"><span class="pre">main.py</span></code> can be used with to modify input file name :</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>python -u scripts/main.py \
+--config-file configs/Lucchi-Mitochondria.yaml SOLVER.ITERATION_TOTAL 30000
+</pre></div>
+</div>
+<p>To see a list of available configs in PyTorch Connectomics and what they mean, check <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py">Config References</a>.</p>
+</div>
+<div class="section" id="multiple-losses-for-a-single-learning-target">
+<h1>Multiple Losses for a Single Learning Target<a class="headerlink" href="#multiple-losses-for-a-single-learning-target" title="Permalink to this headline">¶</a></h1>
+<p>Sometimes training with a single loss function does not produce favorable predictions. Thus we provide a simple way to specify multiple loss functions
+for training the segmentation models. For example, to use the weighted binary cross-entropy loss (<code class="docutils literal"><span class="pre">WeightedBCE</span></code>) and the soft Sørensen–Dice
+loss (<code class="docutils literal"><span class="pre">DiceLoss</span></code>) at the same time, we can change the key-value pairs of <code class="docutils literal"><span class="pre">LOSS_OPTION</span></code> in the <code class="docutils literal"><span class="pre">config.yaml</span></code> file by doing:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span></span><span class="nt">MODEL</span><span class="p">:</span>
+  <span class="nt">LOSS_OPTION</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="s">&#39;WeightedBCE&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;DiceLoss&#39;</span><span class="p p-Indicator">]]</span>
+  <span class="nt">LOSS_WEIGHT</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span> <span class="nv">0.5</span><span class="p p-Indicator">]]</span>
+  <span class="nt">WEIGHT_OPT</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="s">&#39;1&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;0&#39;</span><span class="p p-Indicator">]]</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">LOSS_OPTION</span></code>: the loss criterions to be used during training.
+<code class="docutils literal"><span class="pre">LOSS_WEIGHT</span></code>: the relative weight of each loss function.
+<code class="docutils literal"><span class="pre">WEIGHT_OPT</span></code>: the option for generating pixel-wise loss mask (set to ‘0’ disable).</p>
+<p>If you only want to use weighted binary cross-entropy loss, do:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span></span><span class="nt">MODEL</span><span class="p">:</span>
+  <span class="nt">LOSS_OPTION</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="s">&#39;WeightedBCE&#39;</span><span class="p p-Indicator">]]</span>
+  <span class="nt">LOSS_WEIGHT</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="nv">1.0</span><span class="p p-Indicator">]]</span>
+  <span class="nt">WEIGHT_OPT</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="s">&#39;1&#39;</span><span class="p p-Indicator">]]</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="multitask-learning">
+<h1>Multitask Learning<a class="headerlink" href="#multitask-learning" title="Permalink to this headline">¶</a></h1>
+<p>To conduct multitask learning, which predicts multiple targets given a image volume, we can further adjust the <code class="docutils literal"><span class="pre">TARGET_OPT</span></code> option.
+For example, to conduct instance segmentation of mitochondria, we can predict not only the binary foreground mask but also the instance
+boundary to distinguish closely touching objects. Specifically, we can use the following options:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span></span><span class="nt">MODEL</span><span class="p">:</span>
+  <span class="nt">TARGET_OPT</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;0&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;4-2-1&#39;</span><span class="p p-Indicator">]</span>
+  <span class="nt">LOSS_OPTION</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="s">&#39;WeightedBCE&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;DiceLoss&#39;</span><span class="p p-Indicator">],</span> <span class="p p-Indicator">[</span><span class="s">&#39;WeightedBCE&#39;</span><span class="p p-Indicator">]]</span>
+  <span class="nt">LOSS_WEIGHT</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span> <span class="nv">1.0</span><span class="p p-Indicator">],</span> <span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">]]</span>
+  <span class="nt">WEIGHT_OPT</span><span class="p">:</span> <span class="p p-Indicator">[[</span><span class="s">&#39;1&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;0&#39;</span><span class="p p-Indicator">],</span> <span class="p p-Indicator">[</span><span class="s">&#39;1&#39;</span><span class="p p-Indicator">]]</span>
+</pre></div>
+</div>
+<p><code class="docutils literal"><span class="pre">TARGET_OPT</span></code>: a list of the targets to learn.</p>
+<p>Currently five kinds of <code class="docutils literal"><span class="pre">TARGET_OPT</span></code> are supported:
+- <code class="docutils literal"><span class="pre">'0'</span></code>: binary foreground mask (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html">mitochondria segmentation tutorial</a>)..
+- <code class="docutils literal"><span class="pre">'1'</span></code>: synaptic polarity mask (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html">synaptic polairty tutorial</a>).
+- <code class="docutils literal"><span class="pre">'2'</span></code>: affinity map (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation tutorial</a>).
+- <code class="docutils literal"><span class="pre">'3'</span></code>: small object masks.
+- <code class="docutils literal"><span class="pre">'4'</span></code>: instance boundaries.</p>
 </div>
 
 

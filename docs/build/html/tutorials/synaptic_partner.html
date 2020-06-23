@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Synaptic Partner Segmentation &mdash; connectomics master documentation</title>
+  <title>Synaptic Partner Segmentation &mdash; connectomics latest documentation</title>
   
 
   
@@ -23,7 +23,7 @@
       <script type="text/javascript">
           var DOCUMENTATION_OPTIONS = {
               URL_ROOT:'../',
-              VERSION:'master',
+              VERSION:'latest',
               LANGUAGE:'None',
               COLLAPSE_INDEX:false,
               FILE_SUFFIX:'.html',
@@ -74,7 +74,7 @@
             
             
               <div class="version">
-                master (0.1)
+                latest
               </div>
             
           
@@ -102,6 +102,9 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multitask-learning">Multitask Learning</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -192,10 +195,11 @@ the models used in affinity prediction in <a class="reference external" href="ht
 The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Our segmentation task consists of a target of three channels. The three channels are pre-synaptic region, post-synaptic region and synaptic
-region (union of the first two channels), respectively.</p>
+<p class="last">Our segmentation model uses a model target of three channels. The three channels are <em>pre-synaptic region</em>, <em>post-synaptic region</em> and <em>synaptic
+region</em> (union of the first two channels), respectively.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.  The pytorch dataset class of synaptic partners is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.
+The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <ol class="arabic">
 <li><p class="first">Dataset examples can be found on the Harvard RC server here:</p>
 <blockquote>
@@ -211,14 +215,27 @@ region (union of the first two channels), respectively.</p>
 </li>
 <li><p class="first">Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">By default the path of images and labels are not specified. To
+run the training scripts, please revise the <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">LABEL_NAME</span></code>
+and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>
+[<a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Synaptic-Partner-Segmentation.yaml">link</a>].
+The options can also be given as command-line arguments without changing of the <code class="docutils literal"><span class="pre">yaml</span></code> configuration files.</p>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Synaptic-Partner-Segmentation.yaml
+</pre></div>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Partner-Segmentation.yaml
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">We add higher weights to the foreground pixels and apply rejection sampling to reject samples without synapes during training to heavily penalize
+<p class="last">We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
 false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
 vast volumes.</p>
 </div>
@@ -236,8 +253,14 @@ vast volumes.</p>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Partner-Segmentation.yaml --inference \
-  --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
+  --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
 </pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">By default the path of images for inference are not specified. Please change
+the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>
+[<a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Synaptic-Partner-Segmentation.yaml">link</a>].</p>
 </div>
 </div></blockquote>
 </li>

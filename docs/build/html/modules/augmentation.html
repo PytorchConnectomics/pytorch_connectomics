@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>connectomics.data.augmentation &mdash; connectomics master documentation</title>
+  <title>connectomics.data.augmentation &mdash; connectomics latest documentation</title>
   
 
   
@@ -23,7 +23,7 @@
       <script type="text/javascript">
           var DOCUMENTATION_OPTIONS = {
               URL_ROOT:'../',
-              VERSION:'master',
+              VERSION:'latest',
               LANGUAGE:'None',
               COLLAPSE_INDEX:false,
               FILE_SUFFIX:'.html',
@@ -74,7 +74,7 @@
             
             
               <div class="version">
-                master (0.1)
+                latest
               </div>
             
           
@@ -102,6 +102,9 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multitask-learning">Multitask Learning</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -318,7 +321,7 @@ than the input size to make sure there is no non-valid region after center-crop.
 
 <dl class="class">
 <dt id="connectomics.data.augmentation.MisAlignment">
-<em class="property">class </em><code class="descname">MisAlignment</code><span class="sig-paren">(</span><em>displacement=16</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descname">MisAlignment</code><span class="sig-paren">(</span><em>displacement=16</em>, <em>rotate_ratio=0.0</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
 <dd><p>Mis-alignment data augmentation of image stacks.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -375,12 +378,17 @@ than the input size to make sure there is no non-valid region after center-crop.
 <dl class="class">
 <dt id="connectomics.data.augmentation.Flip">
 <em class="property">class </em><code class="descname">Flip</code><span class="sig-paren">(</span><em>p=0.5</em>, <em>do_ztrans=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
-<dd><p>Randomly flip along z-, y- and x-axes as well as swap y- and x-axes.</p>
+<dd><p>Randomly flip along z-, y- and x-axes as well as swap y- and x-axes for anisotropic image
+volumes. For isotropic image volumes specify do_ztrans=1 to swap z- and x-axes.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+<li><strong>do_ztrans</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – specify do_ztrans=1 to swap z- and x-axes for isotropic data (default: 0).</li>
+</ul>
+</td>
 </tr>
 </tbody>
 </table>
@@ -397,6 +405,29 @@ than the input size to make sure there is no non-valid region after center-crop.
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – number of sections along z dimension to apply motion blur (default: 2).</li>
 <li><strong>kernel_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – kernel size for motion blur (default: 11).</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.CutBlur">
+<em class="property">class </em><code class="descname">CutBlur</code><span class="sig-paren">(</span><em>length_ratio=0.25</em>, <em>down_ratio_min=2.0</em>, <em>down_ratio_max=8.0</em>, <em>downsample_z=False</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur" title="Permalink to this definition">¶</a></dt>
+<dd><p>3D CutBlur data augmentation, adapted from <a class="reference external" href="https://arxiv.org/abs/2004.00448">https://arxiv.org/abs/2004.00448</a>.</p>
+<p>Randomly downsample a cuboid region in the volume to force the model
+to learn super-resolution when making prediction.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>length_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – the ratio of the cuboid length compared with volume length.</li>
+<li><strong>down_ratio_min</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – minimal downsample ratio to generate low-res region.</li>
+<li><strong>down_ratio_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – maximal downsample ratio to generate low-res region.</li>
+<li><strong>downsample_z</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – downsample along the z axis (default: False).</li>
 <li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
 </ul>
 </td>

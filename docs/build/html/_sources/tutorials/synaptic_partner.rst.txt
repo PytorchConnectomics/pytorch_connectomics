@@ -7,10 +7,11 @@ the models used in affinity prediction in `neuron segmentation <https://zudi-lin
 The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging. 
 
 .. note::
-    Our segmentation task consists of a target of three channels. The three channels are pre-synaptic region, post-synaptic region and synaptic 
-    region (union of the first two channels), respectively.
+    Our segmentation model uses a model target of three channels. The three channels are *pre-synaptic region*, *post-synaptic region* and *synaptic 
+    region* (union of the first two channels), respectively. 
 
-All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.  The pytorch dataset class of synaptic partners is :class:`torch_connectomics.data.dataset.VolumeDataset`.
+All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.  
+The pytorch dataset class of synaptic partners is :class:`connectomics.data.dataset.VolumeDataset`.
 
 
 #. Dataset examples can be found on the Harvard RC server here:
@@ -29,6 +30,19 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
 
 #. Run the training script. The training and inference script can take a list of volumes (separated by '@') in either the yaml config file or by command-line arguments.
 
+    .. note::
+        By default the path of images and labels are not specified. To 
+        run the training scripts, please revise the ``IMAGE_NAME``, ``LABEL_NAME``
+        and ``INPUT_PATH`` options in ``configs/Synaptic-Partner-Segmentation.yaml`` 
+        [`link <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Synaptic-Partner-Segmentation.yaml>`_].
+        The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
+
+    .. code-block:: none
+
+        $ source activate py3_torch
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+          --config-file configs/Synaptic-Partner-Segmentation.yaml
+
     .. code-block:: none
 
         $ source activate py3_torch
@@ -36,7 +50,7 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
           --config-file configs/Synaptic-Partner-Segmentation.yaml
 
     .. note::
-        We add higher weights to the foreground pixels and apply rejection sampling to reject samples without synapes during training to heavily penalize
+        We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize
         false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
         vast volumes.
 
@@ -53,4 +67,9 @@ All the scripts needed for this tutorial can be found at ``pytorch_connectomics/
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
           --config-file configs/Synaptic-Partner-Segmentation.yaml --inference \
-          --checkpoint outputs/synaptic_polarity/volume_50000.pth.tar
+          --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
+
+    .. note::
+        By default the path of images for inference are not specified. Please change 
+        the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Partner-Segmentation.yaml`` 
+        [`link <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Synaptic-Partner-Segmentation.yaml>`_].

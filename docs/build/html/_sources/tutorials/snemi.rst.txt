@@ -3,17 +3,19 @@ Neuron Segmentation
 
 This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
-The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and
-then generate the segmentation map using a segmentation algorithm (e.g., watershed).
+The methodology is to first predict the affinity map (the connectivity of each pixel to neighboring pixels) 
+with an encoder-decoder ConvNets and then generate the segmentation map using a standard
+segmentation algorithm (e.g., watershed).
 
 The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
 and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
 
 .. note::
-    Before running neuron segmentation, please take a look at the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo>`_
-    to get familiar with the datasets and have a sense of how the affinity graphs look like.
+    Before running neuron segmentation, please take a look at the `demos <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demos>`_
+    to get familiar with the datasets.
 
-The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch target affinity generation is :class:`torch_connectomics.data.dataset.VolumeDataset`.
+The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``. 
+The pytorch target affinity generation is :class:`connectomics.data.dataset.VolumeDataset`.
 
 #. Get the dataset:
 
@@ -23,7 +25,6 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-
 #. Provide the ``yaml`` configuration file to run training:
 
     .. code-block:: none
@@ -31,14 +32,16 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
         $ source activate py3_torch
         $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 
-    The configuration file for training is in ``configs/SNEMI-Neuron-Train.yaml``, modify the following accordingly:
+    The configuration file for training is in ``configs/SNEMI-Neuron.yaml`` [`link <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/SNEMI-Neuron.yaml>`_]. 
+    We usualy create a ``datasets/`` folder under ``pytorch_connectomics`` and put the SNEMI dataset there. Please modify the following options according to
+    your system configuration and data storage:
  
-    - ``IMAGE_NAME``: Name of the volume file
-    - ``LABEL_NAME``: Name of the label file
-    - ``INPUT_PATH``: Path to both files above 
-    - ``OUTPUT_PATH``: Path to store outputs (Model and Tensorboard files)
-    - ``NUM_GPUS``: Number of GPUs to use
-    - ``NUM_CPUS``: Number of CPU cores to use
+    - ``IMAGE_NAME``: Name of the volume file (HDF5 or TIFF).
+    - ``LABEL_NAME``: Name of the label file (HDF5 or TIFF).
+    - ``INPUT_PATH``: Path to both files above.
+    - ``OUTPUT_PATH``: Path to store outputs (checkpoints and Tensorboard events).
+    - ``NUM_GPUS``: Number of GPUs to use.
+    - ``NUM_CPUS``: Number of CPU cores to use (for data loading).
 
     To run training starting from pretrained weights, add a checkpoint file:
 
@@ -46,7 +49,7 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
         $ source activate py3_torch
         $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml \
-        $ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
+        $ --checkpoint /path/to/checkpoint/checkpoint_xxxxx.pth.tar
 
 #. Visualize the training progress:
 
@@ -58,7 +61,8 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
 
     .. code-block:: none
 
-        $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
+        $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml 
+        --inference --checkpoint outputs/SNEMI/checkpoint_xxxxx.pth
 
 #. Generate segmentation and run evaluation:
 
@@ -78,11 +82,5 @@ The main script is at ``pytorch_connectomics/scripts/main.py``. The pytorch targ
             $ cd zwatershed
             $ pip install --editable .
 
-    #. Generate 3D segmentation and report Rand and VI score using ``waterz``:
-
-        .. code-block:: none
-
-            $ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
-
-    #. You can also run the jupyter notebook `segmentation.ipynb <https://github.com/zudi-lin/pytorch_connectomics/blob/master/demos/segmentation.ipynb>`_ in
-       the demo, which provides more options and visualization.
+    #. Generate 3D segmentation and report Rand and VI score using ``waterz``.
+    Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.

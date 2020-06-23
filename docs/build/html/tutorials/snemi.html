@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Neuron Segmentation &mdash; connectomics master documentation</title>
+  <title>Neuron Segmentation &mdash; connectomics latest documentation</title>
   
 
   
@@ -23,7 +23,7 @@
       <script type="text/javascript">
           var DOCUMENTATION_OPTIONS = {
               URL_ROOT:'../',
-              VERSION:'master',
+              VERSION:'latest',
               LANGUAGE:'None',
               COLLAPSE_INDEX:false,
               FILE_SUFFIX:'.html',
@@ -74,7 +74,7 @@
             
             
               <div class="version">
-                master (0.1)
+                latest
               </div>
             
           
@@ -102,6 +102,9 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html#multitask-learning">Multitask Learning</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul class="current">
@@ -188,16 +191,18 @@
 <h1>Neuron Segmentation<a class="headerlink" href="#neuron-segmentation" title="Permalink to this headline">¶</a></h1>
 <p>This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
-The methodology is to first predict the affinity map of pixels with an encoder-decoder ConvNets and
-then generate the segmentation map using a segmentation algorithm (e.g., watershed).</p>
+The methodology is to first predict the affinity map (the connectivity of each pixel to neighboring pixels)
+with an encoder-decoder ConvNets and then generate the segmentation map using a standard
+segmentation algorithm (e.g., watershed).</p>
 <p>The evaluation of segmentation results is based on the <a class="reference external" href="https://en.wikipedia.org/wiki/Rand_index">Rand Index</a>
 and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_of_information">Variation of Information</a>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demo">demo</a>
-to get familiar with the datasets and have a sense of how the affinity graphs look like.</p>
+<p class="last">Before running neuron segmentation, please take a look at the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demos">demos</a>
+to get familiar with the datasets.</p>
 </div>
-<p>The main script is at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>. The pytorch target affinity generation is <code class="xref py py-class docutils literal"><span class="pre">torch_connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<p>The main script to run the training and inference is <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>.
+The pytorch target affinity generation is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -215,19 +220,21 @@ to get familiar with the datasets and have a sense of how the affinity graphs lo
 $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 </pre></div>
 </div>
-<p>The configuration file for training is in <code class="docutils literal"><span class="pre">configs/SNEMI-Neuron-Train.yaml</span></code>, modify the following accordingly:</p>
+<p>The configuration file for training is in <code class="docutils literal"><span class="pre">configs/SNEMI-Neuron.yaml</span></code> [<a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/SNEMI-Neuron.yaml">link</a>].
+We usualy create a <code class="docutils literal"><span class="pre">datasets/</span></code> folder under <code class="docutils literal"><span class="pre">pytorch_connectomics</span></code> and put the SNEMI dataset there. Please modify the following options according to
+your system configuration and data storage:</p>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>: Name of the volume file</li>
-<li><code class="docutils literal"><span class="pre">LABEL_NAME</span></code>: Name of the label file</li>
-<li><code class="docutils literal"><span class="pre">INPUT_PATH</span></code>: Path to both files above</li>
-<li><code class="docutils literal"><span class="pre">OUTPUT_PATH</span></code>: Path to store outputs (Model and Tensorboard files)</li>
-<li><code class="docutils literal"><span class="pre">NUM_GPUS</span></code>: Number of GPUs to use</li>
-<li><code class="docutils literal"><span class="pre">NUM_CPUS</span></code>: Number of CPU cores to use</li>
+<li><code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>: Name of the volume file (HDF5 or TIFF).</li>
+<li><code class="docutils literal"><span class="pre">LABEL_NAME</span></code>: Name of the label file (HDF5 or TIFF).</li>
+<li><code class="docutils literal"><span class="pre">INPUT_PATH</span></code>: Path to both files above.</li>
+<li><code class="docutils literal"><span class="pre">OUTPUT_PATH</span></code>: Path to store outputs (checkpoints and Tensorboard events).</li>
+<li><code class="docutils literal"><span class="pre">NUM_GPUS</span></code>: Number of GPUs to use.</li>
+<li><code class="docutils literal"><span class="pre">NUM_CPUS</span></code>: Number of CPU cores to use (for data loading).</li>
 </ul>
 <p>To run training starting from pretrained weights, add a checkpoint file:</p>
 <div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml \
-$ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
+$ --checkpoint /path/to/checkpoint/checkpoint_xxxxx.pth.tar
 </pre></div>
 </div>
 </div></blockquote>
@@ -241,7 +248,8 @@ $ --checkpoint /path/to/checkpoint/checkpoint_30000.pth.tar
 </li>
 <li><p class="first">Run inference on image volumes, The test configuration file can have bigger input, augmentation at inference:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml --inference --checkpoint outputs/SNEMI/volume_xxxxx.pth
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
+--inference --checkpoint outputs/SNEMI/checkpoint_xxxxx.pth
 </pre></div>
 </div>
 </div></blockquote>
@@ -267,17 +275,9 @@ $ pip install --editable .
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>:</p>
-<blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python evaluation.py -pd /path/to/snemi/aff_pred.h5 -gt /path/to/snemi/seg_gt.h5 --mode 1
-</pre></div>
-</div>
-</div></blockquote>
-</li>
-<li><p class="first">You can also run the jupyter notebook <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/demos/segmentation.ipynb">segmentation.ipynb</a> in
-the demo, which provides more options and visualization.</p>
-</li>
 </ol>
+<p>#. Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>.
+Please see examples at <a class="reference external" href="https://github.com/zudi-lin/waterz">https://github.com/zudi-lin/waterz</a>.</p>
 </div></blockquote>
 </li>
 </ol>
