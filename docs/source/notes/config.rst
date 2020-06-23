@@ -20,7 +20,7 @@ Basic Usage
 
 Some basic usage of the ``CfgNode`` object is shown here.
 
-.. code-block:: none
+.. code-block:: python
 
     from yacs.config import CfgNode as CN
     _C = CN()            # config definition
@@ -95,3 +95,5 @@ Currently five kinds of ``TARGET_OPT`` are supported:
 - ``'3'``: small object masks.
 
 - ``'4'``: instance boundaries.
+
+More options will be provided soon!

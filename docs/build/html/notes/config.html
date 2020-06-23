@@ -211,11 +211,11 @@ to add some options that are not available in the version, please modify the key
 <div class="section" id="basic-usage">
 <h2><a class="toc-backref" href="#id1">Basic Usage</a><a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
 <p>Some basic usage of the <code class="docutils literal"><span class="pre">CfgNode</span></code> object is shown here.</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>from yacs.config import CfgNode as CN
-_C = CN()            # config definition
-_C.SYSTEM = CN()     # config definition for GPU and CPU
-_C.MODEL = CN()      # Model architectures defined in the package
-_C.MODEL.ARCHITECTURE = &#39;unet_residual_3d&#39;
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">yacs.config</span> <span class="kn">import</span> <span class="n">CfgNode</span> <span class="k">as</span> <span class="n">CN</span>
+<span class="n">_C</span> <span class="o">=</span> <span class="n">CN</span><span class="p">()</span>            <span class="c1"># config definition</span>
+<span class="n">_C</span><span class="o">.</span><span class="n">SYSTEM</span> <span class="o">=</span> <span class="n">CN</span><span class="p">()</span>     <span class="c1"># config definition for GPU and CPU</span>
+<span class="n">_C</span><span class="o">.</span><span class="n">MODEL</span> <span class="o">=</span> <span class="n">CN</span><span class="p">()</span>      <span class="c1"># Model architectures defined in the package</span>
+<span class="n">_C</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">ARCHITECTURE</span> <span class="o">=</span> <span class="s1">&#39;unet_residual_3d&#39;</span>
 </pre></div>
 </div>
 <p>The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will
@@ -262,11 +262,14 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 </div>
 <p><code class="docutils literal"><span class="pre">TARGET_OPT</span></code>: a list of the targets to learn.</p>
 <p>Currently five kinds of <code class="docutils literal"><span class="pre">TARGET_OPT</span></code> are supported:</p>
-<p># <code class="docutils literal"><span class="pre">'0'</span></code>: binary foreground mask (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html">mitochondria segmentation tutorial</a>)..
-# <code class="docutils literal"><span class="pre">'1'</span></code>: synaptic polarity mask (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html">synaptic polairty tutorial</a>).
-# <code class="docutils literal"><span class="pre">'2'</span></code>: affinity map (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation tutorial</a>).
-# <code class="docutils literal"><span class="pre">'3'</span></code>: small object masks.
-# <code class="docutils literal"><span class="pre">'4'</span></code>: instance boundaries.</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">'0'</span></code>: binary foreground mask (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html">mitochondria segmentation tutorial</a>).</li>
+<li><code class="docutils literal"><span class="pre">'1'</span></code>: synaptic polarity mask (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html">synaptic polairty tutorial</a>).</li>
+<li><code class="docutils literal"><span class="pre">'2'</span></code>: affinity map (see more details in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation tutorial</a>).</li>
+<li><code class="docutils literal"><span class="pre">'3'</span></code>: small object masks.</li>
+<li><code class="docutils literal"><span class="pre">'4'</span></code>: instance boundaries.</li>
+</ul>
+<p>More options will be provided soon!</p>
 </div>
 </div>
 

@@ -32,7 +32,7 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
         $ source activate py3_torch
         $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 
-    The configuration file for training is in ``configs/SNEMI-Neuron.yaml`` [`link <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/SNEMI-Neuron.yaml>`_]. 
+    The configuration file for training is in ``configs/SNEMI-Neuron.yaml``. 
     We usualy create a ``datasets/`` folder under ``pytorch_connectomics`` and put the SNEMI dataset there. Please modify the following options according to
     your system configuration and data storage:
  
@@ -43,7 +43,7 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
     - ``NUM_GPUS``: Number of GPUs to use.
     - ``NUM_CPUS``: Number of CPU cores to use (for data loading).
 
-    To run training starting from pretrained weights, add a checkpoint file:
+#. (Optional) To run training starting from pretrained weights, add a checkpoint file:
 
     .. code-block:: none
 

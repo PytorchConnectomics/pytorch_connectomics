@@ -222,7 +222,7 @@ The pytorch target affinity generation is <a class="reference internal" href="..
 $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 </pre></div>
 </div>
-<p>The configuration file for training is in <code class="docutils literal"><span class="pre">configs/SNEMI-Neuron.yaml</span></code> [<a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/SNEMI-Neuron.yaml">link</a>].
+<p>The configuration file for training is in <code class="docutils literal"><span class="pre">configs/SNEMI-Neuron.yaml</span></code>.
 We usualy create a <code class="docutils literal"><span class="pre">datasets/</span></code> folder under <code class="docutils literal"><span class="pre">pytorch_connectomics</span></code> and put the SNEMI dataset there. Please modify the following options according to
 your system configuration and data storage:</p>
 <ul class="simple">
@@ -233,8 +233,11 @@ your system configuration and data storage:</p>
 <li><code class="docutils literal"><span class="pre">NUM_GPUS</span></code>: Number of GPUs to use.</li>
 <li><code class="docutils literal"><span class="pre">NUM_CPUS</span></code>: Number of CPU cores to use (for data loading).</li>
 </ul>
-<p>To run training starting from pretrained weights, add a checkpoint file:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+</div></blockquote>
+</li>
+<li><p class="first">(Optional) To run training starting from pretrained weights, add a checkpoint file:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml \
 $ --checkpoint /path/to/checkpoint/checkpoint_xxxxx.pth.tar
 </pre></div>

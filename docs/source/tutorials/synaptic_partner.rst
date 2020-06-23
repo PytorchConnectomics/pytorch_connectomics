@@ -7,8 +7,8 @@ the models used in affinity prediction in `neuron segmentation <https://zudi-lin
 The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging. 
 
 .. note::
-    Our segmentation model uses a model target of three channels. The three channels are *pre-synaptic region*, *post-synaptic region* and *synaptic 
-    region* (union of the first two channels), respectively. 
+    Our segmentation model uses a model target of three channels. The three channels are **pre-synaptic region**, **post-synaptic region** and **synaptic 
+    region** (union of the first two channels), respectively. 
 
 All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.  
 The pytorch dataset class of synaptic partners is :class:`connectomics.data.dataset.VolumeDataset`.
@@ -33,8 +33,7 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
     .. note::
         By default the path of images and labels are not specified. To 
         run the training scripts, please revise the ``IMAGE_NAME``, ``LABEL_NAME``
-        and ``INPUT_PATH`` options in ``configs/Synaptic-Partner-Segmentation.yaml`` 
-        [`link <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Synaptic-Partner-Segmentation.yaml>`_].
+        and ``INPUT_PATH`` options in ``configs/Synaptic-Partner-Segmentation.yaml``.
         The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
 
     .. code-block:: none
@@ -71,5 +70,4 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
 
     .. note::
         By default the path of images for inference are not specified. Please change 
-        the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Partner-Segmentation.yaml`` 
-        [`link <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Synaptic-Partner-Segmentation.yaml>`_].
+        the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Partner-Segmentation.yaml``.
