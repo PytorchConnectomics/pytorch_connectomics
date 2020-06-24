@@ -18,7 +18,11 @@ __all__ = ['VolumeDataset',
 def _get_input(cfg, mode='train'):
     dir_name = cfg.DATASET.INPUT_PATH.split('@')
     img_name = cfg.DATASET.IMAGE_NAME.split('@')
-    img_name = [dir_name[0] + x for x in img_name]
+    assert len(dir_name) == 1 or len(dir_name) == len(img_name)
+    if len(dir_name) == 1:
+        img_name = [os.path.join(dir_name[0], x) for x in img_name]
+    else:
+        img_name = [os.path.join(dir_name[i], img_name[i]) for i in range(len(img_name))]
 
     label = None
     volume = [None]*len(img_name)
