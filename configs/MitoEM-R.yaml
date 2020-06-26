@@ -1,0 +1,64 @@
+# All other configurations are set by default. If you want to add new config options,
+# please modify ../connectomics/config/config.py
+# 8x8x30 nm, 4096x4096x1000 voxel
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 4
+MODEL:
+  ARCHITECTURE: 'unet_residual_3d'
+  INPUT_SIZE: [32, 256, 256]
+  OUTPUT_SIZE: [32, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  LOSS_OPTION: [['WeightedBCE']]
+  TARGET_OPT: ['2']
+  WEIGHT_OPT: [['1']]
+  PRE_MODEL: '/n/pfister_lab2/Lab/donglai/mito/outputs/unetv3_human_aff_ft/log2020-02-23_22-01-35/volume_34999.pth'
+  PRE_MODEL_ITER: 35000
+DATASET:
+  IMAGE_NAME: 'im_train.json'
+  LABEL_NAME: 'mito_train.json'
+  INPUT_PATH: '/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/rat/'
+  OUTPUT_PATH: '/n/home00/qshen/rat/output/'
+  PAD_SIZE: [16, 128, 128]
+  DO_CHUNK_TITLE: 1
+  DATA_CHUNK_NUM: [8, 2, 2]
+  DATA_CHUNK_ITER: 2500
+  LABEL_EROSION: 1
+AUGMENTOR:
+  ROTATE:
+    ENABLED: True
+  RESCALE:
+    ENABLED: True
+  FLIP:
+    ENABLED: True
+  ELASTIC:
+    ENABLED: True
+  GRAYSCALE:
+    ENABLED: True
+  MISSINGPARTS:
+    ENABLED: True
+  MISSINGSECTION:
+    ENABLED: True
+  MISALIGNMENT:
+    ENABLED: True
+  MOTIONBLUR:
+    ENABLED: True
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  BASE_LR: 5e-04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 50000
+  SAMPLES_PER_BATCH: 4
+INFERENCE:
+  INPUT_SIZE: [32, 256, 256]
+  OUTPUT_SIZE: [32, 256, 256]
+  IMAGE_NAME: 'im_train.json'
+  OUTPUT_PATH: 'outputs/test/'
+  OUTPUT_NAME: 'result.h5'
+  PAD_SIZE: [16, 128, 128]
+  AUG_MODE: 'mean'
+  AUG_NUM: 4
+  STRIDE: [16, 128, 128]
+  SAMPLES_PER_BATCH: 4

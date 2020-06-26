@@ -52,10 +52,13 @@ def main():
 
     mode = 'test' if args.inference else 'train'
     trainer = Trainer(cfg, device, mode, args.checkpoint)
-    if args.inference:
-        trainer.test()
+    if cfg.DATASET.DO_CHUNK_TITLE == 0:
+        if args.inference:
+            trainer.test()
+        else:
+            trainer.train()
     else:
-        trainer.train()
+        trainer.run_chunk(mode)
 
 if __name__ == "__main__":
     main()

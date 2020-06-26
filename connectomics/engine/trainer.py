@@ -39,14 +39,20 @@ class Trainer(object):
             self.augmentor = build_train_augmentor(self.cfg)
         else:
             self.augmentor = None
-        self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode)
+        if cfg.DATASET.DO_CHUNK_TITLE == 0:
+            self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode)
+            self.dataloader = iter(self.dataloader)
+        else:
+            self.dataset = None
+            self.dataloader = None
         self.monitor = build_monitor(self.cfg)
         self.criterion = build_criterion(self.cfg, self.device)
 
         # add config details to tensorboard
         self.monitor.load_config(self.cfg)
+        self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
+        self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME
 
-        self.dataloader = iter(self.dataloader)
 
     def train(self):
         r"""Training function.
@@ -56,7 +62,7 @@ class Trainer(object):
         self.monitor.reset()
         self.optimizer.zero_grad()
 
-        for iteration in range(self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter):
+        for iteration in range(self.total_iter_nums):
             iter_total = self.start_iter + iteration
             start = time.perf_counter()
 
@@ -124,7 +130,7 @@ class Trainer(object):
             weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.input_size]
 
         # build test-time augmentor and update output filename
-        output_filename = self.cfg.INFERENCE.OUTPUT_NAME
+        output_filename = self.inference_output_name
         if self.cfg.INFERENCE.AUG_NUM!=0:
             test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, 
                                            self.cfg.INFERENCE.AUG_NUM)
@@ -183,7 +189,7 @@ class Trainer(object):
             return result
         else:
             print('save h5')
-            writeh5(os.path.join(self.output_dir, output_filename), result,['vol%d'%(x) for x in range(len(result))])
+            writeh5(os.path.join(self.output_dir, self.inference_output_name), result,['vol%d'%(x) for x in range(len(result))])
 
     # -----------------------------------------------------------------------------
     # Misc functions
@@ -228,3 +234,28 @@ class Trainer(object):
             # load iteration
             if 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
+
+    def run_chunk(self, mode):
+        self.dataset = get_dataset(self.cfg, self.augmentor, mode)
+        if mode == 'train':
+            num_chunk = self.total_iter_nums // self.cfg.DATASET.DATA_CHUNK_ITER
+            self.total_iter_nums = self.cfg.DATASET.DATA_CHUNK_ITER
+            for chunk in range(num_chunk):
+                self.dataset.updatechunk()
+                self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, dataset=self.dataset.dataset)
+                self.dataloader = iter(self.dataloader)
+                print('start train', chunk)
+                self.train()
+                print('finished train', chunk)
+                self.start_iter += self.cfg.DATASET.DATA_CHUNK_ITER
+                del self.dataloader
+        else:
+            num_chunk = len(self.dataset.chunk_num_ind)
+            for chunk in range(num_chunk):
+                self.dataset.updatechunk(do_load=False)
+                self.inference_output_name = 'result-' + self.dataset.get_coord_name() + '.h5'
+                if not os.path.exists(os.path.join(self.output_dir, self.inference_output_name)):
+                    self.dataset.loadchunk()
+                    self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, dataset=self.dataset.dataset)
+                    self.dataloader = iter(self.dataloader)
+                    self.test()
