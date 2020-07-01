@@ -1,8 +1,8 @@
 import datetime
 import sphinx_rtd_theme
 import doctest
-#from torch_geometric import __version__
-__version__ = 0.1
+import connectomics
+__version__ = 0.0
 
 extensions = [
     'sphinx.ext.autodoc',
