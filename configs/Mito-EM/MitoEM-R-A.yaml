@@ -1,4 +1,4 @@
-# for affinity prediction
+# For affinity prediction
 # All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
 # 30x8x8 nm in (z,y,x), 1000x4096x4096 voxel
@@ -18,7 +18,7 @@ DATASET:
   IMAGE_NAME: 'im_train.json'
   LABEL_NAME: 'mito_train.json'
   INPUT_PATH: '<path/to/data>'
-  OUTPUT_PATH: 'outputs/MitoEM_R/'
+  OUTPUT_PATH: 'outputs/MitoEM_R_A/'
   PAD_SIZE: [16, 128, 128]
   DO_CHUNK_TITLE: 1
   DATA_CHUNK_NUM: [8, 2, 2]
@@ -35,7 +35,7 @@ INFERENCE:
   INPUT_SIZE: [32, 256, 256]
   OUTPUT_SIZE: [32, 256, 256]
   IMAGE_NAME: 'im_test.json'
-  OUTPUT_PATH: 'outputs/MitoEM_R/test/'
+  OUTPUT_PATH: 'outputs/MitoEM_R_A/test/'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [16, 128, 128]
   AUG_MODE: 'mean'

@@ -1,27 +1,28 @@
-MitoEM segmentation
-==============================
+MitoEM Instance Segmentation
+=============================
 
-This tutorial provides step-by-step guidance for mitochondria segmentation with our benchmark datasets MitoEM.
+This tutorial provides step-by-step guidance for mitochondria segmentation with our benchmark datasets `MitoEM <https://donglaiw.github.io/page/mitoEM/index.html>`_.
 We consider the task as 3D instance segmentation task and provide three different confiurations of the model output. 
-The model is 'unet_res_3d', similar to the one used in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_.
-The evaluation of the segmentation results is based on the AP-75. 
+The model is ``unet_res_3d``, similar to the one used in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_.
+The evaluation of the segmentation results is based on the AP-75 (average precision with an IoU threshold of 0.75). 
 
 .. note::
-    The MitoEM dataset has two sub-datasets **rat** and **human**. Three training scripts ``.yaml`` on **rat** are provided in 
-    ``pytorch_connectomics/configs/`` for different outputs of the model.
-    The pytorch dataset class of synaptic partners is :class:`connectomics.data.dataset.TileDataset`.
+    The MitoEM dataset has two sub-datasets **Rat** and **Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** 
+    are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning targets of the model. 
 
+.. note::
+    Since the dataset is very large and can not be directly loaded into memory, we use the :class:`connectomics.data.dataset.TileDataset` dataset class that only 
+    loads part of the whole volume by opening involved ``.png`` images.
 
 #. Introduction to the dataset:
 
-
-    Dataset can be found here
+    On the Harvard RC cluster, the datasets can be found at:
 
     .. code-block:: none
 
         /n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/rat
 
-    or
+    and
 
     .. code-block:: none
 
@@ -29,29 +30,20 @@ The evaluation of the segmentation results is based on the AP-75.
         
     Dataset description
 
-    .. note::
-        :class:`connectomics.data.dataset.TileDataset` only reads in part of the image files 
-        correpoding to given coordinates when running.
+    - ``im``: includes 1,000 single-channel ``.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm).
 
-    - ``im``: include 1000 2d ``.png`` (**4096x4096**) files of input images (resolution **30x8x8** nm)
+    - ``mito``: includes 1,000 single-channel ``.png`` files (**4096x4096**) of instance labels.
 
-    - ``mito``: include 1000 2d ``.png`` (**4096x4096**) files of instance labels
-
-    - ``*.json``: :class:`Dict` contain paths to ``.png`` files 
+    - ``*.json``: :class:`Dict` contains paths to ``.png`` files 
 
 
-#. Configure ``.yaml`` file.
+#. Configure ``.yaml`` files for different learning targets.
 
-    .. note::
-        Change or add items in ``.yaml`` with keys in ``connectomics/config/config.py``
+    - ``MitoEM-R-A.yaml``: output 3 channels for affinty prediction.
 
-        ``.yaml`` files can be found in ``pytorch_connectomics/configs/Mito-EM``
+    - ``MitoEM-R-AC.yaml``: output 4 channels for both affinity and instance contour prediction.
 
-    - ``MitoEM-R-A.yaml``: output 3 channels for affinty prediction
-
-    - ``MitoEM-R-AC.yaml``: output 4 channels for both affinity and instance boundary prediction
-
-    - ``MitoEM-R-BC.yaml``: output 2 channels for both binary and instance boundary prediction
+    - ``MitoEM-R-BC.yaml``: output 2 channels for both binary mask and instance contour prediction.
 
 
 #. Run the training script. 
@@ -65,8 +57,7 @@ The evaluation of the segmentation results is based on the AP-75.
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python -u scripts/main.py \
-          --config-file configs/MitoEM-R-A.yaml
+        $ python -u scripts/main.py --config-file configs/MitoEM-R-A.yaml
         
 
 #. Visualize the training progress. More info `here <https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html>`_:
@@ -76,7 +67,7 @@ The evaluation of the segmentation results is based on the AP-75.
         $ tensorboard --logdir ``OUTPUT_PATH/xxxxx``
 
     .. note::
-        Tensorboard will create a subdir in OUTPUT_PATH. Substitute **xxxxx** with that subdir.
+        Tensorboard will create a subdir in OUTPUT_PATH. Substitute **xxxxx** with the subdir name.
 
 #. Run inference on image volumes:
 
