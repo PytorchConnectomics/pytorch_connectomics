@@ -422,7 +422,7 @@ volumes. For isotropic image volumes specify do_ztrans=1 to swap z- and x-axes.<
 <em class="property">class </em><code class="descname">CutBlur</code><span class="sig-paren">(</span><em>length_ratio=0.25</em>, <em>down_ratio_min=2.0</em>, <em>down_ratio_max=8.0</em>, <em>downsample_z=False</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur" title="Permalink to this definition">¶</a></dt>
 <dd><p>3D CutBlur data augmentation, adapted from <a class="reference external" href="https://arxiv.org/abs/2004.00448">https://arxiv.org/abs/2004.00448</a>.</p>
 <p>Randomly downsample a cuboid region in the volume to force the model
-to learn super-resolution when making prediction.</p>
+to learn super-resolution when making predictions.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -432,6 +432,28 @@ to learn super-resolution when making prediction.</p>
 <li><strong>down_ratio_min</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – minimal downsample ratio to generate low-res region.</li>
 <li><strong>down_ratio_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – maximal downsample ratio to generate low-res region.</li>
 <li><strong>downsample_z</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – downsample along the z axis (default: False).</li>
+<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="connectomics.data.augmentation.CutNoise">
+<em class="property">class </em><code class="descname">CutNoise</code><span class="sig-paren">(</span><em>length_ratio=0.25</em>, <em>mode='uniform'</em>, <em>scale=0.2</em>, <em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise" title="Permalink to this definition">¶</a></dt>
+<dd><p>3D CutNoise data augmentation.</p>
+<p>Randomly add noise to a cuboid region in the volume to force the model
+to learn denoising when making predictions.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>length_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – the ratio of the cuboid length compared with volume length.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/string.html#module-string" title="(in Python v3.8)"><em>string</em></a>) – the distribution of the noise pattern. Default: <code class="docutils literal"><span class="pre">'uniform'</span></code>.</li>
+<li><strong>scale</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – scale of the random noise. Default: 0.2.</li>
 <li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
 </ul>
 </td>
