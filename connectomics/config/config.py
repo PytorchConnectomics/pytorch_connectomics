@@ -158,48 +158,41 @@ _C.AUGMENTOR = CN()
 _C.AUGMENTOR.SMOOTH = True
 
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
-# Probability of applying the rotation augmentation
 _C.AUGMENTOR.ROTATE.P = 0.5
 
 _C.AUGMENTOR.RESCALE = CN({"ENABLED": True})
-# Probability of applying the rescale augmentation
 _C.AUGMENTOR.RESCALE.P = 0.5
 
 _C.AUGMENTOR.FLIP = CN({"ENABLED": True})
-# Probability of applying the flip augmentation (always applied by default)
 _C.AUGMENTOR.FLIP.P = 1.0
-# Conducting x-z and y-z flip only when the dataset is isotropic. 
+# Conducting x-z and y-z flip only when the dataset is isotropic
+# and the input is cubic. 
 _C.AUGMENTOR.FLIP.DO_ZTRANS = 0
 
 _C.AUGMENTOR.ELASTIC = CN({"ENABLED": True})
+_C.AUGMENTOR.ELASTIC.P = 0.75
 # Maximum pixel-moving distance of elastic transformation
 _C.AUGMENTOR.ELASTIC.ALPHA = 16.0
 # Standard deviation of the Gaussian filter
 _C.AUGMENTOR.ELASTIC.SIGMA = 4.0
-# Probability of applying the elastic augmentation
-_C.AUGMENTOR.ELASTIC.P = 0.75
 
 _C.AUGMENTOR.GRAYSCALE = CN({"ENABLED": True})
-# Probability of applying the grayscale augmentation
 _C.AUGMENTOR.GRAYSCALE.P = 0.75
 
 _C.AUGMENTOR.MISSINGPARTS = CN({"ENABLED": True})
-# Probability of applying the missingparts augmentation
 _C.AUGMENTOR.MISSINGPARTS.P = 0.9
 
 _C.AUGMENTOR.MISSINGSECTION = CN({"ENABLED": True})
-# Probability of applying the missingsection augmentation
 _C.AUGMENTOR.MISSINGSECTION.P = 0.5
 
 _C.AUGMENTOR.MISALIGNMENT = CN({"ENABLED": True})
-# Probability of applying the misalignment augmentation
 _C.AUGMENTOR.MISALIGNMENT.P = 0.5
 # Maximum pixel displacement in each direction (x and y) (int)
 _C.AUGMENTOR.MISALIGNMENT.DISPLACEMENT = 16
+# The ratio of mis-alignment by rotation among all mis-alignment augmentations.
 _C.AUGMENTOR.MISALIGNMENT.ROTATE_RATIO = 0.5
 
 _C.AUGMENTOR.MOTIONBLUR = CN({"ENABLED": True})
-# Probability of applying the motion blur augmentation
 _C.AUGMENTOR.MOTIONBLUR.P = 0.5
 # Number of sections along z dimension to apply motion blur
 _C.AUGMENTOR.MOTIONBLUR.SECTIONS = 2
@@ -207,7 +200,6 @@ _C.AUGMENTOR.MOTIONBLUR.SECTIONS = 2
 _C.AUGMENTOR.MOTIONBLUR.KERNEL_SIZE = 11
 
 _C.AUGMENTOR.CUTBLUR = CN({"ENABLED": True})
-# Probability of applying the CutBlur augmentation
 _C.AUGMENTOR.CUTBLUR.P = 0.5
 _C.AUGMENTOR.CUTBLUR.LENGTH_RATIO = 0.4
 _C.AUGMENTOR.CUTBLUR.DOWN_RATIO_MIN = 2.0
@@ -296,24 +288,24 @@ _C.MONITOR.ITERATION_NUM = [10, 50]
 # # -----------------------------------------------------------------------------
 _C.INFERENCE = CN()
 
-_C.INFERENCE.INPUT_SIZE = [8, 256, 256]
+_C.INFERENCE.INPUT_SIZE = []
+_C.INFERENCE.OUTPUT_SIZE = []
 
-_C.INFERENCE.OUTPUT_SIZE = [8, 256, 256]
-
-_C.INFERENCE.IMAGE_NAME = ''
-
-_C.INFERENCE.OUTPUT_PATH = ''
-
+_C.INFERENCE.INPUT_PATH = ""
+_C.INFERENCE.IMAGE_NAME = ""
+_C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
 
-_C.INFERENCE.PAD_SIZE = [8, 64, 64]
+_C.INFERENCE.PAD_SIZE = []
 
-_C.INFERENCE.STRIDE = [1, 192, 192]
+_C.INFERENCE.STRIDE = [4, 128, 129]
 
 _C.INFERENCE.AUG_MODE = 'mean'
 
 _C.INFERENCE.AUG_NUM = 4
 
+# Run the model forward pass with model.eval() if DO_EVAL is True, else
+# run with model.train(). Layers like batchnorm and dropout will be affected.
 _C.INFERENCE.DO_EVAL = True
 
 _C.INFERENCE.DO_3D = True
@@ -334,20 +326,33 @@ _C.INFERENCE.SAMPLES_PER_BATCH = 32
 # Util functions
 #######################################################
 
-def update_inference_cfg(cfg):
-    r"""Update configurations (cfg) when running mode is inference.
-    """
-    cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
-    cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
-    cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
-    cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
-    cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
-
 def get_cfg_defaults():
     """Get a yacs CfgNode object with default values for my_project."""
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern
     return _C.clone()
+
+def update_inference_cfg(cfg):
+    r"""Update configurations (cfg) when running mode is inference.
+
+    Note that None type is not supported in current release of YACS (0.1.7), but will be 
+    supported soon according to this pull request: https://github.com/rbgirshick/yacs/pull/18.
+    Therefore a re-organization of the configurations using None type will be done when 0.1.8 
+    is released.
+    """
+    # Dataset configurations:
+    if len(cfg.INFERENCE.INPUT_PATH) != 0:
+        cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
+    cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
+    cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
+    if len(cfg.INFERENCE.PAD_SIZE) != 0:
+        cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
+
+    # Model configurations:
+    if len(cfg.INFERENCE.INPUT_SIZE) != 0:
+        cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
+    if len(cfg.INFERENCE.OUTPUT_SIZE) != 0:
+        cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
 
 def save_all_cfg(cfg, output_dir):
     """Save configs in the output directory."""

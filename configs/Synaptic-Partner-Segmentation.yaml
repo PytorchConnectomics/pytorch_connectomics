@@ -38,11 +38,12 @@ MONITOR:
   VIS_OPT: [1, 16]
 INFERENCE:
   IMAGE_NAME: '<name/of/image (h5py volumes)>'
+  OUTPUT_PATH: 'outputs/synaptic_polarity/test'
   AUG_MODE: 'mean'
   AUG_NUM: 4
   OUTPUT_NAME: 'syn_polarity_pred.h5'
   STRIDE: [4, 128, 128]
-  SAMPLES_PER_BATCH: 32
+  SAMPLES_PER_BATCH: 16
   INPUT_SIZE: [8, 256, 256]
   OUTPUT_SIZE: [8, 256, 256]
   PAD_SIZE: [4, 128, 128]

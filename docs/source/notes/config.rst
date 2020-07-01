@@ -68,7 +68,7 @@ If you only want to use weighted binary cross-entropy loss, do:
      WEIGHT_OPT: [['1']]
 
 Multitask Learning
------------------------
+--------------------
 
 To conduct multitask learning, which predicts multiple targets given a image volume, we can further adjust the ``TARGET_OPT`` option.
 For example, to conduct instance segmentation of mitochondria, we can predict not only the binary foreground mask but also the instance
@@ -97,3 +97,33 @@ Currently five kinds of ``TARGET_OPT`` are supported:
 - ``'4'``: instance boundaries.
 
 More options will be provided soon!
+
+Inference
+-----------
+
+Most of the config options are shared by training and inference. However, there are
+several options to be adjusted at inference time by the ``update_inference_cfg`` function:
+
+.. code-block:: python
+
+   def update_inference_cfg(cfg):
+      r"""Update configurations (cfg) when running mode is inference.
+
+      Note that None type is not supported in current release of YACS (0.1.7), but will be 
+      supported soon according to this pull request: https://github.com/rbgirshick/yacs/pull/18.
+      Therefore a re-organization of the configurations using None type will be done when YACS
+      0.1.8 is released.
+      """
+      # Dataset configurations:
+      if len(cfg.INFERENCE.INPUT_PATH) != 0:
+         cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
+      cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
+      cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
+      if len(cfg.INFERENCE.PAD_SIZE) != 0:
+         cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
+
+      # Model configurations:
+      if len(cfg.INFERENCE.INPUT_SIZE) != 0:
+         cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
+      if len(cfg.INFERENCE.OUTPUT_SIZE) != 0:
+         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
