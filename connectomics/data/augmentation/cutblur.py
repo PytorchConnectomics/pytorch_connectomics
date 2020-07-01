@@ -6,7 +6,7 @@ class CutBlur(DataAugment):
     """3D CutBlur data augmentation, adapted from https://arxiv.org/abs/2004.00448.
 
     Randomly downsample a cuboid region in the volume to force the model
-    to learn super-resolution when making prediction.
+    to learn super-resolution when making predictions.
 
     Args:
         length_ratio (float): the ratio of the cuboid length compared with volume length.

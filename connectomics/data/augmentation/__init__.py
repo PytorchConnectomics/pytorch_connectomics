@@ -13,6 +13,7 @@ from .missing_section import MissingSection
 from .missing_parts import MissingParts
 from .motion_blur import MotionBlur
 from .cutblur import CutBlur
+from .cutnoise import CutNoise
 
 __all__ = ['Compose',
            'DataAugment', 
@@ -26,6 +27,7 @@ __all__ = ['Compose',
            'Flip',
            'MotionBlur',
            'CutBlur',
+           'CutNoise',
            'TestAugmentor']
 
 
@@ -76,6 +78,12 @@ def build_train_augmentor(cfg, keep_uncropped=False, keep_non_smoothed=False):
                                 down_ratio_min=cfg.AUGMENTOR.CUTBLUR.DOWN_RATIO_MIN,
                                 down_ratio_max=cfg.AUGMENTOR.CUTBLUR.DOWN_RATIO_MAX,
                                 downsample_z=cfg.AUGMENTOR.CUTBLUR.DOWNSAMPLE_Z))
+
+    #11. cut-noise
+    if cfg.AUGMENTOR.CUTNOISE.ENABLED:
+        aug_list.append(CutNoise(p=cfg.AUGMENTOR.CUTNOISE.P, 
+                                length_ratio=cfg.AUGMENTOR.CUTNOISE.LENGTH_RATIO, 
+                                scale=cfg.AUGMENTOR.CUTNOISE.SCALE))
 
     augmentor = Compose(aug_list, input_size=cfg.MODEL.INPUT_SIZE, smooth=cfg.AUGMENTOR.SMOOTH,
                         keep_uncropped=keep_uncropped, keep_non_smoothed=keep_non_smoothed)

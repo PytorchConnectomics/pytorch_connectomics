@@ -206,6 +206,11 @@ _C.AUGMENTOR.CUTBLUR.DOWN_RATIO_MIN = 2.0
 _C.AUGMENTOR.CUTBLUR.DOWN_RATIO_MAX = 8.0
 _C.AUGMENTOR.CUTBLUR.DOWNSAMPLE_Z = False
 
+_C.AUGMENTOR.CUTNOISE = CN({"ENABLED": True})
+_C.AUGMENTOR.CUTNOISE.P = 0.75
+_C.AUGMENTOR.CUTNOISE.LENGTH_RATIO = 0.4
+_C.AUGMENTOR.CUTNOISE.SCALE = 0.3
+
 # -----------------------------------------------------------------------------
 # Solver
 # -----------------------------------------------------------------------------
