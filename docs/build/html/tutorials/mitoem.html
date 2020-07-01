@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Synaptic Partner Segmentation &mdash; connectomics latest documentation</title>
+  <title>MitoEM Instance Segmentation &mdash; connectomics latest documentation</title>
   
 
   
@@ -46,8 +46,8 @@
   <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="connectomics.model" href="../modules/model.html" />
-    <link rel="prev" title="Synaptic Cleft Segmentation" href="cremi.html" /> 
+    <link rel="next" title="Synaptic Cleft Segmentation" href="cremi.html" />
+    <link rel="prev" title="Mitochondria Segmentation" href="lucchi.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -113,9 +113,9 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="snemi.html">Neuron Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lucchi.html">Mitochondria Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="mitoem.html">MitoEM Instance Segmentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">MitoEM Instance Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="cremi.html">Synaptic Cleft Segmentation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Partner Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Segmentation</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -172,13 +172,13 @@
     
       <li><a href="../index.html">Docs</a> &raquo;</li>
         
-      <li>Synaptic Partner Segmentation</li>
+      <li>MitoEM Instance Segmentation</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/tutorials/synaptic_partner.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/mitoem.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -191,78 +191,88 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="synaptic-partner-segmentation">
-<h1>Synaptic Partner Segmentation<a class="headerlink" href="#synaptic-partner-segmentation" title="Permalink to this headline">¶</a></h1>
-<p>This tutorial provides step-by-step guidance for synaptic partner detection with our benchmark datasets.
-We consider the task as a semantic segmentation task and predict both the pre-synaptic and post-synaptic pixels with encoder-decoder ConvNets similar to
-the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
-The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging.</p>
+  <div class="section" id="mitoem-instance-segmentation">
+<h1>MitoEM Instance Segmentation<a class="headerlink" href="#mitoem-instance-segmentation" title="Permalink to this headline">¶</a></h1>
+<p>This tutorial provides step-by-step guidance for mitochondria segmentation with our benchmark datasets <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">MitoEM</a>.
+We consider the task as 3D instance segmentation task and provide three different confiurations of the model output.
+The model is <code class="docutils literal"><span class="pre">unet_res_3d</span></code>, similar to the one used in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
+The evaluation of the segmentation results is based on the AP-75 (average precision with an IoU threshold of 0.75).</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">Our segmentation model uses a model target of three channels. The three channels are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic
-region</strong> (union of the first two channels), respectively.</p>
+<p class="last">The MitoEM dataset has two sub-datasets <strong>Rat</strong> and <strong>Human</strong> based on the source of the tissues. Three training configuration files on <strong>MitoEM-Rat</strong>
+are provided in <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/MitoEM/</span></code> for different learning targets of the model.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.
-The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Since the dataset is very large and can not be directly loaded into memory, we use the <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> dataset class that only
+loads part of the whole volume by opening involved <code class="docutils literal"><span class="pre">.png</span></code> images.</p>
+</div>
 <ol class="arabic">
-<li><p class="first">Dataset examples can be found on the Harvard RC server here:</p>
+<li><p class="first">Introduction to the dataset:</p>
 <blockquote>
-<div><p>Image:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_im_orig.h5
+<div><p>On the Harvard RC cluster, the datasets can be found at:</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/rat
 </pre></div>
 </div>
-<p>Label:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_seg.h5
+<p>and</p>
+<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/human
 </pre></div>
 </div>
+<p>Dataset description</p>
+<ul class="simple">
+<li><code class="docutils literal"><span class="pre">im</span></code>: includes 1,000 single-channel <code class="docutils literal"><span class="pre">.png</span></code> files (<strong>4096x4096</strong>) of raw EM images (with a spatial resolution of <strong>30x8x8</strong> nm).</li>
+<li><code class="docutils literal"><span class="pre">mito</span></code>: includes 1,000 single-channel <code class="docutils literal"><span class="pre">.png</span></code> files (<strong>4096x4096</strong>) of instance labels.</li>
+<li><code class="docutils literal"><span class="pre">*.json</span></code>: <code class="xref py py-class docutils literal"><span class="pre">Dict</span></code> contains paths to <code class="docutils literal"><span class="pre">.png</span></code> files</li>
+</ul>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
+<li><p class="first">Configure <code class="docutils literal"><span class="pre">.yaml</span></code> files for different learning targets.</p>
+<blockquote>
+<div><ul class="simple">
+<li><code class="docutils literal"><span class="pre">MitoEM-R-A.yaml</span></code>: output 3 channels for affinty prediction.</li>
+<li><code class="docutils literal"><span class="pre">MitoEM-R-AC.yaml</span></code>: output 4 channels for both affinity and instance contour prediction.</li>
+<li><code class="docutils literal"><span class="pre">MitoEM-R-BC.yaml</span></code>: output 2 channels for both binary mask and instance contour prediction.</li>
+</ul>
+</div></blockquote>
+</li>
+<li><p class="first">Run the training script.</p>
 <blockquote>
 <div><div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">By default the path of images and labels are not specified. To
-run the training scripts, please revise the <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">LABEL_NAME</span></code>
-and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>.
+run the training scripts, please revise the <code class="docutils literal"><span class="pre">DATASET.IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">DATASET.LABEL_NAME</span></code>, <code class="docutils literal"><span class="pre">DATASET.OUTPUT_PATH</span></code>
+and <code class="docutils literal"><span class="pre">DATASET.INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/MitoEM-R-*.yaml</span></code>.
 The options can also be given as command-line arguments without changing of the <code class="docutils literal"><span class="pre">yaml</span></code> configuration files.</p>
 </div>
 <div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-  --config-file configs/Synaptic-Partner-Segmentation.yaml
+$ python -u scripts/main.py --config-file configs/MitoEM-R-A.yaml
 </pre></div>
-</div>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-  --config-file configs/Synaptic-Partner-Segmentation.yaml
-</pre></div>
-</div>
-<div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
-false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
-vast volumes.</p>
 </div>
 </div></blockquote>
 </li>
 <li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir ``OUTPUT_PATH/xxxxx``
 </pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Tensorboard will create a subdir in OUTPUT_PATH. Substitute <strong>xxxxx</strong> with the subdir name.</p>
 </div>
 </div></blockquote>
 </li>
 <li><p class="first">Run inference on image volumes:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-  --config-file configs/Synaptic-Partner-Segmentation.yaml --inference \
-  --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
+$ python -u scripts/main.py \
+  --config-file configs/MitoEM-R-A.yaml --inference \
+  --checkpoint OUTPUT_PATH/xxxxx.pth.tar
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
-<p class="last">By default the path of images for inference are not specified. Please change
-the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>.</p>
+<p class="last">Please change the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> <code class="docutils literal"><span class="pre">INFERENCE.OUTPUT_PATH</span></code> <code class="docutils literal"><span class="pre">INFERENCE.OUTPUT_NAME</span></code>
+options in <code class="docutils literal"><span class="pre">configs/MitoEM-R-A.yaml</span></code>.</p>
 </div>
 </div></blockquote>
 </li>
@@ -277,10 +287,10 @@ the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span>
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../modules/model.html" class="btn btn-neutral float-right" title="connectomics.model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="cremi.html" class="btn btn-neutral float-right" title="Synaptic Cleft Segmentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
-        <a href="cremi.html" class="btn btn-neutral float-left" title="Synaptic Cleft Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+        <a href="lucchi.html" class="btn btn-neutral float-left" title="Mitochondria Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
       
     </div>
   

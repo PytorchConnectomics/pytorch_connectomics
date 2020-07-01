@@ -105,6 +105,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic Usage</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#multitask-learning">Multitask Learning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#inference">Inference</a></li>
 </ul>
 </li>
 </ul>
@@ -112,6 +113,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/snemi.html">Neuron Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/lucchi.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mitoem.html">MitoEM Instance Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/cremi.html">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tutorials/synaptic_partner.html">Synaptic Partner Segmentation</a></li>
 </ul>
@@ -196,6 +198,7 @@
 <li><a class="reference internal" href="#basic-usage" id="id1">Basic Usage</a></li>
 <li><a class="reference internal" href="#multiple-losses-for-a-single-learning-target" id="id2">Multiple Losses for a Single Learning Target</a></li>
 <li><a class="reference internal" href="#multitask-learning" id="id3">Multitask Learning</a></li>
+<li><a class="reference internal" href="#inference" id="id4">Inference</a></li>
 </ul>
 </div>
 <p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics">PyTorch Connectomics</a> uses a key-value based configuration system
@@ -270,6 +273,34 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 <li><code class="docutils literal"><span class="pre">'4'</span></code>: instance boundaries.</li>
 </ul>
 <p>More options will be provided soon!</p>
+</div>
+<div class="section" id="inference">
+<h2><a class="toc-backref" href="#id4">Inference</a><a class="headerlink" href="#inference" title="Permalink to this headline">¶</a></h2>
+<p>Most of the config options are shared by training and inference. However, there are
+several options to be adjusted at inference time by the <code class="docutils literal"><span class="pre">update_inference_cfg</span></code> function:</p>
+<div class="highlight-python"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">update_inference_cfg</span><span class="p">(</span><span class="n">cfg</span><span class="p">):</span>
+   <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Update configurations (cfg) when running mode is inference.</span>
+
+<span class="sd">   Note that None type is not supported in current release of YACS (0.1.7), but will be</span>
+<span class="sd">   supported soon according to this pull request: https://github.com/rbgirshick/yacs/pull/18.</span>
+<span class="sd">   Therefore a re-organization of the configurations using None type will be done when YACS</span>
+<span class="sd">   0.1.8 is released.</span>
+<span class="sd">   &quot;&quot;&quot;</span>
+   <span class="c1"># Dataset configurations:</span>
+   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_PATH</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">INPUT_PATH</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_PATH</span>
+   <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">IMAGE_NAME</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">IMAGE_NAME</span>
+   <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">OUTPUT_PATH</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_PATH</span>
+   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">PAD_SIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">PAD_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">PAD_SIZE</span>
+
+   <span class="c1"># Model configurations:</span>
+   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_SIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">INPUT_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_SIZE</span>
+   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span>
+</pre></div>
+</div>
 </div>
 </div>
 
