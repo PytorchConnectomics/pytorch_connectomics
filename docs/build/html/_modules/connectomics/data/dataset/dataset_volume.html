@@ -432,14 +432,14 @@
         <span class="n">pos_l</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">label_vol_ratio</span><span class="p">)</span>
         <span class="n">out_label</span> <span class="o">=</span> <span class="n">crop_volume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">label</span><span class="p">[</span><span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">,</span> <span class="n">pos_l</span><span class="p">)</span>
 
-        <span class="c1"># The option of generating valid masks has been removed.</span>
+        <span class="c1"># The option of generating valid masks has been deprecated.</span>
         <span class="c1"># if self.sample_invalid_thres[0]&gt;0:</span>
         <span class="c1">#     seg_bad = np.array([-1]).astype(out_label.dtype)[0]</span>
         <span class="c1">#     out_mask = out_label!=seg_bad</span>
         <span class="c1"># else:</span>
         <span class="c1">#     out_mask = torch.ones((1),dtype=torch.uint8)</span>
 
-        <span class="n">out_label</span> <span class="o">=</span> <span class="n">relabel</span><span class="p">(</span><span class="n">out_label</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">out_label</span> <span class="o">=</span> <span class="n">relabel</span><span class="p">(</span><span class="n">out_label</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span></div>
 </pre></div>
 

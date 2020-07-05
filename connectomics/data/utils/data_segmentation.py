@@ -21,7 +21,7 @@ def getSegType(mid):
 def relabel(seg, do_type=False):
     # get the unique labels
     uid = np.unique(seg)
-    # ignore all background sample
+    # ignore all-background samples
     if len(uid)==1 and uid[0] == 0:
         return seg
 

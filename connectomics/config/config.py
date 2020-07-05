@@ -132,9 +132,9 @@ _C.DATASET.DATA_CHUNK_STRIDE = True
 _C.DATASET.DATA_CHUNK_ITER = 1000
 
 # Number of voxel to exceed for a valid sample
-_C.DATASET.DATA_INVALID_THRES = [0., 0.]
+_C.DATASET.DATA_INVALID_THRES = [0, 0]
 
-_C.DATASET.PRE_LOAD_DATA = [None,None,None]
+_C.DATASET.PRE_LOAD_DATA = [None, None, None]
 
 # For some datasets the foreground mask is sparse in the volume. Therefore
 # we perform reject sampling to decrease (all completely avoid) regions

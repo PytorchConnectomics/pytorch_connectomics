@@ -464,20 +464,34 @@ to learn denoising when making predictions.</p>
 
 <dl class="class">
 <dt id="connectomics.data.augmentation.TestAugmentor">
-<em class="property">class </em><code class="descname">TestAugmentor</code><span class="sig-paren">(</span><em>mode='min'</em>, <em>num_aug=4</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
-<dd><p>Test Augmentor.</p>
+<em class="property">class </em><code class="descname">TestAugmentor</code><span class="sig-paren">(</span><em>mode='mean'</em>, <em>num_aug=4</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test-time augmentor.</p>
+<p>Our test-time augmentation includes horizontal/vertical flips
+over the xy-plane, swap of x and y axes, and flip in z-dimension,
+resulting in 16 variants. Considering inference efficiency, we also
+provide the option to apply of x-y swap and z-flip, resulting in 4 variants.
+By default the test-time augmentor returns the pixel-wise mean value of the predictions.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – inference mode (‘min’, ‘max’, ‘mean’).</li>
-<li><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – number of data augmentations: 4-fold, 16-fold</li>
+<li><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – number of data augmentation variants: 4 or 16. Default: 4</li>
 </ul>
 </td>
 </tr>
 </tbody>
 </table>
+<dl class="docutils">
+<dt>Examples::</dt>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">TestAugmentor</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">test_augmentor</span> <span class="o">=</span> <span class="n">TestAugmentor</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">num_aug</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">test_augmentor</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span> <span class="c1"># numpy.ndarray on CPU</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 </div>

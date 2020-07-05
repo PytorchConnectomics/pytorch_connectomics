@@ -242,12 +242,12 @@ class VolumeDataset(torch.utils.data.Dataset):
         pos_l = np.round(pos[1:]*self.label_vol_ratio)
         out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
 
-        # The option of generating valid masks has been removed.
+        # The option of generating valid masks has been deprecated.
         # if self.sample_invalid_thres[0]>0:
         #     seg_bad = np.array([-1]).astype(out_label.dtype)[0]
         #     out_mask = out_label!=seg_bad
         # else:
         #     out_mask = torch.ones((1),dtype=torch.uint8)
 
-        out_label = relabel(out_label).astype(np.float32)
+        out_label = relabel(out_label.copy()).astype(np.float32)
         return pos, out_input, out_label
