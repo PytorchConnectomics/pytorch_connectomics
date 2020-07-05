@@ -196,9 +196,9 @@
     <span class="sd">&quot;&quot;&quot;Test-time augmentor. </span>
 <span class="sd">    </span>
 <span class="sd">    Our test-time augmentation includes horizontal/vertical flips </span>
-<span class="sd">    over the xy-plane, swap of x and y axes, and flip in z-dimension, </span>
+<span class="sd">    over the `xy`-plane, swap of `x` and `y` axes, and flip in `z`-dimension, </span>
 <span class="sd">    resulting in 16 variants. Considering inference efficiency, we also </span>
-<span class="sd">    provide the option to apply of x-y swap and z-flip, resulting in 4 variants.</span>
+<span class="sd">    provide the option to apply only `x-y` swap and `z`-flip, resulting in 4 variants.</span>
 <span class="sd">    By default the test-time augmentor returns the pixel-wise mean value of the predictions.</span>
 
 <span class="sd">    Args:</span>
@@ -208,7 +208,7 @@
 <span class="sd">    Examples::</span>
 <span class="sd">        &gt;&gt;&gt; from connectomics.data.augmentation import TestAugmentor</span>
 <span class="sd">        &gt;&gt;&gt; test_augmentor = TestAugmentor(mode=&#39;mean&#39;, num_aug=16)</span>
-<span class="sd">        &gt;&gt;&gt; output = test_augmentor(model, inputs) # numpy.ndarray on CPU</span>
+<span class="sd">        &gt;&gt;&gt; output = test_augmentor(model, inputs) # output is a numpy.ndarray on CPU</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">num_aug</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>

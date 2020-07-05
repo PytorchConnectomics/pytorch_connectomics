@@ -382,15 +382,16 @@ than the input size to make sure there is no non-valid region after center-crop.
 <dl class="class">
 <dt id="connectomics.data.augmentation.Flip">
 <em class="property">class </em><code class="descname">Flip</code><span class="sig-paren">(</span><em>p=0.5</em>, <em>do_ztrans=0</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
-<dd><p>Randomly flip along z-, y- and x-axes as well as swap y- and x-axes for anisotropic image
-volumes. For isotropic image volumes specify do_ztrans=1 to swap z- and x-axes.</p>
+<dd><p>Randomly flip along <cite>z</cite>-, <cite>y</cite>- and <cite>x</cite>-axes as well as swap <cite>y</cite>- and <cite>x</cite>-axes for anisotropic image
+volumes. For isotropic image volumes specify <code class="xref py py-attr docutils literal"><span class="pre">do_ztrans`=1</span> <span class="pre">to</span> <span class="pre">swap</span> <span class="pre">`z</span></code>- and <cite>x</cite>-axes when the
+input volumes are cubic.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability of applying the augmentation.</li>
-<li><strong>do_ztrans</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – specify do_ztrans=1 to swap z- and x-axes for isotropic data (default: 0).</li>
+<li><strong>do_ztrans</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – set to 1 to swap z- and x-axes for isotropic data. Default: 0.</li>
 </ul>
 </td>
 </tr>
@@ -467,9 +468,9 @@ to learn denoising when making predictions.</p>
 <em class="property">class </em><code class="descname">TestAugmentor</code><span class="sig-paren">(</span><em>mode='mean'</em>, <em>num_aug=4</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Test-time augmentor.</p>
 <p>Our test-time augmentation includes horizontal/vertical flips
-over the xy-plane, swap of x and y axes, and flip in z-dimension,
+over the <cite>xy</cite>-plane, swap of <cite>x</cite> and <cite>y</cite> axes, and flip in <cite>z</cite>-dimension,
 resulting in 16 variants. Considering inference efficiency, we also
-provide the option to apply of x-y swap and z-flip, resulting in 4 variants.
+provide the option to apply only <cite>x-y</cite> swap and <cite>z</cite>-flip, resulting in 4 variants.
 By default the test-time augmentor returns the pixel-wise mean value of the predictions.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -487,7 +488,7 @@ By default the test-time augmentor returns the pixel-wise mean value of the pred
 <dt>Examples::</dt>
 <dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">TestAugmentor</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">test_augmentor</span> <span class="o">=</span> <span class="n">TestAugmentor</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">num_aug</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">test_augmentor</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span> <span class="c1"># numpy.ndarray on CPU</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">test_augmentor</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span> <span class="c1"># output is a numpy.ndarray on CPU</span>
 </pre></div>
 </div>
 </dd>
