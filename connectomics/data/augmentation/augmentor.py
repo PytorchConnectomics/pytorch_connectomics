@@ -4,10 +4,12 @@ class DataAugment(object):
     """
     DataAugment interface.
 
-    1. Randomly generate parameters for current augmentation methods.
-    2. Apply the paramters to the valid_mask and generate a new one.
-    3. Calculate new input size and sample from the volume.
-    4. Apply the augmentation method to the new sample and crop to input_size.
+    A data transform needs to conduct the following steps:
+    1. Set :attr:`sample_params` at initialization to compute required sample size.
+    2. Randomly generate augmentation parameters for the current transform.
+    3. Apply the transform to a pair of images and corresponding labels.
+
+    All the real data augmentations should be a subclass of this class.
     """
     def __init__(self, p=0.5):
         assert p >= 0.0 and p <=1.0
@@ -18,21 +20,21 @@ class DataAugment(object):
 
     def set_params(self):
         """
-        Calculate appropriate sample wize with data augmentation.
+        Calculate the appropriate sample size with data augmentation.
         
         Some data augmentations (wrap, misalignment, etc.) require a larger sample 
         size than the original, depending on the augmentation parameters that are 
-        randomly chosen. This function takes parameters for random data augmentation 
-        parameters and returns an updated input size accordingly.
+        randomly chosen. This function takes the data augmentation 
+        parameters and returns an updated data sampling size accordingly.
         """
         raise NotImplementedError
 
     def __call__(self, data, random_state=None):
         """
-        Apply data augmentation
+        Apply the data augmentation.
 
-        For a multi-CPU dataloader, may need to use a unique index to generate 
-        the random seed (random_state), otherwise different workers may generate
+        For a multi-CPU dataloader, one may need to use a unique index to generate 
+        the random seed (:attr:`random_state`), otherwise different workers may generate
         the same pseudo-random number for augmentation and sampling.
         """
         raise NotImplementedError

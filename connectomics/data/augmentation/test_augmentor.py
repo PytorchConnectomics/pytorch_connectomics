@@ -12,7 +12,7 @@ class TestAugmentor(object):
     By default the test-time augmentor returns the pixel-wise mean value of the predictions.
 
     Args:
-        mode (str): inference mode ('min', 'max', 'mean').
+        mode (str): one of ``'min'``, ``'max'`` or ``'mean'``. Default: ``'mean'``
         num_aug (int): number of data augmentation variants: 4 or 16. Default: 4
 
     Examples::

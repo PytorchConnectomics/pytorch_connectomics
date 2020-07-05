@@ -12,10 +12,10 @@ class MissingParts(DataAugment):
     """Missing-parts augmentation of image stacks.
 
     Args:
-        deformation_strength (int):
-        iterations (int): (default: 80)
-        deform_ratio (float): 
-        p (float): probability of applying the augmentation.
+        deformation_strength (int): Default: 0
+        iterations (int): Default: 40
+        deform_ratio (float): Default: 0.25
+        p (float): probability of applying the augmentation. Default: 0.5
     """
     def __init__(self, 
                  deformation_strength=0, 

@@ -194,10 +194,12 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    DataAugment interface.</span>
 
-<span class="sd">    1. Randomly generate parameters for current augmentation methods.</span>
-<span class="sd">    2. Apply the paramters to the valid_mask and generate a new one.</span>
-<span class="sd">    3. Calculate new input size and sample from the volume.</span>
-<span class="sd">    4. Apply the augmentation method to the new sample and crop to input_size.</span>
+<span class="sd">    A data transform needs to conduct the following steps:</span>
+<span class="sd">    1. Set :attr:`sample_params` at initialization to compute required sample size.</span>
+<span class="sd">    2. Randomly generate augmentation parameters for the current transform.</span>
+<span class="sd">    3. Apply the transform to a pair of images and corresponding labels.</span>
+
+<span class="sd">    All the real data augmentations should be a subclass of this class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">p</span> <span class="o">&gt;=</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">p</span> <span class="o">&lt;=</span><span class="mf">1.0</span>
@@ -208,21 +210,21 @@
 
 <div class="viewcode-block" id="DataAugment.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.DataAugment.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Calculate appropriate sample wize with data augmentation.</span>
+<span class="sd">        Calculate the appropriate sample size with data augmentation.</span>
 <span class="sd">        </span>
 <span class="sd">        Some data augmentations (wrap, misalignment, etc.) require a larger sample </span>
 <span class="sd">        size than the original, depending on the augmentation parameters that are </span>
-<span class="sd">        randomly chosen. This function takes parameters for random data augmentation </span>
-<span class="sd">        parameters and returns an updated input size accordingly.</span>
+<span class="sd">        randomly chosen. This function takes the data augmentation </span>
+<span class="sd">        parameters and returns an updated data sampling size accordingly.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Apply data augmentation</span>
+<span class="sd">        Apply the data augmentation.</span>
 
-<span class="sd">        For a multi-CPU dataloader, may need to use a unique index to generate </span>
-<span class="sd">        the random seed (random_state), otherwise different workers may generate</span>
+<span class="sd">        For a multi-CPU dataloader, one may need to use a unique index to generate </span>
+<span class="sd">        the random seed (:attr:`random_state`), otherwise different workers may generate</span>
 <span class="sd">        the same pseudo-random number for augmentation and sampling.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>

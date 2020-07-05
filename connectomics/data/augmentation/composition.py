@@ -3,18 +3,35 @@ from __future__ import division
 import warnings
 import numpy as np
 
-from skimage.morphology import dilation,erosion
+from skimage.morphology import dilation, erosion
 from skimage.filters import gaussian
 
 class Compose(object):
-    """Compose transforms
+    """Composing a list of data transforms. 
+    
+    The sample size of the composed augmentor can be larger than the 
+    specified input size of the model to ensure that all pixels are 
+    valid after center-crop.
 
     Args:
-        transforms (list): list of transformations to compose.
-        input_size (tuple): input size of model in (z, y, x).
-        smooth (bool): smooth the gt object mask with Gaussian filtering (default: True).
-        keep_uncropped (bool): keep uncropped images and labels (default: False).
-        keep_non_smooth (bool): return also the non-smoothed masks (default: False).
+        transforms (list): list of transformations to compose
+        input_size (tuple): input size of model in (`z`, `y`, `x`) order
+        smooth (bool): smoothing the object mask with Gaussian filtering. Default: True
+        keep_uncropped (bool): keep uncropped image and label. Default: False
+        keep_non_smooth (bool): keep the non-smoothed object mask. Default: False
+
+    Examples::
+        >>> augmentor = Compose([Rotate(p=1.0),
+                                 Flip(p=1.0),
+                                 Elastic(alpha=12.0, p=0.75),
+                                 Grayscale(p=0.75),
+                                 MissingParts(p=0.9),
+                                 MissingSection(p=0.5),
+                                 MisAlignment(p=1.0, displacement=16)], 
+                                 input_size = (8, 256, 256))
+        >>> data = {'image':input, 'label':label}
+        >>> augmented = augmentor(data)
+        >>> out_input, out_label = augmented['image'], augmented['label']
     """
     def __init__(self, 
                  transforms, 

@@ -199,10 +199,10 @@
 <span class="sd">    Rescale augmentation.</span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
-<span class="sd">        low (float): lower bound of the random scale factor.</span>
-<span class="sd">        high (float): higher bound of the random scale factor.</span>
-<span class="sd">        fix_aspect (bool): fix aspect ratio or not.</span>
-<span class="sd">        p (float): probability of applying the augmentation</span>
+<span class="sd">        low (float): lower bound of the random scale factor. Default: 0.8</span>
+<span class="sd">        high (float): higher bound of the random scale factor. Default: 1.2</span>
+<span class="sd">        fix_aspect (bool): fix aspect ratio or not. Default: False</span>
+<span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">low</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span> <span class="n">fix_aspect</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">Rescale</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span> 

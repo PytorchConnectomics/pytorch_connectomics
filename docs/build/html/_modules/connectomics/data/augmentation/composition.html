@@ -193,18 +193,35 @@
 <span class="kn">import</span> <span class="nn">warnings</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
-<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">dilation</span><span class="p">,</span><span class="n">erosion</span>
+<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">dilation</span><span class="p">,</span> <span class="n">erosion</span>
 <span class="kn">from</span> <span class="nn">skimage.filters</span> <span class="kn">import</span> <span class="n">gaussian</span>
 
 <div class="viewcode-block" id="Compose"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Compose">[docs]</a><span class="k">class</span> <span class="nc">Compose</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Compose transforms</span>
+    <span class="sd">&quot;&quot;&quot;Composing a list of data transforms. </span>
+<span class="sd">    </span>
+<span class="sd">    The sample size of the composed augmentor can be larger than the </span>
+<span class="sd">    specified input size of the model to ensure that all pixels are </span>
+<span class="sd">    valid after center-crop.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        transforms (list): list of transformations to compose.</span>
-<span class="sd">        input_size (tuple): input size of model in (z, y, x).</span>
-<span class="sd">        smooth (bool): smooth the gt object mask with Gaussian filtering (default: True).</span>
-<span class="sd">        keep_uncropped (bool): keep uncropped images and labels (default: False).</span>
-<span class="sd">        keep_non_smooth (bool): return also the non-smoothed masks (default: False).</span>
+<span class="sd">        transforms (list): list of transformations to compose</span>
+<span class="sd">        input_size (tuple): input size of model in (`z`, `y`, `x`) order</span>
+<span class="sd">        smooth (bool): smoothing the object mask with Gaussian filtering. Default: True</span>
+<span class="sd">        keep_uncropped (bool): keep uncropped image and label. Default: False</span>
+<span class="sd">        keep_non_smooth (bool): keep the non-smoothed object mask. Default: False</span>
+
+<span class="sd">    Examples::</span>
+<span class="sd">        &gt;&gt;&gt; augmentor = Compose([Rotate(p=1.0),</span>
+<span class="sd">                                 Flip(p=1.0),</span>
+<span class="sd">                                 Elastic(alpha=12.0, p=0.75),</span>
+<span class="sd">                                 Grayscale(p=0.75),</span>
+<span class="sd">                                 MissingParts(p=0.9),</span>
+<span class="sd">                                 MissingSection(p=0.5),</span>
+<span class="sd">                                 MisAlignment(p=1.0, displacement=16)], </span>
+<span class="sd">                                 input_size = (8, 256, 256))</span>
+<span class="sd">        &gt;&gt;&gt; data = {&#39;image&#39;:input, &#39;label&#39;:label}</span>
+<span class="sd">        &gt;&gt;&gt; augmented = augmentor(data)</span>
+<span class="sd">        &gt;&gt;&gt; out_input, out_label = augmented[&#39;image&#39;], augmented[&#39;label&#39;]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
                  <span class="n">transforms</span><span class="p">,</span> 

@@ -9,10 +9,10 @@ class Rescale(DataAugment):
     Rescale augmentation.
     
     Args:
-        low (float): lower bound of the random scale factor.
-        high (float): higher bound of the random scale factor.
-        fix_aspect (bool): fix aspect ratio or not.
-        p (float): probability of applying the augmentation
+        low (float): lower bound of the random scale factor. Default: 0.8
+        high (float): higher bound of the random scale factor. Default: 1.2
+        fix_aspect (bool): fix aspect ratio or not. Default: False
+        p (float): probability of applying the augmentation. Default: 0.5
     """
     def __init__(self, low=0.8, high=1.2, fix_aspect=False, p=0.5):
         super(Rescale, self).__init__(p=p) 
