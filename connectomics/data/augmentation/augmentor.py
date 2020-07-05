@@ -5,6 +5,7 @@ class DataAugment(object):
     DataAugment interface.
 
     A data transform needs to conduct the following steps:
+
     1. Set :attr:`sample_params` at initialization to compute required sample size.
     2. Randomly generate augmentation parameters for the current transform.
     3. Apply the transform to a pair of images and corresponding labels.

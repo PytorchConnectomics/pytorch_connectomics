@@ -195,7 +195,7 @@
 <span id="connectomics-data-augmentation"></span><h1>connectomics.data.augmentation<a class="headerlink" href="#module-connectomics.data.augmentation" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="connectomics.data.augmentation.Compose">
-<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>196</em>, <em>196)</em>, <em>smooth=True</em>, <em>keep_uncropped=False</em>, <em>keep_non_smoothed=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms</em>, <em>input_size=(8</em>, <em>256</em>, <em>256)</em>, <em>smooth=True</em>, <em>keep_uncropped=False</em>, <em>keep_non_smoothed=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
 <dd><p>Composing a list of data transforms.</p>
 <p>The sample size of the composed augmentor can be larger than the
 specified input size of the model to ensure that all pixels are
@@ -218,13 +218,11 @@ valid after center-crop.</p>
 <dl class="docutils">
 <dt>Examples::</dt>
 <dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">([</span><span class="n">Rotate</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">1.0</span><span class="p">),</span>
-<span class="go">                         Flip(p=1.0),</span>
-<span class="go">                         Elastic(alpha=12.0, p=0.75),</span>
-<span class="go">                         Grayscale(p=0.75),</span>
-<span class="go">                         MissingParts(p=0.9),</span>
-<span class="go">                         MissingSection(p=0.5),</span>
-<span class="go">                         MisAlignment(p=1.0, displacement=16)],</span>
-<span class="go">                         input_size = (8, 256, 256))</span>
+<span class="gp">&gt;&gt;&gt; </span>                     <span class="n">Flip</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">1.0</span><span class="p">),</span>
+<span class="gp">&gt;&gt;&gt; </span>                     <span class="n">Elastic</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.75</span><span class="p">),</span>
+<span class="gp">&gt;&gt;&gt; </span>                     <span class="n">Grayscale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.75</span><span class="p">),</span>
+<span class="gp">&gt;&gt;&gt; </span>                     <span class="n">MissingParts</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)],</span>
+<span class="gp">&gt;&gt;&gt; </span>                     <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">))</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span><span class="nb">input</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span><span class="n">label</span><span class="p">}</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">augmented</span> <span class="o">=</span> <span class="n">augmentor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">out_input</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
@@ -238,10 +236,12 @@ valid after center-crop.</p>
 <dt id="connectomics.data.augmentation.DataAugment">
 <em class="property">class </em><code class="descname">DataAugment</code><span class="sig-paren">(</span><em>p=0.5</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
 <dd><p>DataAugment interface.</p>
-<p>A data transform needs to conduct the following steps:
-1. Set <code class="xref py py-attr docutils literal"><span class="pre">sample_params</span></code> at initialization to compute required sample size.
-2. Randomly generate augmentation parameters for the current transform.
-3. Apply the transform to a pair of images and corresponding labels.</p>
+<p>A data transform needs to conduct the following steps:</p>
+<ol class="arabic simple">
+<li>Set <code class="xref py py-attr docutils literal"><span class="pre">sample_params</span></code> at initialization to compute required sample size.</li>
+<li>Randomly generate augmentation parameters for the current transform.</li>
+<li>Apply the transform to a pair of images and corresponding labels.</li>
+</ol>
 <p>All the real data augmentations should be a subclass of this class.</p>
 <dl class="method">
 <dt id="connectomics.data.augmentation.DataAugment.set_params">

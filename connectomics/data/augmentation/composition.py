@@ -22,20 +22,18 @@ class Compose(object):
 
     Examples::
         >>> augmentor = Compose([Rotate(p=1.0),
-                                 Flip(p=1.0),
-                                 Elastic(alpha=12.0, p=0.75),
-                                 Grayscale(p=0.75),
-                                 MissingParts(p=0.9),
-                                 MissingSection(p=0.5),
-                                 MisAlignment(p=1.0, displacement=16)], 
-                                 input_size = (8, 256, 256))
+        >>>                      Flip(p=1.0),
+        >>>                      Elastic(alpha=12.0, p=0.75),
+        >>>                      Grayscale(p=0.75),
+        >>>                      MissingParts(p=0.9)], 
+        >>>                      input_size = (8, 256, 256))
         >>> data = {'image':input, 'label':label}
         >>> augmented = augmentor(data)
         >>> out_input, out_label = augmented['image'], augmented['label']
     """
     def __init__(self, 
                  transforms, 
-                 input_size = (8,196,196),
+                 input_size = (8,256,256),
                  smooth = True,
                  keep_uncropped = False,
                  keep_non_smoothed = False):

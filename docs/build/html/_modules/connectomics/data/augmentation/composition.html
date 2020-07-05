@@ -212,20 +212,18 @@
 
 <span class="sd">    Examples::</span>
 <span class="sd">        &gt;&gt;&gt; augmentor = Compose([Rotate(p=1.0),</span>
-<span class="sd">                                 Flip(p=1.0),</span>
-<span class="sd">                                 Elastic(alpha=12.0, p=0.75),</span>
-<span class="sd">                                 Grayscale(p=0.75),</span>
-<span class="sd">                                 MissingParts(p=0.9),</span>
-<span class="sd">                                 MissingSection(p=0.5),</span>
-<span class="sd">                                 MisAlignment(p=1.0, displacement=16)], </span>
-<span class="sd">                                 input_size = (8, 256, 256))</span>
+<span class="sd">        &gt;&gt;&gt;                      Flip(p=1.0),</span>
+<span class="sd">        &gt;&gt;&gt;                      Elastic(alpha=12.0, p=0.75),</span>
+<span class="sd">        &gt;&gt;&gt;                      Grayscale(p=0.75),</span>
+<span class="sd">        &gt;&gt;&gt;                      MissingParts(p=0.9)], </span>
+<span class="sd">        &gt;&gt;&gt;                      input_size = (8, 256, 256))</span>
 <span class="sd">        &gt;&gt;&gt; data = {&#39;image&#39;:input, &#39;label&#39;:label}</span>
 <span class="sd">        &gt;&gt;&gt; augmented = augmentor(data)</span>
 <span class="sd">        &gt;&gt;&gt; out_input, out_label = augmented[&#39;image&#39;], augmented[&#39;label&#39;]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
                  <span class="n">transforms</span><span class="p">,</span> 
-                 <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">196</span><span class="p">,</span><span class="mi">196</span><span class="p">),</span>
+                 <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">256</span><span class="p">,</span><span class="mi">256</span><span class="p">),</span>
                  <span class="n">smooth</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
                  <span class="n">keep_uncropped</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
