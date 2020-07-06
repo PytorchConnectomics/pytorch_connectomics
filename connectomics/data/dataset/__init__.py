@@ -93,15 +93,15 @@ def get_dataset(cfg, augmentor, mode='train'):
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
                               volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME, 
                               label_json=label_json,
-                              sample_volume_size=sample_volume_size, 
+                              sample_input_size=sample_volume_size, 
                               sample_label_size=sample_label_size,
                               sample_stride=sample_stride, 
-                              sample_invalid_thres = sample_invalid_thres,
+                              sample_invalid_thres=sample_invalid_thres,
                               augmentor=augmentor, 
-                              target_opt = topt, 
-                              weight_opt = wopt, 
-                              mode = mode, 
-                              label_erosion = label_erosion, 
+                              target_opt=topt, 
+                              weight_opt=wopt, 
+                              mode=mode, 
+                              label_erosion=label_erosion, 
                               pad_size=cfg.DATASET.PAD_SIZE)
 
     else:

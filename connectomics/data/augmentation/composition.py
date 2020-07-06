@@ -15,7 +15,7 @@ class Compose(object):
 
     Args:
         transforms (list): list of transformations to compose
-        input_size (tuple): input size of model in (`z`, `y`, `x`) order
+        input_size (tuple): input size of model in :math:`(z, y, x)` order. Default: :math:`(8, 256, 256)`
         smooth (bool): smoothing the object mask with Gaussian filtering. Default: True
         keep_uncropped (bool): keep uncropped image and label. Default: False
         keep_non_smooth (bool): keep the non-smoothed object mask. Default: False
