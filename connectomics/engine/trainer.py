@@ -10,7 +10,7 @@ import numpy as np
 from .solver import *
 from connectomics.model import *
 from connectomics.data.augmentation import build_train_augmentor, TestAugmentor
-from connectomics.data.dataset import build_dataloader
+from connectomics.data.dataset import build_dataloader, get_dataset
 from connectomics.data.utils import blend_gaussian, writeh5
 
 class Trainer(object):
