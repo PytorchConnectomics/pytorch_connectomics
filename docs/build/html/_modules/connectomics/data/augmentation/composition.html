@@ -125,6 +125,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/datasets.html">connectomics.data.datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/engine.html">connectomics.engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -205,7 +209,7 @@
 
 <span class="sd">    Args:</span>
 <span class="sd">        transforms (list): list of transformations to compose</span>
-<span class="sd">        input_size (tuple): input size of model in (`z`, `y`, `x`) order</span>
+<span class="sd">        input_size (tuple): input size of model in :math:`(z, y, x)` order. Default: :math:`(8, 256, 256)`</span>
 <span class="sd">        smooth (bool): smoothing the object mask with Gaussian filtering. Default: True</span>
 <span class="sd">        keep_uncropped (bool): keep uncropped image and label. Default: False</span>
 <span class="sd">        keep_non_smooth (bool): keep the non-smoothed object mask. Default: False</span>

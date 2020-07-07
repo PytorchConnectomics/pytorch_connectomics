@@ -127,6 +127,10 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="datasets.html">connectomics.data.datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="engine.html">connectomics.engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -206,7 +210,7 @@ valid after center-crop.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.8)"><em>list</em></a>) – list of transformations to compose</li>
-<li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a>) – input size of model in (<cite>z</cite>, <cite>y</cite>, <cite>x</cite>) order</li>
+<li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a>) – input size of model in <span class="math">\((z, y, x)\)</span> order. Default: <span class="math">\((8, 256, 256)\)</span></li>
 <li><strong>smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – smoothing the object mask with Gaussian filtering. Default: True</li>
 <li><strong>keep_uncropped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – keep uncropped image and label. Default: False</li>
 <li><strong>keep_non_smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – keep the non-smoothed object mask. Default: False</li>

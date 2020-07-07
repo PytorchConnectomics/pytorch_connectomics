@@ -125,6 +125,10 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../modules/datasets.html">connectomics.data.datasets</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../modules/engine.html">connectomics.engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../modules/utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+</ul>
+</li>
 </ul>
 
             
@@ -200,7 +204,7 @@
 <span class="kn">from</span> <span class="nn">.solver</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">connectomics.model</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">build_train_augmentor</span><span class="p">,</span> <span class="n">TestAugmentor</span>
-<span class="kn">from</span> <span class="nn">connectomics.data.dataset</span> <span class="kn">import</span> <span class="n">build_dataloader</span>
+<span class="kn">from</span> <span class="nn">connectomics.data.dataset</span> <span class="kn">import</span> <span class="n">build_dataloader</span><span class="p">,</span> <span class="n">get_dataset</span>
 <span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">blend_gaussian</span><span class="p">,</span> <span class="n">writeh5</span>
 
 <div class="viewcode-block" id="Trainer"><a class="viewcode-back" href="../../../modules/engine.html#connectomics.engine.Trainer">[docs]</a><span class="k">class</span> <span class="nc">Trainer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
