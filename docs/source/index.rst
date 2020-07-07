@@ -43,10 +43,10 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
    :maxdepth: 1
    :caption: Package Reference
 
-   modules/model
-   modules/augmentation
    modules/datasets
+   modules/augmentation
    modules/engine
+   modules/model
    modules/utils
 
 Indices and Tables

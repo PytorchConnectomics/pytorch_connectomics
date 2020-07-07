@@ -10,7 +10,7 @@ from skimage.segmentation import watershed
 
 def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0, 1.0)):
     """From binary foreground probability map to instance masks via
-       connected-component labeling.
+    connected-component labeling.
 
     Args: 
         volume (numpy.ndarray): foreground probability of shape :math:`(C, Z, Y, X)`.
@@ -32,7 +32,7 @@ def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0
 
 def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0)):
     """From binary foreground probability map to instance masks via
-       watershed segmentation algorithm.
+    watershed segmentation algorithm.
 
     Args: 
         volume (numpy.ndarray): foreground probability of shape :math:`(C, Z, Y, X)`.
@@ -58,13 +58,14 @@ def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_fa
 def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, 
                  scale_factors=(1.0, 1.0, 1.0), dilation_struct=(1,5,5)):
     """From binary foreground probability map and instance contours to 
-       instance masks via connected-component labeling.
+    instance masks via connected-component labeling.
 
     Note:
         The instance contour provides additional supervision to distinguish closely touching
-        instances. However, the decoding algorithm find the intersection of foreground and 
+        objects. However, the decoding algorithm only keep the intersection of foreground and 
         non-contour regions, which will systematically result in imcomplete instance masks.
-        Therefore we apply morphological dilation to the segmentation map.
+        Therefore we apply morphological dilation (check :attr:`dilation_struct`) to enlarge 
+        the object masks.
 
     Args: 
         volume (numpy.ndarray): foreground and contour probability of shape :math:`(C, Z, Y, X)`.
@@ -92,13 +93,7 @@ def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128,
 
 def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0)):
     """From binary foreground probability map and instance contours to 
-       instance masks via watershed segmentation algorithm.
-
-    Note:
-        The instance contour provides additional supervision to distinguish closely touching
-        instances. However, the decoding algorithm find the intersection of foreground and 
-        non-contour regions, which will systematically result in imcomplete instance masks.
-        Therefore we apply morphological dilation to the segmentation map.
+    instance masks via watershed segmentation algorithm.
 
     Args: 
         volume (numpy.ndarray): foreground and contour probability of shape :math:`(C, Z, Y, X)`.
