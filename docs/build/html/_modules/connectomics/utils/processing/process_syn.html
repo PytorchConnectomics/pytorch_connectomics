@@ -193,8 +193,8 @@
             
   <h1>Source code for connectomics.utils.processing.process_syn</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Post-processing functions for synaptic polarity model outputs as described</span>
-<span class="c1"># in &quot;Two-Stream Active Query Suggestion for Large-Scale Object Detection in </span>
-<span class="c1"># Connectomics (ECCV 2020)&quot;.</span>
+<span class="c1"># in &quot;Two-Stream Active Query Suggestion for Active Learning in Connectomics </span>
+<span class="c1"># (ECCV 2020)&quot;.</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">label</span>
@@ -227,18 +227,18 @@
     <span class="n">thres</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">255.0</span> <span class="o">*</span> <span class="n">thres</span><span class="p">)</span>
     <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">volume</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
 
-    <span class="n">syn_pos</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-    <span class="n">syn_pos</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">syn_pos</span><span class="p">,</span> 
+    <span class="n">syn_pre</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">syn_pre</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">syn_pre</span><span class="p">,</span> 
                 <span class="n">min_size</span><span class="o">=</span><span class="n">thres_small</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">syn_neg</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-    <span class="n">syn_neg</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">syn_neg</span><span class="p">,</span> 
+    <span class="n">syn_post</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">syn_post</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">syn_post</span><span class="p">,</span> 
                 <span class="n">min_size</span><span class="o">=</span><span class="n">thres_small</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">semantic</span><span class="p">:</span> 
         <span class="c1"># Generate only the semantic mask. The pre-synaptic region is labeled</span>
         <span class="c1"># with 1, while the post-synaptic region is labeled with 2.</span>
-        <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">syn_pos</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span> 
-                          <span class="n">syn_neg</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">syn_pre</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span> 
+                          <span class="n">syn_post</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
     <span class="k">else</span><span class="p">:</span>
         <span class="c1"># Generate the instance mask.</span>
@@ -247,9 +247,9 @@
 
         <span class="c1"># Since non-zero pixels in seg_pos and seg_neg are subsets of temp[2], </span>
         <span class="c1"># they are naturally subsets of non-zero pixels in foreground.</span>
-        <span class="n">seg_pos</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_pos</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">seg_neg</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_neg</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">seg_pos</span><span class="p">,</span> <span class="n">seg_neg</span><span class="p">)</span>
+        <span class="n">seg_pre</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_pre</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">seg_post</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_post</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">seg_pre</span><span class="p">,</span> <span class="n">seg_post</span><span class="p">)</span>
 
         <span class="c1"># Cast the segmentation to the best dtype to save memory.</span>
         <span class="n">max_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">segm</span><span class="p">))</span>

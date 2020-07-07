@@ -1,6 +1,6 @@
 # Post-processing functions for synaptic polarity model outputs as described
-# in "Two-Stream Active Query Suggestion for Large-Scale Object Detection in 
-# Connectomics (ECCV 2020)".
+# in "Two-Stream Active Query Suggestion for Active Learning in Connectomics 
+# (ECCV 2020)".
 import numpy as np
 
 from skimage.measure import label
@@ -33,18 +33,18 @@ def polarity_to_instance(volume, thres=0.5, thres_small=128,
     thres = int(255.0 * thres)
     temp = (volume > thres).astype(np.uint8)
 
-    syn_pos = temp[0] * temp[2]
-    syn_pos = remove_small_objects(syn_pos, 
+    syn_pre = temp[0] * temp[2]
+    syn_pre = remove_small_objects(syn_pre, 
                 min_size=thres_small, connectivity=1)
-    syn_neg = temp[1] * temp[2]
-    syn_neg = remove_small_objects(syn_neg, 
+    syn_post = temp[1] * temp[2]
+    syn_post = remove_small_objects(syn_post, 
                 min_size=thres_small, connectivity=1)
 
     if semantic: 
         # Generate only the semantic mask. The pre-synaptic region is labeled
         # with 1, while the post-synaptic region is labeled with 2.
-        segm = np.maximum(syn_pos.astype(np.uint8), 
-                          syn_neg.astype(np.uint8) * 2)
+        segm = np.maximum(syn_pre.astype(np.uint8), 
+                          syn_post.astype(np.uint8) * 2)
 
     else:
         # Generate the instance mask.
@@ -53,9 +53,9 @@ def polarity_to_instance(volume, thres=0.5, thres_small=128,
 
         # Since non-zero pixels in seg_pos and seg_neg are subsets of temp[2], 
         # they are naturally subsets of non-zero pixels in foreground.
-        seg_pos = (foreground*2 - 1) * syn_pos.astype(foreground.dtype)
-        seg_neg = (foreground*2) * syn_neg.astype(foreground.dtype)
-        segm = np.maximum(seg_pos, seg_neg)
+        seg_pre = (foreground*2 - 1) * syn_pre.astype(foreground.dtype)
+        seg_post = (foreground*2) * syn_post.astype(foreground.dtype)
+        segm = np.maximum(seg_pre, seg_post)
 
         # Cast the segmentation to the best dtype to save memory.
         max_id = np.maximum(np.unique(segm))
