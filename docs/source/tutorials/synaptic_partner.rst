@@ -71,3 +71,5 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
     .. note::
         By default the path of images for inference are not specified. Please change 
         the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Partner-Segmentation.yaml``.
+
+#. Use `this function <https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py>`_ to convert the probability map into instance/semantic segmentation.

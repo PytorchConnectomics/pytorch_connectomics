@@ -9,7 +9,7 @@ from skimage.morphology import remove_small_objects, dilation
 
 from connectomics.data.utils import getSegType
 
-def polarity_to_instance(volume, thres=0.8, thres_small=128, 
+def polarity_to_instance(volume, thres=0.5, thres_small=128, 
                          scale_factors=(1.0, 1.0, 1.0), semantic=False):
     """From synaptic polarity prediction to instance masks via connected-component 
     labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`
@@ -21,11 +21,11 @@ def polarity_to_instance(volume, thres=0.8, thres_small=128,
         annotate pre-synaptic region as :math:`2n-1` and post-synaptic region as :math:`2n`,
         for :math:`n>0`. If :attr:`semantic=True`, all pre-synaptic pixels are labeled with
         while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible
-        with the `TARGET_OPT: ['1']` configuration in training. 
+        with the ``TARGET_OPT: ['1']`` configuration in training. 
 
     Args: 
         volume (numpy.ndarray): 3-channel probability map of shape :math:`(3, Z, Y, X)`.
-        thres (float): threshold of foreground. Default: 0.8
+        thres (float): threshold of foreground. Default: 0.5
         thres_small (int): size threshold of small objects to remove. Default: 128
         scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
         semantic (bool): only return the semantic mask of synaptic polarity. Default: False

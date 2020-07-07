@@ -203,7 +203,7 @@
 
 <span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">getSegType</span>
 
-<div class="viewcode-block" id="polarity_to_instance"><a class="viewcode-back" href="../../../../modules/utils.html#connectomics.utils.processing.polarity_to_instance">[docs]</a><span class="k">def</span> <span class="nf">polarity_to_instance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> 
+<div class="viewcode-block" id="polarity_to_instance"><a class="viewcode-back" href="../../../../modules/utils.html#connectomics.utils.processing.polarity_to_instance">[docs]</a><span class="k">def</span> <span class="nf">polarity_to_instance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> 
                          <span class="n">scale_factors</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">semantic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;From synaptic polarity prediction to instance masks via connected-component </span>
 <span class="sd">    labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`</span>
@@ -215,11 +215,11 @@
 <span class="sd">        annotate pre-synaptic region as :math:`2n-1` and post-synaptic region as :math:`2n`,</span>
 <span class="sd">        for :math:`n&gt;0`. If :attr:`semantic=True`, all pre-synaptic pixels are labeled with</span>
 <span class="sd">        while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible</span>
-<span class="sd">        with the `TARGET_OPT: [&#39;1&#39;]` configuration in training. </span>
+<span class="sd">        with the ``TARGET_OPT: [&#39;1&#39;]`` configuration in training. </span>
 
 <span class="sd">    Args: </span>
 <span class="sd">        volume (numpy.ndarray): 3-channel probability map of shape :math:`(3, Z, Y, X)`.</span>
-<span class="sd">        thres (float): threshold of foreground. Default: 0.8</span>
+<span class="sd">        thres (float): threshold of foreground. Default: 0.5</span>
 <span class="sd">        thres_small (int): size threshold of small objects to remove. Default: 128</span>
 <span class="sd">        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`</span>
 <span class="sd">        semantic (bool): only return the semantic mask of synaptic polarity. Default: False</span>
