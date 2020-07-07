@@ -1,6 +1,6 @@
 # Post-processing functions of mitochondria instance segmentation model outputs
 # as described in "MitoEM Dataset: Large-scale 3D Mitochondria Instance Segmentation 
-# from EM Images (https://donglaiw.github.io/page/mitoEM/index.html)".
+# from EM Images (MICCAI 2020, https://donglaiw.github.io/page/mitoEM/index.html)".
 import numpy as np
 
 from skimage.measure import label

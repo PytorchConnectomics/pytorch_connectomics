@@ -8,17 +8,18 @@ Configurations
 that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
 that uses YAML, a human-readable data-serialization language, to manage options.
 
-#. The config have ``_C.key:value``  field, which will use a pre-defined config first. Values in the pre-defined config will 
-   be overwritten in sub-configs, if there are any according to requirements. We provided several base configs for standard tasks
-   in connectomics research as ``task.yaml`` files at `pytorch_connectomics/configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
+.. note::
+   The system has ``_C.KEY:VALUE``  field, which will use a pre-defined configurations first. Values in the pre-defined config will 
+   be overwritten in sub-configs, if there are any according to the user requirements. We provided several base configs for standard tasks
+   in connectomics research as ``<task>.yaml`` files at `pytorch_connectomics/configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
 
-We do not expect all features in the package to be available through configs. If you need 
-to add some options that are not available in the version, please modify the keys-value pairs in ``/connectomics/config/config.py``
+We do not expect all features in the package to be available through configs, which will make it too complicated. If you need 
+to add options that are not available in the current version, please modify the keys-value pairs in ``/connectomics/config/config.py``
 
 Basic Usage
 -------------
 
-Some basic usage of the ``CfgNode`` object is shown here.
+Some basic usage of the ``CfgNode`` object in `YACS <https://github.com/rbgirshick/yacs>`_ is shown below:
 
 .. code-block:: python
 
@@ -29,7 +30,7 @@ Some basic usage of the ``CfgNode`` object is shown here.
     _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
    
 The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will 
-overwrite the existing values in the config file. For example, ``main.py`` can be used with to modify input file name :
+overwrite the existing values in the config file. For example, we can add arguments when executing ``scripts/main.py``:
 
 .. code-block:: none
 
@@ -86,15 +87,15 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 
 Currently five kinds of ``TARGET_OPT`` are supported:
 
-- ``'0'``: binary foreground mask (see more details in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_).
+- ``'0'``: binary foreground mask (used in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_).
 
-- ``'1'``: synaptic polarity mask (see more details in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
+- ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
 
-- ``'2'``: affinity map (see more details in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
+- ``'2'``: affinity map (used in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
 
-- ``'3'``: small object masks.
+- ``'3'``: masks of small objects only.
 
-- ``'4'``: instance boundaries.
+- ``'4'``: instance boundaries (used in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_).
 
 More options will be provided soon!
 
@@ -127,3 +128,13 @@ several options to be adjusted at inference time by the ``update_inference_cfg``
          cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
       if len(cfg.INFERENCE.OUTPUT_SIZE) != 0:
          cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+
+There are also several options exclusive for inference. For example:
+
+.. code-block:: yaml
+
+   INFERENCE:
+     AUG_MODE: 'mean' # options for test augmentation
+     AUG_NUM: 4
+     STRIDE: (4, 128, 128) # sampling stride for inference
+     SAMPLES_PER_BATCH: 16 # batchsize for inference

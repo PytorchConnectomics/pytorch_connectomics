@@ -301,6 +301,38 @@ instance masks via watershed segmentation algorithm.</p>
 </table>
 </dd></dl>
 
+<dl class="function">
+<dt id="connectomics.utils.processing.polarity_to_instance">
+<code class="descname">polarity_to_instance</code><span class="sig-paren">(</span><em>volume</em>, <em>thres=0.8</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>semantic=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_syn.html#polarity_to_instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.polarity_to_instance" title="Permalink to this definition">¶</a></dt>
+<dd><p>From synaptic polarity prediction to instance masks via connected-component
+labeling. The input volume should be a 3-channel probability map of shape <span class="math">\((C, Z, Y, X)\)</span>
+where <span class="math">\(C=3\)</span>, representing pre-synaptic region, post-synaptic region and their
+union, respectively.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">For each pair of pre- and post-synaptic segmentation, the decoding function will
+annotate pre-synaptic region as <span class="math">\(2n-1\)</span> and post-synaptic region as <span class="math">\(2n\)</span>,
+for <span class="math">\(n&gt;0\)</span>. If <code class="xref py py-attr docutils literal"><span class="pre">semantic=True</span></code>, all pre-synaptic pixels are labeled with
+while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible
+with the <cite>TARGET_OPT: [‘1’]</cite> configuration in training.</p>
+</div>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>volume</strong> (<em>numpy.ndarray</em>) – 3-channel probability map of shape <span class="math">\((3, Z, Y, X)\)</span>.</li>
+<li><strong>thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – threshold of foreground. Default: 0.8</li>
+<li><strong>thres_small</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – size threshold of small objects to remove. Default: 128</li>
+<li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a>) – scale factors for resizing in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
+<li><strong>semantic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – only return the semantic mask of synaptic polarity. Default: False</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </div>
 </div>
 

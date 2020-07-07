@@ -1,0 +1,307 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.utils.processing.process_syn &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+  <script type="text/javascript" src="../../../../_static/js/modernizr.min.js"></script>
+  
+    
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../../../../',
+              VERSION:'latest',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+        <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+        <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/custom.css" type="text/css" />
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../../index.html">
+          
+
+          
+            
+            <img src="../../../../_static/logo_text.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configurations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#multitask-learning">Multitask Learning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/snemi.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/lucchi.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mitoem.html">MitoEM Instance Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/cremi.html">Synaptic Cleft Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synaptic_partner.html">Synaptic Partner Segmentation</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/datasets.html">connectomics.data.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/engine.html">connectomics.engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/model.html#module-connectomics.model.zoo">Model Zoo</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">connectomics</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>connectomics.utils.processing.process_syn</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for connectomics.utils.processing.process_syn</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Post-processing functions for synaptic polarity model outputs as described</span>
+<span class="c1"># in &quot;Two-Stream Active Query Suggestion for Large-Scale Object Detection in </span>
+<span class="c1"># Connectomics (ECCV 2020)&quot;.</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">label</span>
+<span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">resize</span>
+<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">remove_small_objects</span><span class="p">,</span> <span class="n">dilation</span>
+
+<span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">getSegType</span>
+
+<div class="viewcode-block" id="polarity_to_instance"><a class="viewcode-back" href="../../../../modules/utils.html#connectomics.utils.processing.polarity_to_instance">[docs]</a><span class="k">def</span> <span class="nf">polarity_to_instance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> 
+                         <span class="n">scale_factors</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">semantic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;From synaptic polarity prediction to instance masks via connected-component </span>
+<span class="sd">    labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`</span>
+<span class="sd">    where :math:`C=3`, representing pre-synaptic region, post-synaptic region and their</span>
+<span class="sd">    union, respectively.</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        For each pair of pre- and post-synaptic segmentation, the decoding function will</span>
+<span class="sd">        annotate pre-synaptic region as :math:`2n-1` and post-synaptic region as :math:`2n`,</span>
+<span class="sd">        for :math:`n&gt;0`. If :attr:`semantic=True`, all pre-synaptic pixels are labeled with</span>
+<span class="sd">        while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible</span>
+<span class="sd">        with the `TARGET_OPT: [&#39;1&#39;]` configuration in training. </span>
+
+<span class="sd">    Args: </span>
+<span class="sd">        volume (numpy.ndarray): 3-channel probability map of shape :math:`(3, Z, Y, X)`.</span>
+<span class="sd">        thres (float): threshold of foreground. Default: 0.8</span>
+<span class="sd">        thres_small (int): size threshold of small objects to remove. Default: 128</span>
+<span class="sd">        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`</span>
+<span class="sd">        semantic (bool): only return the semantic mask of synaptic polarity. Default: False</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">thres</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">255.0</span> <span class="o">*</span> <span class="n">thres</span><span class="p">)</span>
+    <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">volume</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+    <span class="n">syn_pos</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">syn_pos</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">syn_pos</span><span class="p">,</span> 
+                <span class="n">min_size</span><span class="o">=</span><span class="n">thres_small</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">syn_neg</span> <span class="o">=</span> <span class="n">temp</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">syn_neg</span> <span class="o">=</span> <span class="n">remove_small_objects</span><span class="p">(</span><span class="n">syn_neg</span><span class="p">,</span> 
+                <span class="n">min_size</span><span class="o">=</span><span class="n">thres_small</span><span class="p">,</span> <span class="n">connectivity</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">semantic</span><span class="p">:</span> 
+        <span class="c1"># Generate only the semantic mask. The pre-synaptic region is labeled</span>
+        <span class="c1"># with 1, while the post-synaptic region is labeled with 2.</span>
+        <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">syn_pos</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">),</span> 
+                          <span class="n">syn_neg</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Generate the instance mask.</span>
+        <span class="n">foreground</span> <span class="o">=</span> <span class="n">dilation</span><span class="p">(</span><span class="n">temp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">)))</span>
+        <span class="n">foreground</span> <span class="o">=</span> <span class="n">label</span><span class="p">(</span><span class="n">foreground</span><span class="p">)</span>
+
+        <span class="c1"># Since non-zero pixels in seg_pos and seg_neg are subsets of temp[2], </span>
+        <span class="c1"># they are naturally subsets of non-zero pixels in foreground.</span>
+        <span class="n">seg_pos</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_pos</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">seg_neg</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_neg</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">seg_pos</span><span class="p">,</span> <span class="n">seg_neg</span><span class="p">)</span>
+
+        <span class="c1"># Cast the segmentation to the best dtype to save memory.</span>
+        <span class="n">max_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">segm</span><span class="p">))</span>
+        <span class="n">m_type</span> <span class="o">=</span> <span class="n">getSegType</span><span class="p">(</span><span class="n">max_id</span><span class="p">)</span>
+        <span class="n">segm</span> <span class="o">=</span> <span class="n">segm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">m_type</span><span class="p">)</span>
+
+    <span class="c1"># resize the segmentation based on specified scale factors</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">==</span><span class="mf">1.0</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">scale_factors</span><span class="p">):</span>
+        <span class="n">target_size</span> <span class="o">=</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">segm</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">scale_factors</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> 
+                       <span class="nb">int</span><span class="p">(</span><span class="n">segm</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">scale_factors</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> 
+                       <span class="nb">int</span><span class="p">(</span><span class="n">segm</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">scale_factors</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="n">segm</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span><span class="n">segm</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">anti_aliasing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">segm</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2020, Zudi Lin and Donglai Wei
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
