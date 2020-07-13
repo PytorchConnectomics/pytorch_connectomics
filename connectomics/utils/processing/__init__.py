@@ -5,4 +5,4 @@ __all__ = ['binary_connected',
            'binary_watershed',
            'bc_connected',
            'bc_watershed',
-           'polarity_to_instance']
+           'polarity2instance']

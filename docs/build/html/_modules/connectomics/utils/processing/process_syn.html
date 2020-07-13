@@ -203,7 +203,7 @@
 
 <span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">getSegType</span>
 
-<div class="viewcode-block" id="polarity_to_instance"><a class="viewcode-back" href="../../../../modules/utils.html#connectomics.utils.processing.polarity_to_instance">[docs]</a><span class="k">def</span> <span class="nf">polarity_to_instance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> 
+<div class="viewcode-block" id="polarity2instance"><a class="viewcode-back" href="../../../../modules/utils.html#connectomics.utils.processing.polarity2instance">[docs]</a><span class="k">def</span> <span class="nf">polarity2instance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> 
                          <span class="n">scale_factors</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">semantic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;From synaptic polarity prediction to instance masks via connected-component </span>
 <span class="sd">    labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`</span>
@@ -217,12 +217,18 @@
 <span class="sd">        while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible</span>
 <span class="sd">        with the ``TARGET_OPT: [&#39;1&#39;]`` configuration in training. </span>
 
+<span class="sd">    Note:</span>
+<span class="sd">        The number of pre- and post-synaptic segments will be reported when setting :attr:`semantic=False`.</span>
+<span class="sd">        Note that the numbers can be different due to either incomplete syanpses touching the volume borders,</span>
+<span class="sd">        or errors in the prediction. We thus make a conservative estimate of the total number of synapses</span>
+<span class="sd">        by using the relatively small number among the two.</span>
+
 <span class="sd">    Args: </span>
 <span class="sd">        volume (numpy.ndarray): 3-channel probability map of shape :math:`(3, Z, Y, X)`.</span>
-<span class="sd">        thres (float): threshold of foreground. Default: 0.5</span>
+<span class="sd">        thres (float): probability threshold of foreground. Default: 0.5</span>
 <span class="sd">        thres_small (int): size threshold of small objects to remove. Default: 128</span>
-<span class="sd">        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`</span>
-<span class="sd">        semantic (bool): only return the semantic mask of synaptic polarity. Default: False</span>
+<span class="sd">        scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`</span>
+<span class="sd">        semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">thres</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">255.0</span> <span class="o">*</span> <span class="n">thres</span><span class="p">)</span>
     <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">volume</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
@@ -251,8 +257,16 @@
         <span class="n">seg_post</span> <span class="o">=</span> <span class="p">(</span><span class="n">foreground</span><span class="o">*</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">syn_post</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">foreground</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">segm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">seg_pre</span><span class="p">,</span> <span class="n">seg_post</span><span class="p">)</span>
 
+        <span class="c1"># Report the number of synapses</span>
+        <span class="n">num_syn_pre</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg_pre</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span>
+        <span class="n">num_syn_post</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg_post</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span>
+        <span class="n">num_syn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_syn_pre</span><span class="p">,</span> <span class="n">num_syn_post</span><span class="p">)</span> <span class="c1"># a conservative estimate</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Stats: found </span><span class="si">%d</span><span class="s2"> pre- and </span><span class="si">%d</span><span class="s2"> post-synaptic segments </span><span class="se">\</span>
+<span class="s2">              in the volume&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_syn_pre</span><span class="p">,</span> <span class="n">num_syn_post</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;There are </span><span class="si">%d</span><span class="s2"> synapses under a conservative estimate.&quot;</span> <span class="o">%</span> <span class="n">num_syn</span><span class="p">)</span>
+
         <span class="c1"># Cast the segmentation to the best dtype to save memory.</span>
-        <span class="n">max_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">segm</span><span class="p">))</span>
+        <span class="n">max_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">segm</span><span class="p">))</span>
         <span class="n">m_type</span> <span class="o">=</span> <span class="n">getSegType</span><span class="p">(</span><span class="n">max_id</span><span class="p">)</span>
         <span class="n">segm</span> <span class="o">=</span> <span class="n">segm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">m_type</span><span class="p">)</span>
 

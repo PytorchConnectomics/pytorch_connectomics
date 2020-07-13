@@ -302,8 +302,8 @@ instance masks via watershed segmentation algorithm.</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="connectomics.utils.processing.polarity_to_instance">
-<code class="descname">polarity_to_instance</code><span class="sig-paren">(</span><em>volume</em>, <em>thres=0.5</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>semantic=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_syn.html#polarity_to_instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.polarity_to_instance" title="Permalink to this definition">¶</a></dt>
+<dt id="connectomics.utils.processing.polarity2instance">
+<code class="descname">polarity2instance</code><span class="sig-paren">(</span><em>volume</em>, <em>thres=0.5</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>semantic=False</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_syn.html#polarity2instance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.polarity2instance" title="Permalink to this definition">¶</a></dt>
 <dd><p>From synaptic polarity prediction to instance masks via connected-component
 labeling. The input volume should be a 3-channel probability map of shape <span class="math">\((C, Z, Y, X)\)</span>
 where <span class="math">\(C=3\)</span>, representing pre-synaptic region, post-synaptic region and their
@@ -316,16 +316,23 @@ for <span class="math">\(n&gt;0\)</span>. If <code class="xref py py-attr docuti
 while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible
 with the <code class="docutils literal"><span class="pre">TARGET_OPT:</span> <span class="pre">['1']</span></code> configuration in training.</p>
 </div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The number of pre- and post-synaptic segments will be reported when setting <code class="xref py py-attr docutils literal"><span class="pre">semantic=False</span></code>.
+Note that the numbers can be different due to either incomplete syanpses touching the volume borders,
+or errors in the prediction. We thus make a conservative estimate of the total number of synapses
+by using the relatively small number among the two.</p>
+</div>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>volume</strong> (<em>numpy.ndarray</em>) – 3-channel probability map of shape <span class="math">\((3, Z, Y, X)\)</span>.</li>
-<li><strong>thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – threshold of foreground. Default: 0.5</li>
+<li><strong>thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.8)"><em>float</em></a>) – probability threshold of foreground. Default: 0.5</li>
 <li><strong>thres_small</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.8)"><em>int</em></a>) – size threshold of small objects to remove. Default: 128</li>
-<li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a>) – scale factors for resizing in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
-<li><strong>semantic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – only return the semantic mask of synaptic polarity. Default: False</li>
+<li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.8)"><em>tuple</em></a>) – scale factors for resizing the output volume in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
+<li><strong>semantic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.8)"><em>bool</em></a>) – return only the semantic mask of pre- and post-synaptic regions. Default: False</li>
 </ul>
 </td>
 </tr>

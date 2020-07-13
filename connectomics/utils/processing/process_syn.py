@@ -9,7 +9,7 @@ from skimage.morphology import remove_small_objects, dilation
 
 from connectomics.data.utils import getSegType
 
-def polarity_to_instance(volume, thres=0.5, thres_small=128, 
+def polarity2instance(volume, thres=0.5, thres_small=128, 
                          scale_factors=(1.0, 1.0, 1.0), semantic=False):
     """From synaptic polarity prediction to instance masks via connected-component 
     labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`
@@ -23,12 +23,18 @@ def polarity_to_instance(volume, thres=0.5, thres_small=128,
         while all post-synaptic pixels are labeled with 2. Both kinds of annotation are compatible
         with the ``TARGET_OPT: ['1']`` configuration in training. 
 
+    Note:
+        The number of pre- and post-synaptic segments will be reported when setting :attr:`semantic=False`.
+        Note that the numbers can be different due to either incomplete syanpses touching the volume borders,
+        or errors in the prediction. We thus make a conservative estimate of the total number of synapses
+        by using the relatively small number among the two.
+
     Args: 
         volume (numpy.ndarray): 3-channel probability map of shape :math:`(3, Z, Y, X)`.
-        thres (float): threshold of foreground. Default: 0.5
+        thres (float): probability threshold of foreground. Default: 0.5
         thres_small (int): size threshold of small objects to remove. Default: 128
-        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
-        semantic (bool): only return the semantic mask of synaptic polarity. Default: False
+        scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
+        semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False
     """
     thres = int(255.0 * thres)
     temp = (volume > thres).astype(np.uint8)
@@ -57,8 +63,16 @@ def polarity_to_instance(volume, thres=0.5, thres_small=128,
         seg_post = (foreground*2) * syn_post.astype(foreground.dtype)
         segm = np.maximum(seg_pre, seg_post)
 
+        # Report the number of synapses
+        num_syn_pre = len(np.unique(seg_pre))-1
+        num_syn_post = len(np.unique(seg_post))-1
+        num_syn = min(num_syn_pre, num_syn_post) # a conservative estimate
+        print("Stats: found %d pre- and %d post-synaptic segments \
+              in the volume" % (num_syn_pre, num_syn_post))
+        print("There are %d synapses under a conservative estimate." % num_syn)
+
         # Cast the segmentation to the best dtype to save memory.
-        max_id = np.maximum(np.unique(segm))
+        max_id = np.amax(np.unique(segm))
         m_type = getSegType(max_id)
         segm = segm.astype(m_type)
 

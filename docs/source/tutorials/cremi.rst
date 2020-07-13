@@ -33,7 +33,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
     .. code-block:: none
 
         $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
           --config-file configs/CREMI-Synaptic-Cleft.yaml
 
     - ``config-file``: configuration setting for the current experiment.
@@ -48,7 +48,7 @@ Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/`
 
     .. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
           --config-file configs/CREMI-Synaptic-Cleft.yaml \
           --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
           --inference

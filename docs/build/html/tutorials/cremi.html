@@ -232,7 +232,7 @@ different from the default ones. In such case, please change the corresponding e
 <li><p class="first">Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/CREMI-Synaptic-Cleft.yaml
 </pre></div>
 </div>
@@ -250,7 +250,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
 </li>
 <li><p class="first">Run the main.py script for inference:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u main.py \
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/CREMI-Synaptic-Cleft.yaml \
   --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
   --inference
