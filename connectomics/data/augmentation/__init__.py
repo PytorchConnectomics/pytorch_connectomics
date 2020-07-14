@@ -14,6 +14,7 @@ from .missing_parts import MissingParts
 from .motion_blur import MotionBlur
 from .cutblur import CutBlur
 from .cutnoise import CutNoise
+from .mixup import MixupAugmentor
 
 __all__ = ['Compose',
            'DataAugment', 
