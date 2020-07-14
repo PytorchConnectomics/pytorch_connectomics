@@ -29,6 +29,7 @@ __all__ = ['Compose',
            'MotionBlur',
            'CutBlur',
            'CutNoise',
+           'MixupAugmentor',
            'TestAugmentor']
 
 
