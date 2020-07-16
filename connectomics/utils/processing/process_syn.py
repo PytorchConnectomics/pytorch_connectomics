@@ -2,11 +2,11 @@
 # in "Two-Stream Active Query Suggestion for Active Learning in Connectomics 
 # (ECCV 2020)".
 import numpy as np
-
+import sys
 from skimage.measure import label
 from skimage.transform import resize
 from skimage.morphology import remove_small_objects, dilation
-
+from connectomics.data.utils import readh5, savevol
 from connectomics.data.utils import getSegType
 
 def polarity2instance(volume, thres=0.5, thres_small=128, 
@@ -83,3 +83,13 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
                        int(segm.shape[2]*scale_factors[2]))
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
     return segm
+
+def main():
+    vol_path = sys.argv[1]
+    format = sys.argv[2]
+    pred = readh5(vol_path)
+    seg = polarity2instance(pred)
+    savevol(seg, format=format)
+
+if __name__ == "__main__":
+    main()
