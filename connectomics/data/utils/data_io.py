@@ -23,10 +23,16 @@ def readvol(filename, dataset=''):
         raise ValueError('unrecognizable file format for %s'%(filename))
     return data
 
-def savevol(filename, vol, dataset='main'):
-    fid = h5py.File(filename, 'w')
-    fid.create_dataset(dataset, data=vol, compression='gzip')
-    fid.close()
+def savevol(filename, vol, dataset='main', format='h5'):
+    if format == 'h5':
+        writeh5(filename, vol, dataset='main')         
+    if format == 'png':
+        currentDirectory = os.getcwd()
+        img_save_path = currentDirectory + "/ProcessedImages"
+        if not os.path.exists(img_save_path):
+            os.makedirs(img_save_path)
+        for i in range(vol.shape[0]):
+            imageio.imsave('%s/%04d.png' % (img_save_path, i), vol[i])
 
 def readim(filename, do_channel=False):
     # x,y,c
@@ -54,7 +60,7 @@ def readimgs(filename):
 
     return data
 
-def writeh5(filename, filepath, dtarray, dataset='main', saveAsPng = False):
+def writeh5(filename, dtarray, dataset='main'):
     fid=h5py.File(filename,'w')
     if isinstance(dataset, (list,)):
         for i,dd in enumerate(dataset):
@@ -63,12 +69,6 @@ def writeh5(filename, filepath, dtarray, dataset='main', saveAsPng = False):
     else:
         ds = fid.create_dataset(dataset, dtarray.shape, compression="gzip", dtype=dtarray.dtype)
         ds[:] = dtarray
-    if saveAsPng:
-        img_save_path = filepath + "ProcessedImages"
-        if not os.path.exists(img_save_path):
-            os.makedirs(img_save_path)
-        for i in range(ds.shape[0]):
-            imageio.imsave('%s/%03d.png' % (img_save_path, i), ds[i])
     fid.close()
 
                                                                                
