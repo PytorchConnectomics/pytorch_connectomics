@@ -83,3 +83,4 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
                        int(segm.shape[2]*scale_factors[2]))
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
     return segm
+

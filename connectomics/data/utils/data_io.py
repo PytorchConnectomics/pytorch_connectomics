@@ -23,6 +23,17 @@ def readvol(filename, dataset=''):
         raise ValueError('unrecognizable file format for %s'%(filename))
     return data
 
+def savevol(filename, vol, dataset='main', format='h5'):
+    if format == 'h5':
+        writeh5(filename, vol, dataset='main')         
+    if format == 'png':
+        currentDirectory = os.getcwd()
+        img_save_path = currentDirectory + "/ProcessedImages"
+        if not os.path.exists(img_save_path):
+            os.makedirs(img_save_path)
+        for i in range(vol.shape[0]):
+            imageio.imsave('%s/%04d.png' % (img_save_path, i), vol[i])
+
 def readim(filename, do_channel=False):
     # x,y,c
     if not os.path.exists(filename): 
