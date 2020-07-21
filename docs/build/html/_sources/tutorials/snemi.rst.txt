@@ -27,7 +27,7 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
 
     .. figure:: ../_static/img/snemi_affinity.png
         :align: center
-        :width: 600px
+        :width: 700px
 
         Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the 
         affinity map has 3 channels, we can visualize them as RGB images.
