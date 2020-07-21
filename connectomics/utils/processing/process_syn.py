@@ -1,6 +1,6 @@
 # Post-processing functions for synaptic polarity model outputs as described
 # in "Two-Stream Active Query Suggestion for Active Learning in Connectomics 
-# (ECCV 2020)".
+# (ECCV 2020, https://zudi-lin.github.io/projects/#two_stream_active)".
 import numpy as np
 
 from skimage.measure import label
@@ -10,7 +10,7 @@ from skimage.morphology import remove_small_objects, dilation
 from connectomics.data.utils import getSegType
 
 def polarity2instance(volume, thres=0.5, thres_small=128, 
-                         scale_factors=(1.0, 1.0, 1.0), semantic=False):
+                      scale_factors=(1.0, 1.0, 1.0), semantic=False):
     """From synaptic polarity prediction to instance masks via connected-component 
     labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`
     where :math:`C=3`, representing pre-synaptic region, post-synaptic region and their
@@ -35,6 +35,13 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         thres_small (int): size threshold of small objects to remove. Default: 128
         scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
         semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False
+
+    Examples::
+        >>> from connectomics.data.utils import readvol, savevol
+        >>> from connectomics.utils.processing import polarity2instance
+        >>> volume = readvol(input_name)
+        >>> instances = polarity2instance(volume)
+        >>> savevol(output_name, instances)
     """
     thres = int(255.0 * thres)
     temp = (volume > thres).astype(np.uint8)
