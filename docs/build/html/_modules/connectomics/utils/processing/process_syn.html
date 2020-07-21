@@ -194,7 +194,7 @@
   <h1>Source code for connectomics.utils.processing.process_syn</h1><div class="highlight"><pre>
 <span></span><span class="c1"># Post-processing functions for synaptic polarity model outputs as described</span>
 <span class="c1"># in &quot;Two-Stream Active Query Suggestion for Active Learning in Connectomics </span>
-<span class="c1"># (ECCV 2020)&quot;.</span>
+<span class="c1"># (ECCV 2020, https://zudi-lin.github.io/projects/#two_stream_active)&quot;.</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="kn">from</span> <span class="nn">skimage.measure</span> <span class="kn">import</span> <span class="n">label</span>
@@ -204,7 +204,7 @@
 <span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">getSegType</span>
 
 <div class="viewcode-block" id="polarity2instance"><a class="viewcode-back" href="../../../../modules/utils.html#connectomics.utils.processing.polarity2instance">[docs]</a><span class="k">def</span> <span class="nf">polarity2instance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> 
-                         <span class="n">scale_factors</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">semantic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+                      <span class="n">scale_factors</span><span class="o">=</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span> <span class="n">semantic</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;From synaptic polarity prediction to instance masks via connected-component </span>
 <span class="sd">    labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`</span>
 <span class="sd">    where :math:`C=3`, representing pre-synaptic region, post-synaptic region and their</span>
@@ -229,6 +229,13 @@
 <span class="sd">        thres_small (int): size threshold of small objects to remove. Default: 128</span>
 <span class="sd">        scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`</span>
 <span class="sd">        semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False</span>
+
+<span class="sd">    Examples::</span>
+<span class="sd">        &gt;&gt;&gt; from connectomics.data.utils import readvol, savevol</span>
+<span class="sd">        &gt;&gt;&gt; from connectomics.utils.processing import polarity2instance</span>
+<span class="sd">        &gt;&gt;&gt; volume = readvol(input_name)</span>
+<span class="sd">        &gt;&gt;&gt; instances = polarity2instance(volume)</span>
+<span class="sd">        &gt;&gt;&gt; savevol(output_name, instances)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">thres</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">255.0</span> <span class="o">*</span> <span class="n">thres</span><span class="p">)</span>
     <span class="n">temp</span> <span class="o">=</span> <span class="p">(</span><span class="n">volume</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
@@ -277,6 +284,7 @@
                        <span class="nb">int</span><span class="p">(</span><span class="n">segm</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">scale_factors</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
         <span class="n">segm</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span><span class="n">segm</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">anti_aliasing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">segm</span></div>
+
 </pre></div>
 
            </div>

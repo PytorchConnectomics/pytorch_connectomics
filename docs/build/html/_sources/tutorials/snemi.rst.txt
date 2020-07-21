@@ -2,7 +2,7 @@ Neuron Segmentation
 =====================
 
 This tutorial provides step-by-step guidance for neuron segmentation with SENMI3D benchmark datasets.
-Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of instance segmentation.
+Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of **instance segmentation**.
 The methodology is to first predict the affinity map (the connectivity of each pixel to neighboring pixels) 
 with an encoder-decoder ConvNets and then generate the segmentation map using a standard
 segmentation algorithm (e.g., watershed).
@@ -19,11 +19,18 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
 
 #. Get the dataset:
 
-        .. code-block:: none
+    .. code-block:: none
 
-            wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
+        wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
 
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
+
+.. figure:: ../_static/img/snemi_affinity.png
+  :align: center
+  :width: 800px
+
+  Examples of raw images, segmentation label and affinity map from the SNEMI3D dataset. Note that since the 
+  affinity map has three channels, we can visualize them as RGB images.
 
 #. Provide the ``yaml`` configuration file to run training:
 

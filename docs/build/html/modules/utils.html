@@ -338,6 +338,17 @@ by using the relatively small number among the two.</p>
 </tr>
 </tbody>
 </table>
+<dl class="docutils">
+<dt>Examples::</dt>
+<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">readvol</span><span class="p">,</span> <span class="n">savevol</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.utils.processing</span> <span class="kn">import</span> <span class="n">polarity2instance</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">volume</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="n">input_name</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">instances</span> <span class="o">=</span> <span class="n">polarity2instance</span><span class="p">(</span><span class="n">volume</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">savevol</span><span class="p">(</span><span class="n">output_name</span><span class="p">,</span> <span class="n">instances</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 </div>
