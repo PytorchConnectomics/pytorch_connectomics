@@ -12,7 +12,7 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
 
 .. note::
     Before running neuron segmentation, please take a look at the `demos <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demos>`_
-    to get familiar with the datasets.
+    to get familiar with the datasets and available utility functions in this package.
 
 The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``. 
 The pytorch target affinity generation is :class:`connectomics.data.dataset.VolumeDataset`.
@@ -25,12 +25,16 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
 
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-.. figure:: ../_static/img/snemi_affinity.png
-  :align: center
-  :width: 800px
+    .. figure:: ../_static/img/snemi_affinity.png
+        :align: center
+        :width: 600px
 
-  Examples of raw images, segmentation label and affinity map from the SNEMI3D dataset. Note that since the 
-  affinity map has three channels, we can visualize them as RGB images.
+        Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the 
+        affinity map has 3 channels, we can visualize them as RGB images.
+
+    .. note::
+        The affinity value of a pixel (voxel) can be 1 even at the segment boundary. Thus we usually widen the instance border (erode the 
+        instance mask) to let the model make more conservative predictions to prevent merge error.
 
 #. Provide the ``yaml`` configuration file to run training:
 
@@ -40,17 +44,18 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
         $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 
     The configuration file for training is in ``configs/SNEMI-Neuron.yaml``. 
-    We usualy create a ``datasets/`` folder under ``pytorch_connectomics`` and put the SNEMI dataset there. Please modify the following options according to
+    We usually create a ``datasets/`` folder under ``pytorch_connectomics`` and put the SNEMI dataset there. 
+    Please modify the following options according to
     your system configuration and data storage:
  
     - ``IMAGE_NAME``: Name of the volume file (HDF5 or TIFF).
     - ``LABEL_NAME``: Name of the label file (HDF5 or TIFF).
-    - ``INPUT_PATH``: Path to both files above.
+    - ``INPUT_PATH``: Path to both input files above.
     - ``OUTPUT_PATH``: Path to store outputs (checkpoints and Tensorboard events).
     - ``NUM_GPUS``: Number of GPUs to use.
     - ``NUM_CPUS``: Number of CPU cores to use (for data loading).
 
-#. (Optional) To run training starting from pretrained weights, add a checkpoint file:
+#. (*Optional*) To run training starting from pretrained weights, add a checkpoint file:
 
     .. code-block:: none
 
@@ -62,14 +67,15 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
 
     .. code-block:: none
 
-        $ tensorboard --logdir outputs/SNEMI/
+        $ tensorboard --logdir outputs/SNEMI3D/
                                                                               
-#. Run inference on image volumes, The test configuration file can have bigger input, augmentation at inference:
+#. Run inference on image volumes (add `--inference`). During inference the model can use 
+larger batch sizes or take bigger inputs. Test-time augmentation is also applied by default:
 
     .. code-block:: none
 
         $ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml 
-        --inference --checkpoint outputs/SNEMI/checkpoint_xxxxx.pth
+        --inference --checkpoint outputs/SNEMI3D/checkpoint_xxxxx.pth
 
 #. Generate segmentation and run evaluation:
 
@@ -89,4 +95,5 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
             $ cd zwatershed
             $ pip install --editable .
 
-    #. Generate 3D segmentation and report Rand and VI score using ``waterz``. Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.
+    #. Generate 3D segmentation and report Rand and VI score using ``waterz``. 
+    Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.
