@@ -17,6 +17,13 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
 The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``. 
 The pytorch target affinity generation is :class:`connectomics.data.dataset.VolumeDataset`.
 
+.. figure:: ../_static/img/snemi_affinity.png
+    :align: center
+    :width: 800px
+
+    Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the 
+    affinity map has 3 channels, we can visualize them as RGB images.
+
 #. Get the dataset:
 
     .. code-block:: none
@@ -24,13 +31,6 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
         wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
 
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
-
-    .. figure:: ../_static/img/snemi_affinity.png
-        :align: center
-        :width: 700px
-
-        Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the 
-        affinity map has 3 channels, we can visualize them as RGB images.
 
     .. note::
         The affinity value of a pixel (voxel) can be 1 even at the segment boundary. Thus we usually widen the instance border (erode the 
@@ -69,8 +69,7 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
 
         $ tensorboard --logdir outputs/SNEMI3D/
                                                                               
-#. Run inference on image volumes (add `--inference`). During inference the model can use 
-larger batch sizes or take bigger inputs. Test-time augmentation is also applied by default:
+#. Run inference on image volumes (add ``--inference``). During inference the model can use larger batch sizes or take bigger inputs. Test-time augmentation is also applied by default:
 
     .. code-block:: none
 
@@ -95,5 +94,4 @@ larger batch sizes or take bigger inputs. Test-time augmentation is also applied
             $ cd zwatershed
             $ pip install --editable .
 
-    #. Generate 3D segmentation and report Rand and VI score using ``waterz``. 
-    Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.
+    #. Generate 3D segmentation and report Rand and VI score using ``waterz``. Please see examples at `https://github.com/zudi-lin/waterz <https://github.com/zudi-lin/waterz>`_.

@@ -211,6 +211,11 @@ to get familiar with the datasets and available utility functions in this packag
 </div>
 <p>The main script to run the training and inference is <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>.
 The pytorch target affinity generation is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<div class="figure align-center" id="id1">
+<a class="reference internal image-reference" href="../_images/snemi_affinity.png"><img alt="../_images/snemi_affinity.png" src="../_images/snemi_affinity.png" style="width: 800px;" /></a>
+<p class="caption"><span class="caption-text">Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the
+affinity map has 3 channels, we can visualize them as RGB images.</span></p>
+</div>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -218,11 +223,6 @@ The pytorch target affinity generation is <a class="reference internal" href="..
 </pre></div>
 </div>
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
-<div class="figure align-center" id="id1">
-<a class="reference internal image-reference" href="../_images/snemi_affinity.png"><img alt="../_images/snemi_affinity.png" src="../_images/snemi_affinity.png" style="width: 700px;" /></a>
-<p class="caption"><span class="caption-text">Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the
-affinity map has 3 channels, we can visualize them as RGB images.</span></p>
-</div>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">The affinity value of a pixel (voxel) can be 1 even at the segment boundary. Thus we usually widen the instance border (erode the
@@ -266,16 +266,14 @@ $ --checkpoint /path/to/checkpoint/checkpoint_xxxxx.pth.tar
 </div>
 </div></blockquote>
 </li>
-</ol>
-<p>#. Run inference on image volumes (add <cite>–inference</cite>). During inference the model can use
-larger batch sizes or take bigger inputs. Test-time augmentation is also applied by default:</p>
+<li><p class="first">Run inference on image volumes (add <code class="docutils literal"><span class="pre">--inference</span></code>). During inference the model can use larger batch sizes or take bigger inputs. Test-time augmentation is also applied by default:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python scripts/main.py --config-file configs/SNEMI-Neuron.yaml
 --inference --checkpoint outputs/SNEMI3D/checkpoint_xxxxx.pth
 </pre></div>
 </div>
 </div></blockquote>
-<ol class="arabic">
+</li>
 <li><p class="first">Generate segmentation and run evaluation:</p>
 <blockquote>
 <div><ol class="arabic">
@@ -297,9 +295,9 @@ $ pip install --editable .
 </div>
 </div></blockquote>
 </li>
+<li><p class="first">Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>. Please see examples at <a class="reference external" href="https://github.com/zudi-lin/waterz">https://github.com/zudi-lin/waterz</a>.</p>
+</li>
 </ol>
-<p>#. Generate 3D segmentation and report Rand and VI score using <code class="docutils literal"><span class="pre">waterz</span></code>.
-Please see examples at <a class="reference external" href="https://github.com/zudi-lin/waterz">https://github.com/zudi-lin/waterz</a>.</p>
 </div></blockquote>
 </li>
 </ol>
