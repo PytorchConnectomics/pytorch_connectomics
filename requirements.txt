@@ -5,6 +5,7 @@ opencv-python
 matplotlib
 Cython
 mahotas
+yacs
 h5py
 gputil
 imageio

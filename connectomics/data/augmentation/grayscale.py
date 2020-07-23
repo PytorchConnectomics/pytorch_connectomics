@@ -34,8 +34,10 @@ class Grayscale(DataAugment):
             mode = self.mode
 
         # apply augmentations  
-        if mode is '2D': data = self._augment2D(data, random_state)
-        if mode is '3D': data = self._augment3D(data, random_state)
+        if mode == '2D': 
+            data = self._augment2D(data, random_state)
+        if mode == '3D': 
+            data = self._augment3D(data, random_state)
         return data
 
     def _augment2D(self, data, random_state=np.random):
