@@ -27,13 +27,13 @@ If you want new features that are relatively easy to implement (e.g., loss funct
 
 The code is developed and tested under the following configurations.
 - Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```SYSTEM.NUM_GPU``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.7, PyTorch>=1.5.0***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.5.1***
 
 ## Installation
 
 Create a new conda environment:
 ```
-conda create -n py3_torch python=3.7
+conda create -n py3_torch python=3.8
 source activate py3_torch
 conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 ```
@@ -43,6 +43,7 @@ Download and install the package:
 ```
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
+pip install --upgrade pip
 pip install -r requirements.txt
 pip install --editable .
 ```

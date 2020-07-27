@@ -15,21 +15,28 @@ from ..augmentation import *
 __all__ = ['VolumeDataset',
            'TileDataset']
 
+def _make_path_list(dir_name, file_name):
+    """Concatenate directory path(s) and filenames and return
+    the complete file paths. 
+    """
+    assert len(dir_name) == 1 or len(dir_name) == len(file_name)
+    if len(dir_name) == 1:
+        file_name = [os.path.join(dir_name[0], x) for x in file_name]
+    else:
+        file_name = [os.path.join(dir_name[i], file_name[i]) for i in range(len(file_name))]
+    return file_name
+
 def _get_input(cfg, mode='train'):
     dir_name = cfg.DATASET.INPUT_PATH.split('@')
     img_name = cfg.DATASET.IMAGE_NAME.split('@')
-    assert len(dir_name) == 1 or len(dir_name) == len(img_name)
-    if len(dir_name) == 1:
-        img_name = [os.path.join(dir_name[0], x) for x in img_name]
-    else:
-        img_name = [os.path.join(dir_name[i], img_name[i]) for i in range(len(img_name))]
+    img_name = _make_path_list(dir_name, img_name)
 
     label = None
     volume = [None]*len(img_name)
     if mode=='train':
         label_name = cfg.DATASET.LABEL_NAME.split('@')
-        label_name = [dir_name[0] + x for x in label_name]
-        assert len(img_name)==len(label_name)
+        assert len(label_name) == len(img_name)
+        label_name = _make_path_list(dir_name, label_name)
         label = [None]*len(label_name)
 
     for i in range(len(img_name)):
@@ -40,7 +47,7 @@ def _get_input(cfg, mode='train'):
         volume[i] = np.pad(volume[i], ((cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
                                        (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
                                        (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
-        print(f"volume shape (after scale and padding): {volume[i].shape}")
+        print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode=='train':
             label[i] = readvol(label_name[i])
@@ -57,8 +64,6 @@ def _get_input(cfg, mode='train'):
                                          (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
                                          (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])), 'reflect')
             print(f"label shape: {label[i].shape}")
-            
-            #assert volume[i].shape == label[i].shape !MB
                  
     return volume, label
 
