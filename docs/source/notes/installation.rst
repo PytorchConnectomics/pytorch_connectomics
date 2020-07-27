@@ -1,5 +1,5 @@
 Installation
-============
+=============
 
 The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS Linux 7.4 (Core) operation system. 
 
@@ -14,16 +14,16 @@ Please follow the steps below for a successful installation:
 
     .. code-block:: none
 
-        $ conda create -n py3_torch python=3.7
+        $ conda create -n py3_torch python=3.8
         $ source activate py3_torch
         $ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 
-#. Ensure that at least PyTorch 1.5.0 is installed:
+#. Ensure that at least PyTorch 1.5.1 is installed:
 
     .. code-block:: none
 
         $ python -c 'import torch; print(torch.__version__)'
-        >>> 1.5.0
+        >>> 1.5.1
 
 #. Ensure CUDA is setup correctly (optional):
 
@@ -73,6 +73,7 @@ Please follow the steps below for a successful installation:
 
         $ git clone https://github.com/zudi-lin/pytorch_connectomics.git
         $ cd pytorch_connectomics
+        $ pip install --upgrade pip
         $ pip install -r requirements.txt
         $ pip install --editable .
 

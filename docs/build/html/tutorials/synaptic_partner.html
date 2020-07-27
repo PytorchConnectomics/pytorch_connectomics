@@ -1,8 +1,7 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -12,38 +11,31 @@
   
 
   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+
+  
   
   
   
 
   
-  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'latest',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="connectomics.data.datasets" href="../modules/datasets.html" />
@@ -91,6 +83,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -136,6 +129,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -174,7 +168,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html">Docs</a> &raquo;</li>
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Synaptic Partner Segmentation</li>
     
@@ -202,76 +196,75 @@ We consider the task as a semantic segmentation task and predict both the pre-sy
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
 The evaluation of the synapse detection results is based on the F1 score. The sparsity and diversity of synapses make the task challenging.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Our segmentation model uses a model target of three channels. The three channels are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic
+<p class="admonition-title">Note</p>
+<p>Our segmentation model uses a model target of three channels. The three channels are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic
 region</strong> (union of the first two channels), respectively.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.
-The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>.
+The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <ol class="arabic">
-<li><p class="first">Dataset examples can be found on the Harvard RC server here:</p>
+<li><p>Dataset examples can be found on the Harvard RC server here:</p>
 <blockquote>
 <div><p>Image:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_im_orig.h5
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_im_orig.h5
 </pre></div>
 </div>
 <p>Label:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_seg.h5
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/cerebellum_P7/gt-syn/syn_0922_seg.h5
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
+<li><p>Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
 <blockquote>
 <div><div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">By default the path of images and labels are not specified. To
-run the training scripts, please revise the <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">LABEL_NAME</span></code>
-and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>.
-The options can also be given as command-line arguments without changing of the <code class="docutils literal"><span class="pre">yaml</span></code> configuration files.</p>
+<p class="admonition-title">Note</p>
+<p>By default the path of images and labels are not specified. To
+run the training scripts, please revise the <code class="docutils literal notranslate"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">LABEL_NAME</span></code>
+and <code class="docutils literal notranslate"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal notranslate"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>.
+The options can also be given as command-line arguments without changing of the <code class="docutils literal notranslate"><span class="pre">yaml</span></code> configuration files.</p>
 </div>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Partner-Segmentation.yaml
 </pre></div>
 </div>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Partner-Segmentation.yaml
 </pre></div>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
+<p class="admonition-title">Note</p>
+<p>We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
 false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
 vast volumes.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
+<li><p>Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes:</p>
+<li><p>Run inference on image volumes:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Partner-Segmentation.yaml --inference \
   --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
 </pre></div>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">By default the path of images for inference are not specified. Please change
-the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>.</p>
+<p class="admonition-title">Note</p>
+<p>By default the path of images for inference are not specified. Please change
+the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal notranslate"><span class="pre">configs/Synaptic-Partner-Segmentation.yaml</span></code>.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map into instance/semantic segmentation.</p>
-</li>
+<li><p>Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map into instance/semantic segmentation.</p></li>
 </ol>
 </div>
 
@@ -295,11 +288,19 @@ the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span>
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, Zudi Lin and Donglai Wei
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -310,7 +311,6 @@ the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span>
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

@@ -1,8 +1,7 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -12,38 +11,31 @@
   
 
   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+
+  
   
   
   
 
   
-  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'latest',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="MitoEM Instance Segmentation" href="mitoem.html" />
@@ -91,6 +83,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -136,6 +129,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -174,7 +168,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html">Docs</a> &raquo;</li>
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Mitochondria Segmentation</li>
     
@@ -201,20 +195,20 @@
 We consider the task as a semantic segmentation task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset,
+<p class="admonition-title">Note</p>
+<p>Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset,
 which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x
 and z-y planes besides x-y planes are preferred.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task.
-The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal notranslate"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task.
+The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <ol class="arabic">
-<li><p class="first">Get the dataset:</p>
+<li><p>Get the dataset:</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p class="first">Download the dataset from our server:</p>
+<li><p>Download the dataset from our server:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget https://hp03.mindhackers.org/rhoana_product/dataset/lucchi.zip
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget https://hp03.mindhackers.org/rhoana_product/dataset/lucchi.zip
 </pre></div>
 </div>
 </div></blockquote>
@@ -223,25 +217,25 @@ The pytorch dataset class of lucchi data is <a class="reference internal" href="
 <p>For description of the data please check <a class="reference external" href="https://www.epfl.ch/labs/cvlab/data/data-em/">the author page</a>.</p>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script:</p>
+<li><p>Run the training script:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Lucchi-Mitochondria.yaml
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress:</p>
+<li><p>Visualize the training progress:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on test image volumes. Our model achieves a VOC-test score of 0.945.</p>
+<li><p>Run inference on test image volumes. Our model achieves a VOC-test score of 0.945.</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Lucchi-Mitochondria.yaml --inference \
   --checkpoint outputs/Lucchi_mito_baseline/volume_50000.pth.tar
@@ -272,11 +266,19 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, Zudi Lin and Donglai Wei
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -287,7 +289,6 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {
