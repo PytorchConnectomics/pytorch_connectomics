@@ -23,12 +23,14 @@ class TestAugmentor(object):
     def __init__(self, mode='mean', num_aug=4):
         self.mode = mode
         self.num_aug = num_aug
-        assert num_aug in [4, 16], "TestAugmentor.num_aug should be either 4 or 16!"
+        assert num_aug in [0, 4, 16], "TestAugmentor.num_aug should be either 0, 4 or 16!"
 
     def __call__(self, model, data):
         out = None
         cc = 0
-        if self.num_aug == 4:
+        if self.num_aug == 0:
+            opts = itertools.product((False, ), (False, ), (False, ), (False, ))
+        elif self.num_aug == 4:
             opts = itertools.product((False, ), (False, ), (False, True), (False, True))
         else:
             opts = itertools.product((False, True), (False, True), (False, True), (False, True))
