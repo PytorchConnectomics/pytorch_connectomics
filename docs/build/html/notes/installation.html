@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html4" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,12 +26,21 @@
   <![endif]-->
   
     
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../',
+              VERSION:'latest',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -193,44 +202,44 @@
 <h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
 <p>The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS Linux 7.4 (Core) operation system.</p>
 <div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>We do not recommend installation as root user on your system python.
+<p class="first admonition-title">Note</p>
+<p class="last">We do not recommend installation as root user on your system python.
 Please setup an <a class="reference external" href="https://conda.io/docs/user-guide/install/index.html/">Anaconda/Miniconda</a> environment and add
 the required packages to the environment.</p>
 </div>
 <p>Please follow the steps below for a successful installation:</p>
 <ol class="arabic">
-<li><p>Create a new conda environment:</p>
+<li><p class="first">Create a new conda environment:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ conda create -n py3_torch python=3.8
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ conda create -n py3_torch python=3.8
 $ source activate py3_torch
 $ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p>Ensure that at least PyTorch 1.5.1 is installed:</p>
+<li><p class="first">Ensure that at least PyTorch 1.5.1 is installed:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.__version__)&#39;
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.__version__)&#39;
 &gt;&gt;&gt; 1.5.1
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p>Ensure CUDA is setup correctly (optional):</p>
+<li><p class="first">Ensure CUDA is setup correctly (optional):</p>
 <blockquote>
 <div><ol class="arabic">
-<li><p>Check if PyTorch is installed with CUDA support:</p>
+<li><p class="first">Check if PyTorch is installed with CUDA support:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.cuda.is_available())&#39;
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.cuda.is_available())&#39;
 &gt;&gt;&gt; True
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p>Add CUDA to <code class="docutils literal notranslate"><span class="pre">$PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">$CPATH</span></code> (note that your actual CUDA path may vary from <code class="docutils literal notranslate"><span class="pre">/usr/local/cuda</span></code>):</p>
+<li><p class="first">Add CUDA to <code class="docutils literal"><span class="pre">$PATH</span></code> and <code class="docutils literal"><span class="pre">$CPATH</span></code> (note that your actual CUDA path may vary from <code class="docutils literal"><span class="pre">/usr/local/cuda</span></code>):</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ PATH=/usr/local/cuda/bin:$PATH
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ PATH=/usr/local/cuda/bin:$PATH
 $ echo $PATH
 &gt;&gt;&gt; /usr/local/cuda/bin:...
 
@@ -241,17 +250,17 @@ $ echo $CPATH
 </div>
 </div></blockquote>
 </li>
-<li><p>Verify that <code class="docutils literal notranslate"><span class="pre">nvcc</span></code> is accessible from terminal:</p>
+<li><p class="first">Verify that <code class="docutils literal"><span class="pre">nvcc</span></code> is accessible from terminal:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ nvcc --version
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ nvcc --version
 &gt;&gt;&gt; 10.2
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p>Ensure that PyTorch and system CUDA versions match:</p>
+<li><p class="first">Ensure that PyTorch and system CUDA versions match:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.version.cuda)&#39;
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.version.cuda)&#39;
 &gt;&gt;&gt; 10.2
 
 $ nvcc --version
@@ -266,9 +275,9 @@ Please load required CUDA modules from the <a class="reference external" href="h
 running and development on the RC server.</p>
 </div></blockquote>
 </li>
-<li><p>Download and install the package:</p>
+<li><p class="first">Download and install the package:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/zudi-lin/pytorch_connectomics.git
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone https://github.com/zudi-lin/pytorch_connectomics.git
 $ cd pytorch_connectomics
 $ pip install --upgrade pip
 $ pip install -r requirements.txt
@@ -281,8 +290,8 @@ re-install it when making changes to the code.</p>
 </li>
 </ol>
 <div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>If you meet compilation errors, please open an issue and describe the steps to reproduce the errors.
+<p class="first admonition-title">Note</p>
+<p class="last">If you meet compilation errors, please open an issue and describe the steps to reproduce the errors.
 It is highly recommended to first play with the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/demos">demo</a> Jupyter notebooks to
 make sure that the installation is correct and also have an intial taste of the modules.</p>
 </div>

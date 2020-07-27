@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html4" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,12 +26,21 @@
   <![endif]-->
   
     
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script src="../_static/language_data.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript">
+          var DOCUMENTATION_OPTIONS = {
+              URL_ROOT:'../',
+              VERSION:'latest',
+              LANGUAGE:'None',
+              COLLAPSE_INDEX:false,
+              FILE_SUFFIX:'.html',
+              HAS_SOURCE:  true,
+              SOURCELINK_SUFFIX: '.txt'
+          };
+      </script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -191,28 +200,32 @@
             
   <div class="section" id="module-connectomics.engine">
 <span id="connectomics-engine"></span><h1>connectomics.engine<a class="headerlink" href="#module-connectomics.engine" title="Permalink to this headline">¶</a></h1>
-<dl class="py class">
+<dl class="class">
 <dt id="connectomics.engine.Trainer">
-<em class="property">class </em><code class="sig-name descname">Trainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span></em>, <em class="sig-param"><span class="n">device</span></em>, <em class="sig-param"><span class="n">mode</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer" title="Permalink to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>cfg</strong> – YACS configurations.</p></li>
-<li><p><strong>device</strong> (<em>torch.device</em>) – by default all training and inference are conducted on GPUs.</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – running mode of the trainer (<code class="docutils literal notranslate"><span class="pre">'train'</span></code> or <code class="docutils literal notranslate"><span class="pre">'test'</span></code>).</p></li>
-<li><p><strong>checkpoint</strong> (<em>optional</em>) – the checkpoint file to be loaded (default: <cite>None</cite>)</p></li>
+<em class="property">class </em><code class="descname">Trainer</code><span class="sig-paren">(</span><em>cfg</em>, <em>device</em>, <em>mode</em>, <em>checkpoint=None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cfg</strong> – YACS configurations.</li>
+<li><strong>device</strong> (<em>torch.device</em>) – by default all training and inference are conducted on GPUs.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.8)"><em>str</em></a>) – running mode of the trainer (<code class="docutils literal"><span class="pre">'train'</span></code> or <code class="docutils literal"><span class="pre">'test'</span></code>).</li>
+<li><strong>checkpoint</strong> (<em>optional</em>) – the checkpoint file to be loaded (default: <cite>None</cite>)</li>
 </ul>
-</dd>
-</dl>
-<dl class="py method">
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
 <dt id="connectomics.engine.Trainer.test">
-<code class="sig-name descname">test</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer.test" title="Permalink to this definition">¶</a></dt>
+<code class="descname">test</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer.test"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer.test" title="Permalink to this definition">¶</a></dt>
 <dd><p>Inference function.</p>
 </dd></dl>
 
-<dl class="py method">
+<dl class="method">
 <dt id="connectomics.engine.Trainer.train">
-<code class="sig-name descname">train</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer.train" title="Permalink to this definition">¶</a></dt>
+<code class="descname">train</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer.train"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer.train" title="Permalink to this definition">¶</a></dt>
 <dd><p>Training function.</p>
 </dd></dl>
 
