@@ -149,5 +149,5 @@ class BinaryReg(nn.Module):
     def forward(self, pred):
         diff = pred - 0.5
         diff = torch.clamp(torch.abs(diff), min=1e-2)
-        loss = 1.0 / diff.sum()
+        loss = (0.1 / diff).mean()
         return self.alpha * loss
