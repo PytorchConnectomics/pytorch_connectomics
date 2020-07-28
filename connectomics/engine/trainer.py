@@ -253,7 +253,7 @@ class Trainer(object):
             num_chunk = len(self.dataset.chunk_num_ind)
             for chunk in range(num_chunk):
                 self.dataset.updatechunk(do_load=False)
-                self.inference_output_name = 'result-' + self.dataset.get_coord_name() + '.h5'
+                self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME + self.dataset.get_coord_name() + '.h5'
                 if not os.path.exists(os.path.join(self.output_dir, self.inference_output_name)):
                     self.dataset.loadchunk()
                     self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, dataset=self.dataset.dataset)

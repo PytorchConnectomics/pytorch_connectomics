@@ -142,12 +142,12 @@ class WeightedBCE(nn.Module):
 class BinaryReg(nn.Module):
     """Regularization for encouraging the outputs to be binary.
     """
-    def __init__(self, alpha=1.0):
+    def __init__(self, alpha=0.1):
         super().__init__()
         self.alpha = alpha
     
     def forward(self, pred):
         diff = pred - 0.5
         diff = torch.clamp(torch.abs(diff), min=1e-2)
-        loss = 1.0 / diff.sum()
+        loss = (1.0 / diff).mean()
         return self.alpha * loss
