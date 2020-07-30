@@ -136,5 +136,6 @@ There are also several options exclusive for inference. For example:
    INFERENCE:
      AUG_MODE: 'mean' # options for test augmentation
      AUG_NUM: 4
+     BLENDING: 'gaussian' # blending function for overlapping inference
      STRIDE: (4, 128, 128) # sampling stride for inference
      SAMPLES_PER_BATCH: 16 # batchsize for inference

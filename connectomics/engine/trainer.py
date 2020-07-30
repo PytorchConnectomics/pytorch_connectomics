@@ -11,7 +11,7 @@ from .solver import *
 from connectomics.model import *
 from connectomics.data.augmentation import build_train_augmentor, TestAugmentor
 from connectomics.data.dataset import build_dataloader, get_dataset
-from connectomics.data.utils import blend_gaussian, writeh5
+from connectomics.data.utils import build_blending_matrix, writeh5
 
 class Trainer(object):
     r"""Trainer
@@ -113,7 +113,7 @@ class Trainer(object):
             self.model.train()
         volume_id = 0
 
-        ww = blend_gaussian(self.cfg.MODEL.OUTPUT_SIZE)
+        ww = build_blending_matrix(self.cfg.MODEL.OUTPUT_SIZE, self.cfg.INFERENCE.BLENDING)
         NUM_OUT = self.cfg.MODEL.OUT_PLANES
         pad_size = self.cfg.DATASET.PAD_SIZE
         if len(self.cfg.DATASET.PAD_SIZE)==3:

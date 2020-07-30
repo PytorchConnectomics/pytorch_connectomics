@@ -13,7 +13,7 @@ class TestAugmentor(object):
 
     Args:
         mode (str): one of ``'min'``, ``'max'`` or ``'mean'``. Default: ``'mean'``
-        num_aug (int): number of data augmentation variants: 4 or 16. Default: 4
+        num_aug (int): number of data augmentation variants: 0, 4 or 16. Default: 4
 
     Examples::
         >>> from connectomics.data.augmentation import TestAugmentor

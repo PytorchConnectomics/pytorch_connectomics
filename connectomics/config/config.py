@@ -303,8 +303,10 @@ _C.INFERENCE.PAD_SIZE = []
 
 _C.INFERENCE.STRIDE = [4, 128, 129]
 
-_C.INFERENCE.AUG_MODE = 'mean'
+# Blending function for overlapping inference.
+_C.INFERENCE.BLENDING = 'gaussian'
 
+_C.INFERENCE.AUG_MODE = 'mean'
 _C.INFERENCE.AUG_NUM = 4
 
 # Run the model forward pass with model.eval() if DO_EVAL is True, else
