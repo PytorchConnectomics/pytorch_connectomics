@@ -74,14 +74,9 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         num_syn_pre = len(np.unique(seg_pre))-1
         num_syn_post = len(np.unique(seg_post))-1
         num_syn = min(num_syn_pre, num_syn_post) # a conservative estimate
-        print("Stats: found %d pre- and %d post-synaptic segments \
-              in the volume" % (num_syn_pre, num_syn_post))
+        print("Stats: found %d pre- and %d post-" % (num_syn_pre, num_syn_post) + 
+              "synaptic segments in the volume")
         print("There are %d synapses under a conservative estimate." % num_syn)
-
-        # Cast the segmentation to the best dtype to save memory.
-        max_id = np.amax(np.unique(segm))
-        m_type = getSegType(max_id)
-        segm = segm.astype(m_type)
 
     # resize the segmentation based on specified scale factors
     if not all(x==1.0 for x in scale_factors):
@@ -89,5 +84,10 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
                        int(segm.shape[1]*scale_factors[1]), 
                        int(segm.shape[2]*scale_factors[2]))
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
+    
+    # Cast the segmentation to the best dtype to save memory.
+    max_id = np.amax(np.unique(segm))
+    m_type = getSegType(int(max_id))
+    segm = segm.astype(m_type)
     return segm
 

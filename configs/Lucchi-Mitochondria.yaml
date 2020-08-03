@@ -2,7 +2,7 @@
 # please modify ../connectomics/config/config.py
 SYSTEM:
   NUM_GPUS: 4
-  NUM_CPUS: 4
+  NUM_CPUS: 8
 MODEL:
   ARCHITECTURE: 'unet_residual_3d'
   INPUT_SIZE: [112, 112, 112]

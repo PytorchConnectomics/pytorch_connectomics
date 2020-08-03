@@ -4,6 +4,7 @@ import torch
 
 from connectomics.config import get_cfg_defaults, save_all_cfg, update_inference_cfg
 from connectomics.engine import Trainer
+import torch.backends.cudnn as cudnn
 
 def get_args():
     r"""Get args from command lines.
@@ -49,6 +50,8 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Device: ", device)
+    cudnn.enabled = True
+    cudnn.benchmark = True
 
     mode = 'test' if args.inference else 'train'
     trainer = Trainer(cfg, device, mode, args.checkpoint)

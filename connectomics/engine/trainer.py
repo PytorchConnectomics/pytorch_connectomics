@@ -111,7 +111,6 @@ class Trainer(object):
             self.model.eval()
         else:
             self.model.train()
-        volume_id = 0
 
         ww = build_blending_matrix(self.cfg.MODEL.OUTPUT_SIZE, self.cfg.INFERENCE.BLENDING)
         NUM_OUT = self.cfg.MODEL.OUT_PLANES
@@ -130,28 +129,28 @@ class Trainer(object):
             weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.input_size]
 
         # build test-time augmentor and update output filename
-        output_filename = self.inference_output_name
-        if self.cfg.INFERENCE.AUG_NUM!=0:
-            test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, 
-                                           self.cfg.INFERENCE.AUG_NUM)
-            output_filename = test_augmentor.update_name(output_filename)
+        test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, 
+                                       self.cfg.INFERENCE.AUG_NUM)
+        self.inference_output_name = test_augmentor.update_name(self.inference_output_name)
 
         start = time.time()
         sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
+        total_num_vols = len(self.dataloader) * self.cfg.INFERENCE.SAMPLES_PER_BATCH
+        print("Total number of volumes: ", total_num_vols)
+
+        volume_id = 0
         with torch.no_grad():
             for _, (pos, volume) in enumerate(self.dataloader):
                 volume_id += self.cfg.INFERENCE.SAMPLES_PER_BATCH
-                print('volume_id:', volume_id)
+                print('progress: %d/%d' % (volume_id, total_num_vols))
 
                 # for gpu computing
                 volume = torch.from_numpy(volume).to(self.device)
                 if not self.cfg.INFERENCE.DO_3D:
                     volume = volume.squeeze(1)
 
-                if self.cfg.INFERENCE.AUG_NUM!=0:
-                    output = test_augmentor(self.model, volume)
-                else:
-                    output = self.model(volume).cpu().detach().numpy()
+                # forward pass
+                output = test_augmentor(self.model, volume)
 
                 if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is not None: # select channel, self.cfg.INFERENCE.MODEL_OUTPUT_ID is a list [None]
                     output = output[self.cfg.INFERENCE.MODEL_OUTPUT_ID[0]]
@@ -188,8 +187,10 @@ class Trainer(object):
         if self.output_dir is None:
             return result
         else:
-            print('save h5')
-            writeh5(os.path.join(self.output_dir, self.inference_output_name), result,['vol%d'%(x) for x in range(len(result))])
+            print('Saving as h5...')
+            writeh5(os.path.join(self.output_dir, self.inference_output_name), result,
+                    ['vol%d'%(x) for x in range(len(result))])
+            print('Inference is done!')
 
     # -----------------------------------------------------------------------------
     # Misc functions
