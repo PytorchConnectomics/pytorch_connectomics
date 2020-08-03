@@ -15,7 +15,9 @@ def mknhood2d(radius=1):
     zeroIdx = np.ceil(len(i)/2).astype(np.int32);
 
     nhood = np.vstack((i[:zeroIdx],j[:zeroIdx])).T.astype(np.int32)
-    return np.ascontiguousarray(np.flipud(nhood))
+    nhood = np.ascontiguousarray(np.flipud(nhood))
+    nhood = nhood[1:]
+    return nhood 
 
 def mknhood3d(radius=1):
     # Makes nhood structures for some most used dense graphs.
@@ -56,27 +58,59 @@ def seg_to_aff(seg, nhood=mknhood3d(1), pad='replicate'):
     shape = seg.shape
     nEdge = nhood.shape[0]
     aff = np.zeros((nEdge,)+shape,dtype=np.float32)
+    
+    if len(shape) == 3: # 3D affinity
+        for e in range(nEdge):
+            aff[e, \
+                max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
+                max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1]), \
+                max(0,-nhood[e,2]):min(shape[2],shape[2]-nhood[e,2])] = \
+                            (seg[max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
+                                max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1]), \
+                                max(0,-nhood[e,2]):min(shape[2],shape[2]-nhood[e,2])] == \
+                             seg[max(0,nhood[e,0]):min(shape[0],shape[0]+nhood[e,0]), \
+                                max(0,nhood[e,1]):min(shape[1],shape[1]+nhood[e,1]), \
+                                max(0,nhood[e,2]):min(shape[2],shape[2]+nhood[e,2])] ) \
+                            * ( seg[max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
+                                max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1]), \
+                                max(0,-nhood[e,2]):min(shape[2],shape[2]-nhood[e,2])] > 0 ) \
+                            * ( seg[max(0,nhood[e,0]):min(shape[0],shape[0]+nhood[e,0]), \
+                                max(0,nhood[e,1]):min(shape[1],shape[1]+nhood[e,1]), \
+                                max(0,nhood[e,2]):min(shape[2],shape[2]+nhood[e,2])] > 0 )
+    elif len(shape) == 2: # 2D affinity
+        for e in range(nEdge):
+            aff[e, \
+                max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
+                max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1])] = \
+                            (seg[max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
+                                max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1])] == \
+                             seg[max(0,nhood[e,0]):min(shape[0],shape[0]+nhood[e,0]), \
+                                max(0,nhood[e,1]):min(shape[1],shape[1]+nhood[e,1])] ) \
+                            * ( seg[max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
+                                max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1])] > 0 ) \
+                            * ( seg[max(0,nhood[e,0]):min(shape[0],shape[0]+nhood[e,0]), \
+                                max(0,nhood[e,1]):min(shape[1],shape[1]+nhood[e,1])] > 0 )
 
-    for e in range(nEdge):
-        aff[e, \
-            max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
-            max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1]), \
-            max(0,-nhood[e,2]):min(shape[2],shape[2]-nhood[e,2])] = \
-                        (seg[max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
-                            max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1]), \
-                            max(0,-nhood[e,2]):min(shape[2],shape[2]-nhood[e,2])] == \
-                         seg[max(0,nhood[e,0]):min(shape[0],shape[0]+nhood[e,0]), \
-                            max(0,nhood[e,1]):min(shape[1],shape[1]+nhood[e,1]), \
-                            max(0,nhood[e,2]):min(shape[2],shape[2]+nhood[e,2])] ) \
-                        * ( seg[max(0,-nhood[e,0]):min(shape[0],shape[0]-nhood[e,0]), \
-                            max(0,-nhood[e,1]):min(shape[1],shape[1]-nhood[e,1]), \
-                            max(0,-nhood[e,2]):min(shape[2],shape[2]-nhood[e,2])] > 0 ) \
-                        * ( seg[max(0,nhood[e,0]):min(shape[0],shape[0]+nhood[e,0]), \
-                            max(0,nhood[e,1]):min(shape[1],shape[1]+nhood[e,1]), \
-                            max(0,nhood[e,2]):min(shape[2],shape[2]+nhood[e,2])] > 0 )
     if nEdge==3 and pad == 'replicate': # pad the boundary affinity
         aff[0,0] = (seg[0]>0).astype(aff.dtype)
         aff[1,:,0] = (seg[:,0]>0).astype(aff.dtype)
         aff[2,:,:,0] = (seg[:,:,0]>0).astype(aff.dtype)
+    elif nEdge==2 and pad == 'replicate': # pad the boundary affinity
+        aff[0,0] = (seg[0]>0).astype(aff.dtype)
+        aff[1,:,0] = (seg[:,0]>0).astype(aff.dtype)
+
+    return aff
+
+def blend_gaussian(sz, sigma=0.8, mu=0.0):  
+    """
+    Gaussian blending
+    """
+    zz, yy, xx = np.meshgrid(np.linspace(-1,1,sz[0], dtype=np.float32), 
+                                np.linspace(-1,1,sz[1], dtype=np.float32),
+                                np.linspace(-1,1,sz[2], dtype=np.float32), indexing='ij')
+    dd = np.sqrt(zz*zz + yy*yy + xx*xx)
+    ww = 1e-4 + np.exp(-( (dd-mu)**2 / ( 2.0 * sigma**2 )))
+
+    return ww
 
     return aff

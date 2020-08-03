@@ -124,6 +124,7 @@ def get_dataset(cfg, augmentor, mode='train'):
                                 target_opt=topt, 
                                 weight_opt=wopt, 
                                 mode=mode,
+                                do_2d=cfg.DATASET.DO_2D,
                                 # Specify options for rejection samping:
                                 reject_size_thres=cfg.DATASET.REJECT_SAMPLING.SIZE_THRES, 
                                 reject_after_aug=cfg.DATASET.REJECT_SAMPLING.AFTER_AUG,

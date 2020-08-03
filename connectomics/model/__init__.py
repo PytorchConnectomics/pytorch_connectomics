@@ -9,6 +9,7 @@ from .utils import Monitor, Criterion
 
 def build_model(cfg, device, checkpoint=None):
     MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
+                 'unet_residual_2d': unet_residual_2d,
                  'fpn': fpn,
                  'super':SuperResolution,
                  'unet_super':Unet_super}
@@ -16,6 +17,10 @@ def build_model(cfg, device, checkpoint=None):
     assert cfg.MODEL.ARCHITECTURE in MODEL_MAP.keys()
     if cfg.MODEL.ARCHITECTURE == 'super':
         model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](in_channel=cfg.MODEL.IN_PLANES, out_channel=cfg.MODEL.OUT_PLANES, filters=cfg.MODEL.FILTERS)
+    elif cfg.MODEL.ARCHITECTURE == 'unet_residual_2d':
+        model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](in_channel=cfg.MODEL.IN_PLANES, out_channel=cfg.MODEL.OUT_PLANES, filters=cfg.MODEL.FILTERS, \
+                                             pad_mode=cfg.MODEL.PAD_MODE, norm_mode=cfg.MODEL.NORM_MODE, act_mode=cfg.MODEL.ACT_MODE,
+                                             head_depth=cfg.MODEL.HEAD_DEPTH)
     else:
         model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](in_channel=cfg.MODEL.IN_PLANES, out_channel=cfg.MODEL.OUT_PLANES, filters=cfg.MODEL.FILTERS, \
                                              pad_mode=cfg.MODEL.PAD_MODE, norm_mode=cfg.MODEL.NORM_MODE, act_mode=cfg.MODEL.ACT_MODE,

@@ -36,14 +36,20 @@ class CutBlur(DataAugment):
         images = data['image'].copy()
         labels = data['label'].copy()
 
-        zl, zh = self.random_region(images.shape[0], random_state)
+        zdim = images.shape[0]
+        
+        if zdim > 1:
+            zl, zh = self.random_region(images.shape[0], random_state)
         yl, yh = self.random_region(images.shape[1], random_state)
         xl, xh = self.random_region(images.shape[2], random_state)
         
-        temp = images[zl:zh, yl:yh, xl:xh].copy()
+        if zdim == 1:
+            temp = images[:, yl:yh, xl:xh].copy()
+        else:
+            temp = images[zl:zh, yl:yh, xl:xh].copy()
 
         down_ratio = random_state.uniform(self.down_ratio_min, self.down_ratio_max)
-        if self.downsample_z:
+        if zdim > 1 and self.downsample_z:
             out_shape = np.array(temp.shape) /  down_ratio
         else:
             out_shape = np.array(temp.shape) /  np.array([1, down_ratio, down_ratio])
@@ -54,7 +60,10 @@ class CutBlur(DataAugment):
         upsampled = resize(downsampled, temp.shape, order=0, mode='reflect', 
                              clip=True, preserve_range=True, anti_aliasing=False)
 
-        images[zl:zh, yl:yh, xl:xh] = upsampled
+        if zdim == 1:
+            images[:, yl:yh, xl:xh] = upsampled
+        else:
+            images[zl:zh, yl:yh, xl:xh] = upsampled
         return images, labels
 
 

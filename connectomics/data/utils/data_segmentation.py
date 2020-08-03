@@ -5,7 +5,7 @@ from skimage.morphology import erosion, dilation
 from skimage.measure import label as label_cc # avoid namespace conflict
 from skimage.segmentation import find_boundaries
 
-from .data_affinity import seg_to_aff
+from .data_affinity import mknhood2d, seg_to_aff
 
 # reduce the labeling
 def getSegType(mid):
@@ -176,7 +176,12 @@ def seg_to_targets(label, topts):
             # concatenate at channel
             out[tid] = np.stack(tmp, 0).astype(np.float32)
         elif topt[0] == '2': # affinity
-            out[tid] = seg_to_aff(label)
+            if label.ndim == 3: # 3d aff 
+                out[tid] = seg_to_aff(label)
+            elif label.ndim == 2: # 2d aff 
+                out[tid] = seg_to_aff(label, nhood=mknhood2d(1))
+            else:
+                raise ValueError('Undefined affinity computation for ndim = ' + str(label.ndim))
         elif topt[0] == '3': # small object mask
             # size_thres: 2d threshold for small size
             # zratio: resolution ration between z and x/y
