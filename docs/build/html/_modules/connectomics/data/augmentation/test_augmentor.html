@@ -112,8 +112,12 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/snemi.html">Neuron Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/lucchi.html">Mitochondria Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mitoem.html">MitoEM Instance Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#semantic-segmentation">Semantic Segmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#instance-segmentation">Instance Segmentation</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/cremi.html">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synaptic_partner.html">Synaptic Partner Segmentation</a></li>
 </ul>
@@ -283,8 +287,11 @@
         <span class="n">extension</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_aug</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
             <span class="n">extension</span> <span class="o">+=</span> <span class="s2">&quot;tz&quot;</span>
-        <span class="k">else</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_aug</span> <span class="o">==</span> <span class="mi">16</span><span class="p">:</span>
             <span class="n">extension</span> <span class="o">+=</span> <span class="s2">&quot;tzyx&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">name</span>
+            
         <span class="c1"># Update the suffix of the output filename to indicate</span>
         <span class="c1"># the use of test-time data augmentation.</span>
         <span class="n">name_list</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
