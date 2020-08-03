@@ -60,11 +60,11 @@ def build_train_augmentor(cfg, keep_uncropped=False, keep_non_smoothed=False):
     if cfg.AUGMENTOR.MISSINGPARTS.ENABLED:
         aug_list.append(MissingParts(p=cfg.AUGMENTOR.MISSINGPARTS.P))
     #7. missingsection
-    if cfg.AUGMENTOR.MISSINGSECTION.ENABLED:
-        aug_list.append(MissingSection(p=cfg.AUGMENTOR.MISSINGSECTION.P))
+    if cfg.AUGMENTOR.MISSINGSECTION.ENABLED and not cfg.DATASET.DO_2D:
+            aug_list.append(MissingSection(p=cfg.AUGMENTOR.MISSINGSECTION.P, num_section=cfg.AUGMENTOR.MISSINGSECTION.NUM_SECTION))
     #8. misalignment
-    if cfg.AUGMENTOR.MISALIGNMENT.ENABLED:
-        aug_list.append(MisAlignment(p=cfg.AUGMENTOR.MISALIGNMENT.P, 
+    if cfg.AUGMENTOR.MISALIGNMENT.ENABLED and not cfg.DATASET.DO_2D:
+            aug_list.append(MisAlignment(p=cfg.AUGMENTOR.MISALIGNMENT.P, 
                                      displacement=cfg.AUGMENTOR.MISALIGNMENT.DISPLACEMENT,
                                      rotate_ratio=cfg.AUGMENTOR.MISALIGNMENT.ROTATE_RATIO))
     #9. motion-blur

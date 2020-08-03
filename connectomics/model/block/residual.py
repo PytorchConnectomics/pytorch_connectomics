@@ -110,7 +110,7 @@ class bottleneck_dilated_2d(nn.Module):
             y = y + self.projector(x)
         else:
             y = y + x
-        y = self.elu(y)
+        y = self.act(y)
         return y
 
 class bottleneck_dilated_3d(nn.Module):

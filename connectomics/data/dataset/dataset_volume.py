@@ -37,12 +37,16 @@ class VolumeDataset(torch.utils.data.Dataset):
                  target_opt=['1'], 
                  weight_opt=[['1']],
                  mode='train',
+                 do_2d=False,
                  # options for rejection sampling
                  reject_size_thres= 0,
                  reject_after_aug=False, 
                  reject_p= 0.98):
 
         self.mode = mode
+        self.do_2d = do_2d
+        if self.do_2d:
+            assert (sample_volume_size[0]==1) * (sample_label_size[0]==1)
         # for partially labeled data
         # m1 (no): sample chunks with over certain percentage
         #   = online version: rejection sampling can be slow
@@ -127,6 +131,9 @@ class VolumeDataset(torch.utils.data.Dataset):
                 else: # the data is already augmented in the rejection sampling step
                     pass
                 
+            if self.do_2d:
+                out_input = np.squeeze(out_input) 
+                out_label = np.squeeze(out_label)
             out_input = np.expand_dims(out_input, 0)
             # output list
             out_target = seg_to_targets(out_label, self.target_opt)
