@@ -5,6 +5,7 @@ import torch
 
 from yacs.config import CfgNode
 
+from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 from .lr_scheduler import WarmupCosineLR, WarmupMultiStepLR
 
 from connectomics.model.norm import BatchInstanceNorm1d

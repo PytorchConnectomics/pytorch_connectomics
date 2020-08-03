@@ -225,6 +225,7 @@ _C.SOLVER.LR_SCHEDULER_NAME = "MultiStepLR"
 
 _C.SOLVER.ITERATION_STEP = 1
 
+# Save a checkpoint after every this number of iterations.
 _C.SOLVER.ITERATION_SAVE = 5000
 
 _C.SOLVER.ITERATION_TOTAL = 40000
@@ -259,9 +260,6 @@ _C.SOLVER.WARMUP_FACTOR = 1.0 / 1000
 _C.SOLVER.WARMUP_ITERS = 1000
 
 _C.SOLVER.WARMUP_METHOD = "linear"
-
-# Save a checkpoint after every this number of iterations
-_C.SOLVER.CHECKPOINT_PERIOD = 5000
 
 # Number of samples per batch across all machines.
 # If we have 16 GPUs and IMS_PER_BATCH = 32,
@@ -309,8 +307,10 @@ _C.INFERENCE.PAD_SIZE = []
 
 _C.INFERENCE.STRIDE = [4, 128, 129]
 
-_C.INFERENCE.AUG_MODE = 'mean'
+# Blending function for overlapping inference.
+_C.INFERENCE.BLENDING = 'gaussian'
 
+_C.INFERENCE.AUG_MODE = 'mean'
 _C.INFERENCE.AUG_NUM = 4
 
 # Run the model forward pass with model.eval() if DO_EVAL is True, else

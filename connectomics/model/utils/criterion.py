@@ -23,8 +23,10 @@ class Criterion(object):
         if len(regu_opt)>0:
             regu = [None]*len(regu_opt)
             for i in range(len(regu_opt)):
-                if regu_opt == 0:
+                if regu_opt[i] == 0:
                     regu[i] = nn.L1Loss()
+                elif regu_opt[i] == 'BinaryReg':
+                    regu[i] = BinaryReg()
         return regu
 
     def get_loss(self):

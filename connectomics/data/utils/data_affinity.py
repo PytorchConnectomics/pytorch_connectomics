@@ -114,15 +114,3 @@ def blend_gaussian(sz, sigma=0.8, mu=0.0):
     return ww
 
     return aff
-
-def blend_gaussian(sz, sigma=0.8, mu=0.0):  
-    """
-    Gaussian blending
-    """
-    zz, yy, xx = np.meshgrid(np.linspace(-1,1,sz[0], dtype=np.float32), 
-                                np.linspace(-1,1,sz[1], dtype=np.float32),
-                                np.linspace(-1,1,sz[2], dtype=np.float32), indexing='ij')
-    dd = np.sqrt(zz*zz + yy*yy + xx*xx)
-    ww = 1e-4 + np.exp(-( (dd-mu)**2 / ( 2.0 * sigma**2 )))
-
-    return ww

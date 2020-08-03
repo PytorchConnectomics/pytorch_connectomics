@@ -2,7 +2,7 @@
 
 <p align="left">
     <a href="https://www.python.org/">
-      <img src="https://img.shields.io/badge/Python-3.7-ff69b4.svg" /></a>
+      <img src="https://img.shields.io/badge/Python-3.8-ff69b4.svg" /></a>
     <a href= "https://pytorch.org/">
       <img src="https://img.shields.io/badge/PyTorch-1.5-2BAF2B.svg" /></a>
     <a href= "https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE">

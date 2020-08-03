@@ -28,7 +28,7 @@ def savevol(filename, vol, dataset='main', format='h5'):
         writeh5(filename, vol, dataset='main')         
     if format == 'png':
         currentDirectory = os.getcwd()
-        img_save_path = currentDirectory + "/ProcessedImages"
+        img_save_path = os.path.join(currentDirectory, filename)
         if not os.path.exists(img_save_path):
             os.makedirs(img_save_path)
         for i in range(vol.shape[0]):

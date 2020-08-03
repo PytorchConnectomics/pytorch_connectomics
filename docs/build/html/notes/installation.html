@@ -1,8 +1,7 @@
 
 
 <!DOCTYPE html>
-<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
-<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<html class="writer-html4" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -12,12 +11,19 @@
   
 
   
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
+
+  
   
   
   
 
   
-  <script type="text/javascript" src="../_static/js/modernizr.min.js"></script>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
   
     
       <script type="text/javascript">
@@ -39,11 +45,6 @@
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
     
-
-  
-  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Configurations" href="config.html" />
@@ -91,6 +92,7 @@
           
         </div>
 
+        
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           
             
@@ -136,6 +138,7 @@
             
           
         </div>
+        
       </div>
     </nav>
 
@@ -174,7 +177,7 @@
 
   <ul class="wy-breadcrumbs">
     
-      <li><a href="../index.html">Docs</a> &raquo;</li>
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
       <li>Installation</li>
     
@@ -208,17 +211,17 @@ the required packages to the environment.</p>
 <ol class="arabic">
 <li><p class="first">Create a new conda environment:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ conda create -n py3_torch python=3.7
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ conda create -n py3_torch python=3.8
 $ source activate py3_torch
 $ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Ensure that at least PyTorch 1.5.0 is installed:</p>
+<li><p class="first">Ensure that at least PyTorch 1.5.1 is installed:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ python -c &#39;import torch; print(torch.__version__)&#39;
-&gt;&gt;&gt; 1.5.0
+&gt;&gt;&gt; 1.5.1
 </pre></div>
 </div>
 </div></blockquote>
@@ -276,6 +279,7 @@ running and development on the RC server.</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>$ git clone https://github.com/zudi-lin/pytorch_connectomics.git
 $ cd pytorch_connectomics
+$ pip install --upgrade pip
 $ pip install -r requirements.txt
 $ pip install --editable .
 </pre></div>
@@ -313,11 +317,19 @@ make sure that the installation is correct and also have an intial taste of the 
 
   <div role="contentinfo">
     <p>
+        
         &copy; Copyright 2020, Zudi Lin and Donglai Wei
 
     </p>
   </div>
-  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
 
 </footer>
 
@@ -328,7 +340,6 @@ make sure that the installation is correct and also have an intial taste of the 
 
   </div>
   
-
 
   <script type="text/javascript">
       jQuery(function () {

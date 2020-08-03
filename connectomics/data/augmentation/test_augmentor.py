@@ -13,7 +13,7 @@ class TestAugmentor(object):
 
     Args:
         mode (str): one of ``'min'``, ``'max'`` or ``'mean'``. Default: ``'mean'``
-        num_aug (int): number of data augmentation variants: 4 or 16. Default: 4
+        num_aug (int): number of data augmentation variants: 0, 4 or 16. Default: 4
 
     Examples::
         >>> from connectomics.data.augmentation import TestAugmentor
@@ -86,8 +86,11 @@ class TestAugmentor(object):
         extension = "_"
         if self.num_aug == 4:
             extension += "tz"
-        else:
+        elif self.num_aug == 16:
             extension += "tzyx"
+        else:
+            return name
+            
         # Update the suffix of the output filename to indicate
         # the use of test-time data augmentation.
         name_list = name.split('.')
