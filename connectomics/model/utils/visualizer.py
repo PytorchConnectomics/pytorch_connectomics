@@ -3,7 +3,7 @@ import torchvision.utils as vutils
 import numpy as np
 
 class Visualizer(object):
-    def __init__(self, vis_opt=0, N=16):
+    def __init__(self, vis_opt=0, N=16, do_2d=False):
         self.vis_opt = vis_opt
         self.N = N # default maximum number of sections to show
         self.N_ind = None
@@ -15,6 +15,8 @@ class Visualizer(object):
             '3': 1,
             '4': 1,
         }
+        if do_2d:
+            self.num_channels_dict['2'] = 2
 
     def prepare_data(self, volume, label, output):
         if len(volume.size()) == 4:   # 2D Inputs
