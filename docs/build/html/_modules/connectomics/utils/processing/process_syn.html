@@ -112,8 +112,12 @@
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/snemi.html">Neuron Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/lucchi.html">Mitochondria Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mitoem.html">MitoEM Instance Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#semantic-segmentation">Semantic Segmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#instance-segmentation">Instance Segmentation</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/cremi.html">Synaptic Cleft Segmentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synaptic_partner.html">Synaptic Partner Segmentation</a></li>
 </ul>
@@ -271,14 +275,9 @@
         <span class="n">num_syn_pre</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg_pre</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span>
         <span class="n">num_syn_post</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg_post</span><span class="p">))</span><span class="o">-</span><span class="mi">1</span>
         <span class="n">num_syn</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_syn_pre</span><span class="p">,</span> <span class="n">num_syn_post</span><span class="p">)</span> <span class="c1"># a conservative estimate</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Stats: found </span><span class="si">%d</span><span class="s2"> pre- and </span><span class="si">%d</span><span class="s2"> post-synaptic segments </span><span class="se">\</span>
-<span class="s2">              in the volume&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_syn_pre</span><span class="p">,</span> <span class="n">num_syn_post</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Stats: found </span><span class="si">%d</span><span class="s2"> pre- and </span><span class="si">%d</span><span class="s2"> post-&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">num_syn_pre</span><span class="p">,</span> <span class="n">num_syn_post</span><span class="p">)</span> <span class="o">+</span> 
+              <span class="s2">&quot;synaptic segments in the volume&quot;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;There are </span><span class="si">%d</span><span class="s2"> synapses under a conservative estimate.&quot;</span> <span class="o">%</span> <span class="n">num_syn</span><span class="p">)</span>
-
-        <span class="c1"># Cast the segmentation to the best dtype to save memory.</span>
-        <span class="n">max_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">segm</span><span class="p">))</span>
-        <span class="n">m_type</span> <span class="o">=</span> <span class="n">getSegType</span><span class="p">(</span><span class="n">max_id</span><span class="p">)</span>
-        <span class="n">segm</span> <span class="o">=</span> <span class="n">segm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">m_type</span><span class="p">)</span>
 
     <span class="c1"># resize the segmentation based on specified scale factors</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">x</span><span class="o">==</span><span class="mf">1.0</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">scale_factors</span><span class="p">):</span>
@@ -286,6 +285,11 @@
                        <span class="nb">int</span><span class="p">(</span><span class="n">segm</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">scale_factors</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> 
                        <span class="nb">int</span><span class="p">(</span><span class="n">segm</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">scale_factors</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
         <span class="n">segm</span> <span class="o">=</span> <span class="n">resize</span><span class="p">(</span><span class="n">segm</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">anti_aliasing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Cast the segmentation to the best dtype to save memory.</span>
+    <span class="n">max_id</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">segm</span><span class="p">))</span>
+    <span class="n">m_type</span> <span class="o">=</span> <span class="n">getSegType</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">max_id</span><span class="p">))</span>
+    <span class="n">segm</span> <span class="o">=</span> <span class="n">segm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">m_type</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">segm</span></div>
 
 </pre></div>

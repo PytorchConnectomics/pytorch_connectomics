@@ -33,8 +33,7 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
    :caption: Tutorials
 
    tutorials/snemi
-   tutorials/lucchi
-   tutorials/mitoem
+   tutorials/mito
    tutorials/cremi
    tutorials/synaptic_partner
 
