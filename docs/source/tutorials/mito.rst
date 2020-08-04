@@ -9,11 +9,11 @@ Introduction
 
 Mitochondria are the primary energy providers for cell activities, thus essential for metabolism. 
 Quantification of the size and geometry of mitochondria is not only crucial to basic neuroscience research, but also informative to 
-clinical studies including, but not limited to bipolar disorder and diabetes.
+clinical studies including, but not limited to, bipolar disorder and diabetes.
 
-This tutorial has two parts. In the first part, you will learn how to make **pixel-wise class prediction** on the dataset released 
-by Lucchi et al. in 2012. In the second part, you will learn how to predict the **instance masks** of individual mitochondrion from the 
-large-scale MitoEM dataset released by Wei et al. in 2020.
+This tutorial has two parts. In the first part, you will learn how to make **pixel-wise class prediction** on the widely used benchmark
+dataset released by Lucchi et al. in 2012. In the second part, you will learn how to predict the **instance masks** of 
+individual mitochondrion from the large-scale MitoEM dataset released by Wei et al. in 2020.
 
 Semantic Segmentation
 ----------------------
@@ -39,7 +39,7 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
 
 #. Get the dataset:
 
-    #. Download the dataset from our server:
+    Download the dataset from our server:
 
         .. code-block:: none
 
