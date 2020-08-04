@@ -7,15 +7,19 @@ Mitochondria Segmentation
 Introduction
 -------------
 
-This tutorial has two parts. In the first part, you will learn how to make **pixel-wise class prediction** on the dataset released 
-by Lucchi et al. in 2012. In the second part, you will learn how to predict the **instance masks** of individual mitochondrion on the MitoEM
-dataset released by Wei et al. in 2020.
+Mitochondria are the primary energy providers for cell activities, thus essential for metabolism. 
+Quantification of the size and geometry of mitochondria is not only crucial to basic neuroscience research, but also informative to 
+clinical studies including, but not limited to, bipolar disorder and diabetes.
+
+This tutorial has two parts. In the first part, you will learn how to make **pixel-wise class prediction** on the widely used benchmark
+dataset released by Lucchi et al. in 2012. In the second part, you will learn how to predict the **instance masks** of 
+individual mitochondrion from the large-scale MitoEM dataset released by Wei et al. in 2020.
 
 Semantic Segmentation
 ----------------------
 
 This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by `Lucchi et al. <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`_.
-We consider the task as a semantic segmentation task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
+We consider the task as a **semantic segmentation** task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).
 
 .. note::
@@ -35,7 +39,7 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
 
 #. Get the dataset:
 
-    #. Download the dataset from our server:
+    Download the dataset from our server:
 
         .. code-block:: none
 
@@ -57,7 +61,7 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
 
         $ tensorboard --logdir runs
 
-#. Run inference on test image volumes. Our model achieves a VOC score of 0.942 on the test set.
+#. Run inference on test image volume:
 
     .. code-block:: none
 
@@ -66,11 +70,14 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
           --config-file configs/Lucchi-Mitochondria.yaml --inference \
           --checkpoint outputs/Lucchi_mito_baseline/volume_100000.pth.tar
 
+Our pretained model achieves a VOC score of **0.943** on the test set. Please check `BENCHMARK.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/BENCHMARK.md>`_ 
+for detailed performance comparison and the pre-trained models.
+
 Instance Segmentation
 ----------------------
 
 This section provides step-by-step guidance for mitochondria segmentation with our benchmark datasets `MitoEM <https://donglaiw.github.io/page/mitoEM/index.html>`_.
-We consider the task as 3D instance segmentation task and provide three different confiurations of the model output. 
+We consider the task as 3D **instance segmentation** task and provide three different confiurations of the model output. 
 The model is ``unet_res_3d``, similar to the one used in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_.
 The evaluation of the segmentation results is based on the AP-75 (average precision with an IoU threshold of 0.75). 
 
@@ -78,8 +85,8 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
     :align: center
     :width: 800px
 
-    Complex mitochondria in the MitoEM dataset:(a) mitochondria-on-a-string (MOAS), and (b) dense tangle of touching mitochondria. 
-    Those challenging cases are prevalent but not covered in previous labeled datasets.
+    Complex mitochondria in the MitoEM dataset:(a) mitochondria-on-a-string (MOAS), and (b) dense tangle of touching instances. 
+    Those challenging cases are prevalent but not covered in previous datasets.
 
 .. note::
     The MitoEM dataset has two sub-datasets **Rat** and **Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** 
@@ -87,7 +94,7 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
 
 .. note::
     Since the dataset is very large and can not be directly loaded into memory, we use the :class:`connectomics.data.dataset.TileDataset` dataset class that only 
-    loads part of the whole volume by opening involved ``.png`` images.
+    loads part of the whole volume by opening involved ``PNG`` images.
 
 #. Introduction to the dataset:
 
@@ -102,14 +109,16 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
     .. code-block:: none
 
         /n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/human
+
+    For the public link of the dataset, check the `project page <https://donglaiw.github.io/page/mitoEM/index.html>`_.
         
-    Dataset description
+    Dataset description:
 
-    - ``im``: includes 1,000 single-channel ``.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm).
+    - ``im``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm).
 
-    - ``mito``: includes 1,000 single-channel ``.png`` files (**4096x4096**) of instance labels.
+    - ``mito``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of instance labels.
 
-    - ``*.json``: :class:`Dict` contains paths to ``.png`` files 
+    - ``*.json``: :class:`Dict` contains paths to ``*.png`` files 
 
 
 #. Configure ``.yaml`` files for different learning targets.
