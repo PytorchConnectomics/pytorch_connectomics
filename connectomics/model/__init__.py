@@ -72,7 +72,7 @@ def build_monitor(cfg):
     if not os.path.isdir(log_path):
         os.makedirs(log_path)
     return Monitor(log_path, cfg.MONITOR.LOG_OPT+[cfg.SOLVER.SAMPLES_PER_BATCH],\
-                   cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM)
+                   cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM, cfg.DATASET.DO_2D)
 
 def build_criterion(cfg, device):
     return Criterion(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.LOSS_WEIGHT,\
