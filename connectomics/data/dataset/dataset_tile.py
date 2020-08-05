@@ -30,8 +30,13 @@ class TileDataset(torch.utils.data.Dataset):
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0.5,0],
                  augmentor=None,
-                 valid_mask=None, target_opt=['0'], weight_opt=['1'],
-                 mode='train', label_erosion=0, pad_size=[0,0,0]):
+                 valid_mask=None,
+                 target_opt=['0'],
+                 weight_opt=['1'],
+                 mode='train', 
+                 do_2d=False,
+                 iter_num=-1,
+                 label_erosion=0, pad_size=[0,0,0]):
         # TODO: merge mito/mitoskel, syn/synpolarity
         self.sample_input_size = sample_input_size
         self.sample_label_size = sample_label_size
@@ -43,6 +48,8 @@ class TileDataset(torch.utils.data.Dataset):
         self.weight_opt = weight_opt
 
         self.mode = mode
+        self.do_2d = do_2d
+        self.iter_num = iter_num
         self.label_erosion = label_erosion
         self.pad_size = pad_size
 
@@ -114,5 +121,9 @@ class TileDataset(torch.utils.data.Dataset):
                               self.sample_label_size,
                               self.sample_stride,
                               self.sample_invalid_thres,
-                              self.augmentor, self.target_opt, self.weight_opt,
-                              self.mode)
+                              self.augmentor,
+                              self.target_opt,
+                              self.weight_opt,
+                              self.mode,
+                              self.do_2d,
+                              self.iter_num)

@@ -85,9 +85,11 @@ def get_dataset(cfg, augmentor, mode='train'):
         label_erosion = cfg.DATASET.LABEL_EROSION
         sample_stride = (1,1,1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
+        iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH 
     elif mode == 'test':
         sample_stride = cfg.INFERENCE.STRIDE
         sample_volume_size = cfg.MODEL.INPUT_SIZE
+        iter_num = -1
       
     # dataset
     if cfg.DATASET.DO_CHUNK_TITLE==1:
@@ -106,6 +108,8 @@ def get_dataset(cfg, augmentor, mode='train'):
                               target_opt=topt, 
                               weight_opt=wopt, 
                               mode=mode, 
+                              do_2d=cfg.DATASET.DO_2D,
+                              iter_num=iter_num,
                               label_erosion=label_erosion, 
                               pad_size=cfg.DATASET.PAD_SIZE)
 
@@ -114,6 +118,8 @@ def get_dataset(cfg, augmentor, mode='train'):
             volume, label = _get_input(cfg, mode=mode)
         else:
             volume, label = cfg.DATASET.PRE_LOAD_DATA
+
+
         dataset = VolumeDataset(volume=volume, 
                                 label=label, 
                                 sample_volume_size=sample_volume_size, 
@@ -125,6 +131,7 @@ def get_dataset(cfg, augmentor, mode='train'):
                                 weight_opt=wopt, 
                                 mode=mode,
                                 do_2d=cfg.DATASET.DO_2D,
+                                iter_num=iter_num,
                                 # Specify options for rejection samping:
                                 reject_size_thres=cfg.DATASET.REJECT_SAMPLING.SIZE_THRES, 
                                 reject_after_aug=cfg.DATASET.REJECT_SAMPLING.AFTER_AUG,

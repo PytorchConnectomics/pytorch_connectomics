@@ -38,6 +38,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  weight_opt=[['1']],
                  mode='train',
                  do_2d=False,
+                 iter_num=-1,
                  # options for rejection sampling
                  reject_size_thres= 0,
                  reject_after_aug=False, 
@@ -102,9 +103,15 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
+       
+        if iter_num < 0:
+            self.iter_num = self.sample_num_a
+        else:
+            self.iter_num = iter_num
+        print('len:', self.iter_num)
 
     def __len__(self):  # number of possible position
-        return self.sample_num_a
+        return self.iter_num
 
     def __getitem__(self, index):
         # orig input: keep uint format to save cpu memory
