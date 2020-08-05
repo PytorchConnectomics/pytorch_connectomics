@@ -108,6 +108,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             self.iter_num = self.sample_num_a
         else:
             self.iter_num = iter_num
+        print('len:', self.iter_num)
 
     def __len__(self):  # number of possible position
         return self.iter_num
