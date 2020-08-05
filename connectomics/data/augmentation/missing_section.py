@@ -11,7 +11,7 @@ class MissingSection(DataAugment):
     """
     def __init__(self, num_sections=2, p=0.5):
         super(MissingSection, self).__init__(p=p)
-        self.num_sections = 2
+        self.num_sections = num_sections
         self.set_params()
 
     def set_params(self):
