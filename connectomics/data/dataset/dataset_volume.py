@@ -152,6 +152,8 @@ class VolumeDataset(torch.utils.data.Dataset):
             # test mode
             pos = self._get_pos_test(index)
             out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
+            if self.do_2d:
+                out_input = np.squeeze(out_input) 
             return pos, np.expand_dims(out_input,0)
 
     #######################################################
