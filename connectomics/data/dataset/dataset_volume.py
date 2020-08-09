@@ -13,17 +13,19 @@ class VolumeDataset(torch.utils.data.Dataset):
     
     Args:
         volume (list): list of image volumes.
-        label (list): list of label volumes (default: None).
+        label (list): list of label volumes. Default: None
         sample_input_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
         sample_invalid_thres (float): threshold for invalid regions.
-        augmentor: data augmentor for training (default: None).
+        augmentor: data augmentor for training. Default: None
         target_opt (list): list the model targets generated from segmentation labels.
         weight_opt (list): list of options for generating pixel-wise weight masks.
         mode (str): training or inference mode.
-        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects (default: 0).
-        reject_after_aug (bool): decide whether to reject a sample after data augmentation (default: False) 
+        do_2d (bool): load 2d samples from 3d volumes. Default: False
+        iter_num (int): total number of training iterations (-1 for inference). Default: -1
+        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0
+        reject_after_aug (bool): decide whether to reject a sample after data augmentation. Default: False 
         reject_p (float): probability of rejecting non-foreground volumes.
     """
     def __init__(self,
@@ -104,11 +106,14 @@ class VolumeDataset(torch.utils.data.Dataset):
         if mode=='test': # for test
             self.sample_size_vol = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
        
-        if iter_num < 0:
+        # For relatively small volumes, the total number of samples can be generated is smaller
+        # than the number of samples required for training (i.e., iteration * batch size). Thus
+        # we let the __len__() of the dataset return the larger value among the two during training. 
+        if iter_num < 0: # inference mode
             self.iter_num = self.sample_num_a
-        else:
-            self.iter_num = iter_num
-        print('len:', self.iter_num)
+        else: # training mode
+            self.iter_num = max(iter_num, self.sample_num_a)
+        print('Total number of samples to be generated: ', self.iter_num)
 
     def __len__(self):  # number of possible position
         return self.iter_num
