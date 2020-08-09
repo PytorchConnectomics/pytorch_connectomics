@@ -157,8 +157,12 @@ class Trainer(object):
                 if not "super" in self.cfg.MODEL.ARCHITECTURE:
                     for idx in range(output.shape[0]):
                         st = pos[idx]
-                        result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                        st[3]:st[3]+sz[3]] += output[idx] * np.expand_dims(ww, axis=0)
+                        if result[st[0]].ndim - output[idx].ndim == 1:
+                            result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
+                                          st[3]:st[3]+sz[3]] += output[idx][:,None,:] * ww[None,:]
+                        else:
+                            result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
+                                        st[3]:st[3]+sz[3]] += output[idx] * ww[None,:]
                         weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                         st[3]:st[3]+sz[3]] += ww
                 else:
