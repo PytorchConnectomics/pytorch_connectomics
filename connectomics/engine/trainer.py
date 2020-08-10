@@ -37,19 +37,20 @@ class Trainer(object):
 
         if self.mode == 'train':
             self.augmentor = build_train_augmentor(self.cfg)
+            self.monitor = build_monitor(self.cfg)
+            self.criterion = build_criterion(self.cfg, self.device)
+            # add config details to tensorboard
+            self.monitor.load_config(self.cfg)
         else:
             self.augmentor = None
+
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
             self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode)
             self.dataloader = iter(self.dataloader)
         else:
             self.dataset = None
             self.dataloader = None
-        self.monitor = build_monitor(self.cfg)
-        self.criterion = build_criterion(self.cfg, self.device)
 
-        # add config details to tensorboard
-        self.monitor.load_config(self.cfg)
         self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
         self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME
 
@@ -113,7 +114,10 @@ class Trainer(object):
             self.model.train()
 
         ww = build_blending_matrix(self.cfg.MODEL.OUTPUT_SIZE, self.cfg.INFERENCE.BLENDING)
-        NUM_OUT = self.cfg.MODEL.OUT_PLANES
+        if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is None:
+            NUM_OUT = self.cfg.MODEL.OUT_PLANES
+        else:
+            NUM_OUT = len(self.cfg.INFERENCE.MODEL_OUTPUT_ID)
         pad_size = self.cfg.DATASET.PAD_SIZE
         if len(self.cfg.DATASET.PAD_SIZE)==3:
             pad_size = [self.cfg.DATASET.PAD_SIZE[0],self.cfg.DATASET.PAD_SIZE[0],
@@ -121,12 +125,12 @@ class Trainer(object):
                         self.cfg.DATASET.PAD_SIZE[2],self.cfg.DATASET.PAD_SIZE[2]]
         
         if ("super" in self.cfg.MODEL.ARCHITECTURE):
-            output_size = np.array(self.dataloader._dataset.input_size)*np.array(self.cfg.DATASET.SCALE_FACTOR).tolist()
+            output_size = np.array(self.dataloader._dataset.volume_size)*np.array(self.cfg.DATASET.SCALE_FACTOR).tolist()
             result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in output_size]
             weight = [np.zeros(x, dtype=np.float32) for x in output_size]
         else:
-            result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.input_size]
-            weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.input_size]
+            result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.volume_size]
+            weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.volume_size]
 
         # build test-time augmentor and update output filename
         test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, 
@@ -151,9 +155,12 @@ class Trainer(object):
 
                 # forward pass
                 output = test_augmentor(self.model, volume)
-
-                if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is not None: # select channel, self.cfg.INFERENCE.MODEL_OUTPUT_ID is a list [None]
-                    output = output[self.cfg.INFERENCE.MODEL_OUTPUT_ID[0]]
+                # select channel, self.cfg.INFERENCE.MODEL_OUTPUT_ID is a list [None]
+                if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is not None: 
+                    ndim = output.ndim
+                    output = output[:, self.cfg.INFERENCE.MODEL_OUTPUT_ID[0]]
+                    if ndim - output.ndim == 1:
+                        output = output[:,None,:]
                 if not "super" in self.cfg.MODEL.ARCHITECTURE:
                     for idx in range(output.shape[0]):
                         st = pos[idx]

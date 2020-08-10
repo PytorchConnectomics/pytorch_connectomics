@@ -14,7 +14,7 @@ class VolumeDataset(torch.utils.data.Dataset):
     Args:
         volume (list): list of image volumes.
         label (list): list of label volumes. Default: None
-        sample_input_size (tuple, int): model input size.
+        sample_volume_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
         sample_invalid_thres (float): threshold for invalid regions.
@@ -58,7 +58,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         # m2: make sure the center is labeled
 
         # data format
-        self.input = volume
+        self.volume = volume
         self.label = label
         self.augmentor = augmentor  # data augmentation
 
@@ -71,7 +71,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.reject_p = reject_p
 
         # dataset: channels, depths, rows, cols
-        self.input_size = [np.array(x.shape) for x in self.input]  # volume size, could be multi-volume input
+        self.volume_size = [np.array(x.shape) for x in self.volume]  # volume size, could be multi-volume input
         self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
@@ -80,8 +80,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride, dtype=int)
        
-        self.sample_size = [count_volume(self.input_size[x], self.sample_volume_size, self.sample_stride)
-                            for x in range(len(self.input_size))]
+        self.sample_size = [count_volume(self.volume_size[x], self.sample_volume_size, self.sample_stride)
+                            for x in range(len(self.volume_size))]
 
         # total number of possible inputs for each volume
         self.sample_num = np.array([np.prod(x) for x in self.sample_size])
@@ -127,7 +127,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             # train mode
             # if elastic deformation: need different receptive field
             # position in the volume
-            pos, out_input, out_label = self._rejection_sampling(vol_size, 
+            pos, out_volume, out_label = self._rejection_sampling(vol_size, 
                             size_thres=self.reject_size_thres, 
                             background=0, 
                             p=self.reject_p)
@@ -137,29 +137,29 @@ class VolumeDataset(torch.utils.data.Dataset):
                 if np.array_equal(self.augmentor.sample_size, out_label.shape):
                     # for warping: cv2.remap require input to be float32
                     # make labels index smaller. o/w uint32 and float32 are not the same for some values
-                    data = {'image':out_input, 'label':out_label}
+                    data = {'image':out_volume, 'label':out_label}
                     augmented = self.augmentor(data)
-                    out_input, out_label = augmented['image'], augmented['label']
+                    out_volume, out_label = augmented['image'], augmented['label']
                 else: # the data is already augmented in the rejection sampling step
                     pass
                 
             if self.do_2d:
-                out_input = np.squeeze(out_input) 
+                out_volume = np.squeeze(out_volume) 
                 out_label = np.squeeze(out_label)
-            out_input = np.expand_dims(out_input, 0)
+            out_volume = np.expand_dims(out_volume, 0)
             # output list
             out_target = seg_to_targets(out_label, self.target_opt)
             out_weight = seg_to_weights(out_target, self.weight_opt)
 
-            return pos, out_input, out_target, out_weight
+            return pos, out_volume, out_target, out_weight
 
         elif self.mode == 'test':
             # test mode
             pos = self._get_pos_test(index)
-            out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
+            out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
             if self.do_2d:
-                out_input = np.squeeze(out_input) 
-            return pos, np.expand_dims(out_input,0)
+                out_volume = np.squeeze(out_volume) 
+            return pos, np.expand_dims(out_volume,0)
 
     #######################################################
     # Position Calculator
@@ -189,7 +189,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             if pos[i] != self.sample_size[pos[0]][i-1]-1:
                 pos[i] = int(pos[i] * self.sample_stride[i-1])
             else:
-                pos[i] = int(self.input_size[pos[0]][i-1]-self.sample_volume_size[i-1])
+                pos[i] = int(self.volume_size[pos[0]][i-1]-self.sample_volume_size[i-1])
         return pos
 
     def _get_pos_train(self, vol_size):
@@ -200,7 +200,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         did = self._index_to_dataset(random.randint(0,self.sample_num_a-1))
         pos[0] = did
         # pick a position
-        tmp_size = count_volume(self.input_size[did], vol_size, self.sample_stride)
+        tmp_size = count_volume(self.volume_size[did], vol_size, self.sample_stride)
         tmp_pos = [random.randint(0,tmp_size[x]-1) * self.sample_stride[x] for x in range(len(tmp_size))]
         if self.sample_invalid[did]:
             # make sure the ratio of valid is high
@@ -220,21 +220,21 @@ class VolumeDataset(torch.utils.data.Dataset):
 
     def _rejection_sampling(self, vol_size, size_thres=-1, background=0, p=0.9):
         while True:
-            pos, out_input, out_label = self._random_sampling(vol_size)
+            pos, out_volume, out_label = self._random_sampling(vol_size)
             if size_thres > 0:
                 if self.augmentor is not None:
                     assert np.array_equal(self.augmentor.sample_size, self.sample_label_size)
                     if self.reject_after_aug:
                         # decide whether to reject the sample after data augmentation
-                        data = {'image':out_input, 'label':out_label}
+                        data = {'image':out_volume, 'label':out_label}
                         augmented = self.augmentor(data)
-                        out_input, out_label = augmented['image'], augmented['label']
+                        out_volume, out_label = augmented['image'], augmented['label']
 
                         temp = out_label.copy().astype(int)
                         temp = (temp!=background).astype(int).sum()
                     else:
                         # restrict the foreground mask at the center region after data augmentation
-                        z, y, x = self.augmentor.input_size
+                        z, y, x = self.augmentor.volume_size
                         z_start = (self.sample_label_size[0] - z) // 2
                         y_start = (self.sample_label_size[1] - y) // 2
                         x_start = (self.sample_label_size[2] - x) // 2
@@ -254,11 +254,11 @@ class VolumeDataset(torch.utils.data.Dataset):
             else: # no rejection sampling for the foreground mask
                 break
 
-        return pos, out_input, out_label
+        return pos, out_volume, out_label
 
     def _random_sampling(self, vol_size):
         pos = self._get_pos_train(vol_size)
-        out_input = (crop_volume(self.input[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
+        out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
         # position in the label 
         pos_l = np.round(pos[1:]*self.label_vol_ratio)
         out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
@@ -271,4 +271,4 @@ class VolumeDataset(torch.utils.data.Dataset):
         #     out_mask = torch.ones((1),dtype=torch.uint8)
 
         out_label = relabel(out_label.copy()).astype(np.float32)
-        return pos, out_input, out_label
+        return pos, out_volume, out_label
