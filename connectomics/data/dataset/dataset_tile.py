@@ -16,7 +16,7 @@ class TileDataset(torch.utils.data.Dataset):
     Args:
         volume_json: json file for input image.
         label_json: json file for label.
-        sample_input_size (tuple, int): model input size.
+        sample_volume_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
         augmentor: data augmentor.
@@ -25,7 +25,7 @@ class TileDataset(torch.utils.data.Dataset):
     """
     def __init__(self, chunk_num, chunk_num_ind, chunk_iter, chunk_stride,
                  volume_json, label_json=None,
-                 sample_input_size=(8, 64, 64),
+                 sample_volume_size=(8, 64, 64),
                  sample_label_size=None,
                  sample_stride=(1, 1, 1),
                  sample_invalid_thres = [0.5,0],
@@ -38,7 +38,7 @@ class TileDataset(torch.utils.data.Dataset):
                  iter_num=-1,
                  label_erosion=0, pad_size=[0,0,0]):
         # TODO: merge mito/mitoskel, syn/synpolarity
-        self.sample_input_size = sample_input_size
+        self.sample_volume_size = sample_volume_size
         self.sample_label_size = sample_label_size
         self.sample_stride = sample_stride
         self.sample_invalid_thres = sample_invalid_thres
@@ -117,7 +117,7 @@ class TileDataset(torch.utils.data.Dataset):
             if self.label_erosion != 0:
                 label[0] = seg_widen_border(label[0], self.label_erosion)
         self.dataset = VolumeDataset(volume,label,
-                              self.sample_input_size,
+                              self.sample_volume_size,
                               self.sample_label_size,
                               self.sample_stride,
                               self.sample_invalid_thres,

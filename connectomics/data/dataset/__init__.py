@@ -100,7 +100,7 @@ def get_dataset(cfg, augmentor, mode='train'):
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
                               volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME, 
                               label_json=label_json,
-                              sample_input_size=sample_volume_size, 
+                              sample_volume_size=sample_volume_size, 
                               sample_label_size=sample_label_size,
                               sample_stride=sample_stride, 
                               sample_invalid_thres=sample_invalid_thres,
@@ -118,7 +118,6 @@ def get_dataset(cfg, augmentor, mode='train'):
             volume, label = _get_input(cfg, mode=mode)
         else:
             volume, label = cfg.DATASET.PRE_LOAD_DATA
-
 
         dataset = VolumeDataset(volume=volume, 
                                 label=label, 
