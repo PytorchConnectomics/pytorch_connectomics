@@ -234,7 +234,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                         temp = (temp!=background).astype(int).sum()
                     else:
                         # restrict the foreground mask at the center region after data augmentation
-                        z, y, x = self.augmentor.volume_size
+                        z, y, x = self.augmentor.input_size
                         z_start = (self.sample_label_size[0] - z) // 2
                         y_start = (self.sample_label_size[1] - y) // 2
                         x_start = (self.sample_label_size[2] - x) // 2
