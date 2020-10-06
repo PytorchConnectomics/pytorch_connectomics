@@ -23,7 +23,7 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
 
         .. code-block:: none
 
-            wget https://hp03.mindhackers.org/rhoana_product/dataset/lucchi.zip
+            wget http://rhoana.rc.fas.harvard.edu/dataset/lucchi.zip
     
     For description of the data please check `the author page <https://www.epfl.ch/labs/cvlab/data/data-em/>`_.
 

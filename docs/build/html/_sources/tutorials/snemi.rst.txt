@@ -28,7 +28,7 @@ The pytorch target affinity generation is :class:`connectomics.data.dataset.Volu
 
     .. code-block:: none
 
-        wget http://hp03.mindhackers.org/rhoana_product/dataset/snemi.zip
+        wget http://rhoana.rc.fas.harvard.edu/dataset/snemi.zip
 
     For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
