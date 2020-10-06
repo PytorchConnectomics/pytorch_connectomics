@@ -340,3 +340,42 @@ def xlogx(x, out=None, in_place=False):
     nz = z.nonzero()
     z[nz] *= np.log2(z[nz])
     return y
+
+# Functions for evaluating binary segmentation
+def confusion_matrix(pred, gt, thres=0.5):
+    """Calculate the confusion matrix given a probablility threshold in (0,1).
+    """
+    TP = np.sum((gt == 1) & (pred > thres))
+    FP = np.sum((gt == 0) & (pred > thres))
+    TN = np.sum((gt == 0) & (pred <= thres))
+    FN = np.sum((gt == 1) & (pred <= thres))
+    return (TP, FP, TN, FN)
+
+
+def get_binary_jaccard(pred, gt, thres=[0.5]):
+    """Evaluate the binary prediction at multiple thresholds using the Jaccard 
+    Index, which is also known as Intersection over Union (IoU). If the prediction
+    is already binarized, different thresholds will result the same result.
+
+    Args:
+        pred (numpy.ndarray): foreground probability of shape :math:`(Z, Y, X)`.
+        gt (numpy.ndarray): binary foreground label of shape identical to the prediction.
+        thres (list): a list of probablility threshold in (0,1). Default: [0.5]
+
+    Return:
+        score (numpy.ndarray): a numpy array of shape :math:`(N, 4)`, where :math:`N` is the 
+        number of element(s) in the probability threshold list. The four scores in each line
+        are foreground IoU, IoU, precision and recall, respectively.
+    """
+    score = np.zeros((len(thres), 4))
+    for tid, t in enumerate(thres):
+        assert 0.0 < t < 1.0, "The range of the threshold should be (0,1)."
+        TP,FP,TN,FN = confusion_matrix(pred, gt, t)
+        
+        precision = float(TP)/(TP+FP)
+        recall = float(TP)/(TP+FN)
+        iou_fg = float(TP)/(TP+FP+FN)
+        iou_bg = float(TN)/(TN+FP+FN)
+        iou = (iou_fg + iou_bg) / 2.0
+        score[tid] = np.array([iou_fg, iou, precision, recall])
+    return score

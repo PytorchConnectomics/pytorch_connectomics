@@ -70,8 +70,30 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
           --config-file configs/Lucchi-Mitochondria.yaml --inference \
           --checkpoint outputs/Lucchi_mito_baseline/volume_100000.pth.tar
 
-Our pretained model achieves a VOC score of **0.943** on the test set. Please check `BENCHMARK.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/BENCHMARK.md>`_ 
-for detailed performance comparison and the pre-trained models.
+#. Since the ground-truth label of the test set is public, we can run the evaluation locally:
+
+    .. code-block:: python
+
+        from connectomics.utils.evaluation import get_binary_jaccard
+        pred = pred / 255. # output is casted to uint8 with range [0,255].
+        gt = (gt!==0).astype(np.uint8)
+        thres = [0.4, 0.6, 0.8] # evaluate at multiple thresholds.
+        scores = get_binary_jaccard(pred, gt, thres)
+
+    The prediction can be further improved by conducting median filtering to remove noise:
+
+    .. code-block:: python
+
+        from connectomics.utils.evaluation import get_binary_jaccard
+        from connectomics.utils.processing import binarize_and_median
+        pred = pred / 255. # output is casted to uint8 with range [0,255].
+        pred = binarize_and_median(pred, size=(7,7,7), thres=0.8)
+        gt = (gt!==0).astype(np.uint8)
+        scores = get_binary_jaccard(pred, gt) # prediction is already binarized
+
+Our pretained model achieves a foreground IoU and IoU of **0.892** and **0.943** on the test set, respectively. The results are better or on par with
+state-of-the-art approaches. Please check `BENCHMARK.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/BENCHMARK.md>`_  for detailed performance 
+comparison and the pre-trained models.
 
 Instance Segmentation
 ----------------------
