@@ -1,6 +1,10 @@
 MitoEM Instance Segmentation
 =============================
 
+.. warning::
+    This page will be deprecated soon.  Please check `the updated page <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#>`_ for a more
+    comprehensive mitochondria segmentation tutorial.
+
 This tutorial provides step-by-step guidance for mitochondria segmentation with our benchmark datasets `MitoEM <https://donglaiw.github.io/page/mitoEM/index.html>`_.
 We consider the task as 3D instance segmentation task and provide three different confiurations of the model output. 
 The model is ``unet_res_3d``, similar to the one used in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_.

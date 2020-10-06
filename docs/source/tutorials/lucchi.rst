@@ -1,6 +1,10 @@
 Mitochondria Segmentation
 ==========================
 
+.. warning::
+    This page will be deprecated soon. Please check `the updated page <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#>`_ for a more
+    comprehensive mitochondria segmentation tutorial.
+
 This tutorial provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by `Lucchi et al. <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`_.
 We consider the task as a semantic segmentation task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).
