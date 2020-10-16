@@ -52,6 +52,7 @@ _C.MODEL.NORM_MODE = 'bn'
 
 # Activation mode, possible options: 'relu', 'elu', 'leaky'
 _C.MODEL.ACT_MODE = 'elu'
+_C.MODEL.OUTPUT_ACT = 'sigmoid' # activation for the output layer
 
 # If MODEL.EMBEDDING = 1 will do embedding
 _C.MODEL.EMBEDDING = 1

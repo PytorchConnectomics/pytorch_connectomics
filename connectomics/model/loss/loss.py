@@ -135,6 +135,22 @@ class WeightedBCE(nn.Module):
         #_assert_no_grad(target)
         return F.binary_cross_entropy(pred, target, weight)
 
+class WeightedCE(nn.Module):
+    """Mask weighted multi-class cross-entropy (CE) loss.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, pred, target, weight_mask=None):
+        # Different from, F.binary_cross_entropy, the "weight" parameter
+        # in F.cross_entropy is a manual rescaling weight given to each 
+        # class. Therefore we need to multiply the weight mask after the
+        # loss calculation.
+        loss = F.cross_entropy(pred, target, reduction='none')
+        if weight_mask is not None:
+            loss = loss * weight_mask
+        return loss.mean()
+
 #######################################################
 # 1. Regularization
 #######################################################

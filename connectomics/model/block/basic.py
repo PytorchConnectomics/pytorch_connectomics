@@ -17,6 +17,15 @@ def get_functional_act(mode='relu'):
         return F.leaky_relu(inplace=True, negative_slope=float(mode[5:]))
     raise ValueError('Unknown activation functional option {}'.format(mode))
 
+def get_torch_act(mode='sigmoid'):
+    activation_map = {
+        'sigmoid': torch.sigmoid,
+        'tanh': torch.tanh,
+        'relu': torch.relu,
+        'none': lambda x: x,
+    }
+    return activation_map(mode)
+
 def get_layer_act(mode=''):
     if mode == '':
         return []

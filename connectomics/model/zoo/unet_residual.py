@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from ..block import *
 from ..utils import *
 
-
 class unet_residual_3d(nn.Module):
     """Lightweight 3D U-net with residual blocks (based on [Lee2017]_ with modifications).
 
@@ -21,11 +20,13 @@ class unet_residual_3d(nn.Module):
         out_channel (int): number of output channels.
         filters (list): number of filters at each u-net stage.
     """
-    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80], pad_mode='rep', norm_mode='bn', act_mode='elu', do_embedding=True, head_depth=1):
+    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80], pad_mode='rep', norm_mode='bn', act_mode='elu', 
+                 do_embedding=True, head_depth=1, output_act='sigmoid'):
         super().__init__()
 
         self.depth = len(filters)-2
         self.do_embedding = do_embedding
+        self.output_act = output_act # activation function for the output layer
 
         # encoding path
         if self.do_embedding: 
@@ -124,5 +125,5 @@ class unet_residual_3d(nn.Module):
         else:
             x = self.upS[0](x)
 
-        x = torch.sigmoid(x)
+        x = get_torch_act(self.output_act)(x)
         return x
