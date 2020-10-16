@@ -168,7 +168,7 @@ def seg_to_targets(label, topts):
         elif topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
         elif topt[0] == '1': 
-            # synaptic polarity (multi-channel):
+            # synaptic polarity:
             tmp = [None]*3 
             tmp[0] = np.logical_and((label % 2) == 1, label > 0)
             tmp[1] = np.logical_and((label % 2) == 0, label > 0)
@@ -191,6 +191,15 @@ def seg_to_targets(label, topts):
         elif topt[0] == '4': # instance boundary mask
             _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
             out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[None,:].astype(np.float32)
+        elif topt[0] == '5': 
+            # multi-channel:
+            num_channel = int(topt[2:])
+            tmp = [None] * num_channel 
+            for i in range(num_channel):
+                tmp[i] = label == (i+1)
+            # concatenate at channel
+            out[tid] = np.stack(tmp, 0).astype(np.float32)
+
     return out
 
 def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
