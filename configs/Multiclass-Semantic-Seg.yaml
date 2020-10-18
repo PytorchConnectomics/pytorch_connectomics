@@ -1,0 +1,44 @@
+# All other configurations are set by default. If you want to add new config options,
+# please modify ../connectomics/config/config.py
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 8
+MODEL:
+  ARCHITECTURE: 'unet_residual_3d'
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 12
+  LOSS_OPTION: [['WeightedCE']]
+  LOSS_WEIGHT: [[1.0]]
+  # Currently for multi-class semantic segmentation, only one
+  # target option is supported. Using other options with semantic
+  # segmentation will be supported in future release.
+  TARGET_OPT: ['9-12']
+  WEIGHT_OPT: [['0']]
+  OUTPUT_ACT: 'none'
+DATASET:
+  IMAGE_NAME: '<name/of/image (h5py volumes)>'
+  LABEL_NAME: '<name/of/label (h5py volumes)>'
+  INPUT_PATH: '<path/to/data>'
+  OUTPUT_PATH: 'outputs/semantic_seg/'
+  PAD_SIZE: [4, 128, 128]
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  BASE_LR: 0.01
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 50000
+  SAMPLES_PER_BATCH: 8
+  STEPS: (40000, 45000)
+INFERENCE:
+  IMAGE_NAME: '<name/of/image (h5py volumes)>'
+  OUTPUT_PATH: 'outputs/semantic_seg/test'
+  AUG_MODE: 'mean'
+  AUG_NUM: 4
+  OUTPUT_NAME: 'semantic_pred.h5'
+  STRIDE: [4, 128, 128]
+  SAMPLES_PER_BATCH: 16
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  PAD_SIZE: [4, 128, 128]

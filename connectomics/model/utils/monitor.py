@@ -42,11 +42,12 @@ class Logger(object):
 
 class Monitor(object):
     """Computes and stores the average and current value"""
-    def __init__(self, log_path='', log_opt=[1,1,0,1], vis_opt=[0,8], iter_num=[10,100], do_2d=False):
+    def __init__(self, cfg, log_path='', log_opt=[1,1,0,1], vis_opt=[0,8], iter_num=[10,100], 
+                 do_2d=False):
         # log_opt: do_tb, do_txt, batch_size, log_iteration
         # vis_opt: vis_type, vis_number_section, do_2d
         self.logger = Logger(log_path, log_opt[:3], log_opt[3])
-        self.vis = Visualizer(vis_opt[0], vis_opt[1], do_2d)
+        self.vis = Visualizer(cfg, vis_opt[0], vis_opt[1], do_2d)
         self.log_iter, self.vis_iter = iter_num
         self.do_vis = False if self.logger.log_tb is None else True
 
@@ -61,8 +62,8 @@ class Monitor(object):
                 do_vis = self.do_vis
         return do_vis
 
-    def visualize(self, cfg, volume, label, output, iter_total):
-        self.vis.visualize(cfg, volume, label, output, iter_total, self.logger.log_tb)
+    def visualize(self, volume, label, output, iter_total):
+        self.vis.visualize(volume, label, output, iter_total, self.logger.log_tb)
 
     def load_config(self, cfg):
         self.logger.log_tb.add_text('Config', str(cfg), 0)

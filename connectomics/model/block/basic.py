@@ -8,23 +8,15 @@ from ..norm import *
 
 # common layers
 def get_functional_act(mode='relu'):
-    if mode == 'relu':
-        return F.relu(inplace=True)
-    elif mode == 'elu':
-        return F.elu(inplace=True)
-    elif mode[:5] == 'leaky':
-        # 'leaky0.2' 
-        return F.leaky_relu(inplace=True, negative_slope=float(mode[5:]))
-    raise ValueError('Unknown activation functional option {}'.format(mode))
-
-def get_torch_act(mode='sigmoid'):
-    activation_map = {
-        'sigmoid': torch.sigmoid,
+    activation_dict = {
+        'relu': F.relu_,
         'tanh': torch.tanh,
-        'relu': torch.relu,
+        'elu': F.elu_,
+        'sigmoid': torch.sigmoid,
+        'softmax': lambda x: F.softmax(x, dim=1),
         'none': lambda x: x,
     }
-    return activation_map(mode)
+    return activation_dict[mode]
 
 def get_layer_act(mode=''):
     if mode == '':

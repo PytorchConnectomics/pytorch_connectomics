@@ -87,7 +87,7 @@ class Trainer(object):
             # logging and update record
             do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, self.optimizer.param_groups[0]['lr']) 
             if do_vis:
-                self.monitor.visualize(self.cfg, volume, target, pred, iter_total)
+                self.monitor.visualize(volume, target, pred, iter_total)
                 # Display GPU stats using the GPUtil package.
                 GPUtil.showUtilization(all=True)
 

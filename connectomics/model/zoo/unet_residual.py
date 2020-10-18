@@ -125,5 +125,5 @@ class unet_residual_3d(nn.Module):
         else:
             x = self.upS[0](x)
 
-        x = get_torch_act(self.output_act)(x)
+        x = get_functional_act(self.output_act)(x)
         return x

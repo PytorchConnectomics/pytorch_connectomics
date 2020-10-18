@@ -42,6 +42,8 @@ class Criterion(object):
                     out[i][j] = JaccardLoss()
                 elif lopt == 'DiceLoss':
                     out[i][j] = DiceLoss()
+                elif lopt == 'WeightedCE':
+                    out[i][j] = WeightedCE()
                 else:
                     print('Unknown loss option {}'.format(lopt))
         return out
@@ -57,7 +59,7 @@ class Criterion(object):
         cid = 0 # channel index for prediction
         for i in range(self.num_target):
             # for each target
-            numC = target[i].shape[1]
+            numC = self.get_num_channel(i, target)
             target_t = self.to_torch(target[i])
             for j in range(len(self.loss[i])):
                 if weight[i][j].shape[-1] == 1: # placeholder for no weight
@@ -68,3 +70,12 @@ class Criterion(object):
         for i in range(self.num_regu):
             loss += self.regu[i](pred)*self.regu_w[i]
         return loss
+
+    def get_num_channel(self, i, target):
+        topt = self.target_opt[i]
+        if topt[0] == '9': # generic segmantic segmentation
+            numC = topt.split('-')[1]
+            numC = int(numC)
+        else:
+            numC = target[i].shape[1]
+        return numC

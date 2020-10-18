@@ -71,7 +71,7 @@ def build_monitor(cfg):
     log_path = os.path.join(cfg.DATASET.OUTPUT_PATH, 'log'+date+'_'+time)
     if not os.path.isdir(log_path):
         os.makedirs(log_path)
-    return Monitor(log_path, cfg.MONITOR.LOG_OPT+[cfg.SOLVER.SAMPLES_PER_BATCH],\
+    return Monitor(cfg, log_path, cfg.MONITOR.LOG_OPT+[cfg.SOLVER.SAMPLES_PER_BATCH],\
                    cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM, cfg.DATASET.DO_2D)
 
 def build_criterion(cfg, device):

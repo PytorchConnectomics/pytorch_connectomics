@@ -363,6 +363,13 @@ def update_inference_cfg(cfg):
         cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
     if len(cfg.INFERENCE.OUTPUT_SIZE) != 0:
         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+    for topt in cfg.MODEL.TARGET_OPT:
+        # For multi-class semantic segmentation, no activation function
+        # is applied at the output layer during training. For inference
+        # where the output is assumed to be in (0,1), we apply softmax. 
+        if topt[0] == '9' and cfg.MODEL.OUTPUT_ACT == 'none':
+            cfg.MODEL.OUTPUT_ACT = 'softmax'
+            break
 
 def save_all_cfg(cfg, output_dir):
     """Save configs in the output directory."""
@@ -372,3 +379,7 @@ def save_all_cfg(cfg, output_dir):
     with open(path, "w") as f:
         f.write(cfg.dump())
     print("Full config saved to {}".format(path))
+
+def overwrite_cfg(cfg, args):
+    """Overwrite some configs given configs with higher priority."""
+    raise NotImplementedError
