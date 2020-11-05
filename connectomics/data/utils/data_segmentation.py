@@ -54,8 +54,9 @@ def im2col(A, BSZ, stepsize=1):
     return np.take(A,start_idx.ravel()[:,None] + offset_idx.ravel())
 
 def seg_widen_border(seg, tsz_h=1):
-    # Kisuk Lee's thesis (A.1.4) 
-    # we preprocessed the ground truth seg such that any voxel centered on a 3 × 3 × 1 window containing more than one positive segment ID (zero is reserved for background) is marked as background
+    # Kisuk Lee's thesis (A.1.4): 
+    # "we preprocessed the ground truth seg such that any voxel centered on a 3 × 3 × 1 window containing 
+    # more than one positive segment ID (zero is reserved for background) is marked as background."
     # seg=0: background
     tsz = 2*tsz_h+1
     sz = seg.shape
@@ -192,7 +193,7 @@ def seg_to_targets(label, topts):
 
     return out
 
-def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
+def weight_binary_ratio(label, mask=None, alpha=1.0):
     """Binary-class rebalancing."""
     # input: numpy tensor
     # weight for smaller class is 1, the bigger one is at most 20*alpha
@@ -215,10 +216,7 @@ def weight_binary_ratio(label, mask=None, alpha=1.0, return_factor=False):
         if mask is not None:
             weight = weight*mask
 
-    if return_factor: 
-        return weight_factor, weight
-    else:
-        return weight
+    return weight.astype(np.float32)
 
 def weight_unet3d(seg, w0=10, sigma=5):
     out = np.zeros_like(seg)

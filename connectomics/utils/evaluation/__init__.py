@@ -1,5 +1,6 @@
 from .eval_seg import *
 
 __all__ = [
-    'get_binary_jaccard'
+    'adapted_rand',
+    'get_binary_jaccard',
 ]
