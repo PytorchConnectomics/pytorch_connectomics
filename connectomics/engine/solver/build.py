@@ -164,7 +164,7 @@ def build_lr_scheduler(
     elif name == "WarmupCosineLR":
         return WarmupCosineLR(
             optimizer,
-            cfg.SOLVER.MAX_ITER,
+            cfg.SOLVER.ITERATION_TOTAL,
             warmup_factor=cfg.SOLVER.WARMUP_FACTOR,
             warmup_iters=cfg.SOLVER.WARMUP_ITERS,
             warmup_method=cfg.SOLVER.WARMUP_METHOD,

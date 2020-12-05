@@ -10,6 +10,29 @@ To enable the development of robust models for large-scale biomedical analysis, 
 
 The configuration files in this folder can be used to produce the 3D mitochondria instance segmentation with higher or comparable performance as reported in the paper.
 
+### Notes
+
+We use [**TileDataset**](https://zudi-lin.github.io/pytorch_connectomics/build/html/_modules/connectomics/data/dataset/dataset_tile.html#TileDataset) for data loading because the training volumes (500x4096x4096) are too large to be directly loaded into memory. The **TileDataset** class reads a JSON file containing the path of the images. We provide examples for MitoEM-R training images ([```im_train.json```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/im_train.json)) and labels ([```mito_train.json```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/mito_train.json)). Please change the path to your own data directory.
+
+A simple Python script for changing the image paths in the JSON file:
+
+```python
+import json
+
+js_path = 'im_train.json'
+my_path = 'path/to/mitoem/'
+with open(js_path, 'r') as fp:
+    data = json.load(fp)
+
+for i in range(len(data['image'])):
+    x = data['image'][i]
+    x = x.strip().split('/')
+    data['image'][i] = my_path+'/'.join(x[-3:])
+
+with open(js_path, 'w') as fp:
+    json.dump(data, fp)
+```
+
 ### Citation
 
 ```bibtex
