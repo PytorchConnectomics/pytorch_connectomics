@@ -213,7 +213,7 @@
 <span id="post-processing"></span><h2><a class="toc-backref" href="#id1">Post-processing</a><a class="headerlink" href="#module-connectomics.utils.processing" title="Permalink to this headline">¶</a></h2>
 <dl class="function">
 <dt id="connectomics.utils.processing.binary_connected">
-<code class="descname">binary_connected</code><span class="sig-paren">(</span><em>volume</em>, <em>thres=0.8</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#binary_connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.binary_connected" title="Permalink to this definition">¶</a></dt>
+<code class="descname">binary_connected</code><span class="sig-paren">(</span><em>volume</em>, <em>thres=0.8</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>remove_small_mode='background'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#binary_connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.binary_connected" title="Permalink to this definition">¶</a></dt>
 <dd><p>From binary foreground probability map to instance masks via
 connected-component labeling.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -225,6 +225,7 @@ connected-component labeling.</p>
 <li><strong>thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – threshold of foreground. Default: 0.8</li>
 <li><strong>thres_small</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – size threshold of small objects to remove. Default: 128</li>
 <li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – scale factors for resizing in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
+<li><strong>remove_small_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – <code class="docutils literal"><span class="pre">'background'</span></code> or <code class="docutils literal"><span class="pre">'neighbor'</span></code>. Default: <code class="docutils literal"><span class="pre">'background'</span></code></li>
 </ul>
 </td>
 </tr>
@@ -234,7 +235,7 @@ connected-component labeling.</p>
 
 <dl class="function">
 <dt id="connectomics.utils.processing.binary_watershed">
-<code class="descname">binary_watershed</code><span class="sig-paren">(</span><em>volume</em>, <em>thres1=0.98</em>, <em>thres2=0.85</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#binary_watershed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.binary_watershed" title="Permalink to this definition">¶</a></dt>
+<code class="descname">binary_watershed</code><span class="sig-paren">(</span><em>volume</em>, <em>thres1=0.98</em>, <em>thres2=0.85</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>remove_small_mode='background'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#binary_watershed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.binary_watershed" title="Permalink to this definition">¶</a></dt>
 <dd><p>From binary foreground probability map to instance masks via
 watershed segmentation algorithm.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -247,6 +248,7 @@ watershed segmentation algorithm.</p>
 <li><strong>thres2</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – threshold of foreground. Default: 0.85</li>
 <li><strong>thres_small</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – size threshold of small objects to remove. Default: 128</li>
 <li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – scale factors for resizing in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
+<li><strong>remove_small_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – <code class="docutils literal"><span class="pre">'background'</span></code> or <code class="docutils literal"><span class="pre">'neighbor'</span></code>. Default: <code class="docutils literal"><span class="pre">'background'</span></code></li>
 </ul>
 </td>
 </tr>
@@ -256,7 +258,7 @@ watershed segmentation algorithm.</p>
 
 <dl class="function">
 <dt id="connectomics.utils.processing.bc_connected">
-<code class="descname">bc_connected</code><span class="sig-paren">(</span><em>volume</em>, <em>thres1=0.8</em>, <em>thres2=0.5</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>dilation_struct=(1</em>, <em>5</em>, <em>5)</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#bc_connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.bc_connected" title="Permalink to this definition">¶</a></dt>
+<code class="descname">bc_connected</code><span class="sig-paren">(</span><em>volume</em>, <em>thres1=0.8</em>, <em>thres2=0.5</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>dilation_struct=(1</em>, <em>5</em>, <em>5)</em>, <em>remove_small_mode='background'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#bc_connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.bc_connected" title="Permalink to this definition">¶</a></dt>
 <dd><p>From binary foreground probability map and instance contours to
 instance masks via connected-component labeling.</p>
 <div class="admonition note">
@@ -278,6 +280,7 @@ the object masks.</p>
 <li><strong>thres_small</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – size threshold of small objects to remove. Default: 128</li>
 <li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – scale factors for resizing in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
 <li><strong>dilation_struct</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – the shape of the structure for morphological dilation. Default: <span class="math">\((1, 5, 5)\)</span></li>
+<li><strong>remove_small_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – <code class="docutils literal"><span class="pre">'background'</span></code> or <code class="docutils literal"><span class="pre">'neighbor'</span></code>. Default: <code class="docutils literal"><span class="pre">'background'</span></code></li>
 </ul>
 </td>
 </tr>
@@ -287,7 +290,7 @@ the object masks.</p>
 
 <dl class="function">
 <dt id="connectomics.utils.processing.bc_watershed">
-<code class="descname">bc_watershed</code><span class="sig-paren">(</span><em>volume</em>, <em>thres1=0.9</em>, <em>thres2=0.8</em>, <em>thres3=0.85</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#bc_watershed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.bc_watershed" title="Permalink to this definition">¶</a></dt>
+<code class="descname">bc_watershed</code><span class="sig-paren">(</span><em>volume</em>, <em>thres1=0.9</em>, <em>thres2=0.8</em>, <em>thres3=0.85</em>, <em>thres_small=128</em>, <em>scale_factors=(1.0</em>, <em>1.0</em>, <em>1.0)</em>, <em>remove_small_mode='background'</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#bc_watershed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.bc_watershed" title="Permalink to this definition">¶</a></dt>
 <dd><p>From binary foreground probability map and instance contours to
 instance masks via watershed segmentation algorithm.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -301,6 +304,7 @@ instance masks via watershed segmentation algorithm.</p>
 <li><strong>thres3</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – threshold of foreground. Default: 0.85</li>
 <li><strong>thres_small</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – size threshold of small objects to remove. Default: 128</li>
 <li><strong>scale_factors</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – scale factors for resizing in <span class="math">\((Z, Y, X)\)</span> order. Default: <span class="math">\((1.0, 1.0, 1.0)\)</span></li>
+<li><strong>remove_small_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – <code class="docutils literal"><span class="pre">'background'</span></code> or <code class="docutils literal"><span class="pre">'neighbor'</span></code>. Default: <code class="docutils literal"><span class="pre">'background'</span></code></li>
 </ul>
 </td>
 </tr>

@@ -1,6 +1,6 @@
 ## MitoEM Dataset: Large-scale 3D Mitochondria Instance Segmentation from EM Images
 
-[[Project Page](https://donglaiw.github.io/page/mitoEM/index.html)] [[Tutorial](https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mitoem.html)]
+[[**Challenge Page**](https://mitoem.grand-challenge.org/)] [[Project Page](https://donglaiw.github.io/page/mitoEM/index.html)] [[Tutorial](https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation)]
 
 ### Introduction
 
@@ -12,7 +12,7 @@ The configuration files in this folder can be used to produce the 3D mitochondri
 
 ### Notes
 
-We use [**TileDataset**](https://zudi-lin.github.io/pytorch_connectomics/build/html/_modules/connectomics/data/dataset/dataset_tile.html#TileDataset) for data loading because the training volumes (500x4096x4096) are too large to be directly loaded into memory. The **TileDataset** class reads a JSON file containing the path of the images. We provide examples for MitoEM-R training images ([```im_train.json```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/im_train.json)) and labels ([```mito_train.json```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/mito_train.json)). Please change the path to your own data directory.
+We use [**TileDataset**](https://zudi-lin.github.io/pytorch_connectomics/build/html/_modules/connectomics/data/dataset/dataset_tile.html#TileDataset) for data loading because the training volumes (400x4096x4096) are too large to be directly loaded into memory. The **TileDataset** class reads a JSON file containing the path of the images. We provide examples for MitoEM-R training images ([```im_train.json```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/im_train.json)) and labels ([```mito_train.json```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/mito_train.json)). Please change the path to your own data directory.
 
 A simple Python script for changing the image paths in the JSON file:
 
