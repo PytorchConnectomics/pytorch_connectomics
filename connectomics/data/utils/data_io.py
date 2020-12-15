@@ -77,8 +77,8 @@ def writeh5(filename, dtarray, dataset='main'):
 ####################################################################
 def vast2Seg(seg):
     # convert to 24 bits
-    if seg.ndim==2:
-        return seg
+    if seg.ndim==2 or seg.shape[2]==1:
+        return np.squeeze(seg)
     else: #vast: rgb
         return seg[:,:,0].astype(np.uint32)*65536+seg[:,:,1].astype(np.uint32)*256+seg[:,:,2].astype(np.uint32)
 
