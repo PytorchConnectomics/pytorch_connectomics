@@ -71,10 +71,10 @@ def seg_widen_border(seg, tsz_h=1):
     else:
         mm = seg.max()
         patch = im2col(np.pad(seg,((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
-        p0=patch.max(axis=1)
-        patch[patch==0] = mm+1
-        p1=patch.min(axis=1)
-        seg =seg*((p0==p1).reshape(sz[1:]))
+        p0 = patch.max(axis=1)
+        patch[patch == 0] = mm + 1
+        p1 = patch.min(axis = 1)
+        seg = seg * ((p0 == p1).reshape(sz))
     return seg
 
 def seg_to_small_seg(seg,thres=25,rr=2):

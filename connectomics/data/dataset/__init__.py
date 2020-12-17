@@ -9,7 +9,7 @@ import torchvision.utils as vutils
 
 from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
-from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol
+from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol, vast2Seg
 from ..augmentation import *
 
 __all__ = ['VolumeDataset',
@@ -51,6 +51,10 @@ def _get_input(cfg, mode='train'):
 
         if mode=='train':
             label[i] = readvol(label_name[i])
+            if cfg.DATASET.LABEL_VAST:
+                label[i] = vast2Seg(label[i])
+            if label[i].ndim == 2: # make it into 3D volume
+                label[i] = label[i][None,:]
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0) 
             if cfg.DATASET.LABEL_EROSION!=0:
