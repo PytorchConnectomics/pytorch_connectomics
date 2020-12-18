@@ -5,7 +5,8 @@ import torch
 from itertools import combinations
 
 class MixupAugmentor(object):
-    """Mixup augmentor (experimental). 
+    """Mixup augmentor (experimental). Conduct linear interpolation between two image samples. 
+    The segmentation mask of the sample with higher weight should be used with the augmented output. 
 
     The input can be a `numpy.ndarray` or `torch.Tensor` of shape :math:`(B, C, Z, Y, X)`.
     
@@ -20,7 +21,11 @@ class MixupAugmentor(object):
         >>> volume = mixup_augmentor(volume)
         >>> pred = model(volume)
     """  
-    def __init__(self, min_ratio=0.7, max_ratio=0.9, num_aug=2):
+    def __init__(self, 
+                 min_ratio: float = 0.7, 
+                 max_ratio: float = 0.9, 
+                 num_aug: int = 2):
+
         self.min_ratio = min_ratio
         self.max_ratio = max_ratio
         self.num_aug = num_aug
@@ -35,7 +40,10 @@ class MixupAugmentor(object):
 
         num_aug = self.num_aug if self.num_aug <= num_vol else num_vol
         indices = list(range(num_vol))
+
+        # random sampling without replacement 
         major_idx = random.sample(indices, num_aug) 
+
         minor_idx = []
         for x in major_idx:
             temp = indices.copy()

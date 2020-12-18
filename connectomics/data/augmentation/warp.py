@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+from typing import Optional
+
 import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
@@ -7,6 +10,7 @@ from .augmentor import DataAugment
 class Elastic(DataAugment):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     The implementation is based on https://gist.github.com/erniejunior/601cdf56d2b424757de5.
+    This augmentation is applied to both images and masks.
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
         Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -17,60 +21,64 @@ class Elastic(DataAugment):
         alpha (float): maximum pixel-moving distance of elastic deformation. Default: 10.0
         sigma (float): standard deviation of the Gaussian filter. Default: 4.0
         p (float): probability of applying the augmentation. Default: 0.5
+        additional_targets(dict, optional): additional targets to augment. Default: None
     """
+
+    interpolation = {'img': cv2.INTER_LINEAR, 
+                     'mask': cv2.INTER_NEAREST}
+    border_mode = cv2.BORDER_CONSTANT
+
     def __init__(self,
-                 alpha=10.0,
-                 sigma=4.0,
-                 p=0.5):
+                 alpha: float = 10.0,
+                 sigma: float = 4.0,
+                 p: float = 0.5,
+                 additional_targets: Optional[dict] = None):
         
-        super(Elastic, self).__init__(p)
+        super(Elastic, self).__init__(p, additional_targets)
         self.alpha = alpha
         self.sigma = sigma
-        self.image_interpolation = cv2.INTER_LINEAR
-        self.label_interpolation = cv2.INTER_NEAREST
-        self.border_mode = cv2.BORDER_CONSTANT
         self.set_params()
 
     def set_params(self):
         max_margin = int(self.alpha) + 1
         self.sample_params['add'] = [0, max_margin, max_margin]
 
-    def __call__(self, data, random_state=np.random):
-        if 'label' in data and data['label'] is not None:
-            image, label = data['image'], data['label']
-        else:
-            image = data['image']  
+    def elastic_wrap(self, images, mapx, mapy, target_type='img'):
+        transformed_images = []
 
-        height, width = image.shape[-2:] # (c, z, y, x)
+        assert images.ndim in [3, 4]
+        for i in range(images.shape[-3]):
+            if images.ndim == 3:
+                transformed_images.append(cv2.remap(images[i], mapx, mapy, 
+                    self.interpolation[target_type], borderMode=self.border_mode))     
+            else: # multi-channel images in (c,z,y,x) format
+                temp = [cv2.remap(images[channel, i], mapx, mapy, self.interpolation[target_type], 
+                        borderMode=self.border_mode) for channel in range(images.shape[0])]     
+                transformed_images.append(np.stack(temp, 0))          
+
+        axis = 0 if images.ndim == 3 else 1
+        transformed_images = np.stack(transformed_images, axis)
+
+        return transformed_images
+
+    def get_random_params(self, images, random_state):
+        height, width = images.shape[-2:] # (c, z, y, x) or (z, y, x)
 
         dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), self.sigma) * self.alpha)
         dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), self.sigma) * self.alpha)
 
         x, y = np.meshgrid(np.arange(width), np.arange(height))
         mapx, mapy = np.float32(x + dx), np.float32(y + dy)
+        return mapx, mapy
 
-        output = {}
-        transformed_image = []
-        transformed_label = []
+    def __call__(self, sample, random_state=np.random.RandomState()):
+        images = sample['image'].copy()
+        mapx, mapy = self.get_random_params(images, random_state)
+        sample['image'] = self.elastic_wrap(images, mapx, mapy, 'img')
 
-        for i in range(image.shape[-3]):
-            if image.ndim == 3:
-                transformed_image.append(cv2.remap(image[i], mapx, mapy, 
-                                    self.image_interpolation, borderMode=self.border_mode))     
-            else:
-                temp = [cv2.remap(image[channel, i], mapx, mapy, self.image_interpolation, 
-                        borderMode=self.border_mode) for channel in range(image.shape[0])]     
-                transformed_image.append(np.stack(temp, 0))          
-            if 'label' in data and data['label'] is not None:
-                transformed_label.append(cv2.remap(label[i], mapx, mapy, self.label_interpolation, borderMode=self.border_mode))
+        for key in self.additional_targets.keys():
+            sample[key] = self.elastic_wrap(sample[key].copy(), mapx, mapy, 
+                target_type = self.additional_targets[key])
 
-        if image.ndim == 3: # (z,y,x)
-            transformed_image = np.stack(transformed_image, 0)
-        else: # (c,z,y,x)
-            transformed_image = np.stack(transformed_image, 1)
-
-        transformed_label = np.stack(transformed_label, 0)
-        output['image'] = transformed_image
-        output['label'] = transformed_label
-
-        return output
+        return sample
+        

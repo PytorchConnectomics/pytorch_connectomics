@@ -135,8 +135,8 @@ _C.DATASET.DATA_CHUNK_STRIDE = True
 # Chunk parameters for tile format: chunk_iter_num
 _C.DATASET.DATA_CHUNK_ITER = 1000
 
-# Number of voxel to exceed for a valid sample
-_C.DATASET.DATA_INVALID_THRES = [0, 0]
+# Handle dataset with partial annotation.
+_C.DATASET.VALID_RATIO = 0.5
 
 _C.DATASET.PRE_LOAD_DATA = [None, None, None]
 
@@ -145,10 +145,6 @@ _C.DATASET.PRE_LOAD_DATA = [None, None, None]
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
-# By default, we conduct rejection sampling before data augmentation to
-# save data loading time. However, the final output after augmentation
-# may not satisfy the SIZE_THRES. Thus some tasks require AFTER_AUG=True.
-_C.DATASET.REJECT_SAMPLING.AFTER_AUG = False
 _C.DATASET.REJECT_SAMPLING.P = 0.95
 
 # -----------------------------------------------------------------------------
