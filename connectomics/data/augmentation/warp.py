@@ -29,7 +29,7 @@ class Elastic(DataAugment):
     border_mode = cv2.BORDER_CONSTANT
 
     def __init__(self,
-                 alpha: float = 10.0,
+                 alpha: float = 16.0,
                  sigma: float = 4.0,
                  p: float = 0.5,
                  additional_targets: Optional[dict] = None):

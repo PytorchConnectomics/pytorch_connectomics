@@ -125,7 +125,7 @@ class Compose(object):
                 sample = t(sample, random_state)
 
         # crop the data to the specified input size
-        existing_keys = sample.copy().keys()
+        existing_keys = ['image'] + list(self.additional_targets.keys())
         for key in existing_keys:
             if self.keep_uncropped:
                 new_key = 'uncropped_' + str(key)

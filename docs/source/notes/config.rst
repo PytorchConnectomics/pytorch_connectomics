@@ -97,6 +97,8 @@ Currently five kinds of ``TARGET_OPT`` are supported:
 
 - ``'4'``: instance boundaries (used in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_).
 
+- ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents the 12 semantic classes.
+
 More options will be provided soon!
 
 Inference

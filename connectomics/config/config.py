@@ -98,13 +98,13 @@ _C.DATASET.DATA_SCALE = [1., 1., 1.]
 _C.DATASET.SCALE_FACTOR = [2, 3, 3]
 
 # Specify the data path in the *.yaml files for different experiments.
-_C.DATASET.IMAGE_NAME = ''
+_C.DATASET.IMAGE_NAME = 'train_image.h5'
+_C.DATASET.LABEL_NAME = None
+_C.DATASET.VALID_MASK_NAME = None
 
-_C.DATASET.LABEL_NAME = ''
+_C.DATASET.INPUT_PATH = 'path/to/input'
 
-_C.DATASET.INPUT_PATH = ''
-
-_C.DATASET.OUTPUT_PATH = ''
+_C.DATASET.OUTPUT_PATH = 'path/to/output'
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False
@@ -157,7 +157,13 @@ _C.AUGMENTOR = CN()
 # to smooth the object boundary (default: True).
 _C.AUGMENTOR.SMOOTH = True
 
+# CfgNodes can only contain a limited set of valid types:
+# _VALID_TYPES = {tuple, list, str, int, float, bool, type(None)}
+_C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = None
+_C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = None
+
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
+_C.AUGMENTOR.ROTATE.ROT90 = True
 _C.AUGMENTOR.ROTATE.P = 0.5
 
 _C.AUGMENTOR.RESCALE = CN({"ENABLED": True})

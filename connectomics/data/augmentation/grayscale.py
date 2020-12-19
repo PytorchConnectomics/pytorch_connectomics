@@ -53,7 +53,7 @@ class Grayscale(DataAugment):
         if self.mode == '2D':
             aug_func = self._augment2D 
             ran = random_state.rand(images.shape[-3]*3)
-        elif self.mode == '3D':
+        else:
             aug_func = self._augment3D 
             ran = random_state.rand(3)
 

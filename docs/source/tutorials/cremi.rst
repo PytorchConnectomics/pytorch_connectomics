@@ -8,6 +8,7 @@ The evaluation of the synapse detection results is based on the F1 score and ave
 for more details.
 
 .. note::
+
     We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse 
     the alignment before submitting the test prediction to the CREMI challenge.
 
