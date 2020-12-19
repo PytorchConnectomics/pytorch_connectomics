@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,7 +205,9 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.flip</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">random</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
@@ -208,13 +216,19 @@
 <span class="sd">    Randomly flip along `z`-, `y`- and `x`-axes as well as swap `y`- and `x`-axes </span>
 <span class="sd">    for anisotropic image volumes. For learning on isotropic image volumes set </span>
 <span class="sd">    :attr:`do_ztrans` to 1 to swap `z`- and `x`-axes (the inputs need to be cubic).</span>
+<span class="sd">    This augmentation is applied to both images and masks.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
 <span class="sd">        do_ztrans (int): set to 1 to swap z- and x-axes for isotropic data. Default: 0</span>
+<span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">do_ztrans</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Flip</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                 <span class="n">do_ztrans</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> 
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Flip</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span> <span class="o">=</span> <span class="n">do_ztrans</span>
 
     <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -257,16 +271,13 @@
                 <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span>
     
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
-        <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
-
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
         <span class="n">rule</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span><span class="p">)</span>
-        <span class="n">augmented_image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">rule</span><span class="p">)</span>
-        <span class="n">augmented_label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span> <span class="n">rule</span><span class="p">)</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">augmented_image</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">augmented_label</span>
+        <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">rule</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_and_swap</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">rule</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">output</span></div>
+        <span class="k">return</span> <span class="n">sample</span></div>
 </pre></div>
 
            </div>

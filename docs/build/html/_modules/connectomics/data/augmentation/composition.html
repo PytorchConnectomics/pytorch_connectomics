@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,12 +205,9 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.composition</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">division</span>
-
-<span class="kn">import</span> <span class="nn">warnings</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-
-<span class="kn">from</span> <span class="nn">skimage.morphology</span> <span class="kn">import</span> <span class="n">dilation</span><span class="p">,</span> <span class="n">erosion</span>
 <span class="kn">from</span> <span class="nn">skimage.filters</span> <span class="kn">import</span> <span class="n">gaussian</span>
 
 <div class="viewcode-block" id="Compose"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Compose">[docs]</a><span class="k">class</span> <span class="nc">Compose</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
@@ -215,29 +218,37 @@
 <span class="sd">    valid after center-crop.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        transforms (list): list of transformations to compose</span>
+<span class="sd">        transforms (list): list of transformations to compose.</span>
 <span class="sd">        input_size (tuple): input size of model in :math:`(z, y, x)` order. Default: :math:`(8, 256, 256)`</span>
 <span class="sd">        smooth (bool): smoothing the object mask with Gaussian filtering. Default: True</span>
 <span class="sd">        keep_uncropped (bool): keep uncropped image and label. Default: False</span>
 <span class="sd">        keep_non_smooth (bool): keep the non-smoothed object mask. Default: False</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 
 <span class="sd">    Examples::</span>
-<span class="sd">        &gt;&gt;&gt; augmentor = Compose([Rotate(p=1.0),</span>
-<span class="sd">        &gt;&gt;&gt;                      Flip(p=1.0),</span>
-<span class="sd">        &gt;&gt;&gt;                      Elastic(alpha=12.0, p=0.75),</span>
-<span class="sd">        &gt;&gt;&gt;                      Grayscale(p=0.75),</span>
-<span class="sd">        &gt;&gt;&gt;                      MissingParts(p=0.9)], </span>
-<span class="sd">        &gt;&gt;&gt;                      input_size = (8, 256, 256))</span>
-<span class="sd">        &gt;&gt;&gt; data = {&#39;image&#39;:input, &#39;label&#39;:label}</span>
+<span class="sd">        &gt;&gt;&gt; # specify addtional targets besides &#39;image&#39;</span>
+<span class="sd">        &gt;&gt;&gt; kwargs = {&#39;additional_targets&#39;: {&#39;label&#39;: &#39;mask&#39;}}</span>
+<span class="sd">        &gt;&gt;&gt; augmentor = Compose([Rotate(p=1.0, **kwargs),</span>
+<span class="sd">        &gt;&gt;&gt;                      Flip(p=1.0, **kwargs),</span>
+<span class="sd">        &gt;&gt;&gt;                      Elastic(alpha=12.0, p=0.75, **kwargs),</span>
+<span class="sd">        &gt;&gt;&gt;                      Grayscale(p=0.75, **kwargs),</span>
+<span class="sd">        &gt;&gt;&gt;                      MissingParts(p=0.9, **kwargs)], </span>
+<span class="sd">        &gt;&gt;&gt;                      input_size = (8, 256, 256), **kwargs)</span>
+<span class="sd">        &gt;&gt;&gt; sample = {&#39;image&#39;:input, &#39;label&#39;:label}</span>
 <span class="sd">        &gt;&gt;&gt; augmented = augmentor(data)</span>
 <span class="sd">        &gt;&gt;&gt; out_input, out_label = augmented[&#39;image&#39;], augmented[&#39;label&#39;]</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">smooth_sigma</span> <span class="o">=</span> <span class="mf">2.0</span>
+    <span class="n">smooth_threshold</span> <span class="o">=</span> <span class="mf">0.5</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                 <span class="n">transforms</span><span class="p">,</span> 
-                 <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">256</span><span class="p">,</span><span class="mi">256</span><span class="p">),</span>
-                 <span class="n">smooth</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-                 <span class="n">keep_uncropped</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-                 <span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+                 <span class="n">transforms</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[],</span> 
+                 <span class="n">input_size</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">256</span><span class="p">,</span><span class="mi">256</span><span class="p">),</span>
+                 <span class="n">smooth</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">keep_uncropped</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">keep_non_smoothed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transforms</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_flip</span><span class="p">()</span>
@@ -249,12 +260,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">smooth</span> <span class="o">=</span> <span class="n">smooth</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span> <span class="o">=</span> <span class="n">keep_uncropped</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="n">keep_non_smoothed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span> <span class="o">=</span> <span class="n">additional_targets</span>
 
     <span class="k">def</span> <span class="nf">set_flip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># Some data augmentation techniques (e.g., elastic wrap, missing parts) are designed only</span>
         <span class="c1"># for x-y planes while some (e.g., missing section, mis-alignment) are only applied along</span>
-        <span class="c1"># the z axis. Thus we let flip augmentation the last one to be applied otherwise shape mis-match</span>
-        <span class="c1"># can happen when do_ztrans is 1 for cubic input volumes.</span>
+        <span class="c1"># the z axis. Thus we let flip augmentation the last one to be applied otherwise shape </span>
+        <span class="c1"># mis-match can happen when do_ztrans is 1 for cubic input volumes.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">flip_idx</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -272,95 +284,75 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">+</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;add&#39;</span><span class="p">]))</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Sample size required for the augmentor:&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_size</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">smooth_edge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-        <span class="n">smoothed_label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">smooth_edge</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">masks</span><span class="p">):</span>
+        <span class="c1"># If self.smooth is True, smooth all the targets with &#39;mask&#39; type.</span>
+        <span class="n">smoothed_masks</span> <span class="o">=</span> <span class="n">masks</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">smoothed_label</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-            <span class="n">temp</span> <span class="o">=</span> <span class="n">smoothed_label</span><span class="p">[</span><span class="n">z</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">smoothed_masks</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="n">temp</span> <span class="o">=</span> <span class="n">smoothed_masks</span><span class="p">[</span><span class="n">z</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
             <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">temp</span><span class="p">):</span>
                 <span class="k">if</span> <span class="n">idx</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">temp</span><span class="o">==</span><span class="n">idx</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
                     <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">):</span>
-                        <span class="n">binary</span> <span class="o">=</span> <span class="n">dilation</span><span class="p">(</span><span class="n">binary</span><span class="p">)</span>
-                        <span class="n">binary</span> <span class="o">=</span> <span class="n">gaussian</span><span class="p">(</span><span class="n">binary</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                        <span class="n">binary</span> <span class="o">=</span> <span class="n">dilation</span><span class="p">(</span><span class="n">binary</span><span class="p">)</span>
-                        <span class="n">binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">binary</span> <span class="o">&gt;</span> <span class="mf">0.8</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+                        <span class="n">binary</span> <span class="o">=</span> <span class="n">gaussian</span><span class="p">(</span><span class="n">binary</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">smooth_sigma</span><span class="p">,</span> <span class="n">preserve_range</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="n">binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">binary</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_threshold</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
             
                     <span class="n">temp</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">temp</span><span class="o">==</span><span class="n">idx</span><span class="p">)]</span><span class="o">=</span><span class="mi">0</span>
                     <span class="n">temp</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">binary</span><span class="o">==</span><span class="mi">1</span><span class="p">)]</span><span class="o">=</span><span class="n">idx</span>
-            <span class="n">smoothed_label</span><span class="p">[</span><span class="n">z</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span>
 
-        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">smoothed_label</span>
-        <span class="k">return</span> <span class="n">data</span>
+            <span class="n">smoothed_masks</span><span class="p">[</span><span class="n">z</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span>
 
-    <span class="k">def</span> <span class="nf">crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-        <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">smoothed_masks</span>
 
-        <span class="k">assert</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span> <span class="o">==</span> <span class="n">label</span><span class="o">.</span><span class="n">shape</span>
-        <span class="k">assert</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">or</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span>
-        <span class="n">margin</span> <span class="o">=</span> <span class="p">(</span><span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="n">margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">margin</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">center_crop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">z_low</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="n">z_len</span><span class="p">,</span> <span class="n">y_len</span><span class="p">,</span> <span class="n">x_len</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span>
+        <span class="n">margin_z</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">z_len</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">margin_y</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">y_len</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">margin_x</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">x_len</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">z_low</span><span class="p">,</span> <span class="n">z_high</span> <span class="o">=</span> <span class="n">margin_z</span><span class="p">,</span> <span class="n">margin_z</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">y_low</span><span class="p">,</span> <span class="n">y_high</span> <span class="o">=</span> <span class="n">margin_y</span><span class="p">,</span> <span class="n">margin_y</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">x_low</span><span class="p">,</span> <span class="n">x_high</span> <span class="o">=</span> <span class="n">margin_x</span><span class="p">,</span> <span class="n">margin_x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         
-        <span class="c1"># whether need to crop z or not (missing section augmentation)</span>
-        <span class="k">if</span> <span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
-            <span class="n">z_low</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">label</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">images</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">y_low</span><span class="p">:</span><span class="n">y_high</span><span class="p">,</span> <span class="n">x_low</span><span class="p">:</span><span class="n">x_high</span><span class="p">]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">z_low</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="n">z_high</span> <span class="o">=</span> <span class="n">z_low</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> 
-        <span class="n">z_low</span><span class="p">,</span> <span class="n">z_high</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">z_low</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">z_high</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">images</span><span class="p">[:,</span> <span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">y_low</span><span class="p">:</span><span class="n">y_high</span><span class="p">,</span> <span class="n">x_low</span><span class="p">:</span><span class="n">x_high</span><span class="p">]</span>                                   
 
-        <span class="k">if</span> <span class="n">margin</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span> <span class="c1"># no need for x,y crop</span>
-            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">],</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">]}</span>
-        <span class="k">else</span><span class="p">:</span>    
-            <span class="n">low</span> <span class="o">=</span> <span class="n">margin</span>
-            <span class="n">high</span> <span class="o">=</span> <span class="n">margin</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">],</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">],</span>
-                            <span class="s1">&#39;image_uncropped&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span>
-                            <span class="s1">&#39;label_uncropped&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>               
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">],</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">]}</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">[:,</span> <span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">],</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">],</span>
-                            <span class="s1">&#39;image_uncropped&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span>
-                            <span class="s1">&#39;label_uncropped&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">}</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">[:,</span> <span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">],</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">[</span><span class="n">z_low</span><span class="p">:</span><span class="n">z_high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">,</span> <span class="n">low</span><span class="p">:</span><span class="n">high</span><span class="p">]}</span>                                        
-
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
-        <span class="c1"># According thie blog post (https://www.sicara.ai/blog/2019-01-28-how-computer-generate-random-numbers):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
+        <span class="c1"># According to this blog post (https://www.sicara.ai/blog/2019-01-28-how-computer-generate-random-numbers):</span>
         <span class="c1"># we need to be careful when using numpy.random in multiprocess application as it can always generate the </span>
         <span class="c1"># same output for different processes. Therefore we use np.random.RandomState().</span>
-        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
         <span class="n">ran</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">tid</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">)):</span>
             <span class="k">if</span> <span class="n">ran</span><span class="p">[</span><span class="n">tid</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">t</span><span class="o">.</span><span class="n">p</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">t</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+                <span class="n">sample</span> <span class="o">=</span> <span class="n">t</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
 
-        <span class="c1"># crop the data to input size</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;uncropped_image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
-            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;uncropped_label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">crop</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="c1"># crop the data to the specified input size</span>
+        <span class="n">existing_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">existing_keys</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span><span class="p">:</span>
+                <span class="n">new_key</span> <span class="o">=</span> <span class="s1">&#39;uncropped_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="n">sample</span><span class="p">[</span><span class="n">new_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">center_crop</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
 
         <span class="c1"># flip augmentation</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span><span class="o">.</span><span class="n">p</span><span class="p">:</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span><span class="o">.</span><span class="n">p</span><span class="p">:</span>
+            <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flip_aug</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span><span class="p">:</span>
-            <span class="n">data</span><span class="p">[</span><span class="s1">&#39;non_smoothed&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
-
+        <span class="c1"># smooth mask contour</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth</span><span class="p">:</span>
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_edge</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span></div>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;mask&#39;</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span><span class="p">:</span>
+                        <span class="n">new_key</span> <span class="o">=</span> <span class="s1">&#39;not_smoothed_&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                        <span class="n">sample</span><span class="p">[</span><span class="n">new_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                    <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">smooth_edge</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="n">sample</span></div>
 </pre></div>
 
            </div>

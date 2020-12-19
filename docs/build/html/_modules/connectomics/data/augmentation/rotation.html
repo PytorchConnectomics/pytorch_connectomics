@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,7 +205,10 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.rotation</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">cv2</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
@@ -207,49 +216,64 @@
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Continuous rotatation of the `xy`-plane.</span>
 
-<span class="sd">    The sample size for `x`- and `y`-axes should be at least :math:`\sqrt{2}` times larger</span>
-<span class="sd">    than the input size to make sure there is no non-valid region after center-crop.</span>
+<span class="sd">    If the rotation degree is arbitrary, the sample size for `x`- and `y`-axes should be at </span>
+<span class="sd">    least :math:`\sqrt{2}` times larger than the input size to ensure there is no non-valid region </span>
+<span class="sd">    after center-crop. This augmentation is applied to both images and masks.</span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
+<span class="sd">        rot90 (bool): rotate the sample by only 90 degrees. Default: True</span>
 <span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Rotate</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span> 
-        <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label_interpolation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span>
+
+    <span class="n">interpolation</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">,</span> 
+                     <span class="s1">&#39;mask&#39;</span><span class="p">:</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span><span class="p">}</span>
+    <span class="n">border_mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                 <span class="n">rot90</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">Rotate</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span> 
+        <span class="bp">self</span><span class="o">.</span><span class="n">rot90</span> <span class="o">=</span> <span class="n">rot90</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># sqrt(2)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;ratio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">rot90</span><span class="p">:</span> <span class="c1"># arbitrary rotation degree</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;ratio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">]</span> <span class="c1"># sqrt(2)</span>
 
-    <span class="k">def</span> <span class="nf">rotate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">interpolation</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">rotate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">target_type</span><span class="o">=</span><span class="s1">&#39;img&#39;</span><span class="p">):</span>
         <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">imgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">transformedimgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]):</span>
             <span class="n">img</span> <span class="o">=</span> <span class="n">transformedimgs</span><span class="p">[</span><span class="n">z</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
-            <span class="n">dst</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">M</span> <span class="p">,(</span><span class="n">height</span><span class="p">,</span><span class="n">width</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">interpolation</span><span class="p">,</span> <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">)</span>
+            <span class="n">dst</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">warpAffine</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">M</span> <span class="p">,(</span><span class="n">height</span><span class="p">,</span><span class="n">width</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">,</span> 
+                <span class="n">flags</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">interpolation</span><span class="p">[</span><span class="n">target_type</span><span class="p">],</span> <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">)</span>
             <span class="n">transformedimgs</span><span class="p">[</span><span class="n">z</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">dst</span>
 
         <span class="k">return</span> <span class="n">transformedimgs</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rot90</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+            <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rot90</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
 
-        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
-        <span class="n">M</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">getRotationMatrix2D</span><span class="p">((</span><span class="n">height</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span><span class="o">*</span><span class="mf">360.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rot90</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">k</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
 
-        <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">output</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_interpolation</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># rotate the array by arbitrary degree</span>
+            <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+            <span class="n">M</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">getRotationMatrix2D</span><span class="p">((</span><span class="n">height</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">width</span><span class="o">/</span><span class="mi">2</span><span class="p">),</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span><span class="o">*</span><span class="mf">360.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">M</span><span class="p">,</span> <span class="n">target_type</span><span class="o">=</span><span class="s1">&#39;img&#39;</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">output</span></div>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">M</span><span class="p">,</span>
+                    <span class="n">target_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">sample</span></div>
 </pre></div>
 
            </div>

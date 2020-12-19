@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,26 +205,38 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.augmentor</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <div class="viewcode-block" id="DataAugment"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.DataAugment">[docs]</a><span class="k">class</span> <span class="nc">DataAugment</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    DataAugment interface.</span>
-
-<span class="sd">    A data transform needs to conduct the following steps:</span>
+<span class="sd">    DataAugment interface. A data augmentor needs to conduct the following steps:</span>
 
 <span class="sd">    1. Set :attr:`sample_params` at initialization to compute required sample size.</span>
 <span class="sd">    2. Randomly generate augmentation parameters for the current transform.</span>
 <span class="sd">    3. Apply the transform to a pair of images and corresponding labels.</span>
 
-<span class="sd">    All the real data augmentations should be a subclass of this class.</span>
+<span class="sd">    All the real data augmentations (except mix-up augmentor and test-time augmentor) </span>
+<span class="sd">    should be a subclass of this class.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">p</span> <span class="o">&gt;=</span> <span class="mf">0.0</span> <span class="ow">and</span> <span class="n">p</span> <span class="o">&lt;=</span><span class="mf">1.0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">p</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;ratio&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]),</span>
             <span class="s1">&#39;add&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">])}</span>
+        
+        <span class="k">if</span> <span class="n">additional_targets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span> <span class="o">=</span> <span class="n">additional_targets</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># initialize as an empty dictionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span> <span class="o">=</span> <span class="p">{}</span>
 
 <div class="viewcode-block" id="DataAugment.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.DataAugment.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
@@ -231,23 +249,18 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Apply the data augmentation.</span>
 
 <span class="sd">        For a multi-CPU dataloader, one may need to use a unique index to generate </span>
 <span class="sd">        the random seed (:attr:`random_state`), otherwise different workers may generate</span>
 <span class="sd">        the same pseudo-random number for augmentation and sampling.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
 
-<div class="viewcode-block" id="DataAugment.apply_last"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.DataAugment.apply_last">[docs]</a>    <span class="k">def</span> <span class="nf">apply_last</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Apply the last data augmentation generated by __call__(). This function can be used</span>
-<span class="sd">        for model training under the semi-supervised setting. If this function is called </span>
-<span class="sd">        before any __call__(), raise an error.</span>
+<span class="sd">        The only required key in :attr:`sample` is ``&#39;image&#39;``. The keys that are not </span>
+<span class="sd">        specified in :attr:`additional_targets` will be ignored.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 </pre></div>
 
            </div>

@@ -47,7 +47,7 @@
     
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Neuron Segmentation" href="../tutorials/snemi.html" />
+    <link rel="next" title="Data Loading" href="dataloading.html" />
     <link rel="prev" title="Installation" href="installation.html" /> 
 </head>
 
@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#multitask-learning">Multitask Learning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#inference">Inference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dataloading.html#tiledataset">TileDataset</a></li>
 </ul>
 </li>
 </ul>
@@ -283,6 +289,7 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 <li><code class="docutils literal"><span class="pre">'2'</span></code>: affinity map (used in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation tutorial</a>).</li>
 <li><code class="docutils literal"><span class="pre">'3'</span></code>: masks of small objects only.</li>
 <li><code class="docutils literal"><span class="pre">'4'</span></code>: instance boundaries (used in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html">mitochondria segmentation tutorial</a>).</li>
+<li><code class="docutils literal"><span class="pre">'9'</span></code>: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set <code class="docutils literal"><span class="pre">MODEL.OUT_PLANES:</span> <span class="pre">12</span></code> and <code class="docutils literal"><span class="pre">MODEL.TARGET_OPT:</span> <span class="pre">['9-12']</span></code>. Here <code class="docutils literal"><span class="pre">9</span></code> represent the multi-class semantic segmentation task, while <code class="docutils literal"><span class="pre">12</span></code> in <code class="docutils literal"><span class="pre">['9-12']</span></code> represents the 12 semantic classes.</li>
 </ul>
 <p>More options will be provided soon!</p>
 </div>
@@ -333,7 +340,7 @@ several options to be adjusted at inference time by the <code class="docutils li
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../tutorials/snemi.html" class="btn btn-neutral float-right" title="Neuron Segmentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="dataloading.html" class="btn btn-neutral float-right" title="Data Loading" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
