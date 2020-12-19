@@ -99,8 +99,8 @@ _C.DATASET.SCALE_FACTOR = [2, 3, 3]
 
 # Specify the data path in the *.yaml files for different experiments.
 _C.DATASET.IMAGE_NAME = 'train_image.h5'
-_C.DATASET.LABEL_NAME = None
-_C.DATASET.VALID_MASK_NAME = None
+_C.DATASET.LABEL_NAME = ''
+_C.DATASET.VALID_MASK_NAME = ''
 
 _C.DATASET.LABEL_VAST = False
 _C.DATASET.INPUT_PATH = 'path/to/input'
@@ -160,8 +160,8 @@ _C.AUGMENTOR.SMOOTH = True
 
 # CfgNodes can only contain a limited set of valid types:
 # _VALID_TYPES = {tuple, list, str, int, float, bool, type(None)}
-_C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = None
-_C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = None
+_C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ''
+_C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ''
 
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
 _C.AUGMENTOR.ROTATE.ROT90 = True
@@ -305,7 +305,7 @@ _C.INFERENCE.OUTPUT_SIZE = []
 _C.INFERENCE.INPUT_PATH = ""
 _C.INFERENCE.IMAGE_NAME = ""
 _C.INFERENCE.OUTPUT_PATH = ""
-_C.INFERENCE.OUTPUT_NAME = 'result.h5'
+_C.INFERENCE.OUTPUT_NAME = 'result'
 
 _C.INFERENCE.PAD_SIZE = []
 

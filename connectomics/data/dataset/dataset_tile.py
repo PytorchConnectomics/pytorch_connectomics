@@ -118,13 +118,13 @@ class TileDataset(torch.utils.data.Dataset):
                 label[0] = seg_widen_border(label[0], self.label_erosion)
                 
         self.dataset = VolumeDataset(volume,label,
-                              self.sample_volume_size,
-                              self.sample_label_size,
-                              self.sample_stride,
-                              self.sample_invalid_thres,
-                              self.augmentor,
-                              self.target_opt,
-                              self.weight_opt,
-                              self.mode,
-                              self.do_2d,
-                              self.iter_num)
+                              sample_volume_size = self.sample_volume_size,
+                              sample_label_size = self.sample_label_size,
+                              sample_stride = self.sample_stride,
+                              valid_ratio = self.sample_invalid_thres,
+                              augmentor = self.augmentor,
+                              target_opt = self.target_opt,
+                              weight_opt = self.weight_opt,
+                              mode = self.mode,
+                              do_2d = self.do_2d,
+                              iter_num = self.iter_num)

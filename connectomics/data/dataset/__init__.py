@@ -102,6 +102,7 @@ def get_dataset(cfg, augmentor, mode='train'):
 
     label_erosion = 0
     sample_label_size = cfg.MODEL.OUTPUT_SIZE
+    sample_invalid_thres = 0.3
     augmentor = augmentor
     topt,wopt = -1,-1
     if mode == 'train':
