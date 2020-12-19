@@ -11,7 +11,7 @@ from . import VolumeDataset
 from ..utils import crop_volume, relabel,seg_widen_border, tileToVolume 
 
 class TileDataset(torch.utils.data.Dataset):
-    """Pytorch dataset class for large-scale tile-based dataset.
+    """Dataset class for large-scale tile-based dataset.
 
     Args:
         volume_json: json file for input image.
@@ -116,6 +116,7 @@ class TileDataset(torch.utils.data.Dataset):
                                  dt=dt[self.json_label['dtype']], do_im=0), do_type=True)]
             if self.label_erosion != 0:
                 label[0] = seg_widen_border(label[0], self.label_erosion)
+                
         self.dataset = VolumeDataset(volume,label,
                               self.sample_volume_size,
                               self.sample_label_size,

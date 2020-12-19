@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,27 +205,42 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.grayscale</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="Grayscale"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Grayscale">[docs]</a><span class="k">class</span> <span class="nc">Grayscale</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Grayscale intensity augmentation, adapted from ELEKTRONN (http://elektronn.org/).</span>
 
 <span class="sd">    Randomly adjust contrast/brightness, randomly invert the color space</span>
-<span class="sd">    and apply gamma correction.</span>
+<span class="sd">    and apply gamma correction. This augmentation is only applied to images.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        contrast_factor (float): intensity of contrast change. Default: 0.3</span>
 <span class="sd">        brightness_factor (float): intensity of brightness change. Default: 0.3</span>
 <span class="sd">        mode (string): one of ``&#39;2D&#39;``, ``&#39;3D&#39;`` or ``&#39;mix&#39;``. Default: ``&#39;mix&#39;``</span>
+<span class="sd">        invert (bool): whether to invert the images. Default: False</span>
+<span class="sd">        invert_p (float): probability of inverting the images. Default: 0.0</span>
 <span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">contrast_factor</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">brightness_factor</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;mix&#39;</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                 <span class="n">contrast_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span> 
+                 <span class="n">brightness_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">,</span> 
+                 <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;mix&#39;</span><span class="p">,</span>
+                 <span class="n">invert</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> 
+                 <span class="n">invert_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Initialize parameters.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">Grayscale</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Grayscale</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">invert</span> <span class="o">=</span> <span class="n">invert</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">invert_p</span> <span class="o">=</span> <span class="n">invert_p</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">CONTRAST_FACTOR</span>   <span class="o">=</span> <span class="n">contrast_factor</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">BRIGHTNESS_FACTOR</span> <span class="o">=</span> <span class="n">brightness_factor</span>
 
@@ -227,28 +248,35 @@
         <span class="c1"># No change in sample size</span>
         <span class="k">pass</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;mix&#39;</span><span class="p">:</span>
             <span class="n">mode</span> <span class="o">=</span> <span class="s1">&#39;3D&#39;</span> <span class="k">if</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.5</span> <span class="k">else</span> <span class="s1">&#39;2D&#39;</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span>
 
-        <span class="c1"># apply augmentations  </span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;2D&#39;</span><span class="p">:</span> 
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment2D</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;3D&#39;</span><span class="p">:</span> 
-            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment3D</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;2D&#39;</span><span class="p">,</span> <span class="s1">&#39;3D&#39;</span><span class="p">]</span>  
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;2D&#39;</span><span class="p">:</span>
+            <span class="n">aug_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment2D</span> 
+            <span class="n">ran</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">aug_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment3D</span> 
+            <span class="n">ran</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_augment2D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
+        <span class="n">do_invert</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">invert</span> <span class="ow">and</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">()</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">invert_p</span>
+        <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">aug_func</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">ran</span><span class="p">,</span> <span class="n">do_invert</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span>
+                <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">aug_func</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">ran</span><span class="p">,</span> <span class="n">do_invert</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">sample</span>
+
+    <span class="k">def</span> <span class="nf">_augment2D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">ran</span><span class="p">,</span> <span class="n">do_invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adapted from ELEKTRONN (http://elektronn.org/).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">imgs</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
-        <span class="n">ran</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">transformedimgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]</span><span class="o">*</span><span class="mi">3</span><span class="p">)</span>
-
         <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">transformedimgs</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]):</span>
             <span class="n">img</span> <span class="o">=</span> <span class="n">transformedimgs</span><span class="p">[</span><span class="n">z</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span>
             <span class="n">img</span> <span class="o">*=</span> <span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">ran</span><span class="p">[</span><span class="n">z</span><span class="o">*</span><span class="mi">3</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTRAST_FACTOR</span>
@@ -257,36 +285,33 @@
             <span class="n">img</span> <span class="o">**=</span> <span class="mf">2.0</span><span class="o">**</span><span class="p">(</span><span class="n">ran</span><span class="p">[</span><span class="n">z</span><span class="o">*</span><span class="mi">3</span><span class="o">+</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
             <span class="n">transformedimgs</span><span class="p">[</span><span class="n">z</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">img</span>
 
-        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformedimgs</span>
-        <span class="k">return</span> <span class="n">data</span>    
+        <span class="k">if</span> <span class="n">do_invert</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_invert</span><span class="p">(</span><span class="n">transformedimgs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">transformedimgs</span>    
 
-    <span class="k">def</span> <span class="nf">_augment3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_augment3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">ran</span><span class="p">,</span> <span class="n">do_invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adapted from ELEKTRONN (http://elektronn.org/).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">ran</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
-
-        <span class="n">imgs</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
         <span class="n">transformedimgs</span> <span class="o">*=</span> <span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">ran</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">CONTRAST_FACTOR</span>
         <span class="n">transformedimgs</span> <span class="o">+=</span> <span class="p">(</span><span class="n">ran</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">BRIGHTNESS_FACTOR</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">transformedimgs</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">transformedimgs</span> <span class="o">**=</span> <span class="mf">2.0</span><span class="o">**</span><span class="p">(</span><span class="n">ran</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
         
-        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformedimgs</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">if</span> <span class="n">do_invert</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_invert</span><span class="p">(</span><span class="n">transformedimgs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">transformedimgs</span>
 
-    <span class="k">def</span> <span class="nf">_invert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_invert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Invert input images</span>
+<span class="sd">        Invert input images.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">imgs</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">-</span><span class="n">transformedimgs</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">transformedimgs</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformedimgs</span>
-        <span class="k">return</span> <span class="n">data</span>
+        <span class="k">return</span> <span class="n">transformedimgs</span>
 
     <span class="c1">####################################################################</span>
     <span class="c1">## Setters.</span>

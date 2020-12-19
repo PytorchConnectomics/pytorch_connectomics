@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,7 +205,10 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.warp</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">cv2</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">scipy.ndimage.filters</span> <span class="kn">import</span> <span class="n">gaussian_filter</span>
 
@@ -208,6 +217,7 @@
 <div class="viewcode-block" id="Elastic"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Elastic">[docs]</a><span class="k">class</span> <span class="nc">Elastic</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Elastic deformation of images as described in [Simard2003]_ (with modifications).</span>
 <span class="sd">    The implementation is based on https://gist.github.com/erniejunior/601cdf56d2b424757de5.</span>
+<span class="sd">    This augmentation is applied to both images and masks.</span>
 
 <span class="sd">    .. [Simard2003] Simard, Steinkraus and Platt, &quot;Best Practices for</span>
 <span class="sd">        Convolutional Neural Networks applied to Visual Document Analysis&quot;, in</span>
@@ -218,63 +228,67 @@
 <span class="sd">        alpha (float): maximum pixel-moving distance of elastic deformation. Default: 10.0</span>
 <span class="sd">        sigma (float): standard deviation of the Gaussian filter. Default: 4.0</span>
 <span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">interpolation</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;img&#39;</span><span class="p">:</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span><span class="p">,</span> 
+                     <span class="s1">&#39;mask&#39;</span><span class="p">:</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span><span class="p">}</span>
+    <span class="n">border_mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span>
+
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                 <span class="n">alpha</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
-                 <span class="n">sigma</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>
-                 <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+                 <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">16.0</span><span class="p">,</span>
+                 <span class="n">sigma</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">4.0</span><span class="p">,</span>
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         
-        <span class="nb">super</span><span class="p">(</span><span class="n">Elastic</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Elastic</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span> <span class="o">=</span> <span class="n">sigma</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_LINEAR</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label_interpolation</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">INTER_NEAREST</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">BORDER_CONSTANT</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">max_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_margin</span><span class="p">,</span> <span class="n">max_margin</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
-        <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">image</span><span class="p">,</span> <span class="n">label</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>  
+    <span class="k">def</span> <span class="nf">elastic_wrap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> <span class="n">target_type</span><span class="o">=</span><span class="s1">&#39;img&#39;</span><span class="p">):</span>
+        <span class="n">transformed_images</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="c1"># (c, z, y, x)</span>
+        <span class="k">assert</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                <span class="n">transformed_images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> 
+                    <span class="bp">self</span><span class="o">.</span><span class="n">interpolation</span><span class="p">[</span><span class="n">target_type</span><span class="p">],</span> <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">))</span>     
+            <span class="k">else</span><span class="p">:</span> <span class="c1"># multi-channel images in (c,z,y,x) format</span>
+                <span class="n">temp</span> <span class="o">=</span> <span class="p">[</span><span class="n">cv2</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="n">channel</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpolation</span><span class="p">[</span><span class="n">target_type</span><span class="p">],</span> 
+                        <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">)</span> <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>     
+                <span class="n">transformed_images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>          
+
+        <span class="n">axis</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">images</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="n">transformed_images</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">transformed_images</span><span class="p">,</span> <span class="n">axis</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">transformed_images</span>
+
+    <span class="k">def</span> <span class="nf">get_random_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
+        <span class="n">height</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="c1"># (c, z, y, x) or (z, y, x)</span>
 
         <span class="n">dx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">gaussian_filter</span><span class="p">((</span><span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
         <span class="n">dy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">gaussian_filter</span><span class="p">((</span><span class="n">random_state</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">sigma</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span>
 
         <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">width</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">height</span><span class="p">))</span>
         <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">dx</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">dy</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span>
 
-        <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">transformed_image</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">transformed_label</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_random_params</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elastic_wrap</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> <span class="s1">&#39;img&#39;</span><span class="p">)</span>
 
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">]):</span>
-            <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
-                <span class="n">transformed_image</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> 
-                                    <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span><span class="p">,</span> <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">))</span>     
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">temp</span> <span class="o">=</span> <span class="p">[</span><span class="n">cv2</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="n">channel</span><span class="p">,</span> <span class="n">i</span><span class="p">],</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_interpolation</span><span class="p">,</span> 
-                        <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">)</span> <span class="k">for</span> <span class="n">channel</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>     
-                <span class="n">transformed_image</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">temp</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>          
-            <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">data</span> <span class="ow">and</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">transformed_label</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">cv2</span><span class="o">.</span><span class="n">remap</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_interpolation</span><span class="p">,</span> <span class="n">borderMode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">border_mode</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elastic_wrap</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">mapx</span><span class="p">,</span> <span class="n">mapy</span><span class="p">,</span> 
+                <span class="n">target_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
 
-        <span class="k">if</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span> <span class="c1"># (z,y,x)</span>
-            <span class="n">transformed_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">transformed_image</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span> <span class="c1"># (c,z,y,x)</span>
-            <span class="n">transformed_image</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">transformed_image</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-
-        <span class="n">transformed_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">transformed_label</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformed_image</span>
-        <span class="n">output</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transformed_label</span>
-
-        <span class="k">return</span> <span class="n">output</span></div>
+        <span class="k">return</span> <span class="n">sample</span></div>
+        
 </pre></div>
 
            </div>

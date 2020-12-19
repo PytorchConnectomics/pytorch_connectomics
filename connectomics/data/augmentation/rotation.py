@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+from typing import Optional
+
 import cv2
 import numpy as np
 from .augmentor import DataAugment
@@ -6,46 +9,61 @@ class Rotate(DataAugment):
     """
     Continuous rotatation of the `xy`-plane.
 
-    The sample size for `x`- and `y`-axes should be at least :math:`\sqrt{2}` times larger
-    than the input size to make sure there is no non-valid region after center-crop.
+    If the rotation degree is arbitrary, the sample size for `x`- and `y`-axes should be at 
+    least :math:`\sqrt{2}` times larger than the input size to ensure there is no non-valid region 
+    after center-crop. This augmentation is applied to both images and masks.
     
     Args:
+        rot90 (bool): rotate the sample by only 90 degrees. Default: True
         p (float): probability of applying the augmentation. Default: 0.5
+        additional_targets(dict, optional): additional targets to augment. Default: None
     """
-    def __init__(self, p=0.5):
-        super(Rotate, self).__init__(p=p) 
-        self.image_interpolation = cv2.INTER_LINEAR
-        self.label_interpolation = cv2.INTER_NEAREST
-        self.border_mode = cv2.BORDER_CONSTANT
+
+    interpolation = {'img': cv2.INTER_LINEAR, 
+                     'mask': cv2.INTER_NEAREST}
+    border_mode = cv2.BORDER_CONSTANT
+
+    def __init__(self, 
+                 rot90: bool = True,
+                 p: float = 0.5,
+                 additional_targets: Optional[dict] = None):
+
+        super(Rotate, self).__init__(p, additional_targets) 
+        self.rot90 = rot90
         self.set_params()
 
     def set_params(self):
-        # sqrt(2)
-        self.sample_params['ratio'] = [1.0, 1.42, 1.42]
+        if not self.rot90: # arbitrary rotation degree
+            self.sample_params['ratio'] = [1.0, 1.42, 1.42] # sqrt(2)
 
-    def rotate(self, imgs, M, interpolation):
+    def rotate(self, imgs, M, target_type='img'):
         height, width = imgs.shape[-2:]
         transformedimgs = np.copy(imgs)
         for z in range(transformedimgs.shape[-3]):
             img = transformedimgs[z, :, :]
-            dst = cv2.warpAffine(img, M ,(height,width), 1.0, flags=interpolation, borderMode=self.border_mode)
+            dst = cv2.warpAffine(img, M ,(height,width), 1.0, 
+                flags=self.interpolation[target_type], borderMode=self.border_mode)
             transformedimgs[z, :, :] = dst
 
         return transformedimgs
 
-    def __call__(self, data, random_state=np.random):
+    def __call__(self, sample, random_state=np.random.RandomState()):
+        images = sample['image'].copy()
 
-        if 'label' in data and data['label'] is not None:
-            image, label = data['image'], data['label']
-        else:
-            image, label = data['image'], None
+        if self.rot90:
+            k = random_state.randint(0, 4)
+            sample['image'] = np.rot90(images, k, axes=(1, 2))
 
-        height, width = image.shape[-2:]
-        M = cv2.getRotationMatrix2D((height/2, width/2), random_state.rand()*360.0, 1)
+            for key in self.additional_targets.keys():
+                sample[key] = np.rot90(sample[key].copy(), k, axes=(1, 2))
 
-        output = {}
-        output['image'] = self.rotate(image, M, self.image_interpolation)
-        if label is not None:
-            output['label'] = self.rotate(label, M, self.label_interpolation)
+        else: # rotate the array by arbitrary degree
+            height, width = images.shape[-2:]
+            M = cv2.getRotationMatrix2D((height/2, width/2), random_state.rand()*360.0, 1)
+            sample['image'] = self.rotate(images, M, target_type='img')
 
-        return output
+            for key in self.additional_targets.keys():
+                sample[key] = self.rotate(sample[key].copy(), M,
+                    target_type = self.additional_targets[key])
+
+        return sample

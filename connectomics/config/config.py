@@ -98,14 +98,15 @@ _C.DATASET.DATA_SCALE = [1., 1., 1.]
 _C.DATASET.SCALE_FACTOR = [2, 3, 3]
 
 # Specify the data path in the *.yaml files for different experiments.
-_C.DATASET.IMAGE_NAME = ''
+_C.DATASET.IMAGE_NAME = 'train_image.h5'
+_C.DATASET.LABEL_NAME = None
+_C.DATASET.VALID_MASK_NAME = None
 
 _C.DATASET.LABEL_NAME = ''
 _C.DATASET.LABEL_VAST = False
+_C.DATASET.INPUT_PATH = 'path/to/input'
 
-_C.DATASET.INPUT_PATH = ''
-
-_C.DATASET.OUTPUT_PATH = ''
+_C.DATASET.OUTPUT_PATH = 'path/to/output'
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False
@@ -136,8 +137,8 @@ _C.DATASET.DATA_CHUNK_STRIDE = True
 # Chunk parameters for tile format: chunk_iter_num
 _C.DATASET.DATA_CHUNK_ITER = 1000
 
-# Number of voxel to exceed for a valid sample
-_C.DATASET.DATA_INVALID_THRES = [0, 0]
+# Handle dataset with partial annotation.
+_C.DATASET.VALID_RATIO = 0.5
 
 _C.DATASET.PRE_LOAD_DATA = [None, None, None]
 
@@ -146,10 +147,6 @@ _C.DATASET.PRE_LOAD_DATA = [None, None, None]
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
-# By default, we conduct rejection sampling before data augmentation to
-# save data loading time. However, the final output after augmentation
-# may not satisfy the SIZE_THRES. Thus some tasks require AFTER_AUG=True.
-_C.DATASET.REJECT_SAMPLING.AFTER_AUG = False
 _C.DATASET.REJECT_SAMPLING.P = 0.95
 
 # -----------------------------------------------------------------------------
@@ -162,7 +159,13 @@ _C.AUGMENTOR = CN()
 # to smooth the object boundary (default: True).
 _C.AUGMENTOR.SMOOTH = True
 
+# CfgNodes can only contain a limited set of valid types:
+# _VALID_TYPES = {tuple, list, str, int, float, bool, type(None)}
+_C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = None
+_C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = None
+
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
+_C.AUGMENTOR.ROTATE.ROT90 = True
 _C.AUGMENTOR.ROTATE.P = 0.5
 
 _C.AUGMENTOR.RESCALE = CN({"ENABLED": True})

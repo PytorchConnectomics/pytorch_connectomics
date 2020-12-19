@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -199,7 +205,10 @@
            <div itemprop="articleBody">
             
   <h1>Source code for connectomics.data.augmentation.cutblur</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 <span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">resize</span>
 
@@ -207,23 +216,27 @@
     <span class="sd">&quot;&quot;&quot;3D CutBlur data augmentation, adapted from https://arxiv.org/abs/2004.00448.</span>
 
 <span class="sd">    Randomly downsample a cuboid region in the volume to force the model</span>
-<span class="sd">    to learn super-resolution when making predictions.</span>
+<span class="sd">    to learn super-resolution when making predictions. This augmentation</span>
+<span class="sd">    is only applied to images.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        length_ratio (float): the ratio of the cuboid length compared with volume length.</span>
 <span class="sd">        down_ratio_min (float): minimal downsample ratio to generate low-res region.</span>
 <span class="sd">        down_ratio_max (float): maximal downsample ratio to generate low-res region.</span>
 <span class="sd">        downsample_z (bool): downsample along the z axis (default: False).</span>
-<span class="sd">        p (float): probability of applying the augmentation.</span>
+<span class="sd">        p (float): probability of applying the augmentation. Default: 0.5</span>
+<span class="sd">        additional_targets(dict, optional): additional targets to augment. Default: None</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                 <span class="n">length_ratio</span><span class="o">=</span><span class="mf">0.25</span><span class="p">,</span> 
-                 <span class="n">down_ratio_min</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
-                 <span class="n">down_ratio_max</span><span class="o">=</span><span class="mf">8.0</span><span class="p">,</span>
-                 <span class="n">downsample_z</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">(</span><span class="n">CutBlur</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">p</span><span class="p">)</span>
+                 <span class="n">length_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.25</span><span class="p">,</span> 
+                 <span class="n">down_ratio_min</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span><span class="p">,</span>
+                 <span class="n">down_ratio_max</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span><span class="p">,</span>
+                 <span class="n">downsample_z</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">CutBlur</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">length_ratio</span> <span class="o">=</span> <span class="n">length_ratio</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">down_ratio_min</span> <span class="o">=</span> <span class="n">down_ratio_min</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">down_ratio_max</span> <span class="o">=</span> <span class="n">down_ratio_max</span>
@@ -233,23 +246,13 @@
         <span class="c1"># No change in sample size</span>
         <span class="k">pass</span>
 
-    <span class="k">def</span> <span class="nf">cut_blur</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-
-        <span class="n">zdim</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        
-        <span class="k">if</span> <span class="n">zdim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">zl</span><span class="p">,</span> <span class="n">zh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_region</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">random_state</span><span class="p">)</span>
-        <span class="n">yl</span><span class="p">,</span> <span class="n">yh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_region</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">random_state</span><span class="p">)</span>
-        <span class="n">xl</span><span class="p">,</span> <span class="n">xh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_region</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">random_state</span><span class="p">)</span>
-        
+    <span class="k">def</span> <span class="nf">cut_blur</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">zl</span><span class="p">,</span> <span class="n">zh</span><span class="p">,</span> <span class="n">yl</span><span class="p">,</span> <span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">,</span> <span class="n">xh</span><span class="p">,</span> <span class="n">down_ratio</span><span class="p">):</span>
+        <span class="n">zdim</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>        
         <span class="k">if</span> <span class="n">zdim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">temp</span> <span class="o">=</span> <span class="n">images</span><span class="p">[:,</span> <span class="n">yl</span><span class="p">:</span><span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">:</span><span class="n">xh</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">temp</span> <span class="o">=</span> <span class="n">images</span><span class="p">[</span><span class="n">zl</span><span class="p">:</span><span class="n">zh</span><span class="p">,</span> <span class="n">yl</span><span class="p">:</span><span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">:</span><span class="n">xh</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
-        <span class="n">down_ratio</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">down_ratio_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">down_ratio_max</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">zdim</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample_z</span><span class="p">:</span>
             <span class="n">out_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">/</span>  <span class="n">down_ratio</span>
         <span class="k">else</span><span class="p">:</span>
@@ -265,8 +268,8 @@
             <span class="n">images</span><span class="p">[:,</span> <span class="n">yl</span><span class="p">:</span><span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">:</span><span class="n">xh</span><span class="p">]</span> <span class="o">=</span> <span class="n">upsampled</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">images</span><span class="p">[</span><span class="n">zl</span><span class="p">:</span><span class="n">zh</span><span class="p">,</span> <span class="n">yl</span><span class="p">:</span><span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">:</span><span class="n">xh</span><span class="p">]</span> <span class="o">=</span> <span class="n">upsampled</span>
-        <span class="k">return</span> <span class="n">images</span><span class="p">,</span> <span class="n">labels</span>
 
+        <span class="k">return</span> <span class="n">images</span>
 
     <span class="k">def</span> <span class="nf">random_region</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">vol_len</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
         <span class="n">cuboid_len</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">length_ratio</span> <span class="o">*</span> <span class="n">vol_len</span><span class="p">)</span>
@@ -274,9 +277,26 @@
         <span class="n">high</span> <span class="o">=</span> <span class="n">low</span> <span class="o">+</span> <span class="n">cuboid_len</span>
         <span class="k">return</span> <span class="n">low</span><span class="p">,</span> <span class="n">high</span>
 
-    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="p">):</span>
-        <span class="n">new_images</span><span class="p">,</span> <span class="n">new_labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_blur</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">new_images</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">new_labels</span><span class="p">}</span></div>
+    <span class="k">def</span> <span class="nf">get_random_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">random_state</span><span class="p">):</span>
+        <span class="n">zdim</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">zdim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">zl</span><span class="p">,</span> <span class="n">zh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_region</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">zl</span><span class="p">,</span> <span class="n">zh</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+        <span class="n">yl</span><span class="p">,</span> <span class="n">yh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_region</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="n">xl</span><span class="p">,</span> <span class="n">xh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_region</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">random_state</span><span class="p">)</span>
+        <span class="n">down_ratio</span> <span class="o">=</span> <span class="n">random_state</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">down_ratio_min</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">down_ratio_max</span><span class="p">)</span>    
+        <span class="k">return</span> <span class="n">zl</span><span class="p">,</span> <span class="n">zh</span><span class="p">,</span> <span class="n">yl</span><span class="p">,</span> <span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">,</span> <span class="n">xh</span><span class="p">,</span> <span class="n">down_ratio</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">random_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_random_params</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">random_state</span><span class="p">)</span>         
+
+        <span class="n">sample</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_blur</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="o">*</span><span class="n">random_params</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;img&#39;</span><span class="p">:</span>
+                <span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut_blur</span><span class="p">(</span><span class="n">sample</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="o">*</span><span class="n">random_params</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sample</span></div>
 </pre></div>
 
            </div>

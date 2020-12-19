@@ -1,20 +1,27 @@
+from __future__ import print_function, division
+from typing import Optional
+
 import cv2
 import math
 import numpy as np
 from .augmentor import DataAugment
 
 class MisAlignment(DataAugment):
-    """Mis-alignment data augmentation of image stacks.
+    """Mis-alignment data augmentation of image stacks. This augmentation is 
+    applied to both images and masks.
     
     Args:
         displacement (int): maximum pixel displacement in `xy`-plane. Default: 16
+        rotate_ratio (float): ratio of rotation-based mis-alignment. Default: 0.0
         p (float): probability of applying the augmentation. Default: 0.5
+        additional_targets(dict, optional): additional targets to augment. Default: None
     """
     def __init__(self, 
-                 displacement=16, 
-                 rotate_ratio=0.0,
-                 p=0.5):
-        super(MisAlignment, self).__init__(p=p)
+                 displacement: int = 16, 
+                 rotate_ratio: float = 0.0,
+                 p: float = 0.5,
+                 additional_targets: Optional[dict] = None):
+        super(MisAlignment, self).__init__(p, additional_targets)
         self.displacement = displacement
         self.rotate_ratio = rotate_ratio
         self.set_params()
@@ -24,64 +31,73 @@ class MisAlignment(DataAugment):
                                      int(math.ceil(self.displacement / 2.0)), 
                                      int(math.ceil(self.displacement / 2.0))]
 
-    def misalignment(self, data, random_state):
-        images = data['image'].copy()
-        labels = data['label'].copy()
+    def _apply_misalign(self, input, out_shape, x0, y0, 
+                        x1, y1, idx, mode='slip'):
 
+        output = np.zeros(out_shape, input.dtype)    
+        assert mode in ['slip', 'translation']
+        if mode == 'slip':
+            output = input[:, y0:y0+out_shape[1], x0:x0+out_shape[2]]
+            output[idx] = input[idx, y1:y1+out_shape[1], x1:x1+out_shape[2]]
+        else:
+            output[:idx] = input[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
+            output[idx:] = input[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
+        return output
+
+    def misalignment(self, sample, random_state):
+        images = sample['image'].copy()
+        kwargs = {}
         out_shape = (images.shape[0], 
                      images.shape[1]-self.displacement, 
-                     images.shape[2]-self.displacement)    
-        new_images = np.zeros(out_shape, images.dtype)
-        new_labels = np.zeros(out_shape, labels.dtype)
+                     images.shape[2]-self.displacement) 
+        kwargs['out_shape'] = out_shape
 
-        x0 = random_state.randint(self.displacement)
-        y0 = random_state.randint(self.displacement)
-        x1 = random_state.randint(self.displacement)
-        y1 = random_state.randint(self.displacement)
-        idx = random_state.choice(np.array(range(1, out_shape[0]-1)), 1)[0]
+        kwargs['x0'] = random_state.randint(self.displacement)
+        kwargs['y0'] = random_state.randint(self.displacement)
+        kwargs['x1'] = random_state.randint(self.displacement)
+        kwargs['y1'] = random_state.randint(self.displacement)
+        kwargs['idx'] = random_state.choice(np.array(range(1, out_shape[0]-1)), 1)[0]
+        kwargs['mode'] = 'slip' if random_state.rand() < 0.5 else 'translation'
 
-        if random_state.rand() < 0.5:
-            # slip misalignment
-            new_images = images[:, y0:y0+out_shape[1], x0:x0+out_shape[2]]
-            new_labels = labels[:, y0:y0+out_shape[1], x0:x0+out_shape[2]]
-            new_images[idx] = images[idx, y1:y1+out_shape[1], x1:x1+out_shape[2]]
-            new_labels[idx] = labels[idx, y1:y1+out_shape[1], x1:x1+out_shape[2]]
-        else:
-            # translation misalignment
-            new_images[:idx] = images[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
-            new_labels[:idx] = labels[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
-            new_images[idx:] = images[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
-            new_labels[idx:] = labels[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
+        sample['image'] = self._apply_misalign(images, **kwargs)
+        for key in self.additional_targets.keys():
+            sample[key] = self._apply_misalign(sample[key].copy(), **kwargs)        
     
-        return new_images, new_labels
+        return sample
 
-    def misalignment_rotate(self, data, random_state):
-        images = data['image'].copy()
-        labels = data['label'].copy()
+    def _apply_misalign_rot(self, input, idx, M, H, W, target_type='img', mode='slip'):
+        if target_type=='img':
+            interpolation = cv2.INTER_LINEAR
+        else:
+            interpolation = cv2.INTER_NEAREST
+        assert mode in ['slip', 'translation']
+        if mode == 'slip':
+            input[idx] = cv2.warpAffine(input[idx], M, (H,W), 1.0, 
+                flags=interpolation, borderMode=cv2.BORDER_CONSTANT) 
+        else:
+            for i in range(idx, input.shape[0]):   
+                input[i] = cv2.warpAffine(input[i], M, (H,W), 1.0, 
+                    flags=interpolation, borderMode=cv2.BORDER_CONSTANT)   
+
+        return input
+
+    def misalignment_rot(self, sample, random_state):
+        images = sample['image'].copy()
 
         height, width = images.shape[-2:]
         assert height == width
         M = self.random_rotate_matrix(height, random_state)
         idx = random_state.choice(np.array(range(1, images.shape[0]-1)), 1)[0]
+        mode = 'slip' if random_state.rand() < 0.5 else 'translation'
 
-        if random_state.rand() < 0.5:
-            # slip misalignment
-            images[idx] = cv2.warpAffine(images[idx], M, (height,width), 1.0, 
-                    flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-            labels[idx] = cv2.warpAffine(labels[idx], M, (height,width), 1.0, 
-                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT)
-        else:
-            # translation misalignment
-            for i in range(idx, images.shape[0]):
-                images[i] = cv2.warpAffine(images[i], M, (height,width), 1.0, 
-                    flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-                labels[i] = cv2.warpAffine(labels[i], M, (height,width), 1.0, 
-                    flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT)
+        sample['image'] = self._apply_misalign_rot(images, idx, M, 
+            height, width, target_type='img', mode=mode)
+        for key in self.additional_targets.keys():
+            target_type = self.additional_targets[key]
+            sample[key] = self._apply_misalign_rot(sample[key].copy(), idx, M,
+                height, width, target_type=target_type, mode=mode) 
 
-        new_images = images.copy()
-        new_labels = labels.copy()
-
-        return new_images, new_labels
+        return sample
 
     def random_rotate_matrix(self, height, random_state):
         x = (self.displacement / 2.0)
@@ -91,9 +107,9 @@ class MisAlignment(DataAugment):
         M = cv2.getRotationMatrix2D((height/2, height/2), rand_angle, 1)
         return M
 
-    def __call__(self, data, random_state=np.random):
+    def __call__(self, sample, random_state=np.random.RandomState()):
         if random_state.rand() < self.rotate_ratio:
-            new_images, new_labels = self.misalignment_rotate(data, random_state)
+            sample = self.misalignment_rot(sample, random_state)
         else:
-            new_images, new_labels = self.misalignment(data, random_state)
-        return {'image': new_images, 'label': new_labels}
+            sample = self.misalignment(sample, random_state)
+        return sample

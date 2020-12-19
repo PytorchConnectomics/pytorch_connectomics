@@ -108,6 +108,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -212,7 +218,7 @@
 <span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">crop_volume</span><span class="p">,</span> <span class="n">relabel</span><span class="p">,</span><span class="n">seg_widen_border</span><span class="p">,</span> <span class="n">tileToVolume</span> 
 
 <div class="viewcode-block" id="TileDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset">[docs]</a><span class="k">class</span> <span class="nc">TileDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Pytorch dataset class for large-scale tile-based dataset.</span>
+    <span class="sd">&quot;&quot;&quot;Dataset class for large-scale tile-based dataset.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        volume_json: json file for input image.</span>
@@ -317,6 +323,7 @@
                                  <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;dtype&#39;</span><span class="p">]],</span> <span class="n">do_im</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">do_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_erosion</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">seg_widen_border</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_erosion</span><span class="p">)</span>
+                
         <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="n">VolumeDataset</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span><span class="n">label</span><span class="p">,</span>
                               <span class="bp">self</span><span class="o">.</span><span class="n">sample_volume_size</span><span class="p">,</span>
                               <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">,</span>

@@ -110,6 +110,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../notes/config.html#inference">Inference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
@@ -206,39 +212,47 @@
 <span id="connectomics-data-datasets"></span><h1>connectomics.data.datasets<a class="headerlink" href="#module-connectomics.data.dataset" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="connectomics.data.dataset.VolumeDataset">
-<em class="property">class </em><code class="descname">VolumeDataset</code><span class="sig-paren">(</span><em>volume, label=None, sample_volume_size=(8, 64, 64), sample_label_size=(8, 64, 64), sample_stride=(1, 1, 1), sample_invalid_thres=[0, 0], augmentor=None, target_opt=['1'], weight_opt=[['1']], mode='train', do_2d=False, iter_num=-1, reject_size_thres=0, reject_after_aug=False, reject_p=0.98</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Dataset class for 3D image volumes.</p>
+<em class="property">class </em><code class="descname">VolumeDataset</code><span class="sig-paren">(</span><em>volume: list, label: typing.Union[list, NoneType] = None, valid_mask: typing.Union[list, NoneType] = None, valid_ratio: float = 0.5, sample_volume_size: tuple = (8, 64, 64), sample_label_size: tuple = (8, 64, 64), sample_stride: tuple = (1, 1, 1), augmentor: typing.Union[connectomics.data.augmentation.composition.Compose, NoneType] = None, target_opt: typing.List[str] = ['1'], weight_opt: typing.List[typing.List[str]] = [['1']], mode: str = 'train', do_2d: bool = False, iter_num: int = -1, reject_size_thres: int = 0, reject_p: float = 0.98</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dataset class for 3D image volumes. At training time, subvolumes are randomly sampled from all the large
+input volumes with (optional) rejection sampling to increase the frequency for foreground regions in a
+batch. At inference time, subvolumes are yielded in a sliding-window manner.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
 <li><strong>volume</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – list of image volumes.</li>
-<li><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – list of label volumes. Default: None</li>
+<li><strong>label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – list of label volumes. Default: None</li>
+<li><strong>valid_mask</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a><em>, </em><em>optional</em>) – list of valid masks. Default: None</li>
+<li><strong>valid_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – volume ratio threshold for valid samples. Default: 0.5</li>
 <li><strong>sample_volume_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – model input size.</li>
 <li><strong>sample_label_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – model output size.</li>
 <li><strong>sample_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – stride size for sampling.</li>
-<li><strong>sample_invalid_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – threshold for invalid regions.</li>
 <li><strong>augmentor</strong> – data augmentor for training. Default: None</li>
 <li><strong>target_opt</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – list the model targets generated from segmentation labels.</li>
 <li><strong>weight_opt</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – list of options for generating pixel-wise weight masks.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – training or inference mode.</li>
+<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – <code class="docutils literal"><span class="pre">'train'</span></code>, <code class="docutils literal"><span class="pre">'val'</span></code> or <code class="docutils literal"><span class="pre">'test'</span></code>. Default: <code class="docutils literal"><span class="pre">'train'</span></code></li>
 <li><strong>do_2d</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – load 2d samples from 3d volumes. Default: False</li>
 <li><strong>iter_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – total number of training iterations (-1 for inference). Default: -1</li>
 <li><strong>reject_size_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – threshold to decide if a sampled volumes contains foreground objects. Default: 0</li>
-<li><strong>reject_after_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – decide whether to reject a sample after data augmentation. Default: False</li>
 <li><strong>reject_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of rejecting non-foreground volumes.</li>
 </ul>
 </td>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">For relatively small volumes, the total number of possible subvolumes can be smaller than the total number
+of samples required in training (the product of total iterations and mini-natch size), which raises <em>StopIteration</em>.
+Therefore the dataset length is also decided by the training settings.</p>
+</div>
 </dd></dl>
 
 <dl class="class">
 <dt id="connectomics.data.dataset.TileDataset">
 <em class="property">class </em><code class="descname">TileDataset</code><span class="sig-paren">(</span><em>chunk_num, chunk_num_ind, chunk_iter, chunk_stride, volume_json, label_json=None, sample_volume_size=(8, 64, 64), sample_label_size=None, sample_stride=(1, 1, 1), sample_invalid_thres=[0.5, 0], augmentor=None, valid_mask=None, target_opt=['0'], weight_opt=['1'], mode='train', do_2d=False, iter_num=-1, label_erosion=0, pad_size=[0, 0, 0]</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Pytorch dataset class for large-scale tile-based dataset.</p>
+<dd><p>Dataset class for large-scale tile-based dataset.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
