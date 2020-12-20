@@ -160,8 +160,8 @@ _C.AUGMENTOR.SMOOTH = True
 
 # CfgNodes can only contain a limited set of valid types:
 # _VALID_TYPES = {tuple, list, str, int, float, bool, type(None)}
-_C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ''
-_C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ''
+_C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ['label']
+_C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ['mask']
 
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
 _C.AUGMENTOR.ROTATE.ROT90 = True

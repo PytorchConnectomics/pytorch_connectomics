@@ -130,7 +130,8 @@ class VolumeDataset(torch.utils.data.Dataset):
             if self.do_2d:
                 out_volume = np.squeeze(out_volume) 
                 out_label = np.squeeze(out_label)
-                out_valid = np.squeeze(out_valid)
+                if out_valid is not None:
+                    out_valid = np.squeeze(out_valid)
                 
             out_volume = np.expand_dims(out_volume, 0)
             # output list

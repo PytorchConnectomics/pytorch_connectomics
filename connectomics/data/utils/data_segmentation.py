@@ -187,7 +187,10 @@ def seg_to_targets(label, topts):
             out[tid] = (seg_to_small_seg(label, size_thres, zratio)>0)[None,:].astype(np.float32)
         elif topt[0] == '4': # instance boundary mask
             _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
-            out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[None,:].astype(np.float32)
+            if label.ndim == 2:
+                out[tid] = seg_to_instance_bd(label[None,:], bd_sz, do_bg).astype(np.float32)
+            else:
+                out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[None,:].astype(np.float32)
         else:
             raise NameError("Target option %s is not valid!" % topt[0])
 

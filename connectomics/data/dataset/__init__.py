@@ -32,14 +32,14 @@ def _get_input(cfg, mode='train'):
     img_name = _make_path_list(dir_name, img_name)
 
     label = None
-    if mode=='train' and cfg.DATASET.LABEL_NAME is not None:
+    if mode=='train' and cfg.DATASET.LABEL_NAME != '':
         label_name = cfg.DATASET.LABEL_NAME.split('@')
         assert len(label_name) == len(img_name)
         label_name = _make_path_list(dir_name, label_name)
         label = [None]*len(label_name)
 
     valid_mask = None
-    if mode=='train' and cfg.DATASET.VALID_MASK_NAME is not None:
+    if mode=='train' and cfg.DATASET.VALID_MASK_NAME != '':
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME.split('@')
         assert len(valid_mask_name) == len(img_name)
         valid_mask_name = _make_path_list(dir_name, valid_mask_name)

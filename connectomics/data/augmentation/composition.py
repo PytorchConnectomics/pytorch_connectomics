@@ -41,7 +41,7 @@ class Compose(object):
                  smooth: bool = True,
                  keep_uncropped: bool = False,
                  keep_non_smoothed: bool = False,
-                 additional_targets: Optional[dict] = None):
+                 additional_targets: Optional[dict] = {'label': 'mask'}):
 
         self.transforms = transforms
         self.set_flip()
