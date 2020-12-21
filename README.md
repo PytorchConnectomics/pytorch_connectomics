@@ -27,7 +27,7 @@ If you want new features that are relatively easy to implement (e.g., loss funct
 
 The code is developed and tested under the following configurations.
 - Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```SYSTEM.NUM_GPU``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.5.1***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.5.1, YACS>=0.1.8***
 
 ## Installation
 
@@ -62,6 +62,9 @@ For more information and frequently asked questions about installation, please c
 
 ### Data Augmentation
 We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/augmentation.html).
+
+### YACS Configuration
+We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage the settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/config.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
 
 ### Model Zoo
 We provide several encoder-decoder architectures, which can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/connectomics/model/zoo). Those models can be applied to any kinds of semantic segmentation tasks of 3D image stacks. We also provide benchmark results on SNEMI3D neuron segmentation challenges [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/benchmark) with detailed training specifications for users to reproduce.
