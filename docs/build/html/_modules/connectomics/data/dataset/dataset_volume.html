@@ -337,7 +337,8 @@
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_2d</span><span class="p">:</span>
                 <span class="n">out_volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">out_volume</span><span class="p">)</span> 
                 <span class="n">out_label</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">out_label</span><span class="p">)</span>
-                <span class="n">out_valid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">out_valid</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">out_valid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">out_valid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">out_valid</span><span class="p">)</span>
                 
             <span class="n">out_volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">out_volume</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
             <span class="c1"># output list</span>

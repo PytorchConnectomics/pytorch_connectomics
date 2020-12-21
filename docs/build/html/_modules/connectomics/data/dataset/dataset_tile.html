@@ -206,6 +206,7 @@
             
   <h1>Source code for connectomics.data.dataset.dataset_tile</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">print_function</span><span class="p">,</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">List</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">random</span>
@@ -213,42 +214,62 @@
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.utils.data</span>
 
-
 <span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">VolumeDataset</span>
+<span class="kn">from</span> <span class="nn">..augmentation</span> <span class="kn">import</span> <span class="n">Compose</span>
 <span class="kn">from</span> <span class="nn">..utils</span> <span class="kn">import</span> <span class="n">crop_volume</span><span class="p">,</span> <span class="n">relabel</span><span class="p">,</span><span class="n">seg_widen_border</span><span class="p">,</span> <span class="n">tileToVolume</span> 
+
+<span class="n">TARGET_OPT_TYPE</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<span class="n">WEIGHT_OPT_TYPE</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
+<span class="n">AUGMENTOR_TYPE</span> <span class="o">=</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span>
 
 <div class="viewcode-block" id="TileDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset">[docs]</a><span class="k">class</span> <span class="nc">TileDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Dataset class for large-scale tile-based dataset.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        volume_json: json file for input image.</span>
-<span class="sd">        label_json: json file for label.</span>
+<span class="sd">        chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[8, 2, 2]` </span>
+<span class="sd">        chunk_num_ind (list): predefined list of chunks. Default: None</span>
+<span class="sd">        chunk_iter (int): number of iterations on each chunk. Default: -1</span>
+<span class="sd">        chunk_stride (bool). allow overlap between chunks. Default: True</span>
+<span class="sd">        volume_json (str): json file for input image. Default: ``&#39;path/to/image&#39;``</span>
+<span class="sd">        label_json (str, optional): json file for label. Default: None</span>
+<span class="sd">        valid_mask_json (str, optional): json file for valid mask. Default: None</span>
+<span class="sd">        valid_ratio (float): volume ratio threshold for valid samples. Default: 0.5</span>
 <span class="sd">        sample_volume_size (tuple, int): model input size.</span>
 <span class="sd">        sample_label_size (tuple, int): model output size.</span>
 <span class="sd">        sample_stride (tuple, int): stride size for sampling.</span>
-<span class="sd">        augmentor: data augmentor.</span>
-<span class="sd">        valid_mask: the binary mask of valid regions.</span>
-<span class="sd">        mode (str): training or inference mode.</span>
+<span class="sd">        augmentor (connectomics.data.augmentation.composition.Compose, optional): data augmentor for training. Default: None</span>
+<span class="sd">        target_opt (list): list the model targets generated from segmentation labels.</span>
+<span class="sd">        weight_opt (list): list of options for generating pixel-wise weight masks.</span>
+<span class="sd">        mode (str): ``&#39;train&#39;``, ``&#39;val&#39;`` or ``&#39;test&#39;``. Default: ``&#39;train&#39;``</span>
+<span class="sd">        do_2d (bool): load 2d samples from 3d volumes. Default: False</span>
+<span class="sd">        label_erosion (int): label erosion parameter to widen border. Default: 0</span>
+<span class="sd">        pad_size(list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_num</span><span class="p">,</span> <span class="n">chunk_num_ind</span><span class="p">,</span> <span class="n">chunk_iter</span><span class="p">,</span> <span class="n">chunk_stride</span><span class="p">,</span>
-                 <span class="n">volume_json</span><span class="p">,</span> <span class="n">label_json</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">sample_volume_size</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
-                 <span class="n">sample_label_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">sample_stride</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
-                 <span class="n">sample_invalid_thres</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
-                 <span class="n">augmentor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">valid_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">target_opt</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">],</span>
-                 <span class="n">weight_opt</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">],</span>
-                 <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> 
-                 <span class="n">do_2d</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">iter_num</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span>
-                 <span class="n">label_erosion</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">pad_size</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]):</span>
-        <span class="c1"># TODO: merge mito/mitoskel, syn/synpolarity</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
+                 <span class="n">chunk_num</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> 
+                 <span class="n">chunk_num_ind</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">chunk_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> 
+                 <span class="n">chunk_stride</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">volume_json</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;path/to/image&#39;</span><span class="p">,</span> 
+                 <span class="n">label_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">valid_mask_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">valid_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">sample_volume_size</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span>
+                 <span class="n">sample_label_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">tuple</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sample_stride</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                 <span class="n">augmentor</span><span class="p">:</span> <span class="n">AUGMENTOR_TYPE</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">target_opt</span><span class="p">:</span> <span class="n">TARGET_OPT_TYPE</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;0&#39;</span><span class="p">],</span>
+                 <span class="n">weight_opt</span><span class="p">:</span> <span class="n">WEIGHT_OPT_TYPE</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;1&#39;</span><span class="p">]],</span>
+                 <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span><span class="p">,</span> 
+                 <span class="n">do_2d</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">label_erosion</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> 
+                 <span class="n">pad_size</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]):</span>
+        
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_volume_size</span> <span class="o">=</span> <span class="n">sample_volume_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span> <span class="o">=</span> <span class="n">sample_label_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_stride</span> <span class="o">=</span> <span class="n">sample_stride</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">sample_invalid_thres</span> <span class="o">=</span> <span class="n">sample_invalid_thres</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">valid_ratio</span> <span class="o">=</span> <span class="n">valid_ratio</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="o">=</span> <span class="n">augmentor</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">target_opt</span> <span class="o">=</span> <span class="n">target_opt</span>
@@ -256,7 +277,7 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">do_2d</span> <span class="o">=</span> <span class="n">do_2d</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span> <span class="o">=</span> <span class="n">iter_num</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chunk_iter</span> <span class="o">=</span> <span class="n">chunk_iter</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">label_erosion</span> <span class="o">=</span> <span class="n">label_erosion</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span> <span class="o">=</span> <span class="n">pad_size</span>
 
@@ -265,20 +286,23 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">chunk_step</span> <span class="o">=</span> <span class="mi">2</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span> <span class="o">=</span> <span class="n">chunk_num</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk_num_ind</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">chunk_num_ind</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num_ind</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">chunk_num</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num_ind</span> <span class="o">=</span> <span class="n">chunk_num_ind</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">chunk_id_done</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">volume_json</span><span class="p">))</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">json_label</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">label_json</span><span class="p">))</span> <span class="k">if</span> <span class="p">(</span><span class="n">label_json</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">label_json</span><span class="o">!=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span> 
-        <span class="bp">self</span><span class="o">.</span><span class="n">json_size</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">json_label</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">label_json</span><span class="p">))</span> <span class="k">if</span> <span class="p">(</span><span class="n">label_json</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">json_valid</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">valid_mask_json</span><span class="p">))</span> <span class="k">if</span> <span class="p">(</span><span class="n">valid_mask_json</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">json_size</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">],</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">],</span>
+                          <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]]</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">],</span><span class="mi">0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">],</span><span class="mi">0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]],</span><span class="nb">int</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="nb">int</span><span class="p">)</span>
-
-
+        <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;depth&#39;</span><span class="p">],</span>
+                                 <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">],</span>
+                                 <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]],</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">get_coord_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">])</span>
@@ -308,33 +332,40 @@
 
     <span class="k">def</span> <span class="nf">loadchunk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">coord_p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="o">+</span><span class="p">[</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;load tile&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;load tile&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span>
         <span class="c1"># keep it in uint8 to save memory</span>
-        <span class="n">volume</span> <span class="o">=</span> <span class="p">[</span><span class="n">tileToVolume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">coord_p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span><span class="p">,</span>\
-                             <span class="n">tile_sz</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;tile_size&#39;</span><span class="p">],</span><span class="n">tile_st</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;tile_st&#39;</span><span class="p">],</span>
-                              <span class="n">tile_ratio</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;tile_ratio&#39;</span><span class="p">])]</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="p">[</span><span class="n">tileToVolume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">coord_p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span><span class="p">,</span> \
+                               <span class="n">tile_sz</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;tile_size&#39;</span><span class="p">],</span> <span class="n">tile_st</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;tile_st&#39;</span><span class="p">],</span>
+                               <span class="n">tile_ratio</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;tile_ratio&#39;</span><span class="p">])]</span>
+                              
         <span class="n">label</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span> 
-            <span class="n">dt</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;uint8&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span><span class="s1">&#39;uint16&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span><span class="s1">&#39;uint32&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span><span class="s1">&#39;uint64&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint64</span><span class="p">}</span>
+            <span class="n">dt</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;uint8&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span> <span class="s1">&#39;uint16&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">,</span> <span class="s1">&#39;uint32&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint32</span><span class="p">,</span> <span class="s1">&#39;uint64&#39;</span><span class="p">:</span><span class="n">np</span><span class="o">.</span><span class="n">uint64</span><span class="p">}</span>
             <span class="c1"># float32 may misrepresent large uint32/uint64 numbers -&gt; relabel to decrease the label index</span>
-            <span class="n">label</span> <span class="o">=</span> <span class="p">[</span><span class="n">relabel</span><span class="p">(</span><span class="n">tileToVolume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">coord_p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span><span class="p">,</span>\
+            <span class="n">label</span> <span class="o">=</span> <span class="p">[</span><span class="n">relabel</span><span class="p">(</span><span class="n">tileToVolume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">coord_p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span><span class="p">,</span> \
                                  <span class="n">tile_sz</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;tile_size&#39;</span><span class="p">],</span><span class="n">tile_st</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;tile_st&#39;</span><span class="p">],</span>
                                  <span class="n">tile_ratio</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;tile_ratio&#39;</span><span class="p">],</span> <span class="n">ndim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;ndim&#39;</span><span class="p">],</span>
                                  <span class="n">dt</span><span class="o">=</span><span class="n">dt</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">json_label</span><span class="p">[</span><span class="s1">&#39;dtype&#39;</span><span class="p">]],</span> <span class="n">do_im</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">do_type</span><span class="o">=</span><span class="kc">True</span><span class="p">)]</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_erosion</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">seg_widen_border</span><span class="p">(</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_erosion</span><span class="p">)</span>
+
+        <span class="n">valid_mask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_valid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">valid_mask</span> <span class="o">=</span> <span class="p">[</span><span class="n">tileToVolume</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">json_valid</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">coord_p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord_m</span><span class="p">,</span> \
+                          <span class="n">tile_sz</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_valid</span><span class="p">[</span><span class="s1">&#39;tile_size&#39;</span><span class="p">],</span> <span class="n">tile_st</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_valid</span><span class="p">[</span><span class="s1">&#39;tile_st&#39;</span><span class="p">],</span>
+                          <span class="n">tile_ratio</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">json_valid</span><span class="p">[</span><span class="s1">&#39;tile_ratio&#39;</span><span class="p">])]</span>
                 
-        <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="n">VolumeDataset</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span><span class="n">label</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">sample_volume_size</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">sample_stride</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">sample_invalid_thres</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">target_opt</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">weight_opt</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">do_2d</span><span class="p">,</span>
-                              <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span> <span class="o">=</span> <span class="n">VolumeDataset</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">valid_mask</span><span class="p">,</span>
+            <span class="n">valid_ratio</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">valid_ratio</span><span class="p">,</span>
+            <span class="n">sample_volume_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_volume_size</span><span class="p">,</span>
+            <span class="n">sample_label_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span><span class="p">,</span>
+            <span class="n">sample_stride</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sample_stride</span><span class="p">,</span>
+            <span class="n">augmentor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">,</span>
+            <span class="n">target_opt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_opt</span><span class="p">,</span>
+            <span class="n">weight_opt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_opt</span><span class="p">,</span>
+            <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+            <span class="n">do_2d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_2d</span><span class="p">,</span>
+            <span class="n">iter_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_iter</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

@@ -208,6 +208,7 @@
 <span></span><span class="kn">import</span> <span class="nn">os</span><span class="o">,</span> <span class="nn">sys</span><span class="o">,</span> <span class="nn">glob</span> 
 <span class="kn">import</span> <span class="nn">time</span><span class="o">,</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">GPUtil</span>
+<span class="kn">from</span> <span class="nn">yacs.config</span> <span class="kn">import</span> <span class="n">CfgNode</span>
 
 <span class="kn">import</span> <span class="nn">torch</span>
 <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
@@ -224,7 +225,7 @@
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Trainer</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        cfg: YACS configurations.</span>
+<span class="sd">        cfg (yacs.config.CfgNode): YACS configuration options.</span>
 <span class="sd">        device (torch.device): by default all training and inference are conducted on GPUs.</span>
 <span class="sd">        mode (str): running mode of the trainer (``&#39;train&#39;`` or ``&#39;test&#39;``).</span>
 <span class="sd">        checkpoint (optional): the checkpoint file to be loaded (default: `None`)</span>
@@ -461,7 +462,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">total_iter_nums</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">DATA_CHUNK_ITER</span>
             <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_chunk</span><span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">updatechunk</span><span class="p">()</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">build_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">build_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> 
+                                                   <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="p">)</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;start train&#39;</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
@@ -475,7 +477,8 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">inference_output_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_NAME</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">get_coord_name</span><span class="p">()</span> <span class="o">+</span> <span class="s1">&#39;.h5&#39;</span>
                 <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inference_output_name</span><span class="p">)):</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">loadchunk</span><span class="p">()</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">build_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="n">build_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> 
+                                                       <span class="n">dataset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">()</span></div>
 </pre></div>
