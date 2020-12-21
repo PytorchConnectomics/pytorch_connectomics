@@ -128,7 +128,7 @@ _C.DATASET.DO_CHUNK_TITLE = 0
 _C.DATASET.DATA_CHUNK_NUM = [1, 1, 1]
 
 # Predefined data chunk to iterate through
-_C.DATASET.DATA_CHUNK_NUM_IND = []
+_C.DATASET.DATA_CHUNK_NUM_IND = None
 
 # Boolean variable, euqal to 'int(args.data_chunk_num[-1:])==1'
 _C.DATASET.DATA_CHUNK_STRIDE = True

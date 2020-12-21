@@ -102,15 +102,12 @@ def get_dataset(cfg, augmentor, mode='train'):
 
     label_erosion = 0
     sample_label_size = cfg.MODEL.OUTPUT_SIZE
-    sample_invalid_thres = 0.3
-    augmentor = augmentor
-    topt,wopt = -1,-1
+    topt, wopt = ['0'], [['0']]
     if mode == 'train':
-        sample_volume_size = cfg.MODEL.INPUT_SIZE
-        sample_volume_size = augmentor.sample_size
+        sample_volume_size = augmentor.sample_size if augmentor is not None else cfg.MODEL.INPUT_SIZE
         sample_label_size = sample_volume_size
         label_erosion = cfg.DATASET.LABEL_EROSION
-        sample_stride = (1,1,1)
+        sample_stride = (1, 1, 1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH 
     elif mode == 'test':
@@ -120,23 +117,23 @@ def get_dataset(cfg, augmentor, mode='train'):
       
     # dataset
     if cfg.DATASET.DO_CHUNK_TITLE==1:
-        label_json = cfg.DATASET.INPUT_PATH+cfg.DATASET.LABEL_NAME if mode=='train' else ''
+        label_json = cfg.DATASET.INPUT_PATH+cfg.DATASET.LABEL_NAME if mode=='train' else None
+        valid_mask_json = cfg.DATASET.INPUT_PATH+cfg.DATASET.VALID_MASK_NAME if mode=='train' else None
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM, 
                               chunk_num_ind=cfg.DATASET.DATA_CHUNK_NUM_IND, 
                               chunk_iter=cfg.DATASET.DATA_CHUNK_ITER, 
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
                               volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME, 
                               label_json=label_json,
+                              valid_mask_json=valid_mask_json,
                               sample_volume_size=sample_volume_size, 
                               sample_label_size=sample_label_size,
                               sample_stride=sample_stride, 
-                              sample_invalid_thres=sample_invalid_thres,
                               augmentor=augmentor, 
                               target_opt=topt, 
                               weight_opt=wopt, 
                               mode=mode, 
                               do_2d=cfg.DATASET.DO_2D,
-                              iter_num=iter_num,
                               label_erosion=label_erosion, 
                               pad_size=cfg.DATASET.PAD_SIZE)
 

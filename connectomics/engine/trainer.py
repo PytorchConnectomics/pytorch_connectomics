@@ -1,6 +1,7 @@
 import os, sys, glob 
 import time, itertools
 import GPUtil
+from yacs.config import CfgNode
 
 import torch
 import torch.nn as nn
@@ -17,7 +18,7 @@ class Trainer(object):
     r"""Trainer
 
     Args:
-        cfg: YACS configurations.
+        cfg (yacs.config.CfgNode): YACS configuration options.
         device (torch.device): by default all training and inference are conducted on GPUs.
         mode (str): running mode of the trainer (``'train'`` or ``'test'``).
         checkpoint (optional): the checkpoint file to be loaded (default: `None`)
@@ -254,7 +255,8 @@ class Trainer(object):
             self.total_iter_nums = self.cfg.DATASET.DATA_CHUNK_ITER
             for chunk in range(num_chunk):
                 self.dataset.updatechunk()
-                self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, dataset=self.dataset.dataset)
+                self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, 
+                                                   dataset=self.dataset.dataset)
                 self.dataloader = iter(self.dataloader)
                 print('start train', chunk)
                 self.train()
@@ -268,6 +270,7 @@ class Trainer(object):
                 self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME + self.dataset.get_coord_name() + '.h5'
                 if not os.path.exists(os.path.join(self.output_dir, self.inference_output_name)):
                     self.dataset.loadchunk()
-                    self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, dataset=self.dataset.dataset)
+                    self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, 
+                                                       dataset=self.dataset.dataset)
                     self.dataloader = iter(self.dataloader)
                     self.test()
