@@ -99,8 +99,8 @@ _C.DATASET.SCALE_FACTOR = [2, 3, 3]
 
 # Specify the data path in the *.yaml files for different experiments.
 _C.DATASET.IMAGE_NAME = 'train_image.h5'
-_C.DATASET.LABEL_NAME = ''
-_C.DATASET.VALID_MASK_NAME = ''
+_C.DATASET.LABEL_NAME = None
+_C.DATASET.VALID_MASK_NAME = None
 
 _C.DATASET.LABEL_VAST = False
 _C.DATASET.INPUT_PATH = 'path/to/input'

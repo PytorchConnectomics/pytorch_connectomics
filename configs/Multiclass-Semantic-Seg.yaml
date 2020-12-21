@@ -23,9 +23,6 @@ DATASET:
   INPUT_PATH: '<path/to/data>'
   OUTPUT_PATH: 'outputs/semantic_seg/'
   PAD_SIZE: [4, 128, 128]
-AUGMENTOR:
-  ADDITIONAL_TARGETS_NAME: ['label']
-  ADDITIONAL_TARGETS_TYPE: ['mask']
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
   BASE_LR: 0.01

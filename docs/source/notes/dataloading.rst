@@ -8,7 +8,7 @@ Data Augmentation
 ------------------
 
 Since many semi-supervised and unsupervised learning tasks do not require labels, the only key required in our 
-data augmentor is ``'image'``. Let's look at an example for using an augmentation pipeline:
+data augmentor is ``'image'``. Let's look at an example for using an augmentation pipeline on input images:
 
 .. code-block:: python
 
@@ -64,7 +64,7 @@ annotated regions are required. We provide the ``additional_targets`` option to 
 
 .. note::
 
-    Each addition target need to be specified with a name (**e.g.**, ``'valid_mask'``) and a target type (``'img'`` or ``'mask'``). Some augmentations are only
+    Each addition target need to be specified with a name (*e.g.*, ``'valid_mask'``) and a target type (``'img'`` or ``'mask'``). Some augmentations are only
     applied to ``'img'``, and augmentations for both ``'img'`` and ``'mask'`` will use different interpolation modes for them.
 
 
