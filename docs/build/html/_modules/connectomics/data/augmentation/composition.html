@@ -260,7 +260,11 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">smooth</span> <span class="o">=</span> <span class="n">smooth</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_uncropped</span> <span class="o">=</span> <span class="n">keep_uncropped</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">keep_non_smoothed</span> <span class="o">=</span> <span class="n">keep_non_smoothed</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span> <span class="o">=</span> <span class="n">additional_targets</span>
+
+        <span class="k">if</span> <span class="n">additional_targets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span> <span class="o">=</span> <span class="n">additional_targets</span>
+        <span class="k">else</span><span class="p">:</span> <span class="c1"># initialize as an empty dictionary</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">additional_targets</span> <span class="o">=</span> <span class="p">{}</span>
 
     <span class="k">def</span> <span class="nf">set_flip</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="c1"># Some data augmentation techniques (e.g., elastic wrap, missing parts) are designed only</span>

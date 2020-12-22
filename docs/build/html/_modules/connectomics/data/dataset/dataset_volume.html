@@ -411,9 +411,16 @@
             <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_random_sampling</span><span class="p">(</span><span class="n">vol_size</span><span class="p">)</span>
             <span class="n">pos</span><span class="p">,</span> <span class="n">out_volume</span><span class="p">,</span> <span class="n">out_label</span><span class="p">,</span> <span class="n">out_valid</span> <span class="o">=</span> <span class="n">sample</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+                <span class="k">if</span> <span class="n">out_valid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">assert</span> <span class="s1">&#39;valid_mask&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="o">.</span><span class="n">additional_targets</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> \
+                        <span class="s2">&quot;Need to specify the &#39;valid_mask&#39; option in additional_targets &quot;</span> \
+                        <span class="s2">&quot;of the data augmentor when training with partial annotation.&quot;</span>
+
                 <span class="n">data</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">out_volume</span><span class="p">,</span> 
                         <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">out_label</span><span class="p">,</span>
                         <span class="s1">&#39;valid_mask&#39;</span><span class="p">:</span> <span class="n">out_valid</span><span class="p">}</span>
+
                 <span class="n">augmented</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augmentor</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
                 <span class="n">out_volume</span><span class="p">,</span> <span class="n">out_label</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
                 <span class="n">out_valid</span> <span class="o">=</span> <span class="n">augmented</span><span class="p">[</span><span class="s1">&#39;valid_mask&#39;</span><span class="p">]</span>

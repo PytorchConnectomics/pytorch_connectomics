@@ -53,7 +53,11 @@ class Compose(object):
         self.smooth = smooth
         self.keep_uncropped = keep_uncropped
         self.keep_non_smoothed = keep_non_smoothed
-        self.additional_targets = additional_targets
+
+        if additional_targets is not None:
+            self.additional_targets = additional_targets
+        else: # initialize as an empty dictionary
+            self.additional_targets = {}
 
     def set_flip(self):
         # Some data augmentation techniques (e.g., elastic wrap, missing parts) are designed only

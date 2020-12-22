@@ -275,6 +275,13 @@ annotated regions are required. We provide the <code class="docutils literal"><s
 <p class="last">Each addition target need to be specified with a name (<em>e.g.</em>, <code class="docutils literal"><span class="pre">'valid_mask'</span></code>) and a target type (<code class="docutils literal"><span class="pre">'img'</span></code> or <code class="docutils literal"><span class="pre">'mask'</span></code>). Some augmentations are only
 applied to <code class="docutils literal"><span class="pre">'img'</span></code>, and augmentations for both <code class="docutils literal"><span class="pre">'img'</span></code> and <code class="docutils literal"><span class="pre">'mask'</span></code> will use different interpolation modes for them.</p>
 </div>
+<p>The <code class="docutils literal"><span class="pre">'label'</span></code> key in <code class="docutils literal"><span class="pre">'mask'</span></code> target type is used by default in the configuration file as most of the tutorial examples belong to the supervised
+training category. For model training with partially annotated dataset under the supervised setting, we need to add:</p>
+<div class="highlight-yaml"><div class="highlight"><pre><span></span><span class="nt">AUGMENTOR</span><span class="p">:</span>
+  <span class="nt">ADDITIONAL_TARGETS_NAME</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;label&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;valid_mask&#39;</span><span class="p p-Indicator">]</span>
+  <span class="nt">ADDITIONAL_TARGETS_TYPE</span><span class="p">:</span> <span class="p p-Indicator">[</span><span class="s">&#39;mask&#39;</span><span class="p p-Indicator">,</span> <span class="s">&#39;mask&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
 </div>
 <div class="section" id="rejection-sampling">
 <h2><a class="toc-backref" href="#id2">Rejection Sampling</a><a class="headerlink" href="#rejection-sampling" title="Permalink to this headline">¶</a></h2>

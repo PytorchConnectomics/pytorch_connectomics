@@ -204,9 +204,16 @@ class VolumeDataset(torch.utils.data.Dataset):
             sample = self._random_sampling(vol_size)
             pos, out_volume, out_label, out_valid = sample
             if self.augmentor is not None:
+
+                if out_valid is not None:
+                    assert 'valid_mask' in self.augmentor.additional_targets.keys(), \
+                        "Need to specify the 'valid_mask' option in additional_targets " \
+                        "of the data augmentor when training with partial annotation."
+
                 data = {'image': out_volume, 
                         'label': out_label,
                         'valid_mask': out_valid}
+
                 augmented = self.augmentor(data)
                 out_volume, out_label = augmented['image'], augmented['label']
                 out_valid = augmented['valid_mask']

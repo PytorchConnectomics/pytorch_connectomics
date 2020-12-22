@@ -67,6 +67,14 @@ annotated regions are required. We provide the ``additional_targets`` option to 
     Each addition target need to be specified with a name (*e.g.*, ``'valid_mask'``) and a target type (``'img'`` or ``'mask'``). Some augmentations are only
     applied to ``'img'``, and augmentations for both ``'img'`` and ``'mask'`` will use different interpolation modes for them.
 
+The ``'label'`` key in ``'mask'`` target type is used by default in the configuration file as most of the tutorial examples belong to the supervised 
+training category. For model training with partially annotated dataset under the supervised setting, we need to add:
+
+.. code-block:: yaml
+
+    AUGMENTOR:
+      ADDITIONAL_TARGETS_NAME: ['label', 'valid_mask']
+      ADDITIONAL_TARGETS_TYPE: ['mask', 'mask']
 
 Rejection Sampling
 -------------------
