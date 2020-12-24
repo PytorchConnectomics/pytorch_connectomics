@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Synaptic Cleft Segmentation &mdash; connectomics latest documentation</title>
+  <title>Synapse Detection &mdash; connectomics latest documentation</title>
   
 
   
@@ -47,7 +47,7 @@
     
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Synaptic Partner Segmentation" href="synaptic_partner.html" />
+    <link rel="next" title="connectomics.data.datasets" href="../modules/datasets.html" />
     <link rel="prev" title="Mitochondria Segmentation" href="mito.html" /> 
 </head>
 
@@ -126,8 +126,12 @@
 <li class="toctree-l2"><a class="reference internal" href="mito.html#instance-segmentation">Instance Segmentation</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Synaptic Cleft Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="synaptic_partner.html">Synaptic Partner Segmentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#synaptic-cleft-detection">Synaptic Cleft Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#synaptic-polarity-detection">Synaptic Polarity Detection</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
@@ -189,13 +193,13 @@
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Synaptic Cleft Segmentation</li>
+      <li>Synapse Detection</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
-            <a href="../_sources/tutorials/cremi.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/synapse.rst.txt" rel="nofollow"> View page source</a>
           
         
       </li>
@@ -208,8 +212,29 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <div class="section" id="synaptic-cleft-segmentation">
-<h1>Synaptic Cleft Segmentation<a class="headerlink" href="#synaptic-cleft-segmentation" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="synapse-detection">
+<h1>Synapse Detection<a class="headerlink" href="#synapse-detection" title="Permalink to this headline">¶</a></h1>
+<div class="contents local topic" id="contents">
+<ul class="simple">
+<li><a class="reference internal" href="#introduction" id="id3">Introduction</a></li>
+<li><a class="reference internal" href="#synaptic-cleft-detection" id="id4">Synaptic Cleft Detection</a></li>
+<li><a class="reference internal" href="#synaptic-polarity-detection" id="id5">Synaptic Polarity Detection</a></li>
+</ul>
+</div>
+<div class="section" id="introduction">
+<h2><a class="toc-backref" href="#id3">Introduction</a><a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>A <a class="reference external" href="https://en.wikipedia.org/wiki/Synapse">synapse</a> is an essential structure in the nervous system that allows an electric or chemical signal to be
+passed to another neuron or an effector cell (<em>e.g.</em>, muscle fiber). Identification of synapses is important for reconstructing the wiring diagram of
+neurons to enable new insights into the workings of the brain, which is the long-term goal of the connectomics area. Signal flows in one direction
+at a synapse, therefore each synapse usually consists of a pre-synaptic region and a post-synaptic region.</p>
+<p>This tutorial has two parts. In the first part, you will learn how to detect <strong>synaptic clefts</strong> by predicting the synaptic cleft pixels on the
+<a class="reference external" href="https://cremi.org">CREMI Challenge</a> dataset from adult <em>Drosophila melanogaster</em> brain tissue. This dataset is released in 2016. In the second part,
+you will learn how to predict the <strong>synaptic polarity masks</strong> to demonstrate the signal flow between neurons using the dataset released
+by <a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a> in 2020. The brain sample is collected from Layer II/III in
+the primary visual cortex of an adult rat.</p>
+</div>
+<div class="section" id="synaptic-cleft-detection">
+<h2><a class="toc-backref" href="#id4">Synaptic Cleft Detection</a><a class="headerlink" href="#synaptic-cleft-detection" title="Permalink to this headline">¶</a></h2>
 <p>This tutorial provides step-by-step guidance for synaptic cleft detection with <a class="reference external" href="https://cremi.org">CREMI</a> benchmark datasets.
 We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
@@ -220,7 +245,14 @@ for more details.</p>
 <p class="last">We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
 the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
-<p>Script needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. YAML files can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/</span></code>, where stores the common setting for current experiment’s configuration. Default config file can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>, where stores all the configuration. The pytorch dataset class of synapses is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>Script needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. The <em>YAML</em> configuration files can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/</span></code>, which
+stores the common settings for model training and inference. Other default configuration options can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>. The pytorch
+dataset class of the synaptic cleft detection task is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<div class="figure align-center" id="id1">
+<a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" /></a>
+<p class="caption"><span class="caption-text">Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
+cropped from volume A+, B+, and C+, respectively.</span></p>
+</div>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
@@ -278,6 +310,90 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 </li>
 </ol>
 </div>
+<div class="section" id="synaptic-polarity-detection">
+<h2><a class="toc-backref" href="#id5">Synaptic Polarity Detection</a><a class="headerlink" href="#synaptic-polarity-detection" title="Permalink to this headline">¶</a></h2>
+<p>This tutorial provides step-by-step guidance for synaptic polarity detection with the EM-R50 dataset released by <a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a>.
+This task is different from the synaptic cleft detection task in two aspects. First, this one requires distinguishing different synapses, while the cleft detection task
+only needs the binary foreground mask for evaluation. Second, the polarity detection task also requires separated pre-synaptic and post-synaptic masks.
+The evaluation metric of the synaptic polarity detection results is an IoU-based F1 score. The sparsity and diversity of synapses make the task challenging.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like
+connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels
+are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic region</strong> (union of the first two channels), respectively.</p>
+</div>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.
+The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<div class="figure align-center" id="id2">
+<a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" /></a>
+<p class="caption"><span class="caption-text">Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs consists of pre-synaptic region, post-synaptic region and their
+union (synaptic region) are visualizd in RGB on the gray-scale EM images. The single flows from the magenta sides to the cyan sides between neurons.</span></p>
+</div>
+<ol class="arabic">
+<li><p class="first">Get the dataset:</p>
+<blockquote>
+<div><p>Download the example dataset for synaptic polarity detection from our server:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
+</pre></div>
+</div>
+</div></blockquote>
+</div></blockquote>
+</li>
+<li><p class="first">Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">By default the path of images and labels are not specified. To
+run the training scripts, please revise the <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">LABEL_NAME</span></code>
+and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.
+The options can also be given as command-line arguments without changing of the <code class="docutils literal"><span class="pre">yaml</span></code> configuration files.</p>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Synaptic-Polarity.yaml
+</pre></div>
+</div>
+<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Synaptic-Polarity.yaml
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
+false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
+vast volumes.</p>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
+</pre></div>
+</div>
+</div></blockquote>
+</li>
+<li><p class="first">Run inference on image volumes:</p>
+<blockquote>
+<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+  --config-file configs/Synaptic-Polarity.yaml --inference \
+  --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">By default the path of images for inference are not specified. Please change
+the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.</p>
+</div>
+</div></blockquote>
+</li>
+</ol>
+<p>#. Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map
+into instance/semantic segmentation masks based on the application.</p>
+</div>
+</div>
 
 
            </div>
@@ -287,7 +403,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="synaptic_partner.html" class="btn btn-neutral float-right" title="Synaptic Partner Segmentation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="../modules/datasets.html" class="btn btn-neutral float-right" title="connectomics.data.datasets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="mito.html" class="btn btn-neutral float-left" title="Mitochondria Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

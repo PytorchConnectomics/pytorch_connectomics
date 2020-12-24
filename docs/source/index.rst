@@ -35,8 +35,7 @@ for reproducing state-of-the-art results on benchmark datasets, and labelling la
 
    tutorials/snemi
    tutorials/mito
-   tutorials/cremi
-   tutorials/synaptic_partner
+   tutorials/synapse
 
 .. toctree::
    :glob:
