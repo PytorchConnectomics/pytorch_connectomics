@@ -26,7 +26,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         sample_volume_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
-        augmentor: data augmentor for training. Default: None
+        augmentor (connectomics.data.augmentation.composition.Compose, optional): data augmentor for training. Default: None
         target_opt (list): list the model targets generated from segmentation labels.
         weight_opt (list): list of options for generating pixel-wise weight masks.
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``

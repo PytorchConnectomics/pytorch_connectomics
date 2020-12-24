@@ -90,7 +90,7 @@ dataset class of the synaptic cleft detection task is :class:`connectomics.data.
 Synaptic Polarity Detection
 ----------------------------
 
-This tutorial provides step-by-step guidance for synaptic polarity detection with the EM-R50 dataset released by `Lin et al. <http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf>`__. 
+This tutorial provides step-by-step guidance for synaptic polarity detection with the EM-R50 dataset released by `Lin et al. <http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf>`__ in 2020. 
 This task is different from the synaptic cleft detection task in two aspects. First, this one requires distinguishing different synapses, while the cleft detection task
 only needs the binary foreground mask for evaluation. Second, the polarity detection task also requires separated pre-synaptic and post-synaptic masks. 
 The evaluation metric of the synaptic polarity detection results is an IoU-based F1 score. The sparsity and diversity of synapses make the task challenging. 
@@ -107,8 +107,8 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
     :align: center
     :width: 800px
 
-    Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs consists of pre-synaptic region, post-synaptic region and their
-    union (synaptic region) are visualizd in RGB on the gray-scale EM images. The single flows from the magenta sides to the cyan sides between neurons.
+    Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
+    union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.
 
 #. Get the dataset:
 
@@ -162,5 +162,4 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
         By default the path of images for inference are not specified. Please change 
         the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
 
-#. Use `this function <https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py>`_ to convert the probability map 
-into instance/semantic segmentation masks based on the application.
+#. Apply post-processing algorithms. Use `this function <https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py>`_ to convert the probability map into instance/semantic segmentation masks based on the application.

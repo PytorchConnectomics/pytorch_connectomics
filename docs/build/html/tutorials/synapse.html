@@ -309,7 +309,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 </div>
 <div class="section" id="synaptic-polarity-detection">
 <h2><a class="toc-backref" href="#id5">Synaptic Polarity Detection</a><a class="headerlink" href="#synaptic-polarity-detection" title="Permalink to this headline">¶</a></h2>
-<p>This tutorial provides step-by-step guidance for synaptic polarity detection with the EM-R50 dataset released by <a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a>.
+<p>This tutorial provides step-by-step guidance for synaptic polarity detection with the EM-R50 dataset released by <a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a> in 2020.
 This task is different from the synaptic cleft detection task in two aspects. First, this one requires distinguishing different synapses, while the cleft detection task
 only needs the binary foreground mask for evaluation. Second, the polarity detection task also requires separated pre-synaptic and post-synaptic masks.
 The evaluation metric of the synaptic polarity detection results is an IoU-based F1 score. The sparsity and diversity of synapses make the task challenging.</p>
@@ -323,8 +323,8 @@ are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> 
 The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id2">
 <a class="reference internal image-reference" href="../_images/polarity_qual.png"><img alt="../_images/polarity_qual.png" src="../_images/polarity_qual.png" style="width: 800px;" /></a>
-<p class="caption"><span class="caption-text">Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs consists of pre-synaptic region, post-synaptic region and their
-union (synaptic region) are visualizd in RGB on the gray-scale EM images. The single flows from the magenta sides to the cyan sides between neurons.</span></p>
+<p class="caption"><span class="caption-text">Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
+union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.</span></p>
 </div>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
@@ -386,9 +386,9 @@ the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span>
 </div>
 </div></blockquote>
 </li>
+<li><p class="first">Apply post-processing algorithms. Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map into instance/semantic segmentation masks based on the application.</p>
+</li>
 </ol>
-<p>#. Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map
-into instance/semantic segmentation masks based on the application.</p>
 </div>
 </div>
 
