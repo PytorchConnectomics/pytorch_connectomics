@@ -256,15 +256,12 @@ cropped from volume A+, B+, and C+, respectively.</span></p>
 <ol class="arabic">
 <li><p class="first">Get the dataset:</p>
 <blockquote>
-<div><ol class="arabic">
-<li><p class="first">Download the dataset from our server:</p>
+<div><p>Download the dataset from the Harvard RC server:</p>
 <blockquote>
 <div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
 </pre></div>
 </div>
 </div></blockquote>
-</li>
-</ol>
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -325,7 +322,7 @@ are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> 
 <p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.
 The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id2">
-<a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" /></a>
+<a class="reference internal image-reference" href="../_images/polarity_qual.png"><img alt="../_images/polarity_qual.png" src="../_images/polarity_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs consists of pre-synaptic region, post-synaptic region and their
 union (synaptic region) are visualizd in RGB on the gray-scale EM images. The single flows from the magenta sides to the cyan sides between neurons.</span></p>
 </div>

@@ -45,7 +45,7 @@ dataset class of the synaptic cleft detection task is :class:`connectomics.data.
 
 #. Get the dataset:
 
-    #. Download the dataset from our server:
+    Download the dataset from the Harvard RC server:
 
         .. code-block:: none
 
@@ -103,7 +103,7 @@ The evaluation metric of the synaptic polarity detection results is an IoU-based
 All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.  
 The pytorch dataset class of synaptic partners is :class:`connectomics.data.dataset.VolumeDataset`.
 
-.. figure:: ../_static/img/cremi_qual.png
+.. figure:: ../_static/img/polarity_qual.png
     :align: center
     :width: 800px
 
