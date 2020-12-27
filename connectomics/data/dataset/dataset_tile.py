@@ -16,13 +16,15 @@ WEIGHT_OPT_TYPE = List[List[str]]
 AUGMENTOR_TYPE = Optional[Compose]
 
 class TileDataset(torch.utils.data.Dataset):
-    """Dataset class for large-scale tile-based dataset.
+    """Dataset class for large-scale tile-based datasets. Large-scale volumetric datasets are usually stored as 
+    individual tiles. Directly loading them as a single array for training and inference is infeasible. This 
+    class reads the paths of the tiles and construct smaller chunks for processing.
 
     Args:
-        chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[8, 2, 2]` 
+        chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[2, 2, 2]` 
         chunk_num_ind (list): predefined list of chunks. Default: None
         chunk_iter (int): number of iterations on each chunk. Default: -1
-        chunk_stride (bool). allow overlap between chunks. Default: True
+        chunk_stride (bool): allow overlap between chunks. Default: True
         volume_json (str): json file for input image. Default: ``'path/to/image'``
         label_json (str, optional): json file for label. Default: None
         valid_mask_json (str, optional): json file for valid mask. Default: None
@@ -37,10 +39,12 @@ class TileDataset(torch.utils.data.Dataset):
         do_2d (bool): load 2d samples from 3d volumes. Default: False
         label_erosion (int): label erosion parameter to widen border. Default: 0
         pad_size(list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`
+        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0
+        reject_p (float): probability of rejecting non-foreground volumes. Default: 0.95
     """
 
     def __init__(self, 
-                 chunk_num: List[int] = [8, 2, 2], 
+                 chunk_num: List[int] = [2, 2, 2], 
                  chunk_num_ind: Optional[list] = None,
                  chunk_iter: int = -1, 
                  chunk_stride: bool = True,
@@ -57,7 +61,9 @@ class TileDataset(torch.utils.data.Dataset):
                  mode: str = 'train', 
                  do_2d: bool = False,
                  label_erosion: int = 0, 
-                 pad_size: List[int] = [0,0,0]):
+                 pad_size: List[int] = [0,0,0],
+                 reject_size_thres: int = 0,
+                 reject_p: float = 0.95):
         
         self.sample_volume_size = sample_volume_size
         self.sample_label_size = sample_label_size
@@ -96,6 +102,10 @@ class TileDataset(torch.utils.data.Dataset):
                                  0, self.json_volume['height'],
                                  0, self.json_volume['width']], int)
         self.coord = np.zeros(6, int)
+
+        # rejection samping
+        self.reject_size_thres = reject_size_thres
+        self.reject_p = reject_p        
 
     def get_coord_name(self):
         return '-'.join([str(x) for x in self.coord])
@@ -158,4 +168,6 @@ class TileDataset(torch.utils.data.Dataset):
             weight_opt = self.weight_opt,
             mode = self.mode,
             do_2d = self.do_2d,
-            iter_num = self.chunk_iter)
+            iter_num = self.chunk_iter,
+            reject_size_thres = self.reject_size_thres,
+            reject_p = self.reject_p)

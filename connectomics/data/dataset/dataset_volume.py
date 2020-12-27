@@ -14,9 +14,9 @@ AUGMENTOR_TYPE = Optional[Compose]
 
 class VolumeDataset(torch.utils.data.Dataset):
     """
-    Dataset class for 3D image volumes. At training time, subvolumes are randomly sampled from all the large 
-    input volumes with (optional) rejection sampling to increase the frequency for foreground regions in a
-    batch. At inference time, subvolumes are yielded in a sliding-window manner. 
+    Dataset class for volumetric image datasets. At training time, subvolumes are randomly sampled from all the large 
+    input volumes with (optional) rejection sampling to increase the frequency of foreground regions in a batch. At inference 
+    time, subvolumes are yielded in a sliding-window manner with overlap to counter border artifacts. 
     
     Args:
         volume (list): list of image volumes.
@@ -33,7 +33,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         do_2d (bool): load 2d samples from 3d volumes. Default: False
         iter_num (int): total number of training iterations (-1 for inference). Default: -1
         reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0
-        reject_p (float): probability of rejecting non-foreground volumes.
+        reject_p (float): probability of rejecting non-foreground volumes. Default: 0.95
 
     Note: 
         For relatively small volumes, the total number of possible subvolumes can be smaller than the total number 
@@ -58,7 +58,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  do_2d: bool = False,
                  iter_num: int = -1,
                  reject_size_thres: int = 0,
-                 reject_p: float = 0.98):
+                 reject_p: float = 0.95):
 
         assert mode in ['train', 'test']
         self.mode = mode

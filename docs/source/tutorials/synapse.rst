@@ -162,4 +162,4 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
         By default the path of images for inference are not specified. Please change 
         the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
 
-#. Apply post-processing algorithms. Use `this function <https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py>`_ to convert the probability map into instance/semantic segmentation masks based on the application.
+#. Apply post-processing algorithms. Use `this function <https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/utils.html#connectomics.utils.processing.polarity2instance>`_ to convert the probability map into instance/semantic segmentation masks based on the application.

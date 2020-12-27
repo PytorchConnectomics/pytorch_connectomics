@@ -13,7 +13,6 @@
   
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../../../../_static/css/custom.css" type="text/css" />
 
   
   
@@ -215,9 +214,9 @@
 
 <div class="viewcode-block" id="VolumeDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.VolumeDataset">[docs]</a><span class="k">class</span> <span class="nc">VolumeDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Dataset class for 3D image volumes. At training time, subvolumes are randomly sampled from all the large </span>
-<span class="sd">    input volumes with (optional) rejection sampling to increase the frequency for foreground regions in a</span>
-<span class="sd">    batch. At inference time, subvolumes are yielded in a sliding-window manner. </span>
+<span class="sd">    Dataset class for volumetric image datasets. At training time, subvolumes are randomly sampled from all the large </span>
+<span class="sd">    input volumes with (optional) rejection sampling to increase the frequency of foreground regions in a batch. At inference </span>
+<span class="sd">    time, subvolumes are yielded in a sliding-window manner with overlap to counter border artifacts. </span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
 <span class="sd">        volume (list): list of image volumes.</span>
@@ -234,7 +233,7 @@
 <span class="sd">        do_2d (bool): load 2d samples from 3d volumes. Default: False</span>
 <span class="sd">        iter_num (int): total number of training iterations (-1 for inference). Default: -1</span>
 <span class="sd">        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0</span>
-<span class="sd">        reject_p (float): probability of rejecting non-foreground volumes.</span>
+<span class="sd">        reject_p (float): probability of rejecting non-foreground volumes. Default: 0.95</span>
 
 <span class="sd">    Note: </span>
 <span class="sd">        For relatively small volumes, the total number of possible subvolumes can be smaller than the total number </span>
@@ -259,7 +258,7 @@
                  <span class="n">do_2d</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="n">iter_num</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
                  <span class="n">reject_size_thres</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
-                 <span class="n">reject_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.98</span><span class="p">):</span>
+                 <span class="n">reject_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">):</span>
 
         <span class="k">assert</span> <span class="n">mode</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;test&#39;</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>

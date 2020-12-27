@@ -13,7 +13,6 @@
   
   <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../../../../_static/css/custom.css" type="text/css" />
 
   
   
@@ -217,13 +216,15 @@
 <span class="n">AUGMENTOR_TYPE</span> <span class="o">=</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span>
 
 <div class="viewcode-block" id="TileDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset">[docs]</a><span class="k">class</span> <span class="nc">TileDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Dataset class for large-scale tile-based dataset.</span>
+    <span class="sd">&quot;&quot;&quot;Dataset class for large-scale tile-based datasets. Large-scale volumetric datasets are usually stored as </span>
+<span class="sd">    individual tiles. Directly loading them as a single array for training and inference is infeasible. This </span>
+<span class="sd">    class reads the paths of the tiles and construct smaller chunks for processing.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[8, 2, 2]` </span>
+<span class="sd">        chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[2, 2, 2]` </span>
 <span class="sd">        chunk_num_ind (list): predefined list of chunks. Default: None</span>
 <span class="sd">        chunk_iter (int): number of iterations on each chunk. Default: -1</span>
-<span class="sd">        chunk_stride (bool). allow overlap between chunks. Default: True</span>
+<span class="sd">        chunk_stride (bool): allow overlap between chunks. Default: True</span>
 <span class="sd">        volume_json (str): json file for input image. Default: ``&#39;path/to/image&#39;``</span>
 <span class="sd">        label_json (str, optional): json file for label. Default: None</span>
 <span class="sd">        valid_mask_json (str, optional): json file for valid mask. Default: None</span>
@@ -238,10 +239,12 @@
 <span class="sd">        do_2d (bool): load 2d samples from 3d volumes. Default: False</span>
 <span class="sd">        label_erosion (int): label erosion parameter to widen border. Default: 0</span>
 <span class="sd">        pad_size(list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`</span>
+<span class="sd">        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0</span>
+<span class="sd">        reject_p (float): probability of rejecting non-foreground volumes. Default: 0.95</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> 
-                 <span class="n">chunk_num</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> 
+                 <span class="n">chunk_num</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">],</span> 
                  <span class="n">chunk_num_ind</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">list</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">chunk_iter</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> 
                  <span class="n">chunk_stride</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -258,7 +261,9 @@
                  <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span><span class="p">,</span> 
                  <span class="n">do_2d</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
                  <span class="n">label_erosion</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> 
-                 <span class="n">pad_size</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]):</span>
+                 <span class="n">pad_size</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span>
+                 <span class="n">reject_size_thres</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+                 <span class="n">reject_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">):</span>
         
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_volume_size</span> <span class="o">=</span> <span class="n">sample_volume_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_label_size</span> <span class="o">=</span> <span class="n">sample_label_size</span>
@@ -297,6 +302,10 @@
                                  <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;height&#39;</span><span class="p">],</span>
                                  <span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">json_volume</span><span class="p">[</span><span class="s1">&#39;width&#39;</span><span class="p">]],</span> <span class="nb">int</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+
+        <span class="c1"># rejection samping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reject_size_thres</span> <span class="o">=</span> <span class="n">reject_size_thres</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reject_p</span> <span class="o">=</span> <span class="n">reject_p</span>        
 
     <span class="k">def</span> <span class="nf">get_coord_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">])</span>
@@ -359,7 +368,9 @@
             <span class="n">weight_opt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_opt</span><span class="p">,</span>
             <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
             <span class="n">do_2d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_2d</span><span class="p">,</span>
-            <span class="n">iter_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_iter</span><span class="p">)</span></div>
+            <span class="n">iter_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_iter</span><span class="p">,</span>
+            <span class="n">reject_size_thres</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reject_size_thres</span><span class="p">,</span>
+            <span class="n">reject_p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reject_p</span><span class="p">)</span></div>
 </pre></div>
 
            </div>

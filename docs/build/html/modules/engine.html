@@ -13,7 +13,6 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
 
   
   
@@ -206,13 +205,13 @@
 <span id="connectomics-engine"></span><h1>connectomics.engine<a class="headerlink" href="#module-connectomics.engine" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt id="connectomics.engine.Trainer">
-<em class="property">class </em><code class="sig-name descname">Trainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span></em>, <em class="sig-param"><span class="n">device</span></em>, <em class="sig-param"><span class="n">mode</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">connectomics.engine.</code><code class="sig-name descname">Trainer</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span></em>, <em class="sig-param"><span class="n">device</span></em>, <em class="sig-param"><span class="n">mode</span></em>, <em class="sig-param"><span class="n">checkpoint</span><span class="o">=</span><span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/engine/trainer.html#Trainer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.engine.Trainer" title="Permalink to this definition">¶</a></dt>
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>cfg</strong> (<em>yacs.config.CfgNode</em>) – YACS configuration options.</p></li>
 <li><p><strong>device</strong> (<em>torch.device</em>) – by default all training and inference are conducted on GPUs.</p></li>
-<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – running mode of the trainer (<code class="docutils literal notranslate"><span class="pre">'train'</span></code> or <code class="docutils literal notranslate"><span class="pre">'test'</span></code>).</p></li>
+<li><p><strong>mode</strong> (<em>str</em>) – running mode of the trainer (<code class="docutils literal notranslate"><span class="pre">'train'</span></code> or <code class="docutils literal notranslate"><span class="pre">'test'</span></code>).</p></li>
 <li><p><strong>checkpoint</strong> (<em>optional</em>) – the checkpoint file to be loaded (default: <cite>None</cite>)</p></li>
 </ul>
 </dd>
