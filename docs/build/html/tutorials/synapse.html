@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,21 +26,11 @@
   <![endif]-->
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'latest',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -216,9 +206,9 @@
 <h1>Synapse Detection<a class="headerlink" href="#synapse-detection" title="Permalink to this headline">¶</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#introduction" id="id3">Introduction</a></li>
-<li><a class="reference internal" href="#synaptic-cleft-detection" id="id4">Synaptic Cleft Detection</a></li>
-<li><a class="reference internal" href="#synaptic-polarity-detection" id="id5">Synaptic Polarity Detection</a></li>
+<li><p><a class="reference internal" href="#introduction" id="id3">Introduction</a></p></li>
+<li><p><a class="reference internal" href="#synaptic-cleft-detection" id="id4">Synaptic Cleft Detection</a></p></li>
+<li><p><a class="reference internal" href="#synaptic-polarity-detection" id="id5">Synaptic Polarity Detection</a></p></li>
 </ul>
 </div>
 <div class="section" id="introduction">
@@ -241,67 +231,67 @@ the models used in affinity prediction in <a class="reference external" href="ht
 The evaluation of the synapse detection results is based on the F1 score and average distance. See <a class="reference external" href="https://cremi.org/metrics/">CREMI metrics</a>
 for more details.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
+<p class="admonition-title">Note</p>
+<p>We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
 the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
-<p>Script needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. The <em>YAML</em> configuration files can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/</span></code>, which
-stores the common settings for model training and inference. Other default configuration options can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>. The pytorch
-dataset class of the synaptic cleft detection task is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>Script needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. The <em>YAML</em> configuration files can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/</span></code>, which
+stores the common settings for model training and inference. Other default configuration options can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>. The pytorch
+dataset class of the synaptic cleft detection task is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id1">
 <a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
-cropped from volume A+, B+, and C+, respectively.</span></p>
+cropped from volume A+, B+, and C+, respectively.</span><a class="headerlink" href="#id1" title="Permalink to this image">¶</a></p>
 </div>
 <ol class="arabic">
-<li><p class="first">Get the dataset:</p>
+<li><p>Get the dataset:</p>
 <blockquote>
 <div><p>Download the dataset from the Harvard RC server:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
 </pre></div>
 </div>
 </div></blockquote>
 <p>For description of the data please check <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/data/data_em.html">this page</a>.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
-different from the default ones. In such case, please change the corresponding entries, including <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>,
-<code class="docutils literal"><span class="pre">LABEL_NAME</span></code> and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> in the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml">CREMI config file</a>.</p>
+<p class="admonition-title">Note</p>
+<p>If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
+different from the default ones. In such case, please change the corresponding entries, including <code class="docutils literal notranslate"><span class="pre">IMAGE_NAME</span></code>,
+<code class="docutils literal notranslate"><span class="pre">LABEL_NAME</span></code> and <code class="docutils literal notranslate"><span class="pre">INPUT_PATH</span></code> in the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml">CREMI config file</a>.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.</p>
+<li><p>Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/CREMI-Synaptic-Cleft.yaml
 </pre></div>
 </div>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">config-file</span></code>: configuration setting for the current experiment.</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">config-file</span></code>: configuration setting for the current experiment.</p></li>
 </ul>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress:</p>
+<li><p>Visualize the training progress:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run the main.py script for inference:</p>
+<li><p>Run the main.py script for inference:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/CREMI-Synaptic-Cleft.yaml \
   --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
   --inference
 </pre></div>
 </div>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">config-file</span></code>: configuration setting for current experiments.</li>
-<li><code class="docutils literal"><span class="pre">inference</span></code>: will run inference when given, otherwise will run training instead.</li>
-<li><code class="docutils literal"><span class="pre">checkpoint</span></code>: the pre-trained checkpoint file for inference.</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">config-file</span></code>: configuration setting for current experiments.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inference</span></code>: will run inference when given, otherwise will run training instead.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">checkpoint</span></code>: the pre-trained checkpoint file for inference.</p></li>
 </ul>
 </div></blockquote>
 </li>
@@ -314,80 +304,79 @@ This task is different from the synaptic cleft detection task in two aspects. Fi
 only needs the binary foreground mask for evaluation. Second, the polarity detection task also requires separated pre-synaptic and post-synaptic masks.
 The evaluation metric of the synaptic polarity detection results is an IoU-based F1 score. The sparsity and diversity of synapses make the task challenging.</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like
+<p class="admonition-title">Note</p>
+<p>We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like
 connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels
 are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic region</strong> (union of the first two channels), respectively.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>.
-The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>.
+The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id2">
 <a class="reference internal image-reference" href="../_images/polarity_qual.png"><img alt="../_images/polarity_qual.png" src="../_images/polarity_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
-union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.</span></p>
+union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
 </div>
 <ol class="arabic">
-<li><p class="first">Get the dataset:</p>
+<li><p>Get the dataset:</p>
 <blockquote>
 <div><p>Download the example dataset for synaptic polarity detection from our server:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
 </pre></div>
 </div>
 </div></blockquote>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
+<li><p>Run the training script. The training and inference script can take a list of volumes (separated by ‘&#64;’) in either the yaml config file or by command-line arguments.</p>
 <blockquote>
 <div><div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">By default the path of images and labels are not specified. To
-run the training scripts, please revise the <code class="docutils literal"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">LABEL_NAME</span></code>
-and <code class="docutils literal"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.
-The options can also be given as command-line arguments without changing of the <code class="docutils literal"><span class="pre">yaml</span></code> configuration files.</p>
+<p class="admonition-title">Note</p>
+<p>By default the path of images and labels are not specified. To
+run the training scripts, please revise the <code class="docutils literal notranslate"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">LABEL_NAME</span></code>
+and <code class="docutils literal notranslate"><span class="pre">INPUT_PATH</span></code> options in <code class="docutils literal notranslate"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.
+The options can also be given as command-line arguments without changing of the <code class="docutils literal notranslate"><span class="pre">yaml</span></code> configuration files.</p>
 </div>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Polarity.yaml
 </pre></div>
 </div>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Polarity.yaml
 </pre></div>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
+<p class="admonition-title">Note</p>
+<p>We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize
 false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
 vast volumes.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
+<li><p>Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/synaptic_polarity
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes:</p>
+<li><p>Run inference on image volumes:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Polarity.yaml --inference \
   --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
 </pre></div>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">By default the path of images for inference are not specified. Please change
-the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.</p>
+<p class="admonition-title">Note</p>
+<p>By default the path of images for inference are not specified. Please change
+the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal notranslate"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Apply post-processing algorithms. Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map into instance/semantic segmentation masks based on the application.</p>
-</li>
+<li><p>Apply post-processing algorithms. Use <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/utils/processing/process_syn.py">this function</a> to convert the probability map into instance/semantic segmentation masks based on the application.</p></li>
 </ol>
 </div>
 </div>

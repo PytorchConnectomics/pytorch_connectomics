@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,21 +26,11 @@
   <![endif]-->
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'latest',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -214,32 +204,27 @@
             
   <div class="section" id="module-connectomics.data.augmentation">
 <span id="connectomics-data-augmentation"></span><h1>connectomics.data.augmentation<a class="headerlink" href="#module-connectomics.data.augmentation" title="Permalink to this headline">¶</a></h1>
-<dl class="class">
+<dl class="py class">
 <dt id="connectomics.data.augmentation.Compose">
-<em class="property">class </em><code class="descname">Compose</code><span class="sig-paren">(</span><em>transforms: list = []</em>, <em>input_size: tuple = (8</em>, <em>256</em>, <em>256)</em>, <em>smooth: bool = True</em>, <em>keep_uncropped: bool = False</em>, <em>keep_non_smoothed: bool = False</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-name descname">Compose</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transforms</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)">list</a></span> <span class="o">=</span> <span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">input_size</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)">tuple</a></span> <span class="o">=</span> <span class="default_value">(8, 256, 256)</span></em>, <em class="sig-param"><span class="n">smooth</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">keep_uncropped</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">keep_non_smoothed</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
 <dd><p>Composing a list of data transforms.</p>
 <p>The sample size of the composed augmentor can be larger than the
 specified input size of the model to ensure that all pixels are
 valid after center-crop.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – list of transformations to compose.</li>
-<li><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – input size of model in <span class="math">\((z, y, x)\)</span> order. Default: <span class="math">\((8, 256, 256)\)</span></li>
-<li><strong>smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – smoothing the object mask with Gaussian filtering. Default: True</li>
-<li><strong>keep_uncropped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – keep uncropped image and label. Default: False</li>
-<li><strong>keep_non_smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – keep the non-smoothed object mask. Default: False</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>transforms</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.9)"><em>list</em></a>) – list of transformations to compose.</p></li>
+<li><p><strong>input_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.9)"><em>tuple</em></a>) – input size of model in <span class="math notranslate nohighlight">\((z, y, x)\)</span> order. Default: <span class="math notranslate nohighlight">\((8, 256, 256)\)</span></p></li>
+<li><p><strong>smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – smoothing the object mask with Gaussian filtering. Default: True</p></li>
+<li><p><strong>keep_uncropped</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – keep uncropped image and label. Default: False</p></li>
+<li><p><strong>keep_non_smooth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – keep the non-smoothed object mask. Default: False</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
-<dl class="docutils">
-<dt>Examples::</dt>
-<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># specify addtional targets besides &#39;image&#39;</span>
+</dd>
+</dl>
+<dl>
+<dt>Examples::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># specify addtional targets besides &#39;image&#39;</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;additional_targets&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;mask&#39;</span><span class="p">}}</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">([</span><span class="n">Rotate</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
 <span class="gp">&gt;&gt;&gt; </span>                     <span class="n">Flip</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
@@ -256,32 +241,28 @@ valid after center-crop.</p>
 </dl>
 </dd></dl>
 
-<dl class="class">
-<dt id="connectomics.data.augmentation.DataAugment">
-<em class="property">class </em><code class="descname">DataAugment</code><span class="sig-paren">(</span><em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
-<dd><p>DataAugment interface. A data augmentor needs to conduct the following steps:</p>
-<ol class="arabic simple">
-<li>Set <code class="xref py py-attr docutils literal"><span class="pre">sample_params</span></code> at initialization to compute required sample size.</li>
-<li>Randomly generate augmentation parameters for the current transform.</li>
-<li>Apply the transform to a pair of images and corresponding labels.</li>
-</ol>
-<p>All the real data augmentations (except mix-up augmentor and test-time augmentor)
-should be a subclass of this class.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
+<dl class="py class">
+<dt id="connectomics.data.augmentation.CutBlur">
+<em class="property">class </em><code class="sig-name descname">CutBlur</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">length_ratio</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.25</span></em>, <em class="sig-param"><span class="n">down_ratio_min</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">2.0</span></em>, <em class="sig-param"><span class="n">down_ratio_max</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">8.0</span></em>, <em class="sig-param"><span class="n">downsample_z</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur" title="Permalink to this definition">¶</a></dt>
+<dd><p>3D CutBlur data augmentation, adapted from <a class="reference external" href="https://arxiv.org/abs/2004.00448">https://arxiv.org/abs/2004.00448</a>.</p>
+<p>Randomly downsample a cuboid region in the volume to force the model
+to learn super-resolution when making predictions. This augmentation
+is only applied to images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>length_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – the ratio of the cuboid length compared with volume length.</p></li>
+<li><p><strong>down_ratio_min</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – minimal downsample ratio to generate low-res region.</p></li>
+<li><p><strong>down_ratio_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – maximal downsample ratio to generate low-res region.</p></li>
+<li><p><strong>downsample_z</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – downsample along the z axis (default: False).</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
-<dl class="method">
-<dt id="connectomics.data.augmentation.DataAugment.set_params">
-<code class="descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.CutBlur.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the appropriate sample size with data augmentation.</p>
 <p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
 size than the original, depending on the augmentation parameters that are
@@ -291,281 +272,259 @@ parameters and returns an updated data sampling size accordingly.</p>
 
 </dd></dl>
 
-<dl class="class">
-<dt id="connectomics.data.augmentation.Elastic">
-<em class="property">class </em><code class="descname">Elastic</code><span class="sig-paren">(</span><em>alpha: float = 16.0</em>, <em>sigma: float = 4.0</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
-<dd><p>Elastic deformation of images as described in <a class="reference internal" href="#simard2003" id="id1">[Simard2003]</a> (with modifications).
-The implementation is based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a>.
-This augmentation is applied to both images and masks.</p>
-<table class="docutils citation" frame="void" id="simard2003" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id1">[Simard2003]</a></td><td>Simard, Steinkraus and Platt, “Best Practices for
-Convolutional Neural Networks applied to Visual Document Analysis”, in
-Proc. of the International Conference on Document Analysis and
-Recognition, 2003.</td></tr>
-</tbody>
-</table>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – maximum pixel-moving distance of elastic deformation. Default: 10.0</li>
-<li><strong>sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – standard deviation of the Gaussian filter. Default: 4.0</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.Grayscale">
-<em class="property">class </em><code class="descname">Grayscale</code><span class="sig-paren">(</span><em>contrast_factor: float = 0.3</em>, <em>brightness_factor: float = 0.3</em>, <em>mode: str = 'mix'</em>, <em>invert: bool = False</em>, <em>invert_p: float = 0.0</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
-<dd><p>Grayscale intensity augmentation, adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
-<p>Randomly adjust contrast/brightness, randomly invert the color space
-and apply gamma correction. This augmentation is only applied to images.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>contrast_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – intensity of contrast change. Default: 0.3</li>
-<li><strong>brightness_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – intensity of brightness change. Default: 0.3</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/string.html#module-string" title="(in Python v3.9)"><em>string</em></a>) – one of <code class="docutils literal"><span class="pre">'2D'</span></code>, <code class="docutils literal"><span class="pre">'3D'</span></code> or <code class="docutils literal"><span class="pre">'mix'</span></code>. Default: <code class="docutils literal"><span class="pre">'mix'</span></code></li>
-<li><strong>invert</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – whether to invert the images. Default: False</li>
-<li><strong>invert_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of inverting the images. Default: 0.0</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.Rotate">
-<em class="property">class </em><code class="descname">Rotate</code><span class="sig-paren">(</span><em>rot90: bool = True</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate" title="Permalink to this definition">¶</a></dt>
-<dd><p>Continuous rotatation of the <cite>xy</cite>-plane.</p>
-<p>If the rotation degree is arbitrary, the sample size for <cite>x</cite>- and <cite>y</cite>-axes should be at
-least <span class="math">\(\sqrt{2}\)</span> times larger than the input size to ensure there is no non-valid region
-after center-crop. This augmentation is applied to both images and masks.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>rot90</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – rotate the sample by only 90 degrees. Default: True</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.Rescale">
-<em class="property">class </em><code class="descname">Rescale</code><span class="sig-paren">(</span><em>low: float = 0.8</em>, <em>high: float = 1.25</em>, <em>fix_aspect: bool = False</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale" title="Permalink to this definition">¶</a></dt>
-<dd><p>Rescale augmentation. This augmentation is applied to both images and masks.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>low</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – lower bound of the random scale factor. Default: 0.8</li>
-<li><strong>high</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – higher bound of the random scale factor. Default: 1.2</li>
-<li><strong>fix_aspect</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – fix aspect ratio or not. Default: False</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.MisAlignment">
-<em class="property">class </em><code class="descname">MisAlignment</code><span class="sig-paren">(</span><em>displacement: int = 16</em>, <em>rotate_ratio: float = 0.0</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
-<dd><p>Mis-alignment data augmentation of image stacks. This augmentation is
-applied to both images and masks.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>displacement</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – maximum pixel displacement in <cite>xy</cite>-plane. Default: 16</li>
-<li><strong>rotate_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – ratio of rotation-based mis-alignment. Default: 0.0</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.MissingSection">
-<em class="property">class </em><code class="descname">MissingSection</code><span class="sig-paren">(</span><em>num_sections: int = 2</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection" title="Permalink to this definition">¶</a></dt>
-<dd><p>Missing-section augmentation of image stacks. This augmentation is applied
-to both images and masks.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>num_sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of missing sections. Default: 2</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.MissingParts">
-<em class="property">class </em><code class="descname">MissingParts</code><span class="sig-paren">(</span><em>deformation_strength: int = 0</em>, <em>iterations: int = 40</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts" title="Permalink to this definition">¶</a></dt>
-<dd><p>Missing-parts augmentation of image stacks. This augmentation is only
-applied to images.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>deformation_strength</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Default: 0</li>
-<li><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Default: 40</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.Flip">
-<em class="property">class </em><code class="descname">Flip</code><span class="sig-paren">(</span><em>do_ztrans: int = 0</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
-<dd><p>Randomly flip along <cite>z</cite>-, <cite>y</cite>- and <cite>x</cite>-axes as well as swap <cite>y</cite>- and <cite>x</cite>-axes
-for anisotropic image volumes. For learning on isotropic image volumes set
-<code class="xref py py-attr docutils literal"><span class="pre">do_ztrans</span></code> to 1 to swap <cite>z</cite>- and <cite>x</cite>-axes (the inputs need to be cubic).
-This augmentation is applied to both images and masks.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>do_ztrans</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – set to 1 to swap z- and x-axes for isotropic data. Default: 0</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.MotionBlur">
-<em class="property">class </em><code class="descname">MotionBlur</code><span class="sig-paren">(</span><em>sections: int = 2</em>, <em>kernel_size: int = 11</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur" title="Permalink to this definition">¶</a></dt>
-<dd><p>Motion blur data augmentation of image stacks. This augmentation is only
-applied to images.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of sections along z dimension to apply motion blur. Default: 2</li>
-<li><strong>kernel_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – kernel size for motion blur. Default: 11</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
-<dt id="connectomics.data.augmentation.CutBlur">
-<em class="property">class </em><code class="descname">CutBlur</code><span class="sig-paren">(</span><em>length_ratio: float = 0.25</em>, <em>down_ratio_min: float = 2.0</em>, <em>down_ratio_max: float = 8.0</em>, <em>downsample_z: bool = False</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur" title="Permalink to this definition">¶</a></dt>
-<dd><p>3D CutBlur data augmentation, adapted from <a class="reference external" href="https://arxiv.org/abs/2004.00448">https://arxiv.org/abs/2004.00448</a>.</p>
-<p>Randomly downsample a cuboid region in the volume to force the model
-to learn super-resolution when making predictions. This augmentation
-is only applied to images.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>length_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – the ratio of the cuboid length compared with volume length.</li>
-<li><strong>down_ratio_min</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – minimal downsample ratio to generate low-res region.</li>
-<li><strong>down_ratio_max</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – maximal downsample ratio to generate low-res region.</li>
-<li><strong>downsample_z</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – downsample along the z axis (default: False).</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
-</ul>
-</td>
-</tr>
-</tbody>
-</table>
-</dd></dl>
-
-<dl class="class">
+<dl class="py class">
 <dt id="connectomics.data.augmentation.CutNoise">
-<em class="property">class </em><code class="descname">CutNoise</code><span class="sig-paren">(</span><em>length_ratio: float = 0.25</em>, <em>mode: str = 'uniform'</em>, <em>scale: float = 0.2</em>, <em>p: float = 0.5</em>, <em>additional_targets: typing.Union[dict</em>, <em>NoneType] = None</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-name descname">CutNoise</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">length_ratio</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.25</span></em>, <em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)">str</a></span> <span class="o">=</span> <span class="default_value">'uniform'</span></em>, <em class="sig-param"><span class="n">scale</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.2</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise" title="Permalink to this definition">¶</a></dt>
 <dd><p>3D CutNoise data augmentation.</p>
 <p>Randomly add noise to a cuboid region in the volume to force the model
 to learn denoising when making predictions. This augmentation is only
 applied to images.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>length_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – the ratio of the cuboid length compared with volume length.</li>
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/string.html#module-string" title="(in Python v3.9)"><em>string</em></a>) – the distribution of the noise pattern. Default: <code class="docutils literal"><span class="pre">'uniform'</span></code>.</li>
-<li><strong>scale</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – scale of the random noise. Default: 0.2.</li>
-<li><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</li>
-<li><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</li>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>length_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – the ratio of the cuboid length compared with volume length.</p></li>
+<li><p><strong>mode</strong> (<em>string</em>) – the distribution of the noise pattern. Default: <code class="docutils literal notranslate"><span class="pre">'uniform'</span></code>.</p></li>
+<li><p><strong>scale</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – scale of the random noise. Default: 0.2.</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.CutNoise.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
 </dd></dl>
 
-<dl class="class">
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.DataAugment">
+<em class="property">class </em><code class="sig-name descname">DataAugment</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
+<dd><p>DataAugment interface. A data augmentor needs to conduct the following steps:</p>
+<ol class="arabic simple">
+<li><p>Set <code class="xref py py-attr docutils literal notranslate"><span class="pre">sample_params</span></code> at initialization to compute required sample size.</p></li>
+<li><p>Randomly generate augmentation parameters for the current transform.</p></li>
+<li><p>Apply the transform to a pair of images and corresponding labels.</p></li>
+</ol>
+<p>All the real data augmentations (except mix-up augmentor and test-time augmentor)
+should be a subclass of this class.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.DataAugment.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.Elastic">
+<em class="property">class </em><code class="sig-name descname">Elastic</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">16.0</span></em>, <em class="sig-param"><span class="n">sigma</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">4.0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Elastic deformation of images as described in <a class="reference internal" href="#simard2003" id="id1"><span>[Simard2003]</span></a> (with modifications).
+The implementation is based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a>.
+This augmentation is applied to both images and masks.</p>
+<dl class="citation">
+<dt class="label" id="simard2003"><span class="brackets"><a class="fn-backref" href="#id1">Simard2003</a></span></dt>
+<dd><p>Simard, Steinkraus and Platt, “Best Practices for
+Convolutional Neural Networks applied to Visual Document Analysis”, in
+Proc. of the International Conference on Document Analysis and
+Recognition, 2003.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – maximum pixel-moving distance of elastic deformation. Default: 10.0</p></li>
+<li><p><strong>sigma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – standard deviation of the Gaussian filter. Default: 4.0</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.Elastic.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.Flip">
+<em class="property">class </em><code class="sig-name descname">Flip</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">do_ztrans</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly flip along <cite>z</cite>-, <cite>y</cite>- and <cite>x</cite>-axes as well as swap <cite>y</cite>- and <cite>x</cite>-axes
+for anisotropic image volumes. For learning on isotropic image volumes set
+<code class="xref py py-attr docutils literal notranslate"><span class="pre">do_ztrans</span></code> to 1 to swap <cite>z</cite>- and <cite>x</cite>-axes (the inputs need to be cubic).
+This augmentation is applied to both images and masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>do_ztrans</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – set to 1 to swap z- and x-axes for isotropic data. Default: 0</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.Flip.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.Grayscale">
+<em class="property">class </em><code class="sig-name descname">Grayscale</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">contrast_factor</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.3</span></em>, <em class="sig-param"><span class="n">brightness_factor</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.3</span></em>, <em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)">str</a></span> <span class="o">=</span> <span class="default_value">'mix'</span></em>, <em class="sig-param"><span class="n">invert</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">invert_p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Grayscale intensity augmentation, adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
+<p>Randomly adjust contrast/brightness, randomly invert the color space
+and apply gamma correction. This augmentation is only applied to images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>contrast_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – intensity of contrast change. Default: 0.3</p></li>
+<li><p><strong>brightness_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – intensity of brightness change. Default: 0.3</p></li>
+<li><p><strong>mode</strong> (<em>string</em>) – one of <code class="docutils literal notranslate"><span class="pre">'2D'</span></code>, <code class="docutils literal notranslate"><span class="pre">'3D'</span></code> or <code class="docutils literal notranslate"><span class="pre">'mix'</span></code>. Default: <code class="docutils literal notranslate"><span class="pre">'mix'</span></code></p></li>
+<li><p><strong>invert</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – whether to invert the images. Default: False</p></li>
+<li><p><strong>invert_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of inverting the images. Default: 0.0</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.Grayscale.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.MisAlignment">
+<em class="property">class </em><code class="sig-name descname">MisAlignment</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">displacement</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">16</span></em>, <em class="sig-param"><span class="n">rotate_ratio</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mis-alignment data augmentation of image stacks. This augmentation is
+applied to both images and masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>displacement</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – maximum pixel displacement in <cite>xy</cite>-plane. Default: 16</p></li>
+<li><p><strong>rotate_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – ratio of rotation-based mis-alignment. Default: 0.0</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.MisAlignment.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.MissingParts">
+<em class="property">class </em><code class="sig-name descname">MissingParts</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">deformation_strength</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">iterations</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">40</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Missing-parts augmentation of image stacks. This augmentation is only
+applied to images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>deformation_strength</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Default: 0</p></li>
+<li><p><strong>iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – Default: 40</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.MissingParts.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.MissingSection">
+<em class="property">class </em><code class="sig-name descname">MissingSection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_sections</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">2</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Missing-section augmentation of image stacks. This augmentation is applied
+to both images and masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of missing sections. Default: 2</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.MissingSection.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt id="connectomics.data.augmentation.MixupAugmentor">
-<em class="property">class </em><code class="descname">MixupAugmentor</code><span class="sig-paren">(</span><em>min_ratio: float = 0.7</em>, <em>max_ratio: float = 0.9</em>, <em>num_aug: int = 2</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/mixup.html#MixupAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MixupAugmentor" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-name descname">MixupAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">min_ratio</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.7</span></em>, <em class="sig-param"><span class="n">max_ratio</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.9</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">2</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/mixup.html#MixupAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MixupAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Mixup augmentor (experimental). Conduct linear interpolation between two image samples.
 The segmentation mask of the sample with higher weight should be used with the augmented output.</p>
-<p>The input can be a <cite>numpy.ndarray</cite> or <cite>torch.Tensor</cite> of shape <span class="math">\((B, C, Z, Y, X)\)</span>.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>min_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – minimal interpolation ratio of the target volume. Default: 0.7</li>
-<li><strong>max_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – maximal interpolation ratio of the target volume. Default: 0.9</li>
-<li><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of volumes to be augmented in a batch. Default: 2</li>
+<p>The input can be a <cite>numpy.ndarray</cite> or <cite>torch.Tensor</cite> of shape <span class="math notranslate nohighlight">\((B, C, Z, Y, X)\)</span>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>min_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – minimal interpolation ratio of the target volume. Default: 0.7</p></li>
+<li><p><strong>max_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – maximal interpolation ratio of the target volume. Default: 0.9</p></li>
+<li><p><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of volumes to be augmented in a batch. Default: 2</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
-<dl class="docutils">
-<dt>Examples::</dt>
-<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">MixupAugmentor</span>
+</dd>
+</dl>
+<dl>
+<dt>Examples::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">MixupAugmentor</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">mixup_augmentor</span> <span class="o">=</span> <span class="n">MixupAugmentor</span><span class="p">(</span><span class="n">num_aug</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">volume</span> <span class="o">=</span> <span class="n">mixup_augmentor</span><span class="p">(</span><span class="n">volume</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">pred</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">volume</span><span class="p">)</span>
@@ -575,30 +534,107 @@ The segmentation mask of the sample with higher weight should be used with the a
 </dl>
 </dd></dl>
 
-<dl class="class">
+<dl class="py class">
+<dt id="connectomics.data.augmentation.MotionBlur">
+<em class="property">class </em><code class="sig-name descname">MotionBlur</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">sections</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">2</span></em>, <em class="sig-param"><span class="n">kernel_size</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)">int</a></span> <span class="o">=</span> <span class="default_value">11</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur" title="Permalink to this definition">¶</a></dt>
+<dd><p>Motion blur data augmentation of image stacks. This augmentation is only
+applied to images.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sections</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of sections along z dimension to apply motion blur. Default: 2</p></li>
+<li><p><strong>kernel_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – kernel size for motion blur. Default: 11</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.MotionBlur.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.Rescale">
+<em class="property">class </em><code class="sig-name descname">Rescale</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">low</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">high</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">1.25</span></em>, <em class="sig-param"><span class="n">fix_aspect</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale" title="Permalink to this definition">¶</a></dt>
+<dd><p>Rescale augmentation. This augmentation is applied to both images and masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>low</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – lower bound of the random scale factor. Default: 0.8</p></li>
+<li><p><strong>high</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – higher bound of the random scale factor. Default: 1.2</p></li>
+<li><p><strong>fix_aspect</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – fix aspect ratio or not. Default: False</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.Rescale.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt id="connectomics.data.augmentation.Rotate">
+<em class="property">class </em><code class="sig-name descname">Rotate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">rot90</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)">bool</a></span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)">float</a></span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)">dict</a><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Continuous rotatation of the <cite>xy</cite>-plane.</p>
+<p>If the rotation degree is arbitrary, the sample size for <cite>x</cite>- and <cite>y</cite>-axes should be at
+least <span class="math notranslate nohighlight">\(\sqrt{2}\)</span> times larger than the input size to ensure there is no non-valid region
+after center-crop. This augmentation is applied to both images and masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rot90</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.9)"><em>bool</em></a>) – rotate the sample by only 90 degrees. Default: True</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.9)"><em>float</em></a>) – probability of applying the augmentation. Default: 0.5</p></li>
+<li><p><strong>additional_targets</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.9)"><em>dict</em></a><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.Rotate.set_params">
+<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate.set_params" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate the appropriate sample size with data augmentation.</p>
+<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
+size than the original, depending on the augmentation parameters that are
+randomly chosen. This function takes the data augmentation
+parameters and returns an updated data sampling size accordingly.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
 <dt id="connectomics.data.augmentation.TestAugmentor">
-<em class="property">class </em><code class="descname">TestAugmentor</code><span class="sig-paren">(</span><em>mode='mean'</em>, <em>num_aug=4</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-name descname">TestAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mode</span><span class="o">=</span><span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="o">=</span><span class="default_value">4</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Test-time augmentor.</p>
 <p>Our test-time augmentation includes horizontal/vertical flips
 over the <cite>xy</cite>-plane, swap of <cite>x</cite> and <cite>y</cite> axes, and flip in <cite>z</cite>-dimension,
 resulting in 16 variants. Considering inference efficiency, we also
 provide the option to apply only <cite>x-y</cite> swap and <cite>z</cite>-flip, resulting in 4 variants.
 By default the test-time augmentor returns the pixel-wise mean value of the predictions.</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – one of <code class="docutils literal"><span class="pre">'min'</span></code>, <code class="docutils literal"><span class="pre">'max'</span></code> or <code class="docutils literal"><span class="pre">'mean'</span></code>. Default: <code class="docutils literal"><span class="pre">'mean'</span></code></li>
-<li><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of data augmentation variants: 0, 4 or 16. Default: 4</li>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.9)"><em>str</em></a>) – one of <code class="docutils literal notranslate"><span class="pre">'min'</span></code>, <code class="docutils literal notranslate"><span class="pre">'max'</span></code> or <code class="docutils literal notranslate"><span class="pre">'mean'</span></code>. Default: <code class="docutils literal notranslate"><span class="pre">'mean'</span></code></p></li>
+<li><p><strong>num_aug</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.9)"><em>int</em></a>) – number of data augmentation variants: 0, 4 or 16. Default: 4</p></li>
 </ul>
-</td>
-</tr>
-</tbody>
-</table>
-<dl class="docutils">
-<dt>Examples::</dt>
-<dd><div class="first last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">TestAugmentor</span>
+</dd>
+</dl>
+<dl>
+<dt>Examples::</dt><dd><div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">connectomics.data.augmentation</span> <span class="kn">import</span> <span class="n">TestAugmentor</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">test_augmentor</span> <span class="o">=</span> <span class="n">TestAugmentor</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="n">num_aug</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output</span> <span class="o">=</span> <span class="n">test_augmentor</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span> <span class="c1"># output is a numpy.ndarray on CPU</span>
 </pre></div>

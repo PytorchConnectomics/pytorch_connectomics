@@ -1,7 +1,7 @@
 
 
 <!DOCTYPE html>
-<html class="writer-html4" lang="en" >
+<html class="writer-html5" lang="en" >
 <head>
   <meta charset="utf-8">
   
@@ -26,21 +26,11 @@
   <![endif]-->
   
     
-      <script type="text/javascript">
-          var DOCUMENTATION_OPTIONS = {
-              URL_ROOT:'../',
-              VERSION:'latest',
-              LANGUAGE:'None',
-              COLLAPSE_INDEX:false,
-              FILE_SUFFIX:'.html',
-              HAS_SOURCE:  true,
-              SOURCELINK_SUFFIX: '.txt'
-          };
-      </script>
-        <script type="text/javascript" src="../_static/jquery.js"></script>
-        <script type="text/javascript" src="../_static/underscore.js"></script>
-        <script type="text/javascript" src="../_static/doctools.js"></script>
-        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     
     <script type="text/javascript" src="../_static/js/theme.js"></script>
 
@@ -216,9 +206,9 @@
 <h1>Mitochondria Segmentation<a class="headerlink" href="#mitochondria-segmentation" title="Permalink to this headline">¶</a></h1>
 <div class="contents local topic" id="contents">
 <ul class="simple">
-<li><a class="reference internal" href="#introduction" id="id4">Introduction</a></li>
-<li><a class="reference internal" href="#semantic-segmentation" id="id5">Semantic Segmentation</a></li>
-<li><a class="reference internal" href="#instance-segmentation" id="id6">Instance Segmentation</a></li>
+<li><p><a class="reference internal" href="#introduction" id="id4">Introduction</a></p></li>
+<li><p><a class="reference internal" href="#semantic-segmentation" id="id5">Semantic Segmentation</a></p></li>
+<li><p><a class="reference internal" href="#instance-segmentation" id="id6">Instance Segmentation</a></p></li>
 </ul>
 </div>
 <div class="section" id="introduction">
@@ -236,49 +226,49 @@ individual mitochondrion from the large-scale MitoEM dataset released by <a clas
 We consider the task as a <strong>semantic segmentation</strong> task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).</p>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset,
+<p class="admonition-title">Note</p>
+<p>Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset,
 which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x
 and z-y planes besides x-y planes are preferred.</p>
 </div>
-<p>All the scripts needed for this tutorial can be found at <code class="docutils literal"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task.
-The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal notranslate"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task.
+The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id2">
 <a class="reference internal image-reference" href="../_images/lucchi_qual.png"><img alt="../_images/lucchi_qual.png" src="../_images/lucchi_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the model prediction on the mitochondria segmentation dataset released by
-Lucchi et al., without any post-processing.</span></p>
+Lucchi et al., without any post-processing.</span><a class="headerlink" href="#id2" title="Permalink to this image">¶</a></p>
 </div>
 <ol class="arabic">
-<li><p class="first">Get the dataset:</p>
+<li><p>Get the dataset:</p>
 <blockquote>
 <div><p>Download the dataset from our server:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/lucchi.zip
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/lucchi.zip
 </pre></div>
 </div>
 </div></blockquote>
 <p>For description of the data please check <a class="reference external" href="https://www.epfl.ch/labs/cvlab/data/data-em/">the author page</a>.</p>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script:</p>
+<li><p>Run the training script:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Lucchi-Mitochondria.yaml
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress:</p>
+<li><p>Visualize the training progress:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir runs
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on test image volume:</p>
+<li><p>Run inference on test image volume:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Lucchi-Mitochondria.yaml --inference \
   --checkpoint outputs/Lucchi_mito_baseline/volume_100000.pth.tar
@@ -286,9 +276,9 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Since the ground-truth label of the test set is public, we can run the evaluation locally:</p>
+<li><p>Since the ground-truth label of the test set is public, we can run the evaluation locally:</p>
 <blockquote>
-<div><div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">connectomics.utils.evaluation</span> <span class="kn">import</span> <span class="n">get_binary_jaccard</span>
+<div><div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">connectomics.utils.evaluation</span> <span class="kn">import</span> <span class="n">get_binary_jaccard</span>
 <span class="n">pred</span> <span class="o">=</span> <span class="n">pred</span> <span class="o">/</span> <span class="mf">255.</span> <span class="c1"># output is casted to uint8 with range [0,255].</span>
 <span class="n">gt</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt</span><span class="o">!==</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
 <span class="n">thres</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">]</span> <span class="c1"># evaluate at multiple thresholds.</span>
@@ -296,7 +286,7 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 </pre></div>
 </div>
 <p>The prediction can be further improved by conducting median filtering to remove noise:</p>
-<div class="highlight-python"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">connectomics.utils.evaluation</span> <span class="kn">import</span> <span class="n">get_binary_jaccard</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">connectomics.utils.evaluation</span> <span class="kn">import</span> <span class="n">get_binary_jaccard</span>
 <span class="kn">from</span> <span class="nn">connectomics.utils.processing</span> <span class="kn">import</span> <span class="n">binarize_and_median</span>
 <span class="n">pred</span> <span class="o">=</span> <span class="n">pred</span> <span class="o">/</span> <span class="mf">255.</span> <span class="c1"># output is casted to uint8 with range [0,255].</span>
 <span class="n">pred</span> <span class="o">=</span> <span class="n">binarize_and_median</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
@@ -315,90 +305,90 @@ comparison and the pre-trained models.</p>
 <h2><a class="toc-backref" href="#id6">Instance Segmentation</a><a class="headerlink" href="#instance-segmentation" title="Permalink to this headline">¶</a></h2>
 <p>This section provides step-by-step guidance for mitochondria segmentation with our benchmark datasets <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">MitoEM</a>.
 We consider the task as 3D <strong>instance segmentation</strong> task and provide three different confiurations of the model output.
-The model is <code class="docutils literal"><span class="pre">unet_res_3d</span></code>, similar to the one used in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
+The model is <code class="docutils literal notranslate"><span class="pre">unet_res_3d</span></code>, similar to the one used in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>.
 The evaluation of the segmentation results is based on the AP-75 (average precision with an IoU threshold of 0.75).</p>
 <div class="figure align-center" id="id3">
 <a class="reference internal image-reference" href="../_images/mito_complex.png"><img alt="../_images/mito_complex.png" src="../_images/mito_complex.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Complex mitochondria in the MitoEM dataset:(a) mitochondria-on-a-string (MOAS), and (b) dense tangle of touching instances.
-Those challenging cases are prevalent but not covered in previous datasets.</span></p>
+Those challenging cases are prevalent but not covered in previous datasets.</span><a class="headerlink" href="#id3" title="Permalink to this image">¶</a></p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">The MitoEM dataset has two sub-datasets <strong>Rat</strong> and <strong>Human</strong> based on the source of the tissues. Three training configuration files on <strong>MitoEM-Rat</strong>
-are provided in <code class="docutils literal"><span class="pre">pytorch_connectomics/configs/MitoEM/</span></code> for different learning targets of the model.</p>
+<p class="admonition-title">Note</p>
+<p>The MitoEM dataset has two sub-datasets <strong>Rat</strong> and <strong>Human</strong> based on the source of the tissues. Three training configuration files on <strong>MitoEM-Rat</strong>
+are provided in <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/MitoEM/</span></code> for different learning targets of the model.</p>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Since the dataset is very large and can not be directly loaded into memory, we use the <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> dataset class that only
-loads part of the whole volume by opening involved <code class="docutils literal"><span class="pre">PNG</span></code> images.</p>
+<p class="admonition-title">Note</p>
+<p>Since the dataset is very large and can not be directly loaded into memory, we use the <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> dataset class that only
+loads part of the whole volume by opening involved <code class="docutils literal notranslate"><span class="pre">PNG</span></code> images.</p>
 </div>
 <ol class="arabic">
-<li><p class="first">Introduction to the dataset:</p>
+<li><p>Introduction to the dataset:</p>
 <blockquote>
 <div><p>On the Harvard RC cluster, the datasets can be found at:</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/rat
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/rat
 </pre></div>
 </div>
 <p>and</p>
-<div class="highlight-none"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/human
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/human
 </pre></div>
 </div>
 <p>For the public link of the dataset, check the <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">project page</a>.</p>
 <p>Dataset description:</p>
 <ul class="simple">
-<li><code class="docutils literal"><span class="pre">im</span></code>: includes 1,000 single-channel <code class="docutils literal"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of raw EM images (with a spatial resolution of <strong>30x8x8</strong> nm).</li>
-<li><code class="docutils literal"><span class="pre">mito</span></code>: includes 1,000 single-channel <code class="docutils literal"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of instance labels.</li>
-<li><code class="docutils literal"><span class="pre">*.json</span></code>: <code class="xref py py-class docutils literal"><span class="pre">Dict</span></code> contains paths to <code class="docutils literal"><span class="pre">*.png</span></code> files</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">im</span></code>: includes 1,000 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of raw EM images (with a spatial resolution of <strong>30x8x8</strong> nm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mito</span></code>: includes 1,000 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of instance labels.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*.json</span></code>: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code> contains paths to <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files</p></li>
 </ul>
 </div></blockquote>
 </li>
-<li><p class="first">Configure <code class="docutils literal"><span class="pre">.yaml</span></code> files for different learning targets.</p>
+<li><p>Configure <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> files for different learning targets.</p>
 <blockquote>
 <div><ul class="simple">
-<li><code class="docutils literal"><span class="pre">MitoEM-R-A.yaml</span></code>: output 3 channels for affinty prediction.</li>
-<li><code class="docutils literal"><span class="pre">MitoEM-R-AC.yaml</span></code>: output 4 channels for both affinity and instance contour prediction.</li>
-<li><code class="docutils literal"><span class="pre">MitoEM-R-BC.yaml</span></code>: output 2 channels for both binary mask and instance contour prediction.</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-A.yaml</span></code>: output 3 channels for affinty prediction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-AC.yaml</span></code>: output 4 channels for both affinity and instance contour prediction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-BC.yaml</span></code>: output 2 channels for both binary mask and instance contour prediction.</p></li>
 </ul>
 </div></blockquote>
 </li>
-<li><p class="first">Run the training script.</p>
+<li><p>Run the training script.</p>
 <blockquote>
 <div><div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">By default the path of images and labels are not specified. To
-run the training scripts, please revise the <code class="docutils literal"><span class="pre">DATASET.IMAGE_NAME</span></code>, <code class="docutils literal"><span class="pre">DATASET.LABEL_NAME</span></code>, <code class="docutils literal"><span class="pre">DATASET.OUTPUT_PATH</span></code>
-and <code class="docutils literal"><span class="pre">DATASET.INPUT_PATH</span></code> options in <code class="docutils literal"><span class="pre">configs/MitoEM-R-*.yaml</span></code>.
-The options can also be given as command-line arguments without changing of the <code class="docutils literal"><span class="pre">yaml</span></code> configuration files.</p>
+<p class="admonition-title">Note</p>
+<p>By default the path of images and labels are not specified. To
+run the training scripts, please revise the <code class="docutils literal notranslate"><span class="pre">DATASET.IMAGE_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">DATASET.LABEL_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">DATASET.OUTPUT_PATH</span></code>
+and <code class="docutils literal notranslate"><span class="pre">DATASET.INPUT_PATH</span></code> options in <code class="docutils literal notranslate"><span class="pre">configs/MitoEM-R-*.yaml</span></code>.
+The options can also be given as command-line arguments without changing of the <code class="docutils literal notranslate"><span class="pre">yaml</span></code> configuration files.</p>
 </div>
-<div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ python -u scripts/main.py --config-file configs/MitoEM-R-A.yaml
 </pre></div>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
+<li><p>Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ tensorboard --logdir ``OUTPUT_PATH/&lt;EXP_DIR_NAME&gt;``
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir ``OUTPUT_PATH/&lt;EXP_DIR_NAME&gt;``
 </pre></div>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Our utility functions will create a subdir in OUTPUT_PATH to save the Tensorboard event files. Substitute <strong>&lt;EXP_DIR_NAME&gt;</strong> with your subdir name.</p>
+<p class="admonition-title">Note</p>
+<p>Our utility functions will create a subdir in OUTPUT_PATH to save the Tensorboard event files. Substitute <strong>&lt;EXP_DIR_NAME&gt;</strong> with your subdir name.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p class="first">Run inference on image volumes:</p>
+<li><p>Run inference on image volumes:</p>
 <blockquote>
-<div><div class="highlight-none"><div class="highlight"><pre><span></span>$ source activate py3_torch
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ python -u scripts/main.py \
   --config-file configs/MitoEM-R-A.yaml --inference \
   --checkpoint OUTPUT_PATH/checkpoint_&lt;ITER_NUM&gt;.pth.tar
 </pre></div>
 </div>
 <div class="admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">Please change the <code class="docutils literal"><span class="pre">INFERENCE.IMAGE_NAME</span></code> <code class="docutils literal"><span class="pre">INFERENCE.OUTPUT_PATH</span></code> <code class="docutils literal"><span class="pre">INFERENCE.OUTPUT_NAME</span></code>
-options in <code class="docutils literal"><span class="pre">configs/MitoEM-R-A.yaml</span></code>.</p>
+<p class="admonition-title">Note</p>
+<p>Please change the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE_NAME</span></code> <code class="docutils literal notranslate"><span class="pre">INFERENCE.OUTPUT_PATH</span></code> <code class="docutils literal notranslate"><span class="pre">INFERENCE.OUTPUT_NAME</span></code>
+options in <code class="docutils literal notranslate"><span class="pre">configs/MitoEM-R-A.yaml</span></code>.</p>
 </div>
 </div></blockquote>
 </li>
