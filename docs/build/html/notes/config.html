@@ -13,6 +13,7 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
 
   
   
@@ -230,6 +231,11 @@ to add options that are not available in the current version, please modify the 
 <span class="n">_C</span><span class="o">.</span><span class="n">SYSTEM</span> <span class="o">=</span> <span class="n">CN</span><span class="p">()</span>     <span class="c1"># config definition for GPU and CPU</span>
 <span class="n">_C</span><span class="o">.</span><span class="n">MODEL</span> <span class="o">=</span> <span class="n">CN</span><span class="p">()</span>      <span class="c1"># Model architectures defined in the package</span>
 <span class="n">_C</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">ARCHITECTURE</span> <span class="o">=</span> <span class="s1">&#39;unet_residual_3d&#39;</span>
+
+<span class="c1"># specify the name and type of additional targets in the augmentor</span>
+<span class="n">_C</span><span class="o">.</span><span class="n">AUGMENTOR</span> <span class="o">=</span> <span class="n">CN</span><span class="p">()</span>
+<span class="n">_C</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ADDITIONAL_TARGETS_NAME</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+<span class="n">_C</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ADDITIONAL_TARGETS_TYPE</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;mask&#39;</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will
@@ -238,7 +244,7 @@ overwrite the existing values in the config file. For example, we can add argume
 --config-file configs/Lucchi-Mitochondria.yaml SOLVER.ITERATION_TOTAL 30000
 </pre></div>
 </div>
-<p>To see a list of available configs in PyTorch Connectomics and what they mean, check <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py">Config References</a>.</p>
+<p>To see the list of all available configurations in the current PyTorch Connectomics package and their default values, please check the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py">config references</a>.</p>
 </div>
 <div class="section" id="multiple-losses-for-a-single-learning-target">
 <h2><a class="toc-backref" href="#id4">Multiple Losses for a Single Learning Target</a><a class="headerlink" href="#multiple-losses-for-a-single-learning-target" title="Permalink to this headline">¶</a></h2>
@@ -291,26 +297,30 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 <p>Most of the config options are shared by training and inference. However, there are
 several options to be adjusted at inference time by the <code class="docutils literal notranslate"><span class="pre">update_inference_cfg</span></code> function:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">update_inference_cfg</span><span class="p">(</span><span class="n">cfg</span><span class="p">):</span>
-   <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Update configurations (cfg) when running mode is inference.</span>
-
-<span class="sd">   Note that None type is not supported in current release of YACS (0.1.7), but will be</span>
-<span class="sd">   supported soon according to this pull request: https://github.com/rbgirshick/yacs/pull/18.</span>
-<span class="sd">   Therefore a re-organization of the configurations using None type will be done when YACS</span>
-<span class="sd">   0.1.8 is released.</span>
+   <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Overwrite configurations (cfg) when running mode is inference. Please</span>
+<span class="sd">   note that None type is only supported in YACS&gt;=0.1.8.</span>
 <span class="sd">   &quot;&quot;&quot;</span>
    <span class="c1"># Dataset configurations:</span>
-   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_PATH</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_PATH</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
       <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">INPUT_PATH</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_PATH</span>
    <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">IMAGE_NAME</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">IMAGE_NAME</span>
    <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">OUTPUT_PATH</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_PATH</span>
-   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">PAD_SIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">PAD_SIZE</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
       <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">PAD_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">PAD_SIZE</span>
 
    <span class="c1"># Model configurations:</span>
-   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_SIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_SIZE</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
       <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">INPUT_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">INPUT_SIZE</span>
-   <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+   <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
       <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span>
+
+   <span class="k">for</span> <span class="n">topt</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">TARGET_OPT</span><span class="p">:</span>
+      <span class="c1"># For multi-class semantic segmentation, no activation function</span>
+      <span class="c1"># is applied at the output layer during training. For inference</span>
+      <span class="c1"># where the output is assumed to be in (0,1), we apply softmax.</span>
+      <span class="k">if</span> <span class="n">topt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;9&#39;</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_ACT</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_ACT</span> <span class="o">=</span> <span class="s1">&#39;softmax&#39;</span>
+            <span class="k">break</span>
 </pre></div>
 </div>
 <p>There are also several options exclusive for inference. For example:</p>
@@ -395,7 +405,7 @@ several options to be adjusted at inference time by the <code class="docutils li
         </dl>
         <dl>
           <dt>Downloads</dt>
-          <dd><a href="../../build/pdf/connectomics.pdf">PDF</a></dd>
+          <dd><a href="#">PDF</a></dd>
           <dd><a href="#">ePub</a></dd>
           <dd><a href="#">HTML</a></dd>
         </dl>
@@ -403,7 +413,7 @@ several options to be adjusted at inference time by the <code class="docutils li
           
           <dt>On Read the Docs</dt>
             <dd>
-              <a href="../../build/html/index.html">Project Home</a>
+              <a href="#">Project Home</a>
             </dd>
             <dd>
               <a href="#">Builds</a>

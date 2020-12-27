@@ -134,8 +134,9 @@ class Trainer(object):
             weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.volume_size]
 
         # build test-time augmentor and update output filename
-        test_augmentor = TestAugmentor(self.cfg.INFERENCE.AUG_MODE, 
-                                       self.cfg.INFERENCE.AUG_NUM)
+        test_augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 
+                                       do_2d = self.cfg.DATASET.DO_2D,
+                                       num_aug = self.cfg.INFERENCE.AUG_NUM)
         self.inference_output_name = test_augmentor.update_name(self.inference_output_name)
 
         start = time.time()

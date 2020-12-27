@@ -13,6 +13,7 @@
   
   <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/custom.css" type="text/css" />
 
   
   
@@ -334,8 +335,9 @@
             <span class="n">weight</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataloader</span><span class="o">.</span><span class="n">_dataset</span><span class="o">.</span><span class="n">volume_size</span><span class="p">]</span>
 
         <span class="c1"># build test-time augmentor and update output filename</span>
-        <span class="n">test_augmentor</span> <span class="o">=</span> <span class="n">TestAugmentor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">AUG_MODE</span><span class="p">,</span> 
-                                       <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">AUG_NUM</span><span class="p">)</span>
+        <span class="n">test_augmentor</span> <span class="o">=</span> <span class="n">TestAugmentor</span><span class="p">(</span><span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">AUG_MODE</span><span class="p">,</span> 
+                                       <span class="n">do_2d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">DO_2D</span><span class="p">,</span>
+                                       <span class="n">num_aug</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">AUG_NUM</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inference_output_name</span> <span class="o">=</span> <span class="n">test_augmentor</span><span class="o">.</span><span class="n">update_name</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inference_output_name</span><span class="p">)</span>
 
         <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
@@ -536,7 +538,7 @@
         </dl>
         <dl>
           <dt>Downloads</dt>
-          <dd><a href="../../build/pdf/connectomics.pdf">PDF</a></dd>
+          <dd><a href="#">PDF</a></dd>
           <dd><a href="#">ePub</a></dd>
           <dd><a href="#">HTML</a></dd>
         </dl>
@@ -544,7 +546,7 @@
           
           <dt>On Read the Docs</dt>
             <dd>
-              <a href="../../build/html/index.html">Project Home</a>
+              <a href="#">Project Home</a>
             </dd>
             <dd>
               <a href="#">Builds</a>

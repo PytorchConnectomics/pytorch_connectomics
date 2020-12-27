@@ -299,15 +299,15 @@ _C.MONITOR.ITERATION_NUM = [10, 50]
 # # -----------------------------------------------------------------------------
 _C.INFERENCE = CN()
 
-_C.INFERENCE.INPUT_SIZE = []
-_C.INFERENCE.OUTPUT_SIZE = []
+_C.INFERENCE.INPUT_SIZE = None
+_C.INFERENCE.OUTPUT_SIZE = None
 
-_C.INFERENCE.INPUT_PATH = ""
+_C.INFERENCE.INPUT_PATH = None
 _C.INFERENCE.IMAGE_NAME = ""
 _C.INFERENCE.OUTPUT_PATH = ""
-_C.INFERENCE.OUTPUT_NAME = 'result'
+_C.INFERENCE.OUTPUT_NAME = 'result.h5'
 
-_C.INFERENCE.PAD_SIZE = []
+_C.INFERENCE.PAD_SIZE = None
 
 _C.INFERENCE.STRIDE = [4, 128, 129]
 
@@ -315,7 +315,7 @@ _C.INFERENCE.STRIDE = [4, 128, 129]
 _C.INFERENCE.BLENDING = 'gaussian'
 
 _C.INFERENCE.AUG_MODE = 'mean'
-_C.INFERENCE.AUG_NUM = 4
+_C.INFERENCE.AUG_NUM = None
 
 # Run the model forward pass with model.eval() if DO_EVAL is True, else
 # run with model.train(). Layers like batchnorm and dropout will be affected.
@@ -340,32 +340,29 @@ _C.INFERENCE.SAMPLES_PER_BATCH = 32
 #######################################################
 
 def get_cfg_defaults():
-    """Get a yacs CfgNode object with default values for my_project."""
+    r"""Get a yacs CfgNode object with default values for my_project."""
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern
     return _C.clone()
 
 def update_inference_cfg(cfg):
-    r"""Update configurations (cfg) when running mode is inference.
-
-    Note that None type is not supported in current release of YACS (0.1.7), but will be 
-    supported soon according to this pull request: https://github.com/rbgirshick/yacs/pull/18.
-    Therefore a re-organization of the configurations using None type will be done when 0.1.8 
-    is released.
+    r"""Overwrite configurations (cfg) when running mode is inference. Please 
+    note that None type is only supported in YACS>=0.1.8.
     """
     # Dataset configurations:
-    if len(cfg.INFERENCE.INPUT_PATH) != 0:
+    if cfg.INFERENCE.INPUT_PATH is not None:
         cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
     cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
     cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
-    if len(cfg.INFERENCE.PAD_SIZE) != 0:
+    if cfg.INFERENCE.PAD_SIZE is not None:
         cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
 
     # Model configurations:
-    if len(cfg.INFERENCE.INPUT_SIZE) != 0:
+    if cfg.INFERENCE.INPUT_SIZE is not None:
         cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
-    if len(cfg.INFERENCE.OUTPUT_SIZE) != 0:
+    if cfg.INFERENCE.OUTPUT_SIZE is not None:
         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+
     for topt in cfg.MODEL.TARGET_OPT:
         # For multi-class semantic segmentation, no activation function
         # is applied at the output layer during training. For inference

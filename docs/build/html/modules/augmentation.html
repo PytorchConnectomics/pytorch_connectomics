@@ -13,6 +13,7 @@
   
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
 
   
   
@@ -617,18 +618,21 @@ parameters and returns an updated data sampling size accordingly.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.TestAugmentor">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">TestAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mode</span><span class="o">=</span><span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="o">=</span><span class="default_value">4</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
-<dd><p>Test-time augmentor.</p>
-<p>Our test-time augmentation includes horizontal/vertical flips
-over the <cite>xy</cite>-plane, swap of <cite>x</cite> and <cite>y</cite> axes, and flip in <cite>z</cite>-dimension,
+<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">TestAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">do_2d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test-time spatial augmentor.</p>
+<p>Our test-time augmentation includes horizontal/vertical flips over
+the <cite>xy</cite>-plane, swap of <cite>x</cite> and <cite>y</cite> axes, and flip in <cite>z</cite>-dimension,
 resulting in 16 variants. Considering inference efficiency, we also
-provide the option to apply only <cite>x-y</cite> swap and <cite>z</cite>-flip, resulting in 4 variants.
-By default the test-time augmentor returns the pixel-wise mean value of the predictions.</p>
+provide the option to apply only <cite>horizontal/vertical flips over the
+`xy</cite>-plane, resulting in 4 variants. The augmentation can also be applied
+to 2D outputs without the <cite>z</cite>-flip. By default the test-time augmentor
+returns the pixel-wise mean value of the predictions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>mode</strong> (<em>str</em>) – one of <code class="docutils literal notranslate"><span class="pre">'min'</span></code>, <code class="docutils literal notranslate"><span class="pre">'max'</span></code> or <code class="docutils literal notranslate"><span class="pre">'mean'</span></code>. Default: <code class="docutils literal notranslate"><span class="pre">'mean'</span></code></p></li>
-<li><p><strong>num_aug</strong> (<em>int</em>) – number of data augmentation variants: 0, 4 or 16. Default: 4</p></li>
+<li><p><strong>do_2d</strong> (<em>bool</em>) – the test-time augmentation is applied to 2d images. Default: False</p></li>
+<li><p><strong>num_aug</strong> (<em>int</em><em>, </em><em>optional</em>) – number of data augmentation variants: 4, 8 or 16 (3D only). Default: None</p></li>
 </ul>
 </dd>
 </dl>
@@ -714,7 +718,7 @@ By default the test-time augmentor returns the pixel-wise mean value of the pred
         </dl>
         <dl>
           <dt>Downloads</dt>
-          <dd><a href="../../build/pdf/connectomics.pdf">PDF</a></dd>
+          <dd><a href="#">PDF</a></dd>
           <dd><a href="#">ePub</a></dd>
           <dd><a href="#">HTML</a></dd>
         </dl>
@@ -722,7 +726,7 @@ By default the test-time augmentor returns the pixel-wise mean value of the pred
           
           <dt>On Read the Docs</dt>
             <dd>
-              <a href="../../build/html/index.html">Project Home</a>
+              <a href="#">Project Home</a>
             </dd>
             <dd>
               <a href="#">Builds</a>

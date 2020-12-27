@@ -1,5 +1,5 @@
 Configurations
-===============
+================
 
 .. contents::
    :local:
@@ -23,11 +23,16 @@ Some basic usage of the ``CfgNode`` object in `YACS <https://github.com/rbgirshi
 
 .. code-block:: python
 
-    from yacs.config import CfgNode as CN
-    _C = CN()            # config definition
-    _C.SYSTEM = CN()     # config definition for GPU and CPU
-    _C.MODEL = CN()      # Model architectures defined in the package
-    _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
+   from yacs.config import CfgNode as CN
+   _C = CN()            # config definition
+   _C.SYSTEM = CN()     # config definition for GPU and CPU
+   _C.MODEL = CN()      # Model architectures defined in the package
+   _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
+
+   # specify the name and type of additional targets in the augmentor
+   _C.AUGMENTOR = CN()
+   _C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ['label']
+   _C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ['mask']
    
 The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will 
 overwrite the existing values in the config file. For example, we can add arguments when executing ``scripts/main.py``:
@@ -37,7 +42,7 @@ overwrite the existing values in the config file. For example, we can add argume
     python -u scripts/main.py \
     --config-file configs/Lucchi-Mitochondria.yaml SOLVER.ITERATION_TOTAL 30000
   
-To see a list of available configs in PyTorch Connectomics and what they mean, check `Config References <https://github.com/zudi-
+To see the list of all available configurations in the current PyTorch Connectomics package and their default values, please check the `config references <https://github.com/zudi-
 lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_.
 
 
@@ -110,26 +115,30 @@ several options to be adjusted at inference time by the ``update_inference_cfg``
 .. code-block:: python
 
    def update_inference_cfg(cfg):
-      r"""Update configurations (cfg) when running mode is inference.
-
-      Note that None type is not supported in current release of YACS (0.1.7), but will be 
-      supported soon according to this pull request: https://github.com/rbgirshick/yacs/pull/18.
-      Therefore a re-organization of the configurations using None type will be done when YACS
-      0.1.8 is released.
+      r"""Overwrite configurations (cfg) when running mode is inference. Please 
+      note that None type is only supported in YACS>=0.1.8.
       """
       # Dataset configurations:
-      if len(cfg.INFERENCE.INPUT_PATH) != 0:
+      if cfg.INFERENCE.INPUT_PATH is not None:
          cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
       cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
       cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
-      if len(cfg.INFERENCE.PAD_SIZE) != 0:
+      if cfg.INFERENCE.PAD_SIZE is not None:
          cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
 
       # Model configurations:
-      if len(cfg.INFERENCE.INPUT_SIZE) != 0:
+      if cfg.INFERENCE.INPUT_SIZE is not None:
          cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
-      if len(cfg.INFERENCE.OUTPUT_SIZE) != 0:
+      if cfg.INFERENCE.OUTPUT_SIZE is not None:
          cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+         
+      for topt in cfg.MODEL.TARGET_OPT:
+         # For multi-class semantic segmentation, no activation function
+         # is applied at the output layer during training. For inference
+         # where the output is assumed to be in (0,1), we apply softmax. 
+         if topt[0] == '9' and cfg.MODEL.OUTPUT_ACT == 'none':
+               cfg.MODEL.OUTPUT_ACT = 'softmax'
+               break
 
 There are also several options exclusive for inference. For example:
 
