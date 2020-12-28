@@ -212,7 +212,7 @@
 <span class="sd">    Our test-time augmentation includes horizontal/vertical flips over </span>
 <span class="sd">    the `xy`-plane, swap of `x` and `y` axes, and flip in `z`-dimension, </span>
 <span class="sd">    resulting in 16 variants. Considering inference efficiency, we also </span>
-<span class="sd">    provide the option to apply only `horizontal/vertical flips over the </span>
+<span class="sd">    provide the option to apply only horizontal/vertical flips over the </span>
 <span class="sd">    `xy`-plane, resulting in 4 variants. The augmentation can also be applied </span>
 <span class="sd">    to 2D outputs without the `z`-flip. By default the test-time augmentor </span>
 <span class="sd">    returns the pixel-wise mean value of the predictions.</span>
@@ -251,7 +251,7 @@
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tta_2d</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">5</span><span class="p">,</span> \
-            <span class="s2">&quot;The input has a shape of </span><span class="si">{}</span><span class="s2">, which not a valid 2D &quot;</span> \
+            <span class="s2">&quot;The input has a shape of </span><span class="si">{}</span><span class="s2">, which not a valid 3D &quot;</span> \
             <span class="s2">&quot;input in (B, C, Z, Y, X) format.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tta_3d</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
 
@@ -304,7 +304,7 @@
         <span class="c1"># output in (B, C, Y, X) format</span>
         <span class="n">out</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">cc</span> <span class="o">=</span> <span class="mi">0</span>
-        
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_aug</span> <span class="o">==</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">opts</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">((</span><span class="kc">False</span><span class="p">,</span> <span class="p">),</span> <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="p">),</span> <span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="p">))</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_aug</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>

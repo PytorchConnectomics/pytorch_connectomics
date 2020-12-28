@@ -11,7 +11,7 @@ class TestAugmentor(object):
     Our test-time augmentation includes horizontal/vertical flips over 
     the `xy`-plane, swap of `x` and `y` axes, and flip in `z`-dimension, 
     resulting in 16 variants. Considering inference efficiency, we also 
-    provide the option to apply only `horizontal/vertical flips over the 
+    provide the option to apply only horizontal/vertical flips over the 
     `xy`-plane, resulting in 4 variants. The augmentation can also be applied 
     to 2D outputs without the `z`-flip. By default the test-time augmentor 
     returns the pixel-wise mean value of the predictions.
@@ -50,7 +50,7 @@ class TestAugmentor(object):
             return self._tta_2d(model, data)
         else:
             assert len(data.shape) == 5, \
-            "The input has a shape of {}, which not a valid 2D " \
+            "The input has a shape of {}, which not a valid 3D " \
             "input in (B, C, Z, Y, X) format.".format(data.shape)
             return self._tta_3d(model, data)
 
@@ -103,7 +103,7 @@ class TestAugmentor(object):
         # output in (B, C, Y, X) format
         out = None
         cc = 0
-        
+
         if self.num_aug == None:
             opts = itertools.product((False, ), (False, ), (False, ))
         elif self.num_aug == 4:
