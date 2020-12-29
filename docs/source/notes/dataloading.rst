@@ -76,8 +76,45 @@ training category. For model training with partially annotated dataset under the
       ADDITIONAL_TARGETS_NAME: ['label', 'valid_mask']
       ADDITIONAL_TARGETS_TYPE: ['mask', 'mask']
 
+Each transformation class is associated with an ``ENABLED`` key. To turn off a specific transformation (*e.g.*, mis-alignment), set:
+
+.. code-block:: yaml
+
+    AUGMENTOR:
+      MISALIGNMENT: 
+        ENABLED: False
+
 Rejection Sampling
 -------------------
+
+Rejection sampling in the dataloader is applied for the following two purposes:
+
+#. **Adding more attention to sparse targets**:
+
+    For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synapse.html#introduction>`_). 
+    Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels. 
+    Such a design lets the model pay more attention to the foreground pixels to alleviate false negatives (but may introduce
+    more false positives). There are two corresponding hyper-parameters in the configuration file:
+
+    .. code-block:: yaml
+
+        DATASET:
+          REJECT_SAMPLING:
+            SIZE_THRES: 1000
+            P: 0.95
+
+    The ``SIZE_THRES: 1000`` key-value pair means that if a random volume contains more than 1,000 non-background voxels, then
+    the volume is considered as a foreground volume and is returned by the rejection sampling function. If it contains less
+    than 1,000 voxels, the function will reject it with a probability ``P: 0.95`` and sample another volume. ``SIZE_THRES`` is
+    set to -1 by default to disable the rejection sampling.
+
+#. **Handling partially annotated data**:
+
+    Some datasets are only partially labeled, and the unlabeled region should not be considered in loss calculation. In that case,
+    the user can specify the data path to the valid mask using the ``DATASET.VALID_MASK_NAME`` option. The valid mask volume should
+    be of the same shape as the label volume with non-zero values denoting annotated regions. A sampled volume with a valid ratio
+    less than 0.5 will be rejected by default.
+
 
 TileDataset
 ------------

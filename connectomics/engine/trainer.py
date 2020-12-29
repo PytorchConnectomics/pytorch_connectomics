@@ -141,14 +141,13 @@ class Trainer(object):
 
         start = time.time()
         sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
-        total_num_vols = len(self.dataloader) * self.cfg.INFERENCE.SAMPLES_PER_BATCH
-        print("Total number of volumes: ", total_num_vols)
+        print("Total number of batches: ", len(self.dataloader))
 
         volume_id = 0
         with torch.no_grad():
             for _, (pos, volume) in enumerate(self.dataloader):
                 volume_id += self.cfg.INFERENCE.SAMPLES_PER_BATCH
-                print('progress: %d/%d' % (volume_id, total_num_vols))
+                print('progress: %d/%d' % (volume_id, len(self.dataloader)))
 
                 # for gpu computing
                 volume = torch.from_numpy(volume).to(self.device)

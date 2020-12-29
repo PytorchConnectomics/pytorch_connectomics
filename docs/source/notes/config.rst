@@ -26,6 +26,8 @@ Some basic usage of the ``CfgNode`` object in `YACS <https://github.com/rbgirshi
    from yacs.config import CfgNode as CN
    _C = CN()            # config definition
    _C.SYSTEM = CN()     # config definition for GPU and CPU
+   _C.SYSTEM.NUM_GPUS = 4 
+
    _C.MODEL = CN()      # Model architectures defined in the package
    _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
 
@@ -34,7 +36,7 @@ Some basic usage of the ``CfgNode`` object in `YACS <https://github.com/rbgirshi
    _C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ['label']
    _C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ['mask']
    
-The configs in PyTorch Connectomics also accepts command line configuration overwrite, i.e.: Key-value pairs provided in the command line will 
+The configs in PyTorch Connectomics also accepts command line configuration overwriting, *i.e.*, key-value pairs provided in the command line will 
 overwrite the existing values in the config file. For example, we can add arguments when executing ``scripts/main.py``:
 
 .. code-block:: none
@@ -43,7 +45,7 @@ overwrite the existing values in the config file. For example, we can add argume
     --config-file configs/Lucchi-Mitochondria.yaml SOLVER.ITERATION_TOTAL 30000
   
 To see the list of all available configurations in the current PyTorch Connectomics package and their default values, please check the `config references <https://github.com/zudi-
-lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_.
+lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_. All configuration options after command line overwriting will be saved to the experiment directory for future reference.
 
 
 Multiple Losses for a Single Learning Target
@@ -90,21 +92,21 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 
 ``TARGET_OPT``: a list of the targets to learn.
 
-Currently five kinds of ``TARGET_OPT`` are supported:
+Currently six kinds of ``TARGET_OPT`` are supported:
 
-- ``'0'``: binary foreground mask (used in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_).
+- ``'0'``: binary foreground mask (used in the `mitochondria semantic segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#semantic-segmentation>`_).
 
-- ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synaptic_partner.html>`_).
+- ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synapse.html#synaptic-polarity-detection>`_).
 
 - ``'2'``: affinity map (used in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
 
 - ``'3'``: masks of small objects only.
 
-- ``'4'``: instance boundaries (used in the `mitochondria segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/lucchi.html>`_).
+- ``'4'``: instance boundaries (used in the `mitochondria instance segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation>`_).
 
 - ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents the 12 semantic classes.
 
-More options will be provided soon!
+More options will be provided during the development!
 
 Inference
 -----------
@@ -150,3 +152,6 @@ There are also several options exclusive for inference. For example:
      BLENDING: 'gaussian' # blending function for overlapping inference
      STRIDE: (4, 128, 128) # sampling stride for inference
      SAMPLES_PER_BATCH: 16 # batchsize for inference
+
+Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference efficiency. 
+s
