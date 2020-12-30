@@ -36,10 +36,15 @@ def savevol(filename, vol, dataset='main', format='h5'):
 
 def readim(filename, do_channel=False):
     # x,y,c
+    img_suf = filename[filename.rfind('.')+1:]
     if not os.path.exists(filename): 
         im = None
     else:# note: cv2 do "bgr" channel order
-        im = imageio.imread(filename)
+        if img_suf == 'tif':
+            im = cv2.imread(filename)
+            im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+        else:
+            im = imageio.imread(filename)
         if do_channel and im.ndim==2:
             im=im[:,:,None]
     return im
