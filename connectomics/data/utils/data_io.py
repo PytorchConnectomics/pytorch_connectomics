@@ -4,6 +4,7 @@ import glob
 import numpy as np
 import imageio
 from scipy.ndimage import zoom
+import cv2
 
 def readh5(filename, dataset=''):
     fid = h5py.File(filename,'r')
