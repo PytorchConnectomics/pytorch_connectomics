@@ -207,7 +207,7 @@
 <span class="kn">import</span> <span class="nn">torch</span>
 
 <div class="viewcode-block" id="TestAugmentor"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.TestAugmentor">[docs]</a><span class="k">class</span> <span class="nc">TestAugmentor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Test-time spatial augmentor. </span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Test-time spatial augmentor. </span>
 <span class="sd">    </span>
 <span class="sd">    Our test-time augmentation includes horizontal/vertical flips over </span>
 <span class="sd">    the `xy`-plane, swap of `x` and `y` axes, and flip in `z`-dimension, </span>
@@ -359,7 +359,9 @@
 
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">def</span> <span class="nf">update_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+<div class="viewcode-block" id="TestAugmentor.update_name"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.TestAugmentor.update_name">[docs]</a>    <span class="k">def</span> <span class="nf">update_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Update the name of the output file to indicate applied test-time augmentations.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">extension</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_aug</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">name</span>
@@ -374,7 +376,7 @@
         <span class="c1"># the use of test-time data augmentation.</span>
         <span class="n">name_list</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span>
         <span class="n">new_filename</span> <span class="o">=</span> <span class="n">name_list</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">extension</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="n">name_list</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">new_filename</span></div>
+        <span class="k">return</span> <span class="n">new_filename</span></div></div>
 </pre></div>
 
            </div>

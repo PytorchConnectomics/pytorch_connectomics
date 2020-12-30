@@ -10,7 +10,7 @@ from scipy.ndimage.measurements import label
 from scipy.ndimage.morphology import binary_dilation
 
 class MissingParts(DataAugment):
-    """Missing-parts augmentation of image stacks. This augmentation is only 
+    r"""Missing-parts augmentation of image stacks. This augmentation is only 
     applied to images.
 
     Args:
@@ -30,7 +30,8 @@ class MissingParts(DataAugment):
         self.set_params()
 
     def set_params(self):
-        # No change in sample size
+        r"""There is no change in sample size.
+        """
         pass
 
     def prepare_deform_slice(self, slice_shape, random_state):

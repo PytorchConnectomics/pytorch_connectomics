@@ -5,7 +5,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class Grayscale(DataAugment):
-    """Grayscale intensity augmentation, adapted from ELEKTRONN (http://elektronn.org/).
+    r"""Grayscale intensity augmentation, adapted from ELEKTRONN (http://elektronn.org/).
 
     Randomly adjust contrast/brightness, randomly invert the color space
     and apply gamma correction. This augmentation is only applied to images.
@@ -28,8 +28,7 @@ class Grayscale(DataAugment):
                  invert_p: float = 0.0,
                  p: float = 0.5,
                  additional_targets: Optional[dict] = None):
-        """Initialize parameters.
-        """
+
         super(Grayscale, self).__init__(p, additional_targets)
         self._set_mode(mode)
         self.invert = invert
@@ -38,7 +37,8 @@ class Grayscale(DataAugment):
         self.BRIGHTNESS_FACTOR = brightness_factor
 
     def set_params(self):
-        # No change in sample size
+        r"""There is no change in sample size.
+        """
         pass
 
     def __call__(self, sample, random_state=np.random.RandomState()):
@@ -66,7 +66,7 @@ class Grayscale(DataAugment):
         return sample
 
     def _augment2D(self, imgs, ran, do_invert=False):
-        """
+        r"""
         Adapted from ELEKTRONN (http://elektronn.org/).
         """
         transformedimgs = np.copy(imgs)
@@ -83,7 +83,7 @@ class Grayscale(DataAugment):
         return transformedimgs    
 
     def _augment3D(self, imgs, ran, do_invert=False):
-        """
+        r"""
         Adapted from ELEKTRONN (http://elektronn.org/).
         """
         transformedimgs = np.copy(imgs)
@@ -97,7 +97,7 @@ class Grayscale(DataAugment):
         return transformedimgs
 
     def _invert(self, imgs):
-        """
+        r"""
         Invert input images.
         """
         transformedimgs = np.copy(imgs)
@@ -111,6 +111,6 @@ class Grayscale(DataAugment):
     ####################################################################
 
     def _set_mode(self, mode):
-        """Set 2D/3D/mix greyscale value augmentation mode."""
+        r"""Set 2D/3D/mix greyscale value augmentation mode."""
         assert mode=='2D' or mode=='3D' or mode=='mix'
         self.mode = mode

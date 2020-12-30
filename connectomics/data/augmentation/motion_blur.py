@@ -7,7 +7,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class MotionBlur(DataAugment):
-    """Motion blur data augmentation of image stacks. This augmentation is only 
+    r"""Motion blur data augmentation of image stacks. This augmentation is only 
     applied to images.
     
     Args:
@@ -28,7 +28,8 @@ class MotionBlur(DataAugment):
         self.set_params()
 
     def set_params(self):
-        # No change in sample size
+        r"""There is no change in sample size.
+        """
         pass
 
     def motion_blur(self, images, kernel_motion_blur, selected_idx):

@@ -4,7 +4,7 @@ import numpy as np
 from skimage.filters import gaussian
 
 class Compose(object):
-    """Composing a list of data transforms. 
+    r"""Composing a list of data transforms. 
     
     The sample size of the composed augmentor can be larger than the 
     specified input size of the model to ensure that all pixels are 

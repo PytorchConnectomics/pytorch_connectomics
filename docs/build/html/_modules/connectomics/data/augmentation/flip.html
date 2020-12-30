@@ -206,7 +206,7 @@
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="Flip"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Flip">[docs]</a><span class="k">class</span> <span class="nc">Flip</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Randomly flip along `z`-, `y`- and `x`-axes as well as swap `y`- and `x`-axes </span>
 <span class="sd">    for anisotropic image volumes. For learning on isotropic image volumes set </span>
 <span class="sd">    :attr:`do_ztrans` to 1 to swap `z`- and `x`-axes (the inputs need to be cubic).</span>
@@ -226,7 +226,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span> <span class="o">=</span> <span class="n">do_ztrans</span>
 
 <div class="viewcode-block" id="Flip.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Flip.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># No change in sample size</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;There is no change in sample size.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 
     <span class="k">def</span> <span class="nf">flip_and_swap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">rule</span><span class="p">):</span>

@@ -7,7 +7,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class MisAlignment(DataAugment):
-    """Mis-alignment data augmentation of image stacks. This augmentation is 
+    r"""Mis-alignment data augmentation of image stacks. This augmentation is 
     applied to both images and masks.
     
     Args:
@@ -27,6 +27,9 @@ class MisAlignment(DataAugment):
         self.set_params()
 
     def set_params(self):
+        r"""The mis-alignment augmentation is only applied to the `xy`-plane. The required 
+        sample size before transformation need to be larger as decided by :attr:`self.displacement`.
+        """
         self.sample_params['add'] = [0, 
                                      int(math.ceil(self.displacement / 2.0)), 
                                      int(math.ceil(self.displacement / 2.0))]

@@ -8,7 +8,7 @@ from scipy.ndimage.filters import gaussian_filter
 from .augmentor import DataAugment
 
 class Elastic(DataAugment):
-    """Elastic deformation of images as described in [Simard2003]_ (with modifications).
+    r"""Elastic deformation of images as described in [Simard2003]_ (with modifications).
     The implementation is based on https://gist.github.com/erniejunior/601cdf56d2b424757de5.
     This augmentation is applied to both images and masks.
 
@@ -40,6 +40,10 @@ class Elastic(DataAugment):
         self.set_params()
 
     def set_params(self):
+        r"""The rescale augmentation is only applied to the `xy`-plane. The required 
+        sample size before transformation need to be larger as decided by the maximum 
+        pixel-moving distance (:attr:`self.alpha`).
+        """
         max_margin = int(self.alpha) + 1
         self.sample_params['add'] = [0, max_margin, max_margin]
 

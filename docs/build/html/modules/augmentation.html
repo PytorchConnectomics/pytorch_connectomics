@@ -263,11 +263,7 @@ is only applied to images.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.CutBlur.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>There is no change in sample size.</p>
 </dd></dl>
 
 </dd></dl>
@@ -293,11 +289,7 @@ applied to images.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.CutNoise.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>There is no change in sample size.</p>
 </dd></dl>
 
 </dd></dl>
@@ -360,11 +352,9 @@ Recognition, 2003.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Elastic.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>The rescale augmentation is only applied to the <cite>xy</cite>-plane. The required
+sample size before transformation need to be larger as decided by the maximum
+pixel-moving distance (<code class="xref py py-attr docutils literal notranslate"><span class="pre">self.alpha</span></code>).</p>
 </dd></dl>
 
 </dd></dl>
@@ -388,11 +378,7 @@ This augmentation is applied to both images and masks.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Flip.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>There is no change in sample size.</p>
 </dd></dl>
 
 </dd></dl>
@@ -419,11 +405,7 @@ and apply gamma correction. This augmentation is only applied to images.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Grayscale.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>There is no change in sample size.</p>
 </dd></dl>
 
 </dd></dl>
@@ -446,11 +428,8 @@ applied to both images and masks.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MisAlignment.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>The mis-alignment augmentation is only applied to the <cite>xy</cite>-plane. The required
+sample size before transformation need to be larger as decided by <code class="xref py py-attr docutils literal notranslate"><span class="pre">self.displacement</span></code>.</p>
 </dd></dl>
 
 </dd></dl>
@@ -473,11 +452,7 @@ applied to images.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MissingParts.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>There is no change in sample size.</p>
 </dd></dl>
 
 </dd></dl>
@@ -499,11 +474,8 @@ to both images and masks.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MissingSection.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>The missing-section augmentation is only applied to the <cite>z</cite>-axis. The required
+sample size before transformation need to be larger as decided by <code class="xref py py-attr docutils literal notranslate"><span class="pre">self.num_sections</span></code>.</p>
 </dd></dl>
 
 </dd></dl>
@@ -552,11 +524,7 @@ applied to images.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MotionBlur.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>There is no change in sample size.</p>
 </dd></dl>
 
 </dd></dl>
@@ -579,11 +547,9 @@ parameters and returns an updated data sampling size accordingly.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Rescale.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>The rescale augmentation is only applied to the <cite>xy</cite>-plane. The required
+sample size before transformation need to be larger as decided by the lowest
+scaling factor (<code class="xref py py-attr docutils literal notranslate"><span class="pre">self.low</span></code>).</p>
 </dd></dl>
 
 </dd></dl>
@@ -607,11 +573,9 @@ after center-crop. This augmentation is applied to both images and masks.</p>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Rotate.set_params">
 <code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate.set_params" title="Permalink to this definition">¶</a></dt>
-<dd><p>Calculate the appropriate sample size with data augmentation.</p>
-<p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
-size than the original, depending on the augmentation parameters that are
-randomly chosen. This function takes the data augmentation
-parameters and returns an updated data sampling size accordingly.</p>
+<dd><p>The rescale augmentation is only applied to the <cite>xy</cite>-plane. If <code class="xref py py-attr docutils literal notranslate"><span class="pre">self.rot90=True</span></code>,
+then there is no change in sample size. For arbitrary rotation degree, the required
+sample size before transformation need to be <span class="math notranslate nohighlight">\(\sqrt{2}\)</span> times larger.</p>
 </dd></dl>
 
 </dd></dl>
@@ -644,6 +608,12 @@ returns the pixel-wise mean value of the predictions.</p>
 </div>
 </dd>
 </dl>
+<dl class="py method">
+<dt id="connectomics.data.augmentation.TestAugmentor.update_name">
+<code class="sig-name descname">update_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor.update_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor.update_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update the name of the output file to indicate applied test-time augmentations.</p>
+</dd></dl>
+
 </dd></dl>
 
 </div>

@@ -207,7 +207,7 @@
 <span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">resize</span>
 
 <div class="viewcode-block" id="CutBlur"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.CutBlur">[docs]</a><span class="k">class</span> <span class="nc">CutBlur</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;3D CutBlur data augmentation, adapted from https://arxiv.org/abs/2004.00448.</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;3D CutBlur data augmentation, adapted from https://arxiv.org/abs/2004.00448.</span>
 
 <span class="sd">    Randomly downsample a cuboid region in the volume to force the model</span>
 <span class="sd">    to learn super-resolution when making predictions. This augmentation</span>
@@ -237,7 +237,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">downsample_z</span> <span class="o">=</span> <span class="n">downsample_z</span>
 
 <div class="viewcode-block" id="CutBlur.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.CutBlur.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># No change in sample size</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;There is no change in sample size.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 
     <span class="k">def</span> <span class="nf">cut_blur</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">images</span><span class="p">,</span> <span class="n">zl</span><span class="p">,</span> <span class="n">zh</span><span class="p">,</span> <span class="n">yl</span><span class="p">,</span> <span class="n">yh</span><span class="p">,</span> <span class="n">xl</span><span class="p">,</span> <span class="n">xh</span><span class="p">,</span> <span class="n">down_ratio</span><span class="p">):</span>

@@ -207,7 +207,7 @@
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="Rotate"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Rotate">[docs]</a><span class="k">class</span> <span class="nc">Rotate</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Continuous rotatation of the `xy`-plane.</span>
 
 <span class="sd">    If the rotation degree is arbitrary, the sample size for `x`- and `y`-axes should be at </span>
@@ -234,6 +234,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
 <div class="viewcode-block" id="Rotate.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Rotate.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;The rescale augmentation is only applied to the `xy`-plane. If :attr:`self.rot90=True`,</span>
+<span class="sd">        then there is no change in sample size. For arbitrary rotation degree, the required </span>
+<span class="sd">        sample size before transformation need to be :math:`\sqrt{2}` times larger.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">rot90</span><span class="p">:</span> <span class="c1"># arbitrary rotation degree</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;ratio&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">,</span> <span class="mf">1.42</span><span class="p">]</span> <span class="c1"># sqrt(2)</span></div>
 

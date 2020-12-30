@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 
 class DataAugment(object):
-    """
+    r"""
     DataAugment interface. A data augmentor needs to conduct the following steps:
 
     1. Set :attr:`sample_params` at initialization to compute required sample size.
@@ -32,7 +32,7 @@ class DataAugment(object):
             self.additional_targets = {}
 
     def set_params(self):
-        """
+        r"""
         Calculate the appropriate sample size with data augmentation.
         
         Some data augmentations (wrap, misalignment, etc.) require a larger sample 
@@ -43,7 +43,7 @@ class DataAugment(object):
         raise NotImplementedError
 
     def __call__(self, sample, random_state=None):
-        """
+        r"""
         Apply the data augmentation.
 
         For a multi-CPU dataloader, one may need to use a unique index to generate 

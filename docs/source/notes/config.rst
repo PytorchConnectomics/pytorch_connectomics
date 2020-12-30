@@ -154,4 +154,3 @@ There are also several options exclusive for inference. For example:
      SAMPLES_PER_BATCH: 16 # batchsize for inference
 
 Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference efficiency. 
-s

@@ -206,7 +206,7 @@
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="Grayscale"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Grayscale">[docs]</a><span class="k">class</span> <span class="nc">Grayscale</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Grayscale intensity augmentation, adapted from ELEKTRONN (http://elektronn.org/).</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Grayscale intensity augmentation, adapted from ELEKTRONN (http://elektronn.org/).</span>
 
 <span class="sd">    Randomly adjust contrast/brightness, randomly invert the color space</span>
 <span class="sd">    and apply gamma correction. This augmentation is only applied to images.</span>
@@ -229,8 +229,7 @@
                  <span class="n">invert_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
                  <span class="n">p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
                  <span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Initialize parameters.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+
         <span class="nb">super</span><span class="p">(</span><span class="n">Grayscale</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_mode</span><span class="p">(</span><span class="n">mode</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">invert</span> <span class="o">=</span> <span class="n">invert</span>
@@ -239,7 +238,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">BRIGHTNESS_FACTOR</span> <span class="o">=</span> <span class="n">brightness_factor</span>
 
 <div class="viewcode-block" id="Grayscale.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Grayscale.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="c1"># No change in sample size</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;There is no change in sample size.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span></div>
 
     <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">RandomState</span><span class="p">()):</span>
@@ -267,7 +267,7 @@
         <span class="k">return</span> <span class="n">sample</span>
 
     <span class="k">def</span> <span class="nf">_augment2D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">ran</span><span class="p">,</span> <span class="n">do_invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adapted from ELEKTRONN (http://elektronn.org/).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
@@ -284,7 +284,7 @@
         <span class="k">return</span> <span class="n">transformedimgs</span>    
 
     <span class="k">def</span> <span class="nf">_augment3D</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">,</span> <span class="n">ran</span><span class="p">,</span> <span class="n">do_invert</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Adapted from ELEKTRONN (http://elektronn.org/).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
@@ -298,7 +298,7 @@
         <span class="k">return</span> <span class="n">transformedimgs</span>
 
     <span class="k">def</span> <span class="nf">_invert</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imgs</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Invert input images.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">transformedimgs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">imgs</span><span class="p">)</span>
@@ -312,7 +312,7 @@
     <span class="c1">####################################################################</span>
 
     <span class="k">def</span> <span class="nf">_set_mode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Set 2D/3D/mix greyscale value augmentation mode.&quot;&quot;&quot;</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Set 2D/3D/mix greyscale value augmentation mode.&quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="n">mode</span><span class="o">==</span><span class="s1">&#39;2D&#39;</span> <span class="ow">or</span> <span class="n">mode</span><span class="o">==</span><span class="s1">&#39;3D&#39;</span> <span class="ow">or</span> <span class="n">mode</span><span class="o">==</span><span class="s1">&#39;mix&#39;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span></div>
 </pre></div>

@@ -6,7 +6,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class Rotate(DataAugment):
-    """
+    r"""
     Continuous rotatation of the `xy`-plane.
 
     If the rotation degree is arbitrary, the sample size for `x`- and `y`-axes should be at 
@@ -33,6 +33,10 @@ class Rotate(DataAugment):
         self.set_params()
 
     def set_params(self):
+        r"""The rescale augmentation is only applied to the `xy`-plane. If :attr:`self.rot90=True`,
+        then there is no change in sample size. For arbitrary rotation degree, the required 
+        sample size before transformation need to be :math:`\sqrt{2}` times larger.
+        """
         if not self.rot90: # arbitrary rotation degree
             self.sample_params['ratio'] = [1.0, 1.42, 1.42] # sqrt(2)
 

@@ -5,7 +5,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class CutNoise(DataAugment):
-    """3D CutNoise data augmentation.
+    r"""3D CutNoise data augmentation.
 
     Randomly add noise to a cuboid region in the volume to force the model
     to learn denoising when making predictions. This augmentation is only 
@@ -32,7 +32,8 @@ class CutNoise(DataAugment):
         self.scale = scale
 
     def set_params(self):
-        # No change in sample size
+        r"""There is no change in sample size.
+        """
         pass
 
     def cut_noise(self, images, zl, zh, yl, yh, xl, xh, noise):

@@ -6,7 +6,7 @@ import itertools
 import torch
 
 class TestAugmentor(object):
-    """Test-time spatial augmentor. 
+    r"""Test-time spatial augmentor. 
     
     Our test-time augmentation includes horizontal/vertical flips over 
     the `xy`-plane, swap of `x` and `y` axes, and flip in `z`-dimension, 
@@ -159,6 +159,8 @@ class TestAugmentor(object):
         return out
 
     def update_name(self, name):
+        r"""Update the name of the output file to indicate applied test-time augmentations.
+        """
         extension = "_"
         if self.num_aug is None:
             return name

@@ -208,7 +208,7 @@
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="MisAlignment"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.MisAlignment">[docs]</a><span class="k">class</span> <span class="nc">MisAlignment</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Mis-alignment data augmentation of image stacks. This augmentation is </span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Mis-alignment data augmentation of image stacks. This augmentation is </span>
 <span class="sd">    applied to both images and masks.</span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
@@ -228,6 +228,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
 <div class="viewcode-block" id="MisAlignment.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.MisAlignment.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;The mis-alignment augmentation is only applied to the `xy`-plane. The required </span>
+<span class="sd">        sample size before transformation need to be larger as decided by :attr:`self.displacement`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> 
                                      <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">displacement</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">)),</span> 
                                      <span class="nb">int</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">displacement</span> <span class="o">/</span> <span class="mf">2.0</span><span class="p">))]</span></div>

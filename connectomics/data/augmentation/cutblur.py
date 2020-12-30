@@ -6,7 +6,7 @@ from .augmentor import DataAugment
 from skimage.transform import resize
 
 class CutBlur(DataAugment):
-    """3D CutBlur data augmentation, adapted from https://arxiv.org/abs/2004.00448.
+    r"""3D CutBlur data augmentation, adapted from https://arxiv.org/abs/2004.00448.
 
     Randomly downsample a cuboid region in the volume to force the model
     to learn super-resolution when making predictions. This augmentation
@@ -36,7 +36,8 @@ class CutBlur(DataAugment):
         self.downsample_z = downsample_z
 
     def set_params(self):
-        # No change in sample size
+        r"""There is no change in sample size.
+        """
         pass
 
     def cut_blur(self, images, zl, zh, yl, yh, xl, xh, down_ratio):

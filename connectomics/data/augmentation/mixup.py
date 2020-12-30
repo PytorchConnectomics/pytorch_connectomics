@@ -5,7 +5,7 @@ import torch
 from itertools import combinations
 
 class MixupAugmentor(object):
-    """Mixup augmentor (experimental). Conduct linear interpolation between two image samples. 
+    r"""Mixup augmentor (experimental). Conduct linear interpolation between two image samples. 
     The segmentation mask of the sample with higher weight should be used with the augmented output. 
 
     The input can be a `numpy.ndarray` or `torch.Tensor` of shape :math:`(B, C, Z, Y, X)`.

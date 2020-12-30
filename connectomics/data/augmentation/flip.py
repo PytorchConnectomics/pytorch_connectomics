@@ -5,7 +5,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class Flip(DataAugment):
-    """
+    r"""
     Randomly flip along `z`-, `y`- and `x`-axes as well as swap `y`- and `x`-axes 
     for anisotropic image volumes. For learning on isotropic image volumes set 
     :attr:`do_ztrans` to 1 to swap `z`- and `x`-axes (the inputs need to be cubic).
@@ -25,7 +25,8 @@ class Flip(DataAugment):
         self.do_ztrans = do_ztrans
 
     def set_params(self):
-        # No change in sample size
+        r"""There is no change in sample size.
+        """
         pass
 
     def flip_and_swap(self, data, rule):

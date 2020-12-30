@@ -209,7 +209,7 @@
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
 <div class="viewcode-block" id="Elastic"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Elastic">[docs]</a><span class="k">class</span> <span class="nc">Elastic</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;Elastic deformation of images as described in [Simard2003]_ (with modifications).</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Elastic deformation of images as described in [Simard2003]_ (with modifications).</span>
 <span class="sd">    The implementation is based on https://gist.github.com/erniejunior/601cdf56d2b424757de5.</span>
 <span class="sd">    This augmentation is applied to both images and masks.</span>
 
@@ -241,6 +241,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
 <div class="viewcode-block" id="Elastic.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Elastic.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;The rescale augmentation is only applied to the `xy`-plane. The required </span>
+<span class="sd">        sample size before transformation need to be larger as decided by the maximum </span>
+<span class="sd">        pixel-moving distance (:attr:`self.alpha`).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">max_margin</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">sample_params</span><span class="p">[</span><span class="s1">&#39;add&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_margin</span><span class="p">,</span> <span class="n">max_margin</span><span class="p">]</span></div>
 

@@ -207,7 +207,7 @@
 <span class="kn">from</span> <span class="nn">skimage.transform</span> <span class="kn">import</span> <span class="n">resize</span>
 
 <div class="viewcode-block" id="Rescale"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Rescale">[docs]</a><span class="k">class</span> <span class="nc">Rescale</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Rescale augmentation. This augmentation is applied to both images and masks.</span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
@@ -236,6 +236,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">set_params</span><span class="p">()</span>
 
 <div class="viewcode-block" id="Rescale.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Rescale.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;The rescale augmentation is only applied to the `xy`-plane. The required </span>
+<span class="sd">        sample size before transformation need to be larger as decided by the lowest</span>
+<span class="sd">        scaling factor (:attr:`self.low`).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">low</span> <span class="o">&gt;=</span> <span class="mf">0.5</span><span class="p">)</span>
         <span class="k">assert</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">low</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">)</span>
         <span class="n">ratio</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">low</span>

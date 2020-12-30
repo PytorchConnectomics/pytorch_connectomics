@@ -6,7 +6,7 @@ from .augmentor import DataAugment
 from skimage.transform import resize
 
 class Rescale(DataAugment):
-    """
+    r"""
     Rescale augmentation. This augmentation is applied to both images and masks.
     
     Args:
@@ -35,6 +35,10 @@ class Rescale(DataAugment):
         self.set_params()
 
     def set_params(self):
+        r"""The rescale augmentation is only applied to the `xy`-plane. The required 
+        sample size before transformation need to be larger as decided by the lowest
+        scaling factor (:attr:`self.low`).
+        """
         assert (self.low >= 0.5)
         assert (self.low <= 1.0)
         ratio = 1.0 / self.low

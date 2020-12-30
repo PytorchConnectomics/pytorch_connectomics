@@ -6,7 +6,7 @@ import numpy as np
 from .augmentor import DataAugment
 
 class MissingSection(DataAugment):
-    """Missing-section augmentation of image stacks. This augmentation is applied 
+    r"""Missing-section augmentation of image stacks. This augmentation is applied 
     to both images and masks.
     
     Args:
@@ -24,6 +24,9 @@ class MissingSection(DataAugment):
         self.set_params()
 
     def set_params(self):
+        r"""The missing-section augmentation is only applied to the `z`-axis. The required 
+        sample size before transformation need to be larger as decided by :attr:`self.num_sections`.
+        """
         self.sample_params['add'] = [int(math.ceil(self.num_sections / 2.0)), 0, 0]
 
     def missing_section(self, images, idx):
