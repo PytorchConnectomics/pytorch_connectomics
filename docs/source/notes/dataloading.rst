@@ -89,7 +89,7 @@ Rejection Sampling
 
 Rejection sampling in the dataloader is applied for the following two purposes:
 
-#. **Adding more attention to sparse targets**:
+1. **Adding more attention to sparse targets**:
 
 For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synapse.html#introduction>`_). 
 Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels. 
@@ -108,7 +108,7 @@ the volume is considered as a foreground volume and is returned by the rejection
 than 1,000 voxels, the function will reject it with a probability ``P: 0.95`` and sample another volume. ``SIZE_THRES`` is
 set to -1 by default to disable the rejection sampling.
 
-#. **Handling partially annotated data**:
+2. **Handling partially annotated data**:
 
 Some datasets are only partially labeled, and the unlabeled region should not be considered in loss calculation. In that case,
 the user can specify the data path to the valid mask using the ``DATASET.VALID_MASK_NAME`` option. The valid mask volume should
@@ -118,3 +118,10 @@ less than 0.5 will be rejected by default.
 
 TileDataset
 ------------
+
+Large-scale volumetric datasets (*e.g.,* `MitoEM <https://mitoem.grand-challenge.org>`_) are usually stored as individual 
+tiles (*i.e.*, 2D patches). Directly loading them as a single array into the memory for training and inference is infeasible. 
+Therefore we designed the :class:`connectomics.data.dataset.TileDataset` class that reads the paths of the tiles and 
+construct tractable chunks for processing. To use this dataset class, the user needs to prepare a `JSON` file which contains
+the information of the dataset. An example for the MitoEM dataset can be 
+found `here <https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/configs/MitoEM/im_train.json>`_.
