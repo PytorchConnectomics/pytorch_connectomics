@@ -290,19 +290,8 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 <li><p><code class="docutils literal notranslate"><span class="pre">'2'</span></code>: affinity map (used in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation tutorial</a>).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'3'</span></code>: masks of small objects only.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">'4'</span></code>: instance boundaries (used in the <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation">mitochondria instance segmentation tutorial</a>).</p></li>
-<li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">'5'</span></code>: distance transform. This target represents each pixel as the (quantized) distance</dt><dd><p>to the instance boundaries. By default the distance is calculated for each slice in a given
-volume. To calculate the distance transform for 3D objects, set the option to <code class="docutils literal notranslate"><span class="pre">'5-3d'</span></code>.</p>
-</dd>
-</dl>
-</li>
-<li><dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">'9'</span></code>: generic segmantic segmentation. Supposing there are 12 classes (including one background</dt><dd><p>class) to predict, we need to set <code class="docutils literal notranslate"><span class="pre">MODEL.OUT_PLANES:</span> <span class="pre">12</span></code> and <code class="docutils literal notranslate"><span class="pre">MODEL.TARGET_OPT:</span> <span class="pre">['9-12']</span></code>.
-Here <code class="docutils literal notranslate"><span class="pre">9</span></code> represent the multi-class semantic segmentation task, while <code class="docutils literal notranslate"><span class="pre">12</span></code> in <code class="docutils literal notranslate"><span class="pre">['9-12']</span></code> represents
-the 12 semantic classes.</p>
-</dd>
-</dl>
-</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'5'</span></code>: distance transform. This target represents each pixel as the (quantized) distance to the instance boundaries. By default the distance is calculated for each slice in a given volume. To calculate the distance transform for 3D objects, set the option to <code class="docutils literal notranslate"><span class="pre">'5-3d'</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'9'</span></code>: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set <code class="docutils literal notranslate"><span class="pre">MODEL.OUT_PLANES:</span> <span class="pre">12</span></code> and <code class="docutils literal notranslate"><span class="pre">MODEL.TARGET_OPT:</span> <span class="pre">['9-12']</span></code>. Here <code class="docutils literal notranslate"><span class="pre">9</span></code> represent the multi-class semantic segmentation task, while <code class="docutils literal notranslate"><span class="pre">12</span></code> in <code class="docutils literal notranslate"><span class="pre">['9-12']</span></code> represents the 12 semantic classes.</p></li>
 </ul>
 <p>More options will be provided during the development!</p>
 </div>
@@ -329,10 +318,11 @@ several options to be adjusted at inference time by the <code class="docutils li
       <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">INFERENCE</span><span class="o">.</span><span class="n">OUTPUT_SIZE</span>
 
    <span class="k">for</span> <span class="n">topt</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">TARGET_OPT</span><span class="p">:</span>
-      <span class="c1"># For multi-class semantic segmentation, no activation function</span>
-      <span class="c1"># is applied at the output layer during training. For inference</span>
-      <span class="c1"># where the output is assumed to be in (0,1), we apply softmax.</span>
-      <span class="k">if</span> <span class="n">topt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;9&#39;</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_ACT</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
+      <span class="c1"># For multi-class semantic segmentation and quantized distance</span>
+      <span class="c1"># transform, no activation function is applied at the output layer</span>
+      <span class="c1"># during training. For inference where the output is assumed to be</span>
+      <span class="c1"># in (0,1), we apply softmax.</span>
+      <span class="k">if</span> <span class="n">topt</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;5&#39;</span><span class="p">,</span> <span class="s1">&#39;9&#39;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_ACT</span> <span class="o">==</span> <span class="s1">&#39;none&#39;</span><span class="p">:</span>
             <span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">OUTPUT_ACT</span> <span class="o">=</span> <span class="s1">&#39;softmax&#39;</span>
             <span class="k">break</span>
 </pre></div>

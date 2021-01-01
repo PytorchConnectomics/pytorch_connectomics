@@ -104,14 +104,9 @@ Currently six kinds of ``TARGET_OPT`` are supported:
 
 - ``'4'``: instance boundaries (used in the `mitochondria instance segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation>`_).
 
-- ``'5'``: distance transform. This target represents each pixel as the (quantized) distance 
-   to the instance boundaries. By default the distance is calculated for each slice in a given
-   volume. To calculate the distance transform for 3D objects, set the option to ``'5-3d'``.
+- ``'5'``: distance transform. This target represents each pixel as the (quantized) distance to the instance boundaries. By default the distance is calculated for each slice in a given volume. To calculate the distance transform for 3D objects, set the option to ``'5-3d'``.
 
-- ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background 
-   class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. 
-   Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents 
-   the 12 semantic classes.
+- ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents the 12 semantic classes.
 
 More options will be provided during the development!
 
@@ -140,12 +135,13 @@ several options to be adjusted at inference time by the ``update_inference_cfg``
          cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
       if cfg.INFERENCE.OUTPUT_SIZE is not None:
          cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
-         
+
       for topt in cfg.MODEL.TARGET_OPT:
-         # For multi-class semantic segmentation, no activation function
-         # is applied at the output layer during training. For inference
-         # where the output is assumed to be in (0,1), we apply softmax. 
-         if topt[0] == '9' and cfg.MODEL.OUTPUT_ACT == 'none':
+         # For multi-class semantic segmentation and quantized distance
+         # transform, no activation function is applied at the output layer 
+         # during training. For inference where the output is assumed to be 
+         # in (0,1), we apply softmax. 
+         if topt[0] in ['5', '9'] and cfg.MODEL.OUTPUT_ACT == 'none':
                cfg.MODEL.OUTPUT_ACT = 'softmax'
                break
 

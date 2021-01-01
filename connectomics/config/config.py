@@ -364,10 +364,11 @@ def update_inference_cfg(cfg):
         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
 
     for topt in cfg.MODEL.TARGET_OPT:
-        # For multi-class semantic segmentation, no activation function
-        # is applied at the output layer during training. For inference
-        # where the output is assumed to be in (0,1), we apply softmax. 
-        if topt[0] == '9' and cfg.MODEL.OUTPUT_ACT == 'none':
+        # For multi-class semantic segmentation and quantized distance
+        # transform, no activation function is applied at the output layer 
+        # during training. For inference where the output is assumed to be 
+        # in (0,1), we apply softmax. 
+        if topt[0] in ['5', '9'] and cfg.MODEL.OUTPUT_ACT == 'none':
             cfg.MODEL.OUTPUT_ACT = 'softmax'
             break
 
