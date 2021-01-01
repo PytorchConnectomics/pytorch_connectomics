@@ -16,7 +16,7 @@ WEIGHT_OPT_TYPE = List[List[str]]
 AUGMENTOR_TYPE = Optional[Compose]
 
 class TileDataset(torch.utils.data.Dataset):
-    """Dataset class for large-scale tile-based datasets. Large-scale volumetric datasets are usually stored as 
+    r"""Dataset class for large-scale tile-based datasets. Large-scale volumetric datasets are usually stored as 
     individual tiles. Directly loading them as a single array for training and inference is infeasible. This 
     class reads the paths of the tiles and construct smaller chunks for processing.
 
@@ -111,6 +111,8 @@ class TileDataset(torch.utils.data.Dataset):
         return '-'.join([str(x) for x in self.coord])
 
     def updatechunk(self, do_load=True):
+        r"""Update to a new chunk in the large volume.
+        """
         if len(self.chunk_id_done)==len(self.chunk_num_ind):
             self.chunk_id_done = []
         id_rest = list(set(self.chunk_num_ind)-set(self.chunk_id_done))
@@ -124,11 +126,11 @@ class TileDataset(torch.utils.data.Dataset):
         yid = float((id_sample//self.chunk_num[2])%(self.chunk_num[1]))
         xid = float(id_sample%self.chunk_num[2])
         
-        x0,x1 = np.floor(np.array([xid,xid+self.chunk_step])/(self.chunk_num[2]+self.chunk_step-1)*self.json_size[2]).astype(int)
-        y0,y1 = np.floor(np.array([yid,yid+self.chunk_step])/(self.chunk_num[1]+self.chunk_step-1)*self.json_size[1]).astype(int)
-        z0,z1 = np.floor(np.array([zid,zid+self.chunk_step])/(self.chunk_num[0]+self.chunk_step-1)*self.json_size[0]).astype(int)
+        x0, x1 = np.floor(np.array([xid,xid+self.chunk_step])/(self.chunk_num[2]+self.chunk_step-1)*self.json_size[2]).astype(int)
+        y0, y1 = np.floor(np.array([yid,yid+self.chunk_step])/(self.chunk_num[1]+self.chunk_step-1)*self.json_size[1]).astype(int)
+        z0, z1 = np.floor(np.array([zid,zid+self.chunk_step])/(self.chunk_num[0]+self.chunk_step-1)*self.json_size[0]).astype(int)
 
-        self.coord = np.array([z0,z1,y0,y1,x0,x1],int)
+        self.coord = np.array([z0, z1, y0, y1, x0, x1], int)
 
         if do_load:
             self.loadchunk()

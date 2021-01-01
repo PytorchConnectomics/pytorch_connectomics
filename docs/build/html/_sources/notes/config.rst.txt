@@ -104,7 +104,14 @@ Currently six kinds of ``TARGET_OPT`` are supported:
 
 - ``'4'``: instance boundaries (used in the `mitochondria instance segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation>`_).
 
-- ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents the 12 semantic classes.
+- ``'5'``: distance transform. This target represents each pixel as the (quantized) distance 
+   to the instance boundaries. By default the distance is calculated for each slice in a given
+   volume. To calculate the distance transform for 3D objects, set the option to ``'5-3d'``.
+
+- ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background 
+   class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. 
+   Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents 
+   the 12 semantic classes.
 
 More options will be provided during the development!
 

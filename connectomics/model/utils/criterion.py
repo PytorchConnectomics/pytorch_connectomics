@@ -76,6 +76,8 @@ class Criterion(object):
         if topt[0] == '9': # generic segmantic segmentation
             numC = topt.split('-')[1]
             numC = int(numC)
+        elif topt[0] == '5': # quantized distance transform
+            numC = 11
         else:
             numC = target[i].shape[1]
         return numC

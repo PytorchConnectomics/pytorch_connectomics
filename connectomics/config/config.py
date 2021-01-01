@@ -372,7 +372,8 @@ def update_inference_cfg(cfg):
             break
 
 def save_all_cfg(cfg, output_dir):
-    """Save configs in the output directory."""
+    r"""Save configs in the output directory.
+    """
     # Save config.yaml in the experiment directory after combine all 
     # non-default configurations from yaml file and command line.
     path = os.path.join(output_dir, "config.yaml")
@@ -381,5 +382,12 @@ def save_all_cfg(cfg, output_dir):
     print("Full config saved to {}".format(path))
 
 def overwrite_cfg(cfg, args):
-    """Overwrite some configs given configs with higher priority."""
-    raise NotImplementedError
+    r"""Overwrite some configs given configs with higher priority.
+    """
+    # Target options:
+    for topt in cfg.MODEL.TARGET_OPT:
+        if topt[0] == '5': # quantized distance transform
+            cfg.MODEL.OUT_PLANES = 11
+            assert len(cfg.MODEL.TARGET_OPT) == 1, \
+                "Multi-task learning with quantized distance transform " \
+                "is currently not supported."

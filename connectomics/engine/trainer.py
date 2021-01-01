@@ -54,7 +54,7 @@ class Trainer(object):
 
         self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
         self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME
-
+        self.total_time = 0
 
     def train(self):
         r"""Training function.
@@ -100,7 +100,9 @@ class Trainer(object):
             self.lr_scheduler.step(loss) if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau' else self.lr_scheduler.step()
 
             end = time.perf_counter()
-            print('[Iteration %05d] Data time: %.5f, Iter time:  %.5f' % (iter_total, time1 - start, end - start))
+            self.total_time += end - start
+            print('[Iteration %05d] Data time: %.4f, Iter time: %.4f, Avg iter time: %.4f.' % (
+                  iter_total, time1 - start, end - start, self.total_time / (iter_total+1)))
 
             # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
             # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770

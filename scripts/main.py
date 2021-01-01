@@ -2,7 +2,7 @@ import os, sys
 import argparse
 import torch
 
-from connectomics.config import get_cfg_defaults, save_all_cfg, update_inference_cfg
+from connectomics.config import *
 from connectomics.engine import Trainer
 import torch.backends.cudnn as cudnn
 
@@ -38,6 +38,9 @@ def main():
 
     if args.inference:
         update_inference_cfg(cfg)
+
+    # Overwrite options given configs with higher priority.
+    overwrite_cfg(cfg, args)
 
     cfg.freeze()
     print("Configuration details:")

@@ -1,6 +1,7 @@
 import torch
 import torchvision.utils as vutils
 import numpy as np
+from ...data.utils import decode_quantize
 
 class Visualizer(object):
     def __init__(self, cfg, vis_opt=0, N=16, do_2d=False):
@@ -15,6 +16,7 @@ class Visualizer(object):
             '2': 3,  
             '3': 1,
             '4': 1,
+            '5': 11,
         }
         if do_2d:
             self.num_channels_dict['2'] = 2
@@ -53,6 +55,11 @@ class Visualizer(object):
             if topt[0] == '9':
                 output[idx] = self.get_semantic_map(output[idx])
                 label[idx] = self.get_semantic_map(label[idx], argmax=False)
+            if topt[0] == '5':
+                output[idx] = decode_quantize(output[idx], mode='max').unsqueeze(1)
+                temp_label = label[idx].copy().astype(np.float32)[:, np.newaxis]
+                label[idx] = temp_label / temp_label.max() + 1e-6
+
             RGB = (topt == '1' or topt[0] == '9')
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
             if isinstance(label[idx], (np.ndarray, np.generic)):

@@ -1,0 +1,39 @@
+# All other configurations are set by default. If you want to add new config options,
+# please modify ../connectomics/config/config.py
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 4
+MODEL:
+  ARCHITECTURE: 'unet_residual_3d'
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 1
+  LOSS_OPTION: [['WeightedCE']]
+  TARGET_OPT: ['5']
+  WEIGHT_OPT: [['0']]
+  OUTPUT_ACT: 'none'
+DATASET:
+  IMAGE_NAME: 'train_image.h5'
+  LABEL_NAME: 'train_label.h5'
+  INPUT_PATH: 'datasets/SNEMI3D/' # or your own dataset path
+  OUTPUT_PATH: 'outputs/SNEMI3D/'
+  PAD_SIZE: [4, 128, 128]
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  BASE_LR: 0.01
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 8
+INFERENCE:
+  INPUT_SIZE: [8, 256, 256]
+  OUTPUT_SIZE: [8, 256, 256]
+  IMAGE_NAME: 'test-input.tif' # or path to your test images
+  OUTPUT_PATH: 'outputs/SNEMI3D/test'
+  OUTPUT_NAME: 'result.h5'
+  PAD_SIZE: [8, 64, 64]
+  AUG_MODE: 'mean'
+  AUG_NUM: 4
+  STRIDE: [4, 128, 128]
+  SAMPLES_PER_BATCH: 16

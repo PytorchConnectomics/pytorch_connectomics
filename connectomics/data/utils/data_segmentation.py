@@ -6,6 +6,7 @@ from skimage.measure import label as label_cc # avoid namespace conflict
 from skimage.segmentation import find_boundaries
 
 from .data_affinity import mknhood2d, seg_to_aff
+from .data_transform import distance_transform_vol
 
 # reduce the labeling
 def getSegType(mid):
@@ -161,7 +162,7 @@ def seg_to_targets(label, topts):
     # input: (D, H, W)
     # output: (C, D, H, W)
     out = [None]*len(topts)
-    for tid,topt in enumerate(topts):
+    for tid, topt in enumerate(topts):
         if topt[0] == '9': # generic segmantic segmentation
             out[tid] = label.astype(np.int64)
         elif topt == '0': # binary
@@ -191,6 +192,11 @@ def seg_to_targets(label, topts):
                 out[tid] = seg_to_instance_bd(label[None,:], bd_sz, do_bg).astype(np.float32)
             else:
                 out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[None,:].astype(np.float32)
+        elif topt[0] == '5': # distance transform
+            if len(topt) == 1: 
+                topt = topt + '-2d'
+            mode = topt.split('-')
+            out[tid] = distance_transform_vol(label.copy(), mode=mode)
         else:
             raise NameError("Target option %s is not valid!" % topt[0])
 
