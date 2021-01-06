@@ -1,4 +1,5 @@
 from __future__ import print_function, division
+from typing import Optional, Tuple
 
 import torch
 import numpy as np
@@ -30,13 +31,24 @@ def distance_transform_vol(label, quantize=True, mode='2d'):
         
     return vol_distance
 
-def distance_transform(label, bg_value=-1.0, relabel=True, resolution=(1.0, 1.0)):
+def distance_transform(label, 
+                       bg_value: float = -1.0, 
+                       relabel: bool = True, 
+                       padding: bool = False,
+                       resolution: Tuple[int, ...] = (1.0, 1.0)):
     """Euclidean distance transform (DT or EDT).
     """
     eps = 1e-6
+    pad_size = 2
 
     if relabel:
         label = label_cc(label)
+
+    if padding:
+        # The distance_transform_edt function does not treat image border
+        # as background. If image border needs to be considered as background
+        # in distance calculation, set padding to True.
+        label = np.pad(label, pad_size, mode='constant', constant_values=0)
 
     label_shape = label.shape
     distance = np.zeros(label_shape, dtype=np.float32) + bg_value
@@ -57,6 +69,11 @@ def distance_transform(label, bg_value=-1.0, relabel=True, resolution=(1.0, 1.0)
         boundary_edt = distance_transform_edt(temp2, resolution)
         energy = boundary_edt / (boundary_edt.max() + eps) # normalize
         distance = np.maximum(distance, energy * temp2.astype(np.float32))
+
+    if padding:
+        # Unpad the output array to preserve original shape.
+        distance = uniform_unpad(distance, pad_size)
+        semantic = uniform_unpad(semantic, pad_size)
 
     return distance, semantic   
 
@@ -91,3 +108,11 @@ def decode_quantize(output, mode='max'):
         energy = (pred*bins).view(out_shape).sum(1)
 
     return energy
+
+def uniform_unpad(array: np.ndarray, 
+                  pad_size: int = 2):
+    """Unpad a given numpy.ndarray uniformly along all axes.
+    """
+    assert pad_size > 0
+    index = tuple(array.ndim * [slice(pad_size, -pad_size)])
+    return array[index]
