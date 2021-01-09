@@ -616,6 +616,27 @@ returns the pixel-wise mean value of the predictions.</p>
 
 </dd></dl>
 
+<dl class="py function">
+<dt id="connectomics.data.augmentation.build_train_augmentor">
+<code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">build_train_augmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">yacs.config.CfgNode</span></em>, <em class="sig-param"><span class="n">keep_uncropped</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">keep_non_smoothed</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/build.html#build_train_augmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.build_train_augmentor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build the training augmentor based on the options specified in the configuration
+file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cfg</strong> (<em>yacs.config.CfgNode</em>) – YACS configuration options.</p></li>
+<li><p><strong>keep_uncropped</strong> (<em>bool</em>) – keep uncropped data in the output. Default: <cite>False</cite></p></li>
+<li><p><strong>keep_non_smoothed</strong> (<em>bool</em>) – keep the masks before smoothing in the output. Default: <cite>False</cite></p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The two arguments, keep_uncropped and keep_non_smoothed, are used only for debugging,
+which are <cite>False</cite> by defaults and can not be adjusted in the config file.</p>
+</div>
+</dd></dl>
+
 </div>
 
 
@@ -639,7 +660,7 @@ returns the pixel-wise mean value of the predictions.</p>
   <div role="contentinfo">
     <p>
         
-        &copy; Copyright 2020, Zudi Lin and Donglai Wei
+        &copy; Copyright 2021, Zudi Lin and Donglai Wei
 
     </p>
   </div>

@@ -1,0 +1,473 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.data.augmentation.build &mdash; connectomics latest documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/custom.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../../" src="../../../../_static/documentation_options.js"></script>
+        <script src="../../../../_static/jquery.js"></script>
+        <script src="../../../../_static/underscore.js"></script>
+        <script src="../../../../_static/doctools.js"></script>
+        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search"  style="background: #FFFFFF" >
+          
+
+          
+            <a href="../../../../index.html">
+          
+
+          
+            
+            <img src="../../../../_static/logo_text.png" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                latest
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Notes</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configurations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#multitask-learning">Multitask Learning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/config.html#inference">Inference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../notes/dataloading.html#tiledataset">TileDataset</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/snemi.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#semantic-segmentation">Semantic Segmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/mito.html#instance-segmentation">Instance Segmentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synapse.html">Synapse Detection</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/synapse.html#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/synapse.html#synaptic-cleft-detection">Synaptic Cleft Detection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../tutorials/synapse.html#synaptic-polarity-detection">Synaptic Polarity Detection</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/datasets.html">connectomics.data.datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/engine.html">connectomics.engine</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/model.html#module-connectomics.model.zoo">Model Zoo</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">connectomics</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>connectomics.data.augmentation.build</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for connectomics.data.augmentation.build</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">yacs.config</span> <span class="kn">import</span> <span class="n">CfgNode</span>
+
+<span class="kn">from</span> <span class="nn">.composition</span> <span class="kn">import</span> <span class="n">Compose</span>
+<span class="kn">from</span> <span class="nn">.warp</span> <span class="kn">import</span> <span class="n">Elastic</span>
+<span class="kn">from</span> <span class="nn">.grayscale</span> <span class="kn">import</span> <span class="n">Grayscale</span>
+<span class="kn">from</span> <span class="nn">.flip</span> <span class="kn">import</span> <span class="n">Flip</span>
+<span class="kn">from</span> <span class="nn">.rotation</span> <span class="kn">import</span> <span class="n">Rotate</span>
+<span class="kn">from</span> <span class="nn">.rescale</span> <span class="kn">import</span> <span class="n">Rescale</span>
+<span class="kn">from</span> <span class="nn">.misalign</span> <span class="kn">import</span> <span class="n">MisAlignment</span>
+<span class="kn">from</span> <span class="nn">.missing_section</span> <span class="kn">import</span> <span class="n">MissingSection</span>
+<span class="kn">from</span> <span class="nn">.missing_parts</span> <span class="kn">import</span> <span class="n">MissingParts</span>
+<span class="kn">from</span> <span class="nn">.motion_blur</span> <span class="kn">import</span> <span class="n">MotionBlur</span>
+<span class="kn">from</span> <span class="nn">.cutblur</span> <span class="kn">import</span> <span class="n">CutBlur</span>
+<span class="kn">from</span> <span class="nn">.cutnoise</span> <span class="kn">import</span> <span class="n">CutNoise</span>
+
+<div class="viewcode-block" id="build_train_augmentor"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.build_train_augmentor">[docs]</a><span class="k">def</span> <span class="nf">build_train_augmentor</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">CfgNode</span><span class="p">,</span> <span class="n">keep_uncropped</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">keep_non_smoothed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Build the training augmentor based on the options specified in the configuration</span>
+<span class="sd">    file. </span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cfg (yacs.config.CfgNode): YACS configuration options.</span>
+<span class="sd">        keep_uncropped (bool): keep uncropped data in the output. Default: `False`</span>
+<span class="sd">        keep_non_smoothed (bool): keep the masks before smoothing in the output. Default: `False`</span>
+
+<span class="sd">    Note:</span>
+<span class="sd">        The two arguments, keep_uncropped and keep_non_smoothed, are used only for debugging,</span>
+<span class="sd">        which are `False` by defaults and can not be adjusted in the config file.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">aug_list</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="n">names</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ADDITIONAL_TARGETS_NAME</span>
+    <span class="n">types</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ADDITIONAL_TARGETS_TYPE</span>
+    <span class="k">if</span> <span class="n">names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">additional_targets</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">types</span><span class="p">)</span>
+        <span class="n">additional_targets</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)):</span>
+            <span class="n">additional_targets</span><span class="p">[</span><span class="n">names</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">=</span> <span class="n">types</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="c1">#1. rotate</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ROTATE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Rotate</span><span class="p">(</span><span class="n">rot90</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ROTATE</span><span class="o">.</span><span class="n">ROT90</span><span class="p">,</span>
+                   <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ROTATE</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                   <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#2. rescale</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">RESCALE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Rescale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">RESCALE</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                    <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#3. flip</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">FLIP</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Flip</span><span class="p">(</span><span class="n">do_ztrans</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">FLIP</span><span class="o">.</span><span class="n">DO_ZTRANS</span><span class="p">,</span>
+                 <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">FLIP</span><span class="o">.</span><span class="n">P</span><span class="p">,</span> 
+                 <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#4. elastic</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ELASTIC</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Elastic</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ELASTIC</span><span class="o">.</span><span class="n">ALPHA</span><span class="p">,</span> 
+                    <span class="n">sigma</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ELASTIC</span><span class="o">.</span><span class="n">SIGMA</span><span class="p">,</span> 
+                    <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ELASTIC</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                    <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#5. grayscale</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">GRAYSCALE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Grayscale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">GRAYSCALE</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                      <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#6. missingparts</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGPARTS</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">MissingParts</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGPARTS</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                         <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#7. missingsection</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGSECTION</span><span class="o">.</span><span class="n">ENABLED</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">DO_2D</span><span class="p">:</span>
+            <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">MissingSection</span><span class="p">(</span>
+                    <span class="n">num_sections</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGSECTION</span><span class="o">.</span><span class="n">NUM_SECTION</span><span class="p">,</span>
+                    <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGSECTION</span><span class="o">.</span><span class="n">P</span><span class="p">,</span> 
+                    <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#8. misalignment</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISALIGNMENT</span><span class="o">.</span><span class="n">ENABLED</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">cfg</span><span class="o">.</span><span class="n">DATASET</span><span class="o">.</span><span class="n">DO_2D</span><span class="p">:</span>
+            <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">MisAlignment</span><span class="p">(</span> 
+                    <span class="n">displacement</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISALIGNMENT</span><span class="o">.</span><span class="n">DISPLACEMENT</span><span class="p">,</span>
+                    <span class="n">rotate_ratio</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISALIGNMENT</span><span class="o">.</span><span class="n">ROTATE_RATIO</span><span class="p">,</span>
+                    <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISALIGNMENT</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                    <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#9. motion-blur</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">MotionBlur</span><span class="p">(</span> 
+                <span class="n">sections</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">SECTIONS</span><span class="p">,</span> 
+                <span class="n">kernel_size</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">KERNEL_SIZE</span><span class="p">,</span>
+                <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#10. cut-blur</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">CutBlur</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">LENGTH_RATIO</span><span class="p">,</span> 
+                    <span class="n">down_ratio_min</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">DOWN_RATIO_MIN</span><span class="p">,</span>
+                    <span class="n">down_ratio_max</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">DOWN_RATIO_MAX</span><span class="p">,</span>
+                    <span class="n">downsample_z</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">DOWNSAMPLE_Z</span><span class="p">,</span>
+                    <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">P</span><span class="p">,</span>
+                    <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1">#11. cut-noise</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">CutNoise</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">LENGTH_RATIO</span><span class="p">,</span> 
+                     <span class="n">scale</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">SCALE</span><span class="p">,</span>
+                     <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">P</span><span class="p">,</span> 
+                     <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">))</span>
+
+    <span class="c1"># compose the list of transforms</span>
+    <span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">(</span><span class="n">transforms</span><span class="o">=</span><span class="n">aug_list</span><span class="p">,</span> 
+                        <span class="n">input_size</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">INPUT_SIZE</span><span class="p">,</span> 
+                        <span class="n">smooth</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">SMOOTH</span><span class="p">,</span>
+                        <span class="n">keep_uncropped</span><span class="o">=</span><span class="n">keep_uncropped</span><span class="p">,</span> 
+                        <span class="n">keep_non_smoothed</span><span class="o">=</span><span class="n">keep_non_smoothed</span><span class="p">,</span>
+                        <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">augmentor</span></div>
+
+<span class="k">def</span> <span class="nf">build_ssl_augmentor</span><span class="p">(</span><span class="n">cfg</span><span class="p">):</span>
+    <span class="sa">R</span><span class="sd">&quot;&quot;&quot;Build the data augmentor for semi-supervised learning.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">aug_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1">#1. rotate</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ROTATE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Rotate</span><span class="p">(</span><span class="n">rot90</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                   <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">ROTATE</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="c1">#2. flip</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">FLIP</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Flip</span><span class="p">(</span><span class="n">do_ztrans</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">FLIP</span><span class="o">.</span><span class="n">DO_ZTRANS</span><span class="p">,</span>
+                 <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">FLIP</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="c1">#3. grayscale</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">GRAYSCALE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">Grayscale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">GRAYSCALE</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="c1">#4. missingparts</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGPARTS</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">MissingParts</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MISSINGPARTS</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="c1">#5. motion-blur</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">MotionBlur</span><span class="p">(</span> 
+                <span class="n">sections</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">SECTIONS</span><span class="p">,</span> 
+                <span class="n">kernel_size</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">KERNEL_SIZE</span><span class="p">,</span>
+                <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">MOTIONBLUR</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="c1">#6. cut-blur</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">CutBlur</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">LENGTH_RATIO</span><span class="p">,</span> 
+                    <span class="n">down_ratio_min</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">DOWN_RATIO_MIN</span><span class="p">,</span>
+                    <span class="n">down_ratio_max</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">DOWN_RATIO_MAX</span><span class="p">,</span>
+                    <span class="n">downsample_z</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">DOWNSAMPLE_Z</span><span class="p">,</span>
+                    <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTBLUR</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="c1">#7. cut-noise</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">:</span>
+        <span class="n">aug_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">CutNoise</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">LENGTH_RATIO</span><span class="p">,</span> 
+                     <span class="n">scale</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">SCALE</span><span class="p">,</span>
+                     <span class="n">p</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">CUTNOISE</span><span class="o">.</span><span class="n">P</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">Compose</span><span class="p">(</span><span class="n">transforms</span><span class="o">=</span><span class="n">aug_list</span><span class="p">,</span> 
+                   <span class="n">input_size</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">MODEL</span><span class="o">.</span><span class="n">INPUT_SIZE</span><span class="p">,</span> 
+                   <span class="n">smooth</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">AUGMENTOR</span><span class="o">.</span><span class="n">SMOOTH</span><span class="p">,</span>
+                   <span class="n">additional_targets</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2021, Zudi Lin and Donglai Wei
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+  
+  
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+            <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="#">PDF</a></dd>
+          <dd><a href="#">ePub</a></dd>
+          <dd><a href="#">HTML</a></dd>
+        </dl>
+        <dl>
+          
+          <dt>On Read the Docs</dt>
+            <dd>
+              <a href="#">Project Home</a>
+            </dd>
+            <dd>
+              <a href="#">Builds</a>
+            </dd>
+        </dl>
+      </div>
+    </div>
+  
+
+
+</body>
+</html>
