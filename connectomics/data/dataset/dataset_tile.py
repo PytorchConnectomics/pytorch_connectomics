@@ -22,21 +22,21 @@ class TileDataset(torch.utils.data.Dataset):
 
     Args:
         chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[2, 2, 2]` 
-        chunk_num_ind (list): predefined list of chunks. Default: None
+        chunk_num_ind (list): predefined list of chunks. Default: `None`
         chunk_iter (int): number of iterations on each chunk. Default: -1
-        chunk_stride (bool): allow overlap between chunks. Default: True
+        chunk_stride (bool): allow overlap between chunks. Default: `True`
         volume_json (str): json file for input image. Default: ``'path/to/image'``
-        label_json (str, optional): json file for label. Default: None
-        valid_mask_json (str, optional): json file for valid mask. Default: None
+        label_json (str, optional): json file for label. Default: `None`
+        valid_mask_json (str, optional): json file for valid mask. Default: `None`
         valid_ratio (float): volume ratio threshold for valid samples. Default: 0.5
         sample_volume_size (tuple, int): model input size.
         sample_label_size (tuple, int): model output size.
         sample_stride (tuple, int): stride size for sampling.
-        augmentor (connectomics.data.augmentation.composition.Compose, optional): data augmentor for training. Default: None
+        augmentor (connectomics.data.augmentation.composition.Compose, optional): data augmentor for training. Default: `None`
         target_opt (list): list the model targets generated from segmentation labels.
         weight_opt (list): list of options for generating pixel-wise weight masks.
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
-        do_2d (bool): load 2d samples from 3d volumes. Default: False
+        do_2d (bool): load 2d samples from 3d volumes. Default: `False`
         label_erosion (int): label erosion parameter to widen border. Default: 0
         pad_size(list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`
         reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0
@@ -108,10 +108,12 @@ class TileDataset(torch.utils.data.Dataset):
         self.reject_p = reject_p        
 
     def get_coord_name(self):
+        r"""Return the filename suffix based on the chunk coordinates.
+        """
         return '-'.join([str(x) for x in self.coord])
 
     def updatechunk(self, do_load=True):
-        r"""Update to a new chunk in the large volume.
+        r"""Update the coordinates to a new chunk in the large volume.
         """
         if len(self.chunk_id_done)==len(self.chunk_num_ind):
             self.chunk_id_done = []
@@ -136,6 +138,8 @@ class TileDataset(torch.utils.data.Dataset):
             self.loadchunk()
 
     def loadchunk(self):
+        r"""Load the chunk based on current coordinates and construct a VolumeDataset for processing.
+        """
         coord_p = self.coord+[-self.pad_size[0],self.pad_size[0],-self.pad_size[1],self.pad_size[1],-self.pad_size[2],self.pad_size[2]]
         print('load tile', self.coord)
         # keep it in uint8 to save memory
@@ -161,15 +165,15 @@ class TileDataset(torch.utils.data.Dataset):
                           tile_ratio=self.json_valid['tile_ratio'])]
                 
         self.dataset = VolumeDataset(volume, label, valid_mask,
-            valid_ratio = self.valid_ratio,
-            sample_volume_size = self.sample_volume_size,
-            sample_label_size = self.sample_label_size,
-            sample_stride = self.sample_stride,
-            augmentor = self.augmentor,
-            target_opt = self.target_opt,
-            weight_opt = self.weight_opt,
-            mode = self.mode,
-            do_2d = self.do_2d,
-            iter_num = self.chunk_iter,
-            reject_size_thres = self.reject_size_thres,
-            reject_p = self.reject_p)
+                valid_ratio = self.valid_ratio,
+                sample_volume_size = self.sample_volume_size,
+                sample_label_size = self.sample_label_size,
+                sample_stride = self.sample_stride,
+                augmentor = self.augmentor,
+                target_opt = self.target_opt,
+                weight_opt = self.weight_opt,
+                mode = self.mode,
+                do_2d = self.do_2d,
+                iter_num = self.chunk_iter,
+                reject_size_thres = self.reject_size_thres,
+                reject_p = self.reject_p)

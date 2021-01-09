@@ -1,5 +1,8 @@
-import os, sys, glob 
-import time, itertools
+from __future__ import print_function, division
+from typing import Optional
+
+import os
+import time
 import GPUtil
 from yacs.config import CfgNode
 
@@ -9,21 +12,23 @@ import torch.nn.functional as F
 import numpy as np
 
 from .solver import *
-from connectomics.model import *
-from connectomics.data.augmentation import build_train_augmentor, TestAugmentor
-from connectomics.data.dataset import build_dataloader, get_dataset
-from connectomics.data.utils import build_blending_matrix, writeh5
+from ..model import *
+from ..data.augmentation import build_train_augmentor, TestAugmentor
+from ..data.dataset import build_dataloader, get_dataset
+from ..data.utils import build_blending_matrix, writeh5
 
 class Trainer(object):
-    r"""Trainer
+    r"""Trainer class for supervised learning.
 
     Args:
         cfg (yacs.config.CfgNode): YACS configuration options.
-        device (torch.device): by default all training and inference are conducted on GPUs.
-        mode (str): running mode of the trainer (``'train'`` or ``'test'``).
-        checkpoint (optional): the checkpoint file to be loaded (default: `None`)
+        device (torch.device): model running device type. GPUs are recommended for model training and inference.
+        mode (str): running mode of the trainer (``'train'`` or ``'test'``). Default: ``'train'``
+        checkpoint (str, optional): the checkpoint file to be loaded. Default: `None`
     """
-    def __init__(self, cfg, device, mode, checkpoint=None):
+    def __init__(self, cfg: CfgNode, device: torch.device, mode: str = 'train', 
+                 checkpoint: Optional[str] = None):
+        assert mode in ['train', 'test']
         self.cfg = cfg
         self.device = device
         self.output_dir = cfg.DATASET.OUTPUT_PATH
@@ -40,10 +45,14 @@ class Trainer(object):
             self.augmentor = build_train_augmentor(self.cfg)
             self.monitor = build_monitor(self.cfg)
             self.criterion = build_criterion(self.cfg, self.device)
-            # add config details to tensorboard
-            self.monitor.load_config(self.cfg)
+            self.monitor.load_config(self.cfg) # show config details in tensorboard
         else:
-            self.augmentor = None
+            # build test-time augmentor and update output filename
+            self.augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 
+                                           do_2d = self.cfg.DATASET.DO_2D,
+                                           num_aug = self.cfg.INFERENCE.AUG_NUM)
+            self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
+            self.test_filename = self.augmentor.update_name(self.test_filename)
 
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
             self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode)
@@ -53,63 +62,63 @@ class Trainer(object):
             self.dataloader = None
 
         self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
-        self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME
         self.total_time = 0
 
     def train(self):
-        r"""Training function.
+        r"""Training function of the trainer class.
         """
         # setup
         self.model.train()
         self.monitor.reset()
         self.optimizer.zero_grad()
 
-        for iteration in range(self.total_iter_nums):
-            iter_total = self.start_iter + iteration
-            start = time.perf_counter()
+        for i in range(self.total_iter_nums):
+            iter_total = self.start_iter + i
+            self.start_time = time.perf_counter()
 
             # load data
-            batch = next(self.dataloader)
-            _, volume, target, weight = batch
-            time1 = time.perf_counter()
+            _, volume, target, weight = next(self.dataloader)
+            self.data_time = time.perf_counter() - self.start_time
 
             # prediction
             volume = torch.from_numpy(volume).to(self.device, dtype=torch.float)
             pred = self.model(volume)
            
             loss = self.criterion.eval(pred, target, weight)
+            self._train_misc(loss, pred, volume, target, weight, iter_total)
 
-            # compute gradient
-            loss.backward()
-            if (iteration+1) % self.cfg.SOLVER.ITERATION_STEP == 0:
-                self.optimizer.step()
-                self.optimizer.zero_grad()
+    def _train_misc(self, loss, pred, volume, target, weight, iter_total):
+        # compute gradient
+        loss.backward()
+        if (iter_total+1) % self.cfg.SOLVER.ITERATION_STEP == 0:
+            self.optimizer.step()
+            self.optimizer.zero_grad()
 
-            # logging and update record
-            do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, self.optimizer.param_groups[0]['lr']) 
-            if do_vis:
-                self.monitor.visualize(volume, target, pred, iter_total)
-                # Display GPU stats using the GPUtil package.
-                GPUtil.showUtilization(all=True)
+        # logging and update record
+        do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, self.optimizer.param_groups[0]['lr']) 
+        if do_vis:
+            self.monitor.visualize(volume, target, pred, iter_total)
+            # Display GPU stats using the GPUtil package.
+            if self.device == torch.device("cuda"): GPUtil.showUtilization(all=True)
 
-            # Save model
-            if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
-                self.save_checkpoint(iter_total)
+        # Save model
+        if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
+            self.save_checkpoint(iter_total)
 
-            # update learning rate
-            self.lr_scheduler.step(loss) if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau' else self.lr_scheduler.step()
+        # update learning rate
+        self.lr_scheduler.step(loss) if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau' else self.lr_scheduler.step()
 
-            end = time.perf_counter()
-            self.total_time += end - start
-            print('[Iteration %05d] Data time: %.4f, Iter time: %.4f, Avg iter time: %.4f.' % (
-                  iter_total, time1 - start, end - start, self.total_time / (iter_total+1)))
+        self.iter_time = time.perf_counter() - self.start_time
+        self.total_time += self.iter_time
+        print('[Iteration %05d] Data time: %.4f, Iter time: %.4f, Avg iter time: %.4f.' % (
+              iter_total, self.data_time, self.iter_time, self.total_time / (iter_total+1)))
 
-            # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
-            # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
-            del loss, pred
+        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
+        # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
+        del loss, pred
 
     def test(self):
-        r"""Inference function.
+        r"""Inference function of the trainer class.
         """
         if self.cfg.INFERENCE.DO_EVAL:
             self.model.eval()
@@ -135,21 +144,13 @@ class Trainer(object):
             result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.volume_size]
             weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.volume_size]
 
-        # build test-time augmentor and update output filename
-        test_augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 
-                                       do_2d = self.cfg.DATASET.DO_2D,
-                                       num_aug = self.cfg.INFERENCE.AUG_NUM)
-        self.inference_output_name = test_augmentor.update_name(self.inference_output_name)
-
         start = time.time()
         sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
         print("Total number of batches: ", len(self.dataloader))
 
-        volume_id = 0
         with torch.no_grad():
-            for _, (pos, volume) in enumerate(self.dataloader):
-                volume_id += self.cfg.INFERENCE.SAMPLES_PER_BATCH
-                print('progress: %d/%d' % (volume_id, len(self.dataloader)))
+            for i, (pos, volume) in enumerate(self.dataloader):
+                print('progress: %d/%d' % (i+1, len(self.dataloader)))
 
                 # for gpu computing
                 volume = torch.from_numpy(volume).to(self.device)
@@ -157,7 +158,8 @@ class Trainer(object):
                     volume = volume.squeeze(1)
 
                 # forward pass
-                output = test_augmentor(self.model, volume)
+                output = self.augmentor(self.model, volume)
+
                 # select channel, self.cfg.INFERENCE.MODEL_OUTPUT_ID is a list [None]
                 if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is not None: 
                     ndim = output.ndim
@@ -202,14 +204,16 @@ class Trainer(object):
             return result
         else:
             print('Saving as h5...')
-            writeh5(os.path.join(self.output_dir, self.inference_output_name), result,
+            writeh5(os.path.join(self.output_dir, self.test_filename), result,
                     ['vol%d'%(x) for x in range(len(result))])
-            print('Inference is done!')
+            print('Prediction saved as: ', self.test_filename)
 
     # -----------------------------------------------------------------------------
     # Misc functions
     # -----------------------------------------------------------------------------
     def save_checkpoint(self, iteration):
+        r"""Save the model checkpoint.
+        """
         state = {'iteration': iteration + 1,
                  'state_dict': self.model.module.state_dict(), # Saving torch.nn.DataParallel Models
                  'optimizer': self.optimizer.state_dict(),
@@ -221,6 +225,8 @@ class Trainer(object):
         torch.save(state, filename)
 
     def update_checkpoint(self, checkpoint):
+        r"""Update the model with the specified checkpoint file path.
+        """
         # load pre-trained model
         print('Load pretrained checkpoint: ', checkpoint)
         checkpoint = torch.load(checkpoint)
@@ -250,7 +256,12 @@ class Trainer(object):
             if 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
 
+    # -----------------------------------------------------------------------------
+    # Chunk processing for TileDataset
+    # -----------------------------------------------------------------------------
     def run_chunk(self, mode):
+        r"""Run chunk-based training and inference for large-scale datasets.
+        """
         self.dataset = get_dataset(self.cfg, self.augmentor, mode)
         if mode == 'train':
             num_chunk = self.total_iter_nums // self.cfg.DATASET.DATA_CHUNK_ITER
@@ -260,17 +271,18 @@ class Trainer(object):
                 self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, 
                                                    dataset=self.dataset.dataset)
                 self.dataloader = iter(self.dataloader)
-                print('start train', chunk)
+                print('start train for chunk %d' % chunk)
                 self.train()
-                print('finished train', chunk)
+                print('finished train for chunk %d' % chunk)
                 self.start_iter += self.cfg.DATASET.DATA_CHUNK_ITER
                 del self.dataloader
         else:
             num_chunk = len(self.dataset.chunk_num_ind)
             for chunk in range(num_chunk):
                 self.dataset.updatechunk(do_load=False)
-                self.inference_output_name = self.cfg.INFERENCE.OUTPUT_NAME + self.dataset.get_coord_name() + '.h5'
-                if not os.path.exists(os.path.join(self.output_dir, self.inference_output_name)):
+                self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + '_' + self.dataset.get_coord_name() + '.h5'
+                self.test_filename = self.augmentor.update_name(self.test_filename)
+                if not os.path.exists(os.path.join(self.output_dir, self.test_filename)):
                     self.dataset.loadchunk()
                     self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, 
                                                        dataset=self.dataset.dataset)

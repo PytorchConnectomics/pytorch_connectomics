@@ -1,8 +1,19 @@
 import os,sys
+import datetime
 import numpy as np
 # tensorboardX
 from tensorboardX import SummaryWriter
 from .visualizer import Visualizer
+
+def build_monitor(cfg):
+    time_now = str(datetime.datetime.now()).split(' ')
+    date = time_now[0]
+    time = time_now[1].split('.')[0].replace(':','-')
+    log_path = os.path.join(cfg.DATASET.OUTPUT_PATH, 'log'+date+'_'+time)
+    if not os.path.isdir(log_path):
+        os.makedirs(log_path)
+    return Monitor(cfg, log_path, cfg.MONITOR.LOG_OPT+[cfg.SOLVER.SAMPLES_PER_BATCH], \
+                   cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM, cfg.DATASET.DO_2D)
 
 class Logger(object):
     def __init__(self, log_path='', log_opt=[1,1,0],  batch_size=1):

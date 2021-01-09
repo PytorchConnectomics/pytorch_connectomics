@@ -1,8 +1,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from .loss import *
 
-from ..loss import *
+def build_criterion(cfg, device):
+    return Criterion(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.LOSS_WEIGHT,\
+                     cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_WEIGHT)
 
 class Criterion(object):
     def __init__(self, device=0, target_opt=['1'], loss_opt=[['WeightedBCE']], loss_weight=[[1.]], regu_opt=[], regu_weight=[]):

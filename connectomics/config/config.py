@@ -139,8 +139,6 @@ _C.DATASET.DATA_CHUNK_ITER = 1000
 # Handle dataset with partial annotation.
 _C.DATASET.VALID_RATIO = 0.5
 
-_C.DATASET.PRE_LOAD_DATA = [None, None, None]
-
 # For some datasets the foreground mask is sparse in the volume. Therefore
 # we perform reject sampling to decrease (all completely avoid) regions
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
