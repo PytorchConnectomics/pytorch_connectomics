@@ -125,8 +125,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -217,7 +221,7 @@ and <a class="reference external" href="https://en.wikipedia.org/wiki/Variation_
 to get familiar with the datasets and available utility functions in this package.</p>
 </div>
 <p>The main script to run the training and inference is <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/main.py</span></code>.
-The pytorch target affinity generation is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+The pytorch target affinity generation is <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id1">
 <a class="reference internal image-reference" href="../_images/snemi_affinity.png"><img alt="../_images/snemi_affinity.png" src="../_images/snemi_affinity.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the

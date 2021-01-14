@@ -125,8 +125,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -315,7 +319,7 @@ less than 0.5 will be rejected by default.</p>
 <h2><a class="toc-backref" href="#id3">TileDataset</a><a class="headerlink" href="#tiledataset" title="Permalink to this headline">¶</a></h2>
 <p>Large-scale volumetric datasets (<em>e.g.,</em> <a class="reference external" href="https://mitoem.grand-challenge.org">MitoEM</a>) are usually stored as individual
 tiles (<em>i.e.</em>, 2D patches). Directly loading them as a single array into the memory for training and inference is infeasible.
-Therefore we designed the <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> class that reads the paths of the tiles and
+Therefore we designed the <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> class that reads the paths of the tiles and
 construct tractable chunks for processing. To use this dataset class, the user needs to prepare a <cite>JSON</cite> file which contains
 the information of the dataset. An example for the MitoEM dataset can be
 found <a class="reference external" href="https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/configs/MitoEM/im_train.json">here</a>.</p>

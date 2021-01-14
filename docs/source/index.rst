@@ -39,8 +39,7 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    :maxdepth: 1
    :caption: Package Reference
 
-   modules/datasets
-   modules/augmentation
+   modules/data
    modules/engine
    modules/model
    modules/utils

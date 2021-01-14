@@ -123,8 +123,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -205,7 +209,7 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">.augmentor</span> <span class="kn">import</span> <span class="n">DataAugment</span>
 
-<div class="viewcode-block" id="Flip"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Flip">[docs]</a><span class="k">class</span> <span class="nc">Flip</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
+<div class="viewcode-block" id="Flip"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.augmentation.Flip">[docs]</a><span class="k">class</span> <span class="nc">Flip</span><span class="p">(</span><span class="n">DataAugment</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Randomly flip along `z`-, `y`- and `x`-axes as well as swap `y`- and `x`-axes </span>
 <span class="sd">    for anisotropic image volumes. For learning on isotropic image volumes set </span>
@@ -225,7 +229,7 @@
         <span class="nb">super</span><span class="p">(</span><span class="n">Flip</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">additional_targets</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">do_ztrans</span> <span class="o">=</span> <span class="n">do_ztrans</span>
 
-<div class="viewcode-block" id="Flip.set_params"><a class="viewcode-back" href="../../../../modules/augmentation.html#connectomics.data.augmentation.Flip.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="Flip.set_params"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.augmentation.Flip.set_params">[docs]</a>    <span class="k">def</span> <span class="nf">set_params</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;There is no change in sample size.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">pass</span></div>

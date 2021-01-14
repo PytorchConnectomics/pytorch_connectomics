@@ -37,7 +37,7 @@
     
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="connectomics.data.datasets" href="../modules/datasets.html" />
+    <link rel="next" title="connectomics.data" href="../modules/data.html" />
     <link rel="prev" title="Mitochondria Segmentation" href="mito.html" /> 
 </head>
 
@@ -125,8 +125,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -237,7 +241,7 @@ the alignment before submitting the test prediction to the CREMI challenge.</p>
 </div>
 <p>Script needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. The <em>YAML</em> configuration files can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/</span></code>, which
 stores the common settings for model training and inference. Other default configuration options can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>. The pytorch
-dataset class of the synaptic cleft detection task is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+dataset class of the synaptic cleft detection task is <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id1">
 <a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
@@ -310,7 +314,7 @@ connected component labeling to separate individual synapses. Our segmentation m
 are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic region</strong> (union of the first two channels), respectively.</p>
 </div>
 <p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>.
-The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+The pytorch dataset class of synaptic partners is <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id2">
 <a class="reference internal image-reference" href="../_images/polarity_qual.png"><img alt="../_images/polarity_qual.png" src="../_images/polarity_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
@@ -389,7 +393,7 @@ the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE
   
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
       
-        <a href="../modules/datasets.html" class="btn btn-neutral float-right" title="connectomics.data.datasets" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+        <a href="../modules/data.html" class="btn btn-neutral float-right" title="connectomics.data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
       
       
         <a href="mito.html" class="btn btn-neutral float-left" title="Mitochondria Segmentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>

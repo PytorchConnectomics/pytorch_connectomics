@@ -12,6 +12,8 @@ def readh5(filename, dataset=''):
     return np.array(fid[dataset])
 
 def readvol(filename, dataset=''):
+    r"""Load a image volume in HDF5, TIFF or PNG formats.
+    """
     img_suf = filename[filename.rfind('.')+1:]
     if img_suf == 'h5':
         data = readh5(filename, dataset)

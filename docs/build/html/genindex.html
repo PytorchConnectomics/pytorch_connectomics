@@ -123,8 +123,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -202,7 +206,8 @@
 <h1 id="index">Index</h1>
 
 <div class="genindex-jumpbox">
- <a href="#B"><strong>B</strong></a>
+ <a href="#A"><strong>A</strong></a>
+ | <a href="#B"><strong>B</strong></a>
  | <a href="#C"><strong>C</strong></a>
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
@@ -218,6 +223,14 @@
  | <a href="#V"><strong>V</strong></a>
  
 </div>
+<h2 id="A">A</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/data.html#connectomics.data.utils.array_unpad">array_unpad() (in module connectomics.data.utils)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -225,13 +238,17 @@
 </li>
       <li><a href="modules/utils.html#connectomics.utils.processing.bc_watershed">bc_watershed() (in module connectomics.utils.processing)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/utils.html#connectomics.utils.processing.binary_connected">binary_connected() (in module connectomics.utils.processing)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/utils.html#connectomics.utils.processing.binary_watershed">binary_watershed() (in module connectomics.utils.processing)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.build_train_augmentor">build_train_augmentor() (in module connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.utils.blend_bump">blend_bump() (in module connectomics.data.utils)</a>
+</li>
+      <li><a href="modules/data.html#connectomics.data.utils.blend_gaussian">blend_gaussian() (in module connectomics.data.utils)</a>
+</li>
+      <li><a href="modules/data.html#connectomics.data.augmentation.build_train_augmentor">build_train_augmentor() (in module connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -239,20 +256,27 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.Compose">Compose (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.Compose">Compose (class in connectomics.data.augmentation)</a>
 </li>
       <li>
     connectomics.data.augmentation
 
       <ul>
-        <li><a href="modules/augmentation.html#module-connectomics.data.augmentation">module</a>
+        <li><a href="modules/data.html#module-connectomics.data.augmentation">module</a>
 </li>
       </ul></li>
       <li>
     connectomics.data.dataset
 
       <ul>
-        <li><a href="modules/datasets.html#module-connectomics.data.dataset">module</a>
+        <li><a href="modules/data.html#module-connectomics.data.dataset">module</a>
+</li>
+      </ul></li>
+      <li>
+    connectomics.data.utils
+
+      <ul>
+        <li><a href="modules/data.html#module-connectomics.data.utils">module</a>
 </li>
       </ul></li>
       <li>
@@ -285,9 +309,9 @@
         <li><a href="modules/utils.html#module-connectomics.utils.processing">module</a>
 </li>
       </ul></li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.CutBlur">CutBlur (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.CutBlur">CutBlur (class in connectomics.data.augmentation)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.CutNoise">CutNoise (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.CutNoise">CutNoise (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -295,7 +319,7 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.DataAugment">DataAugment (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.DataAugment">DataAugment (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -303,7 +327,7 @@
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.Elastic">Elastic (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.Elastic">Elastic (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -311,7 +335,7 @@
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.Flip">Flip (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.Flip">Flip (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -319,11 +343,13 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/datasets.html#connectomics.data.dataset.TileDataset.get_coord_name">get_coord_name() (connectomics.data.dataset.TileDataset method)</a>
+      <li><a href="modules/data.html#connectomics.data.dataset.TileDataset.get_coord_name">get_coord_name() (connectomics.data.dataset.TileDataset method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.Grayscale">Grayscale (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.utils.get_padsize">get_padsize() (in module connectomics.data.utils)</a>
+</li>
+      <li><a href="modules/data.html#connectomics.data.augmentation.Grayscale">Grayscale (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -331,7 +357,7 @@
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/datasets.html#connectomics.data.dataset.TileDataset.loadchunk">loadchunk() (connectomics.data.dataset.TileDataset method)</a>
+      <li><a href="modules/data.html#connectomics.data.dataset.TileDataset.loadchunk">loadchunk() (connectomics.data.dataset.TileDataset method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -339,21 +365,23 @@
 <h2 id="M">M</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.MisAlignment">MisAlignment (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.MisAlignment">MisAlignment (class in connectomics.data.augmentation)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.MissingParts">MissingParts (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.MissingParts">MissingParts (class in connectomics.data.augmentation)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.MissingSection">MissingSection (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.MissingSection">MissingSection (class in connectomics.data.augmentation)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.MixupAugmentor">MixupAugmentor (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.MixupAugmentor">MixupAugmentor (class in connectomics.data.augmentation)</a>
 </li>
       <li>
     module
 
       <ul>
-        <li><a href="modules/augmentation.html#module-connectomics.data.augmentation">connectomics.data.augmentation</a>
+        <li><a href="modules/data.html#module-connectomics.data.augmentation">connectomics.data.augmentation</a>
 </li>
-        <li><a href="modules/datasets.html#module-connectomics.data.dataset">connectomics.data.dataset</a>
+        <li><a href="modules/data.html#module-connectomics.data.dataset">connectomics.data.dataset</a>
+</li>
+        <li><a href="modules/data.html#module-connectomics.data.utils">connectomics.data.utils</a>
 </li>
         <li><a href="modules/engine.html#module-connectomics.engine">connectomics.engine</a>
 </li>
@@ -366,7 +394,7 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.MotionBlur">MotionBlur (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.MotionBlur">MotionBlur (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -382,11 +410,13 @@
 <h2 id="R">R</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.Rescale">Rescale (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.utils.readvol">readvol() (in module connectomics.data.utils)</a>
+</li>
+      <li><a href="modules/data.html#connectomics.data.augmentation.Rescale">Rescale (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.Rotate">Rotate (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.Rotate">Rotate (class in connectomics.data.augmentation)</a>
 </li>
       <li><a href="modules/engine.html#connectomics.engine.Trainer.run_chunk">run_chunk() (connectomics.engine.Trainer method)</a>
 </li>
@@ -398,30 +428,30 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/engine.html#connectomics.engine.Trainer.save_checkpoint">save_checkpoint() (connectomics.engine.Trainer method)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.CutBlur.set_params">set_params() (connectomics.data.augmentation.CutBlur method)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.CutBlur.set_params">set_params() (connectomics.data.augmentation.CutBlur method)</a>
 
       <ul>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.CutNoise.set_params">(connectomics.data.augmentation.CutNoise method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.CutNoise.set_params">(connectomics.data.augmentation.CutNoise method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.DataAugment.set_params">(connectomics.data.augmentation.DataAugment method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.DataAugment.set_params">(connectomics.data.augmentation.DataAugment method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.Elastic.set_params">(connectomics.data.augmentation.Elastic method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.Elastic.set_params">(connectomics.data.augmentation.Elastic method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.Flip.set_params">(connectomics.data.augmentation.Flip method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.Flip.set_params">(connectomics.data.augmentation.Flip method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.Grayscale.set_params">(connectomics.data.augmentation.Grayscale method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.Grayscale.set_params">(connectomics.data.augmentation.Grayscale method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.MisAlignment.set_params">(connectomics.data.augmentation.MisAlignment method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.MisAlignment.set_params">(connectomics.data.augmentation.MisAlignment method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.MissingParts.set_params">(connectomics.data.augmentation.MissingParts method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.MissingParts.set_params">(connectomics.data.augmentation.MissingParts method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.MissingSection.set_params">(connectomics.data.augmentation.MissingSection method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.MissingSection.set_params">(connectomics.data.augmentation.MissingSection method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.MotionBlur.set_params">(connectomics.data.augmentation.MotionBlur method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.MotionBlur.set_params">(connectomics.data.augmentation.MotionBlur method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.Rescale.set_params">(connectomics.data.augmentation.Rescale method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.Rescale.set_params">(connectomics.data.augmentation.Rescale method)</a>
 </li>
-        <li><a href="modules/augmentation.html#connectomics.data.augmentation.Rotate.set_params">(connectomics.data.augmentation.Rotate method)</a>
+        <li><a href="modules/data.html#connectomics.data.augmentation.Rotate.set_params">(connectomics.data.augmentation.Rotate method)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -432,11 +462,11 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/engine.html#connectomics.engine.Trainer.test">test() (connectomics.engine.Trainer method)</a>
 </li>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.TestAugmentor">TestAugmentor (class in connectomics.data.augmentation)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.TestAugmentor">TestAugmentor (class in connectomics.data.augmentation)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/datasets.html#connectomics.data.dataset.TileDataset">TileDataset (class in connectomics.data.dataset)</a>
+      <li><a href="modules/data.html#connectomics.data.dataset.TileDataset">TileDataset (class in connectomics.data.dataset)</a>
 </li>
       <li><a href="modules/engine.html#connectomics.engine.Trainer.train">train() (connectomics.engine.Trainer method)</a>
 </li>
@@ -452,9 +482,9 @@
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/augmentation.html#connectomics.data.augmentation.TestAugmentor.update_name">update_name() (connectomics.data.augmentation.TestAugmentor method)</a>
+      <li><a href="modules/data.html#connectomics.data.augmentation.TestAugmentor.update_name">update_name() (connectomics.data.augmentation.TestAugmentor method)</a>
 </li>
-      <li><a href="modules/datasets.html#connectomics.data.dataset.TileDataset.updatechunk">updatechunk() (connectomics.data.dataset.TileDataset method)</a>
+      <li><a href="modules/data.html#connectomics.data.dataset.TileDataset.updatechunk">updatechunk() (connectomics.data.dataset.TileDataset method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -462,7 +492,7 @@
 <h2 id="V">V</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/datasets.html#connectomics.data.dataset.VolumeDataset">VolumeDataset (class in connectomics.data.dataset)</a>
+      <li><a href="modules/data.html#connectomics.data.dataset.VolumeDataset">VolumeDataset (class in connectomics.data.dataset)</a>
 </li>
   </ul></td>
 </tr></table>

@@ -123,8 +123,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../../../../modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -216,7 +220,7 @@
 <span class="n">WEIGHT_OPT_TYPE</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
 <span class="n">AUGMENTOR_TYPE</span> <span class="o">=</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span>
 
-<div class="viewcode-block" id="TileDataset"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset">[docs]</a><span class="k">class</span> <span class="nc">TileDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+<div class="viewcode-block" id="TileDataset"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.TileDataset">[docs]</a><span class="k">class</span> <span class="nc">TileDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Dataset class for large-scale tile-based datasets. Large-scale volumetric datasets are usually stored as </span>
 <span class="sd">    individual tiles. Directly loading them as a single array for training and inference is infeasible. This </span>
 <span class="sd">    class reads the paths of the tiles and construct smaller chunks for processing.</span>
@@ -308,12 +312,12 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">reject_size_thres</span> <span class="o">=</span> <span class="n">reject_size_thres</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reject_p</span> <span class="o">=</span> <span class="n">reject_p</span>        
 
-<div class="viewcode-block" id="TileDataset.get_coord_name"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset.get_coord_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_coord_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="TileDataset.get_coord_name"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.TileDataset.get_coord_name">[docs]</a>    <span class="k">def</span> <span class="nf">get_coord_name</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Return the filename suffix based on the chunk coordinates.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="s1">&#39;-&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">])</span></div>
 
-<div class="viewcode-block" id="TileDataset.updatechunk"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset.updatechunk">[docs]</a>    <span class="k">def</span> <span class="nf">updatechunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">do_load</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="TileDataset.updatechunk"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.TileDataset.updatechunk">[docs]</a>    <span class="k">def</span> <span class="nf">updatechunk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">do_load</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Update the coordinates to a new chunk in the large volume.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_id_done</span><span class="p">)</span><span class="o">==</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num_ind</span><span class="p">):</span>
@@ -338,7 +342,7 @@
         <span class="k">if</span> <span class="n">do_load</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">loadchunk</span><span class="p">()</span></div>
 
-<div class="viewcode-block" id="TileDataset.loadchunk"><a class="viewcode-back" href="../../../../modules/datasets.html#connectomics.data.dataset.TileDataset.loadchunk">[docs]</a>    <span class="k">def</span> <span class="nf">loadchunk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<div class="viewcode-block" id="TileDataset.loadchunk"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.TileDataset.loadchunk">[docs]</a>    <span class="k">def</span> <span class="nf">loadchunk</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Load the chunk based on current coordinates and construct a VolumeDataset for processing.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">coord_p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="o">+</span><span class="p">[</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="bp">self</span><span class="o">.</span><span class="n">pad_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>

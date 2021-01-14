@@ -125,8 +125,12 @@
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../modules/datasets.html">connectomics.data.datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../modules/augmentation.html">connectomics.data.augmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.model</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
@@ -232,7 +236,7 @@ which means the spatial resolution along all three axes is the same. Therefore a
 and z-y planes besides x-y planes are preferred.</p>
 </div>
 <p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. Need to pass the argument <code class="docutils literal notranslate"><span class="pre">--config-file</span> <span class="pre">configs/Lucchi-Mitochondria.yaml</span></code> during training and inference to load the required configurations for this task.
-The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
+The pytorch dataset class of lucchi data is <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.VolumeDataset" title="connectomics.data.dataset.VolumeDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code></a>.</p>
 <div class="figure align-center" id="id2">
 <a class="reference internal image-reference" href="../_images/lucchi_qual.png"><img alt="../_images/lucchi_qual.png" src="../_images/lucchi_qual.png" style="width: 800px;" /></a>
 <p class="caption"><span class="caption-text">Qualitative results of the model prediction on the mitochondria segmentation dataset released by
@@ -319,7 +323,7 @@ are provided in <code class="docutils literal notranslate"><span class="pre">pyt
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Since the dataset is very large and can not be directly loaded into memory, we use the <a class="reference internal" href="../modules/datasets.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> dataset class that only
+<p>Since the dataset is very large and can not be directly loaded into memory, we use the <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> dataset class that only
 loads part of the whole volume by opening involved <code class="docutils literal notranslate"><span class="pre">PNG</span></code> images.</p>
 </div>
 <ol class="arabic">
