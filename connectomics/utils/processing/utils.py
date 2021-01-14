@@ -14,8 +14,10 @@ def binarize_and_median(pred, size=(7,7,7), thres=0.8):
 def remove_small_instances(segm, thres_small=128, mode='background'):
     """Remove small spurious instances. 
     """
-    assert mode in ['background', 'neighbor']
-    if mode == 'background':
+    assert mode in ['none', 'background', 'neighbor']
+    if mode == 'none':
+        return segm
+    elif mode == 'background':
         return remove_small_objects(segm, thres_small)
 
     seg_idx = np.unique(segm)[1:]

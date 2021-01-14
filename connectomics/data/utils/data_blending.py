@@ -18,7 +18,7 @@ def blend_gaussian(sz, sigma=0.2, mu=0.0):
 
     dd = np.sqrt(zz*zz + yy*yy + xx*xx)
     ww = 1e-4 + np.exp(-( (dd-mu)**2 / ( 2.0 * sigma**2 )))
-    return ww
+    return ww.astype(np.float32)
 
 def blend_bump(sz, t=1.5):  
     """
@@ -35,4 +35,4 @@ def blend_bump(sz, t=1.5):
 
     dd = -(xx*(1-xx))**(-t)-(yy*(1-yy))**(-t)-(zz*(1-zz))**(-t)
     ww = 1e-4 + np.exp(dd-dd.max())
-    return ww
+    return ww.astype(np.float32)

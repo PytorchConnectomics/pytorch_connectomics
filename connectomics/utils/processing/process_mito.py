@@ -12,7 +12,7 @@ from .utils import remove_small_instances
 
 def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                      remove_small_mode='background'):
-    """From binary foreground probability map to instance masks via
+    """Convert binary foreground probability maps to instance masks via
     connected-component labeling.
 
     Args: 
@@ -36,7 +36,7 @@ def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0
 
 def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                      remove_small_mode='background'):
-    """From binary foreground probability map to instance masks via
+    """Convert binary foreground probability maps to instance masks via
     watershed segmentation algorithm.
 
     Args: 
@@ -63,7 +63,7 @@ def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_fa
 
 def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=(1.0, 1.0, 1.0), 
                  dilation_struct=(1,5,5), remove_small_mode='background'):
-    """From binary foreground probability map and instance contours to 
+    """Convert binary foreground probability maps and instance contours to 
     instance masks via connected-component labeling.
 
     Note:
@@ -100,7 +100,7 @@ def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=
 
 def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                  remove_small_mode='background'):
-    """From binary foreground probability map and instance contours to 
+    """Convert binary foreground probability maps and instance contours to 
     instance masks via watershed segmentation algorithm.
 
     Args: 

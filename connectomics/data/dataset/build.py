@@ -9,7 +9,7 @@ import torchvision.utils as vutils
 
 from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
-from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol, vast2Seg
+from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol, vast2Seg, get_padsize
 
 def _make_path_list(dir_name, file_name):
     r"""Concatenate directory path(s) and filenames and return
@@ -48,12 +48,8 @@ def _get_input(cfg, mode='train'):
         volume[i] = readvol(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
-            volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1) 
-        volume[i] = np.pad(volume[i], (
-                           (cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                           (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                           (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])
-                           ), 'reflect')
+            volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
+        volume[i] = np.pad(volume[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode=='train' and label is not None:
@@ -71,11 +67,7 @@ def _get_input(cfg, mode='train'):
             if cfg.DATASET.LABEL_MAG !=0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
                 
-            label[i] = np.pad(label[i], (
-                              (cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                              (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                              (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])
-                              ), 'reflect')
+            label[i] = np.pad(label[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
             print(f"label shape: {label[i].shape}")
 
         if mode=='train' and valid_mask is not None:
@@ -83,11 +75,7 @@ def _get_input(cfg, mode='train'):
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.DATA_SCALE, order=0) 
 
-            valid_mask[i] = np.pad(valid_mask[i], (
-                                   (cfg.DATASET.PAD_SIZE[0],cfg.DATASET.PAD_SIZE[0]), 
-                                   (cfg.DATASET.PAD_SIZE[1],cfg.DATASET.PAD_SIZE[1]), 
-                                   (cfg.DATASET.PAD_SIZE[2],cfg.DATASET.PAD_SIZE[2])
-                                   ), 'reflect')
+            valid_mask[i] = np.pad(valid_mask[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
             print(f"valid_mask shape: {label[i].shape}")
                  
     return volume, label, valid_mask
@@ -171,6 +159,9 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None):
     if dataset == None:
         dataset = get_dataset(cfg, augmentor, mode)
     
+    # In PyTorch, each worker will create a copy of the Dataset, so if the data 
+    # is preload the data, the memory usage should increase a lot.
+    # https://discuss.pytorch.org/t/define-iterator-on-dataloader-is-very-slow/52238/2
     img_loader =  torch.utils.data.DataLoader(
           dataset, batch_size=batch_size, shuffle=SHUFFLE, collate_fn = cf,
           num_workers=cfg.SYSTEM.NUM_CPUS, pin_memory=True)

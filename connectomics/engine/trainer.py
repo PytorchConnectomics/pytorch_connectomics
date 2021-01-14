@@ -2,6 +2,7 @@ from __future__ import print_function, division
 from typing import Optional
 
 import os
+import h5py
 import time
 import GPUtil
 from yacs.config import CfgNode
@@ -16,6 +17,7 @@ from ..model import *
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
 from ..data.utils import build_blending_matrix, writeh5
+from ..data.utils import get_padsize, array_unpad
 
 class Trainer(object):
     r"""Trainer class for supervised learning.
@@ -130,11 +132,6 @@ class Trainer(object):
             NUM_OUT = self.cfg.MODEL.OUT_PLANES
         else:
             NUM_OUT = len(self.cfg.INFERENCE.MODEL_OUTPUT_ID)
-        pad_size = self.cfg.DATASET.PAD_SIZE
-        if len(self.cfg.DATASET.PAD_SIZE)==3:
-            pad_size = [self.cfg.DATASET.PAD_SIZE[0],self.cfg.DATASET.PAD_SIZE[0],
-                        self.cfg.DATASET.PAD_SIZE[1],self.cfg.DATASET.PAD_SIZE[1],
-                        self.cfg.DATASET.PAD_SIZE[2],self.cfg.DATASET.PAD_SIZE[2]]
         
         if ("super" in self.cfg.MODEL.ARCHITECTURE):
             output_size = np.array(self.dataloader._dataset.volume_size)*np.array(self.cfg.DATASET.SCALE_FACTOR).tolist()
@@ -144,13 +141,14 @@ class Trainer(object):
             result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.volume_size]
             weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.volume_size]
 
-        start = time.time()
+        start = time.perf_counter()
         sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
         print("Total number of batches: ", len(self.dataloader))
 
         with torch.no_grad():
             for i, (pos, volume) in enumerate(self.dataloader):
-                print('progress: %d/%d' % (i+1, len(self.dataloader)))
+                print('progress: %d/%d batches, total time %.2fs' % 
+                      (i+1, len(self.dataloader), time.perf_counter()-start))
 
                 # for gpu computing
                 volume = torch.from_numpy(volume).to(self.device)
@@ -171,10 +169,10 @@ class Trainer(object):
                         st = pos[idx]
                         if result[st[0]].ndim - output[idx].ndim == 1:
                             result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                                          st[3]:st[3]+sz[3]] += output[idx][:,None,:] * ww[None,:]
+                                          st[3]:st[3]+sz[3]] += output[idx][:,None,:] * ww[np.newaxis,:]
                         else:
                             result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                                        st[3]:st[3]+sz[3]] += output[idx] * ww[None,:]
+                                        st[3]:st[3]+sz[3]] += output[idx] * ww[np.newaxis,:]
                         weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                         st[3]:st[3]+sz[3]] += ww
                 else:
@@ -186,19 +184,18 @@ class Trainer(object):
                         weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                         st[3]:st[3]+sz[3]] += ww
 
-        end = time.time()
-        print("Prediction time:", (end-start))
+        end = time.perf_counter()
+        print("Prediction time: ", (end-start))
+        del self.model, self.dataloader
 
         for vol_id in range(len(result)):
             if result[vol_id].ndim > weight[vol_id].ndim:
                 weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
-            # For segmentation masks, use uint16
-            result[vol_id] = (result[vol_id]/weight[vol_id]*255).astype(np.uint8)
-            sz = result[vol_id].shape
-            result[vol_id] = result[vol_id][:,
-                        pad_size[0]:sz[1]-pad_size[1],
-                        pad_size[2]:sz[2]-pad_size[3],
-                        pad_size[4]:sz[3]-pad_size[5]]
+            result[vol_id] /= weight[vol_id] # in-place to save memory
+            result[vol_id] *= 255
+            result[vol_id] = result[vol_id].astype(np.uint8)
+            pad_size = get_padsize(self.cfg.DATASET.PAD_SIZE)
+            result[vol_id] = array_unpad(result[vol_id], pad_size)
 
         if self.output_dir is None:
             return result
@@ -236,10 +233,12 @@ class Trainer(object):
         if 'state_dict' in checkpoint.keys():
             pretrained_dict = checkpoint['state_dict']
             model_dict = self.model.module.state_dict() # nn.DataParallel
-            # 1. filter out unnecessary keys
+            # 1.1 filter out unnecessary keys by name
             pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-            # 2. overwrite entries in the existing state dict 
-            model_dict.update(pretrained_dict)    
+            # 2. overwrite entries in the existing state dict (if size match)
+            for param_tensor in pretrained_dict:
+                if model_dict[param_tensor].size() == pretrained_dict[param_tensor].size():
+                    model_dict[param_tensor] = pretrained_dict[param_tensor]  
             # 3. load the new state dict
             self.model.module.load_state_dict(model_dict) # nn.DataParallel   
 

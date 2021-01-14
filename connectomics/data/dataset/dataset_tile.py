@@ -152,9 +152,9 @@ class TileDataset(torch.utils.data.Dataset):
             dt={'uint8':np.uint8, 'uint16':np.uint16, 'uint32':np.uint32, 'uint64':np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
             label = [relabel(tileToVolume(self.json_label['image'], coord_p, self.coord_m, \
-                                 tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
-                                 tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
-                                 dt=dt[self.json_label['dtype']], do_im=0), do_type=True)]
+                             tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
+                             tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
+                             dt=dt[self.json_label['dtype']], do_im=0), do_type=True)]
             if self.label_erosion != 0:
                 label[0] = seg_widen_border(label[0], self.label_erosion)
 
