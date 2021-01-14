@@ -49,15 +49,6 @@ pip install --editable .
 ```
 For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
 
-## Visualization
-
-### Training
-* Visualize the training loss and validation images using [tensorboardX](https://github.com/lanpa/tensorboard-pytorch).
-* Use TensorBoard with `tensorboard --logdir runs`  (needs to install TensorFlow).
-
-### Test
-* Visualize the affinity graph and segmentation using [Neuroglancer](https://github.com/google/neuroglancer). 
-
 ## Notes
 
 ### Data Augmentation
@@ -67,10 +58,7 @@ We provide a data augmentation interface several different kinds of commonly use
 We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage the settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/config.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
 
 ### Model Zoo
-We provide several encoder-decoder architectures, which can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/connectomics/model/zoo). Those models can be applied to any kinds of semantic segmentation tasks of 3D image stacks. We also provide benchmark results on SNEMI3D neuron segmentation challenges [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/benchmark) with detailed training specifications for users to reproduce.
-
-### Syncronized Batch Normalization on PyTorch
-Previous works have suggested that a reasonable large batch size can improve the performance of detection and segmentation models. Here we use a syncronized batch normalization module that computes the mean and standard-deviation across all devices during training. Please refer to [Synchronized-BatchNorm-PyTorch](https://github.com/vacancy/Synchronized-BatchNorm-PyTorch) for details. The implementation is pure-python, and uses unbiased variance to update the moving average, and use `sqrt(max(var, eps))` instead of `sqrt(var + eps)`.
+We provide several encoder-decoder architectures, which can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/connectomics/model/zoo). Those models can be used for both semantic segmentation and bottom-up instance segmentation of 3D image stacks. We also provide benchmark results on several public connectomics datasets [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/benchmark) with detailed training specifications for users to reproduce.
 
 ## Acknowledgement
 This project is built upon numerous previous projects. Especially, we'd like to thank the contributors of the following github repositories:

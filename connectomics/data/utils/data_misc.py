@@ -9,6 +9,10 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int=3) -> Tuple[int]:
     Args:
         pad_size (int, List[int]): number of values padded to the edges of each axis. 
         ndim (int): the dimension of the array to be padded. Default: 3
+
+    Returns:
+        Tuple[int]: the unique pad widths for each axis in the 
+            ((before_1, after_1), ... (before_N, after_N)) format.
     """
     if type(pad_size) == int:
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
@@ -32,17 +36,21 @@ def array_unpad(data: np.ndarray,
 
     Args:
         data (numpy.ndarray): the input volume to unpad.
-        pad_size (tuple): number of values removed from the edges of each axis.
+        pad_size (tuple): number of values removed from the edges of each axis. 
+            Should be in the format of ((before_1, after_1), ... (before_N, after_N)) 
+            representing the unique pad widths for each axis.
+
+    Returns:
+        numpy.ndarray: the unpadded numpy array.
     """
     diff = data.ndim - len(pad_size)
     if diff > 0:
         extra = [(0, 0) for _ in range(diff)]
         pad_size = tuple(extra + list(pad_size))
-    print(pad_size)
+
     assert len(pad_size) == data.ndim
     index = tuple([
         slice(pad_size[i][0], data.shape[i]-pad_size[i][1]) 
         for i in range(data.ndim)
     ])
-    print(index)
     return data[index]

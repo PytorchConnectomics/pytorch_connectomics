@@ -214,7 +214,7 @@
 <dl class="py function">
 <dt id="connectomics.utils.processing.bc_connected">
 <code class="sig-prename descclassname">connectomics.utils.processing.</code><code class="sig-name descname">bc_connected</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volume</span></em>, <em class="sig-param"><span class="n">thres1</span><span class="o">=</span><span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">thres2</span><span class="o">=</span><span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">thres_small</span><span class="o">=</span><span class="default_value">128</span></em>, <em class="sig-param"><span class="n">scale_factors</span><span class="o">=</span><span class="default_value">(1.0, 1.0, 1.0)</span></em>, <em class="sig-param"><span class="n">dilation_struct</span><span class="o">=</span><span class="default_value">(1, 5, 5)</span></em>, <em class="sig-param"><span class="n">remove_small_mode</span><span class="o">=</span><span class="default_value">'background'</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#bc_connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.bc_connected" title="Permalink to this definition">¶</a></dt>
-<dd><p>From binary foreground probability map and instance contours to
+<dd><p>Convert binary foreground probability maps and instance contours to
 instance masks via connected-component labeling.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -242,7 +242,7 @@ the object masks.</p>
 <dl class="py function">
 <dt id="connectomics.utils.processing.bc_watershed">
 <code class="sig-prename descclassname">connectomics.utils.processing.</code><code class="sig-name descname">bc_watershed</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volume</span></em>, <em class="sig-param"><span class="n">thres1</span><span class="o">=</span><span class="default_value">0.9</span></em>, <em class="sig-param"><span class="n">thres2</span><span class="o">=</span><span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">thres3</span><span class="o">=</span><span class="default_value">0.85</span></em>, <em class="sig-param"><span class="n">thres_small</span><span class="o">=</span><span class="default_value">128</span></em>, <em class="sig-param"><span class="n">scale_factors</span><span class="o">=</span><span class="default_value">(1.0, 1.0, 1.0)</span></em>, <em class="sig-param"><span class="n">remove_small_mode</span><span class="o">=</span><span class="default_value">'background'</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#bc_watershed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.bc_watershed" title="Permalink to this definition">¶</a></dt>
-<dd><p>From binary foreground probability map and instance contours to
+<dd><p>Convert binary foreground probability maps and instance contours to
 instance masks via watershed segmentation algorithm.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -262,7 +262,7 @@ instance masks via watershed segmentation algorithm.</p>
 <dl class="py function">
 <dt id="connectomics.utils.processing.binary_connected">
 <code class="sig-prename descclassname">connectomics.utils.processing.</code><code class="sig-name descname">binary_connected</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volume</span></em>, <em class="sig-param"><span class="n">thres</span><span class="o">=</span><span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">thres_small</span><span class="o">=</span><span class="default_value">128</span></em>, <em class="sig-param"><span class="n">scale_factors</span><span class="o">=</span><span class="default_value">(1.0, 1.0, 1.0)</span></em>, <em class="sig-param"><span class="n">remove_small_mode</span><span class="o">=</span><span class="default_value">'background'</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#binary_connected"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.binary_connected" title="Permalink to this definition">¶</a></dt>
-<dd><p>From binary foreground probability map to instance masks via
+<dd><p>Convert binary foreground probability maps to instance masks via
 connected-component labeling.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -280,7 +280,7 @@ connected-component labeling.</p>
 <dl class="py function">
 <dt id="connectomics.utils.processing.binary_watershed">
 <code class="sig-prename descclassname">connectomics.utils.processing.</code><code class="sig-name descname">binary_watershed</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volume</span></em>, <em class="sig-param"><span class="n">thres1</span><span class="o">=</span><span class="default_value">0.98</span></em>, <em class="sig-param"><span class="n">thres2</span><span class="o">=</span><span class="default_value">0.85</span></em>, <em class="sig-param"><span class="n">thres_small</span><span class="o">=</span><span class="default_value">128</span></em>, <em class="sig-param"><span class="n">scale_factors</span><span class="o">=</span><span class="default_value">(1.0, 1.0, 1.0)</span></em>, <em class="sig-param"><span class="n">remove_small_mode</span><span class="o">=</span><span class="default_value">'background'</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/processing/process_mito.html#binary_watershed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.utils.processing.binary_watershed" title="Permalink to this definition">¶</a></dt>
-<dd><p>From binary foreground probability map to instance masks via
+<dd><p>Convert binary foreground probability maps to instance masks via
 watershed segmentation algorithm.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>

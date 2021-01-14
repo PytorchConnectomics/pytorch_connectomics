@@ -2,7 +2,6 @@ from __future__ import print_function, division
 from typing import Optional
 
 import os
-import h5py
 import time
 import GPUtil
 from yacs.config import CfgNode
@@ -208,7 +207,7 @@ class Trainer(object):
     # -----------------------------------------------------------------------------
     # Misc functions
     # -----------------------------------------------------------------------------
-    def save_checkpoint(self, iteration):
+    def save_checkpoint(self, iteration: int):
         r"""Save the model checkpoint.
         """
         state = {'iteration': iteration + 1,
@@ -221,7 +220,7 @@ class Trainer(object):
         filename = os.path.join(self.output_dir, filename)
         torch.save(state, filename)
 
-    def update_checkpoint(self, checkpoint):
+    def update_checkpoint(self, checkpoint: str):
         r"""Update the model with the specified checkpoint file path.
         """
         # load pre-trained model
@@ -233,7 +232,7 @@ class Trainer(object):
         if 'state_dict' in checkpoint.keys():
             pretrained_dict = checkpoint['state_dict']
             model_dict = self.model.module.state_dict() # nn.DataParallel
-            # 1.1 filter out unnecessary keys by name
+            # 1. filter out unnecessary keys by name
             pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
             # 2. overwrite entries in the existing state dict (if size match)
             for param_tensor in pretrained_dict:
@@ -258,7 +257,7 @@ class Trainer(object):
     # -----------------------------------------------------------------------------
     # Chunk processing for TileDataset
     # -----------------------------------------------------------------------------
-    def run_chunk(self, mode):
+    def run_chunk(self, mode: str):
         r"""Run chunk-based training and inference for large-scale datasets.
         """
         self.dataset = get_dataset(self.cfg, self.augmentor, mode)

@@ -8,6 +8,8 @@ from scipy.ndimage import distance_transform_edt
 from skimage.morphology import remove_small_holes
 from skimage.measure import label as label_cc # avoid namespace conflict
 
+from .data_misc import get_padsize, array_unpad
+
 def distance_transform_vol(label, quantize=True, mode='2d'):
     if mode == '3d':
         # calculate 3d distance transform
@@ -73,8 +75,8 @@ def distance_transform(label,
 
     if padding:
         # Unpad the output array to preserve original shape.
-        distance = uniform_unpad(distance, pad_size)
-        semantic = uniform_unpad(semantic, pad_size)
+        distance = array_unpad(distance, get_padsize(pad_size, ndim=distance.ndim))
+        semantic = array_unpad(semantic, get_padsize(pad_size, ndim=distance.ndim))
 
     return distance, semantic   
 
@@ -134,11 +136,3 @@ def _decode_quant_numpy(output, mode='max'):
         energy = (pred*bins).reshape(out_shape).sum(0)
 
     return energy
-
-def uniform_unpad(array: np.ndarray, 
-                  pad_size: int = 2):
-    """Unpad a given numpy.ndarray uniformly along all axes.
-    """
-    assert pad_size > 0
-    index = tuple(array.ndim * [slice(pad_size, -pad_size)])
-    return array[index]

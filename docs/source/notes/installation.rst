@@ -82,5 +82,5 @@ Please follow the steps below for a successful installation:
 
 .. note::
     If you meet compilation errors, please open an issue and describe the steps to reproduce the errors.
-    It is highly recommended to first play with the `demo <https://github.com/zudi-lin/pytorch_connectomics/tree/master/demos>`_ Jupyter notebooks to 
-    make sure that the installation is correct and also have an intial taste of the modules.
+    It is highly recommended to first play with the Jupyter `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to 
+    make sure that the installation is correct and also have an intial taste of the functions/modules.
