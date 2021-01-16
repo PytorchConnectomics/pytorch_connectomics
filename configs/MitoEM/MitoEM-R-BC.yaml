@@ -1,9 +1,9 @@
 # For binary mask & instance contour prediction.
 # All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
-# 30x8x8 nm in (z,y,x), 1000x4096x4096 voxel
+# 30x8x8 nm in (z,y,x), 1000x4096x4096 voxels
 SYSTEM:
-  NUM_GPUS: 8
+  NUM_GPUS: 4
   NUM_CPUS: 8
 MODEL:
   ARCHITECTURE: 'unet_residual_3d'
@@ -11,35 +11,36 @@ MODEL:
   OUTPUT_SIZE: [32, 256, 256]
   IN_PLANES: 1
   OUT_PLANES: 2
-  LOSS_OPTION: [['WeightedBCE'], ['WeightedBCE']]
-  LOSS_WEIGHT: [[1.0], [1.0]]
+  LOSS_OPTION: [['WeightedBCE', 'DiceLoss'], ['WeightedBCE']]
+  LOSS_WEIGHT: [[1.0, 1.0], [1.0]]
   TARGET_OPT: ['0','4-2-1']
-  WEIGHT_OPT: [['1'],['1']]
+  WEIGHT_OPT: [['1', '0'],['1']]
 DATASET:
   IMAGE_NAME: 'im_train.json'
   LABEL_NAME: 'mito_train.json'
   INPUT_PATH: '<path/to/data>'
   OUTPUT_PATH: 'outputs/MitoEM_R_BC/'
-  PAD_SIZE: [16, 128, 128]
+  PAD_SIZE: [8, 96, 96]
   DO_CHUNK_TITLE: 1
-  DATA_CHUNK_NUM: [8, 2, 2]
+  DATA_CHUNK_NUM: [4, 4, 4]
   DATA_CHUNK_ITER: 2500
   LABEL_EROSION: 1
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupMultiStepLR"
   BASE_LR: 1e-03
   ITERATION_STEP: 1
-  ITERATION_SAVE: 2500
+  ITERATION_SAVE: 1000
   ITERATION_TOTAL: 100000
-  SAMPLES_PER_BATCH: 4
+  SAMPLES_PER_BATCH: 8
+  STEPS: (80000, 90000)
 INFERENCE:
   INPUT_SIZE: [32, 256, 256]
   OUTPUT_SIZE: [32, 256, 256]
   IMAGE_NAME: 'im_test.json'
   OUTPUT_PATH: 'outputs/MitoEM_R_BC/test/'
   OUTPUT_NAME: 'result'
-  PAD_SIZE: [16, 128, 128]
+  PAD_SIZE: [8, 96, 96]
   AUG_MODE: 'mean'
   AUG_NUM: 4
   STRIDE: [16, 128, 128]
-  SAMPLES_PER_BATCH: 16
+  SAMPLES_PER_BATCH: 32

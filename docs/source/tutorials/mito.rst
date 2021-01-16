@@ -18,7 +18,7 @@ individual mitochondrion from the large-scale MitoEM dataset released by `Wei et
 Semantic Segmentation
 ----------------------
 
-This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by `Lucchi et al. <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`__.
+This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by `Lucchi et al. (2012) <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`__.
 We consider the task as a **semantic segmentation** task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).
 
@@ -111,12 +111,12 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
     Those challenging cases are prevalent but not covered in previous datasets.
 
 .. note::
-    The MitoEM dataset has two sub-datasets **Rat** and **Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** 
-    are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning targets of the model. 
+    The MitoEM dataset has two sub-datasets **MitoEM-Rat** and **MitoEM-Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** 
+    are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning setting as described in this `paper <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_. 
 
 .. note::
     Since the dataset is very large and can not be directly loaded into memory, we use the :class:`connectomics.data.dataset.TileDataset` dataset class that only 
-    loads part of the whole volume by opening involved ``PNG`` images.
+    loads part of the whole volume by opening involved ``PNG`` or ``TIFF`` images.
 
 #. Introduction to the dataset:
 
@@ -132,27 +132,31 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
 
         /n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/human
 
-    For the public link of the dataset, check the `project page <https://donglaiw.github.io/page/mitoEM/index.html>`_.
+    For the **public link** of the dataset, check the `project page <https://donglaiw.github.io/page/mitoEM/index.html>`_.
         
     Dataset description:
 
-    - ``im``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm).
+    - ``im``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm). 
+      The 1,000 images are splited into 400, 100 and 500 slices for training, validation and inference, respectively.
 
-    - ``mito``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of instance labels.
+    - ``mito``: includes 500 single-channel ``*.png`` files (**4096x4096**) of instance labels. The files are
+      splited into 400 and 100 slices for training and validation. The ground-truth annotation of the test set (rest 500 slices) 
+      is not publicly provided but can be evaluated online at the `MitoEM challenge page <https://mitoem.grand-challenge.org>`_.
 
-    - ``*.json``: :class:`Dict` contains paths to ``*.png`` files 
-
-
-#. Configure ``.yaml`` files for different learning targets.
-
-    - ``MitoEM-R-A.yaml``: output 3 channels for affinty prediction.
-
-    - ``MitoEM-R-AC.yaml``: output 4 channels for both affinity and instance contour prediction.
-
-    - ``MitoEM-R-BC.yaml``: output 2 channels for both binary mask and instance contour prediction.
+    - ``*.json``: dictionary contains paths to the ``*.png`` files and metadata of the datasets.
 
 
-#. Run the training script. 
+#. Configure ``*.yaml`` files for different learning targets:
+
+    - ``MitoEM-R-A.yaml``: output 3 channels for predicting the affinty between voxels.
+
+    - ``MitoEM-R-AC.yaml``: output 4 channels for predicting both affinity and instance contour.
+
+    - ``MitoEM-R-BC.yaml``: output 2 channels for predicting both the binary foreground mask and instance contour. This configuration achieves the
+      best overall performance according to our `experiments <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
+
+
+#. Run training script for the **U3D-BC** model: 
 
     .. note::
         By default the path of images and labels are not specified. To 
@@ -163,27 +167,59 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
     .. code-block:: none
 
         $ source activate py3_torch
-        $ python -u scripts/main.py --config-file configs/MitoEM-R-A.yaml
+        $ python -u scripts/main.py --config-file configs/MitoEM-R-BC.yaml
         
 
 #. Visualize the training progress. More info `here <https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html>`_:
 
     .. code-block:: none
 
-        $ tensorboard --logdir ``OUTPUT_PATH/<EXP_DIR_NAME>``
+        $ tensorboard --logdir outputs/MitoEM_R_BC/
 
-    .. note::
-        Our utility functions will create a subdir in OUTPUT_PATH to save the Tensorboard event files. Substitute **<EXP_DIR_NAME>** with your subdir name.
-
-#. Run inference on image volumes:
+#. Run inference on validation/test image volumes (suppose the model is optimized for 100k iterations):
 
     .. code-block:: none
 
         $ source activate py3_torch
         $ python -u scripts/main.py \
-          --config-file configs/MitoEM-R-A.yaml --inference \
-          --checkpoint OUTPUT_PATH/checkpoint_<ITER_NUM>.pth.tar
+          --config-file configs/MitoEM-R-BC.yaml --inference \
+          --checkpoint outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
 
     .. note::
         Please change the ``INFERENCE.IMAGE_NAME`` ``INFERENCE.OUTPUT_PATH`` ``INFERENCE.OUTPUT_NAME`` 
-        options in ``configs/MitoEM-R-A.yaml``.
+        options in ``configs/MitoEM-R-*.yaml``.
+
+#. Merge output volumes and run watershed segmentation:
+
+    As mentioned before, the dataset is very large and can hardly be directly loaded into memory for 
+    processing. Therefore our code run prediction on smaller chunks sequentially, which produces 
+    multiple ``*.h5`` files with the coordinate information. To merge the chunks into a single volume
+    and apply the segmentation algorithm:
+
+    .. code-block:: python
+
+        import glob
+        import numpy as np
+        from connectomics.data.utils import readvol
+        from connectomics.utils.processing import bc_watershed
+
+        output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
+        chunks = glob.glob(output_files)
+
+        vol_shape = (2, 500, 4096, 4096) # MitoEM test set
+        pred = np.ones(vol_shape, dtype=np.uint8)
+        for x in chunks:
+            pos = x.strip().split("/")[-1]
+            print("process chunk: ", pos)
+            pos = pos.split("_")[-1].split(".")[0].split("-")
+            pos = list(map(int, pos))
+            chunk = readvol(x)
+            pred[:, pos[0]:pos[1], pos[2]:pos[3], pos[4]:pos[5]] = chunk
+
+        # This function process the array in numpy.float64 format.
+        # Please allocate enough memory for processing.
+        segm = bc_watershed(pred, thres1=0.85, thres2=0.6, thres3=0.8, thres_small=1024)
+
+    Then the segmentation map should be ready to be submitted to the MitoEM challenge website for
+    evaluation. Please note that this tutorial only take the **MitoEM-Rat** set as an example. The 
+    **MitoEM-Human** set also need to be segmented for online evaluation.

@@ -345,11 +345,6 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
   --config-file configs/Synaptic-Polarity.yaml
 </pre></div>
 </div>
-<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-  --config-file configs/Synaptic-Polarity.yaml
-</pre></div>
-</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize

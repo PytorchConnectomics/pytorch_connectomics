@@ -53,8 +53,9 @@ class Trainer(object):
                                            do_2d = self.cfg.DATASET.DO_2D,
                                            num_aug = self.cfg.INFERENCE.AUG_NUM,
                                            scale_factors = self.cfg.INFERENCE.OUTPUT_SCALE)
-            self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
-            self.test_filename = self.augmentor.update_name(self.test_filename)
+            if not self.cfg.DATASET.DO_CHUNK_TITLE:
+                self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
+                self.test_filename = self.augmentor.update_name(self.test_filename)
 
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
             self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode)
@@ -167,7 +168,6 @@ class Trainer(object):
 
         end = time.perf_counter()
         print("Prediction time: %.2fs" % (end-start))
-        del self.model, self.dataloader
 
         for vol_id in range(len(result)):
             if result[vol_id].ndim > weight[vol_id].ndim:
@@ -175,8 +175,9 @@ class Trainer(object):
             result[vol_id] /= weight[vol_id] # in-place to save memory
             result[vol_id] *= 255
             result[vol_id] = result[vol_id].astype(np.uint8)
-            temp_pad_size = (np.array(self.cfg.DATASET.PAD_SIZE)*np.array(output_scale)).astype(int).tolist()
-            pad_size = get_padsize(temp_pad_size)
+            pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) * \
+                        np.array(output_scale)).astype(int).tolist()
+            pad_size = get_padsize(pad_size)
             result[vol_id] = array_unpad(result[vol_id], pad_size)
 
         if self.output_dir is None:
@@ -195,6 +196,7 @@ class Trainer(object):
     def save_checkpoint(self, iteration: int):
         r"""Save the model checkpoint.
         """
+        print("Save model checkpoint at iteration ", iteration)
         state = {'iteration': iteration + 1,
                  'state_dict': self.model.module.state_dict(), # Saving torch.nn.DataParallel Models
                  'optimizer': self.optimizer.state_dict(),
@@ -259,7 +261,8 @@ class Trainer(object):
                 print('finished train for chunk %d' % chunk)
                 self.start_iter += self.cfg.DATASET.DATA_CHUNK_ITER
                 del self.dataloader
-        else:
+
+        else: # inference mode
             num_chunk = len(self.dataset.chunk_num_ind)
             for chunk in range(num_chunk):
                 self.dataset.updatechunk(do_load=False)

@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+from typing import Optional, List
+
 import h5py
 import os, sys
 import glob
@@ -86,11 +89,22 @@ def vast2Seg(seg):
     elif seg.ndim == 4: # n rgb image
         return seg[:,:,:,0].astype(np.uint32)*65536+seg[:,:,:,1].astype(np.uint32)*256+seg[:,:,:,2].astype(np.uint32)
 
-def tileToVolume(tiles, coord, coord_m, tile_sz, dt=np.uint8, tile_st=[0,0], tile_ratio=1, do_im=True, ndim=1, black=128):
-    # x: column
-    # y: row
-    # no padding at the boundary
-    # st: starting index 0 or 1
+def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz: int, 
+                dt: type=np.uint8, tile_st: List[int]=[0,0], tile_ratio: float=1.0, 
+                do_im: bool=True, background: int=128) -> np.ndarray:
+    """Construct a volume from image tiles based on the given volume coordinate.
+
+    Args:
+        tiles (List[str]): a list of paths to the image tiles.
+        coord (List[int]): the coordinate of the volume to be constructed.
+        coord_m (List[int]): the coordinate of the whole dataset with the tiles.
+        tile_sz (int): the height and width of the tiles, which is assumed to be square.
+        dt (type): data type of the constructed volume. Default: numpy.uint8
+        tile_st (List[int]): start position of the tiles. Default: [0, 0]
+        tile_ratio (float): scale factor for resizing the tiles. Default: 1.0
+        do_im (bool): construct an image volume (apply linear interpolation for resizing). Default: `True`
+        background (int): background value for filling the constructed volume. Default: 128
+    """
     z0o, z1o, y0o, y1o, x0o, x1o = coord # region to crop
     z0m, z1m, y0m, y1m, x0m, x1m = coord_m # tile boundary
 
@@ -98,7 +112,7 @@ def tileToVolume(tiles, coord, coord_m, tile_sz, dt=np.uint8, tile_st=[0,0], til
     z0, y0, x0 = max(z0o,z0m), max(y0o,y0m), max(x0o,x0m)
     z1, y1, x1 = min(z1o,z1m), min(y1o,y1m), min(x1o,x1m)
 
-    result = black*np.ones((z1-z0, y1-y0, x1-x0), dt)
+    result = background*np.ones((z1-z0, y1-y0, x1-x0), dt)
     c0 = x0 // tile_sz # floor
     c1 = (x1 + tile_sz-1) // tile_sz # ceil
     r0 = y0 // tile_sz
@@ -129,6 +143,8 @@ def tileToVolume(tiles, coord, coord_m, tile_sz, dt=np.uint8, tile_st=[0,0], til
                         result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0,0]
                     else: # label
                         result[z-z0, y0a-y0:y1a-y0, x0a-x0:x1a-x0] = vast2Seg(patch[y0a-yp0:y1a-yp0, x0a-xp0:x1a-xp0])
+
+    # For chunks touching the border of the large input volume, apply padding.                    
     if max(bd)>0:
-        result = np.pad(result,((bd[0], bd[1]),(bd[2], bd[3]),(bd[4], bd[5])),'reflect')
+        result = np.pad(result,((bd[0], bd[1]),(bd[2], bd[3]),(bd[4], bd[5])), 'reflect')
     return result

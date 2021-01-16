@@ -12,15 +12,15 @@ from .utils import remove_small_instances
 
 def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                      remove_small_mode='background'):
-    """Convert binary foreground probability maps to instance masks via
+    r"""Convert binary foreground probability maps to instance masks via
     connected-component labeling.
 
     Args: 
         volume (numpy.ndarray): foreground probability of shape :math:`(C, Z, Y, X)`.
         thres (float): threshold of foreground. Default: 0.8
         thres_small (int): size threshold of small objects to remove. Default: 128
-        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
-        remove_small_mode (str): ``'background'`` or ``'neighbor'``. Default: ``'background'``
+        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
+        remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
     """
     semantic = volume[0]
     foreground = (semantic > int(255*thres))
@@ -36,22 +36,26 @@ def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0
 
 def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                      remove_small_mode='background'):
-    """Convert binary foreground probability maps to instance masks via
+    r"""Convert binary foreground probability maps to instance masks via
     watershed segmentation algorithm.
+
+    Note:
+        This function uses the `skimage.segmentation.watershed <https://github.com/scikit-image/scikit-image/blob/master/skimage/segmentation/_watershed.py#L89>`_ 
+        function that converts the input image into ``np.float64`` data type for processing. Therefore please make sure enough memory is allocated when handling large arrays.
 
     Args: 
         volume (numpy.ndarray): foreground probability of shape :math:`(C, Z, Y, X)`.
         thres1 (float): threshold of seeds. Default: 0.98
         thres2 (float): threshold of foreground. Default: 0.85
         thres_small (int): size threshold of small objects to remove. Default: 128
-        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
-        remove_small_mode (str): ``'background'`` or ``'neighbor'``. Default: ``'background'``
+        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
+        remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
     """
     semantic = volume[0]
     seed_map = semantic > int(255*thres1)
     foreground = semantic > int(255*thres2)
     seed = label(seed_map)
-    segm = watershed(-semantic, seed, mask=foreground)
+    segm = watershed(-semantic.astype(np.float64), seed, mask=foreground)
     segm = remove_small_instances(segm, thres_small, remove_small_mode)
 
     if not all(x==1.0 for x in scale_factors):
@@ -63,7 +67,7 @@ def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_fa
 
 def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=(1.0, 1.0, 1.0), 
                  dilation_struct=(1,5,5), remove_small_mode='background'):
-    """Convert binary foreground probability maps and instance contours to 
+    r"""Convert binary foreground probability maps and instance contours to 
     instance masks via connected-component labeling.
 
     Note:
@@ -78,9 +82,9 @@ def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=
         thres1 (float): threshold of foreground. Default: 0.8
         thres2 (float): threshold of instance contours. Default: 0.5
         thres_small (int): size threshold of small objects to remove. Default: 128
-        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
-        dilation_struct (tuple): the shape of the structure for morphological dilation. Default: :math:`(1, 5, 5)`
-        remove_small_mode (str): ``'background'`` or ``'neighbor'``. Default: ``'background'``
+        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
+        dilation_struct (tuple): the shape of the structure for morphological dilation. Default: (1, 5, 5)
+        remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
     """
     semantic = volume[0]
     boundary = volume[1]
@@ -100,8 +104,12 @@ def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=
 
 def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                  remove_small_mode='background'):
-    """Convert binary foreground probability maps and instance contours to 
+    r"""Convert binary foreground probability maps and instance contours to 
     instance masks via watershed segmentation algorithm.
+
+    Note:
+        This function uses the `skimage.segmentation.watershed <https://github.com/scikit-image/scikit-image/blob/master/skimage/segmentation/_watershed.py#L89>`_ 
+        function that converts the input image into ``np.float64`` data type for processing. Therefore please make sure enough memory is allocated when handling large arrays.
 
     Args: 
         volume (numpy.ndarray): foreground and contour probability of shape :math:`(C, Z, Y, X)`.
@@ -109,15 +117,15 @@ def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, s
         thres2 (float): threshold of instance contours. Default: 0.8
         thres3 (float): threshold of foreground. Default: 0.85
         thres_small (int): size threshold of small objects to remove. Default: 128
-        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
-        remove_small_mode (str): ``'background'`` or ``'neighbor'``. Default: ``'background'``
+        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
+        remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
     """
     semantic = volume[0]
     boundary = volume[1]
     seed_map = (semantic > int(255*thres1)) * (boundary < int(255*thres2))
     foreground = (semantic > int(255*thres3))
     seed = label(seed_map)
-    segm = watershed(-semantic, seed, mask=foreground)
+    segm = watershed(-semantic.astype(np.float64), seed, mask=foreground)
     segm = remove_small_instances(segm, thres_small, remove_small_mode)
 
     if not all(x==1.0 for x in scale_factors):

@@ -33,6 +33,34 @@ with open(js_path, 'w') as fp:
     json.dump(data, fp)
 ```
 
+The **TileDataset** generates prediction on small chunks sequentially, which produces
+multiple ``*.h5`` files with the coordinate information. To merge the chunks into a single volume
+and apply the segmentation algorithm:
+
+```python
+import glob
+import numpy as np
+from connectomics.data.utils import readvol
+from connectomics.utils.processing import bc_watershed
+
+output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
+chunks = glob.glob(output_files)
+
+vol_shape = (2, 500, 4096, 4096) # MitoEM test set
+pred = np.ones(vol_shape, dtype=np.uint8)
+for x in chunks:
+    pos = x.strip().split("/")[-1]
+    print("process chunk: ", pos)
+    pos = pos.split("_")[-1].split(".")[0].split("-")
+    pos = list(map(int, pos))
+    chunk = readvol(x)
+    pred[:, pos[0]:pos[1], pos[2]:pos[3], pos[4]:pos[5]] = chunk
+
+# This function process the array in numpy.float64 format.
+# Please allocate enough memory for processing.
+segm = bc_watershed(pred, thres1=0.85, thres2=0.6, thres3=0.8, thres_small=1024)
+```
+
 ### Citation
 
 ```bibtex

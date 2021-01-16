@@ -145,8 +145,8 @@ class VolumeDataset(torch.utils.data.Dataset):
             pos = self._get_pos_test(index)
             out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
             if self.do_2d:
-                out_volume = np.squeeze(out_volume) 
-            return pos, np.expand_dims(out_volume,0)
+                out_volume = np.squeeze(out_volume)
+            return pos, np.expand_dims(out_volume, 0)
 
     #######################################################
     # Position Calculator

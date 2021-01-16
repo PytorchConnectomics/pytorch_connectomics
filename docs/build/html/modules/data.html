@@ -817,6 +817,27 @@ challenge.” arXiv preprint arXiv:1706.00120, 2017.</p>
 <dd><p>Load a image volume in HDF5, TIFF or PNG formats.</p>
 </dd></dl>
 
+<dl class="py function">
+<dt id="connectomics.data.utils.tile2volume">
+<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">tile2volume</code><span class="sig-paren">(</span><em class="sig-param">tiles: List[str], coord: List[int], coord_m: List[int], tile_sz: int, dt: type = &lt;class 'numpy.uint8'&gt;, tile_st: List[int] = [0, 0], tile_ratio: float = 1.0, do_im: bool = True, background: int = 128</em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="reference internal" href="../_modules/connectomics/data/utils/data_io.html#tile2volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.tile2volume" title="Permalink to this definition">¶</a></dt>
+<dd><p>Construct a volume from image tiles based on the given volume coordinate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tiles</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – a list of paths to the image tiles.</p></li>
+<li><p><strong>coord</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – the coordinate of the volume to be constructed.</p></li>
+<li><p><strong>coord_m</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – the coordinate of the whole dataset with the tiles.</p></li>
+<li><p><strong>tile_sz</strong> (<em>int</em>) – the height and width of the tiles, which is assumed to be square.</p></li>
+<li><p><strong>dt</strong> (<em>type</em>) – data type of the constructed volume. Default: numpy.uint8</p></li>
+<li><p><strong>tile_st</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – start position of the tiles. Default: [0, 0]</p></li>
+<li><p><strong>tile_ratio</strong> (<em>float</em>) – scale factor for resizing the tiles. Default: 1.0</p></li>
+<li><p><strong>do_im</strong> (<em>bool</em>) – construct an image volume (apply linear interpolation for resizing). Default: <cite>True</cite></p></li>
+<li><p><strong>background</strong> (<em>int</em>) – background value for filling the constructed volume. Default: 128</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
 </div>
 </div>
 

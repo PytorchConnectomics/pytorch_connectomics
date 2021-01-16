@@ -226,7 +226,7 @@ individual mitochondrion from the large-scale MitoEM dataset released by <a clas
 </div>
 <div class="section" id="semantic-segmentation">
 <h2><a class="toc-backref" href="#id5">Semantic Segmentation</a><a class="headerlink" href="#semantic-segmentation" title="Permalink to this headline">¶</a></h2>
-<p>This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by <a class="reference external" href="https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/">Lucchi et al.</a>.
+<p>This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by <a class="reference external" href="https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/">Lucchi et al. (2012)</a>.
 We consider the task as a <strong>semantic segmentation</strong> task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in <a class="reference external" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">neuron segmentation</a>. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).</p>
 <div class="admonition note">
@@ -318,13 +318,13 @@ Those challenging cases are prevalent but not covered in previous datasets.</spa
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The MitoEM dataset has two sub-datasets <strong>Rat</strong> and <strong>Human</strong> based on the source of the tissues. Three training configuration files on <strong>MitoEM-Rat</strong>
-are provided in <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/MitoEM/</span></code> for different learning targets of the model.</p>
+<p>The MitoEM dataset has two sub-datasets <strong>MitoEM-Rat</strong> and <strong>MitoEM-Human</strong> based on the source of the tissues. Three training configuration files on <strong>MitoEM-Rat</strong>
+are provided in <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/MitoEM/</span></code> for different learning setting as described in this <a class="reference external" href="https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf">paper</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Since the dataset is very large and can not be directly loaded into memory, we use the <a class="reference internal" href="../modules/data.html#connectomics.data.dataset.TileDataset" title="connectomics.data.dataset.TileDataset"><code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code></a> dataset class that only
-loads part of the whole volume by opening involved <code class="docutils literal notranslate"><span class="pre">PNG</span></code> images.</p>
+loads part of the whole volume by opening involved <code class="docutils literal notranslate"><span class="pre">PNG</span></code> or <code class="docutils literal notranslate"><span class="pre">TIFF</span></code> images.</p>
 </div>
 <ol class="arabic">
 <li><p>Introduction to the dataset:</p>
@@ -337,25 +337,29 @@ loads part of the whole volume by opening involved <code class="docutils literal
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>/n/pfister_lab2/Lab/vcg_connectomics/mitochondria/miccai2020/human
 </pre></div>
 </div>
-<p>For the public link of the dataset, check the <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">project page</a>.</p>
+<p>For the <strong>public link</strong> of the dataset, check the <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">project page</a>.</p>
 <p>Dataset description:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">im</span></code>: includes 1,000 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of raw EM images (with a spatial resolution of <strong>30x8x8</strong> nm).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">mito</span></code>: includes 1,000 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of instance labels.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">*.json</span></code>: <code class="xref py py-class docutils literal notranslate"><span class="pre">Dict</span></code> contains paths to <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">im</span></code>: includes 1,000 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of raw EM images (with a spatial resolution of <strong>30x8x8</strong> nm).
+The 1,000 images are splited into 400, 100 and 500 slices for training, validation and inference, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mito</span></code>: includes 500 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of instance labels. The files are
+splited into 400 and 100 slices for training and validation. The ground-truth annotation of the test set (rest 500 slices)
+is not publicly provided but can be evaluated online at the <a class="reference external" href="https://mitoem.grand-challenge.org">MitoEM challenge page</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*.json</span></code>: dictionary contains paths to the <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files and metadata of the datasets.</p></li>
 </ul>
 </div></blockquote>
 </li>
-<li><p>Configure <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> files for different learning targets.</p>
+<li><p>Configure <code class="docutils literal notranslate"><span class="pre">*.yaml</span></code> files for different learning targets:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-A.yaml</span></code>: output 3 channels for affinty prediction.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-AC.yaml</span></code>: output 4 channels for both affinity and instance contour prediction.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-BC.yaml</span></code>: output 2 channels for both binary mask and instance contour prediction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-A.yaml</span></code>: output 3 channels for predicting the affinty between voxels.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-AC.yaml</span></code>: output 4 channels for predicting both affinity and instance contour.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-BC.yaml</span></code>: output 2 channels for predicting both the binary foreground mask and instance contour. This configuration achieves the
+best overall performance according to our <a class="reference external" href="https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf">experiments</a>.</p></li>
 </ul>
 </div></blockquote>
 </li>
-<li><p>Run the training script.</p>
+<li><p>Run training script for the <strong>U3D-BC</strong> model:</p>
 <blockquote>
 <div><div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -365,35 +369,65 @@ and <code class="docutils literal notranslate"><span class="pre">DATASET.INPUT_P
 The options can also be given as command-line arguments without changing of the <code class="docutils literal notranslate"><span class="pre">yaml</span></code> configuration files.</p>
 </div>
 <div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
-$ python -u scripts/main.py --config-file configs/MitoEM-R-A.yaml
+$ python -u scripts/main.py --config-file configs/MitoEM-R-BC.yaml
 </pre></div>
 </div>
 </div></blockquote>
 </li>
 <li><p>Visualize the training progress. More info <a class="reference external" href="https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html">here</a>:</p>
 <blockquote>
-<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir ``OUTPUT_PATH/&lt;EXP_DIR_NAME&gt;``
+<div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ tensorboard --logdir outputs/MitoEM_R_BC/
 </pre></div>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Our utility functions will create a subdir in OUTPUT_PATH to save the Tensorboard event files. Substitute <strong>&lt;EXP_DIR_NAME&gt;</strong> with your subdir name.</p>
 </div>
 </div></blockquote>
 </li>
-<li><p>Run inference on image volumes:</p>
+<li><p>Run inference on validation/test image volumes (suppose the model is optimized for 100k iterations):</p>
 <blockquote>
 <div><div class="highlight-none notranslate"><div class="highlight"><pre><span></span>$ source activate py3_torch
 $ python -u scripts/main.py \
-  --config-file configs/MitoEM-R-A.yaml --inference \
-  --checkpoint OUTPUT_PATH/checkpoint_&lt;ITER_NUM&gt;.pth.tar
+  --config-file configs/MitoEM-R-BC.yaml --inference \
+  --checkpoint outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
 </pre></div>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Please change the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE_NAME</span></code> <code class="docutils literal notranslate"><span class="pre">INFERENCE.OUTPUT_PATH</span></code> <code class="docutils literal notranslate"><span class="pre">INFERENCE.OUTPUT_NAME</span></code>
-options in <code class="docutils literal notranslate"><span class="pre">configs/MitoEM-R-A.yaml</span></code>.</p>
+options in <code class="docutils literal notranslate"><span class="pre">configs/MitoEM-R-*.yaml</span></code>.</p>
 </div>
+</div></blockquote>
+</li>
+<li><p>Merge output volumes and run watershed segmentation:</p>
+<blockquote>
+<div><p>As mentioned before, the dataset is very large and can hardly be directly loaded into memory for
+processing. Therefore our code run prediction on smaller chunks sequentially, which produces
+multiple <code class="docutils literal notranslate"><span class="pre">*.h5</span></code> files with the coordinate information. To merge the chunks into a single volume
+and apply the segmentation algorithm:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">readvol</span>
+<span class="kn">from</span> <span class="nn">connectomics.utils.processing</span> <span class="kn">import</span> <span class="n">bc_watershed</span>
+
+<span class="n">output_files</span> <span class="o">=</span> <span class="s1">&#39;outputs/MitoEM_R_BC/test/*.h5&#39;</span> <span class="c1"># output folder with chunks</span>
+<span class="n">chunks</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">output_files</span><span class="p">)</span>
+
+<span class="n">vol_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">)</span> <span class="c1"># MitoEM test set</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">vol_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;process chunk: &quot;</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">pos</span><span class="p">))</span>
+    <span class="n">chunk</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">pred</span><span class="p">[:,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span><span class="n">pos</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">pos</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span><span class="n">pos</span><span class="p">[</span><span class="mi">5</span><span class="p">]]</span> <span class="o">=</span> <span class="n">chunk</span>
+
+<span class="c1"># This function process the array in numpy.float64 format.</span>
+<span class="c1"># Please allocate enough memory for processing.</span>
+<span class="n">segm</span> <span class="o">=</span> <span class="n">bc_watershed</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">thres1</span><span class="o">=</span><span class="mf">0.85</span><span class="p">,</span> <span class="n">thres2</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">thres3</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then the segmentation map should be ready to be submitted to the MitoEM challenge website for
+evaluation. Please note that this tutorial only take the <strong>MitoEM-Rat</strong> set as an example. The
+<strong>MitoEM-Human</strong> set also need to be segmented for online evaluation.</p>
 </div></blockquote>
 </li>
 </ol>

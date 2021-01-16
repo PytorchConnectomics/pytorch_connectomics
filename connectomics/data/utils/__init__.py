@@ -13,4 +13,5 @@ __all__ = [
     'array_unpad',
     'blend_gaussian',
     'blend_bump',
+    'tile2volume',
 ]

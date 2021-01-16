@@ -131,13 +131,7 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
         $ source activate py3_torch
         $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
           --config-file configs/Synaptic-Polarity.yaml
-
-    .. code-block:: none
-
-        $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-          --config-file configs/Synaptic-Polarity.yaml
-
+          
     .. note::
         We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize
         false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the

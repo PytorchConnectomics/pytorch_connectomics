@@ -9,7 +9,7 @@ import torch.utils.data
 
 from . import VolumeDataset
 from ..augmentation import Compose
-from ..utils import crop_volume, relabel,seg_widen_border, tileToVolume 
+from ..utils import crop_volume, relabel,seg_widen_border, tile2volume 
 
 TARGET_OPT_TYPE = List[str]
 WEIGHT_OPT_TYPE = List[List[str]]
@@ -81,7 +81,7 @@ class TileDataset(torch.utils.data.Dataset):
         self.pad_size = pad_size
 
         self.chunk_step = 1
-        if chunk_stride: # if do stride, 50% overlap
+        if chunk_stride and self.mode == 'train': # 50% overlap between volumes during training
             self.chunk_step = 2
 
         self.chunk_num = chunk_num
@@ -140,10 +140,12 @@ class TileDataset(torch.utils.data.Dataset):
     def loadchunk(self):
         r"""Load the chunk based on current coordinates and construct a VolumeDataset for processing.
         """
-        coord_p = self.coord+[-self.pad_size[0],self.pad_size[0],-self.pad_size[1],self.pad_size[1],-self.pad_size[2],self.pad_size[2]]
-        print('load tile', self.coord)
+        coord_p = self.coord + [-self.pad_size[0], self.pad_size[0], \
+                                -self.pad_size[1], self.pad_size[1], \
+                                -self.pad_size[2], self.pad_size[2]]
+        print('load chunk: ', coord_p)
         # keep it in uint8 to save memory
-        volume = [tileToVolume(self.json_volume['image'], coord_p, self.coord_m, \
+        volume = [tile2volume(self.json_volume['image'], coord_p, self.coord_m, \
                                tile_sz=self.json_volume['tile_size'], tile_st=self.json_volume['tile_st'],
                                tile_ratio=self.json_volume['tile_ratio'])]
                               
@@ -151,16 +153,16 @@ class TileDataset(torch.utils.data.Dataset):
         if self.json_label is not None: 
             dt={'uint8':np.uint8, 'uint16':np.uint16, 'uint32':np.uint32, 'uint64':np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
-            label = [relabel(tileToVolume(self.json_label['image'], coord_p, self.coord_m, \
+            label = [relabel(tile2volume(self.json_label['image'], coord_p, self.coord_m, \
                              tile_sz=self.json_label['tile_size'],tile_st=self.json_label['tile_st'],
-                             tile_ratio=self.json_label['tile_ratio'], ndim=self.json_label['ndim'],
-                             dt=dt[self.json_label['dtype']], do_im=0), do_type=True)]
+                             tile_ratio=self.json_label['tile_ratio'], dt=dt[self.json_label['dtype']], 
+                             do_im=0), do_type=True)]
             if self.label_erosion != 0:
                 label[0] = seg_widen_border(label[0], self.label_erosion)
 
         valid_mask = None
         if self.json_valid is not None:
-            valid_mask = [tileToVolume(self.json_valid['image'], coord_p, self.coord_m, \
+            valid_mask = [tile2volume(self.json_valid['image'], coord_p, self.coord_m, \
                           tile_sz=self.json_valid['tile_size'], tile_st=self.json_valid['tile_st'],
                           tile_ratio=self.json_valid['tile_ratio'])]
                 
@@ -174,6 +176,7 @@ class TileDataset(torch.utils.data.Dataset):
                 weight_opt = self.weight_opt,
                 mode = self.mode,
                 do_2d = self.do_2d,
-                iter_num = self.chunk_iter,
+                # specify chunk iteration number for training and -1 for inference
+                iter_num = self.chunk_iter if self.mode=='train' else -1,
                 reject_size_thres = self.reject_size_thres,
                 reject_p = self.reject_p)
