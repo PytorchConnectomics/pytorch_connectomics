@@ -51,7 +51,8 @@ class Trainer(object):
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 
                                            do_2d = self.cfg.DATASET.DO_2D,
-                                           num_aug = self.cfg.INFERENCE.AUG_NUM)
+                                           num_aug = self.cfg.INFERENCE.AUG_NUM,
+                                           scale_factors = self.cfg.INFERENCE.OUTPUT_SCALE)
             self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
             self.test_filename = self.augmentor.update_name(self.test_filename)
 
@@ -121,29 +122,24 @@ class Trainer(object):
     def test(self):
         r"""Inference function of the trainer class.
         """
-        if self.cfg.INFERENCE.DO_EVAL:
-            self.model.eval()
-        else:
-            self.model.train()
-
-        ww = build_blending_matrix(self.cfg.MODEL.OUTPUT_SIZE, self.cfg.INFERENCE.BLENDING)
-        if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is None:
-            NUM_OUT = self.cfg.MODEL.OUT_PLANES
-        else:
-            NUM_OUT = len(self.cfg.INFERENCE.MODEL_OUTPUT_ID)
+        self.model.eval() if self.cfg.INFERENCE.DO_EVAL else self.model.train()
+        output_scale = self.cfg.INFERENCE.OUTPUT_SCALE
+        spatial_size = list((np.array(self.cfg.MODEL.OUTPUT_SIZE) * 
+                             np.array(output_scale)).astype(int))
+        channel_size = self.cfg.MODEL.OUT_PLANES
         
-        if ("super" in self.cfg.MODEL.ARCHITECTURE):
-            output_size = np.array(self.dataloader._dataset.volume_size)*np.array(self.cfg.DATASET.SCALE_FACTOR).tolist()
-            result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in output_size]
-            weight = [np.zeros(x, dtype=np.float32) for x in output_size]
-        else:
-            result = [np.stack([np.zeros(x, dtype=np.float32) for _ in range(NUM_OUT)]) for x in self.dataloader._dataset.volume_size]
-            weight = [np.zeros(x, dtype=np.float32) for x in self.dataloader._dataset.volume_size]
-
-        start = time.perf_counter()
-        sz = tuple([NUM_OUT] + list(self.cfg.MODEL.OUTPUT_SIZE))
+        sz = tuple([channel_size] + spatial_size)
+        ww = build_blending_matrix(spatial_size, 
+                                   self.cfg.INFERENCE.BLENDING)
+        
+        output_size = [tuple((np.array(x) * np.array(output_scale)).astype(int))
+                       for x in self.dataloader._dataset.volume_size]
+        result = [np.stack([np.zeros(x, dtype=np.float32) 
+                  for _ in range(channel_size)]) for x in output_size]
+        weight = [np.zeros(x, dtype=np.float32) for x in output_size]
         print("Total number of batches: ", len(self.dataloader))
 
+        start = time.perf_counter()
         with torch.no_grad():
             for i, (pos, volume) in enumerate(self.dataloader):
                 print('progress: %d/%d batches, total time %.2fs' % 
@@ -151,40 +147,26 @@ class Trainer(object):
 
                 # for gpu computing
                 volume = torch.from_numpy(volume).to(self.device)
-                if not self.cfg.INFERENCE.DO_3D:
+                if self.cfg.DATASET.DO_2D:
                     volume = volume.squeeze(1)
 
                 # forward pass
                 output = self.augmentor(self.model, volume)
 
-                # select channel, self.cfg.INFERENCE.MODEL_OUTPUT_ID is a list [None]
-                if self.cfg.INFERENCE.MODEL_OUTPUT_ID[0] is not None: 
-                    ndim = output.ndim
-                    output = output[:, self.cfg.INFERENCE.MODEL_OUTPUT_ID[0]]
-                    if ndim - output.ndim == 1:
-                        output = output[:,None,:]
-                if not "super" in self.cfg.MODEL.ARCHITECTURE:
-                    for idx in range(output.shape[0]):
-                        st = pos[idx]
-                        if result[st[0]].ndim - output[idx].ndim == 1:
-                            result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                                          st[3]:st[3]+sz[3]] += output[idx][:,None,:] * ww[np.newaxis,:]
-                        else:
-                            result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                                        st[3]:st[3]+sz[3]] += output[idx] * ww[np.newaxis,:]
-                        weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                        st[3]:st[3]+sz[3]] += ww
-                else:
-                    for idx in range(output.shape[0]):
-                        st = pos[idx]
-                        st = (np.array(st)*np.array([1]+self.cfg.DATASET.SCALE_FACTOR)).tolist()
-                        result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                        st[3]:st[3]+sz[3]] += output[idx] * np.expand_dims(ww, axis=0)
-                        weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
+                for idx in range(output.shape[0]):
+                    st = pos[idx]
+                    st = (np.array(st)*np.array([1]+output_scale)).astype(int).tolist()
+                    out_block = output[idx]
+                    if result[st[0]].ndim - output[idx].ndim == 1: # 2d model
+                        out_block = out_block[:,None,:]
+
+                    result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
+                        st[3]:st[3]+sz[3]] += output[idx] * ww[np.newaxis,:]
+                    weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                         st[3]:st[3]+sz[3]] += ww
 
         end = time.perf_counter()
-        print("Prediction time: ", (end-start))
+        print("Prediction time: %.2fs" % (end-start))
         del self.model, self.dataloader
 
         for vol_id in range(len(result)):
@@ -193,13 +175,16 @@ class Trainer(object):
             result[vol_id] /= weight[vol_id] # in-place to save memory
             result[vol_id] *= 255
             result[vol_id] = result[vol_id].astype(np.uint8)
-            pad_size = get_padsize(self.cfg.DATASET.PAD_SIZE)
+            temp_pad_size = (np.array(self.cfg.DATASET.PAD_SIZE)*np.array(output_scale)).astype(int).tolist()
+            pad_size = get_padsize(temp_pad_size)
             result[vol_id] = array_unpad(result[vol_id], pad_size)
 
         if self.output_dir is None:
             return result
         else:
-            print('Saving as h5...')
+            print('Final prediction shapes are:')
+            for k in range(len(result)):
+                print(result[k].shape)
             writeh5(os.path.join(self.output_dir, self.test_filename), result,
                     ['vol%d'%(x) for x in range(len(result))])
             print('Prediction saved as: ', self.test_filename)

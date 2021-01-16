@@ -208,16 +208,11 @@
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <div class="viewcode-block" id="get_padsize"><a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.get_padsize">[docs]</a><span class="k">def</span> <span class="nf">get_padsize</span><span class="p">(</span><span class="n">pad_size</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">ndim</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
-    <span class="sd">&quot;&quot;&quot;Convert the padding size for 3D input volumes </span>
-<span class="sd">    into numpy compatible format.</span>
+    <span class="sd">&quot;&quot;&quot;Convert the padding size for 3D input volumes into numpy.pad compatible format.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        pad_size (int, List[int]): number of values padded to the edges of each axis. </span>
 <span class="sd">        ndim (int): the dimension of the array to be padded. Default: 3</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Tuple[int]: the unique pad widths for each axis in the </span>
-<span class="sd">            ((before_1, after_1), ... (before_N, after_N)) format.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">pad_size</span><span class="p">)</span> <span class="o">==</span> <span class="nb">int</span><span class="p">:</span>
         <span class="n">pad_size</span> <span class="o">=</span> <span class="p">[</span><span class="nb">tuple</span><span class="p">([</span><span class="n">pad_size</span><span class="p">,</span> <span class="n">pad_size</span><span class="p">])</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ndim</span><span class="p">)]</span>
@@ -244,9 +239,6 @@
 <span class="sd">        pad_size (tuple): number of values removed from the edges of each axis. </span>
 <span class="sd">            Should be in the format of ((before_1, after_1), ... (before_N, after_N)) </span>
 <span class="sd">            representing the unique pad widths for each axis.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        numpy.ndarray: the unpadded numpy array.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">diff</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">pad_size</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">diff</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>

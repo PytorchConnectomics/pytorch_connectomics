@@ -315,14 +315,11 @@ _C.INFERENCE.BLENDING = 'gaussian'
 _C.INFERENCE.AUG_MODE = 'mean'
 _C.INFERENCE.AUG_NUM = None
 
+_C.INFERENCE.OUTPUT_SCALE = [1., 1., 1.]
+
 # Run the model forward pass with model.eval() if DO_EVAL is True, else
 # run with model.train(). Layers like batchnorm and dropout will be affected.
 _C.INFERENCE.DO_EVAL = True
-
-_C.INFERENCE.DO_3D = True
-
-# If not None then select channel of output
-_C.INFERENCE.MODEL_OUTPUT_ID = [None] 
 
 # Number of test workers
 _C.INFERENCE.TEST_NUM = 1 

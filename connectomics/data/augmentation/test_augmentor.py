@@ -1,9 +1,10 @@
 from __future__ import print_function, division
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 import itertools
 import torch
+from scipy.ndimage import zoom
 
 class TestAugmentor(object):
     r"""Test-time spatial augmentor. 
@@ -20,6 +21,7 @@ class TestAugmentor(object):
         mode (str): one of ``'min'``, ``'max'`` or ``'mean'``. Default: ``'mean'``
         do_2d (bool): the test-time augmentation is applied to 2d images. Default: False
         num_aug (int, optional): number of data augmentation variants: 4, 8 or 16 (3D only). Default: None
+        scale_factors (List[float]): scale factors for resizing the model output. Default: [1.0, 1.0, 1.0]
 
     Examples::
         >>> from connectomics.data.augmentation import TestAugmentor
@@ -29,10 +31,12 @@ class TestAugmentor(object):
     def __init__(self, 
                  mode: str = 'mean', 
                  do_2d: bool = False,
-                 num_aug: Optional[int] = None):
+                 num_aug: Optional[int] = None,
+                 scale_factors: List[float]=[1.0, 1.0, 1.0]):
 
         self.mode = mode
         self.do_2d = do_2d
+        self.scale_factors = scale_factors
 
         if num_aug is not None:
             assert num_aug in [4, 8, 16], "TestAugmentor.num_aug should be either 4, 8 or 16!"
@@ -97,6 +101,9 @@ class TestAugmentor(object):
         if self.mode == 'mean':
             out = out/cc
 
+        if (np.array(self.scale_factors)!=1).any():
+            sf = [1.0, 1.0] + self.scale_factors
+            out = zoom(out, sf, order=1)
         return out
 
     def _tta_2d(self, model, data):
@@ -136,6 +143,9 @@ class TestAugmentor(object):
         if self.mode == 'mean':
             out = out/cc
 
+        if (np.array(self.scale_factors)[1:]!=1).any():
+            sf = [1.0, 1.0] + self.scale_factors[1:]
+            out = zoom(out, sf, order=1)
         return out
 
     def _update_output(self, vout, out=None):

@@ -686,7 +686,7 @@ sample size before transformation need to be <span class="math notranslate nohig
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.TestAugmentor">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">TestAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">do_2d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">TestAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">do_2d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">scale_factors</span><span class="p">:</span> <span class="n">List<span class="p">[</span>float<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">[1.0, 1.0, 1.0]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Test-time spatial augmentor.</p>
 <p>Our test-time augmentation includes horizontal/vertical flips over
 the <cite>xy</cite>-plane, swap of <cite>x</cite> and <cite>y</cite> axes, and flip in <cite>z</cite>-dimension,
@@ -701,6 +701,7 @@ returns the pixel-wise mean value of the predictions.</p>
 <li><p><strong>mode</strong> (<em>str</em>) – one of <code class="docutils literal notranslate"><span class="pre">'min'</span></code>, <code class="docutils literal notranslate"><span class="pre">'max'</span></code> or <code class="docutils literal notranslate"><span class="pre">'mean'</span></code>. Default: <code class="docutils literal notranslate"><span class="pre">'mean'</span></code></p></li>
 <li><p><strong>do_2d</strong> (<em>bool</em>) – the test-time augmentation is applied to 2d images. Default: False</p></li>
 <li><p><strong>num_aug</strong> (<em>int</em><em>, </em><em>optional</em>) – number of data augmentation variants: 4, 8 or 16 (3D only). Default: None</p></li>
+<li><p><strong>scale_factors</strong> (<em>List</em><em>[</em><em>float</em><em>]</em>) – scale factors for resizing the model output. Default: [1.0, 1.0, 1.0]</p></li>
 </ul>
 </dd>
 </dl>
@@ -757,12 +758,6 @@ Should be in the format of ((before_1, after_1), … (before_N, after_N))
 representing the unique pad widths for each axis.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p>the unpadded numpy array.</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>numpy.ndarray</p>
-</dd>
 </dl>
 </dd></dl>
 
@@ -805,24 +800,13 @@ challenge.” arXiv preprint arXiv:1706.00120, 2017.</p>
 <dl class="py function">
 <dt id="connectomics.data.utils.get_padsize">
 <code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">get_padsize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pad_size</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">ndim</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">3</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>int<span class="p">]</span><a class="reference internal" href="../_modules/connectomics/data/utils/data_misc.html#get_padsize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.get_padsize" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert the padding size for 3D input volumes
-into numpy compatible format.</p>
+<dd><p>Convert the padding size for 3D input volumes into numpy.pad compatible format.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>pad_size</strong> (<em>int</em><em>, </em><em>List</em><em>[</em><em>int</em><em>]</em>) – number of values padded to the edges of each axis.</p></li>
 <li><p><strong>ndim</strong> (<em>int</em>) – the dimension of the array to be padded. Default: 3</p></li>
 </ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p><dl class="simple">
-<dt>the unique pad widths for each axis in the</dt><dd><p>((before_1, after_1), … (before_N, after_N)) format.</p>
-</dd>
-</dl>
-</p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>Tuple[int]</p>
 </dd>
 </dl>
 </dd></dl>
