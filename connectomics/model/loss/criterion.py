@@ -4,6 +4,12 @@ import torch.nn as nn
 from .loss import *
 
 def build_criterion(cfg, device):
+    """Build a Criterion class based on the config options.
+
+    Args:
+        cfg (yacs.config.CfgNode): YACS configuration options.
+        device (torch.device): model running device type. GPUs are recommended for model training and inference.
+    """
     return Criterion(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.LOSS_WEIGHT,\
                      cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_WEIGHT)
 

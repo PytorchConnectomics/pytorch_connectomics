@@ -1,7 +1,11 @@
 import torch
 import torchvision.utils as vutils
 import numpy as np
-from ...data.utils import decode_quantize
+from ..data.utils import decode_quantize
+
+__all__ = [
+    'Visualizer'
+]
 
 class Visualizer(object):
     """TensorboardX visualizer for displaying loss, learning rate and predictions

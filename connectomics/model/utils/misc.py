@@ -8,7 +8,8 @@ from torch.jit.annotations import Dict
 
 class IntermediateLayerGetter(nn.ModuleDict):
     """
-    Module wrapper that returns intermediate layers from a model
+    Module wrapper that returns intermediate layers from a 3D model, adapted
+    from https://github.com/pytorch/vision/blob/master/torchvision/models/_utils.py.
 
     It has a strong assumption that the modules have been registered
     into the model in the same order as they are used.
@@ -97,7 +98,13 @@ class MemoryEfficientSwish(nn.Module):
 #--------------------
 # Activation Layers
 #--------------------
-def get_activation(activation: str) -> nn.Module:
+def get_activation(activation: str = 'relu') -> nn.Module:
+    """Get the specified activation layer. 
+
+    Args:
+        activation (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
+            ``'swish'`` and ``'efficient_swish'``. Default: ``'relu'``
+    """
     assert activation in ["relu", "leaky_relu", "elu", "gelu", 
                           "swish", "efficient_swish"]
     activation_dict = {
@@ -114,7 +121,8 @@ def get_activation(activation: str) -> nn.Module:
 # Normalization Layers
 #----------------------
 def get_norm(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
-    """
+    """Get the specified normalization layer.
+
     Args:
         norm (str): one of BN or GN;
         out_channels (int): channel number.
@@ -123,10 +131,10 @@ def get_norm(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Modul
     """
     assert norm in ["BN", "SyncBN", "GN", "IN"]
     norm = {
-        "BN": nn.BatchNorm2d,
-        "SyncBN": nn.BatchNorm2d, 
-        "IN": nn.InstanceNorm2d,
-        "GN": lambda channels: nn.GroupNorm(32, channels),
+        "BN": nn.BatchNorm3d,
+        "SyncBN": nn.BatchNorm3d, 
+        "IN": nn.InstanceNorm3d,
+        "GN": lambda channels: nn.GroupNorm(16, channels),
         }[norm]
     if norm in ["BN", "IN"]:
         return norm(out_channels, momentum=bn_momentum)

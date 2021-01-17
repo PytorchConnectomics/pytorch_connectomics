@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from ..block import *
-from ..utils import *
+from ..utils.initialize import *
 
 class unet_residual_3d(nn.Module):
     """Lightweight 3D U-net with residual blocks (based on [Lee2017]_ with modifications).
@@ -89,14 +89,6 @@ class unet_residual_3d(nn.Module):
                                  [nn.Sequential(
                         conv3d_norm_act(filters[x+1], filters[x], kernel_size=(1,1,1), padding=0, norm_mode=norm_mode, act_mode=act_mode),
                         nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)) for x in range(1,self.depth+1)])
-            """
-            # old
-            self.upS = nn.ModuleList( [conv3d_norm_act(filters[1], out_channel, kernel_size=(1,1,1), padding=0, norm_mode=norm_mode)] + \
-                                 [nn.Sequential(
-                        conv3d_norm_act(filters[x+1], filters[x], kernel_size=(1,1,1), padding=0, norm_mode=norm_mode, act_mode=act_mode),
-                        nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)) for x in range(1,self.depth+1)])
-            """
-
 
         #initialization
         ortho_init(self)

@@ -7,7 +7,7 @@ from skimage.morphology import dilation
 from skimage.segmentation import watershed
 from skimage.morphology import remove_small_objects
 
-from connectomics.data.utils import getSegType
+from ..data.utils import getSegType
 
 __all__ = ['binary_connected',
            'binary_watershed',
