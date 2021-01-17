@@ -1,6 +1,10 @@
 import numpy as np
 import scipy.sparse as sparse
 
+__all__ = [
+    'get_binary_jaccard',
+]
+
 def adapted_rand(seg, gt, all_stats=False):
     """Compute Adapted Rand error as defined by the SNEMI3D contest [1]
 
@@ -351,7 +355,6 @@ def confusion_matrix(pred, gt, thres=0.5):
     FN = np.sum((gt == 1) & (pred <= thres))
     return (TP, FP, TN, FN)
 
-
 def get_binary_jaccard(pred, gt, thres=[0.5]):
     """Evaluate the binary prediction at multiple thresholds using the Jaccard 
     Index, which is also known as Intersection over Union (IoU). If the prediction
@@ -379,3 +382,4 @@ def get_binary_jaccard(pred, gt, thres=[0.5]):
         iou = (iou_fg + iou_bg) / 2.0
         score[tid] = np.array([iou_fg, iou, precision, recall])
     return score
+    

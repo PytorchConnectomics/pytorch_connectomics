@@ -12,7 +12,8 @@ import torch.nn.functional as F
 import numpy as np
 
 from .solver import *
-from ..model import *
+from ..utils.monitor import build_monitor
+from ..model import build_model, build_criterion
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
 from ..data.utils import build_blending_matrix, writeh5
@@ -45,8 +46,8 @@ class Trainer(object):
         if self.mode == 'train':
             self.augmentor = build_train_augmentor(self.cfg)
             self.monitor = build_monitor(self.cfg)
-            self.criterion = build_criterion(self.cfg, self.device)
             self.monitor.load_config(self.cfg) # show config details in tensorboard
+            self.criterion = build_criterion(self.cfg, self.device)
         else:
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 

@@ -1,8 +1,9 @@
 from __future__ import print_function, division
+from abc import ABCMeta, abstractmethod
 from typing import Optional
 import numpy as np
 
-class DataAugment(object):
+class DataAugment(object, metaclass=ABCMeta):
     r"""
     DataAugment interface. A data augmentor needs to conduct the following steps:
 
@@ -20,6 +21,8 @@ class DataAugment(object):
     def __init__(self, 
                  p: float = 0.5,
                  additional_targets: Optional[dict] = None):
+        super().__init__()
+
         assert p >= 0.0 and p <=1.0
         self.p = p
         self.sample_params = {
@@ -31,6 +34,7 @@ class DataAugment(object):
         else: # initialize as an empty dictionary
             self.additional_targets = {}
 
+    @abstractmethod
     def set_params(self):
         r"""
         Calculate the appropriate sample size with data augmentation.
@@ -42,6 +46,7 @@ class DataAugment(object):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def __call__(self, sample, random_state=None):
         r"""
         Apply the data augmentation.

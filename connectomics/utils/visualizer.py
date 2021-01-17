@@ -4,6 +4,9 @@ import numpy as np
 from ...data.utils import decode_quantize
 
 class Visualizer(object):
+    """TensorboardX visualizer for displaying loss, learning rate and predictions
+    at training time.
+    """
     def __init__(self, cfg, vis_opt=0, N=16, do_2d=False):
         self.cfg = cfg
         self.vis_opt = vis_opt
