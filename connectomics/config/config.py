@@ -12,8 +12,10 @@ _C = CN()
 _C.SYSTEM = CN()
 
 _C.SYSTEM.NUM_GPUS = 4
-
 _C.SYSTEM.NUM_CPUS = 4
+# Run distributed training using DistributedDataparallel model
+_C.SYSTEM.DISTRIBUTED = False
+_C.SYSTEM.PARALLEL = 'DP'
 
 # -----------------------------------------------------------------------------
 # Model
@@ -378,8 +380,13 @@ def save_all_cfg(cfg, output_dir):
     print("Full config saved to {}".format(path))
 
 def overwrite_cfg(cfg, args):
-    r"""Overwrite some configs given configs with higher priority.
+    r"""Overwrite some configs given configs or args with higher priority.
     """
+    # Distributed training:
+    if args.distributed:
+        cfg.SYSTEM.DISTRIBUTED = True
+        cfg.SYSTEM.PARALLEL = 'DDP'
+
     # Target options:
     for topt in cfg.MODEL.TARGET_OPT:
         if topt[0] == '5': # quantized distance transform

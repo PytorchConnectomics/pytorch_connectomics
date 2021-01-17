@@ -26,15 +26,17 @@ class Trainer(object):
         cfg (yacs.config.CfgNode): YACS configuration options.
         device (torch.device): model running device type. GPUs are recommended for model training and inference.
         mode (str): running mode of the trainer (``'train'`` or ``'test'``). Default: ``'train'``
+        rank (int, optional): node rank for distributed training. Default: `None`
         checkpoint (str, optional): the checkpoint file to be loaded. Default: `None`
     """
     def __init__(self, cfg: CfgNode, device: torch.device, mode: str = 'train', 
-                 checkpoint: Optional[str] = None):
+                 rank: Optional[int] = None, checkpoint: Optional[str] = None):
         assert mode in ['train', 'test']
         self.cfg = cfg
         self.device = device
         self.output_dir = cfg.DATASET.OUTPUT_PATH
         self.mode = mode
+        self.rank = rank
 
         self.model = build_model(self.cfg, self.device)
         self.optimizer = build_optimizer(self.cfg, self.model)
