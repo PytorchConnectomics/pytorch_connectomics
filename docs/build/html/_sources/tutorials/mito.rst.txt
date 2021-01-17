@@ -84,8 +84,8 @@ The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.Vo
 
     .. code-block:: python
 
-        from connectomics.utils.evaluation import get_binary_jaccard
-        from connectomics.utils.processing import binarize_and_median
+        from connectomics.utils.evaluate import get_binary_jaccard
+        from connectomics.utils.process import binarize_and_median
         pred = pred / 255. # output is casted to uint8 with range [0,255].
         pred = binarize_and_median(pred, size=(7,7,7), thres=0.8)
         gt = (gt!==0).astype(np.uint8)
@@ -201,7 +201,7 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
         import glob
         import numpy as np
         from connectomics.data.utils import readvol
-        from connectomics.utils.processing import bc_watershed
+        from connectomics.utils.process import bc_watershed
 
         output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
         chunks = glob.glob(output_files)

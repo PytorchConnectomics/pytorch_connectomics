@@ -124,19 +124,20 @@
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules/data.html">connectomics.data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.utils">Utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.dataset">connectomics.data.dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.augmentation">connectomics.data.augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/data.html#module-connectomics.data.utils">connectomics.data.utils</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules/model.html">connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-connectomics.model.zoo">Model Zoo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-connectomics.model.loss">connectomics.model.loss</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/model.html#module-connectomics.model.utils">connectomics.model.utils</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="modules/utils.html">connectomics.utils</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="modules/utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/utils.html#module-connectomics.utils.process">connectomics.utils.process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="modules/utils.html#module-connectomics.utils.visualizer">connectomics.utils.visualizer</a></li>
 </ul>
 </li>
 </ul>
@@ -234,19 +235,21 @@
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/utils.html#connectomics.utils.processing.bc_connected">bc_connected() (in module connectomics.utils.processing)</a>
+      <li><a href="modules/utils.html#connectomics.utils.process.bc_connected">bc_connected() (in module connectomics.utils.process)</a>
 </li>
-      <li><a href="modules/utils.html#connectomics.utils.processing.bc_watershed">bc_watershed() (in module connectomics.utils.processing)</a>
+      <li><a href="modules/utils.html#connectomics.utils.process.bc_watershed">bc_watershed() (in module connectomics.utils.process)</a>
 </li>
-      <li><a href="modules/utils.html#connectomics.utils.processing.binary_connected">binary_connected() (in module connectomics.utils.processing)</a>
+      <li><a href="modules/utils.html#connectomics.utils.process.binary_connected">binary_connected() (in module connectomics.utils.process)</a>
+</li>
+      <li><a href="modules/utils.html#connectomics.utils.process.binary_watershed">binary_watershed() (in module connectomics.utils.process)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/utils.html#connectomics.utils.processing.binary_watershed">binary_watershed() (in module connectomics.utils.processing)</a>
-</li>
       <li><a href="modules/data.html#connectomics.data.utils.blend_bump">blend_bump() (in module connectomics.data.utils)</a>
 </li>
       <li><a href="modules/data.html#connectomics.data.utils.blend_gaussian">blend_gaussian() (in module connectomics.data.utils)</a>
+</li>
+      <li><a href="modules/model.html#connectomics.model.loss.build_criterion">build_criterion() (in module connectomics.model.loss)</a>
 </li>
       <li><a href="modules/data.html#connectomics.data.augmentation.build_train_augmentor">build_train_augmentor() (in module connectomics.data.augmentation)</a>
 </li>
@@ -289,24 +292,31 @@
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li>
-    connectomics.model.block
+    connectomics.model.loss
 
       <ul>
-        <li><a href="modules/model.html#module-connectomics.model.block">module</a>
+        <li><a href="modules/model.html#module-connectomics.model.loss">module</a>
 </li>
       </ul></li>
       <li>
-    connectomics.model.zoo
+    connectomics.model.utils
 
       <ul>
-        <li><a href="modules/model.html#module-connectomics.model.zoo">module</a>
+        <li><a href="modules/model.html#module-connectomics.model.utils">module</a>
 </li>
       </ul></li>
       <li>
-    connectomics.utils.processing
+    connectomics.utils.process
 
       <ul>
-        <li><a href="modules/utils.html#module-connectomics.utils.processing">module</a>
+        <li><a href="modules/utils.html#module-connectomics.utils.process">module</a>
+</li>
+      </ul></li>
+      <li>
+    connectomics.utils.visualizer
+
+      <ul>
+        <li><a href="modules/utils.html#module-connectomics.utils.visualizer">module</a>
 </li>
       </ul></li>
       <li><a href="modules/data.html#connectomics.data.augmentation.CutBlur">CutBlur (class in connectomics.data.augmentation)</a>
@@ -343,6 +353,8 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/model.html#connectomics.model.utils.get_activation">get_activation() (in module connectomics.model.utils)</a>
+</li>
       <li><a href="modules/data.html#connectomics.data.dataset.TileDataset.get_coord_name">get_coord_name() (connectomics.data.dataset.TileDataset method)</a>
 </li>
   </ul></td>
@@ -385,11 +397,13 @@
 </li>
         <li><a href="modules/engine.html#module-connectomics.engine">connectomics.engine</a>
 </li>
-        <li><a href="modules/model.html#module-connectomics.model.block">connectomics.model.block</a>
+        <li><a href="modules/model.html#module-connectomics.model.loss">connectomics.model.loss</a>
 </li>
-        <li><a href="modules/model.html#module-connectomics.model.zoo">connectomics.model.zoo</a>
+        <li><a href="modules/model.html#module-connectomics.model.utils">connectomics.model.utils</a>
 </li>
-        <li><a href="modules/utils.html#module-connectomics.utils.processing">connectomics.utils.processing</a>
+        <li><a href="modules/utils.html#module-connectomics.utils.process">connectomics.utils.process</a>
+</li>
+        <li><a href="modules/utils.html#module-connectomics.utils.visualizer">connectomics.utils.visualizer</a>
 </li>
       </ul></li>
   </ul></td>
@@ -402,7 +416,7 @@
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/utils.html#connectomics.utils.processing.polarity2instance">polarity2instance() (in module connectomics.utils.processing)</a>
+      <li><a href="modules/utils.html#connectomics.utils.process.polarity2instance">polarity2instance() (in module connectomics.utils.process)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -493,6 +507,10 @@
 
 <h2 id="V">V</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="modules/utils.html#connectomics.utils.visualizer.Visualizer">Visualizer (class in connectomics.utils.visualizer)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/data.html#connectomics.data.dataset.VolumeDataset">VolumeDataset (class in connectomics.data.dataset)</a>
 </li>

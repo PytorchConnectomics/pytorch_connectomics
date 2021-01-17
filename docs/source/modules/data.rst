@@ -4,20 +4,20 @@ connectomics.data
 .. contents:: Contents
     :local:
 
-Datasets
----------
+connectomics.data.dataset
+--------------------------
 
 .. automodule:: connectomics.data.dataset
     :members:
 
-Augmentations
---------------
+connectomics.data.augmentation
+-------------------------------
 
 .. automodule:: connectomics.data.augmentation
     :members:
 
-Utils
--------
+connectomics.data.utils
+------------------------
 
 .. automodule:: connectomics.data.utils
     :members:

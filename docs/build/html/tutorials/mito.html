@@ -126,19 +126,20 @@
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.dataset">Datasets</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.augmentation">Augmentations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.utils">Utils</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.dataset">connectomics.data.dataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.augmentation">connectomics.data.augmentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/data.html#module-connectomics.data.utils">connectomics.data.utils</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/engine.html">connectomics.engine</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.block">Building Blocks</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.zoo">Model Zoo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.loss">connectomics.model.loss</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/model.html#module-connectomics.model.utils">connectomics.model.utils</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#module-connectomics.utils.processing">Post-processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#module-connectomics.utils.process">connectomics.utils.process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../modules/utils.html#module-connectomics.utils.visualizer">connectomics.utils.visualizer</a></li>
 </ul>
 </li>
 </ul>
@@ -290,8 +291,8 @@ $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
 </pre></div>
 </div>
 <p>The prediction can be further improved by conducting median filtering to remove noise:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">connectomics.utils.evaluation</span> <span class="kn">import</span> <span class="n">get_binary_jaccard</span>
-<span class="kn">from</span> <span class="nn">connectomics.utils.processing</span> <span class="kn">import</span> <span class="n">binarize_and_median</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">connectomics.utils.evaluate</span> <span class="kn">import</span> <span class="n">get_binary_jaccard</span>
+<span class="kn">from</span> <span class="nn">connectomics.utils.process</span> <span class="kn">import</span> <span class="n">binarize_and_median</span>
 <span class="n">pred</span> <span class="o">=</span> <span class="n">pred</span> <span class="o">/</span> <span class="mf">255.</span> <span class="c1"># output is casted to uint8 with range [0,255].</span>
 <span class="n">pred</span> <span class="o">=</span> <span class="n">binarize_and_median</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
 <span class="n">gt</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt</span><span class="o">!==</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
@@ -405,7 +406,7 @@ and apply the segmentation algorithm:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">glob</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">from</span> <span class="nn">connectomics.data.utils</span> <span class="kn">import</span> <span class="n">readvol</span>
-<span class="kn">from</span> <span class="nn">connectomics.utils.processing</span> <span class="kn">import</span> <span class="n">bc_watershed</span>
+<span class="kn">from</span> <span class="nn">connectomics.utils.process</span> <span class="kn">import</span> <span class="n">bc_watershed</span>
 
 <span class="n">output_files</span> <span class="o">=</span> <span class="s1">&#39;outputs/MitoEM_R_BC/test/*.h5&#39;</span> <span class="c1"># output folder with chunks</span>
 <span class="n">chunks</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">output_files</span><span class="p">)</span>

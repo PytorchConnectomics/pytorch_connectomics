@@ -4,15 +4,15 @@ connectomics.model
 .. contents:: Contents
     :local:
 
-Building Blocks
-----------------
+connectomics.model.loss
+------------------------------
 
-.. automodule:: connectomics.model.block
+.. automodule:: connectomics.model.loss
     :members:
 
-Model Zoo
-----------
+connectomics.model.utils
+-------------------------
 
-.. automodule:: connectomics.model.zoo
+.. automodule:: connectomics.model.utils
     :members:
 

@@ -4,8 +4,14 @@ connectomics.utils
 .. contents:: Contents
     :local:
 
-Post-processing
------------------
+connectomics.utils.process
+---------------------------
 
-.. automodule:: connectomics.utils.processing
+.. automodule:: connectomics.utils.process
+    :members:
+
+connectomics.utils.visualizer
+------------------------------
+
+.. automodule:: connectomics.utils.visualizer
     :members:
