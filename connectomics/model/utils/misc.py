@@ -138,8 +138,8 @@ def get_functional_act(activation: str = 'relu'):
 #----------------------
 # Normalization Layers
 #----------------------
-def get_norm(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
-    """Get the specified normalization layer.
+def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
+    """Get the specified normalization layer for a 3D model.
 
     Args:
         norm (str): one of ``'bn'``, ``'sync_bn'`` ``'in'``, ``'gn'`` or ``'none'``.
@@ -153,6 +153,29 @@ def get_norm(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Modul
         "bn": nn.BatchNorm3d,
         "sync_bn": nn.BatchNorm3d, 
         "gn": nn.InstanceNorm3d,
+        "in": lambda channels: nn.GroupNorm(16, channels),
+        "none": nn.Identity,
+        }[norm]
+    if norm in ["bn", "sync_bn", "in"]:
+        return norm(out_channels, momentum=bn_momentum)
+    else:
+        return norm(out_channels)
+
+def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
+    """Get the specified normalization layer for a 2D model.
+
+    Args:
+        norm (str): one of ``'bn'``, ``'sync_bn'`` ``'in'``, ``'gn'`` or ``'none'``.
+        out_channels (int): channel number.
+        bn_momentum (float): the momentum of normalization layers.
+    Returns:
+        nn.Module: the normalization layer
+    """
+    assert norm in ["bn", "sync_bn", "gn", "in"]
+    norm = {
+        "bn": nn.BatchNorm2d,
+        "sync_bn": nn.BatchNorm2d, 
+        "gn": nn.InstanceNorm2d,
         "in": lambda channels: nn.GroupNorm(16, channels),
         "none": nn.Identity,
         }[norm]

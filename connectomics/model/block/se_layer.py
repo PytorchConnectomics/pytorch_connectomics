@@ -39,22 +39,22 @@ class se_layer_3d(nn.Module):
         y = self.fc(y).view(b, c, 1, 1, 1)
         return x * y.expand_as(x)
 
-class residual_se_2d(residual_block_2d):
-    def __init__(self, in_planes, out_planes, projection=False, 
+class residual_se_block_2d(residual_block_2d):
+    def __init__(self, in_planes, out_planes, projection=False, dilation=1,
                  pad_mode='replicate', norm_mode='bn', act_mode='relu'):
-        super().__init__(in_planes, out_planes, projection,
+        super().__init__(in_planes, out_planes, projection, dilation,
                          pad_mode, norm_mode, act_mode)
         self.conv = nn.Sequential(
             self.conv,
-            se_layer_2d(out_planes, act_mode))
+            se_layer_2d(out_planes, act_mode=act_mode))
 
-class residual_se_3d(residual_block_3d):
-    def __init__(self, in_planes, out_planes, projection=False, 
+class residual_se_block_3d(residual_block_3d):
+    def __init__(self, in_planes, out_planes, projection=False, dilation=1,
                  pad_mode='replicate', norm_mode='bn', act_mode='relu',
                  isotropy=True):
         super().__init__(in_planes, out_planes, projection,
-                         pad_mode, norm_mode, act_mode,
-                         isotropy)
+                         dilation, pad_mode, norm_mode, 
+                         act_mode, isotropy)
         self.conv = nn.Sequential(
             self.conv,
-            se_layer_3d(out_planes, act_mode))
+            se_layer_3d(out_planes, act_mode=act_mode))

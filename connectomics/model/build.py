@@ -3,15 +3,8 @@ import torch
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel
 
-from .zoo import *
-from .norm import patch_replication_callback
-
 def build_model(cfg, device, rank=None):
-    MODEL_MAP = {'unet_residual_3d': unet_residual_3d,
-                 'unet_residual_2d': unet_residual_2d,
-                 'fpn': fpn,
-                 'super':SuperResolution,
-                 'unet_super':Unet_super}
+    MODEL_MAP = {}
 
     assert cfg.MODEL.ARCHITECTURE in MODEL_MAP.keys()
     if cfg.MODEL.ARCHITECTURE == 'super':
