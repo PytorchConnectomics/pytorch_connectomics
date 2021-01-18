@@ -1,27 +1,44 @@
-import os,sys
+from __future__ import print_function, division
+from typing import Optional, List
 
 import torch
 import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..block import *
-from ..utils import *
+from .block import *
+from .utils.initialize import *
 
-class unet_residual_3d(nn.Module):
-    """Lightweight 3D U-net with residual blocks (based on [Lee2017]_ with modifications).
+class UNet3D(nn.Module):
+    """3D U-Net architecture.
 
-    .. [Lee2017] Lee, Kisuk, Jonathan Zung, Peter Li, Viren Jain, and 
-        H. Sebastian Seung. "Superhuman accuracy on the SNEMI3D connectomics 
-        challenge." arXiv preprint arXiv:1706.00120, 2017.
-        
     Args:
-        in_channel (int): number of input channels.
-        out_channel (int): number of output channels.
-        filters (list): number of filters at each u-net stage.
+        block_type (str): the block type at each U-Net stage. Default: ``'residual'``
+        in_channel (int): number of input channels. Default: 1
+        out_channel (int): number of output channels. Default: 3
+        filters (List[int]): number of filters at each U-Net stage. Default: [28, 36, 48, 64, 80]
+        isotropy (List[bool]): specify each U-Net stage is isotropic or anisotropic. 
+            Default: [False, False, True, True, True]
+        pad_mode (str): one of ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``. Default: ``'replicate'``
+        norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
+        act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
+            ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``
+        do_embedding (bool): embed the input to high-dimensional feature space. Default: `True`
+        head_depth (int): depth of the U-Net head. Default: 1
+        output_act (str): activation function for the output layer. Default: ``'sigmoid'``
     """
-    def __init__(self, in_channel=1, out_channel=3, filters=[28, 36, 48, 64, 80], pad_mode='rep', norm_mode='bn', act_mode='elu', 
-                 do_embedding=True, head_depth=1, output_act='sigmoid'):
+    def __init__(self, 
+                 block_type = 'residual',
+                 in_channel: int = 1, 
+                 out_channel: int = 3, 
+                 filters: List[int] = [28, 36, 48, 64, 80], 
+                 isotropy: List[bool] = [False, False, True, True, True],
+                 pad_mode: str = 'replicate', 
+                 norm_mode: str = 'BN', 
+                 act_mode: str = 'elu', 
+                 do_embedding: bool = True, 
+                 head_depth: int = 1, 
+                 output_act: str = 'sigmoid'):
         super().__init__()
 
         self.depth = len(filters)-2
@@ -89,14 +106,6 @@ class unet_residual_3d(nn.Module):
                                  [nn.Sequential(
                         conv3d_norm_act(filters[x+1], filters[x], kernel_size=(1,1,1), padding=0, norm_mode=norm_mode, act_mode=act_mode),
                         nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)) for x in range(1,self.depth+1)])
-            """
-            # old
-            self.upS = nn.ModuleList( [conv3d_norm_act(filters[1], out_channel, kernel_size=(1,1,1), padding=0, norm_mode=norm_mode)] + \
-                                 [nn.Sequential(
-                        conv3d_norm_act(filters[x+1], filters[x], kernel_size=(1,1,1), padding=0, norm_mode=norm_mode, act_mode=act_mode),
-                        nn.Upsample(scale_factor=(1,2,2), mode='trilinear', align_corners=False)) for x in range(1,self.depth+1)])
-            """
-
 
         #initialization
         ortho_init(self)
@@ -127,3 +136,24 @@ class unet_residual_3d(nn.Module):
 
         x = get_functional_act(self.output_act)(x)
         return x
+
+class UNet2D(nn.Module):
+    """2D U-Net architecture.
+
+    Args:
+        block_type (str): the block type at each U-Net stage. Default: ``'residual'``
+        in_channel (int): number of input channels. Default: 1
+        out_channel (int): number of output channels. Default: 3
+        filters (List[int]): number of filters at each U-Net stage. Default: [28, 36, 48, 64, 80]
+        isotropy (List[bool]): specify each U-Net stage is isotropic or anisotropic. 
+            Default: [False, False, True, True, True]
+        pad_mode (str): one of ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``. Default: ``'replicate'``
+        norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
+        act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
+            ``'swish'`` and ``'efficient_swish'``. Default: ``'relu'``
+        do_embedding (bool): embed the input to high-dimensional feature space. Default: `True`
+        head_depth (int): depth of the U-Net head. Default: 1
+        output_act (str): activation function for the output layer. Default: ``'sigmoid'``
+    """
+    def __init__(self):
+        pass

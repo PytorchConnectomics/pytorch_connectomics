@@ -103,10 +103,10 @@ def get_activation(activation: str = 'relu') -> nn.Module:
 
     Args:
         activation (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
-            ``'swish'`` and ``'efficient_swish'``. Default: ``'relu'``
+            ``'swish'``, 'efficient_swish'`` and ``'none'``. Default: ``'relu'``
     """
     assert activation in ["relu", "leaky_relu", "elu", "gelu", 
-                          "swish", "efficient_swish"]
+                          "swish", "efficient_swish", "none"]
     activation_dict = {
         "relu": nn.ReLU(inplace=True),
         "leaky_relu": nn.LeakyReLU(negative_slope=0.1, inplace=True),
@@ -114,6 +114,24 @@ def get_activation(activation: str = 'relu') -> nn.Module:
         "gelu": nn.GELU(),
         "swish": Swish(),
         "efficient_swish": MemoryEfficientSwish(),
+        "none": nn.Identity(),
+    }
+    return activation_dict[activation]
+
+def get_functional_act(activation: str = 'relu'):
+    """Get the specified activation function. 
+
+    Args:
+        activation (str): one of ``'relu'``, ``'tanh'``, ``'elu'``, ``'sigmoid'``, 
+            ``'softmax'`` and ``'none'``. Default: ``'sigmoid'``
+    """
+    activation_dict = {
+        'relu': F.relu_,
+        'tanh': torch.tanh,
+        'elu': F.elu_,
+        'sigmoid': torch.sigmoid,
+        'softmax': lambda x: F.softmax(x, dim=1),
+        'none': lambda x: x,
     }
     return activation_dict[activation]
 
@@ -124,19 +142,21 @@ def get_norm(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Modul
     """Get the specified normalization layer.
 
     Args:
-        norm (str): one of BN or GN;
+        norm (str): one of ``'bn'``, ``'sync_bn'`` ``'in'``, ``'gn'`` or ``'none'``.
         out_channels (int): channel number.
+        bn_momentum (float): the momentum of normalization layers.
     Returns:
         nn.Module: the normalization layer
     """
-    assert norm in ["BN", "SyncBN", "GN", "IN"]
+    assert norm in ["bn", "sync_bn", "gn", "in"]
     norm = {
-        "BN": nn.BatchNorm3d,
-        "SyncBN": nn.BatchNorm3d, 
-        "IN": nn.InstanceNorm3d,
-        "GN": lambda channels: nn.GroupNorm(16, channels),
+        "bn": nn.BatchNorm3d,
+        "sync_bn": nn.BatchNorm3d, 
+        "gn": nn.InstanceNorm3d,
+        "in": lambda channels: nn.GroupNorm(16, channels),
+        "none": nn.Identity,
         }[norm]
-    if norm in ["BN", "IN"]:
+    if norm in ["bn", "sync_bn", "in"]:
         return norm(out_channels, momentum=bn_momentum)
     else:
         return norm(out_channels)

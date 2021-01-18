@@ -3,5 +3,6 @@ from .misc import *
 
 __all__ = [
     'get_activation',
+    'get_functional_act',
     'get_norm',
 ]
