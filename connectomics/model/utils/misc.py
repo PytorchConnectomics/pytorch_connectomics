@@ -3,12 +3,13 @@ from collections import OrderedDict
 
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.jit.annotations import Dict
 
 
 class IntermediateLayerGetter(nn.ModuleDict):
     """
-    Module wrapper that returns intermediate layers from a 3D model, adapted
+    Module wrapper that returns intermediate layers from a model, adapted
     from https://github.com/pytorch/vision/blob/master/torchvision/models/_utils.py.
 
     It has a strong assumption that the modules have been registered
@@ -148,7 +149,7 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     Returns:
         nn.Module: the normalization layer
     """
-    assert norm in ["bn", "sync_bn", "gn", "in"]
+    assert norm in ["bn", "sync_bn", "gn", "in", "none"]
     norm = {
         "bn": nn.BatchNorm3d,
         "sync_bn": nn.BatchNorm3d, 
@@ -171,7 +172,7 @@ def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     Returns:
         nn.Module: the normalization layer
     """
-    assert norm in ["bn", "sync_bn", "gn", "in"]
+    assert norm in ["bn", "sync_bn", "gn", "in", "none"]
     norm = {
         "bn": nn.BatchNorm2d,
         "sync_bn": nn.BatchNorm2d, 

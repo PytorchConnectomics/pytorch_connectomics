@@ -2,23 +2,34 @@ import torch
 import torch.nn as nn
 from math import sqrt
 
+def model_init(model, mode='orthogonal'):
+    """Initialization of model weights.
+    """
+    model_init_dict = {
+        'xavier': xavier_init,
+        'kaiming': kaiming_init,
+        'selu': selu_init,
+        'orthogonal': ortho_init,
+    }
+    model_init_dict[mode](model)
+
 def xavier_init(model):
     # default xavier initialization
     for m in model.modules():
-        if isinstance(m, (nn.Conv3d, nn.Linear)):
+        if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.Linear)):
             nn.init.xavier_uniform(
                 m.weight(), gain=nn.init.calculate_gain('relu'))
 
-def he_init(model):
+def kaiming_init(model):
     # he initialization
     for m in model.modules():
-        if isinstance(m, (nn.Conv3d, nn.Linear)):
+        if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.Linear)):
             nn.init.kaiming_normal(m.weight, mode='fan_in')
 
 def selu_init(model):
     # selu init
     for m in model.modules():
-        if isinstance(m, nn.Conv3d):
+        if isinstance(m, (nn.Conv2d, nn.Conv3d)):
             fan_in = m.kernel_size[0] * m.kernel_size[1] * m.in_channels
             nn.init.normal(m.weight, 0, sqrt(1. / fan_in))
         elif isinstance(m, nn.Linear):
@@ -28,5 +39,5 @@ def selu_init(model):
 def ortho_init(model):
     # orthogonal initialization
     for m in model.modules():
-        if isinstance(m, (nn.Conv3d, nn.Linear)):
+        if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.Linear)):
             nn.init.orthogonal_(m.weight)
