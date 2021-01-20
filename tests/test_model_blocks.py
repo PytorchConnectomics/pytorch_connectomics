@@ -6,6 +6,8 @@ from connectomics.model.block import *
 class TestModelBlock(unittest.TestCase):
 
     def test_basic_blocks(self):
+        """Test basic blocks.
+        """
         b, d, h, w = 2, 8, 32, 32
         c_in, c_out = 16, 32
 

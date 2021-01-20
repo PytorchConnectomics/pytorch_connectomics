@@ -23,10 +23,14 @@ _C.SYSTEM.PARALLEL = 'DP'
 _C.MODEL = CN()
 
 # Model architectures defined in the package: unet_super, super, fpn, unet_residual_3d
-_C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
+_C.MODEL.ARCHITECTURE = 'unet_3d' 
+_C.MODEL.BLOCK_TYPE = 'residual'
+_C.MODEL.BACKBONE = 'resnet'
 
 # Number of filters per unet block
 _C.MODEL.FILTERS = [28, 36, 48, 64, 80] 
+
+_C.MODEL.ISOTROPY = [False, False, False, True, True]
 
 _C.MODEL.TARGET_OPT = ['0']
 
@@ -46,8 +50,8 @@ _C.MODEL.IN_PLANES = 1
 # Define the number of output channels.
 _C.MODEL.OUT_PLANES = 1 
 
-# Padding mode, possible options: 'zeros','circular', 'rep'
-_C.MODEL.PAD_MODE = 'rep' 
+# Padding mode, possible options: 'zeros','circular', 'reflect', 'replicate'
+_C.MODEL.PAD_MODE = 'replicate' 
 
 # Normalization mode, possible options: 'bn', 'abn', 'in', 'bin'
 _C.MODEL.NORM_MODE = 'bn'
@@ -55,6 +59,9 @@ _C.MODEL.NORM_MODE = 'bn'
 # Activation mode, possible options: 'relu', 'elu', 'leaky'
 _C.MODEL.ACT_MODE = 'elu'
 _C.MODEL.OUTPUT_ACT = 'sigmoid' # activation for the output layer
+
+# Use pooling layer for downsampling
+_C.MODEL.POOING_LAYER = False
 
 # If MODEL.EMBEDDING = 1 will do embedding
 _C.MODEL.EMBEDDING = 1
@@ -106,8 +113,10 @@ _C.DATASET.VALID_MASK_NAME = None
 
 _C.DATASET.LABEL_VAST = False
 _C.DATASET.INPUT_PATH = 'path/to/input'
-
 _C.DATASET.OUTPUT_PATH = 'path/to/output'
+
+# whether the data is isotropic or not
+_C.DATASET.ISOTROPIC = False
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False

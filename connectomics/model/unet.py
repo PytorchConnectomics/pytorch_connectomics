@@ -19,7 +19,7 @@ class UNet3D(nn.Module):
         filters (List[int]): number of filters at each U-Net stage. Default: [28, 36, 48, 64, 80]
         is_isotropic (bool): whether the whole model is isotropic. Default: False
         isotropy (List[bool]): specify each U-Net stage is isotropic or anisotropic. All elements will
-            be `True` if :attr:`is_isotropic` is `True`. Default: [False, False, True, True, True]
+            be `True` if :attr:`is_isotropic` is `True`. Default: [False, False, False, True, True]
         pad_mode (str): one of ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``. Default: ``'replicate'``
         act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
             ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``
@@ -46,7 +46,8 @@ class UNet3D(nn.Module):
                  norm_mode: str = 'bn', 
                  head_depth: int = 1, 
                  pooling: bool = False,
-                 output_act: str = 'sigmoid'):
+                 output_act: str = 'sigmoid',
+                 **kwargs):
         super().__init__()
         assert len(filters) == len(isotropy)
         if is_isotropic:
