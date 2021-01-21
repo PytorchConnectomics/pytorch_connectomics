@@ -1,4 +1,3 @@
-import os
 from yacs.config import CfgNode as CN
 
 # -----------------------------------------------------------------------------
@@ -123,6 +122,9 @@ _C.DATASET.DO_2D = False
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64] 
+
+# Normalize the image and cast to uint8 format
+_C.DATASET.NORMALIZE = True
 
 # Half Patch size for 2D label erosion
 _C.DATASET.LABEL_EROSION = 0
@@ -341,65 +343,8 @@ _C.INFERENCE.TEST_ID = 0
 # Batchsize for inference
 _C.INFERENCE.SAMPLES_PER_BATCH = 32
 
-#######################################################
-# Util functions
-#######################################################
-
 def get_cfg_defaults():
     r"""Get a yacs CfgNode object with default values for my_project."""
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern
     return _C.clone()
-
-def update_inference_cfg(cfg):
-    r"""Overwrite configurations (cfg) when running mode is inference. Please 
-    note that None type is only supported in YACS>=0.1.8.
-    """
-    # Dataset configurations:
-    if cfg.INFERENCE.INPUT_PATH is not None:
-        cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
-    cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
-    cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
-    if cfg.INFERENCE.PAD_SIZE is not None:
-        cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
-
-    # Model configurations:
-    if cfg.INFERENCE.INPUT_SIZE is not None:
-        cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
-    if cfg.INFERENCE.OUTPUT_SIZE is not None:
-        cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
-
-    for topt in cfg.MODEL.TARGET_OPT:
-        # For multi-class semantic segmentation and quantized distance
-        # transform, no activation function is applied at the output layer 
-        # during training. For inference where the output is assumed to be 
-        # in (0,1), we apply softmax. 
-        if topt[0] in ['5', '9'] and cfg.MODEL.OUTPUT_ACT == 'none':
-            cfg.MODEL.OUTPUT_ACT = 'softmax'
-            break
-
-def save_all_cfg(cfg, output_dir):
-    r"""Save configs in the output directory.
-    """
-    # Save config.yaml in the experiment directory after combine all 
-    # non-default configurations from yaml file and command line.
-    path = os.path.join(output_dir, "config.yaml")
-    with open(path, "w") as f:
-        f.write(cfg.dump())
-    print("Full config saved to {}".format(path))
-
-def overwrite_cfg(cfg, args):
-    r"""Overwrite some configs given configs or args with higher priority.
-    """
-    # Distributed training:
-    if args.distributed:
-        cfg.SYSTEM.DISTRIBUTED = True
-        cfg.SYSTEM.PARALLEL = 'DDP'
-
-    # Target options:
-    for topt in cfg.MODEL.TARGET_OPT:
-        if topt[0] == '5': # quantized distance transform
-            cfg.MODEL.OUT_PLANES = 11
-            assert len(cfg.MODEL.TARGET_OPT) == 1, \
-                "Multi-task learning with quantized distance transform " \
-                "is currently not supported."
