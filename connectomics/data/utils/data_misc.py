@@ -46,3 +46,10 @@ def array_unpad(data: np.ndarray,
         for i in range(data.ndim)
     ])
     return data[index]
+
+def normalize_image(image: np.ndarray) -> np.ndarray:
+    """Normalize the input image and cast to numpy.uint8 dtype.
+    """
+    normalized = (image - image.min()) / float(image.max() - image.min()) 
+    normalized = (normalized*255).astype(np.uint8)
+    return normalized

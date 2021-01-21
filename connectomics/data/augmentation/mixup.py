@@ -55,19 +55,3 @@ class MixupAugmentor(object):
             volume[major_idx[i]] = volume[major_idx[i]] * ratio + volume[minor_idx[i]] * (1-ratio)
 
         return volume
-
-def test():
-    mixup_augmentor = MixupAugmentor(num_aug=2)
-    volume = np.ones((4,1,8,32,32))
-    volume = mixup_augmentor(volume)
-    print('Tested numpy.ndarray.')
-
-    volume = torch.ones(4,1,8,32,32)
-    volume = mixup_augmentor(volume)
-    print('Tested torch.Tensor.')
-
-    volume = [1,2,3,4,5]
-    volume = mixup_augmentor(volume)
-
-if __name__ == '__main__':
-    test()

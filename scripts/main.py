@@ -4,6 +4,7 @@ import torch
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 
+import numpy as np
 from connectomics.config import *
 from connectomics.engine import Trainer
 
@@ -29,19 +30,23 @@ def main():
     print("Command line arguments:")
     print(args)
 
-    # configurations
+    # Set seeds
+    manual_seed = 0 if args.local_rank is None else args.local_rank
+    np.random.seed(manual_seed)
+    torch.manual_seed(manual_seed)
+
+    # Set configurations
     cfg = get_cfg_defaults()
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
 
+    # Overwrite options given configs with higher priority.
     if args.inference:
         update_inference_cfg(cfg)
-
-    # Overwrite options given configs with higher priority.
     overwrite_cfg(cfg, args)
     cfg.freeze()
 
-    if args.local_rank==0 or args.local_rank==None:
+    if args.local_rank==0 or args.local_rank is None:
         # In distributed training, only print and save the 
         # configurations using the node with local_rank==0.
         print("Configuration details:")
@@ -53,7 +58,8 @@ def main():
             save_all_cfg(cfg, cfg.DATASET.OUTPUT_PATH)
 
     if args.distributed:
-        # GPU deviced are required in distributed training.
+        assert torch.cuda.is_available(), \
+            "Distributed training without GPUs is not supported!"
         dist.init_process_group("nccl", init_method='env://')
         torch.cuda.set_device(args.local_rank)
         device = torch.device("cuda", args.local_rank)        

@@ -37,7 +37,7 @@ def make_parallel(model, cfg, device, rank=None):
         # Currently SyncBatchNorm only supports DistributedDataParallel (DDP) 
         # with single GPU per process. Use torch.nn.SyncBatchNorm.convert_sync_batchnorm() 
         # to convert BatchNorm*D layer to SyncBatchNorm before wrapping Network with DDP.
-        if cfg.MODEL.NORM_MODE == "SyncBN":
+        if cfg.MODEL.NORM_MODE == "sync_bn":
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
         model = model.to(device)

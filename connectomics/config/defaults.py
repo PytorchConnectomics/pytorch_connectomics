@@ -52,7 +52,7 @@ _C.MODEL.OUT_PLANES = 1
 # Padding mode, possible options: 'zeros','circular', 'reflect', 'replicate'
 _C.MODEL.PAD_MODE = 'replicate' 
 
-# Normalization mode, possible options: 'bn', 'abn', 'in', 'bin'
+# Normalization mode, possible options: 'bn', 'sync_bn', 'in', 'gn', 'none'
 _C.MODEL.NORM_MODE = 'bn'
 
 # Activation mode, possible options: 'relu', 'elu', 'leaky'
@@ -158,6 +158,8 @@ _C.DATASET.VALID_RATIO = 0.5
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
 _C.DATASET.REJECT_SAMPLING.P = 0.95
+
+_C.DATASET.DISTRIBUTED = False
 
 # -----------------------------------------------------------------------------
 # Augmentor
@@ -276,10 +278,9 @@ _C.SOLVER.WARMUP_ITERS = 1000
 
 _C.SOLVER.WARMUP_METHOD = "linear"
 
-# Number of samples per batch across all machines.
-# If we have 16 GPUs and IMS_PER_BATCH = 32,
-# each GPU will see 2 images per batch.
-_C.SOLVER.SAMPLES_PER_BATCH = 16
+# Number of samples per GPU. If we have 8 GPUs and SAMPLES_PER_BATCH = 2,
+# then each GPU will see 2 samples and the effective batch size is 16.
+_C.SOLVER.SAMPLES_PER_BATCH = 2
 
 # Gradient clipping
 _C.SOLVER.CLIP_GRADIENTS = CN({"ENABLED": False})
@@ -340,8 +341,10 @@ _C.INFERENCE.TEST_NUM = 1
 # Test worker id
 _C.INFERENCE.TEST_ID = 0 
 
-# Batchsize for inference
-_C.INFERENCE.SAMPLES_PER_BATCH = 32
+# Number of samples per GPU (for inference). If we have 8 GPUs and 
+# SAMPLES_PER_BATCH = 4, then each GPU will see 2 samples and the 
+# effective batch size is 32.
+_C.INFERENCE.SAMPLES_PER_BATCH = 4
 
 def get_cfg_defaults():
     r"""Get a yacs CfgNode object with default values for my_project."""

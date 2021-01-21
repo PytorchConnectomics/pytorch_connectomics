@@ -12,7 +12,6 @@ thresholds, with or without post-processing (median filtering).
 
 * **Dataset**: the test volume of size 165x1024x768 voxels.
 * **Evaluation Metric**: Foreground IoU and IoU, both are multiplied by 100.
-* **Pre-trained Model**: please click this [[link](https://drive.google.com/uc?export=download&id=1BI05iDGUoDCgykv1giET7qEZVxUpy2sb)] to download the pre-trained weights.
 
 | Filter/Threshold 	|      0.4     	|      0.5     	|      0.6     	|      0.7     	|      0.8     	|      0.9     	|     0.95     	|
 | :----------------     |:------------:	|:------------:	|:------------:	|:------------:	|:------------:	|:------------:	|:------------:	|
@@ -48,13 +47,13 @@ The complete evaluation results of this submission can be found at this [page](h
 
 ***
 
-## SNEMI Neuron Instance Segmentation <a name="snemi"></a>
+## CREMI Synaptic Cleft Detection <a name="cremi"></a>
 
 TODO
 
 ***
 
-## CREMI Synaptic Cleft Detection <a name="cremi"></a>
+## SNEMI Neuron Instance Segmentation <a name="snemi"></a>
 
 TODO
 

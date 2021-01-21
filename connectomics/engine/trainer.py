@@ -38,7 +38,7 @@ class Trainer(object):
         self.mode = mode
         self.rank = rank
 
-        self.model = build_model(self.cfg, self.device)
+        self.model = build_model(self.cfg, self.device, self.rank)
         self.optimizer = build_optimizer(self.cfg, self.model)
         self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
         self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
@@ -47,9 +47,12 @@ class Trainer(object):
 
         if self.mode == 'train':
             self.augmentor = build_train_augmentor(self.cfg)
-            self.monitor = build_monitor(self.cfg)
-            self.monitor.load_config(self.cfg) # show config details in tensorboard
             self.criterion = build_criterion(self.cfg, self.device)
+            self.monitor = None
+            if self.rank is None or self.rank == 0:
+                self.monitor = build_monitor(self.cfg)
+                self.monitor.load_config(self.cfg) # show config in tensorboard
+                self.monitor.reset()
         else:
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 
@@ -61,7 +64,7 @@ class Trainer(object):
                 self.test_filename = self.augmentor.update_name(self.test_filename)
 
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
-            self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode)
+            self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
         else:
             self.dataset = None
@@ -75,7 +78,6 @@ class Trainer(object):
         """
         # setup
         self.model.train()
-        self.monitor.reset()
         self.optimizer.zero_grad()
 
         for i in range(self.total_iter_nums):
@@ -101,11 +103,13 @@ class Trainer(object):
             self.optimizer.zero_grad()
 
         # logging and update record
-        do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, self.optimizer.param_groups[0]['lr']) 
-        if do_vis:
-            self.monitor.visualize(volume, target, pred, iter_total)
-            # Display GPU stats using the GPUtil package.
-            if self.device == torch.device("cuda"): GPUtil.showUtilization(all=True)
+        if self.monitor is not None:
+            do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, 
+                                         self.optimizer.param_groups[0]['lr']) 
+            if do_vis:
+                self.monitor.visualize(volume, target, pred, iter_total)
+                # Display GPU stats using the GPUtil package.
+                if self.device == torch.device("cuda"): GPUtil.showUtilization(all=True)
 
         # Save model
         if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
@@ -114,10 +118,11 @@ class Trainer(object):
         # update learning rate
         self.lr_scheduler.step(loss) if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau' else self.lr_scheduler.step()
 
-        self.iter_time = time.perf_counter() - self.start_time
-        self.total_time += self.iter_time
-        print('[Iteration %05d] Data time: %.4f, Iter time: %.4f, Avg iter time: %.4f.' % (
-              iter_total, self.data_time, self.iter_time, self.total_time / (iter_total+1)))
+        if self.rank is None or self.rank == 0:
+            self.iter_time = time.perf_counter() - self.start_time
+            self.total_time += self.iter_time
+            print('[Iteration %05d] Data time: %.4f, Iter time: %.4f, Avg iter time: %.4f.' % (
+                iter_total, self.data_time, self.iter_time, self.total_time / (iter_total+1)))
 
         # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
@@ -199,16 +204,18 @@ class Trainer(object):
     def save_checkpoint(self, iteration: int):
         r"""Save the model checkpoint.
         """
-        print("Save model checkpoint at iteration ", iteration)
-        state = {'iteration': iteration + 1,
-                 'state_dict': self.model.module.state_dict(), # Saving torch.nn.DataParallel Models
-                 'optimizer': self.optimizer.state_dict(),
-                 'lr_scheduler': self.lr_scheduler.state_dict()}
-                 
-        # Saves checkpoint to experiment directory
-        filename = 'checkpoint_%05d.pth.tar' % (iteration + 1)
-        filename = os.path.join(self.output_dir, filename)
-        torch.save(state, filename)
+        if self.rank is None or self.rank == 0:
+            print("Save model checkpoint at iteration ", iteration)
+            state = {'iteration': iteration + 1,
+                    # Saving DataParallel or DistributedDataParallel models
+                    'state_dict': self.model.module.state_dict(), 
+                    'optimizer': self.optimizer.state_dict(),
+                    'lr_scheduler': self.lr_scheduler.state_dict()}
+                    
+            # Saves checkpoint to experiment directory
+            filename = 'checkpoint_%05d.pth.tar' % (iteration + 1)
+            filename = os.path.join(self.output_dir, filename)
+            torch.save(state, filename)
 
     def update_checkpoint(self, checkpoint: str):
         r"""Update the model with the specified checkpoint file path.

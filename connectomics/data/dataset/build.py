@@ -9,9 +9,9 @@ import torchvision.utils as vutils
 
 from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
-from ..utils import collate_fn_target, collate_fn_test, seg_widen_border, readvol, vast2Seg, get_padsize
+from ..utils import *
 
-def _make_path_list(dir_name, file_name):
+def _make_path_list(cfg, dir_name, file_name, rank=None):
     r"""Concatenate directory path(s) and filenames and return
     the complete file paths. 
     """
@@ -20,33 +20,48 @@ def _make_path_list(dir_name, file_name):
         file_name = [os.path.join(dir_name[0], x) for x in file_name]
     else:
         file_name = [os.path.join(dir_name[i], file_name[i]) for i in range(len(file_name))]
+
+    file_name = _distribute_data(cfg, file_name, rank)
     return file_name
 
-def _get_input(cfg, mode='train'):
+def _distribute_data(cfg, file_name, rank=None):
+    r"""Distribute the data in multiprocessing.
+    """
+    if rank is None or cfg.DATASET.DISTRIBUTED == False:
+        return file_name
+
+    world_size = cfg.SYSTEM.NUM_GPUS
+    ratio = len(file_name) // world_size + 1
+    extended = file_name * ratio
+    return [extended[rank]]
+
+def _get_input(cfg, mode='train', rank=None):
     r"""Load the inputs specified by the configuration options.
     """
     dir_name = cfg.DATASET.INPUT_PATH.split('@')
     img_name = cfg.DATASET.IMAGE_NAME.split('@')
-    img_name = _make_path_list(dir_name, img_name)
+    img_name = _make_path_list(cfg, dir_name, img_name, rank)
 
     label = None
     if mode=='train' and cfg.DATASET.LABEL_NAME is not None:
         label_name = cfg.DATASET.LABEL_NAME.split('@')
         assert len(label_name) == len(img_name)
-        label_name = _make_path_list(dir_name, label_name)
+        label_name = _make_path_list(cfg, dir_name, label_name, rank)
         label = [None]*len(label_name)
 
     valid_mask = None
     if mode=='train' and cfg.DATASET.VALID_MASK_NAME is not None:
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME.split('@')
         assert len(valid_mask_name) == len(img_name)
-        valid_mask_name = _make_path_list(dir_name, valid_mask_name)
+        valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
         valid_mask = [None]*len(valid_mask_name)
 
     volume = [None] * len(img_name)
     for i in range(len(img_name)):
         volume[i] = readvol(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
+        if cfg.DATASET.NORMALIZE:
+            volume[i] = normalize_image(volume[i])
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
         volume[i] = np.pad(volume[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
@@ -81,7 +96,7 @@ def _get_input(cfg, mode='train'):
     return volume, label, valid_mask
 
 
-def get_dataset(cfg, augmentor, mode='train'):
+def get_dataset(cfg, augmentor, mode='train', rank=None):
     r"""Prepare dataset for training and inference.
     """
     assert mode in ['train', 'test']
@@ -114,8 +129,7 @@ def get_dataset(cfg, augmentor, mode='train'):
         "reject_p": cfg.DATASET.REJECT_SAMPLING.P,
     }
       
-    # build dataset
-    if cfg.DATASET.DO_CHUNK_TITLE==1:
+    if cfg.DATASET.DO_CHUNK_TITLE==1: # build TileDataset
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
@@ -134,36 +148,43 @@ def get_dataset(cfg, augmentor, mode='train'):
                               pad_size=cfg.DATASET.PAD_SIZE,
                               **shared_kwargs)
 
-    else: # use VolumeDataset
-        volume, label, valid_mask = _get_input(cfg, mode=mode)
+    else: # build VolumeDataset
+        volume, label, valid_mask = _get_input(cfg, mode=mode, rank=None)
         dataset = VolumeDataset(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 
     return dataset
 
-def build_dataloader(cfg, augmentor, mode='train', dataset=None):
+def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
     r"""Prepare dataloader for training and inference.
     """
     print('Mode: ', mode)
     assert mode in ['train', 'test']
-
-    SHUFFLE = (mode == 'train')
 
     if mode ==  'train':
         cf = collate_fn_target
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH
     else:
         cf = collate_fn_test
-        batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH
+        batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH * cfg.SYSTEM.NUM_GPUS
 
     if dataset == None:
-        dataset = get_dataset(cfg, augmentor, mode)
-    
+        dataset = get_dataset(cfg, augmentor, mode, rank)
+
+    sampler = None
+    num_workers = cfg.SYSTEM.NUM_CPUS
+    if cfg.SYSTEM.DISTRIBUTED:
+        num_workers = cfg.SYSTEM.NUM_CPUS // cfg.SYSTEM.NUM_GPUS
+        if cfg.DATASET.DISTRIBUTED == False:
+            sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+
+    SHUFFLE = (mode == 'train') and (sampler is None)
+
     # In PyTorch, each worker will create a copy of the Dataset, so if the data 
     # is preload the data, the memory usage should increase a lot.
     # https://discuss.pytorch.org/t/define-iterator-on-dataloader-is-very-slow/52238/2
     img_loader =  torch.utils.data.DataLoader(
           dataset, batch_size=batch_size, shuffle=SHUFFLE, collate_fn = cf,
-          num_workers=cfg.SYSTEM.NUM_CPUS, pin_memory=True)
+          sampler=sampler, num_workers=num_workers, pin_memory=True)
 
     return img_loader
