@@ -71,4 +71,7 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
                 "are expected to contain even numbers to avoid feature mis-matching, " \
                 "but get {}".format(cfg.MODEL.INPUT_SIZE))
             break
-        
+
+def validate_cfg(cfg: CfgNode):
+    num_target = len(cfg.MODEL.TARGET_OPT)
+    assert len(cfg.INFERENCE.OUTPUT_ACT) == num_target

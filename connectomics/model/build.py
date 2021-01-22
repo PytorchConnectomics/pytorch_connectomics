@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.parallel import DistributedDataParallel
 
 from .unet import UNet3D
 
@@ -20,7 +19,6 @@ def build_model(cfg, device, rank=None):
         'act_mode': cfg.MODEL.ACT_MODE,
         'norm_mode': cfg.MODEL.NORM_MODE,
         'pooling': cfg.MODEL.POOING_LAYER,
-        'output_act': cfg.MODEL.OUTPUT_ACT,
     }
     if 'fpn' in model_arch:
         kwargs['backbone'] = cfg.MODEL.BACKBONE
@@ -45,8 +43,8 @@ def make_parallel(model, cfg, device, rank=None):
         # should always set the single device scope, otherwise,
         # DistributedDataParallel will use all available devices.
         assert rank is not None
-        model = DistributedDataParallel(model, device_ids=[rank],
-                                        output_device=rank)
+        model = nn.parallel.DistributedDataParallel(
+                    model, device_ids=[rank], output_device=rank)
 
     elif cfg.SYSTEM.PARALLEL == 'DP':
         gpu_device_ids = list(range(cfg.SYSTEM.NUM_GPUS))

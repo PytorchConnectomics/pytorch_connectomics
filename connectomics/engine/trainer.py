@@ -4,12 +4,13 @@ from typing import Optional
 import os
 import time
 import GPUtil
+import numpy as np
 from yacs.config import CfgNode
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+from torch.cuda.amp import autocast, GradScaler
 
 from .solver import *
 from ..utils.monitor import build_monitor
@@ -39,13 +40,15 @@ class Trainer(object):
         self.rank = rank
 
         self.model = build_model(self.cfg, self.device, self.rank)
-        self.optimizer = build_optimizer(self.cfg, self.model)
-        self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
-        self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
         if checkpoint is not None:
             self.update_checkpoint(checkpoint)
 
         if self.mode == 'train':
+            self.optimizer = build_optimizer(self.cfg, self.model)
+            self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
+            self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
+            self.scaler = GradScaler() if cfg.MODEL.MIXED_PRECESION else None
+
             self.augmentor = build_train_augmentor(self.cfg)
             self.criterion = build_criterion(self.cfg, self.device)
             self.monitor = None
@@ -76,13 +79,12 @@ class Trainer(object):
     def train(self):
         r"""Training function of the trainer class.
         """
-        # setup
         self.model.train()
-        self.optimizer.zero_grad()
 
         for i in range(self.total_iter_nums):
             iter_total = self.start_iter + i
             self.start_time = time.perf_counter()
+            self.optimizer.zero_grad()
 
             # load data
             _, volume, target, weight = next(self.dataloader)
@@ -90,17 +92,13 @@ class Trainer(object):
 
             # prediction
             volume = torch.from_numpy(volume).to(self.device, dtype=torch.float)
-            pred = self.model(volume)
-           
-            loss = self.criterion.eval(pred, target, weight)
+            with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
+                pred = self.model(volume)
+                loss = self.criterion.eval(pred, target, weight)
             self._train_misc(loss, pred, volume, target, weight, iter_total)
 
     def _train_misc(self, loss, pred, volume, target, weight, iter_total):
-        # compute gradient
-        loss.backward()
-        if (iter_total+1) % self.cfg.SOLVER.ITERATION_STEP == 0:
-            self.optimizer.step()
-            self.optimizer.zero_grad()
+        self.backward_pass(loss) # backward pass
 
         # logging and update record
         if self.monitor is not None:
@@ -121,8 +119,10 @@ class Trainer(object):
         if self.rank is None or self.rank == 0:
             self.iter_time = time.perf_counter() - self.start_time
             self.total_time += self.iter_time
-            print('[Iteration %05d] Data time: %.4f, Iter time: %.4f, Avg iter time: %.4f.' % (
-                iter_total, self.data_time, self.iter_time, self.total_time / (iter_total+1)))
+            avg_iter_time = self.total_time / (iter_total+1)
+            est_time_left = avg_iter_time * (self.total_iter_nums - iter_total -1) / 3600.0
+            print('[Iteration %05d] Data time: %.4fs, Iter time: %.4fs, Avg iter time: %.4fs, Time Left %.2fh.' % (
+                iter_total, self.data_time, self.iter_time, avg_iter_time, est_time_left))
 
         # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
@@ -138,8 +138,7 @@ class Trainer(object):
         channel_size = self.cfg.MODEL.OUT_PLANES
         
         sz = tuple([channel_size] + spatial_size)
-        ww = build_blending_matrix(spatial_size, 
-                                   self.cfg.INFERENCE.BLENDING)
+        ww = build_blending_matrix(spatial_size, self.cfg.INFERENCE.BLENDING)
         
         output_size = [tuple((np.array(x) * np.array(output_scale)).astype(int))
                        for x in self.dataloader._dataset.volume_size]
@@ -156,10 +155,8 @@ class Trainer(object):
 
                 # for gpu computing
                 volume = torch.from_numpy(volume).to(self.device)
-                if self.cfg.DATASET.DO_2D:
-                    volume = volume.squeeze(1)
+                if self.cfg.DATASET.DO_2D: volume = volume.squeeze(1)
 
-                # forward pass
                 output = self.augmentor(self.model, volume)
 
                 for idx in range(output.shape[0]):
@@ -201,6 +198,25 @@ class Trainer(object):
     # -----------------------------------------------------------------------------
     # Misc functions
     # -----------------------------------------------------------------------------
+    def backward_pass(self, loss):
+        if self.cfg.MODEL.MIXED_PRECESION:
+            # Scales loss.  Calls backward() on scaled loss to create scaled gradients.
+            # Backward passes under autocast are not recommended.
+            # Backward ops run in the same dtype autocast chose for corresponding forward ops.
+            self.scaler.scale(loss).backward()
+
+            # scaler.step() first unscales the gradients of the optimizer's assigned params.
+            # If these gradients do not contain infs or NaNs, optimizer.step() is then called,
+            # otherwise, optimizer.step() is skipped.
+            self.scaler.step(self.optimizer)
+
+            # Updates the scale for next iteration.
+            self.scaler.update()
+
+        else: # standard backward pass
+            loss.backward()
+            self.optimizer.step()    
+
     def save_checkpoint(self, iteration: int):
         r"""Save the model checkpoint.
         """

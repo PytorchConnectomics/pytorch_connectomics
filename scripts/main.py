@@ -48,7 +48,7 @@ def main():
 
     if args.local_rank==0 or args.local_rank is None:
         # In distributed training, only print and save the 
-        # configurations using the node with local_rank==0.
+        # configurations using the node with local_rank=0.
         print("Configuration details:")
         print(cfg)
 

@@ -135,6 +135,18 @@ class WeightedBCE(nn.Module):
         #_assert_no_grad(target)
         return F.binary_cross_entropy(pred, target, weight)
 
+class WeightedBCEWithLogitsLoss(nn.Module):
+    """Weighted binary cross-entropy with logits.
+    """
+    def __init__(self, size_average=True, reduce=True):
+        super().__init__()
+        self.size_average = size_average
+        self.reduce = reduce
+
+    def forward(self, pred, target, weight=None):
+        #_assert_no_grad(target)
+        return F.binary_cross_entropy_with_logits(pred, target, weight)
+
 class WeightedCE(nn.Module):
     """Mask weighted multi-class cross-entropy (CE) loss.
     """

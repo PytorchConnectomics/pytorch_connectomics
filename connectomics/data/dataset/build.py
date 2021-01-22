@@ -41,6 +41,7 @@ def _get_input(cfg, mode='train', rank=None):
     dir_name = cfg.DATASET.INPUT_PATH.split('@')
     img_name = cfg.DATASET.IMAGE_NAME.split('@')
     img_name = _make_path_list(cfg, dir_name, img_name, rank)
+    print(rank, img_name)
 
     label = None
     if mode=='train' and cfg.DATASET.LABEL_NAME is not None:
@@ -149,7 +150,7 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
                               **shared_kwargs)
 
     else: # build VolumeDataset
-        volume, label, valid_mask = _get_input(cfg, mode=mode, rank=None)
+        volume, label, valid_mask = _get_input(cfg, mode=mode, rank=rank)
         dataset = VolumeDataset(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 

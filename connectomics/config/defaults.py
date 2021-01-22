@@ -38,6 +38,7 @@ _C.MODEL.WEIGHT_OPT = [['1']]
 # Choose the right loss function for each target: 
 # 'WeightedMSE', 'WeightedBCE', 'JaccardLoss', 'DiceLoss'
 _C.MODEL.LOSS_OPTION = [['WeightedBCE']]
+_C.MODEL.OUTPUT_ACT = [['none']] # activation for the output in loss calculation
 
 # Weight for each loss function
 _C.MODEL.LOSS_WEIGHT = [[1.0]]
@@ -57,10 +58,12 @@ _C.MODEL.NORM_MODE = 'bn'
 
 # Activation mode, possible options: 'relu', 'elu', 'leaky'
 _C.MODEL.ACT_MODE = 'elu'
-_C.MODEL.OUTPUT_ACT = 'sigmoid' # activation for the output layer
 
 # Use pooling layer for downsampling
 _C.MODEL.POOING_LAYER = False
+
+# Mixed-precision training
+_C.MODEL.MIXED_PRECESION = False
 
 # If MODEL.EMBEDDING = 1 will do embedding
 _C.MODEL.EMBEDDING = 1
@@ -320,6 +323,8 @@ _C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
 
 _C.INFERENCE.PAD_SIZE = None
+# activation for the output for inference and visualization
+_C.INFERENCE.OUTPUT_ACT = ['sigmoid']
 
 _C.INFERENCE.STRIDE = [4, 128, 129]
 

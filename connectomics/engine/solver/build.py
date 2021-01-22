@@ -8,14 +8,6 @@ from yacs.config import CfgNode
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 from .lr_scheduler import WarmupCosineLR, WarmupMultiStepLR
 
-from connectomics.model.norm import BatchInstanceNorm1d
-from connectomics.model.norm import BatchInstanceNorm2d
-from connectomics.model.norm import BatchInstanceNorm3d
-
-from connectomics.model.norm import SynchronizedBatchNorm1d
-from connectomics.model.norm import SynchronizedBatchNorm2d
-from connectomics.model.norm import SynchronizedBatchNorm3d
-
 # 0. Gradient Clipping
 
 _GradientClipperInput = Union[torch.Tensor, Iterable[torch.Tensor]]
@@ -105,13 +97,6 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
         torch.nn.BatchNorm2d,
         torch.nn.BatchNorm3d,
         torch.nn.SyncBatchNorm,
-        # Inherits from connectomics.model
-        BatchInstanceNorm1d,
-        BatchInstanceNorm2d,
-        BatchInstanceNorm3d,
-        SynchronizedBatchNorm1d,
-        SynchronizedBatchNorm2d,
-        SynchronizedBatchNorm3d,
         torch.nn.GroupNorm,
         torch.nn.InstanceNorm1d,
         torch.nn.InstanceNorm2d,

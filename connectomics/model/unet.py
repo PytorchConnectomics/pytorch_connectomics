@@ -26,7 +26,6 @@ class UNet3D(nn.Module):
         norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
         pooling (bool): downsample by max-pooling if `True` else using stride. Default: `False`
-        output_act (str): activation function for the output layer. Default: ``'sigmoid'``
     """
 
     block_dict = {
@@ -116,7 +115,6 @@ class UNet3D(nn.Module):
             x = self.up_layers[i][1](x)
 
         x = self.conv_out(x)
-        x = get_functional_act(self.output_act)(x)
         return x
 
     def _upsample_add(self, x, y):
