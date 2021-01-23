@@ -305,9 +305,9 @@ _C.MONITOR = CN()
 
 _C.MONITOR.LOG_OPT = [1, 1, 0]
 
-_C.MONITOR.VIS_OPT = [0, 8]
+_C.MONITOR.VIS_OPT = [0, 16]
 
-_C.MONITOR.ITERATION_NUM = [10, 50]
+_C.MONITOR.ITERATION_NUM = [10, 200]
 
 # # -----------------------------------------------------------------------------
 # # Inference

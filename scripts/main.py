@@ -27,8 +27,8 @@ def get_args():
 
 def main():
     args = get_args()
-    print("Command line arguments:")
-    print(args)
+    if args.local_rank==0 or args.local_rank is None:
+        print("Command line arguments: ", args)
 
     # Set seeds
     manual_seed = 0 if args.local_rank is None else args.local_rank
@@ -49,7 +49,6 @@ def main():
     if args.local_rank==0 or args.local_rank is None:
         # In distributed training, only print and save the 
         # configurations using the node with local_rank=0.
-        print("Configuration details:")
         print(cfg)
 
         if not os.path.exists(cfg.DATASET.OUTPUT_PATH):

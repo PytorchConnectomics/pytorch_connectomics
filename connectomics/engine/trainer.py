@@ -87,11 +87,13 @@ class Trainer(object):
             self.optimizer.zero_grad()
 
             # load data
-            _, volume, target, weight = next(self.dataloader)
+            sample = next(self.dataloader)
+            volume = sample.out_input
+            target, weight = sample.out_target_l, sample.out_weight_l
             self.data_time = time.perf_counter() - self.start_time
 
             # prediction
-            volume = torch.from_numpy(volume).to(self.device, dtype=torch.float)
+            volume = volume.to(self.device, non_blocking=True)
             with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
                 pred = self.model(volume)
                 loss = self.criterion.eval(pred, target, weight)
@@ -107,7 +109,7 @@ class Trainer(object):
             if do_vis:
                 self.monitor.visualize(volume, target, pred, iter_total)
                 # Display GPU stats using the GPUtil package.
-                if self.device == torch.device("cuda"): GPUtil.showUtilization(all=True)
+                if torch.cuda.is_available(): GPUtil.showUtilization(all=True)
 
         # Save model
         if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:

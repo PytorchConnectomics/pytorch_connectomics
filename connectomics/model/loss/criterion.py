@@ -68,6 +68,8 @@ class Criterion(object):
         return out
 
     def to_torch(self, data):
+        if type(data) == torch.Tensor:
+            return data.to(self.device, non_blocking=True)
         return torch.from_numpy(data).to(self.device)
 
     def eval(self, pred, target, weight):

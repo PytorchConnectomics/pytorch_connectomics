@@ -53,7 +53,7 @@ class Logger(object):
 
 class Monitor(object):
     """Computes and stores the average and current value"""
-    def __init__(self, cfg, log_path='', log_opt=[1,1,0,1], vis_opt=[0,8], iter_num=[10,100], 
+    def __init__(self, cfg, log_path='', log_opt=[1,1,0,1], vis_opt=[0,16], iter_num=[10,100], 
                  do_2d=False):
         # log_opt: do_tb, do_txt, batch_size, log_iteration
         # vis_opt: vis_type, vis_number_section, do_2d

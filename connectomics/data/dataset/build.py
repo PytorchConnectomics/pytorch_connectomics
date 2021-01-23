@@ -1,4 +1,5 @@
 import os
+import math
 import numpy as np
 from scipy.ndimage import zoom
 
@@ -31,7 +32,8 @@ def _distribute_data(cfg, file_name, rank=None):
         return file_name
 
     world_size = cfg.SYSTEM.NUM_GPUS
-    ratio = len(file_name) // world_size + 1
+    ratio = len(file_name) // float(world_size)
+    ratio = int(math.ceil(ratio-1) + 1) # 1.0 -> 1, 1.1 -> 2
     extended = file_name * ratio
     return [extended[rank]]
 
@@ -46,15 +48,15 @@ def _get_input(cfg, mode='train', rank=None):
     label = None
     if mode=='train' and cfg.DATASET.LABEL_NAME is not None:
         label_name = cfg.DATASET.LABEL_NAME.split('@')
-        assert len(label_name) == len(img_name)
         label_name = _make_path_list(cfg, dir_name, label_name, rank)
+        assert len(label_name) == len(img_name)
         label = [None]*len(label_name)
 
     valid_mask = None
     if mode=='train' and cfg.DATASET.VALID_MASK_NAME is not None:
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME.split('@')
-        assert len(valid_mask_name) == len(img_name)
         valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
+        assert len(valid_mask_name) == len(img_name)
         valid_mask = [None]*len(valid_mask_name)
 
     volume = [None] * len(img_name)
@@ -163,7 +165,7 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
     assert mode in ['train', 'test']
 
     if mode ==  'train':
-        cf = collate_fn_target
+        cf = collate_fn_train
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH
     else:
         cf = collate_fn_test
