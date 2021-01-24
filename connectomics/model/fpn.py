@@ -7,10 +7,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .backbone import *
+from .block import *
 from .utils import get_functional_act, model_init
 
 class FPN3D(nn.Module):
-    """3D feature pyramid network. This design is flexible in handling both isotropic data and anisotropic data.
+    """3D feature pyramid network (FPN). This design is flexible in handling both isotropic data and anisotropic data.
 
     Args:
         backbone_type (str): the block type at each U-Net stage. Default: ``'resnet'``
@@ -25,9 +26,73 @@ class FPN3D(nn.Module):
             ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``
         norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
-        output_act (str): activation function for the output layer. Default: ``'sigmoid'``
     """
 
-    def __init__(self):
-        pass
-    
+    def __init__(self, 
+                 backbone_type: str = 'resnet',
+                 feature_keys: List[str] = ['feat1', 'feat2', 'feat3', 'feat4', 'feat5'],
+                 in_channel: int = 1, 
+                 out_channel: int = 3, 
+                 filters: List[int] = [28, 36, 48, 64, 80],
+                 is_isotropic: bool = False, 
+                 isotropy: List[bool] = [False, False, False, True, True],
+                 pad_mode: str = 'replicate', 
+                 act_mode: str = 'elu', 
+                 norm_mode: str = 'bn', 
+                 init_mode: str = 'orthogonal',
+                 **kwargs):
+        super().__init__()
+        assert len(filters) == len(isotropy)
+        if is_isotropic:
+            isotropy = [True for _ in len(isotropy)] 
+
+        shared_kwargs = {
+            'pad_mode': pad_mode,
+            'act_mode': act_mode,
+            'norm_mode': norm_mode}
+
+        self.backbone = build_backbone(backbone_type)
+        self.feature_keys = feature_keys
+        self.depth = len(filters)
+
+        latplanes = filters[0]
+        self.latlayers = [conv3d_norm_act(x, latplanes, kernel_size=1, 
+            padding=0, **shared_kwargs) for x in filters]
+        self.smooth = []
+        for i in range(self.depth):
+            kernel_size, padding = self._get_kernal_size(isotropy[i])
+            self.smooth.append(conv3d_norm_act(latplanes, latplanes, 
+                kernel_size=kernel_size, padding=padding, **shared_kwargs))
+
+        kernel_size_io, padding_io = self._get_kernal_size(is_isotropic, io_layer=True)
+        self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, 
+            padding=padding_io, pad_mode=pad_mode, act_mode='none', norm_mode='none')
+
+    def forward(self, x):
+        z = self.backbone(x)
+        features = [self.latlayers[i](z[self.feature_keys[i]])
+                    for i in range(self.depth)]
+
+        out = features[self.depth-1]
+        for j in range(self.depth-1):
+            i = self.depth-1-j
+            out = self._up_smooth_add(out, features[i-1], self.smooth[i])
+        out = self.smooth[0](out)
+        return self.conv_out(out)
+
+    def _up_smooth_add(self, x, y, smooth):
+        """Upsample, smooth and add two feature maps.
+        """
+        x = F.interpolate(x, size=y.shape[2:], mode='trilinear',
+                          align_corners=True)
+        return smooth(x) + y
+
+    def _get_kernal_size(self, is_isotropic, io_layer=False):
+        if io_layer: # kernel and padding size of I/O layers
+            if is_isotropic:
+                return (5,5,5), (2,2,2)
+            return (1,5,5), (0,2,2)
+        
+        if is_isotropic:
+            return (3,3,3), (1,1,1)
+        return (1,3,3), (0,1,1)

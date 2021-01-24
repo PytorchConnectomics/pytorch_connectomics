@@ -34,8 +34,8 @@ class TestModelBlock(unittest.TestCase):
 
         for c_out in [c_in, c_in*2]: # output channels
             x = torch.rand(b, c_in, h, w) # 2d residual blocks
-            residual_2d = residual_block_2d(c_in, c_out, dilation=4)
-            residual_se_2d = residual_se_block_2d(c_in, c_out, dilation=4)
+            residual_2d = BasicBlock2d(c_in, c_out, dilation=4)
+            residual_se_2d = BasicBlock2dSE(c_in, c_out, dilation=4)
 
             out = residual_2d(x)
             out_shape = tuple(out.shape)
@@ -45,8 +45,8 @@ class TestModelBlock(unittest.TestCase):
             self.assertTupleEqual(out_shape, (b, c_out, h, w))
 
             x = torch.rand(b, c_in, d, h, w) # 3d residual blocks
-            residual_3d = residual_block_3d(c_in, c_out, dilation=4, isotropy=False)
-            residual_se_3d = residual_se_block_3d(c_in, c_out, dilation=4, isotropy=False)
+            residual_3d = BasicBlock3d(c_in, c_out, dilation=4, isotropic=False)
+            residual_se_3d = BasicBlock3dSE(c_in, c_out, dilation=4, isotropic=False)
 
             out = residual_3d(x)
             out_shape = tuple(out.shape)

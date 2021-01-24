@@ -29,8 +29,8 @@ class UNet3D(nn.Module):
     """
 
     block_dict = {
-        'residual': residual_block_3d,
-        'residual_se': residual_se_block_3d,
+        'residual': BasicBlock3d,
+        'residual_se': BasicBlock3dSE,
     }
 
     def __init__(self, 
@@ -43,9 +43,8 @@ class UNet3D(nn.Module):
                  pad_mode: str = 'replicate', 
                  act_mode: str = 'elu', 
                  norm_mode: str = 'bn', 
-                 head_depth: int = 1, 
+                 init_mode: str = 'orthogonal',
                  pooling: bool = False,
-                 output_act: str = 'sigmoid',
                  **kwargs):
         super().__init__()
         assert len(filters) == len(isotropy)
@@ -53,7 +52,6 @@ class UNet3D(nn.Module):
             isotropy = [True for _ in len(isotropy)] 
 
         self.pooling = pooling
-        self.output_act = output_act
         self.depth = len(filters)
 
         block = self.block_dict[block_type]
@@ -71,7 +69,7 @@ class UNet3D(nn.Module):
             padding=padding_io, pad_mode=pad_mode, act_mode='none', norm_mode='none')
         
         # encoding path
-        self.down_layers = []
+        self.down_layers = nn.ModuleList()
         for i in range(self.depth):
             kernel_size, padding = self._get_kernal_size(isotropy[i])
             previous = max(0, i-1)
@@ -82,10 +80,9 @@ class UNet3D(nn.Module):
                                 stride=stride, padding=padding, **shared_kwargs),
                 block(filters[i], filters[i], **shared_kwargs))
             self.down_layers.append(layer)
-        self.down_layers = nn.ModuleList(self.down_layers)
 
         # decoding path
-        self.up_layers = []
+        self.up_layers = nn.ModuleList()
         for j in range(1, self.depth):
             kernel_size, padding = self._get_kernal_size(isotropy[j])
             layer = nn.ModuleList([
@@ -93,7 +90,6 @@ class UNet3D(nn.Module):
                                 padding=padding, **shared_kwargs),
                 block(filters[j-1], filters[j-1], **shared_kwargs)])
             self.up_layers.append(layer)
-        self.up_layers = nn.ModuleList(self.up_layers)
 
         #initialization
         model_init(self)
@@ -177,8 +173,8 @@ class UNet2D(nn.Module):
     """
 
     block_dict = {
-        'residual': residual_block_2d,
-        'residual_se': residual_se_block_2d,
+        'residual': BasicBlock2d,
+        'residual_se': BasicBlock2dSE,
     }
 
     def __init__(self):
