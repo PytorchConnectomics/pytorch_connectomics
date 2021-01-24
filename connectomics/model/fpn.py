@@ -30,6 +30,7 @@ class FPN3D(nn.Module):
 
     def __init__(self, 
                  backbone_type: str = 'resnet',
+                 block_type: str = 'residual',
                  feature_keys: List[str] = ['feat1', 'feat2', 'feat3', 'feat4', 'feat5'],
                  in_channel: int = 1, 
                  out_channel: int = 3, 
@@ -42,23 +43,34 @@ class FPN3D(nn.Module):
                  init_mode: str = 'orthogonal',
                  **kwargs):
         super().__init__()
-        assert len(filters) == len(isotropy)
+        self.depth = len(filters)
+        assert len(isotropy) == self.depth
         if is_isotropic:
-            isotropy = [True for _ in len(isotropy)] 
+            isotropy = [True] * self.depth
 
         shared_kwargs = {
             'pad_mode': pad_mode,
             'act_mode': act_mode,
-            'norm_mode': norm_mode}
+            'norm_mode': norm_mode
+        }
 
-        self.backbone = build_backbone(backbone_type)
+        backbone_kwargs = {
+            'block_type': block_type,
+            'in_channel': in_channel,
+            'filters': filters,
+            'isotropy': isotropy,
+        }
+        backbone_kwargs.update(shared_kwargs)
+
+        self.backbone = build_backbone(backbone_type, feature_keys, **backbone_kwargs)
         self.feature_keys = feature_keys
-        self.depth = len(filters)
 
         latplanes = filters[0]
-        self.latlayers = [conv3d_norm_act(x, latplanes, kernel_size=1, 
-            padding=0, **shared_kwargs) for x in filters]
-        self.smooth = []
+        self.latlayers = nn.ModuleList(
+            [conv3d_norm_act(x, latplanes, kernel_size=1, 
+            padding=0, **shared_kwargs) for x in filters])
+            
+        self.smooth = nn.ModuleList()
         for i in range(self.depth):
             kernel_size, padding = self._get_kernal_size(isotropy[i])
             self.smooth.append(conv3d_norm_act(latplanes, latplanes, 
@@ -66,7 +78,10 @@ class FPN3D(nn.Module):
 
         kernel_size_io, padding_io = self._get_kernal_size(is_isotropic, io_layer=True)
         self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, 
-            padding=padding_io, pad_mode=pad_mode, act_mode='none', norm_mode='none')
+            padding=padding_io, pad_mode=pad_mode, bias=True, act_mode='none', norm_mode='none')
+
+        #initialization
+        model_init(self)
 
     def forward(self, x):
         z = self.backbone(x)

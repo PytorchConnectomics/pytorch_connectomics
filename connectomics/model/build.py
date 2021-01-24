@@ -3,13 +3,18 @@ import torch
 import torch.nn as nn
 
 from .unet import UNet3D
+from .fpn import FPN3D
 
 def build_model(cfg, device, rank=None):
-    MODEL_MAP = {'unet_3d': UNet3D}
+    MODEL_MAP = {
+        'unet_3d': UNet3D,
+        'fpn_3d': FPN3D,
+    }
 
     model_arch = cfg.MODEL.ARCHITECTURE
     assert model_arch in MODEL_MAP.keys()
     kwargs = {
+        'block_type': cfg.MODEL.BLOCK_TYPE,
         'in_channel': cfg.MODEL.IN_PLANES,
         'out_channel': cfg.MODEL.OUT_PLANES,
         'filters': cfg.MODEL.FILTERS,
@@ -22,8 +27,6 @@ def build_model(cfg, device, rank=None):
     }
     if 'fpn' in model_arch:
         kwargs['backbone'] = cfg.MODEL.BACKBONE
-    if 'unet' in model_arch:
-        kwargs['block_type'] = cfg.MODEL.BLOCK_TYPE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
     print('model: ', model.__class__.__name__)    
@@ -56,4 +59,4 @@ def make_parallel(model, cfg, device, rank=None):
         print('No parallelism across multiple GPUs.')
         model = model.to(device)
 
-    return model
+    return model.to(device)

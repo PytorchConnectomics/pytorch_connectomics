@@ -107,7 +107,8 @@ def get_activation(activation: str = 'relu') -> nn.Module:
             ``'swish'``, 'efficient_swish'`` and ``'none'``. Default: ``'relu'``
     """
     assert activation in ["relu", "leaky_relu", "elu", "gelu", 
-                          "swish", "efficient_swish", "none"]
+                          "swish", "efficient_swish", "none"], \
+                          "Get unknown activation key {}".format(activation)
     activation_dict = {
         "relu": nn.ReLU(inplace=True),
         "leaky_relu": nn.LeakyReLU(negative_slope=0.1, inplace=True),
@@ -126,6 +127,8 @@ def get_functional_act(activation: str = 'relu'):
         activation (str): one of ``'relu'``, ``'tanh'``, ``'elu'``, ``'sigmoid'``, 
             ``'softmax'`` and ``'none'``. Default: ``'sigmoid'``
     """
+    assert activation in ["relu", "tanh", "elu", "sigmoid", "softmax", "none"], \
+                          "Get unknown activation_fn key {}".format(activation)
     activation_dict = {
         'relu': F.relu_,
         'tanh': torch.tanh,
@@ -149,7 +152,8 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     Returns:
         nn.Module: the normalization layer
     """
-    assert norm in ["bn", "sync_bn", "gn", "in", "none"]
+    assert norm in ["bn", "sync_bn", "gn", "in", "none"], \
+        "Get unknown normalization layer key {}".format(norm)
     norm = {
         "bn": nn.BatchNorm3d,
         "sync_bn": nn.BatchNorm3d, 
@@ -172,7 +176,8 @@ def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     Returns:
         nn.Module: the normalization layer
     """
-    assert norm in ["bn", "sync_bn", "gn", "in", "none"]
+    assert norm in ["bn", "sync_bn", "gn", "in", "none"], \
+        "Get unknown normalization layer key {}".format(norm)
     norm = {
         "bn": nn.BatchNorm2d,
         "sync_bn": nn.BatchNorm2d, 

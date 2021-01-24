@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+from typing import Optional, Union, List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -41,7 +44,7 @@ class BasicBlock3d(nn.Module):
     def __init__(self,                  
                  in_planes: int, 
                  planes: int, 
-                 stride: int = 1,
+                 stride: Union[int, tuple] = 1,
                  dilation: int = 1,
                  groups: int = 1,
                  projection: bool = False,

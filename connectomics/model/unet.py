@@ -48,12 +48,11 @@ class UNet3D(nn.Module):
                  **kwargs):
         super().__init__()
         assert len(filters) == len(isotropy)
+        self.depth = len(filters)
         if is_isotropic:
-            isotropy = [True for _ in len(isotropy)] 
+            isotropy = [True] * self.depth 
 
         self.pooling = pooling
-        self.depth = len(filters)
-
         block = self.block_dict[block_type]
 
         shared_kwargs = {
@@ -65,7 +64,7 @@ class UNet3D(nn.Module):
         kernel_size_io, padding_io = self._get_kernal_size(is_isotropic, io_layer=True)
         self.conv_in = conv3d_norm_act(in_channel, filters[0], kernel_size_io, 
             padding=padding_io, **shared_kwargs)
-        self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, 
+        self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, bias=True,
             padding=padding_io, pad_mode=pad_mode, act_mode='none', norm_mode='none')
         
         # encoding path

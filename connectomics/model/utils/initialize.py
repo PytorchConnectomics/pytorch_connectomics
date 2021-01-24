@@ -11,20 +11,22 @@ def model_init(model, mode='orthogonal'):
         'selu': selu_init,
         'orthogonal': ortho_init,
     }
-    model_init_dict[mode](model)
+    # Applies fn recursively to every submodule (as returned by .children()) as well 
+    # as self. See https://pytorch.org/docs/stable/generated/torch.nn.Module.html.
+    model.apply(model_init_dict[mode])
 
 def xavier_init(model):
-    # default xavier initialization
+    # sxavier initialization
     for m in model.modules():
         if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.Linear)):
-            nn.init.xavier_uniform(
+            nn.init.xavier_uniform_(
                 m.weight(), gain=nn.init.calculate_gain('relu'))
 
 def kaiming_init(model):
     # he initialization
     for m in model.modules():
         if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.Linear)):
-            nn.init.kaiming_normal(m.weight, mode='fan_in')
+            nn.init.kaiming_normal_(m.weight, mode='fan_in')
 
 def selu_init(model):
     # selu init
