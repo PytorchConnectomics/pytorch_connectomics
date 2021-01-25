@@ -106,7 +106,6 @@ class DiceLoss(nn.Module):
 class WeightedMSE(nn.Module):
     """Weighted mean-squared error.
     """
-
     def __init__(self):
         super().__init__()
 
@@ -116,8 +115,7 @@ class WeightedMSE(nn.Module):
         norm_term = (s1 * s2).cuda()
         if weight is None:
             return torch.sum((pred - target) ** 2) / norm_term
-        else:
-            return torch.sum(weight * (pred - target) ** 2) / norm_term
+        return torch.sum(weight * (pred - target) ** 2) / norm_term
 
     def forward(self, pred, target, weight=None):
         #_assert_no_grad(target)
@@ -159,6 +157,37 @@ class WeightedCE(nn.Module):
         # class. Therefore we need to multiply the weight mask after the
         # loss calculation.
         loss = F.cross_entropy(pred, target, reduction='none')
+        if weight_mask is not None:
+            loss = loss * weight_mask
+        return loss.mean()
+
+class WeightedLS(nn.Module):
+    """Weighted CE loss with label smoothing (LS). The code is based on:
+    https://github.com/pytorch/pytorch/issues/7455#issuecomment-513062631
+    """
+    dim = 1
+    def __init__(self, classes=10, cls_weights=None, smoothing=0.2):
+        super().__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.cls = classes
+
+        self.weights = 1.0
+        if cls_weights is not None:
+            self.weights = torch.tensor(cls_weights)
+
+    def forward(self, pred, target, weight_mask=None):
+        shape = (1,-1,1,1,1) if pred.ndim == 5 else (1,-1,1,1)
+        if isinstance(self.weights, torch.Tensor) and self.weights.ndim == 1:
+            self.weights = self.weights.view(shape).to(pred.device)
+
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+
+        loss = torch.sum(-true_dist*pred*self.weights, dim=self.dim)     
         if weight_mask is not None:
             loss = loss * weight_mask
         return loss.mean()
