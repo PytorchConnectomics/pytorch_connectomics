@@ -81,7 +81,7 @@ class FPN3D(nn.Module):
             padding=padding_io, pad_mode=pad_mode, bias=True, act_mode='none', norm_mode='none')
 
         #initialization
-        model_init(self)
+        model_init(self, init_mode)
 
     def forward(self, x):
         z = self.backbone(x)
