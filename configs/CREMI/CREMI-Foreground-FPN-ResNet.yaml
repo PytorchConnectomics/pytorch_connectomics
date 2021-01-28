@@ -1,0 +1,6 @@
+MODEL:
+  ARCHITECTURE: 'fpn_3d'
+  BACKBONE: 'resnet'
+  BLOCK_TYPE: 'residual_se'
+DATASET:
+  OUTPUT_PATH: 'outputs/CREMI_syn_fpn_resnet'

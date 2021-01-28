@@ -8,13 +8,14 @@ import torch.nn.functional as F
 
 from .backbone import *
 from .block import *
-from .utils import get_functional_act, model_init
+from .utils import model_init
 
 class FPN3D(nn.Module):
     """3D feature pyramid network (FPN). This design is flexible in handling both isotropic data and anisotropic data.
 
     Args:
         backbone_type (str): the block type at each U-Net stage. Default: ``'resnet'``
+        block_type (str): the block type in the backbone. Default: ``'residual'``
         in_channel (int): number of input channels. Default: 1
         out_channel (int): number of output channels. Default: 3
         filters (List[int]): number of filters at each FPN stage. Default: [28, 36, 48, 64, 80]

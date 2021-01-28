@@ -1,12 +1,9 @@
 # All other configurations are set by default. If you want to add new config options,
-# please modify ../connectomics/config/config.py
+# please modify ../connectomics/config/defaults.py
 SYSTEM:
   NUM_GPUS: 3
   NUM_CPUS: 12
 MODEL:
-  ARCHITECTURE: 'fpn_3d'
-  BACKBONE: 'resnet'
-  BLOCK_TYPE: 'residual_se'
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
   IN_PLANES: 1

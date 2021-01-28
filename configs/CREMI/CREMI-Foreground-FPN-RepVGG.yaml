@@ -1,0 +1,5 @@
+MODEL:
+  ARCHITECTURE: 'fpn_3d'
+  BACKBONE: 'repvgg'
+DATASET:
+  OUTPUT_PATH: 'outputs/CREMI_syn_fpn_repvgg'

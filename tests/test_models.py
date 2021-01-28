@@ -45,12 +45,15 @@ class TestModelBlock(unittest.TestCase):
         self.assertTupleEqual(tuple(out.shape), (b, out_channel, d, h, w))
 
     def test_rep_vgg_3d(self):
+        """Test the 3D RepVGG model. Making sure the outputs of model in train and deploy
+        modes are the same.
+        """
         feat_keys=['y0', 'y1', 'y2', 'y3', 'y4']
         return_layers = {'layer0': feat_keys[0],
-                        'layer1': feat_keys[1], 
-                        'layer2': feat_keys[2],
-                        'layer3': feat_keys[3],
-                        'layer4': feat_keys[4]}   
+                         'layer1': feat_keys[1], 
+                         'layer2': feat_keys[2],
+                         'layer3': feat_keys[3],
+                         'layer4': feat_keys[4]}   
 
         model_train = RepVGG3D()
         converted_weights = model_train.repvgg_convert_model()

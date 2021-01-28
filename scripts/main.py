@@ -1,16 +1,17 @@
-import os, sys
+import os
 import argparse
 import torch
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 
 import numpy as np
-from connectomics.config import *
+from connectomics.config import load_cfg, save_all_cfg
 from connectomics.engine import Trainer
 
 def get_args():
     parser = argparse.ArgumentParser(description="Model Training & Inference")
     parser.add_argument('--config-file', type=str, help='configuration file (yaml)')
+    parser.add_argument('--config-base', type=str, help='base configuration file (yaml)', default=None)
     parser.add_argument('--inference', action='store_true', help='inference mode')
     parser.add_argument('--distributed', action='store_true', help='distributed training')
     parser.add_argument('--local_rank', type=int, help='node rank for distributed training', default=None)
@@ -30,22 +31,11 @@ def main():
     if args.local_rank==0 or args.local_rank is None:
         print("Command line arguments: ", args)
 
-    # Set seeds
     manual_seed = 0 if args.local_rank is None else args.local_rank
     np.random.seed(manual_seed)
     torch.manual_seed(manual_seed)
 
-    # Set configurations
-    cfg = get_cfg_defaults()
-    cfg.merge_from_file(args.config_file)
-    cfg.merge_from_list(args.opts)
-
-    # Overwrite options given configs with higher priority.
-    if args.inference:
-        update_inference_cfg(cfg)
-    overwrite_cfg(cfg, args)
-    cfg.freeze()
-
+    cfg = load_cfg(args)
     if args.local_rank==0 or args.local_rank is None:
         # In distributed training, only print and save the 
         # configurations using the node with local_rank=0.
@@ -76,10 +66,7 @@ def main():
 
     # Start training or inference:
     if cfg.DATASET.DO_CHUNK_TITLE == 0:
-        if args.inference:
-            trainer.test()
-        else:
-            trainer.train()
+        trainer.test() if args.inference else trainer.train()
     else:
         trainer.run_chunk(mode)
 

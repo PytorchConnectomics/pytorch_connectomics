@@ -2,6 +2,34 @@ import os
 import warnings
 import argparse
 from yacs.config import CfgNode
+from .defaults import get_cfg_defaults
+
+def load_cfg(args: argparse.Namespace):
+    """Load configurations.
+    """
+    # Set configurations
+    cfg = get_cfg_defaults()
+    if args.config_base is not None:
+        cfg.merge_from_file(args.config_base)
+    cfg.merge_from_file(args.config_file)
+    cfg.merge_from_list(args.opts)
+
+    # Overwrite options given configs with higher priority.
+    if args.inference:
+        update_inference_cfg(cfg)
+    overwrite_cfg(cfg, args)
+    cfg.freeze()
+    return cfg
+
+def save_all_cfg(cfg: CfgNode, output_dir: str):
+    r"""Save configs in the output directory.
+    """
+    # Save config.yaml in the experiment directory after combine all 
+    # non-default configurations from yaml file and command line.
+    path = os.path.join(output_dir, "config.yaml")
+    with open(path, "w") as f:
+        f.write(cfg.dump())
+    print("Full config saved to {}".format(path))
 
 def update_inference_cfg(cfg: CfgNode):
     r"""Overwrite configurations (cfg) when running mode is inference. Please 
@@ -29,16 +57,6 @@ def update_inference_cfg(cfg: CfgNode):
         if topt[0] in ['5', '9'] and cfg.MODEL.OUTPUT_ACT == 'none':
             cfg.MODEL.OUTPUT_ACT = 'softmax'
             break
-
-def save_all_cfg(cfg: CfgNode, output_dir: str):
-    r"""Save configs in the output directory.
-    """
-    # Save config.yaml in the experiment directory after combine all 
-    # non-default configurations from yaml file and command line.
-    path = os.path.join(output_dir, "config.yaml")
-    with open(path, "w") as f:
-        f.write(cfg.dump())
-    print("Full config saved to {}".format(path))
 
 def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
     r"""Overwrite some configs given configs or args with higher priority.

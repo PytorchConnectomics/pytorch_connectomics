@@ -213,7 +213,7 @@ class RepVGG3D(nn.Module):
     def __init__(self, 
                  in_channel: int = 1, 
                  filters: List[int] = [28, 36, 48, 64, 80],
-                 blocks: List[int] = [2, 2, 2, 2],
+                 blocks: List[int] = [4, 4, 4, 4],
                  isotropy: List[bool] = [False, False, False, True, True],
                  pad_mode: str = 'replicate', 
                  act_mode: str = 'elu', 
