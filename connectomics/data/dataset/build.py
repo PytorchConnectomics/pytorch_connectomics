@@ -4,9 +4,7 @@ import numpy as np
 from scipy.ndimage import zoom
 
 import torch
-import torch.nn as nn
 import torch.utils.data
-import torchvision.utils as vutils
 
 from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
@@ -16,45 +14,60 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
     r"""Concatenate directory path(s) and filenames and return
     the complete file paths. 
     """
-    assert len(dir_name) == 1 or len(dir_name) == len(file_name)
-    if len(dir_name) == 1:
-        file_name = [os.path.join(dir_name[0], x) for x in file_name]
-    else:
-        file_name = [os.path.join(dir_name[i], file_name[i]) for i in range(len(file_name))]
+    if not cfg.DATASET.IS_ABSOLUTE_PATH:
+        assert len(dir_name) == 1 or len(dir_name) == len(file_name)
+        if len(dir_name) == 1:
+            file_name = [os.path.join(dir_name[0], x) for x in file_name]
+        else:
+            file_name = [os.path.join(dir_name[i], file_name[i]) 
+                        for i in range(len(file_name))]
 
     file_name = _distribute_data(cfg, file_name, rank)
     return file_name
 
 def _distribute_data(cfg, file_name, rank=None):
-    r"""Distribute the data in multiprocessing.
+    r"""Distribute the data (files) equally for multiprocessing.
     """
     if rank is None or cfg.DATASET.DISTRIBUTED == False:
         return file_name
 
     world_size = cfg.SYSTEM.NUM_GPUS
-    ratio = len(file_name) // float(world_size)
+    num_files = len(file_name)
+    print('total number of files: ', num_files)
+    ratio = num_files / float(world_size)
     ratio = int(math.ceil(ratio-1) + 1) # 1.0 -> 1, 1.1 -> 2
-    extended = file_name * ratio
-    return [extended[rank]]
+
+    extended = [file_name[i % num_files] for i in range(world_size*ratio)]
+    splited = [extended[i:i+ratio] for i in range(0, len(extended), ratio)]
+
+    return splited[rank]
+
+def _get_file_list(name):
+    suffix = name.split('.')[-1]
+    if suffix == 'txt':
+        filelist = [line.rstrip('\n') for line in open(name)]
+        return filelist
+
+    return name.split('@')
 
 def _get_input(cfg, mode='train', rank=None):
     r"""Load the inputs specified by the configuration options.
     """
-    dir_name = cfg.DATASET.INPUT_PATH.split('@')
-    img_name = cfg.DATASET.IMAGE_NAME.split('@')
+    dir_name = _get_file_list(cfg.DATASET.INPUT_PATH)
+    img_name = _get_file_list(cfg.DATASET.IMAGE_NAME)
     img_name = _make_path_list(cfg, dir_name, img_name, rank)
-    print(rank, img_name)
+    print(rank, len(img_name), list(map(os.path.basename, img_name)))
 
     label = None
     if mode=='train' and cfg.DATASET.LABEL_NAME is not None:
-        label_name = cfg.DATASET.LABEL_NAME.split('@')
+        label_name = _get_file_list(cfg.DATASET.LABEL_NAME)
         label_name = _make_path_list(cfg, dir_name, label_name, rank)
         assert len(label_name) == len(img_name)
         label = [None]*len(label_name)
 
     valid_mask = None
     if mode=='train' and cfg.DATASET.VALID_MASK_NAME is not None:
-        valid_mask_name = cfg.DATASET.VALID_MASK_NAME.split('@')
+        valid_mask_name = _get_file_list(cfg.DATASET.VALID_MASK_NAME)
         valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
         assert len(valid_mask_name) == len(img_name)
         valid_mask = [None]*len(valid_mask_name)

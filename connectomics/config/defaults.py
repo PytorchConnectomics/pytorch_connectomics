@@ -116,6 +116,7 @@ _C.DATASET.VALID_MASK_NAME = None
 _C.DATASET.LABEL_VAST = False
 _C.DATASET.INPUT_PATH = 'path/to/input'
 _C.DATASET.OUTPUT_PATH = 'path/to/output'
+_C.DATASET.IS_ABSOLUTE_PATH = False
 
 # whether the data is isotropic or not
 _C.DATASET.ISOTROPIC = False
