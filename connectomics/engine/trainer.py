@@ -56,12 +56,12 @@ class Trainer(object):
                 self.monitor = build_monitor(self.cfg)
                 self.monitor.load_config(self.cfg) # show config in tensorboard
                 self.monitor.reset()
+
+            self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
+            self.total_time = 0                
         else:
             # build test-time augmentor and update output filename
-            self.augmentor = TestAugmentor(mode = self.cfg.INFERENCE.AUG_MODE, 
-                                           do_2d = self.cfg.DATASET.DO_2D,
-                                           num_aug = self.cfg.INFERENCE.AUG_NUM,
-                                           scale_factors = self.cfg.INFERENCE.OUTPUT_SCALE)
+            self.augmentor = TestAugmentor.build_from_cfg(cfg, activation=True)
             if not self.cfg.DATASET.DO_CHUNK_TITLE:
                 self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
                 self.test_filename = self.augmentor.update_name(self.test_filename)
@@ -72,9 +72,6 @@ class Trainer(object):
         else:
             self.dataset = None
             self.dataloader = None
-
-        self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
-        self.total_time = 0
 
     def train(self):
         r"""Training function of the trainer class.
@@ -254,19 +251,19 @@ class Trainer(object):
                 if model_dict[param_tensor].size() == pretrained_dict[param_tensor].size():
                     model_dict[param_tensor] = pretrained_dict[param_tensor]  
             # 3. load the new state dict
-            self.model.module.load_state_dict(model_dict) # nn.DataParallel   
+            self.model.module.load_state_dict(model_dict) # nn.DataParallel
 
         if not self.cfg.SOLVER.ITERATION_RESTART:
             # update optimizer
-            if 'optimizer' in checkpoint.keys():
+            if hasattr(self, 'optimizer') and 'optimizer' in checkpoint.keys():
                 self.optimizer.load_state_dict(checkpoint['optimizer'])
 
             # update lr scheduler
-            if 'lr_scheduler' in checkpoint.keys():
+            if hasattr(self, 'lr_scheduler') and 'lr_scheduler' in checkpoint.keys():
                 self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
 
             # load iteration
-            if 'iteration' in checkpoint.keys():
+            if hasattr(self, 'start_iter') and 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
 
     # -----------------------------------------------------------------------------

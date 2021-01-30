@@ -69,6 +69,61 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out[out_name] = x
         return out
 
+class InferenceActivation(object):
+    r"""Apply different activation functions for the outpur tensor.
+    """
+    # number of channels of different target options
+    num_channels_dict = {
+        '0': 1,
+        '1': 3,
+        '2': 3,  
+        '3': 1,
+        '4': 1,
+        '5': 11,
+    }
+    def __init__(self, 
+                 target_opt=['0'], 
+                 output_act=['sigmoid'],
+                 do_stack=True,
+                 do_2d=False):
+
+        assert len(target_opt) == len(output_act)
+        if do_2d: self.num_channels_dict['2'] = 2
+        self.split_channels = []
+        self.target_opt = target_opt
+        self.do_stack = do_stack
+
+        for topt in self.target_opt:
+            if topt[0] == '9':
+                channels = int(topt.split('-')[1])
+                self.split_channels.append(channels)
+            else:
+                self.split_channels.append(
+                    self.num_channels_dict[topt[0]])
+
+        self.act = self._get_act(output_act)
+
+    def __call__(self, x):
+        x = torch.split(x, self.split_channels, dim=1)
+        x = list(x) # torch.split returns a tuple
+        x = [self.act[i](x[i]) for i in range(len(x))]
+        if not self.do_stack:
+            return x
+        return torch.cat(x, dim=1)
+
+    def _get_act(self, act):
+        num_target = len(self.target_opt)
+        out = [None]*num_target
+        for i, act in enumerate(act):
+            out[i] = get_functional_act(act)
+        return out
+
+    @classmethod
+    def build_from_cfg(cls, cfg, do_stack=True):
+        return cls(cfg.MODEL.TARGET_OPT,
+                   cfg.INFERENCE.OUTPUT_ACT,
+                   do_stack=do_stack,
+                   do_2d=cfg.DATASET.DO_2D)
 
 #------------------
 # Swish Activation

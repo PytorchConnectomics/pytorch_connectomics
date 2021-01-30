@@ -2,8 +2,8 @@
 
 1. [Mitochondria (Lucchi)](#lucchi)
 2. [Mitochondria (MitoEM)](#mitoem)
-3. [Neuron (SNEMI)](#snemi)
-4. [Synapse (CREMI)](#cremi)
+3. [Synaptic Clefts (CREMI)](#cremi)
+4. [Neurons (SNEMI)](#snemi)
 
 ## Lucchi Mitochondria Semantic Segmentation <a name="lucchi"></a>
 
@@ -25,7 +25,7 @@ thresholds, with or without post-processing (median filtering).
 The model is trained using the [MitoEM-R-BC.yaml](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/MitoEM-R-BC.yaml) configuration file which predicts both the foreground mask and instance contour map. A detailed tutorial of this task can be found [here](https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation). We show the performance comparison on the MitoEM-R validation set with different parameters in the [```bc_watershed```](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/utils.html#connectomics.utils.process.bc_watershed) function.
 
 * **Dataset**: each of the two validation volumes has a shape of 100x4096x4096 voxels, and each of the two test volumes has a shape of 500x4096x4096 voxels. We only show the results on the MitoEM-Rat set for validation.
-* **Evaluation Metric**: following the [**MitoEM Challenge**](https://mitoem.grand-challenge.org), we use the average precision (AP) metric with an IoU threshold of 0.75, denoted as **AP-75**.
+* **Evaluation Metric**: following the [**MitoEM Challenge**](https://mitoem.grand-challenge.org), we use the average precision (AP) metric with an IoU threshold of 0.75, which is denoted as **AP-75**.
 
 **Validation Results**: for the three thresholds in the [```bc_watershed```](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/utils.html#connectomics.utils.processing.bc_watershed) function, we fix the foreground threshold *thres3=0.8*, and show the results (AP-75) of diffrent seed threshold (*thres1*) and contour threshold (*thres2*) on the MitoEM-Rat validation set:
 
@@ -40,8 +40,8 @@ results to the [**challenge website**](https://mitoem.grand-challenge.org/evalua
 
 |     | MitoEM-R | MitoEM-H | Average |
 | :-- | :--: | :--: | :--: |
-| AP-50 | 0.892 | 0.877 | 0.885 |
-| AP-75 | 0.816 | 0.804 | 0.810 |
+| **AP-50** | 0.892 | 0.877 | 0.885 |
+| **AP-75** | 0.816 | 0.804 | 0.810 |
 
 The complete evaluation results of this submission can be found at this [page](https://mitoem.grand-challenge.org/evaluation/1a1757dd-c2d8-4aa4-9a01-8b8e504cde42/).
 

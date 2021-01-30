@@ -2,7 +2,7 @@ import torch
 import torchvision.utils as vutils
 import numpy as np
 from ..data.utils import decode_quantize
-from ..model.utils import get_functional_act
+from connectomics.model.utils import InferenceActivation
 
 __all__ = [
     'Visualizer'
@@ -12,37 +12,20 @@ class Visualizer(object):
     """TensorboardX visualizer for displaying loss, learning rate and predictions
     at training time.
     """
-    # number of channels of different target options
-    num_channels_dict = {
-        '0': 1,
-        '1': 3,
-        '2': 3,  
-        '3': 1,
-        '4': 1,
-        '5': 11,
-    }
-    def __init__(self, cfg, vis_opt=0, N=16, do_2d=False):
+    def __init__(self, cfg, vis_opt=0, N=16):
         self.cfg = cfg
+        self.act = InferenceActivation.build_from_cfg(cfg, do_stack=False)
         self.vis_opt = vis_opt
         self.N = N # default maximum number of sections to show
         self.N_ind = None
-        if do_2d:
-            self.num_channels_dict['2'] = 2
 
-        self.split_channels = []
         self.semantic_colors = {}
         for topt in self.cfg.MODEL.TARGET_OPT:
             if topt[0] == '9':
                 channels = int(topt.split('-')[1])
-                self.split_channels.append(channels)
                 colors = [torch.rand(3) for _ in range(channels)]
                 colors[0] = torch.zeros(3) # make background black
                 self.semantic_colors[topt] = torch.stack(colors, 0)
-            else:
-                self.split_channels.append(
-                    self.num_channels_dict[topt[0]])
-
-        self.act = self.get_act(cfg.INFERENCE.OUTPUT_ACT)
 
     def prepare_data(self, volume, label, output):
         if len(volume.size()) == 4:   # 2D Inputs
@@ -59,9 +42,7 @@ class Visualizer(object):
 
     def visualize(self, volume, label, output, iter_total, writer):
         # split the prediction into chunks along the channel dimension
-        output = torch.split(output, self.split_channels, dim=1)
-        output = list(output) # torch.split returns a tuple
-        output = [self.act[i](output[i]) for i in range(len(output))]
+        output = self.act(output)
         assert len(output) == len(label)
 
         for idx in range(len(self.cfg.MODEL.TARGET_OPT)):
@@ -114,10 +95,3 @@ class Visualizer(object):
             pred = pred.permute(0,4,1,2,3)
         
         return pred
-
-    def get_act(self, output_act):
-        num_target = len(output_act)
-        out = [None]*num_target
-        for i, act in enumerate(output_act):
-            out[i] = get_functional_act(act)
-        return out

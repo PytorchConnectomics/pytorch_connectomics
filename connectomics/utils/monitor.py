@@ -13,7 +13,7 @@ def build_monitor(cfg):
     if not os.path.isdir(log_path):
         os.makedirs(log_path)
     return Monitor(cfg, log_path, cfg.MONITOR.LOG_OPT+[cfg.SOLVER.SAMPLES_PER_BATCH], \
-                   cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM, cfg.DATASET.DO_2D)
+                   cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM)
 
 class Logger(object):
     def __init__(self, log_path='', log_opt=[1,1,0],  batch_size=1):
@@ -53,12 +53,9 @@ class Logger(object):
 
 class Monitor(object):
     """Computes and stores the average and current value"""
-    def __init__(self, cfg, log_path='', log_opt=[1,1,0,1], vis_opt=[0,16], iter_num=[10,100], 
-                 do_2d=False):
-        # log_opt: do_tb, do_txt, batch_size, log_iteration
-        # vis_opt: vis_type, vis_number_section, do_2d
+    def __init__(self, cfg, log_path='', log_opt=[1,1,0,1], vis_opt=[0,16], iter_num=[10,100]):
         self.logger = Logger(log_path, log_opt[:3], log_opt[3])
-        self.vis = Visualizer(cfg, vis_opt[0], vis_opt[1], do_2d)
+        self.vis = Visualizer(cfg, vis_opt[0], vis_opt[1])
         self.log_iter, self.vis_iter = iter_num
         self.do_vis = False if self.logger.log_tb is None else True
 
