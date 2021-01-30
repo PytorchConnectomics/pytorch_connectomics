@@ -4,7 +4,7 @@ from typing import Optional, List
 import numpy as np
 import itertools
 import torch
-from scipy.ndimage import zoom
+from skimage.transform import resize
 from connectomics.model.utils import InferenceActivation
 
 class TestAugmentor(object):
@@ -109,7 +109,10 @@ class TestAugmentor(object):
 
         if (np.array(self.scale_factors)!=1).any():
             sf = [1.0, 1.0] + self.scale_factors
-            out = zoom(out, sf, order=1)
+            spatial_size = np.array(out.shape) * np.array(sf)
+            spatial_size = list(np.ceil(spatial_size).astype(int))
+            out = resize(out, spatial_size, order=1, preserve_range=True, 
+                         anti_aliasing=True)
         return out
 
     def _tta_2d(self, model, data):
@@ -154,7 +157,10 @@ class TestAugmentor(object):
 
         if (np.array(self.scale_factors)[1:]!=1).any():
             sf = [1.0, 1.0] + self.scale_factors[1:]
-            out = zoom(out, sf, order=1)
+            spatial_size = np.array(out.shape) * np.array(sf)
+            spatial_size = list(np.ceil(spatial_size).astype(int))
+            out = resize(out, spatial_size, order=1, preserve_range=True, 
+                         anti_aliasing=True)
         return out
 
     def _update_output(self, vout, out=None):

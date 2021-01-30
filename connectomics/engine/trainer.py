@@ -132,15 +132,17 @@ class Trainer(object):
         """
         self.model.eval() if self.cfg.INFERENCE.DO_EVAL else self.model.train()
         output_scale = self.cfg.INFERENCE.OUTPUT_SCALE
-        spatial_size = list((np.array(self.cfg.MODEL.OUTPUT_SIZE) * 
-                             np.array(output_scale)).astype(int))
+        spatial_size = list(np.ceil(
+            np.array(self.cfg.MODEL.OUTPUT_SIZE) * 
+            np.array(output_scale)).astype(int))
         channel_size = self.cfg.MODEL.OUT_PLANES
         
         sz = tuple([channel_size] + spatial_size)
         ww = build_blending_matrix(spatial_size, self.cfg.INFERENCE.BLENDING)
         
-        output_size = [tuple((np.array(x) * np.array(output_scale)).astype(int))
+        output_size = [tuple(np.ceil(np.array(x) * np.array(output_scale)).astype(int))
                        for x in self.dataloader._dataset.volume_size]
+        print(channel_size, spatial_size, output_size)
         result = [np.stack([np.zeros(x, dtype=np.float32) 
                   for _ in range(channel_size)]) for x in output_size]
         weight = [np.zeros(x, dtype=np.float32) for x in output_size]
