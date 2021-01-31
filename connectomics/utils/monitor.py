@@ -4,6 +4,7 @@ import numpy as np
 # tensorboardX
 from tensorboardX import SummaryWriter
 from .visualizer import Visualizer
+from config.utils import convert_cfg_markdown
 
 def build_monitor(cfg):
     time_now = str(datetime.datetime.now()).split(' ')
@@ -74,7 +75,7 @@ class Monitor(object):
         self.vis.visualize(volume, label, output, iter_total, self.logger.log_tb)
 
     def load_config(self, cfg):
-        self.logger.log_tb.add_text('Config', str(cfg), 0)
+        self.logger.log_tb.add_text('Config', convert_cfg_markdown(cfg), 0)
 
     def reset(self):
         self.logger.reset()

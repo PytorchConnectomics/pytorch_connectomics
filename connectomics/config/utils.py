@@ -93,3 +93,28 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
 def validate_cfg(cfg: CfgNode):
     num_target = len(cfg.MODEL.TARGET_OPT)
     assert len(cfg.INFERENCE.OUTPUT_ACT) == num_target
+
+def convert_cfg_markdown(cfg):
+    """Converts given cfg node to markdown for tensorboard rendering
+    """
+    r = ""
+    s = []
+    def helper(cfg):
+        s_indent = []
+        for k, v in sorted(cfg.items()):
+            seperator = " "
+            attr_str = "  \n{}:{}{}  \n".format(str(k), seperator, str(v))
+            s_indent.append(attr_str)
+        return s_indent
+            
+    for k, v in sorted(cfg.items()):
+        seperator = "&nbsp;&nbsp;&nbsp;" if isinstance(v, str) else "  \n"
+        val = helper(v)
+        val_str = ""
+        for line in val:
+            val_str += line
+        attr_str = "##{}:{}{}  \n".format(str(k), seperator, val_str)
+        s.append(attr_str)
+    for line in s:
+        r += "  \n" + line + "  \n"
+    return r
