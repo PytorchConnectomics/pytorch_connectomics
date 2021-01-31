@@ -1,6 +1,6 @@
 from .loss import *
-from .criterion import build_criterion
+from .criterion import Criterion
 
 __all__ = [
-    'build_criterion',
+    'Criterion',
 ]

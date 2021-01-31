@@ -4,21 +4,11 @@ import torch.nn as nn
 from .loss import *
 from ..utils import get_functional_act
 
-def build_criterion(cfg, device):
-    """Build a Criterion class based on the config options.
-
-    Args:
-        cfg (yacs.config.CfgNode): YACS configuration options.
-        device (torch.device): model running device type. GPUs are recommended for model training and inference.
-    """
-    return Criterion(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.OUTPUT_ACT, 
-                     cfg.MODEL.LOSS_WEIGHT, cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_WEIGHT)
-
 class Criterion(object):
     loss_dict = {
         'WeightedMSE': WeightedMSE,
+        'WeightedMAE': WeightedMAE,
         'WeightedBCE': WeightedBCE,
-        'JaccardLoss': JaccardLoss,
         'DiceLoss': DiceLoss,
         'WeightedCE': WeightedCE,
         'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
@@ -73,7 +63,7 @@ class Criterion(object):
         return torch.from_numpy(data).to(self.device)
 
     def eval(self, pred, target, weight):
-        # target, weight: numpy.ndarray
+        # target, weight: torch.Tensor or numpy.ndarray
         # pred: torch.Tensor
         loss = 0.0
         cid = 0 # channel index for prediction
@@ -82,12 +72,9 @@ class Criterion(object):
             numC = self.get_num_channel(i, target)
             target_t = self.to_torch(target[i])
             for j in range(len(self.loss[i])):
-                if weight[i][j].shape[-1] == 1: # placeholder for no weight
-                    loss += self.loss_weight[i][j]*self.loss_w[i][j]*self.loss[i][j](
-                        self.act[i][j](pred[:,cid:cid+numC]), target_t)
-                else:
-                    loss += self.loss_weight[i][j]*self.loss_w[i][j]*self.loss[i][j](
-                        self.act[i][j](pred[:,cid:cid+numC]), target_t, self.to_torch(weight[i][j]))
+                w_mask = None if weight[i][j].shape[-1] == 1 else self.to_torch(weight[i][j])
+                loss += self.loss_weight[i][j]*self.loss_w[i][j]*self.loss[i][j](
+                    self.act[i][j](pred[:,cid:cid+numC]), target_t, weight_mask=w_mask)
             cid += numC
         for i in range(self.num_regu):
             loss += self.regu[i](pred)*self.regu_w[i]
@@ -103,3 +90,14 @@ class Criterion(object):
         else:
             numC = target[i].shape[1]
         return numC
+
+    @classmethod
+    def build_from_cfg(cls, cfg, device):
+        """Build a Criterion class based on the config options.
+
+        Args:
+            cfg (yacs.config.CfgNode): YACS configuration options.
+            device (torch.device): model running device type. GPUs are recommended for model training and inference.
+        """
+        return cls(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.OUTPUT_ACT, 
+                   cfg.MODEL.LOSS_WEIGHT, cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_WEIGHT)

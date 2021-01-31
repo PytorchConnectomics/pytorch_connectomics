@@ -14,7 +14,7 @@ from torch.cuda.amp import autocast, GradScaler
 
 from .solver import *
 from ..utils.monitor import build_monitor
-from ..model import build_model, build_criterion
+from ..model import build_model, Criterion
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
 from ..data.utils import build_blending_matrix, writeh5
@@ -50,7 +50,7 @@ class Trainer(object):
             self.scaler = GradScaler() if cfg.MODEL.MIXED_PRECESION else None
 
             self.augmentor = build_train_augmentor(self.cfg)
-            self.criterion = build_criterion(self.cfg, self.device)
+            self.criterion = Criterion.build_from_cfg(self.cfg, self.device)
             self.monitor = None
             if self.rank is None or self.rank == 0:
                 self.monitor = build_monitor(self.cfg)

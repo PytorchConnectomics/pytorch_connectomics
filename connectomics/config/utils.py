@@ -95,7 +95,7 @@ def validate_cfg(cfg: CfgNode):
     assert len(cfg.INFERENCE.OUTPUT_ACT) == num_target
 
 def convert_cfg_markdown(cfg):
-    """Converts given cfg node to markdown for tensorboard rendering
+    """Converts given cfg node to markdown for tensorboard visualization.
     """
     r = ""
     s = []

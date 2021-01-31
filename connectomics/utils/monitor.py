@@ -4,7 +4,7 @@ import numpy as np
 # tensorboardX
 from tensorboardX import SummaryWriter
 from .visualizer import Visualizer
-from config.utils import convert_cfg_markdown
+from connectomics.config.utils import convert_cfg_markdown
 
 def build_monitor(cfg):
     time_now = str(datetime.datetime.now()).split(' ')

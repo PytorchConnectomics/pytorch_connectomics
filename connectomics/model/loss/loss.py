@@ -7,50 +7,6 @@ import torch.nn.functional as F
 #######################################################
 # 0. Main loss functions
 #######################################################
-
-class JaccardLoss(nn.Module):
-    """Jaccard loss.
-    """
-    # binary case
-
-    def __init__(self, size_average=True, reduce=True, smooth=1.0):
-        super(JaccardLoss, self).__init__()
-        self.smooth = smooth
-        self.reduce = reduce
-
-    def jaccard_loss(self, pred, target):
-        loss = 0.
-        # for each sample in the batch
-        for index in range(pred.size()[0]):
-            iflat = pred[index].view(-1)
-            tflat = target[index].view(-1)
-            intersection = (iflat * tflat).sum()
-            loss += 1 - ((intersection + self.smooth) / 
-                    ( iflat.sum() + tflat.sum() - intersection + self.smooth))
-            #print('loss:',intersection, iflat.sum(), tflat.sum())
-
-        # size_average=True for the jaccard loss
-        return loss / float(pred.size()[0])
-
-    def jaccard_loss_batch(self, pred, target):
-        iflat = pred.view(-1)
-        tflat = target.view(-1)
-        intersection = (iflat * tflat).sum()
-        loss = 1 - ((intersection + self.smooth) / 
-               ( iflat.sum() + tflat.sum() - intersection + self.smooth))
-        #print('loss:',intersection, iflat.sum(), tflat.sum())
-        return loss
-
-    def forward(self, pred, target):
-        #_assert_no_grad(target)
-        if not (target.size() == pred.size()):
-            raise ValueError("Target size ({}) must be the same as pred size ({})".format(target.size(), pred.size()))
-        if self.reduce:
-            loss = self.jaccard_loss(pred, target)
-        else:    
-            loss = self.jaccard_loss_batch(pred, target)
-        return loss
-
 class DiceLoss(nn.Module):
     """DICE loss.
     """
@@ -92,8 +48,7 @@ class DiceLoss(nn.Module):
                    ( (iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
         return loss
 
-    def forward(self, pred, target):
-        #_assert_no_grad(target)
+    def forward(self, pred, target, weight_mask=None):
         if not (target.size() == pred.size()):
             raise ValueError("Target size ({}) must be the same as pred size ({})".format(target.size(), pred.size()))
 
@@ -109,7 +64,7 @@ class WeightedMSE(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def weighted_mse_loss(self, pred, target, weight):
+    def weighted_mse_loss(self, pred, target, weight=None):
         s1 = torch.prod(torch.tensor(pred.size()[2:]).float())
         s2 = pred.size()[0]
         norm_term = (s1 * s2).cuda()
@@ -117,9 +72,19 @@ class WeightedMSE(nn.Module):
             return torch.sum((pred - target) ** 2) / norm_term
         return torch.sum(weight * (pred - target) ** 2) / norm_term
 
-    def forward(self, pred, target, weight=None):
-        #_assert_no_grad(target)
-        return self.weighted_mse_loss(pred, target, weight)  
+    def forward(self, pred, target, weight_mask=None):
+        return self.weighted_mse_loss(pred, target, weight_mask)  
+
+class WeightedMAE(nn.Module):
+    """Mask weighted mean absolute error (MAE) energy function.
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, pred, target, weight_mask=None):
+        loss = F.l1_loss(pred, target, reduction='none')
+        loss = loss * weight_mask
+        return loss.mean()
 
 class WeightedBCE(nn.Module):
     """Weighted binary cross-entropy.
@@ -129,9 +94,8 @@ class WeightedBCE(nn.Module):
         self.size_average = size_average
         self.reduce = reduce
 
-    def forward(self, pred, target, weight=None):
-        #_assert_no_grad(target)
-        return F.binary_cross_entropy(pred, target, weight)
+    def forward(self, pred, target, weight_mask=None):
+        return F.binary_cross_entropy(pred, target, weight_mask)
 
 class WeightedBCEWithLogitsLoss(nn.Module):
     """Weighted binary cross-entropy with logits.
@@ -141,9 +105,8 @@ class WeightedBCEWithLogitsLoss(nn.Module):
         self.size_average = size_average
         self.reduce = reduce
 
-    def forward(self, pred, target, weight=None):
-        #_assert_no_grad(target)
-        return F.binary_cross_entropy_with_logits(pred, target, weight)
+    def forward(self, pred, target, weight_mask=None):
+        return F.binary_cross_entropy_with_logits(pred, target, weight_mask)
 
 class WeightedCE(nn.Module):
     """Mask weighted multi-class cross-entropy (CE) loss.
@@ -195,7 +158,6 @@ class WeightedLS(nn.Module):
 #######################################################
 # 1. Regularization
 #######################################################
-
 class BinaryReg(nn.Module):
     """Regularization for encouraging the outputs to be binary.
     """
