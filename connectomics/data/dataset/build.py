@@ -33,7 +33,6 @@ def _distribute_data(cfg, file_name, rank=None):
 
     world_size = cfg.SYSTEM.NUM_GPUS
     num_files = len(file_name)
-    print('total number of files: ', num_files)
     ratio = num_files / float(world_size)
     ratio = int(math.ceil(ratio-1) + 1) # 1.0 -> 1, 1.1 -> 2
 

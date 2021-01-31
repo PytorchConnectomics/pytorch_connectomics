@@ -10,11 +10,36 @@ from skimage.measure import label as label_cc # avoid namespace conflict
 
 from .data_misc import get_padsize, array_unpad
 
-def distance_transform_vol(label, quantize=True, mode='2d'):
+__all__ = [
+    'edt_semantic',
+    'edt_instance',
+    'decode_quantize',
+]
+
+def edt_semantic(
+        label: np.ndarray, 
+        mode: str = '2d',
+        alpha: float = 50.0):
+    """Euclidean distance transform (DT or EDT) for binary semantic mask.
+    """
+    assert mode in ['2d', '3d']
+    resolution = (1.0, 1.0) if mode == '2d' else (4.0, 1.0, 1.0)
+    fore = (label!=0).astype(np.uint8)
+    back = (label==0).astype(np.uint8)
+    fore_edt = distance_transform_edt(fore, resolution)
+    back_edt = distance_transform_edt(back, resolution) / alpha
+    distance = fore_edt + (-back_edt)
+    return np.tanh(distance)
+
+def edt_instance(label: np.ndarray, 
+                 mode: str = '2d',
+                 quantize: bool = True,
+                 resolution: Tuple[float] = (1.0, 1.0, 1.0)):
+    assert mode in ['2d', '3d']
     if mode == '3d':
-        # calculate 3d distance transform
+        # calculate 3d distance transform for instances
         vol_distance, vol_semantic = distance_transform(
-            label, resolution=(1.0, 1.0, 1.0))
+            label, resolution=resolution)
         if quantize:
             vol_distance = energy_quantize(vol_distance)
         return vol_distance
@@ -34,12 +59,12 @@ def distance_transform_vol(label, quantize=True, mode='2d'):
         
     return vol_distance
 
-def distance_transform(label, 
+def distance_transform(label: np.ndarray, 
                        bg_value: float = -1.0, 
                        relabel: bool = True, 
                        padding: bool = False,
-                       resolution: Tuple[int, ...] = (1.0, 1.0)):
-    """Euclidean distance transform (DT or EDT).
+                       resolution: Tuple[float] = (1.0, 1.0)):
+    """Euclidean distance transform (DT or EDT) for instance masks.
     """
     eps = 1e-6
     pad_size = 2

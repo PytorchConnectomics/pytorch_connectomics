@@ -1,10 +1,11 @@
 import os
 import argparse
+
+import numpy as np
 import torch
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 
-import numpy as np
 from connectomics.config import load_cfg, save_all_cfg
 from connectomics.engine import Trainer
 
@@ -55,7 +56,7 @@ def main():
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print("Device: ", device)
+    print("Rank: {}. Device: {}".format(args.local_rank, device))
     cudnn.enabled = True
     cudnn.benchmark = True
 

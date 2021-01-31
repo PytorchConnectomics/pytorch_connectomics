@@ -14,7 +14,7 @@ class Visualizer(object):
     """
     def __init__(self, cfg, vis_opt=0, N=16):
         self.cfg = cfg
-        self.act = InferenceActivation.build_from_cfg(cfg, do_stack=False)
+        self.act = InferenceActivation.build_from_cfg(cfg, do_cat=False)
         self.vis_opt = vis_opt
         self.N = N # default maximum number of sections to show
         self.N_ind = None
@@ -59,7 +59,8 @@ class Visualizer(object):
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
             if isinstance(label[idx], (np.ndarray, np.generic)):
                 label[idx] = torch.from_numpy(label[idx])
-            self.visualize_consecutive(volume, label[idx], output[idx], iter_total, writer, RGB, vis_name)
+            self.visualize_consecutive(volume, label[idx], output[idx], iter_total, 
+                                       writer, RGB=RGB, vis_name=vis_name)
 
     def visualize_consecutive(self, volume, label, output, iteration, writer, RGB=False, vis_name='0_0'):
         volume, label, output = self.prepare_data(volume, label, output)

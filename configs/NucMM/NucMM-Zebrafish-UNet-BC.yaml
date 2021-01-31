@@ -38,17 +38,16 @@ SOLVER:
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 100000
   SAMPLES_PER_BATCH: 2
-  STEPS: (80000, 90000)
 INFERENCE:
   INPUT_SIZE: [97, 97, 97]
   OUTPUT_SIZE: [97, 97, 97]
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
-  IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_small.txt'
-  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_BC/small/'
+  IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_valid.txt'
+  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_BC/valid/'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [16, 32, 32]
   AUG_MODE: 'mean'
-  AUG_NUM: 4
+  AUG_NUM: 16
   STRIDE: [48, 48, 48]
   SAMPLES_PER_BATCH: 8
   OUTPUT_SCALE: [0.5, 0.5, 0.5]

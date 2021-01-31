@@ -19,7 +19,7 @@ DATASET:
   LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
   INPUT_PATH: 'datasets/CREMI/'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
-  PAD_SIZE: [4, 64, 64]
+  PAD_SIZE: [0, 32, 32]
   REJECT_SAMPLING:
     SIZE_THRES: 1000
     P: 0.95
@@ -39,7 +39,7 @@ INFERENCE:
   IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline/test'
   OUTPUT_NAME: 'result.h5'
-  PAD_SIZE: [4, 64, 64]
+  PAD_SIZE: [0, 32, 32]
   AUG_MODE: 'mean'
   AUG_NUM: 16
   STRIDE: [8, 128, 128]

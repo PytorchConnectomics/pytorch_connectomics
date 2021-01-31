@@ -80,18 +80,19 @@ class InferenceActivation(object):
         '3': 1,
         '4': 1,
         '5': 11,
+        '6': 1,
     }
     def __init__(self, 
                  target_opt=['0'], 
                  output_act=['sigmoid'],
-                 do_stack=True,
+                 do_cat=True,
                  do_2d=False):
 
         assert len(target_opt) == len(output_act)
         if do_2d: self.num_channels_dict['2'] = 2
         self.split_channels = []
         self.target_opt = target_opt
-        self.do_stack = do_stack
+        self.do_cat = do_cat
 
         for topt in self.target_opt:
             if topt[0] == '9':
@@ -107,9 +108,9 @@ class InferenceActivation(object):
         x = torch.split(x, self.split_channels, dim=1)
         x = list(x) # torch.split returns a tuple
         x = [self.act[i](x[i]) for i in range(len(x))]
-        if not self.do_stack:
-            return x
-        return torch.cat(x, dim=1)
+        if self.do_cat:
+            return torch.cat(x, dim=1)
+        return x
 
     def _get_act(self, act):
         num_target = len(self.target_opt)
@@ -119,10 +120,10 @@ class InferenceActivation(object):
         return out
 
     @classmethod
-    def build_from_cfg(cls, cfg, do_stack=True):
+    def build_from_cfg(cls, cfg, do_cat=True):
         return cls(cfg.MODEL.TARGET_OPT,
                    cfg.INFERENCE.OUTPUT_ACT,
-                   do_stack=do_stack,
+                   do_cat=do_cat,
                    do_2d=cfg.DATASET.DO_2D)
 
 #------------------

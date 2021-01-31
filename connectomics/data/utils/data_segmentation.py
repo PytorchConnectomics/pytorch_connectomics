@@ -6,7 +6,7 @@ from skimage.measure import label as label_cc # avoid namespace conflict
 from skimage.segmentation import find_boundaries
 
 from .data_affinity import mknhood2d, seg_to_aff
-from .data_transform import distance_transform_vol
+from .data_transform import *
 
 # reduce the labeling
 def getSegType(mid):
@@ -163,9 +163,7 @@ def seg_to_targets(label, topts):
     # output: (C, D, H, W)
     out = [None]*len(topts)
     for tid, topt in enumerate(topts):
-        if topt[0] == '9': # generic segmantic segmentation
-            out[tid] = label.astype(np.int64)
-        elif topt == '0': # binary
+        if topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
         elif topt[0] == '1': # synaptic polarity:
             tmp = [None]*3 
@@ -192,11 +190,19 @@ def seg_to_targets(label, topts):
                 out[tid] = seg_to_instance_bd(label[None,:], bd_sz, do_bg).astype(np.float32)
             else:
                 out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[None,:].astype(np.float32)
-        elif topt[0] == '5': # distance transform
+        elif topt[0] == '5': # distance transform (instance)
             if len(topt) == 1: 
                 topt = topt + '-2d'
-            mode = topt.split('-')
-            out[tid] = distance_transform_vol(label.copy(), mode=mode)
+            _, mode = topt.split('-')
+            out[tid] = edt_instance(label.copy(), mode=mode)
+        elif topt[0] == '6': # distance transform (semantic)
+            if len(topt) == 1: 
+                topt = topt + '-3d'
+            _, mode = topt.split('-')
+            distance = edt_semantic(label.copy(), mode=mode)
+            out[tid] = distance[np.newaxis,:].astype(np.float32)
+        elif topt[0] == '9': # generic segmantic segmentation
+            out[tid] = label.astype(np.int64)
         else:
             raise NameError("Target option %s is not valid!" % topt[0])
 
