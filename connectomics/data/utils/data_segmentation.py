@@ -197,7 +197,7 @@ def seg_to_targets(label, topts):
             out[tid] = edt_instance(label.copy(), mode=mode)
         elif topt[0] == '6': # distance transform (semantic)
             if len(topt) == 1: 
-                topt = topt + '-3d'
+                topt = topt + '-2d'
             _, mode = topt.split('-')
             distance = edt_semantic(label.copy(), mode=mode)
             out[tid] = distance[np.newaxis,:].astype(np.float32)

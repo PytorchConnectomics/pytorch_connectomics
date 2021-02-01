@@ -19,17 +19,26 @@ __all__ = [
 def edt_semantic(
         label: np.ndarray, 
         mode: str = '2d',
-        alpha_fore: float = 10.0,
+        alpha_fore: float = 4.0,
         alpha_back: float = 50.0):
     """Euclidean distance transform (DT or EDT) for binary semantic mask.
     """
     assert mode in ['2d', '3d']
-    resolution = (1.0, 1.0) if mode == '2d' else (4.0, 1.0, 1.0)
+    resolution = (1.0, 1.0) if mode == '2d' else (6.0, 1.0, 1.0)
     fore = (label!=0).astype(np.uint8)
     back = (label==0).astype(np.uint8)
-    fore_edt = distance_transform_edt(fore, resolution) / alpha_fore
-    back_edt = distance_transform_edt(back, resolution) / alpha_back
-    distance = fore_edt + (-back_edt)
+    
+    print(fore.shape)
+    if mode == '3d':
+        fore_edt = distance_transform_edt(fore, resolution) / alpha_fore
+        back_edt = distance_transform_edt(back, resolution) / alpha_back
+    else:
+        fore_edt = [distance_transform_edt(fore[i], resolution) / alpha_fore
+                    for i in range(label.shape[0])]
+        back_edt = [distance_transform_edt(back[i], resolution) / alpha_back
+                    for i in range(label.shape[0])]
+        fore_edt, back_edt = np.stack(fore_edt, 0), np.stack(back_edt, 0)
+    distance = fore_edt - back_edt
     return np.tanh(distance)
 
 def edt_instance(label: np.ndarray, 
