@@ -26,20 +26,24 @@ If you want new features that are relatively easy to implement (e.g., loss funct
 ## Environment
 
 The code is developed and tested under the following configurations.
-- Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memories) (change ```SYSTEM.NUM_GPU``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.5.1, YACS>=0.1.8***
+
+- Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memory) (change ```SYSTEM.NUM_GPU``` accordingly)
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.7.0, YACS>=0.1.8***
 
 ## Installation
 
 Create a new conda environment:
+
 ```
 conda create -n py3_torch python=3.8
 source activate py3_torch
 conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 ```
+
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
 
 Download and install the package:
+
 ```
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
@@ -47,28 +51,37 @@ pip install --upgrade pip
 pip install -r requirements.txt
 pip install --editable .
 ```
+
 For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
 
 ## Notes
 
 ### Data Augmentation
+
 We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/augmentation.html).
 
 ### YACS Configuration
+
 We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage the settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/config.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
 
-### Model Zoo
-We provide several encoder-decoder architectures, which can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/connectomics/model/zoo). Those models can be used for both semantic segmentation and bottom-up instance segmentation of 3D image stacks. We also provide benchmark results on several public connectomics datasets [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/benchmark) with detailed training specifications for users to reproduce.
+### Segmentation Models
+
+We provide several encoder-decoder architectures, which are customized 3D UNet and Feature Pyramid Network (FPN) models with various blocks and backbones. Those models can be applied for both semantic segmentation and bottom-up instance segmentation of 3D image stacks. Those models can also be constructed specifically for isotropic
+and anisotropic datasets. Please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html) for more details.
 
 ## Acknowledgement
+
 This project is built upon numerous previous projects. Especially, we'd like to thank the contributors of the following github repositories:
+
 - [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
 
 ## License
+
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
 
 ## Citation
+
 If you find PyTorch Connectomics useful in your research, please cite:
 
 ```bibtex

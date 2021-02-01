@@ -40,14 +40,11 @@ class Trainer(object):
         self.rank = rank
 
         self.model = build_model(self.cfg, self.device, self.rank)
-        if checkpoint is not None:
-            self.update_checkpoint(checkpoint)
-
         if self.mode == 'train':
             self.optimizer = build_optimizer(self.cfg, self.model)
             self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
-            self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
             self.scaler = GradScaler() if cfg.MODEL.MIXED_PRECESION else None
+            self.update_checkpoint(checkpoint)
 
             self.augmentor = build_train_augmentor(self.cfg)
             self.criterion = Criterion.build_from_cfg(self.cfg, self.device)
@@ -60,18 +57,17 @@ class Trainer(object):
             self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
             self.total_time = 0                
         else:
+            self.update_checkpoint(checkpoint)
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor.build_from_cfg(cfg, activation=True)
             if not self.cfg.DATASET.DO_CHUNK_TITLE:
                 self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
                 self.test_filename = self.augmentor.update_name(self.test_filename)
 
+        self.dataset, self.dataloader = None, None
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
             self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
-        else:
-            self.dataset = None
-            self.dataloader = None
 
     def train(self):
         r"""Training function of the trainer class.
@@ -118,8 +114,8 @@ class Trainer(object):
         if self.rank is None or self.rank == 0:
             self.iter_time = time.perf_counter() - self.start_time
             self.total_time += self.iter_time
-            avg_iter_time = self.total_time / (iter_total+1)
-            est_time_left = avg_iter_time * (self.total_iter_nums - iter_total -1) / 3600.0
+            avg_iter_time = self.total_time / (iter_total+1-self.start_iter)
+            est_time_left = avg_iter_time * (self.total_iter_nums+self.start_iter-iter_total-1) / 3600.0
             print('[Iteration %05d] Data time: %.4fs, Iter time: %.4fs, Avg iter time: %.4fs, Time Left %.2fh.' % (
                 iter_total, self.data_time, self.iter_time, avg_iter_time, est_time_left))
 
@@ -164,7 +160,7 @@ class Trainer(object):
                     st = (np.array(st)*np.array([1]+output_scale)).astype(int).tolist()
                     out_block = output[idx]
                     if result[st[0]].ndim - output[idx].ndim == 1: # 2d model
-                        out_block = out_block[:,None,:]
+                        out_block = out_block[:,np.newaxis,:]
 
                     result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                         st[3]:st[3]+sz[3]] += output[idx] * ww[np.newaxis,:]
@@ -233,9 +229,12 @@ class Trainer(object):
             filename = os.path.join(self.output_dir, filename)
             torch.save(state, filename)
 
-    def update_checkpoint(self, checkpoint: str):
+    def update_checkpoint(self, checkpoint: Optional[str] = None):
         r"""Update the model with the specified checkpoint file path.
         """
+        if checkpoint is None:
+            return
+
         # load pre-trained model
         print('Load pretrained checkpoint: ', checkpoint)
         checkpoint = torch.load(checkpoint)
@@ -254,7 +253,7 @@ class Trainer(object):
             # 3. load the new state dict
             self.model.module.load_state_dict(model_dict) # nn.DataParallel
 
-        if not self.cfg.SOLVER.ITERATION_RESTART:
+        if self.mode == 'train' and not self.cfg.SOLVER.ITERATION_RESTART:
             # update optimizer
             if hasattr(self, 'optimizer') and 'optimizer' in checkpoint.keys():
                 self.optimizer.load_state_dict(checkpoint['optimizer'])
@@ -264,7 +263,8 @@ class Trainer(object):
                 self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
 
             # load iteration
-            if hasattr(self, 'start_iter') and 'iteration' in checkpoint.keys():
+            self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
+            if 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
 
     # -----------------------------------------------------------------------------

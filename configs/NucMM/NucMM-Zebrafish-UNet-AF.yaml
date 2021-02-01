@@ -1,0 +1,53 @@
+SYSTEM:
+  NUM_GPUS: 3
+  NUM_CPUS: 12
+MODEL:
+  ARCHITECTURE: 'unet_3d'
+  BLOCK_TYPE: 'residual_se'
+  INPUT_SIZE: [97, 97, 97]
+  OUTPUT_SIZE: [97, 97, 97]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ['2']
+  LOSS_OPTION: [['WeightedBCEWithLogitsLoss', 'DiceLoss']]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [['1', '0']]
+  OUTPUT_ACT: [['none', 'sigmoid']]
+  NORM_MODE: 'sync_bn'
+DATASET:
+  IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_train.txt'
+  LABEL_NAME: 'datasets/NucMM/Zebrafish/nuc_train.txt'
+  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_AF/'
+  IS_ABSOLUTE_PATH: True
+  PAD_SIZE: [16, 32, 32]
+  DATA_SCALE: [2.0, 2.0, 2.0]
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 1.0
+  DISTRIBUTED: True
+AUGMENTOR:
+  FLIP:
+    ENABLED: True
+    DO_ZTRANS: 1
+  CUTBLUR:
+    DOWNSAMPLE_Z: True
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupCosineLR"
+  BASE_LR: 0.04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
+INFERENCE:
+  INPUT_SIZE: [97, 97, 97]
+  OUTPUT_SIZE: [97, 97, 97]
+  OUTPUT_ACT: ['sigmoid']
+  IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_valid.txt'
+  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_AF/valid/'
+  OUTPUT_NAME: 'result.h5'
+  PAD_SIZE: [16, 32, 32]
+  AUG_MODE: 'mean'
+  AUG_NUM: 16
+  STRIDE: [48, 48, 48]
+  SAMPLES_PER_BATCH: 8
+  OUTPUT_SCALE: [0.5, 0.5, 0.5]
