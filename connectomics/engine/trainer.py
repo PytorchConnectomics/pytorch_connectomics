@@ -44,6 +44,7 @@ class Trainer(object):
             self.optimizer = build_optimizer(self.cfg, self.model)
             self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
             self.scaler = GradScaler() if cfg.MODEL.MIXED_PRECESION else None
+            self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
             self.update_checkpoint(checkpoint)
 
             self.augmentor = build_train_augmentor(self.cfg)
@@ -263,8 +264,7 @@ class Trainer(object):
                 self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
 
             # load iteration
-            self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
-            if 'iteration' in checkpoint.keys():
+            if hasattr(self, 'start_iter') and 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
 
     # -----------------------------------------------------------------------------

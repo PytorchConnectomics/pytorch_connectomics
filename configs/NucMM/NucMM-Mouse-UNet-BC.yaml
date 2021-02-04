@@ -42,7 +42,7 @@ INFERENCE:
   INPUT_SIZE: [97, 97, 97]
   OUTPUT_SIZE: [97, 97, 97]
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
-  IMAGE_NAME: 'datasets/NucMM/Mouse/im_500.h5'
+  IMAGE_NAME: 'im_720nm/*.png'
   OUTPUT_PATH: 'outputs/NucMM_Mouse_BC/test/'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [16, 32, 32]
