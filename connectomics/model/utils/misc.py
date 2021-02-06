@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 from collections import OrderedDict
+from typing import Optional, List
 
 import torch
 from torch import nn
@@ -69,7 +70,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out[out_name] = x
         return out
 
-class InferenceActivation(object):
+class SplitActivation(object):
     r"""Apply different activation functions for the outpur tensor.
     """
     # number of channels of different target options
@@ -83,13 +84,16 @@ class InferenceActivation(object):
         '6': 1,
     }
     def __init__(self, 
-                 target_opt=['0'], 
-                 output_act=['sigmoid'],
-                 do_cat=True,
-                 do_2d=False):
+                 target_opt: List[str] = ['0'], 
+                 output_act: Optional[List[str]] = None,
+                 split_only: bool = False,
+                 do_cat: bool = True,
+                 do_2d: bool = False):
 
-        assert len(target_opt) == len(output_act)
+        if output_act is not None:
+            assert len(target_opt) == len(output_act)
         if do_2d: self.num_channels_dict['2'] = 2
+        
         self.split_channels = []
         self.target_opt = target_opt
         self.do_cat = do_cat
@@ -102,11 +106,16 @@ class InferenceActivation(object):
                 self.split_channels.append(
                     self.num_channels_dict[topt[0]])
 
-        self.act = self._get_act(output_act)
+        self.split_only = split_only
+        if not self.split_only:
+            self.act = self._get_act(output_act)
 
     def __call__(self, x):
         x = torch.split(x, self.split_channels, dim=1)
         x = list(x) # torch.split returns a tuple
+        if self.split_only:
+            return x
+
         x = [self.act[i](x[i]) for i in range(len(x))]
         if self.do_cat:
             return torch.cat(x, dim=1)
@@ -120,9 +129,10 @@ class InferenceActivation(object):
         return out
 
     @classmethod
-    def build_from_cfg(cls, cfg, do_cat=True):
+    def build_from_cfg(cls, cfg, do_cat=True, split_only=False):
         return cls(cfg.MODEL.TARGET_OPT,
                    cfg.INFERENCE.OUTPUT_ACT,
+                   split_only=split_only,
                    do_cat=do_cat,
                    do_2d=cfg.DATASET.DO_2D)
 

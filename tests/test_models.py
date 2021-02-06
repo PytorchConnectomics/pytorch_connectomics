@@ -45,7 +45,7 @@ class TestModelBlock(unittest.TestCase):
         self.assertTupleEqual(tuple(out.shape), (b, out_channel, d, h, w))
 
     def test_rep_vgg_3d(self):
-        """Test the 3D RepVGG model. Making sure the outputs of model in train and deploy
+        r"""Test the 3D RepVGG model. Making sure the outputs of model in train and deploy
         modes are the same.
         """
         feat_keys=['y0', 'y1', 'y2', 'y3', 'y4']
@@ -66,10 +66,12 @@ class TestModelBlock(unittest.TestCase):
         x = torch.rand(2, 1, 9, 65, 65)
         z1, z2 = model_train(x), model_deploy(x)
         for key in feat_keys:
-            self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-6))
+            # The default eps value added to the denominator for numerical stability
+            # in PyTorch batchnormalization layer is 1e-5.
+            self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-5))
 
     def test_build_model(self):
-        """Test building model from configs.
+        r"""Test building model from configs.
         """
         cfg = get_cfg_defaults()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

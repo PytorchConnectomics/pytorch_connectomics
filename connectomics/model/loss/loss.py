@@ -67,7 +67,7 @@ class WeightedMSE(nn.Module):
     def weighted_mse_loss(self, pred, target, weight=None):
         s1 = torch.prod(torch.tensor(pred.size()[2:]).float())
         s2 = pred.size()[0]
-        norm_term = (s1 * s2).cuda()
+        norm_term = (s1 * s2).to(pred.device)
         if weight is None:
             return torch.sum((pred - target) ** 2) / norm_term
         return torch.sum(weight * (pred - target) ** 2) / norm_term
@@ -161,12 +161,32 @@ class WeightedLS(nn.Module):
 class BinaryReg(nn.Module):
     """Regularization for encouraging the outputs to be binary.
     """
-    def __init__(self, alpha=0.1):
+    def __init__(self):
         super().__init__()
-        self.alpha = alpha
     
     def forward(self, pred):
         diff = pred - 0.5
         diff = torch.clamp(torch.abs(diff), min=1e-2)
         loss = (1.0 / diff).mean()
-        return self.alpha * loss
+        return loss
+
+class ForegroundDTConsistency(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, pred1, pred2):
+        """
+        Args:
+            pred1 (torch.Tensor): foreground logits.
+            pred2 (torch.Tensor): signed distance transform.
+        """
+        log_prob_pos = F.logsigmoid(pred1)
+        log_prob_neg = F.logsigmoid(-pred1)
+        distance = torch.tanh(pred2)
+        dist_pos = torch.clamp(distance, min=0.0)
+        dist_neg = - torch.clamp(distance, max=0.0)
+
+        loss_pos = - log_prob_pos * dist_pos
+        loss_neg = - log_prob_neg * dist_neg
+        loss = loss_pos + loss_neg
+        return loss.mean()

@@ -5,7 +5,7 @@ import numpy as np
 import itertools
 import torch
 from skimage.transform import resize
-from connectomics.model.utils import InferenceActivation
+from connectomics.model.utils import SplitActivation
 
 class TestAugmentor(object):
     r"""Test-time spatial augmentor. 
@@ -208,7 +208,7 @@ class TestAugmentor(object):
         """
         act = None
         if activation:
-            act=InferenceActivation.build_from_cfg(cfg)
+            act=SplitActivation.build_from_cfg(cfg)
 
         return cls(mode = cfg.INFERENCE.AUG_MODE, 
                    do_2d = cfg.DATASET.DO_2D,

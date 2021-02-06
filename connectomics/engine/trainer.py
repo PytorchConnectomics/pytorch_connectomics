@@ -90,7 +90,7 @@ class Trainer(object):
             volume = volume.to(self.device, non_blocking=True)
             with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
                 pred = self.model(volume)
-                loss = self.criterion.eval(pred, target, weight)
+                loss = self.criterion(pred, target, weight)
             self._train_misc(loss, pred, volume, target, weight, iter_total)
 
     def _train_misc(self, loss, pred, volume, target, weight, iter_total):

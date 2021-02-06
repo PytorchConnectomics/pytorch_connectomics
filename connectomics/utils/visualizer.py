@@ -2,7 +2,7 @@ import torch
 import torchvision.utils as vutils
 import numpy as np
 from ..data.utils import decode_quantize
-from connectomics.model.utils import InferenceActivation
+from connectomics.model.utils import SplitActivation
 
 __all__ = [
     'Visualizer'
@@ -14,7 +14,7 @@ class Visualizer(object):
     """
     def __init__(self, cfg, vis_opt=0, N=16):
         self.cfg = cfg
-        self.act = InferenceActivation.build_from_cfg(cfg, do_cat=False)
+        self.act = SplitActivation.build_from_cfg(cfg, do_cat=False)
         self.vis_opt = vis_opt
         self.N = N # default maximum number of sections to show
         self.N_ind = None

@@ -35,7 +35,7 @@ INFERENCE:
   OUTPUT_PATH: 'outputs/SNEMI3D/test'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [4, 64, 64]
-  AUG_MODE: 'mean'
-  AUG_NUM: 16
+  AUG_MODE: 'min'
+  AUG_NUM: 4
   STRIDE: [8, 128, 128]
   SAMPLES_PER_BATCH: 8
