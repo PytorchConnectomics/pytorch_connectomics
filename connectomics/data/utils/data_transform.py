@@ -28,7 +28,6 @@ def edt_semantic(
     fore = (label!=0).astype(np.uint8)
     back = (label==0).astype(np.uint8)
     
-    print(fore.shape)
     if mode == '3d':
         fore_edt = distance_transform_edt(fore, resolution) / alpha_fore
         back_edt = distance_transform_edt(back, resolution) / alpha_back

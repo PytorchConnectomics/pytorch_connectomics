@@ -75,9 +75,9 @@ _C.MODEL.INPUT_SIZE = [8, 256, 256]
 
 _C.MODEL.OUTPUT_SIZE = [8, 256, 256]
 
-_C.MODEL.REGU_OPT = []
-
-_C.MODEL.REGU_WEIGHT = []
+_C.MODEL.REGU_OPT = None
+_C.MODEL.REGU_TARGET = None
+_C.MODEL.REGU_WEIGHT = None
 
 # Fine-tune suffix for model saving
 _C.MODEL.FINETUNE = ''
