@@ -71,5 +71,8 @@ def main():
     else:
         trainer.run_chunk(mode)
 
+    if args.distributed:
+        dist.destroy_process_group()
+
 if __name__ == "__main__":
     main()

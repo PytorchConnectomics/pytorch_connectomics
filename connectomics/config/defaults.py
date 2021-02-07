@@ -297,6 +297,13 @@ _C.SOLVER.CLIP_GRADIENTS.CLIP_VALUE = 1.0
 # gradient clipping type; for L-inf, please specify .inf
 _C.SOLVER.CLIP_GRADIENTS.NORM_TYPE = 2.0
 
+# Stochastic Weight Averaging
+_C.SOLVER.SWA = CN({"ENABLED": False})
+_C.SOLVER.SWA.LR_FACTOR = 0.1
+_C.SOLVER.SWA.START_ITER = 90000
+_C.SOLVER.SWA.MERGE_ITER = 100
+_C.SOLVER.SWA.BN_UPDATE_ITER = 2000
+
 # -----------------------------------------------------------------------------
 # Monitor
 # -----------------------------------------------------------------------------

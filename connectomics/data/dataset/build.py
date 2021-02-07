@@ -126,6 +126,9 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         sample_stride = (1, 1, 1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH 
+        if cfg.SOLVER.SWA.ENABLED:
+            iter_num += cfg.SOLVER.SWA.BN_UPDATE_ITER
+
     elif mode == 'test':
         sample_stride = cfg.INFERENCE.STRIDE
         sample_volume_size = cfg.MODEL.INPUT_SIZE

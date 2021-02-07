@@ -47,6 +47,11 @@ class Trainer(object):
             self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
             self.update_checkpoint(checkpoint)
 
+            # stochastic weight averaging
+            if self.cfg.SOLVER.SWA.ENABLED:
+                self.swa_model, self.swa_scheduler = build_swa_model(
+                    self.cfg, self.model, self.optimizer)
+
             self.augmentor = build_train_augmentor(self.cfg)
             self.criterion = Criterion.build_from_cfg(self.cfg, self.device)
             self.monitor = None
@@ -93,6 +98,8 @@ class Trainer(object):
                 loss = self.criterion(pred, target, weight)
             self._train_misc(loss, pred, volume, target, weight, iter_total)
 
+        self.maybe_save_swa_model()
+
     def _train_misc(self, loss, pred, volume, target, weight, iter_total):
         self.backward_pass(loss) # backward pass
 
@@ -110,7 +117,8 @@ class Trainer(object):
             self.save_checkpoint(iter_total)
 
         # update learning rate
-        self.lr_scheduler.step(loss) if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau' else self.lr_scheduler.step()
+        self.maybe_update_swa_model(iter_total)
+        self.scheduler_step(iter_total, loss)
 
         if self.rank is None or self.rank == 0:
             self.iter_time = time.perf_counter() - self.start_time
@@ -266,6 +274,43 @@ class Trainer(object):
             # load iteration
             if hasattr(self, 'start_iter') and 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
+
+    def maybe_save_swa_model(self):
+        if not hasattr(self, 'swa_model'):
+            return 
+        
+        # update bn statistics
+        for _ in range(self.cfg.SOLVER.SWA.BN_UPDATE_ITER):
+            sample = next(self.dataloader)
+            volume = sample.out_input
+            volume = volume.to(self.device, non_blocking=True)
+            with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
+                pred = self.model(volume)
+
+        # save swa model
+        print("Save SWA model checkpoint.")
+        state = {'state_dict': self.swa_model.module.state_dict()}
+        filename = 'checkpoint_swa.pth.tar'
+        filename = os.path.join(self.output_dir, filename)
+        torch.save(state, filename)
+
+    def maybe_update_swa_model(self, iter_total):
+        if not hasattr(self, 'swa_model'):
+            return
+        
+        swa_start = self.SOLVER.SWA.START_ITER
+        swa_merge = self.SOLVER.SWA.MERGE_ITER
+        if iter_total >= swa_start and iter_total % swa_merge == 0:
+            self.swa_model.update_parameters(self.model)
+
+    def scheduler_step(self, iter_total, loss):
+        if hasattr(self, 'swa_scheduler') and iter_total >= self.SOLVER.SWA.START_ITER:
+            self.swa_scheduler.step()
+        else:
+            if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau':
+                self.lr_scheduler.step(loss)
+            else: 
+                self.lr_scheduler.step()
 
     # -----------------------------------------------------------------------------
     # Chunk processing for TileDataset

@@ -2,7 +2,7 @@
 from enum import Enum
 from typing import Any, Callable, Dict, Iterable, List, Set, Type, Union
 import torch
-
+from torch.optim.swa_utils import AveragedModel, SWALR
 from yacs.config import CfgNode
 
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
@@ -169,3 +169,15 @@ def build_lr_scheduler(
         )
     else:
         raise ValueError("Unknown LR scheduler: {}".format(name))
+
+def build_swa_model(cfg: CfgNode, 
+                    model: torch.nn.Module, 
+                    optimizer: torch.optim.Optimizer):
+    # Instead of copying weights during initialization, the SWA model copys 
+    # the model weights when self.update_parameters is first called.
+    # https://github.com/pytorch/pytorch/blob/1.7/torch/optim/swa_utils.py#L107
+    swa_model = AveragedModel(model)
+    lr = cfg.SOLVER.BASE_LR
+    lr *= cfg.SOLVER.SWA.LR_FACTOR
+    swa_scheduler = SWALR(optimizer, swa_lr=lr)
+    return swa_model, swa_scheduler
