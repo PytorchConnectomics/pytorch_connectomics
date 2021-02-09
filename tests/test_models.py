@@ -87,9 +87,8 @@ class TestModelBlock(unittest.TestCase):
         cfg = get_cfg_defaults()
         cfg.MODEL.ARCHITECTURE = 'fpn_3d'
         cfg.MODEL.BACKBONE = 'repvgg'
-        cfg.freeze()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = build_model(cfg, device)
+        model = build_model(cfg, device).eval()
         message = "Get unexpected model architecture!"
 
         arch_name = model.module.__class__.__name__
@@ -101,6 +100,20 @@ class TestModelBlock(unittest.TestCase):
             if isinstance(layer, RepVGGBlock3D):
                 count += 1
         self.assertGreater(count, 0)
+
+        # test the weight conversion when using RepVGG as backbone
+        model.eval()
+        train_dict = model.module.state_dict()
+        deploy_dict = RepVGG3D.repvgg_convert_as_backbone(train_dict)
+
+        cfg.MODEL.DEPLOY_MODE = True
+        deploy_model = build_model(cfg, device).eval()
+        deploy_model.module.load_state_dict(deploy_dict, strict=True)
+
+        x = torch.rand(2, 1, 9, 65, 65)
+        y1 = model(x)
+        y2 = deploy_model(x)
+        self.assertTrue(torch.allclose(y1, y2, atol=1e-4))
 
 if __name__ == '__main__':
     unittest.main()

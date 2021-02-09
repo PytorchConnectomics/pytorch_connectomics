@@ -4,6 +4,7 @@ import torch.nn as nn
 
 from .unet import UNet3D
 from .fpn import FPN3D
+from .backbone import RepVGG3D
 
 def build_model(cfg, device, rank=None):
     MODEL_MAP = {
@@ -27,6 +28,7 @@ def build_model(cfg, device, rank=None):
     }
     if model_arch == 'fpn_3d':
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
+        kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
     print('model: ', model.__class__.__name__)    
@@ -60,3 +62,16 @@ def make_parallel(model, cfg, device, rank=None):
         model = model.to(device)
 
     return model.to(device)
+
+def update_state_dict(cfg, model_dict, mode='train'):
+    r"""Update state_dict based on the config options.
+    """
+    assert mode in ['train', 'test']
+
+    arch = cfg.MODEL.ARCHITECTURE
+    backbone = cfg.MODEL.BACKBONE
+    if arch == 'fpn_3d' and backbone == 'repvgg' and mode == 'test':
+        # convert to deploy mode weights for RepVGG3D backbone
+        model_dict = RepVGG3D.repvgg_convert_as_backbone(model_dict)
+        
+    return model_dict

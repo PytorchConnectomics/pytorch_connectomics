@@ -13,8 +13,8 @@ import torch.nn.functional as F
 from torch.cuda.amp import autocast, GradScaler
 
 from .solver import *
+from ..model import *
 from ..utils.monitor import build_monitor
-from ..model import build_model, Criterion
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
 from ..data.utils import build_blending_matrix, writeh5
@@ -252,6 +252,7 @@ class Trainer(object):
         # update model weights
         if 'state_dict' in checkpoint.keys():
             pretrained_dict = checkpoint['state_dict']
+            pretrained_dict = update_state_dict(self.cfg, pretrained_dict, self.mode):
             model_dict = self.model.module.state_dict() # nn.DataParallel
             # 1. filter out unnecessary keys by name
             pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}

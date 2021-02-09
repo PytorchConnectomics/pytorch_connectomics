@@ -25,6 +25,7 @@ _C.MODEL = CN()
 _C.MODEL.ARCHITECTURE = 'unet_3d' 
 _C.MODEL.BLOCK_TYPE = 'residual'
 _C.MODEL.BACKBONE = 'resnet'
+_C.MODEL.DEPLOY_MODE = False
 
 # Number of filters per unet block
 _C.MODEL.FILTERS = [28, 36, 48, 64, 80] 
