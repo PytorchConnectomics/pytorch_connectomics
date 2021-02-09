@@ -37,9 +37,9 @@ class Trainer(object):
         self.device = device
         self.output_dir = cfg.DATASET.OUTPUT_PATH
         self.mode = mode
-        self.rank = rank
+        self.is_main_process = rank is None or rank == 0
 
-        self.model = build_model(self.cfg, self.device, self.rank)
+        self.model = build_model(self.cfg, self.device, rank)
         if self.mode == 'train':
             self.optimizer = build_optimizer(self.cfg, self.model)
             self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
@@ -48,14 +48,14 @@ class Trainer(object):
             self.update_checkpoint(checkpoint)
 
             # stochastic weight averaging
-            if self.cfg.SOLVER.SWA.ENABLED:
+            if self.cfg.SOLVER.SWA.ENABLED and self.is_main_process:
                 self.swa_model, self.swa_scheduler = build_swa_model(
                     self.cfg, self.model, self.optimizer)
 
             self.augmentor = build_train_augmentor(self.cfg)
             self.criterion = Criterion.build_from_cfg(self.cfg, self.device)
             self.monitor = None
-            if self.rank is None or self.rank == 0:
+            if self.is_main_process:
                 self.monitor = build_monitor(self.cfg)
                 self.monitor.load_config(self.cfg) # show config in tensorboard
                 self.monitor.reset()
@@ -120,7 +120,7 @@ class Trainer(object):
         self.maybe_update_swa_model(iter_total)
         self.scheduler_step(iter_total, loss)
 
-        if self.rank is None or self.rank == 0:
+        if self.is_main_process:
             self.iter_time = time.perf_counter() - self.start_time
             self.total_time += self.iter_time
             avg_iter_time = self.total_time / (iter_total+1-self.start_iter)
@@ -225,7 +225,7 @@ class Trainer(object):
     def save_checkpoint(self, iteration: int):
         r"""Save the model checkpoint.
         """
-        if self.rank is None or self.rank == 0:
+        if self.is_main_process:
             print("Save model checkpoint at iteration ", iteration)
             state = {'iteration': iteration + 1,
                     # Saving DataParallel or DistributedDataParallel models
@@ -298,13 +298,13 @@ class Trainer(object):
         if not hasattr(self, 'swa_model'):
             return
         
-        swa_start = self.SOLVER.SWA.START_ITER
-        swa_merge = self.SOLVER.SWA.MERGE_ITER
+        swa_start = self.cfg.SOLVER.SWA.START_ITER
+        swa_merge = self.cfg.SOLVER.SWA.MERGE_ITER
         if iter_total >= swa_start and iter_total % swa_merge == 0:
             self.swa_model.update_parameters(self.model)
 
     def scheduler_step(self, iter_total, loss):
-        if hasattr(self, 'swa_scheduler') and iter_total >= self.SOLVER.SWA.START_ITER:
+        if hasattr(self, 'swa_scheduler') and iter_total >= self.cfg.SOLVER.SWA.START_ITER:
             self.swa_scheduler.step()
         else:
             if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau':

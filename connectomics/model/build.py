@@ -25,8 +25,8 @@ def build_model(cfg, device, rank=None):
         'norm_mode': cfg.MODEL.NORM_MODE,
         'pooling': cfg.MODEL.POOING_LAYER,
     }
-    if 'fpn' in model_arch:
-        kwargs['backbone'] = cfg.MODEL.BACKBONE
+    if model_arch == 'fpn_3d':
+        kwargs['backbone_type'] = cfg.MODEL.BACKBONE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
     print('model: ', model.__class__.__name__)    

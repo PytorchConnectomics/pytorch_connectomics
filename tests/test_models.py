@@ -4,7 +4,7 @@ import torch
 from connectomics.model import build_model
 from connectomics.model.unet import UNet3D
 from connectomics.model.fpn import FPN3D
-from connectomics.model.backbone import RepVGG3D
+from connectomics.model.backbone import RepVGG3D, RepVGGBlock3D
 from connectomics.model.utils.misc import IntermediateLayerGetter
 
 from connectomics.config import get_cfg_defaults
@@ -70,15 +70,37 @@ class TestModelBlock(unittest.TestCase):
             # in PyTorch batchnormalization layer is 1e-5.
             self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-5))
 
-    def test_build_model(self):
+    def test_build_default_model(self):
         r"""Test building model from configs.
         """
         cfg = get_cfg_defaults()
+        cfg.freeze()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = build_model(cfg, device)
         self.assertTrue(isinstance(model, (torch.nn.Module, 
                                            torch.nn.DataParallel, 
                                            torch.nn.parallel.DistributedDataParallel)))
+
+    def test_build_fpn_with_repvgg(self):
+        r"""Test building a 3D FPN model with RepVGG backbone from configs.
+        """
+        cfg = get_cfg_defaults()
+        cfg.MODEL.ARCHITECTURE = 'fpn_3d'
+        cfg.MODEL.BACKBONE = 'repvgg'
+        cfg.freeze()
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = build_model(cfg, device)
+        message = "Get unexpected model architecture!"
+
+        arch_name = model.module.__class__.__name__
+        self.assertEqual(arch_name, "FPN3D", message)
+
+        message = "No RepVGG block in the backbone!"
+        count = 0
+        for layer in model.modules():
+            if isinstance(layer, RepVGGBlock3D):
+                count += 1
+        self.assertGreater(count, 0)
 
 if __name__ == '__main__':
     unittest.main()
