@@ -73,5 +73,8 @@ def update_state_dict(cfg, model_dict, mode='train'):
     if arch == 'fpn_3d' and backbone == 'repvgg' and mode == 'test':
         # convert to deploy mode weights for RepVGG3D backbone
         model_dict = RepVGG3D.repvgg_convert_as_backbone(model_dict)
+
+    if 'n_averaged' in model_dict.keys():
+        print("Number of models averaged in SWA: ", model_dict['n_averaged'])
         
     return model_dict

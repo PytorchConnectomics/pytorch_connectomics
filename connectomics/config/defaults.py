@@ -302,7 +302,7 @@ _C.SOLVER.CLIP_GRADIENTS.NORM_TYPE = 2.0
 _C.SOLVER.SWA = CN({"ENABLED": False})
 _C.SOLVER.SWA.LR_FACTOR = 0.1
 _C.SOLVER.SWA.START_ITER = 90000
-_C.SOLVER.SWA.MERGE_ITER = 100
+_C.SOLVER.SWA.MERGE_ITER = 10
 _C.SOLVER.SWA.BN_UPDATE_ITER = 2000
 
 # -----------------------------------------------------------------------------

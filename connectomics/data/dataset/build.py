@@ -196,13 +196,11 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
         if cfg.DATASET.DISTRIBUTED == False:
             sampler = torch.utils.data.distributed.DistributedSampler(dataset)
 
-    SHUFFLE = (mode == 'train') and (sampler is None)
-
     # In PyTorch, each worker will create a copy of the Dataset, so if the data 
     # is preload the data, the memory usage should increase a lot.
     # https://discuss.pytorch.org/t/define-iterator-on-dataloader-is-very-slow/52238/2
-    img_loader =  torch.utils.data.DataLoader(
-          dataset, batch_size=batch_size, shuffle=SHUFFLE, collate_fn = cf,
-          sampler=sampler, num_workers=num_workers, pin_memory=True)
+    img_loader = torch.utils.data.DataLoader(
+        dataset, batch_size = batch_size, shuffle = False, collate_fn = cf,
+        sampler = sampler, num_workers = num_workers, pin_memory = True)
 
     return img_loader

@@ -40,6 +40,7 @@ def main():
     if args.local_rank==0 or args.local_rank is None:
         # In distributed training, only print and save the 
         # configurations using the node with local_rank=0.
+        print("PyTorch: ", torch.__version__)
         print(cfg)
 
         if not os.path.exists(cfg.DATASET.OUTPUT_PATH):
@@ -71,7 +72,7 @@ def main():
     else:
         trainer.run_chunk(mode)
 
-    if args.distributed:
+    if args.distributed: # cleanup
         dist.destroy_process_group()
 
 if __name__ == "__main__":

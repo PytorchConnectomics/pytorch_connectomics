@@ -163,6 +163,8 @@ class Trainer(object):
                 if self.cfg.DATASET.DO_2D: volume = volume.squeeze(1)
 
                 output = self.augmentor(self.model, volume)
+                if torch.cuda.is_available() and i % 50 == 0: 
+                    GPUtil.showUtilization(all=True)
 
                 for idx in range(output.shape[0]):
                     st = pos[idx]
@@ -252,7 +254,7 @@ class Trainer(object):
         # update model weights
         if 'state_dict' in checkpoint.keys():
             pretrained_dict = checkpoint['state_dict']
-            pretrained_dict = update_state_dict(self.cfg, pretrained_dict, self.mode):
+            pretrained_dict = update_state_dict(self.cfg, pretrained_dict, mode=self.mode)
             model_dict = self.model.module.state_dict() # nn.DataParallel
             # 1. filter out unnecessary keys by name
             pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
@@ -286,7 +288,7 @@ class Trainer(object):
             volume = sample.out_input
             volume = volume.to(self.device, non_blocking=True)
             with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
-                pred = self.model(volume)
+                pred = self.swa_model(volume)
 
         # save swa model
         print("Save SWA model checkpoint.")
@@ -301,8 +303,10 @@ class Trainer(object):
         
         swa_start = self.cfg.SOLVER.SWA.START_ITER
         swa_merge = self.cfg.SOLVER.SWA.MERGE_ITER
+        print("iter_total: ", iter_total)
         if iter_total >= swa_start and iter_total % swa_merge == 0:
             self.swa_model.update_parameters(self.model)
+            print("update swa model!")
 
     def scheduler_step(self, iter_total, loss):
         if hasattr(self, 'swa_scheduler') and iter_total >= self.cfg.SOLVER.SWA.START_ITER:
