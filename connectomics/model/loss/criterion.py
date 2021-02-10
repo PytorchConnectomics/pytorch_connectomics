@@ -38,7 +38,7 @@ class Criterion(object):
         self.spliter = SplitActivation(target_opt, split_only=True, do_2d=do_2d)
 
         self.num_target = len(target_opt)
-        self.num_regu = len(regu_opt)
+        self.num_regu = 0 if regu_opt is None else len(regu_opt)
 
         self.loss  = self.get_loss(loss_opt)
         self.loss_w = loss_weight
