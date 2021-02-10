@@ -39,9 +39,10 @@ def _get_input(cfg, mode='train'):
     valid_mask = None
     if mode=='train' and cfg.DATASET.VALID_MASK_NAME is not None:
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME.split('@')
-        assert len(valid_mask_name) == len(img_name)
+        assert (len(valid_mask_name) == len(img_name)) or len(valid_mask_name) == 1
+        # share one valid mask for all train volumes
         valid_mask_name = _make_path_list(dir_name, valid_mask_name)
-        valid_mask = [None]*len(valid_mask_name)
+        valid_mask = [None]*len(img_name)
 
     volume = [None] * len(img_name)
     for i in range(len(img_name)):
@@ -71,7 +72,10 @@ def _get_input(cfg, mode='train'):
             print(f"label shape: {label[i].shape}")
 
         if mode=='train' and valid_mask is not None:
-            valid_mask[i] = readvol(valid_mask_name[i])
+            if len(valid_mask) == 1:
+                valid_mask[i] = readvol(valid_mask_name[0])
+            else:
+                valid_mask[i] = readvol(valid_mask_name[i])
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.DATA_SCALE, order=0) 
 
