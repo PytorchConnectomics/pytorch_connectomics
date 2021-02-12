@@ -2,13 +2,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .unet import UNet3D
+from .unet import UNet3D, UNet2D
 from .fpn import FPN3D
 from .backbone import RepVGG3D
 
 def build_model(cfg, device, rank=None):
     MODEL_MAP = {
         'unet_3d': UNet3D,
+        'unet_2d': UNet2D,
         'fpn_3d': FPN3D,
     }
 

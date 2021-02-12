@@ -2,7 +2,7 @@ import unittest
 import torch
 
 from connectomics.model import build_model
-from connectomics.model.unet import UNet3D
+from connectomics.model.unet import UNet3D, UNet2D
 from connectomics.model.fpn import FPN3D
 from connectomics.model.backbone import RepVGG3D, RepVGGBlock3D
 from connectomics.model.utils.misc import IntermediateLayerGetter
@@ -35,6 +35,23 @@ class TestModelBlock(unittest.TestCase):
                        pooling=False, is_isotropic=True)
         out = model(x)
         self.assertTupleEqual(tuple(out.shape), (b, out_channel, d, h, w))
+
+    def test_unet_2d(self):
+        """Tested UNet2D model with odd and even input sizes.
+        """
+        b, h, w = 4, 64, 64
+        in_channel, out_channel = 1, 3
+        x = torch.rand(b, in_channel, h, w)
+        model = UNet2D('residual', in_channel, out_channel, pooling=True)
+        out = model(x)
+        self.assertTupleEqual(tuple(out.shape), (b, out_channel, h, w))
+
+        b, h, w = 4, 65, 65
+        in_channel, out_channel = 1, 2
+        x = torch.rand(b, in_channel, h, w)
+        model = UNet2D('residual_se', in_channel, out_channel, pooling=False)
+        out = model(x)
+        self.assertTupleEqual(tuple(out.shape), (b, out_channel, h, w))
 
     def test_fpn_3d(self):
         b, d, h, w = 1, 65, 65, 65
