@@ -74,6 +74,16 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
                 "Multi-task learning with quantized distance transform " \
                 "is currently not supported."
 
+    # Update augmentation options when valid masks are specified
+    if cfg.DATASET.VALID_MASK_NAME is not None:
+        assert cfg.DATASET.LABEL_NAME is not None, \
+            "Using valid mask is only supported when target label is given."
+        assert cfg.AUGMENTOR.ADDITIONAL_TARGETS_NAME is not None
+        assert cfg.AUGMENTOR.ADDITIONAL_TARGETS_TYPE is not None
+
+        cfg.AUGMENTOR.ADDITIONAL_TARGETS_NAME += ['valid_mask']
+        cfg.AUGMENTOR.ADDITIONAL_TARGETS_TYPE += ['mask']
+
     # Model I/O size
     for x in cfg.MODEL.INPUT_SIZE:
         if x % 2 == 0 and not cfg.MODEL.POOING_LAYER:
