@@ -138,7 +138,6 @@ class VolumeDataset(torch.utils.data.Dataset):
             out_target = seg_to_targets(out_label, self.target_opt)
             out_weight = seg_to_weights(out_target, self.weight_opt, out_valid)
 
-            print(pos, out_volume.shape)
             return pos, out_volume, out_target, out_weight
 
         elif self.mode == 'test':

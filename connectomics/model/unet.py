@@ -91,7 +91,7 @@ class UNet3D(nn.Module):
             self.up_layers.append(layer)
 
         #initialization
-        model_init(self)
+        model_init(self, mode=init_mode)
 
     def forward(self, x):
         x = self.conv_in(x)

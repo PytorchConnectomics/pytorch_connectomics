@@ -48,7 +48,7 @@ class Trainer(object):
             self.update_checkpoint(checkpoint)
 
             # stochastic weight averaging
-            if self.cfg.SOLVER.SWA.ENABLED and self.is_main_process:
+            if self.cfg.SOLVER.SWA.ENABLED:
                 self.swa_model, self.swa_scheduler = build_swa_model(
                     self.cfg, self.model, self.optimizer)
 
@@ -291,11 +291,12 @@ class Trainer(object):
                 pred = self.swa_model(volume)
 
         # save swa model
-        print("Save SWA model checkpoint.")
-        state = {'state_dict': self.swa_model.module.state_dict()}
-        filename = 'checkpoint_swa.pth.tar'
-        filename = os.path.join(self.output_dir, filename)
-        torch.save(state, filename)
+        if self.is_main_process:
+            print("Save SWA model checkpoint.")
+            state = {'state_dict': self.swa_model.module.state_dict()}
+            filename = 'checkpoint_swa.pth.tar'
+            filename = os.path.join(self.output_dir, filename)
+            torch.save(state, filename)
 
     def maybe_update_swa_model(self, iter_total):
         if not hasattr(self, 'swa_model'):
@@ -303,10 +304,8 @@ class Trainer(object):
         
         swa_start = self.cfg.SOLVER.SWA.START_ITER
         swa_merge = self.cfg.SOLVER.SWA.MERGE_ITER
-        print("iter_total: ", iter_total)
         if iter_total >= swa_start and iter_total % swa_merge == 0:
             self.swa_model.update_parameters(self.model)
-            print("update swa model!")
 
     def scheduler_step(self, iter_total, loss):
         if hasattr(self, 'swa_scheduler') and iter_total >= self.cfg.SOLVER.SWA.START_ITER:

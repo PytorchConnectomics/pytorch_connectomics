@@ -170,12 +170,17 @@ def build_lr_scheduler(
     else:
         raise ValueError("Unknown LR scheduler: {}".format(name))
 
+# 3. Build SWA model
+
 def build_swa_model(cfg: CfgNode, 
                     model: torch.nn.Module, 
                     optimizer: torch.optim.Optimizer):
     # Instead of copying weights during initialization, the SWA model copys 
     # the model weights when self.update_parameters is first called.
     # https://github.com/pytorch/pytorch/blob/1.7/torch/optim/swa_utils.py#L107
+
+    # The SWA model needs to be constructed for all processes in distributed
+    # training, otherwise the training can get stuck.
     swa_model = AveragedModel(model)
     lr = cfg.SOLVER.BASE_LR
     lr *= cfg.SOLVER.SWA.LR_FACTOR
