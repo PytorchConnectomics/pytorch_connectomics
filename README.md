@@ -64,6 +64,7 @@ We provide several encoder-decoder architectures, which can be found [here](http
 This project is built upon numerous previous projects. Especially, we'd like to thank the contributors of the following github repositories:
 - [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
+- [Detectron2](https://github.com/facebookresearch/detectron2): Facebook AI Reserach
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
