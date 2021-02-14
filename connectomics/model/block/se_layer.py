@@ -6,7 +6,7 @@ from .residual import *
 from ..utils import get_activation
 
 class SELayer2d(nn.Module):
-    def __init__(self, channel, reduction=4, act_mode='relu'):
+    def __init__(self, channel, reduction=16, act_mode='relu'):
         super(SELayer2d, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(

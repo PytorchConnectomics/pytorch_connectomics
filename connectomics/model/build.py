@@ -20,7 +20,7 @@ def build_model(cfg, device, rank=None):
         'in_channel': cfg.MODEL.IN_PLANES,
         'out_channel': cfg.MODEL.OUT_PLANES,
         'filters': cfg.MODEL.FILTERS,
-        'is_isotropic': cfg.DATASET.ISOTROPIC,
+        'is_isotropic': cfg.DATASET.IS_ISOTROPIC,
         'isotropy': cfg.MODEL.ISOTROPY,
         'pad_mode': cfg.MODEL.PAD_MODE,
         'act_mode': cfg.MODEL.ACT_MODE,

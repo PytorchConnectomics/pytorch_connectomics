@@ -8,6 +8,19 @@ from .loss import *
 from ..utils import get_functional_act, SplitActivation
 
 class Criterion(object):
+    """Calculating losses and regularizations given the prediction, target and weight mask.
+
+    Args:
+        device (torch.device): model running device. GPUs are recommended for model training and inference.
+        target_opt (List[str], optional): target options. Defaults to ['1'].
+        loss_opt (List[List[str]], optional): loss options for the specified targets. Defaults to [['WeightedBCE']].
+        output_act (List[List[str]], optional): activation functions for each loss option. Defaults to [['none']].
+        loss_weight (List[List[float]], optional): the scalar weight of each loss. Defaults to [[1.]].
+        regu_opt (Optional[List[str]], optional): regularization options. Defaults to None.
+        regu_target (Optional[List[List[int]]], optional): indicies of predictions for applying regularization. Defaults to None.
+        regu_weight (Optional[List[float]], optional): the scalar weight of each regularization. Defaults to None.
+        do_2d (bool, optional): whether to conduct 2D training. Defaults to False.
+    """
     loss_dict = {
         'WeightedMSE': WeightedMSE,
         'WeightedMAE': WeightedMAE,
@@ -40,10 +53,12 @@ class Criterion(object):
         self.num_target = len(target_opt)
         self.num_regu = 0 if regu_opt is None else len(regu_opt)
 
-        self.loss  = self.get_loss(loss_opt)
+        self.loss_opt = loss_opt
+        self.loss_fn = self.get_loss(loss_opt)
         self.loss_w = loss_weight
 
-        self.regu = self.get_regu(regu_opt)
+        self.regu_opt = regu_opt
+        self.regu_fn = self.get_regu(regu_opt)
         self.regu_t = regu_target
         self.regu_w = regu_weight
 
@@ -86,20 +101,30 @@ class Criterion(object):
         x = self.spliter(pred)
 
         loss = 0.0
+        # Record individual losses and regularizations for
+        # visualization in tensorboardX.
+        losses_vis = {}
         for i in range(self.num_target):
             target_t = self.to_torch(target[i])
-            for j in range(len(self.loss[i])):
+            for j in range(len(self.loss_fn[i])):
                 w_mask = None if weight[i][j].shape[-1] == 1 else self.to_torch(weight[i][j])
-                loss += self.loss_w[i][j]*self.loss[i][j](
-                        self.act[i][j](x[i]), 
-                        target=target_t, 
-                        weight_mask=w_mask)
+                loss_temp = self.loss_w[i][j] * self.loss_fn[i][j](
+                            self.act[i][j](x[i]), 
+                            target=target_t, 
+                            weight_mask=w_mask)
+                loss += loss_temp
+                loss_tag = self.target_opt[i] + '_' + self.loss_opt[i][j]
+                losses_vis[loss_tag] = loss_temp
 
         for i in range(self.num_regu):
             targets = [x[j] for j in self.regu_t[i]]
-            loss += self.regu_w[i]*self.regu[i](*targets)
+            regu_temp = self.regu_w[i]*self.regu_fn[i](*targets)
+            loss += regu_temp
+            targets_name = [self.target_opt[j] for j in self.regu_t[i]]
+            regu_tag = '_'.join(targets_name) + '_' + self.regu_opt[i] 
+            losses_vis[regu_tag] = regu_temp
         
-        return loss
+        return loss, losses_vis
 
     @classmethod
     def build_from_cfg(cls, cfg, device):

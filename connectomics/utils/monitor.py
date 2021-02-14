@@ -1,8 +1,12 @@
-import os,sys
+import os
+import copy
 import datetime
 import numpy as np
-# tensorboardX
-from tensorboardX import SummaryWriter
+
+import torch
+import torch.nn as nn
+from torch.utils.tensorboard import SummaryWriter
+
 from .visualizer import Visualizer
 from connectomics.config.utils import convert_cfg_markdown
 
@@ -20,7 +24,7 @@ class Logger(object):
     def __init__(self, log_path='', log_opt=[1,1,0],  batch_size=1):
         self.n = batch_size
         self.reset()
-        # tensorboardX
+        # tensorboard visualization
         self.log_tb = None
         self.do_print = log_opt[0]==1
         if log_opt[1] > 0:
@@ -34,11 +38,18 @@ class Logger(object):
         self.val = 0
         self.sum = 0
         self.count = 0
+        self.val_dict = {}
 
-    def update(self, val):
+    def update(self, val, val_dict):
         self.val = val
         self.sum += val * self.n
         self.count += self.n
+
+        for key in val_dict.keys():
+            if key in self.val_dict:
+                self.val_dict[key] += val_dict[key] * self.n
+            else:
+                self.val_dict[key] = val_dict[key] * self.n
     
     def output(self, iter_total, lr):
         avg = self.sum / self.count
@@ -47,6 +58,8 @@ class Logger(object):
         if self.log_tb is not None:
             self.log_tb.add_scalar('Loss', avg, iter_total)
             self.log_tb.add_scalar('Learning Rate', lr, iter_total)
+            for key in self.val_dict:
+                self.log_tb.add_scalar(key, self.val_dict[key]/self.count, iter_total)
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))
             self.log_txt.flush() 
@@ -60,14 +73,15 @@ class Monitor(object):
         self.log_iter, self.vis_iter = iter_num
         self.do_vis = False if self.logger.log_tb is None else True
 
-    def update(self, scheduler, iter_total, loss, lr=0.1):
+        self.reset()
+
+    def update(self, iter_total, loss, losses_vis, lr=0.1):
         do_vis = False
-        self.logger.update(loss)
+        self.logger.update(loss, losses_vis)
         if (iter_total+1) % self.log_iter == 0:
             avg = self.logger.output(iter_total, lr)
             self.logger.reset()
             if (iter_total+1) % self.vis_iter == 0:
-                # scheduler.step(avg)
                 do_vis = self.do_vis
         return do_vis
 
@@ -76,6 +90,9 @@ class Monitor(object):
 
     def load_config(self, cfg):
         self.logger.log_tb.add_text('Config', convert_cfg_markdown(cfg), 0)
+
+    def load_model(self, model: nn.Module, image: torch.Tensor):
+        self.logger.log_tb.add_graph(model, image)
 
     def reset(self):
         self.logger.reset()

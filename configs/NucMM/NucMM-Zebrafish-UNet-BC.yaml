@@ -14,6 +14,8 @@ MODEL:
   WEIGHT_OPT: [['1', '0'],['1', '0']]
   OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid']]
   NORM_MODE: 'sync_bn'
+  MIXED_PRECESION: True
+  FILTERS: [32, 64, 96, 128, 160] 
 DATASET:
   IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_train.txt'
   LABEL_NAME: 'datasets/NucMM/Zebrafish/nuc_train.txt'
@@ -25,6 +27,7 @@ DATASET:
     SIZE_THRES: 1000
     P: 1.0
   DISTRIBUTED: True
+  IS_ISOTROPIC: True
 AUGMENTOR:
   FLIP:
     ENABLED: True
@@ -33,11 +36,13 @@ AUGMENTOR:
     DOWNSAMPLE_Z: True
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupCosineLR"
-  BASE_LR: 0.04
+  BASE_LR: 0.03
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 100000
   SAMPLES_PER_BATCH: 2
+  SWA:
+    ENABLED: True
 INFERENCE:
   INPUT_SIZE: [97, 97, 97]
   OUTPUT_SIZE: [97, 97, 97]

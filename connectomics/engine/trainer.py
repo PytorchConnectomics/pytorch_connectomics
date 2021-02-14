@@ -25,7 +25,7 @@ class Trainer(object):
 
     Args:
         cfg (yacs.config.CfgNode): YACS configuration options.
-        device (torch.device): model running device type. GPUs are recommended for model training and inference.
+        device (torch.device): model running device. GPUs are recommended for model training and inference.
         mode (str): running mode of the trainer (``'train'`` or ``'test'``). Default: ``'train'``
         rank (int, optional): node rank for distributed training. Default: `None`
         checkpoint (str, optional): the checkpoint file to be loaded. Default: `None`
@@ -54,11 +54,9 @@ class Trainer(object):
 
             self.augmentor = build_train_augmentor(self.cfg)
             self.criterion = Criterion.build_from_cfg(self.cfg, self.device)
-            self.monitor = None
             if self.is_main_process:
                 self.monitor = build_monitor(self.cfg)
                 self.monitor.load_config(self.cfg) # show config in tensorboard
-                self.monitor.reset()
 
             self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
             self.total_time = 0                
@@ -95,22 +93,25 @@ class Trainer(object):
             volume = volume.to(self.device, non_blocking=True)
             with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
                 pred = self.model(volume)
-                loss = self.criterion(pred, target, weight)
-            self._train_misc(loss, pred, volume, target, weight, iter_total)
+                loss, losses_vis = self.criterion(pred, target, weight)
+            self._train_misc(loss, pred, volume, target, weight, iter_total, losses_vis)
 
         self.maybe_save_swa_model()
 
-    def _train_misc(self, loss, pred, volume, target, weight, iter_total):
+    def _train_misc(self, loss, pred, volume, target, weight, 
+                    iter_total, losses_vis=None):
         self.backward_pass(loss) # backward pass
 
         # logging and update record
-        if self.monitor is not None:
-            do_vis = self.monitor.update(self.lr_scheduler, iter_total, loss, 
+        if hasattr(self, 'monitor'):
+            do_vis = self.monitor.update(iter_total, loss, losses_vis,
                                          self.optimizer.param_groups[0]['lr']) 
             if do_vis:
                 self.monitor.visualize(volume, target, pred, iter_total)
                 # Display GPU stats using the GPUtil package.
                 if torch.cuda.is_available(): GPUtil.showUtilization(all=True)
+            if iter_total - self.start_iter == 0:
+                self.monitor.load_model(self.model.module, volume)
 
         # Save model
         if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:

@@ -118,7 +118,7 @@ _C.DATASET.OUTPUT_PATH = 'path/to/output'
 _C.DATASET.IS_ABSOLUTE_PATH = False
 
 # whether the data is isotropic or not
-_C.DATASET.ISOTROPIC = False
+_C.DATASET.IS_ISOTROPIC = False
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False
