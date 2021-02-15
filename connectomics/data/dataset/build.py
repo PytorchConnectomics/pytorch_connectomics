@@ -1,5 +1,7 @@
 import os
 import math
+import glob
+import copy
 import numpy as np
 from scipy.ndimage import zoom
 
@@ -21,6 +23,14 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
         else:
             file_name = [os.path.join(dir_name[i], file_name[i]) 
                         for i in range(len(file_name))]
+        
+        if cfg.DATASET.LOAD_2D:
+            temp_list = copy.deepcopy(file_name)
+            file_name = []
+            for x in temp_list:
+                suffix = x.split('/')[-1]
+                if suffix == '*.png':
+                    file_name += sorted(glob.glob(x))
 
     file_name = _distribute_data(cfg, file_name, rank)
     return file_name
@@ -41,7 +51,7 @@ def _distribute_data(cfg, file_name, rank=None):
 
     return splited[rank]
 
-def _get_file_list(name):
+def _get_file_list(name: str) -> list:
     suffix = name.split('.')[-1]
     if suffix == 'txt':
         filelist = [line.rstrip('\n') for line in open(name)]
@@ -72,8 +82,9 @@ def _get_input(cfg, mode='train', rank=None):
         valid_mask = [None]*len(valid_mask_name)
 
     volume = [None] * len(img_name)
+    read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
     for i in range(len(img_name)):
-        volume[i] = readvol(img_name[i])
+        volume[i] = read_fn(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE:
             volume[i] = normalize_image(volume[i])
@@ -83,7 +94,7 @@ def _get_input(cfg, mode='train', rank=None):
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode=='train' and label is not None:
-            label[i] = readvol(label_name[i])
+            label[i] = read_fn(label_name[i])
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
             if label[i].ndim == 2: # make it into 3D volume
@@ -101,7 +112,7 @@ def _get_input(cfg, mode='train', rank=None):
             print(f"label shape: {label[i].shape}")
 
         if mode=='train' and valid_mask is not None:
-            valid_mask[i] = readvol(valid_mask_name[i])
+            valid_mask[i] = read_fn(valid_mask_name[i])
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.DATA_SCALE, order=0) 
 

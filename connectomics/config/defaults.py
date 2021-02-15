@@ -117,11 +117,12 @@ _C.DATASET.INPUT_PATH = 'path/to/input'
 _C.DATASET.OUTPUT_PATH = 'path/to/output'
 _C.DATASET.IS_ABSOLUTE_PATH = False
 
-# whether the data is isotropic or not
+# Specify whether the data is isotropic or not.
 _C.DATASET.IS_ISOTROPIC = False
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False
+_C.DATASET.LOAD_2D = False
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64] 
@@ -204,6 +205,7 @@ _C.AUGMENTOR.GRAYSCALE.P = 0.75
 
 _C.AUGMENTOR.MISSINGPARTS = CN({"ENABLED": True})
 _C.AUGMENTOR.MISSINGPARTS.P = 0.9
+_C.AUGMENTOR.MISSINGPARTS.ITER = 64
 
 _C.AUGMENTOR.MISSINGSECTION = CN({"ENABLED": True})
 _C.AUGMENTOR.MISSINGSECTION.P = 0.5

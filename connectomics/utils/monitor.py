@@ -21,7 +21,7 @@ def build_monitor(cfg):
                    cfg.MONITOR.VIS_OPT, cfg.MONITOR.ITERATION_NUM)
 
 class Logger(object):
-    def __init__(self, log_path='', log_opt=[1,1,0],  batch_size=1):
+    def __init__(self, log_path='', log_opt=[1,1,0], batch_size=1):
         self.n = batch_size
         self.reset()
         # tensorboard visualization
