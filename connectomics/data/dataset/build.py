@@ -29,7 +29,7 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
             file_name = []
             for x in temp_list:
                 suffix = x.split('/')[-1]
-                if suffix == '*.png':
+                if suffix in ['*.png', '*.tif']:
                     file_name += sorted(glob.glob(x))
 
     file_name = _distribute_data(cfg, file_name, rank)

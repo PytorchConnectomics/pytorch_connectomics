@@ -75,6 +75,7 @@ This project is built upon numerous previous projects. Especially, we'd like to 
 
 - [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
+- [Detectron2](https://github.com/facebookresearch/detectron2): Facebook AI Reserach
 
 ## License
 

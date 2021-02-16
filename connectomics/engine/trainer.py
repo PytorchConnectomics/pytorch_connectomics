@@ -155,15 +155,14 @@ class Trainer(object):
 
         start = time.perf_counter()
         with torch.no_grad():
-            for i, (pos, volume) in enumerate(self.dataloader):
+            for i, sample in enumerate(self.dataloader):
                 print('progress: %d/%d batches, total time %.2fs' % 
                       (i+1, len(self.dataloader), time.perf_counter()-start))
 
-                # for gpu computing
-                volume = torch.from_numpy(volume).to(self.device)
-                if self.cfg.DATASET.DO_2D: volume = volume.squeeze(1)
-
+                pos, volume = sample.pos, sample.out_input
+                volume = volume.to(self.device, non_blocking=True)
                 output = self.augmentor(self.model, volume)
+
                 if torch.cuda.is_available() and i % 50 == 0: 
                     GPUtil.showUtilization(all=True)
 
@@ -171,11 +170,11 @@ class Trainer(object):
                     st = pos[idx]
                     st = (np.array(st)*np.array([1]+output_scale)).astype(int).tolist()
                     out_block = output[idx]
-                    if result[st[0]].ndim - output[idx].ndim == 1: # 2d model
+                    if result[st[0]].ndim - out_block.ndim == 1: # 2d model
                         out_block = out_block[:,np.newaxis,:]
 
                     result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                        st[3]:st[3]+sz[3]] += output[idx] * ww[np.newaxis,:]
+                        st[3]:st[3]+sz[3]] += out_block * ww[np.newaxis,:]
                     weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
                         st[3]:st[3]+sz[3]] += ww
 

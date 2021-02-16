@@ -46,8 +46,8 @@ SOLVER:
   SWA:
     ENABLED: True
 INFERENCE:
-  INPUT_SIZE: [1, 129, 129]
-  OUTPUT_SIZE: [1, 129, 129]
+  INPUT_SIZE: [1, 257, 257]
+  OUTPUT_SIZE: [1, 257, 257]
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
   INPUT_PATH: 'datasets/planes/test/'
   IMAGE_NAME: 'image/*.png'
@@ -55,7 +55,7 @@ INFERENCE:
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [0, 32, 32]
   AUG_MODE: 'mean'
-  AUG_NUM: 16
-  STRIDE: [1, 64, 64]
-  SAMPLES_PER_BATCH: 8
-  OUTPUT_SCALE: [1.0, 4.0, 4.0]
+  AUG_NUM: 4
+  STRIDE: [1, 128, 128]
+  SAMPLES_PER_BATCH: 16
+  OUTPUT_SCALE: [1.0, 0.25, 0.25]
