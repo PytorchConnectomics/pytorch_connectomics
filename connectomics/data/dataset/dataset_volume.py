@@ -6,7 +6,7 @@ import random
 import torch
 import torch.utils.data
 from ..augmentation import Compose
-from ..utils import count_volume, crop_volume, relabel, seg_to_targets, seg_to_weights
+from ..utils import *
 
 TARGET_OPT_TYPE = List[str]
 WEIGHT_OPT_TYPE = List[List[str]]
@@ -134,16 +134,17 @@ class VolumeDataset(torch.utils.data.Dataset):
                     out_valid = np.squeeze(out_valid)
                 
             out_volume = np.expand_dims(out_volume, 0)
+            out_volume = normalize_image(out_volume)
             # output list
             out_target = seg_to_targets(out_label, self.target_opt)
             out_weight = seg_to_weights(out_target, self.weight_opt, out_valid)
-
             return pos, out_volume, out_target, out_weight
 
         elif self.mode == 'test':
             # test mode
             pos = self._get_pos_test(index)
             out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
+            out_volume = normalize_image(out_volume)
             if self.do_2d:
                 out_volume = np.squeeze(out_volume)
             return pos, np.expand_dims(out_volume, 0)

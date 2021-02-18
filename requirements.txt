@@ -4,7 +4,7 @@ scikit-image
 opencv-python
 matplotlib
 Cython
-yacs
+yacs>=0.1.8
 h5py
 gputil
 imageio

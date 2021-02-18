@@ -177,7 +177,7 @@ def get_activation(activation: str = 'relu') -> nn.Module:
                           "Get unknown activation key {}".format(activation)
     activation_dict = {
         "relu": nn.ReLU(inplace=True),
-        "leaky_relu": nn.LeakyReLU(negative_slope=0.1, inplace=True),
+        "leaky_relu": nn.LeakyReLU(negative_slope=0.2, inplace=True),
         "elu": nn.ELU(alpha=1.0, inplace=True),
         "gelu": nn.GELU(),
         "swish": Swish(),

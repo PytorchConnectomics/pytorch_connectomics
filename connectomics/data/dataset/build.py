@@ -87,7 +87,7 @@ def _get_input(cfg, mode='train', rank=None):
         volume[i] = read_fn(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE:
-            volume[i] = normalize_image(volume[i])
+            volume[i] = normalize_range(volume[i])
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
         volume[i] = np.pad(volume[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')

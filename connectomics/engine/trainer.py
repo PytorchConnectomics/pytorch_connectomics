@@ -282,13 +282,13 @@ class Trainer(object):
         if not hasattr(self, 'swa_model'):
             return 
         
-        # update bn statistics
-        for _ in range(self.cfg.SOLVER.SWA.BN_UPDATE_ITER):
-            sample = next(self.dataloader)
-            volume = sample.out_input
-            volume = volume.to(self.device, non_blocking=True)
-            with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
-                pred = self.swa_model(volume)
+        if self.cfg.MODEL.NORM_MODE in ['bn', 'sync_bn']: # update bn statistics
+            for _ in range(self.cfg.SOLVER.SWA.BN_UPDATE_ITER):
+                sample = next(self.dataloader)
+                volume = sample.out_input
+                volume = volume.to(self.device, non_blocking=True)
+                with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
+                    pred = self.swa_model(volume)
 
         # save swa model
         if self.is_main_process:

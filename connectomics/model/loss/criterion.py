@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from .loss import *
+from .regularization import *
 from ..utils import get_functional_act, SplitActivation
 
 class Criterion(object):
@@ -32,6 +33,8 @@ class Criterion(object):
 
     regu_dict = {
         'binary': BinaryReg,
+        'contour_fg': FgContourConsistency,
+        'contour_dt': ContourDTConsistency,
         'foreground_dt': ForegroundDTConsistency,
     }
 

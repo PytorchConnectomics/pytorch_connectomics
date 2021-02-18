@@ -4,9 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-#######################################################
-# 0. Main loss functions
-#######################################################
 class DiceLoss(nn.Module):
     """DICE loss.
     """
@@ -153,40 +150,4 @@ class WeightedLS(nn.Module):
         loss = torch.sum(-true_dist*pred*self.weights, dim=self.dim)     
         if weight_mask is not None:
             loss = loss * weight_mask
-        return loss.mean()
-
-#######################################################
-# 1. Regularization
-#######################################################
-class BinaryReg(nn.Module):
-    """Regularization for encouraging the outputs to be binary.
-    """
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, pred):
-        diff = pred - 0.5
-        diff = torch.clamp(torch.abs(diff), min=1e-2)
-        loss = (1.0 / diff).mean()
-        return loss
-
-class ForegroundDTConsistency(nn.Module):
-    def __init__(self):
-        super().__init__()
-    
-    def forward(self, pred1, pred2):
-        """
-        Args:
-            pred1 (torch.Tensor): foreground logits.
-            pred2 (torch.Tensor): signed distance transform.
-        """
-        log_prob_pos = F.logsigmoid(pred1)
-        log_prob_neg = F.logsigmoid(-pred1)
-        distance = torch.tanh(pred2)
-        dist_pos = torch.clamp(distance, min=0.0)
-        dist_neg = - torch.clamp(distance, max=0.0)
-
-        loss_pos = - log_prob_pos * dist_pos
-        loss_neg = - log_prob_neg * dist_neg
-        loss = loss_pos + loss_neg
         return loss.mean()
