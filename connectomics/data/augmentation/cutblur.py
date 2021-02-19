@@ -73,12 +73,12 @@ class CutBlur(DataAugment):
 
     def get_random_params(self, images, random_state):
         zdim = images.shape[0]
+        zl, zh = None, None
         if zdim > 1:
             zl, zh = self.random_region(images.shape[0], random_state)
-        else:
-            zl, zh = None, None
         yl, yh = self.random_region(images.shape[1], random_state)
         xl, xh = self.random_region(images.shape[2], random_state)
+
         down_ratio = random_state.uniform(self.down_ratio_min, self.down_ratio_max)    
         return zl, zh, yl, yh, xl, xh, down_ratio
 

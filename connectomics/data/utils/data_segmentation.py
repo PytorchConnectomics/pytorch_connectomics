@@ -4,9 +4,10 @@ from scipy.ndimage.morphology import binary_erosion, binary_dilation
 from skimage.morphology import erosion, dilation
 from skimage.measure import label as label_cc # avoid namespace conflict
 from skimage.segmentation import find_boundaries
+from scipy.signal import convolve2d
 
 from .data_affinity import mknhood2d, seg_to_aff
-from .data_transform import distance_transform_vol
+from .data_transform import *
 
 # reduce the labeling
 def getSegType(mid):
@@ -102,13 +103,48 @@ def seg_to_small_seg(seg,thres=25,rr=2):
         mask[:,:,x] += rl[tmp]
     return mask
 
-def seg_to_instance_bd(seg, tsz_h=7, do_bg=False):
-    tsz = tsz_h*2+1
-    mm = seg.max()
+def seg_to_instance_bd(seg: np.ndarray, 
+                       tsz_h: int = 1, 
+                       do_bg: bool = True, 
+                       do_convolve: bool = True) -> np.ndarray:
+    """Generate instance contour map from segmentation masks.
+
+    Args:
+        seg (np.ndarray): segmentation map (3D array is required).
+        tsz_h (int, optional): size of the dilation struct. Defaults: 1
+        do_bg (bool, optional): generate contour between instances and background. Defaults: True
+        do_convolve (bool, optional): convolve with edge filters. Defaults: True
+
+    Returns:
+        np.ndarray: binary instance contour map.
+
+    Note:
+        According to the experiment on the Lucchi mitochondria segmentation dastaset, convolving
+        the edge filters with segmentation masks to generate the contour map is about 3x larger
+        then using the `im2col` function. However, calculating the contour between only non-background
+        instances is not supported under the convolution mode.
+    """
+    if do_bg == False: do_convolve = False
     sz = seg.shape
     bd = np.zeros(sz, np.uint8)
+    tsz = tsz_h*2+1
+
+    if do_convolve:
+        sobel = [1, 0, -1]
+        sobel_x = np.array(sobel).reshape(3,1)
+        sobel_y = np.array(sobel).reshape(1,3)
+        for z in range(sz[0]):
+            slide = seg[z]
+            edge_x = convolve2d(slide, sobel_x, 'same')
+            edge_y = convolve2d(slide, sobel_y, 'same')
+            edge = np.maximum(np.abs(edge_x), np.abs(edge_y))
+            contour = (edge!=0).astype(np.uint8)
+            bd[z] = dilation(contour, np.ones((tsz, tsz), dtype=np.uint8))
+        return bd
+
+    mm = seg.max()
     for z in range(sz[0]):
-        patch = im2col(np.pad(seg[z], ((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'),[tsz,tsz])
+        patch = im2col(np.pad(seg[z], ((tsz_h,tsz_h),(tsz_h,tsz_h)),'reflect'), [tsz,tsz])
         p0 = patch.max(axis=1)
         if do_bg: # at least one non-zero seg
             p1 = patch.min(axis=1)
@@ -163,9 +199,7 @@ def seg_to_targets(label, topts):
     # output: (C, D, H, W)
     out = [None]*len(topts)
     for tid, topt in enumerate(topts):
-        if topt[0] == '9': # generic segmantic segmentation
-            out[tid] = label.astype(np.int64)
-        elif topt == '0': # binary
+        if topt == '0': # binary
             out[tid] = (label>0)[None,:].astype(np.float32)
         elif topt[0] == '1': # synaptic polarity:
             tmp = [None]*3 
@@ -187,16 +221,24 @@ def seg_to_targets(label, topts):
             _, size_thres, zratio, _ = [int(x) for x in topt.split('-')]
             out[tid] = (seg_to_small_seg(label, size_thres, zratio)>0)[None,:].astype(np.float32)
         elif topt[0] == '4': # instance boundary mask
-            _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
+            _, bd_sz, do_bg = [int(x) for x in topt.split('-')]
             if label.ndim == 2:
                 out[tid] = seg_to_instance_bd(label[None,:], bd_sz, do_bg).astype(np.float32)
             else:
                 out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[None,:].astype(np.float32)
-        elif topt[0] == '5': # distance transform
+        elif topt[0] == '5': # distance transform (instance)
             if len(topt) == 1: 
                 topt = topt + '-2d'
-            mode = topt.split('-')
-            out[tid] = distance_transform_vol(label.copy(), mode=mode)
+            _, mode = topt.split('-')
+            out[tid] = edt_instance(label.copy(), mode=mode)
+        elif topt[0] == '6': # distance transform (semantic)
+            if len(topt) == 1: 
+                topt = topt + '-2d'
+            _, mode = topt.split('-')
+            distance = edt_semantic(label.copy(), mode=mode)
+            out[tid] = distance[np.newaxis,:].astype(np.float32)
+        elif topt[0] == '9': # generic segmantic segmentation
+            out[tid] = label.astype(np.int64)
         else:
             raise NameError("Target option %s is not valid!" % topt[0])
 

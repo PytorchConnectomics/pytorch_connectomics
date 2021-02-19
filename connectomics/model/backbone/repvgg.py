@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 from typing import Optional, Union, List
 
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -267,3 +268,29 @@ class RepVGG3D(nn.Module):
         for name, param in self.named_parameters():
             if name in converted_weights.keys():
                 param.data = converted_weights[name]
+
+    @staticmethod
+    def repvgg_convert_as_backbone(train_dict):
+        # state_dict key format: backbone.layer0.0.rbr_dense.conv.weight
+        deploy_dict = copy.deepcopy(train_dict)
+
+        for name in train_dict.keys(): # keys will be deleted in deploy_dict
+            name_split = name.split('.')
+            if name in deploy_dict and name_split[0]=='backbone' and name_split[3]=='rbr_dense':
+                sz = deploy_dict[name].shape
+                in_planes, planes, isotropic = sz[1], sz[0], sz[2]==3
+                repvgg_block = RepVGGBlock3D(in_planes, planes, isotropic=isotropic)
+
+                prefix = ".".join(name_split[:3])
+                temp_dict = {}
+                for key in repvgg_block.state_dict().keys():
+                    w_name = prefix + '.' + key
+                    temp_dict[key] = deploy_dict[w_name]
+                    del deploy_dict[w_name]
+
+                repvgg_block.load_state_dict(temp_dict)
+                kernel, bias = repvgg_block.repvgg_convert()
+                deploy_dict[prefix + '.rbr_reparam.weight'] = kernel
+                deploy_dict[prefix + '.rbr_reparam.bias'] = bias
+        
+        return deploy_dict

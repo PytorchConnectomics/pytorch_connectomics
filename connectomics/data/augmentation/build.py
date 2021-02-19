@@ -75,7 +75,8 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
     #6. missingparts
     if cfg.AUGMENTOR.MISSINGPARTS.ENABLED:
         aug_list.append(
-            MissingParts(p=cfg.AUGMENTOR.MISSINGPARTS.P,
+            MissingParts(iterations=cfg.AUGMENTOR.MISSINGPARTS.ITER,
+                         p=cfg.AUGMENTOR.MISSINGPARTS.P,
                          additional_targets=additional_targets))
 
     #7. missingsection

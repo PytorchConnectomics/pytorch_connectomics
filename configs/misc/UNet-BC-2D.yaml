@@ -1,0 +1,61 @@
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 16
+MODEL:
+  ARCHITECTURE: 'unet_2d'
+  BLOCK_TYPE: 'residual_se'
+  INPUT_SIZE: [1, 129, 129]
+  OUTPUT_SIZE: [1, 129, 129]
+  IN_PLANES: 1
+  OUT_PLANES: 2
+  TARGET_OPT: ['0','4-1-1']
+  LOSS_OPTION:
+  - - WeightedBCEWithLogitsLoss
+    - DiceLoss
+  - - WeightedBCEWithLogitsLoss
+    - DiceLoss
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5]]
+  WEIGHT_OPT: [['1', '0'],['1', '0']]
+  OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid']]
+  NORM_MODE: 'sync_bn'
+  MIXED_PRECESION: True
+  FILTERS: [32, 64, 128, 256, 512] 
+DATASET:
+  INPUT_PATH: 'datasets/planes/train/'
+  IMAGE_NAME: 'image/*.png'
+  LABEL_NAME: 'label/*.png'
+  OUTPUT_PATH: 'outputs/Planes_UNet_BC/'
+  PAD_SIZE: [0, 32, 32]
+  DATA_SCALE: [1.0, 4.0, 4.0]
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 1.0
+  DISTRIBUTED: True
+  DO_2D: True
+  LOAD_2D: True
+AUGMENTOR:
+  MISSINGPARTS:
+    ITER: 16
+SOLVER:
+  LR_SCHEDULER_NAME: "WarmupCosineLR"
+  BASE_LR: 0.04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 4
+  SWA:
+    ENABLED: True
+INFERENCE:
+  INPUT_SIZE: [1, 257, 257]
+  OUTPUT_SIZE: [1, 257, 257]
+  OUTPUT_ACT: ['sigmoid', 'sigmoid']
+  INPUT_PATH: 'datasets/planes/test/'
+  IMAGE_NAME: 'image/*.png'
+  OUTPUT_PATH: 'outputs/Planes_UNet_BC/test/'
+  OUTPUT_NAME: 'result.h5'
+  PAD_SIZE: [0, 32, 32]
+  AUG_MODE: 'mean'
+  AUG_NUM: 4
+  STRIDE: [1, 128, 128]
+  SAMPLES_PER_BATCH: 16
+  OUTPUT_SCALE: [1.0, 0.25, 0.25]

@@ -1,10 +1,11 @@
 import os
 import argparse
+
+import numpy as np
 import torch
 import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 
-import numpy as np
 from connectomics.config import load_cfg, save_all_cfg
 from connectomics.engine import Trainer
 
@@ -39,6 +40,7 @@ def main():
     if args.local_rank==0 or args.local_rank is None:
         # In distributed training, only print and save the 
         # configurations using the node with local_rank=0.
+        print("PyTorch: ", torch.__version__)
         print(cfg)
 
         if not os.path.exists(cfg.DATASET.OUTPUT_PATH):
@@ -55,7 +57,7 @@ def main():
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    print("Device: ", device)
+    print("Rank: {}. Device: {}".format(args.local_rank, device))
     cudnn.enabled = True
     cudnn.benchmark = True
 
@@ -69,6 +71,9 @@ def main():
         trainer.test() if args.inference else trainer.train()
     else:
         trainer.run_chunk(mode)
+
+    if args.distributed: # cleanup
+        dist.destroy_process_group()
 
 if __name__ == "__main__":
     main()

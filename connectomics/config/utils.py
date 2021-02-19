@@ -74,6 +74,16 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
                 "Multi-task learning with quantized distance transform " \
                 "is currently not supported."
 
+    # Update augmentation options when valid masks are specified
+    if cfg.DATASET.VALID_MASK_NAME is not None:
+        assert cfg.DATASET.LABEL_NAME is not None, \
+            "Using valid mask is only supported when target label is given."
+        assert cfg.AUGMENTOR.ADDITIONAL_TARGETS_NAME is not None
+        assert cfg.AUGMENTOR.ADDITIONAL_TARGETS_TYPE is not None
+
+        cfg.AUGMENTOR.ADDITIONAL_TARGETS_NAME += ['valid_mask']
+        cfg.AUGMENTOR.ADDITIONAL_TARGETS_TYPE += ['mask']
+
     # Model I/O size
     for x in cfg.MODEL.INPUT_SIZE:
         if x % 2 == 0 and not cfg.MODEL.POOING_LAYER:
@@ -93,3 +103,28 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
 def validate_cfg(cfg: CfgNode):
     num_target = len(cfg.MODEL.TARGET_OPT)
     assert len(cfg.INFERENCE.OUTPUT_ACT) == num_target
+
+def convert_cfg_markdown(cfg):
+    """Converts given cfg node to markdown for tensorboard visualization.
+    """
+    r = ""
+    s = []
+    def helper(cfg):
+        s_indent = []
+        for k, v in sorted(cfg.items()):
+            seperator = " "
+            attr_str = "  \n{}:{}{}  \n".format(str(k), seperator, str(v))
+            s_indent.append(attr_str)
+        return s_indent
+            
+    for k, v in sorted(cfg.items()):
+        seperator = "&nbsp;&nbsp;&nbsp;" if isinstance(v, str) else "  \n"
+        val = helper(v)
+        val_str = ""
+        for line in val:
+            val_str += line
+        attr_str = "##{}:{}{}  \n".format(str(k), seperator, val_str)
+        s.append(attr_str)
+    for line in s:
+        r += "  \n" + line + "  \n"
+    return r

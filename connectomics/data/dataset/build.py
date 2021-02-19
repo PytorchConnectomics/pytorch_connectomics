@@ -1,5 +1,7 @@
 import os
 import math
+import glob
+import copy
 import numpy as np
 from scipy.ndimage import zoom
 
@@ -21,6 +23,14 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
         else:
             file_name = [os.path.join(dir_name[i], file_name[i]) 
                         for i in range(len(file_name))]
+        
+        if cfg.DATASET.LOAD_2D:
+            temp_list = copy.deepcopy(file_name)
+            file_name = []
+            for x in temp_list:
+                suffix = x.split('/')[-1]
+                if suffix in ['*.png', '*.tif']:
+                    file_name += sorted(glob.glob(x))
 
     file_name = _distribute_data(cfg, file_name, rank)
     return file_name
@@ -33,7 +43,6 @@ def _distribute_data(cfg, file_name, rank=None):
 
     world_size = cfg.SYSTEM.NUM_GPUS
     num_files = len(file_name)
-    print('total number of files: ', num_files)
     ratio = num_files / float(world_size)
     ratio = int(math.ceil(ratio-1) + 1) # 1.0 -> 1, 1.1 -> 2
 
@@ -42,7 +51,7 @@ def _distribute_data(cfg, file_name, rank=None):
 
     return splited[rank]
 
-def _get_file_list(name):
+def _get_file_list(name: str) -> list:
     suffix = name.split('.')[-1]
     if suffix == 'txt':
         filelist = [line.rstrip('\n') for line in open(name)]
@@ -73,18 +82,19 @@ def _get_input(cfg, mode='train', rank=None):
         valid_mask = [None]*len(valid_mask_name)
 
     volume = [None] * len(img_name)
+    read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
     for i in range(len(img_name)):
-        volume[i] = readvol(img_name[i])
+        volume[i] = read_fn(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE:
-            volume[i] = normalize_image(volume[i])
+            volume[i] = normalize_range(volume[i])
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
         volume[i] = np.pad(volume[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode=='train' and label is not None:
-            label[i] = readvol(label_name[i])
+            label[i] = read_fn(label_name[i])
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
             if label[i].ndim == 2: # make it into 3D volume
@@ -102,7 +112,7 @@ def _get_input(cfg, mode='train', rank=None):
             print(f"label shape: {label[i].shape}")
 
         if mode=='train' and valid_mask is not None:
-            valid_mask[i] = readvol(valid_mask_name[i])
+            valid_mask[i] = read_fn(valid_mask_name[i])
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.DATA_SCALE, order=0) 
 
@@ -127,6 +137,9 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         sample_stride = (1, 1, 1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH 
+        if cfg.SOLVER.SWA.ENABLED:
+            iter_num += cfg.SOLVER.SWA.BN_UPDATE_ITER
+
     elif mode == 'test':
         sample_stride = cfg.INFERENCE.STRIDE
         sample_volume_size = cfg.MODEL.INPUT_SIZE
@@ -194,13 +207,11 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
         if cfg.DATASET.DISTRIBUTED == False:
             sampler = torch.utils.data.distributed.DistributedSampler(dataset)
 
-    SHUFFLE = (mode == 'train') and (sampler is None)
-
     # In PyTorch, each worker will create a copy of the Dataset, so if the data 
     # is preload the data, the memory usage should increase a lot.
     # https://discuss.pytorch.org/t/define-iterator-on-dataloader-is-very-slow/52238/2
-    img_loader =  torch.utils.data.DataLoader(
-          dataset, batch_size=batch_size, shuffle=SHUFFLE, collate_fn = cf,
-          sampler=sampler, num_workers=num_workers, pin_memory=True)
+    img_loader = torch.utils.data.DataLoader(
+        dataset, batch_size = batch_size, shuffle = False, collate_fn = cf,
+        sampler = sampler, num_workers = num_workers, pin_memory = True)
 
     return img_loader

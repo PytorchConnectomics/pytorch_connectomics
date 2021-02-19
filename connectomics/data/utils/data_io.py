@@ -1,8 +1,8 @@
 from __future__ import print_function, division
 from typing import Optional, List
 
+import os
 import h5py
-import os, sys
 import glob
 import numpy as np
 import imageio
@@ -13,6 +13,12 @@ def readh5(filename, dataset=''):
     if dataset=='':
         dataset = list(fid)[0]
     return np.array(fid[dataset])
+
+def readimg_as_vol(filename):
+    img_suf = filename[filename.rfind('.')+1:]
+    assert img_suf in ['png', 'tif']
+    data = imageio.imread(filename)
+    return data[np.newaxis, :, :]
 
 def readvol(filename, dataset=''):
     r"""Load a image volume in HDF5, TIFF or PNG formats.

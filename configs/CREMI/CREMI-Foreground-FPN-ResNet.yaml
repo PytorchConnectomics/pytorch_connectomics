@@ -3,4 +3,6 @@ MODEL:
   BACKBONE: 'resnet'
   BLOCK_TYPE: 'residual_se'
 DATASET:
-  OUTPUT_PATH: 'outputs/CREMI_syn_fpn_resnet'
+  OUTPUT_PATH: 'outputs/CREMI_Binary_FPN_ResNet'
+INFERENCE:
+  OUTPUT_PATH: 'outputs/CREMI_Binary_FPN_ResNet/test'

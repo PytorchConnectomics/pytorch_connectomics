@@ -2,12 +2,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .unet import UNet3D
+from .unet import UNet3D, UNet2D
 from .fpn import FPN3D
+from .backbone import RepVGG3D
 
 def build_model(cfg, device, rank=None):
     MODEL_MAP = {
         'unet_3d': UNet3D,
+        'unet_2d': UNet2D,
         'fpn_3d': FPN3D,
     }
 
@@ -18,15 +20,16 @@ def build_model(cfg, device, rank=None):
         'in_channel': cfg.MODEL.IN_PLANES,
         'out_channel': cfg.MODEL.OUT_PLANES,
         'filters': cfg.MODEL.FILTERS,
-        'is_isotropic': cfg.DATASET.ISOTROPIC,
+        'is_isotropic': cfg.DATASET.IS_ISOTROPIC,
         'isotropy': cfg.MODEL.ISOTROPY,
         'pad_mode': cfg.MODEL.PAD_MODE,
         'act_mode': cfg.MODEL.ACT_MODE,
         'norm_mode': cfg.MODEL.NORM_MODE,
         'pooling': cfg.MODEL.POOING_LAYER,
     }
-    if 'fpn' in model_arch:
-        kwargs['backbone'] = cfg.MODEL.BACKBONE
+    if model_arch == 'fpn_3d':
+        kwargs['backbone_type'] = cfg.MODEL.BACKBONE
+        kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
     print('model: ', model.__class__.__name__)    
@@ -60,3 +63,19 @@ def make_parallel(model, cfg, device, rank=None):
         model = model.to(device)
 
     return model.to(device)
+
+def update_state_dict(cfg, model_dict, mode='train'):
+    r"""Update state_dict based on the config options.
+    """
+    assert mode in ['train', 'test']
+
+    arch = cfg.MODEL.ARCHITECTURE
+    backbone = cfg.MODEL.BACKBONE
+    if arch == 'fpn_3d' and backbone == 'repvgg' and mode == 'test':
+        # convert to deploy mode weights for RepVGG3D backbone
+        model_dict = RepVGG3D.repvgg_convert_as_backbone(model_dict)
+
+    if 'n_averaged' in model_dict.keys():
+        print("Number of models averaged in SWA: ", model_dict['n_averaged'])
+        
+    return model_dict

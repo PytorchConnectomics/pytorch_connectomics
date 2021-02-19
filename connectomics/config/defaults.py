@@ -25,6 +25,7 @@ _C.MODEL = CN()
 _C.MODEL.ARCHITECTURE = 'unet_3d' 
 _C.MODEL.BLOCK_TYPE = 'residual'
 _C.MODEL.BACKBONE = 'resnet'
+_C.MODEL.DEPLOY_MODE = False
 
 # Number of filters per unet block
 _C.MODEL.FILTERS = [28, 36, 48, 64, 80] 
@@ -75,9 +76,9 @@ _C.MODEL.INPUT_SIZE = [8, 256, 256]
 
 _C.MODEL.OUTPUT_SIZE = [8, 256, 256]
 
-_C.MODEL.REGU_OPT = []
-
-_C.MODEL.REGU_WEIGHT = []
+_C.MODEL.REGU_OPT = None
+_C.MODEL.REGU_TARGET = None
+_C.MODEL.REGU_WEIGHT = None
 
 # Fine-tune suffix for model saving
 _C.MODEL.FINETUNE = ''
@@ -92,8 +93,6 @@ _C.MODEL.PRE_MODEL = ''
 _C.MODEL.PRE_MODEL_LAYER = ''
 
 _C.MODEL.PRE_MODEL_ITER = 0
-
-_C.MODEL.PRE_MODEL_LAYER_SELECT = -1
 
 # -----------------------------------------------------------------------------
 # Dataset
@@ -118,11 +117,12 @@ _C.DATASET.INPUT_PATH = 'path/to/input'
 _C.DATASET.OUTPUT_PATH = 'path/to/output'
 _C.DATASET.IS_ABSOLUTE_PATH = False
 
-# whether the data is isotropic or not
-_C.DATASET.ISOTROPIC = False
+# Specify whether the data is isotropic or not.
+_C.DATASET.IS_ISOTROPIC = False
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False
+_C.DATASET.LOAD_2D = False
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64] 
@@ -205,6 +205,7 @@ _C.AUGMENTOR.GRAYSCALE.P = 0.75
 
 _C.AUGMENTOR.MISSINGPARTS = CN({"ENABLED": True})
 _C.AUGMENTOR.MISSINGPARTS.P = 0.9
+_C.AUGMENTOR.MISSINGPARTS.ITER = 64
 
 _C.AUGMENTOR.MISSINGSECTION = CN({"ENABLED": True})
 _C.AUGMENTOR.MISSINGSECTION.P = 0.5
@@ -298,6 +299,13 @@ _C.SOLVER.CLIP_GRADIENTS.CLIP_VALUE = 1.0
 # Floating point number p for L-p norm to be used with the "norm"
 # gradient clipping type; for L-inf, please specify .inf
 _C.SOLVER.CLIP_GRADIENTS.NORM_TYPE = 2.0
+
+# Stochastic Weight Averaging
+_C.SOLVER.SWA = CN({"ENABLED": False})
+_C.SOLVER.SWA.LR_FACTOR = 0.05
+_C.SOLVER.SWA.START_ITER = 90000
+_C.SOLVER.SWA.MERGE_ITER = 10
+_C.SOLVER.SWA.BN_UPDATE_ITER = 2000
 
 # -----------------------------------------------------------------------------
 # Monitor

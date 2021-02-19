@@ -19,19 +19,20 @@ DATASET:
   LABEL_NAME: 'gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5'
   INPUT_PATH: 'datasets/CREMI/'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline'
-  PAD_SIZE: [4, 64, 64]
+  PAD_SIZE: [0, 32, 32]
   REJECT_SAMPLING:
     SIZE_THRES: 1000
     P: 0.95
   DISTRIBUTED: True
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupCosineLR"
-  BASE_LR: 0.04
+  BASE_LR: 0.05
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 100000
   SAMPLES_PER_BATCH: 2
-  STEPS: (80000, 90000)
+  SWA:
+    ENABLED: True
 INFERENCE:
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
@@ -39,7 +40,7 @@ INFERENCE:
   IMAGE_NAME: 'images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5'
   OUTPUT_PATH: 'outputs/CREMI_syn_baseline/test'
   OUTPUT_NAME: 'result.h5'
-  PAD_SIZE: [4, 64, 64]
+  PAD_SIZE: [0, 32, 32]
   AUG_MODE: 'mean'
   AUG_NUM: 16
   STRIDE: [8, 128, 128]

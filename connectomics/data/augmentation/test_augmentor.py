@@ -4,7 +4,8 @@ from typing import Optional, List
 import numpy as np
 import itertools
 import torch
-from scipy.ndimage import zoom
+from skimage.transform import resize
+from connectomics.model.utils import SplitActivation
 
 class TestAugmentor(object):
     r"""Test-time spatial augmentor. 
@@ -32,11 +33,13 @@ class TestAugmentor(object):
                  mode: str = 'mean', 
                  do_2d: bool = False,
                  num_aug: Optional[int] = None,
-                 scale_factors: List[float]=[1.0, 1.0, 1.0]):
+                 scale_factors: List[float]=[1.0, 1.0, 1.0],
+                 inference_act = None):
 
         self.mode = mode
         self.do_2d = do_2d
         self.scale_factors = scale_factors
+        self.inference_act = inference_act
 
         if num_aug is not None:
             assert num_aug in [4, 8, 16], "TestAugmentor.num_aug should be either 4, 8 or 16!"
@@ -84,7 +87,10 @@ class TestAugmentor(object):
             if transpose:
                 volume = torch.transpose(volume, 3, 4)
  
-            vout = model(volume).detach().cpu()
+            if self.inference_act is not None:
+                vout = self.inference_act(model(volume)).detach().cpu()
+            else:
+                vout = model(volume).detach().cpu()
 
             if transpose: # swap x-/y-axis
                 vout = torch.transpose(vout, 3, 4)
@@ -103,7 +109,10 @@ class TestAugmentor(object):
 
         if (np.array(self.scale_factors)!=1).any():
             sf = [1.0, 1.0] + self.scale_factors
-            out = zoom(out, sf, order=1)
+            spatial_size = np.array(out.shape) * np.array(sf)
+            spatial_size = list(np.ceil(spatial_size).astype(int))
+            out = resize(out, spatial_size, order=1, preserve_range=True, 
+                         anti_aliasing=True)
         return out
 
     def _tta_2d(self, model, data):
@@ -128,7 +137,10 @@ class TestAugmentor(object):
             if transpose:
                 volume = torch.transpose(volume, 2, 3)
  
-            vout = model(volume).detach().cpu()
+            if self.inference_act is not None:
+                vout = self.inference_act(model(volume)).detach().cpu()
+            else:
+                vout = model(volume).detach().cpu()
 
             if transpose: # swap x-/y-axis
                 vout = torch.transpose(vout, 2, 3)
@@ -145,7 +157,10 @@ class TestAugmentor(object):
 
         if (np.array(self.scale_factors)[1:]!=1).any():
             sf = [1.0, 1.0] + self.scale_factors[1:]
-            out = zoom(out, sf, order=1)
+            spatial_size = np.array(out.shape) * np.array(sf)
+            spatial_size = list(np.ceil(spatial_size).astype(int))
+            out = resize(out, spatial_size, order=1, preserve_range=True, 
+                         anti_aliasing=True)
         return out
 
     def _update_output(self, vout, out=None):
@@ -186,3 +201,17 @@ class TestAugmentor(object):
         name_list = name.split('.')
         new_filename = name_list[0] + extension + "." + name_list[1]
         return new_filename
+
+    @classmethod
+    def build_from_cfg(cls, cfg, activation=True):
+        r"""Build a TestAugmentor from configs.
+        """
+        act = None
+        if activation:
+            act=SplitActivation.build_from_cfg(cfg)
+
+        return cls(mode = cfg.INFERENCE.AUG_MODE, 
+                   do_2d = cfg.DATASET.DO_2D,
+                   num_aug = cfg.INFERENCE.AUG_NUM,
+                   scale_factors = cfg.INFERENCE.OUTPUT_SCALE,
+                   inference_act = act)

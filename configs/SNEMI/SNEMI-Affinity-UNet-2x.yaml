@@ -1,0 +1,9 @@
+MODEL:
+  ARCHITECTURE: 'unet_3d'
+  BLOCK_TYPE: 'residual_se'
+DATASET:
+  OUTPUT_PATH: 'outputs/SNEMI_UNet_2x'
+  DATA_SCALE: [2.0, 2.0, 2.0]
+INFERENCE:
+  OUTPUT_PATH: 'outputs/SNEMI_UNet_2x/test'
+  OUTPUT_SCALE: [0.5, 0.5, 0.5]

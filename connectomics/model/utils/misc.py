@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 from collections import OrderedDict
+from typing import Optional, List
 
 import torch
 from torch import nn
@@ -69,6 +70,71 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out[out_name] = x
         return out
 
+class SplitActivation(object):
+    r"""Apply different activation functions for the outpur tensor.
+    """
+    # number of channels of different target options
+    num_channels_dict = {
+        '0': 1,
+        '1': 3,
+        '2': 3,  
+        '3': 1,
+        '4': 1,
+        '5': 11,
+        '6': 1,
+    }
+    def __init__(self, 
+                 target_opt: List[str] = ['0'], 
+                 output_act: Optional[List[str]] = None,
+                 split_only: bool = False,
+                 do_cat: bool = True,
+                 do_2d: bool = False):
+
+        if output_act is not None:
+            assert len(target_opt) == len(output_act)
+        if do_2d: self.num_channels_dict['2'] = 2
+        
+        self.split_channels = []
+        self.target_opt = target_opt
+        self.do_cat = do_cat
+
+        for topt in self.target_opt:
+            if topt[0] == '9':
+                channels = int(topt.split('-')[1])
+                self.split_channels.append(channels)
+            else:
+                self.split_channels.append(
+                    self.num_channels_dict[topt[0]])
+
+        self.split_only = split_only
+        if not self.split_only:
+            self.act = self._get_act(output_act)
+
+    def __call__(self, x):
+        x = torch.split(x, self.split_channels, dim=1)
+        x = list(x) # torch.split returns a tuple
+        if self.split_only:
+            return x
+
+        x = [self.act[i](x[i]) for i in range(len(x))]
+        if self.do_cat:
+            return torch.cat(x, dim=1)
+        return x
+
+    def _get_act(self, act):
+        num_target = len(self.target_opt)
+        out = [None]*num_target
+        for i, act in enumerate(act):
+            out[i] = get_functional_act(act)
+        return out
+
+    @classmethod
+    def build_from_cfg(cls, cfg, do_cat=True, split_only=False):
+        return cls(cfg.MODEL.TARGET_OPT,
+                   cfg.INFERENCE.OUTPUT_ACT,
+                   split_only=split_only,
+                   do_cat=do_cat,
+                   do_2d=cfg.DATASET.DO_2D)
 
 #------------------
 # Swish Activation
@@ -111,7 +177,7 @@ def get_activation(activation: str = 'relu') -> nn.Module:
                           "Get unknown activation key {}".format(activation)
     activation_dict = {
         "relu": nn.ReLU(inplace=True),
-        "leaky_relu": nn.LeakyReLU(negative_slope=0.1, inplace=True),
+        "leaky_relu": nn.LeakyReLU(negative_slope=0.2, inplace=True),
         "elu": nn.ELU(alpha=1.0, inplace=True),
         "gelu": nn.GELU(),
         "swish": Swish(),

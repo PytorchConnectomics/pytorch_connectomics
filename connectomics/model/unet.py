@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .block import *
-from .utils import get_functional_act, model_init
+from .utils import model_init
 
 class UNet3D(nn.Module):
     """3D residual U-Net architecture. This design is flexible in handling both isotropic data and anisotropic data.
@@ -91,7 +91,7 @@ class UNet3D(nn.Module):
             self.up_layers.append(layer)
 
         #initialization
-        model_init(self)
+        model_init(self, mode=init_mode)
 
     def forward(self, x):
         x = self.conv_in(x)
@@ -168,7 +168,6 @@ class UNet2D(nn.Module):
         norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
         pooling (bool): downsample by max-pooling if `True` else using stride. Default: `False`
-        output_act (str): activation function for the output layer. Default: ``'sigmoid'``
     """
 
     block_dict = {
@@ -176,5 +175,98 @@ class UNet2D(nn.Module):
         'residual_se': BasicBlock2dSE,
     }
 
-    def __init__(self):
-        pass
+    def __init__(self, 
+                 block_type = 'residual',
+                 in_channel: int = 1, 
+                 out_channel: int = 3, 
+                 filters: List[int] = [32, 64, 128, 256, 512],
+                 pad_mode: str = 'replicate', 
+                 act_mode: str = 'elu', 
+                 norm_mode: str = 'bn', 
+                 init_mode: str = 'orthogonal',
+                 pooling: bool = False,
+                 **kwargs):
+        super().__init__()
+        self.depth = len(filters)
+        self.pooling = pooling
+        block = self.block_dict[block_type]
+
+        shared_kwargs = {
+            'pad_mode': pad_mode,
+            'act_mode': act_mode,
+            'norm_mode': norm_mode}
+
+        # input and output layers
+        self.conv_in = conv2d_norm_act(in_channel, filters[0], 5, padding=2, **shared_kwargs)
+        self.conv_out = conv2d_norm_act(filters[0], out_channel, 5, padding=2, 
+            bias=True, pad_mode=pad_mode, act_mode='none', norm_mode='none')
+        
+        # encoding path
+        self.down_layers = nn.ModuleList()
+        for i in range(self.depth):
+            kernel_size, padding = 3, 1
+            previous = max(0, i-1)
+            stride = self._get_stride(previous, i)
+            layer = nn.Sequential(
+                self._make_pooling_layer(previous, i),
+                conv2d_norm_act(filters[previous], filters[i], kernel_size, 
+                                stride=stride, padding=padding, **shared_kwargs),
+                block(filters[i], filters[i], **shared_kwargs))
+            self.down_layers.append(layer)
+
+        # decoding path
+        self.up_layers = nn.ModuleList()
+        for j in range(1, self.depth):
+            kernel_size, padding = 3, 1
+            layer = nn.ModuleList([
+                conv2d_norm_act(filters[j], filters[j-1], kernel_size, 
+                                padding=padding, **shared_kwargs),
+                block(filters[j-1], filters[j-1], **shared_kwargs)])
+            self.up_layers.append(layer)
+
+        #initialization
+        model_init(self, mode=init_mode)
+
+    def forward(self, x):
+        x = self.conv_in(x)
+
+        down_x = [None] * (self.depth-1)
+        for i in range(self.depth-1):
+            x = self.down_layers[i](x)
+            down_x[i] = x
+
+        x = self.down_layers[-1](x)
+
+        for j in range(self.depth-1):
+            i = self.depth-2-j
+            x = self.up_layers[i][0](x)
+            x = self._upsample_add(x, down_x[i])
+            x = self.up_layers[i][1](x)
+
+        x = self.conv_out(x)
+        return x
+
+    def _upsample_add(self, x, y):
+        """Upsample and add two feature maps.
+
+        When pooling layer is used, the input size is assumed to be even, 
+        therefore :attr:`align_corners` is set to `False` to avoid feature 
+        mis-match. When downsampling by stride, the input size is assumed 
+        to be 2n+1, and :attr:`align_corners` is set to `False`.
+        """
+        align_corners = False if self.pooling else True
+        x = F.interpolate(x, size=y.shape[2:], mode='bilinear',
+                          align_corners=align_corners)
+        return x + y
+
+    def _get_stride(self, previous, i):
+        if self.pooling or previous == i:
+            return 1
+        return 2
+
+    def _make_pooling_layer(self, previous, i):
+        if self.pooling and previous != i:
+            kernel_size = stride = 2
+            return nn.MaxPool2d(kernel_size, stride)
+
+        return nn.Identity()

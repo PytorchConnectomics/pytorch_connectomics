@@ -27,6 +27,7 @@ class FPN3D(nn.Module):
             ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``
         norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
+        deploy (bool): build backbone in deploy mode (exclusive for RepVGG backbone). Default: False
     """
 
     def __init__(self, 
@@ -42,6 +43,7 @@ class FPN3D(nn.Module):
                  act_mode: str = 'elu', 
                  norm_mode: str = 'bn', 
                  init_mode: str = 'orthogonal',
+                 deploy: bool = False,
                  **kwargs):
         super().__init__()
         self.depth = len(filters)
@@ -60,6 +62,7 @@ class FPN3D(nn.Module):
             'in_channel': in_channel,
             'filters': filters,
             'isotropy': isotropy,
+            'deploy': deploy,
         }
         backbone_kwargs.update(shared_kwargs)
 

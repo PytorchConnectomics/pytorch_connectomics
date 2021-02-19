@@ -7,19 +7,17 @@ MODEL:
   INPUT_SIZE: [97, 97, 97]
   OUTPUT_SIZE: [97, 97, 97]
   IN_PLANES: 1
-  OUT_PLANES: 2
-  TARGET_OPT: ['0','4-1-1']
-  LOSS_OPTION: [['WeightedBCEWithLogitsLoss', 'DiceLoss'], ['WeightedBCEWithLogitsLoss', 'DiceLoss']]
-  LOSS_WEIGHT: [[1.0, 1.0], [1.0, 0.5]]
-  WEIGHT_OPT: [['1', '0'],['1', '0']]
-  OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid']]
+  OUT_PLANES: 3
+  TARGET_OPT: ['2']
+  LOSS_OPTION: [['WeightedBCEWithLogitsLoss', 'DiceLoss']]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [['1', '0']]
+  OUTPUT_ACT: [['none', 'sigmoid']]
   NORM_MODE: 'sync_bn'
-  MIXED_PRECESION: True
-  FILTERS: [32, 64, 96, 128, 160] 
 DATASET:
   IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_train.txt'
   LABEL_NAME: 'datasets/NucMM/Zebrafish/nuc_train.txt'
-  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_BC/'
+  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_AF/'
   IS_ABSOLUTE_PATH: True
   PAD_SIZE: [16, 32, 32]
   DATA_SCALE: [2.0, 2.0, 2.0]
@@ -27,7 +25,6 @@ DATASET:
     SIZE_THRES: 1000
     P: 1.0
   DISTRIBUTED: True
-  IS_ISOTROPIC: True
 AUGMENTOR:
   FLIP:
     ENABLED: True
@@ -36,19 +33,17 @@ AUGMENTOR:
     DOWNSAMPLE_Z: True
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupCosineLR"
-  BASE_LR: 0.03
+  BASE_LR: 0.04
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 100000
   SAMPLES_PER_BATCH: 2
-  SWA:
-    ENABLED: True
 INFERENCE:
   INPUT_SIZE: [97, 97, 97]
   OUTPUT_SIZE: [97, 97, 97]
-  OUTPUT_ACT: ['sigmoid', 'sigmoid']
+  OUTPUT_ACT: ['sigmoid']
   IMAGE_NAME: 'datasets/NucMM/Zebrafish/img_valid.txt'
-  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_BC/valid/'
+  OUTPUT_PATH: 'outputs/NucMM_Zebrafish_AF/valid/'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [16, 32, 32]
   AUG_MODE: 'mean'
