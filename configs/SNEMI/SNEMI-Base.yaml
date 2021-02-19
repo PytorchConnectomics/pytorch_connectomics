@@ -20,6 +20,7 @@ DATASET:
   INPUT_PATH: 'datasets/SNEMI3D/' # or your own dataset path
   OUTPUT_PATH: 'outputs/SNEMI3D/'
   PAD_SIZE: [4, 64, 64]
+  LABEL_EROSION: 1
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupCosineLR"
   BASE_LR: 0.04

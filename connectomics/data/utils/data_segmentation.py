@@ -139,7 +139,7 @@ def seg_to_instance_bd(seg: np.ndarray,
             edge_y = convolve2d(slide, sobel_y, 'same')
             edge = np.maximum(np.abs(edge_x), np.abs(edge_y))
             contour = (edge!=0).astype(np.uint8)
-            bd[z] = dilation(contour, np.ones((tsz, tsz)))
+            bd[z] = dilation(contour, np.ones((tsz, tsz), dtype=np.uint8))
         return bd
 
     mm = seg.max()
@@ -221,7 +221,7 @@ def seg_to_targets(label, topts):
             _, size_thres, zratio, _ = [int(x) for x in topt.split('-')]
             out[tid] = (seg_to_small_seg(label, size_thres, zratio)>0)[None,:].astype(np.float32)
         elif topt[0] == '4': # instance boundary mask
-            _, bd_sz,do_bg = [int(x) for x in topt.split('-')]
+            _, bd_sz, do_bg = [int(x) for x in topt.split('-')]
             if label.ndim == 2:
                 out[tid] = seg_to_instance_bd(label[None,:], bd_sz, do_bg).astype(np.float32)
             else:
