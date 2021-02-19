@@ -11,3 +11,4 @@ imageio
 tensorflow
 tensorboard
 tensorboardX
+einops

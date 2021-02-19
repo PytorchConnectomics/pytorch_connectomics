@@ -2,9 +2,9 @@ import unittest
 import torch
 
 from connectomics.model import build_model
-from connectomics.model.unet import UNet3D
+from connectomics.model.unet import UNet3D, UNet2D
 from connectomics.model.fpn import FPN3D
-from connectomics.model.backbone import RepVGG3D
+from connectomics.model.backbone import RepVGG3D, RepVGGBlock3D
 from connectomics.model.utils.misc import IntermediateLayerGetter
 
 from connectomics.config import get_cfg_defaults
@@ -36,6 +36,23 @@ class TestModelBlock(unittest.TestCase):
         out = model(x)
         self.assertTupleEqual(tuple(out.shape), (b, out_channel, d, h, w))
 
+    def test_unet_2d(self):
+        """Tested UNet2D model with odd and even input sizes.
+        """
+        b, h, w = 4, 64, 64
+        in_channel, out_channel = 1, 3
+        x = torch.rand(b, in_channel, h, w)
+        model = UNet2D('residual', in_channel, out_channel, pooling=True)
+        out = model(x)
+        self.assertTupleEqual(tuple(out.shape), (b, out_channel, h, w))
+
+        b, h, w = 4, 65, 65
+        in_channel, out_channel = 1, 2
+        x = torch.rand(b, in_channel, h, w)
+        model = UNet2D('residual_se', in_channel, out_channel, pooling=False)
+        out = model(x)
+        self.assertTupleEqual(tuple(out.shape), (b, out_channel, h, w))
+
     def test_fpn_3d(self):
         b, d, h, w = 1, 65, 65, 65
         in_channel, out_channel = 1, 2
@@ -45,7 +62,7 @@ class TestModelBlock(unittest.TestCase):
         self.assertTupleEqual(tuple(out.shape), (b, out_channel, d, h, w))
 
     def test_rep_vgg_3d(self):
-        """Test the 3D RepVGG model. Making sure the outputs of model in train and deploy
+        r"""Test the 3D RepVGG model. Making sure the outputs of model in train and deploy
         modes are the same.
         """
         feat_keys=['y0', 'y1', 'y2', 'y3', 'y4']
@@ -66,17 +83,67 @@ class TestModelBlock(unittest.TestCase):
         x = torch.rand(2, 1, 9, 65, 65)
         z1, z2 = model_train(x), model_deploy(x)
         for key in feat_keys:
-            self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-6))
+            # The default eps value added to the denominator for numerical stability
+            # in PyTorch batchnormalization layer is 1e-5.
+            self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-5))
 
-    def test_build_model(self):
-        """Test building model from configs.
+    def test_build_default_model(self):
+        r"""Test building model from configs.
         """
         cfg = get_cfg_defaults()
+        cfg.freeze()
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = build_model(cfg, device)
         self.assertTrue(isinstance(model, (torch.nn.Module, 
                                            torch.nn.DataParallel, 
                                            torch.nn.parallel.DistributedDataParallel)))
+
+    def test_build_fpn_with_repvgg(self):
+        r"""Test building a 3D FPN model with RepVGG backbone from configs.
+        """
+        cfg = get_cfg_defaults()
+        cfg.MODEL.ARCHITECTURE = 'fpn_3d'
+        cfg.MODEL.BACKBONE = 'repvgg'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = build_model(cfg, device).eval()
+        message = "Get unexpected model architecture!"
+
+        arch_name = model.module.__class__.__name__
+        self.assertEqual(arch_name, "FPN3D", message)
+
+        message = "No RepVGG block in the backbone!"
+        count = 0
+        for layer in model.modules():
+            if isinstance(layer, RepVGGBlock3D):
+                count += 1
+        self.assertGreater(count, 0)
+
+        # test the weight conversion when using RepVGG as backbone
+        model.eval()
+        train_dict = model.module.state_dict()
+        deploy_dict = RepVGG3D.repvgg_convert_as_backbone(train_dict)
+
+        cfg.MODEL.DEPLOY_MODE = True
+        deploy_model = build_model(cfg, device).eval()
+        deploy_model.module.load_state_dict(deploy_dict, strict=True)
+
+        x = torch.rand(2, 1, 9, 65, 65)
+        y1 = model(x)
+        y2 = deploy_model(x)
+        self.assertTrue(torch.allclose(y1, y2, atol=1e-4))
+        
+    def test_build_fpn_with_botnet(self):
+        r"""Test building a 3D FPN model with BotNet3D backbone from configs.
+        """
+        cfg = get_cfg_defaults()
+        cfg.MODEL.ARCHITECTURE = 'fpn_3d'
+        cfg.MODEL.BACKBONE = 'botnet'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = build_model(cfg, device).eval()
+
+        x = torch.rand(2, 1, 32, 128, 128)
+        y1 = model(x)
+        self.assertTupleEqual(tuple(y1.shape), (2, 1, 32, 128, 128))
 
 if __name__ == '__main__':
     unittest.main()
