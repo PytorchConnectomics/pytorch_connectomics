@@ -18,7 +18,7 @@ MODEL:
   WEIGHT_OPT: [['1', '0'],['1', '0']]
   OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid']]
   # cross-target consistency regularization
-  REGU_OPT: ['contour_fg']
+  REGU_OPT: ['FgContour']
   REGU_TARGET: [[0, 1]]
   REGU_WEIGHT: [0.1]
   NORM_MODE: 'gn'

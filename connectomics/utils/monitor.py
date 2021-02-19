@@ -7,6 +7,9 @@ import torch
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 
+import matplotlib
+from matplotlib import pyplot as plt
+
 from .visualizer import Visualizer
 from connectomics.config.utils import convert_cfg_markdown
 
@@ -60,6 +63,10 @@ class Logger(object):
             self.log_tb.add_scalar('Learning Rate', lr, iter_total)
             for key in self.val_dict:
                 self.log_tb.add_scalar(key, self.val_dict[key]/self.count, iter_total)
+
+            losses_pie = plot_loss_ratio(self.val_dict)
+            self.log_tb.add_figure('Loss Ratio', losses_pie, iter_total)
+            
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))
             self.log_txt.flush() 
@@ -96,3 +103,19 @@ class Monitor(object):
 
     def reset(self):
         self.logger.reset()
+
+
+def plot_loss_ratio(loss_dict: dict) -> matplotlib.figure.Figure:
+    labels = []
+    sizes = []
+    for key in loss_dict.keys():
+        labels.append(key)
+        sizes.append(loss_dict[key])
+
+    fig, ax = plt.subplots()
+    colors = ['#ff6666', '#ffcc99', '#99ff99', '#66b3ff', '#c2c2f0','#ffb3e6']
+    ax.pie(sizes, labels=labels, autopct='%1.1f%%',
+            shadow=False, startangle=90, colors=colors)
+    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+
+    return fig

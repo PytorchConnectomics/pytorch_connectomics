@@ -32,10 +32,10 @@ class Criterion(object):
     }
 
     regu_dict = {
-        'binary': BinaryReg,
-        'contour_fg': FgContourConsistency,
-        'contour_dt': ContourDTConsistency,
-        'foreground_dt': ForegroundDTConsistency,
+        'Binary': BinaryReg,
+        'FgContour': FgContourConsistency,
+        'ContourDT': ContourDTConsistency,
+        'FgDT': ForegroundDTConsistency,
     }
 
     def __init__(self, 
