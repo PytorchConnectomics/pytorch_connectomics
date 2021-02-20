@@ -135,8 +135,8 @@ def seg_to_instance_bd(seg: np.ndarray,
         sobel_y = np.array(sobel).reshape(1,3)
         for z in range(sz[0]):
             slide = seg[z]
-            edge_x = convolve2d(slide, sobel_x, 'same')
-            edge_y = convolve2d(slide, sobel_y, 'same')
+            edge_x = convolve2d(slide, sobel_x, 'same', boundary='symm')
+            edge_y = convolve2d(slide, sobel_y, 'same', boundary='symm')
             edge = np.maximum(np.abs(edge_x), np.abs(edge_y))
             contour = (edge!=0).astype(np.uint8)
             bd[z] = dilation(contour, np.ones((tsz, tsz), dtype=np.uint8))

@@ -230,6 +230,17 @@ class Trainer(object):
         if hasattr(self, 'monitor'):        
             self.monitor.logger.log_tb.add_scalar('Validation_Loss', val_loss, iter_total)
 
+        if hasattr(self, 'best_val_loss'): 
+            self.best_val_loss = val_loss
+
+        if val_loss < self.best_val_loss:
+            self.best_val_loss = val_loss
+            self.save_checkpoint(iter_total, is_best=True)
+
+        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
+        # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
+        del pred, loss, val_loss
+
     # -----------------------------------------------------------------------------
     # Misc functions
     # -----------------------------------------------------------------------------
@@ -252,7 +263,7 @@ class Trainer(object):
             loss.backward()
             self.optimizer.step()    
 
-    def save_checkpoint(self, iteration: int):
+    def save_checkpoint(self, iteration: int, is_best: bool = False):
         r"""Save the model checkpoint.
         """
         if self.is_main_process:
@@ -265,6 +276,8 @@ class Trainer(object):
                     
             # Saves checkpoint to experiment directory
             filename = 'checkpoint_%05d.pth.tar' % (iteration + 1)
+            if is_best:
+                filename = 'checkpoint_best.pth.tar'
             filename = os.path.join(self.output_dir, filename)
             torch.save(state, filename)
 
