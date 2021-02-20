@@ -10,3 +10,5 @@ gputil
 imageio
 tensorflow
 tensorboard
+tensorboardX
+einops

@@ -131,6 +131,19 @@ class TestModelBlock(unittest.TestCase):
         y1 = model(x)
         y2 = deploy_model(x)
         self.assertTrue(torch.allclose(y1, y2, atol=1e-4))
+        
+    def test_build_fpn_with_botnet(self):
+        r"""Test building a 3D FPN model with BotNet3D backbone from configs.
+        """
+        cfg = get_cfg_defaults()
+        cfg.MODEL.ARCHITECTURE = 'fpn_3d'
+        cfg.MODEL.BACKBONE = 'botnet'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = build_model(cfg, device).eval()
+
+        x = torch.rand(2, 1, 32, 128, 128)
+        y1 = model(x)
+        self.assertTupleEqual(tuple(y1.shape), (2, 1, 32, 128, 128))
 
 if __name__ == '__main__':
     unittest.main()
