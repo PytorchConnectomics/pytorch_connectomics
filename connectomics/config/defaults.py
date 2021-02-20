@@ -161,6 +161,7 @@ _C.DATASET.VALID_RATIO = 0.5
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
+_C.DATASET.REJECT_SAMPLING.DIVERSITY = -1
 _C.DATASET.REJECT_SAMPLING.P = 0.95
 
 _C.DATASET.DISTRIBUTED = False
@@ -316,7 +317,7 @@ _C.MONITOR.LOG_OPT = [1, 1, 0]
 
 _C.MONITOR.VIS_OPT = [0, 16]
 
-_C.MONITOR.ITERATION_NUM = [10, 200]
+_C.MONITOR.ITERATION_NUM = [20, 200]
 
 # # -----------------------------------------------------------------------------
 # # Inference

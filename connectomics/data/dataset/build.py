@@ -155,6 +155,7 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         "mode": mode,
         "do_2d": cfg.DATASET.DO_2D,
         "reject_size_thres": cfg.DATASET.REJECT_SAMPLING.SIZE_THRES,
+        "reject_diversity": cfg.DATASET.REJECT_SAMPLING.DIVERSITY,
         "reject_p": cfg.DATASET.REJECT_SAMPLING.P,
     }
       

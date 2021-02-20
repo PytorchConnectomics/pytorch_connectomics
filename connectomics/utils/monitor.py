@@ -66,6 +66,7 @@ class Logger(object):
 
             losses_pie = plot_loss_ratio(self.val_dict)
             self.log_tb.add_figure('Loss Ratio', losses_pie, iter_total)
+            plt.close('all')
             
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))

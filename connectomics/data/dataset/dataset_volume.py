@@ -32,8 +32,9 @@ class VolumeDataset(torch.utils.data.Dataset):
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
         do_2d (bool): load 2d samples from 3d volumes. Default: False
         iter_num (int): total number of training iterations (-1 for inference). Default: -1
-        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0
-        reject_p (float): probability of rejecting non-foreground volumes. Default: 0.95
+        reject_size_thres (int, optional): threshold to decide if a sampled volumes contains foreground objects. Default: 0
+        reject_diversity (int, optional): threshold to decide if a sampled volumes contains multiple objects. Default: 0
+        reject_p (float, optional): probability of rejecting non-foreground volumes. Default: 0.95
 
     Note: 
         For relatively small volumes, the total number of possible subvolumes can be smaller than the total number 
@@ -57,7 +58,9 @@ class VolumeDataset(torch.utils.data.Dataset):
                  mode: str = 'train',
                  do_2d: bool = False,
                  iter_num: int = -1,
+                 # rejection sampling
                  reject_size_thres: int = 0,
+                 reject_diversity: int = 0,
                  reject_p: float = 0.95):
 
         assert mode in ['train', 'test']
@@ -77,6 +80,7 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         # rejection samping
         self.reject_size_thres = reject_size_thres
+        self.reject_diversity = reject_diversity
         self.reject_p = reject_p
 
         # dataset: channels, depths, rows, cols
@@ -246,7 +250,7 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         return pos, out_volume, out_label, out_valid
 
-    def _is_valid(self, out_valid):
+    def _is_valid(self, out_valid: np.ndarray) -> bool:
         """Decide whether the sampled region is valid or not using
         the corresponding valid mask.
         """
@@ -255,16 +259,23 @@ class VolumeDataset(torch.utils.data.Dataset):
         ratio = float(out_valid.sum()) / np.prod(np.array(out_valid.shape))
         return ratio > self.valid_ratio
 
-    def _is_fg(self, out_label):
+    def _is_fg(self, out_label: np.ndarray) -> bool:
         """Decide whether the sample belongs to a foreground decided
         by the rejection sampling criterion.
         """
-        size_thres = self.reject_size_thres
         p = self.reject_p
-        if self.reject_size_thres > 0:
+        size_thres = self.reject_size_thres
+        if size_thres > 0:
             temp = out_label.copy().astype(int)
             temp = (temp!=self.background).astype(int).sum()
             if temp < size_thres and random.random() < p:
+                return False
+
+        num_thres = self.reject_diversity
+        if num_thres > 0:
+            temp = out_label.copy().astype(int)
+            num_objects = len(np.unique(temp))
+            if num_objects < num_thres and random.random() < p:
                 return False
 
         return True
