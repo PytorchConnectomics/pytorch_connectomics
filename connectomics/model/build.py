@@ -26,9 +26,11 @@ def build_model(cfg, device, rank=None):
         'act_mode': cfg.MODEL.ACT_MODE,
         'norm_mode': cfg.MODEL.NORM_MODE,
         'pooling': cfg.MODEL.POOING_LAYER,
+        'backbone_type': cfg.MODEL.BACKBONE,
     }
+    if cfg.MODEL.BACKBONE == 'botnet':
+        kwargs['fmap_size'] = cfg.MODEL.INPUT_SIZE
     if model_arch == 'fpn_3d':
-        kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)

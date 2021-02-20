@@ -8,13 +8,12 @@ from einops import rearrange
 
 # positional embedding helpers
 
-def pair(x):
-    return (x, x) if not isinstance(x, tuple) else x
-
-def expand_dim(t, dim, k):
-    t = t.unsqueeze(dim = dim)
+def expand_dims(t, dims, ks):
+    for d in dims:
+        t = t.unsqueeze(dim = d)
     expand_shape = [-1] * len(t.shape)
-    expand_shape[dim] = k
+    for d,k in zip(dims, ks):
+        expand_shape[d] = k
     return t.expand(*expand_shape)
 
 def rel_to_abs(x):
@@ -30,12 +29,12 @@ def rel_to_abs(x):
     return final_x
 
 def relative_logits_1d(q, rel_k):
-    b, heads, h, w, z, dim = q.shape
+    b, heads, d, h, w, dim = q.shape
     logits = einsum('b h x y z d, r d -> b h x y z r', q, rel_k)
-    logits = rearrange(logits, 'b h x y z r -> b (h x) y z r')
+    logits = rearrange(logits, 'b h x y z r -> b (h x y) z r')
     logits = rel_to_abs(logits)
-    logits = logits.reshape(b, heads, h, w, w)
-    logits = expand_dim(logits, dim = 3, k = h)
+    logits = logits.reshape(b, heads, d, h, w, w)
+    logits = expand_dims(logits, dims = [3, 5], ks = [d, h])
     return logits
 
 # positional embeddings
@@ -47,27 +46,27 @@ class RelPosEmb(nn.Module):
         dim_head
     ):
         super().__init__()
-        height, width, depth = fmap_size
+        depth, height, width = fmap_size
         scale = dim_head ** -0.5
         self.fmap_size = fmap_size
+        self.rel_depth = nn.Parameter(torch.randn(depth * 2 - 1, dim_head) * scale)
         self.rel_height = nn.Parameter(torch.randn(height * 2 - 1, dim_head) * scale)
         self.rel_width = nn.Parameter(torch.randn(width * 2 - 1, dim_head) * scale)
-        self.rel_depth = nn.Parameter(torch.randn(depth * 2 - 1, dim_head) * scale)
 
     def forward(self, q):
-        h, w, d = self.fmap_size
+        d, h, w = self.fmap_size
 
-        q = rearrange(q, 'b h (x y z) d -> b h x y z d', x = h, y = w, z = d)
+        q = rearrange(q, 'b h (x y z) d -> b h x y z d', x = d, y = h, z = w)
         rel_logits_w = relative_logits_1d(q, self.rel_width)
-        rel_logits_w = rearrange(rel_logits_w, 'b h x i y j z k-> b h (x y) (i j) (z k)') # ??
+        rel_logits_w = rearrange(rel_logits_w, 'b h x i y j z k -> b h (x y z) (i j k)') # ??
 
-        q = rearrange(q, 'b h x y z d -> b h y x z d')
+        q = rearrange(q, 'b h x y z d -> b h x z y d')
         rel_logits_h = relative_logits_1d(q, self.rel_height)
-        rel_logits_h = rearrange(rel_logits_h, 'b h x i y j z k-> b h (y x) (j i)') # ?
+        rel_logits_h = rearrange(rel_logits_h, 'b h x i z k y j -> b h (x z y) (i k j)') # ?
         
-        q = rearrange(q, 'b h y x z d -> b h z x y d')
+        q = rearrange(q, 'b h x z y d -> b h y z x d')
         rel_logits_d = relative_logits_1d(q, self.rel_depth)
-        rel_logits_d = rearrange(rel_logits_h, 'b h x i y j -> b h (y x) (j i)')
+        rel_logits_d = rearrange(rel_logits_d, 'b h y j z k x i -> b h (y z x) (j k i)')
         return rel_logits_w + rel_logits_h + rel_logits_d
 
 class AbsPosEmb(nn.Module):
@@ -145,8 +144,9 @@ class BottleBlock(nn.Module):
     ):
         super().__init__()
 
+        self.fmap_size = fmap_size
+        
         # shortcut
-
         if dim != dim_out or downsample:
             kernel_size, stride, padding = (3, 2, 1) if downsample else (1, 1, 0)
 
@@ -190,6 +190,8 @@ class BottleBlock(nn.Module):
         self.activation = activation
 
     def forward(self, x):
+        _, _, d, h, w = x.shape
+        assert d == self.fmap_size[0] and h == self.fmap_size[1] and w == self.fmap_size[2], f'depth, height, and width [{d} {h} {w}] of feature map must match the fmap_size given at init {self.fmap_size}'
         shortcut = self.shortcut(x)
         x = self.net(x)
         x += shortcut
