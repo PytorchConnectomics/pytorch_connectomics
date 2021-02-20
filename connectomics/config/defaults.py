@@ -112,6 +112,11 @@ _C.DATASET.IMAGE_NAME = 'train_image.h5'
 _C.DATASET.LABEL_NAME = None
 _C.DATASET.VALID_MASK_NAME = None
 
+_C.DATASET.VAL_IMAGE_NAME = None
+_C.DATASET.VAL_LABEL_NAME = None
+_C.DATASET.VAL_VALID_MASK_NAME = None
+_C.DATASET.VAL_PAD_SIZE = [0, 0, 0]
+
 _C.DATASET.LABEL_VAST = False
 _C.DATASET.INPUT_PATH = 'path/to/input'
 _C.DATASET.OUTPUT_PATH = 'path/to/output'
@@ -250,8 +255,8 @@ _C.SOLVER.ITERATION_STEP = 1
 
 # Save a checkpoint after every this number of iterations.
 _C.SOLVER.ITERATION_SAVE = 5000
-
 _C.SOLVER.ITERATION_TOTAL = 40000
+_C.SOLVER.ITERATION_VAL = 5000
 
 # Whether or not to restart training from iteration 0 regardless
 # of the 'iteration' key in the checkpoint file. This option only 

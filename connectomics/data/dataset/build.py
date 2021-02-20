@@ -62,21 +62,34 @@ def _get_file_list(name: str) -> list:
 def _get_input(cfg, mode='train', rank=None):
     r"""Load the inputs specified by the configuration options.
     """
+    assert mode in ['train', 'val', 'test']
     dir_name = _get_file_list(cfg.DATASET.INPUT_PATH)
-    img_name = _get_file_list(cfg.DATASET.IMAGE_NAME)
+
+    if mode == 'val':
+        img_name = cfg.DATASET.VAL_IMAGE_NAME
+        label_name = cfg.DATASET.VAL_LABEL_NAME
+        valid_mask_name = cfg.DATASET.VAL_VALID_MASK_NAME
+        pad_size = cfg.DATASET.VAL_PAD_SIZE
+    else:
+        img_name = cfg.DATASET.IMAGE_NAME
+        label_name = cfg.DATASET.LABEL_NAME
+        valid_mask_name = cfg.DATASET.VALID_MASK_NAME
+        pad_size = cfg.DATASET.PAD_SIZE        
+
+    img_name = _get_file_list(img_name)
     img_name = _make_path_list(cfg, dir_name, img_name, rank)
     print(rank, len(img_name), list(map(os.path.basename, img_name)))
 
     label = None
-    if mode=='train' and cfg.DATASET.LABEL_NAME is not None:
-        label_name = _get_file_list(cfg.DATASET.LABEL_NAME)
+    if mode in ['val', 'train'] and label_name is not None:
+        label_name = _get_file_list(label_name)
         label_name = _make_path_list(cfg, dir_name, label_name, rank)
         assert len(label_name) == len(img_name)
         label = [None]*len(label_name)
 
     valid_mask = None
-    if mode=='train' and cfg.DATASET.VALID_MASK_NAME is not None:
-        valid_mask_name = _get_file_list(cfg.DATASET.VALID_MASK_NAME)
+    if mode in ['val', 'train'] and valid_mask_name is not None:
+        valid_mask_name = _get_file_list(valid_mask_name)
         valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
         assert len(valid_mask_name) == len(img_name)
         valid_mask = [None]*len(valid_mask_name)
@@ -90,10 +103,10 @@ def _get_input(cfg, mode='train', rank=None):
             volume[i] = normalize_range(volume[i])
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
-        volume[i] = np.pad(volume[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
+        volume[i] = np.pad(volume[i], get_padsize(pad_size), 'reflect')
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
-        if mode=='train' and label is not None:
+        if mode in ['val', 'train'] and label is not None:
             label[i] = read_fn(label_name[i])
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
@@ -108,15 +121,15 @@ def _get_input(cfg, mode='train', rank=None):
             if cfg.DATASET.LABEL_MAG !=0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
                 
-            label[i] = np.pad(label[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
+            label[i] = np.pad(label[i], get_padsize(pad_size), 'reflect')
             print(f"label shape: {label[i].shape}")
 
-        if mode=='train' and valid_mask is not None:
+        if mode in ['val', 'train'] and valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i])
             if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
                 valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.DATA_SCALE, order=0) 
 
-            valid_mask[i] = np.pad(valid_mask[i], get_padsize(cfg.DATASET.PAD_SIZE), 'reflect')
+            valid_mask[i] = np.pad(valid_mask[i], get_padsize(pad_size), 'reflect')
             print(f"valid_mask shape: {label[i].shape}")
                  
     return volume, label, valid_mask
@@ -125,7 +138,7 @@ def _get_input(cfg, mode='train', rank=None):
 def get_dataset(cfg, augmentor, mode='train', rank=None):
     r"""Prepare dataset for training and inference.
     """
-    assert mode in ['train', 'test']
+    assert mode in ['train', 'val', 'test']
 
     label_erosion = 0
     sample_label_size = cfg.MODEL.OUTPUT_SIZE
@@ -140,9 +153,17 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         if cfg.SOLVER.SWA.ENABLED:
             iter_num += cfg.SOLVER.SWA.BN_UPDATE_ITER
 
-    elif mode == 'test':
-        sample_stride = cfg.INFERENCE.STRIDE
+    elif mode == 'val':
         sample_volume_size = cfg.MODEL.INPUT_SIZE
+        sample_label_size = sample_volume_size
+        label_erosion = cfg.DATASET.LABEL_EROSION
+        sample_stride = cfg.MODEL.INPUT_SIZE
+        topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
+        iter_num = -1
+
+    elif mode == 'test':
+        sample_volume_size = cfg.MODEL.INPUT_SIZE
+        sample_stride = cfg.INFERENCE.STRIDE
         iter_num = -1
 
     shared_kwargs = {
@@ -188,12 +209,15 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
 def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
     r"""Prepare dataloader for training and inference.
     """
+    assert mode in ['train', 'val', 'test']
     print('Mode: ', mode)
-    assert mode in ['train', 'test']
 
-    if mode ==  'train':
+    if mode == 'train':
         cf = collate_fn_train
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH
+    elif mode == 'val':
+        cf = collate_fn_train
+        batch_size = cfg.SOLVER.SAMPLES_PER_BATCH * 4
     else:
         cf = collate_fn_test
         batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH * cfg.SYSTEM.NUM_GPUS

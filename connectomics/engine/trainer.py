@@ -72,6 +72,8 @@ class Trainer(object):
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
             self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
+            if self.mode == 'train' and cfg.DATASET.VAL_IMAGE_NAME is not None:
+                self.val_loader = build_dataloader(self.cfg, None, mode='val', rank=rank)
 
     def train(self):
         r"""Training function of the trainer class.
@@ -99,7 +101,7 @@ class Trainer(object):
         self.maybe_save_swa_model()
 
     def _train_misc(self, loss, pred, volume, target, weight, 
-                    iter_total, losses_vis=None):
+                    iter_total, losses_vis):
         self.backward_pass(loss) # backward pass
 
         # logging and update record
@@ -108,14 +110,17 @@ class Trainer(object):
                                          self.optimizer.param_groups[0]['lr']) 
             if do_vis:
                 self.monitor.visualize(volume, target, pred, iter_total)
-                # Display GPU stats using the GPUtil package.
                 if torch.cuda.is_available(): GPUtil.showUtilization(all=True)
+
             if iter_total - self.start_iter == 0:
                 self.monitor.load_model(self.model.module, volume)
 
         # Save model
         if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
             self.save_checkpoint(iter_total)
+
+        if (iter_total+1) % self.cfg.SOLVER.ITERATION_VAL == 0:
+            self.validate(iter_total)
 
         # update learning rate
         self.maybe_update_swa_model(iter_total)
@@ -131,7 +136,7 @@ class Trainer(object):
 
         # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
-        del loss, pred
+        del pred, loss, losses_vis
 
     def test(self):
         r"""Inference function of the trainer class.
@@ -202,6 +207,29 @@ class Trainer(object):
                     ['vol%d'%(x) for x in range(len(result))])
             print('Prediction saved as: ', self.test_filename)
 
+    def validate(self, iter_total):
+        r"""Validation function of the trainer class.
+        """
+        if not hasattr(self, 'val_loader'):
+            return 
+
+        self.model.eval()
+        with torch.no_grad():
+            val_loss = 0.0
+            for i, sample in enumerate(self.val_loader):
+                volume = sample.out_input
+                target, weight = sample.out_target_l, sample.out_weight_l
+
+                # prediction
+                volume = volume.to(self.device, non_blocking=True)
+                with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
+                    pred = self.model(volume)
+                    loss, _ = self.criterion(pred, target, weight)
+                    val_loss += loss.data
+
+        if hasattr(self, 'monitor'):        
+            self.monitor.logger.log_tb.add_scalar('Validation_Loss', val_loss, iter_total)
+
     # -----------------------------------------------------------------------------
     # Misc functions
     # -----------------------------------------------------------------------------
@@ -266,15 +294,12 @@ class Trainer(object):
             self.model.module.load_state_dict(model_dict) # nn.DataParallel
 
         if self.mode == 'train' and not self.cfg.SOLVER.ITERATION_RESTART:
-            # update optimizer
             if hasattr(self, 'optimizer') and 'optimizer' in checkpoint.keys():
                 self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-            # update lr scheduler
             if hasattr(self, 'lr_scheduler') and 'lr_scheduler' in checkpoint.keys():
                 self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
 
-            # load iteration
             if hasattr(self, 'start_iter') and 'iteration' in checkpoint.keys():
                 self.start_iter = checkpoint['iteration']
 
@@ -310,11 +335,12 @@ class Trainer(object):
     def scheduler_step(self, iter_total, loss):
         if hasattr(self, 'swa_scheduler') and iter_total >= self.cfg.SOLVER.SWA.START_ITER:
             self.swa_scheduler.step()
-        else:
-            if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau':
-                self.lr_scheduler.step(loss)
-            else: 
-                self.lr_scheduler.step()
+            return
+
+        if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau':
+            self.lr_scheduler.step(loss)
+        else: 
+            self.lr_scheduler.step()
 
     # -----------------------------------------------------------------------------
     # Chunk processing for TileDataset

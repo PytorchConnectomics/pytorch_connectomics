@@ -63,7 +63,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  reject_diversity: int = 0,
                  reject_p: float = 0.95):
 
-        assert mode in ['train', 'test']
+        assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.do_2d = do_2d
         if self.do_2d:
@@ -88,8 +88,9 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.sample_volume_size = np.array(sample_volume_size).astype(int)  # model input size
         if self.label is not None: 
             self.sample_label_size = np.array(sample_label_size).astype(int)  # model label size
-            assert np.array_equal(self.augmentor.sample_size, self.sample_label_size)
             self.label_vol_ratio = self.sample_label_size / self.sample_volume_size
+            if self.augmentor is not None:
+                assert np.array_equal(self.augmentor.sample_size, self.sample_label_size)
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride).astype(int)
@@ -105,16 +106,13 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.valid_mask = valid_mask
         self.valid_ratio = valid_ratio
 
-        if mode=='test': # for test
+        if self.mode in ['val', 'test']: # for validation and test
             self.sample_size_test = [np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
        
         # For relatively small volumes, the total number of samples can be generated is smaller
         # than the number of samples required for training (i.e., iteration * batch size). Thus
         # we let the __len__() of the dataset return the larger value among the two during training. 
-        if iter_num < 0: # inference mode
-            self.iter_num = self.sample_num_a
-        else: # training mode
-            self.iter_num = max(iter_num, self.sample_num_a)
+        self.iter_num = max(iter_num, self.sample_num_a) if self.mode == 'train' else self.sample_num_a
         print('Total number of samples to be generated: ', self.iter_num)
 
     def __len__(self):  
@@ -126,32 +124,38 @@ class VolumeDataset(torch.utils.data.Dataset):
         # output sample: need np.float32
 
         vol_size = self.sample_volume_size
-        if self.mode in ['train','val']:
-            # train/val mode
+        if self.mode == 'train':
             sample = self._rejection_sampling(vol_size)
-            pos, out_volume, out_label, out_valid = sample
-                
-            if self.do_2d:
-                out_volume = np.squeeze(out_volume) 
-                out_label = np.squeeze(out_label)
-                if out_valid is not None:
-                    out_valid = np.squeeze(out_valid)
-                
-            out_volume = np.expand_dims(out_volume, 0)
-            out_volume = normalize_image(out_volume)
-            # output list
-            out_target = seg_to_targets(out_label, self.target_opt)
-            out_weight = seg_to_weights(out_target, self.weight_opt, out_valid)
-            return pos, out_volume, out_target, out_weight
+            return self._process_targets(sample)
+
+        elif self.mode == 'val':
+            pos = self._get_pos_test(index)
+            sample = self._crop_with_pos(pos, vol_size)
+            return self._process_targets(sample)
 
         elif self.mode == 'test':
-            # test mode
             pos = self._get_pos_test(index)
             out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
             out_volume = normalize_image(out_volume)
             if self.do_2d:
                 out_volume = np.squeeze(out_volume)
             return pos, np.expand_dims(out_volume, 0)
+
+    def _process_targets(self, sample):
+        pos, out_volume, out_label, out_valid = sample
+            
+        if self.do_2d:
+            out_volume = np.squeeze(out_volume) 
+            out_label = np.squeeze(out_label)
+            if out_valid is not None:
+                out_valid = np.squeeze(out_valid)
+            
+        out_volume = np.expand_dims(out_volume, 0)
+        out_volume = normalize_image(out_volume)
+        # output list
+        out_target = seg_to_targets(out_label, self.target_opt)
+        out_weight = seg_to_weights(out_target, self.weight_opt, out_valid)
+        return pos, out_volume, out_target, out_weight
 
     #######################################################
     # Position Calculator
@@ -224,14 +228,15 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_valid = augmented['valid_mask']
 
             if self._is_valid(out_valid) and self._is_fg(out_label):
-                break
-
-        return pos, out_volume, out_label, out_valid
+                return pos, out_volume, out_label, out_valid
 
     def _random_sampling(self, vol_size):
         """Randomly sample a subvolume from all the volumes. 
         """
         pos = self._get_pos_train(vol_size)
+        return self._crop_with_pos(pos, vol_size)
+
+    def _crop_with_pos(self, pos, vol_size):
         out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
         # position in the label and valid mask
         pos_l = np.round(pos[1:]*self.label_vol_ratio)
@@ -241,12 +246,11 @@ class VolumeDataset(torch.utils.data.Dataset):
         # the same for some values.
         out_label = relabel(out_label.copy()).astype(np.float32)
 
+        out_valid = None
         if self.valid_mask is not None:
             out_valid = crop_volume(self.label[pos[0]], 
                     self.sample_label_size, pos_l)
             out_valid = (out_valid!=0).astype(np.float32)
-        else: 
-            out_valid = None
 
         return pos, out_volume, out_label, out_valid
 

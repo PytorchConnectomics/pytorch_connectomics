@@ -72,8 +72,8 @@ def main():
     else:
         trainer.run_chunk(mode)
 
-    if args.distributed: # cleanup
-        dist.destroy_process_group()
+    print("Rank: {}. Device: {}. Training is finished!".format(
+          args.local_rank, device))
 
 if __name__ == "__main__":
     main()

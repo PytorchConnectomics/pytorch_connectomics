@@ -1,5 +1,5 @@
 SYSTEM:
-  NUM_GPUS: 2
+  NUM_GPUS: 3
   NUM_CPUS: 12
 MODEL:
   ARCHITECTURE: 'unet_3d'
@@ -13,11 +13,13 @@ DATASET:
   INPUT_PATH: 'datasets/Parhyale/train/'
   IMAGE_NAME: 'image_01.tif@image_11.tif@image_21.tif'
   LABEL_NAME: 'label_01.tif@label_11.tif@label_21.tif'
+  VAL_IMAGE_NAME: 'image_31.tif'
+  VAL_LABEL_NAME: 'label_31.tif'  
   PAD_SIZE: [4, 32, 32]
   REJECT_SAMPLING:
     SIZE_THRES: 10000
     P: 1.0
-  DISTRIBUTED: False
+  DISTRIBUTED: True
   LABEL_EROSION: 1
 AUGMENTOR:
   CUTNOISE:
@@ -28,11 +30,12 @@ AUGMENTOR:
     ENABLED: False
 SOLVER:
   LR_SCHEDULER_NAME: "WarmupCosineLR"
-  BASE_LR: 1e-3
+  BASE_LR: 5e-3
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 100000
-  SAMPLES_PER_BATCH: 4
+  ITERATION_VAL: 10
+  SAMPLES_PER_BATCH: 2
   CLIP_GRADIENTS: 
     ENABLED: True
 INFERENCE:
