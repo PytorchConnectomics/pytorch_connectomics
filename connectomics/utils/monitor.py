@@ -93,8 +93,9 @@ class Monitor(object):
                 do_vis = self.do_vis
         return do_vis
 
-    def visualize(self, volume, label, output, iter_total):
-        self.vis.visualize(volume, label, output, iter_total, self.logger.log_tb)
+    def visualize(self, volume, label, output, iter_total, val=False):
+        self.vis.visualize(volume, label, output, iter_total, 
+                           self.logger.log_tb, val)
 
     def load_config(self, cfg):
         self.logger.log_tb.add_text('Config', convert_cfg_markdown(cfg), 0)

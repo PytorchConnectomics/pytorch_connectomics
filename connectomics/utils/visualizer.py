@@ -40,7 +40,7 @@ class Visualizer(object):
                 return volume[:self.N], label[:self.N], output[:self.N]
             return volume, label, output
 
-    def visualize(self, volume, label, output, iter_total, writer):
+    def visualize(self, volume, label, output, iter_total, writer, val=False):
         # split the prediction into chunks along the channel dimension
         output = self.act(output)
         assert len(output) == len(label)
@@ -57,6 +57,7 @@ class Visualizer(object):
 
             RGB = (topt[0] in ['1', '2', '9'])
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
+            if val: vis_name = vis_name + '_Val'
             if isinstance(label[idx], (np.ndarray, np.generic)):
                 label[idx] = torch.from_numpy(label[idx])
             self.visualize_consecutive(volume, label[idx], output[idx], iter_total, 

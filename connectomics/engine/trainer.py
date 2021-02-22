@@ -30,8 +30,13 @@ class Trainer(object):
         rank (int, optional): node rank for distributed training. Default: `None`
         checkpoint (str, optional): the checkpoint file to be loaded. Default: `None`
     """
-    def __init__(self, cfg: CfgNode, device: torch.device, mode: str = 'train', 
-                 rank: Optional[int] = None, checkpoint: Optional[str] = None):
+    def __init__(self, 
+                 cfg: CfgNode, 
+                 device: torch.device, 
+                 mode: str = 'train', 
+                 rank: Optional[int] = None, 
+                 checkpoint: Optional[str] = None):
+                 
         assert mode in ['train', 'test']
         self.cfg = cfg
         self.device = device
@@ -229,8 +234,9 @@ class Trainer(object):
 
         if hasattr(self, 'monitor'):        
             self.monitor.logger.log_tb.add_scalar('Validation_Loss', val_loss, iter_total)
+            self.monitor.visualize(volume, target, pred, iter_total, val=True)
 
-        if hasattr(self, 'best_val_loss'): 
+        if not hasattr(self, 'best_val_loss'): 
             self.best_val_loss = val_loss
 
         if val_loss < self.best_val_loss:
@@ -240,6 +246,9 @@ class Trainer(object):
         # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
         del pred, loss, val_loss
+
+        # model.train() only called at the beginning of Trainer.train().
+        self.model.train()
 
     # -----------------------------------------------------------------------------
     # Misc functions
