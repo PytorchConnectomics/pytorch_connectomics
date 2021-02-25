@@ -27,20 +27,7 @@ class Visualizer(object):
                 colors[0] = torch.zeros(3) # make background black
                 self.semantic_colors[topt] = torch.stack(colors, 0)
 
-    def prepare_data(self, volume, label, output):
-        if len(volume.size()) == 4:   # 2D Inputs
-            if volume.size()[0] > self.N:
-                return volume[:self.N], label[:self.N], output[:self.N]
-            return volume, label, output
-
-        elif len(volume.size()) == 5: # 3D Inputs
-            volume = volume[0].permute(1,0,2,3)
-            label, output = label[0].permute(1,0,2,3), output[0].permute(1,0,2,3)
-            if volume.size()[0] > self.N:
-                return volume[:self.N], label[:self.N], output[:self.N]
-            return volume, label, output
-
-    def visualize(self, volume, label, output, iter_total, writer, val=False):
+    def visualize(self, volume, label, output, weight, iter_total, writer, val=False):
         # split the prediction into chunks along the channel dimension
         output = self.act(output)
         assert len(output) == len(label)
@@ -60,11 +47,19 @@ class Visualizer(object):
             if val: vis_name = vis_name + '_Val'
             if isinstance(label[idx], (np.ndarray, np.generic)):
                 label[idx] = torch.from_numpy(label[idx])
-            self.visualize_consecutive(volume, label[idx], output[idx], iter_total, 
+            
+            weight_maps = {}
+            for j, wopt in enumerate(self.cfg.MODEL.WEIGHT_OPT[idx]):
+                if wopt != '0':
+                    w_name = vis_name + '_' + wopt
+                    weight_maps[w_name] = weight[idx][j]
+
+            self.visualize_consecutive(volume, label[idx], output[idx], weight_maps, iter_total, 
                                        writer, RGB=RGB, vis_name=vis_name)
 
-    def visualize_consecutive(self, volume, label, output, iteration, writer, RGB=False, vis_name='0_0'):
-        volume, label, output = self.prepare_data(volume, label, output)
+    def visualize_consecutive(self, volume, label, output, weight_maps, iteration, 
+                              writer, RGB=False, vis_name='0_0'):
+        volume, label, output, weight_maps = self.prepare_data(volume, label, output, weight_maps)
         sz = volume.size() # z,c,y,x
         canvas = []
         volume_visual = volume.detach().cpu().expand(sz[0],3,sz[2],sz[3])
@@ -74,15 +69,37 @@ class Visualizer(object):
             output_visual = [output.detach().cpu()]
             label_visual = [label.detach().cpu()]
         else:
-            output_visual = [output[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
-            label_visual = [label[:,i].detach().cpu().unsqueeze(1).expand(sz[0],3,sz[2],sz[3]) for i in range(sz[1])]
+            output_visual = [self.vol_reshape(output[:,i], sz) for i in range(sz[1])]
+            label_visual = [self.vol_reshape(label[:,i], sz) for i in range(sz[1])]
 
-        canvas = canvas + output_visual
-        canvas = canvas + label_visual
+        weight_visual = []
+        for key in weight_maps.keys():
+            weight_visual.append(weight_maps[key].detach().cpu().expand(sz[0],3,sz[2],sz[3]))
+
+        canvas = canvas + output_visual + label_visual + weight_visual
         canvas_merge = torch.cat(canvas, 0)
         canvas_show = vutils.make_grid(canvas_merge, nrow=8, normalize=True, scale_each=True)
 
         writer.add_image('Consecutive_%s' % vis_name, canvas_show, iteration)
+
+    def prepare_data(self, volume, label, output, weight_maps):
+        ndim = volume.ndim
+        assert ndim in [4, 5] 
+        is_3d = (ndim == 5)
+
+        volume = self.permute_truncate(volume, is_3d)
+        label = self.permute_truncate(label, is_3d)
+        output = self.permute_truncate(output, is_3d)
+        for key in weight_maps.keys():
+            weight_maps[key] = self.permute_truncate(weight_maps[key], is_3d)
+
+        return volume, label, output, weight_maps
+
+    def permute_truncate(self, data, is_3d=False):
+        if is_3d:
+            data = data[0].permute(1,0,2,3)
+        high = min(data.size()[0], self.N)
+        return data[:high]
 
     def get_semantic_map(self, output, topt, argmax=True):
         if isinstance(output, (np.ndarray, np.generic)):
@@ -97,3 +114,7 @@ class Visualizer(object):
             pred = pred.permute(0,4,1,2,3)
         
         return pred
+
+    def vol_reshape(self, vol, sz):
+        vol = vol.detach().cpu().unsqueeze(1)
+        return vol.expand(sz[0],3,sz[2],sz[3])

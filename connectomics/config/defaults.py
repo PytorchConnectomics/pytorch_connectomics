@@ -336,6 +336,7 @@ _C.INFERENCE.INPUT_PATH = None
 _C.INFERENCE.IMAGE_NAME = ""
 _C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
+_C.INFERENCE.IS_ABSOLUTE_PATH = None
 
 _C.INFERENCE.PAD_SIZE = None
 # activation for the output for inference and visualization
