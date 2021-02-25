@@ -12,5 +12,6 @@ MODEL:
   OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid']]
 INFERENCE:
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
+  OUTPUT_PATH: 'outputs/Parhyale_UNet_BC/test/'
 DATASET:
   OUTPUT_PATH: 'outputs/Parhyale_UNet_BC/'  

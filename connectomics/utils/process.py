@@ -1,3 +1,5 @@
+from __future__ import print_function, division
+from typing import Optional, Union, List
 import numpy as np
 
 from scipy import ndimage
@@ -8,6 +10,7 @@ from skimage.segmentation import watershed
 from skimage.morphology import remove_small_objects
 
 from connectomics.data.utils import getSegType
+from .misc import bbox_ND, crop_ND
 
 __all__ = ['binary_connected',
            'binary_watershed',
@@ -44,7 +47,7 @@ def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0
     return cast2dtype(segm)
 
 def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
-                     remove_small_mode='background'):
+                     remove_small_mode='background', seed_thres=32):
     r"""Convert binary foreground probability maps to instance masks via
     watershed segmentation algorithm.
 
@@ -64,6 +67,7 @@ def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_fa
     seed_map = semantic > int(255*thres1)
     foreground = semantic > int(255*thres2)
     seed = label(seed_map)
+    seed = remove_small_objects(seed, seed_thres)
     segm = watershed(-semantic.astype(np.float64), seed, mask=foreground)
     segm = remove_small_instances(segm, thres_small, remove_small_mode)
 
@@ -114,7 +118,7 @@ def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=
     return cast2dtype(segm)
 
 def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
-                 remove_small_mode='background'):
+                 remove_small_mode='background', seed_thres=32):
     r"""Convert binary foreground probability maps and instance contours to 
     instance masks via watershed segmentation algorithm.
 
@@ -131,11 +135,50 @@ def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, s
         scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
         remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
     """
+    assert volume.shape[0] == 2
     semantic = volume[0]
     boundary = volume[1]
     seed_map = (semantic > int(255*thres1)) * (boundary < int(255*thres2))
     foreground = (semantic > int(255*thres3))
     seed = label(seed_map)
+    seed = remove_small_objects(seed, seed_thres)
+    segm = watershed(-semantic.astype(np.float64), seed, mask=foreground)
+    segm = remove_small_instances(segm, thres_small, remove_small_mode)
+
+    if not all(x==1.0 for x in scale_factors):
+        target_size = (int(semantic.shape[0]*scale_factors[0]), 
+                       int(semantic.shape[1]*scale_factors[1]), 
+                       int(semantic.shape[2]*scale_factors[2]))
+        segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        
+    return cast2dtype(segm)
+
+def bcd_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres4=0.5, thres5=0.0, thres_small=128, 
+                  scale_factors=(1.0, 1.0, 1.0), remove_small_mode='background', seed_thres=32):
+    r"""Convert binary foreground probability maps, instance contours and signed distance 
+    transform to instance masks via watershed segmentation algorithm.
+
+    Note:
+        This function uses the `skimage.segmentation.watershed <https://github.com/scikit-image/scikit-image/blob/master/skimage/segmentation/_watershed.py#L89>`_ 
+        function that converts the input image into ``np.float64`` data type for processing. Therefore please make sure enough memory is allocated when handling large arrays.
+
+    Args: 
+        volume (numpy.ndarray): foreground and contour probability of shape :math:`(C, Z, Y, X)`.
+        thres1 (float): threshold of seeds. Default: 0.9
+        thres2 (float): threshold of instance contours. Default: 0.8
+        thres3 (float): threshold of foreground. Default: 0.85
+        thres_small (int): size threshold of small objects to remove. Default: 128
+        scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
+        remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
+    """
+    assert volume.shape[0] == 3
+    semantic, boundary, distance = volume[0], volume[1], volume[2]
+    distance = (distance / 255.0) * 2.0 - 1.0
+
+    seed_map = (semantic > int(255*thres1)) * (boundary < int(255*thres2)) * (distance > thres4)
+    foreground = (semantic > int(255*thres3)) * (distance > thres5)
+    seed = label(seed_map)
+    seed = remove_small_objects(seed, seed_thres)
     segm = watershed(-semantic.astype(np.float64), seed, mask=foreground)
     segm = remove_small_instances(segm, thres_small, remove_small_mode)
 
@@ -241,30 +284,54 @@ def binarize_and_median(pred, size=(7,7,7), thres=0.8):
     pred = ndimage.median_filter(pred, size=size)
     return pred
 
-def remove_small_instances(segm, thres_small=128, mode='background'):
+def remove_small_instances(segm: np.ndarray, 
+                           thres_small: int = 128, 
+                           mode: str = 'background'):
     """Remove small spurious instances. 
     """
-    assert mode in ['none', 'background', 'neighbor']
+    assert mode in ['none', 
+                    'background', 
+                    'background_2d', 
+                    'neighbor',
+                    'neighbor_2d']
+
     if mode == 'none':
         return segm
-    elif mode == 'background':
+
+    if mode == 'background':
         return remove_small_objects(segm, thres_small)
+    elif mode == 'background_2d':
+        temp = [remove_small_objects(segm[i], thres_small)
+                for i in range(segm.shape[0])]
+        return np.stack(temp, axis=0)
 
-    seg_idx = np.unique(segm)[1:]
-    for idx in seg_idx:
-        temp = (segm == idx).astype(np.uint8)
-        if temp.sum() < thres_small:
-            temp_dilated = dilation(temp, np.ones((1,3,3)))
-            diff = temp_dilated - temp
-            diff_mask = segm.copy()
-            diff_mask[np.where(diff==0)]=0
-            touch_idx, counts = np.unique(diff_mask, return_counts=True)
+    if mode == 'neighbor':
+        return merge_small_objects(segm, thres_small, do_3d=True)
+    elif mode == 'neighbor_2d':
+        temp = [merge_small_objects(segm[i], thres_small)
+                for i in range(segm.shape[0])]
+        return np.stack(temp, axis=0)
 
-            if len(touch_idx) > 1 and touch_idx[0] == 0:
-                touch_idx = touch_idx[1:]
-                counts = counts[1:]
+def merge_small_objects(segm, thres_small, do_3d=False):
+    struct = np.ones((1,3,3)) if do_3d else np.ones((3,3))
+    indices, counts = np.unique(segm, return_counts=True)
 
-            segm[np.where(segm==idx)] = touch_idx[np.argmax(counts)]
+    for i in range(len(indices)):
+        idx = indices[i]
+        if counts[i] < thres_small:
+            temp = (segm == idx).astype(np.uint8)
+            coord = bbox_ND(temp, relax=2)
+            cropped = crop_ND(temp, coord)
+
+            diff = dilation(cropped, struct) - cropped
+            diff_segm = crop_ND(segm, coord)
+            diff_segm[np.where(diff==0)]=0
+
+            u, ct = np.unique(diff_segm, return_counts=True)
+            if len(u) > 1 and u[0] == 0:
+                u, ct = u[1:], ct[1:]
+
+            segm[np.where(segm==idx)] = u[np.argmax(ct)]
 
     return segm
 

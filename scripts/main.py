@@ -72,7 +72,7 @@ def main():
     else:
         trainer.run_chunk(mode)
 
-    print("Rank: {}. Device: {}. Training is finished!".format(
+    print("Rank: {}. Device: {}. Process is finished!".format(
           args.local_rank, device))
 
 if __name__ == "__main__":

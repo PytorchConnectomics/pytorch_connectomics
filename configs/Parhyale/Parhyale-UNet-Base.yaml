@@ -46,7 +46,7 @@ INFERENCE:
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
   INPUT_PATH: 'datasets/Parhyale/test/'
   IMAGE_NAME: 'image_41.tif@image_50.tif'
-  OUTPUT_PATH: 'outputs/Parhyale_UNet_BC/test/'
+  OUTPUT_PATH: 'outputs/Parhyale_UNet/test/'
   OUTPUT_NAME: 'result.h5'
   PAD_SIZE: [4, 32, 32]
   AUG_MODE: 'mean'
