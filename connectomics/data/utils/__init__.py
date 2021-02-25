@@ -6,3 +6,4 @@ from .data_io import *
 from .data_blending import *
 from .data_transform import *
 from .data_misc import *
+from .data_weight import *

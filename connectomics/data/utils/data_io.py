@@ -86,6 +86,7 @@ def writeh5(filename, dtarray, dataset='main'):
 ####################################################################
 ## tile to volume
 ####################################################################
+
 def vast2Seg(seg):
     # convert to 24 bits
     if seg.ndim==2 or seg.shape[-1]==1:
