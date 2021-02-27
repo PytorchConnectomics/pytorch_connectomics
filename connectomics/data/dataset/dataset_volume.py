@@ -154,7 +154,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         out_volume = normalize_image(out_volume)
         # output list
         out_target = seg_to_targets(out_label, self.target_opt)
-        out_weight = seg_to_weights(out_target, self.weight_opt, out_valid)
+        out_weight = seg_to_weights(out_target, self.weight_opt, out_valid, out_label)
         return pos, out_volume, out_target, out_weight
 
     #######################################################

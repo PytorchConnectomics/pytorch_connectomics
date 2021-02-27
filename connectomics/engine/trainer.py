@@ -236,7 +236,7 @@ class Trainer(object):
 
         if hasattr(self, 'monitor'):        
             self.monitor.logger.log_tb.add_scalar('Validation_Loss', val_loss, iter_total)
-            self.monitor.visualize(volume, target, pred, iter_total, val=True)
+            self.monitor.visualize(volume, target, pred, weight, iter_total, val=True)
 
         if not hasattr(self, 'best_val_loss'): 
             self.best_val_loss = val_loss

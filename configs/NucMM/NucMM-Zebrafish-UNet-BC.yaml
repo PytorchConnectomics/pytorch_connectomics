@@ -7,13 +7,11 @@ MODEL:
     - DiceLoss
   - - WeightedBCEWithLogitsLoss
     - DiceLoss
-  LOSS_WEIGHT: [[1.0, 1.0], [1.0, 0.5]]
+  LOSS_WEIGHT: [[1.0, 0.5], [0.5, 0.5]]
   WEIGHT_OPT: [['1', '0'], ['1-1', '0']]
   OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid']]
-DATASET:
-  OUTPUT_PATH: outputs/NucMM_Zebrafish_BC_debug
 INFERENCE:
-  OUTPUT_PATH: outputs/NucMM_Zebrafish_BC/test/
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
-MONITOR:
-  ITERATION_NUM: [10, 10]
+  OUTPUT_PATH: outputs/NucMM_Zebrafish_BC/test/
+DATASET:
+  OUTPUT_PATH: outputs/NucMM_Zebrafish_BC/

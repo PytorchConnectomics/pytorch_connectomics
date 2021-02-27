@@ -335,6 +335,20 @@ def merge_small_objects(segm, thres_small, do_3d=False):
 
     return segm
 
+def remove_large_instances(segm: np.ndarray, 
+                           thres_large: int = 5000):
+    indices, counts = np.unique(segm, return_counts=True)
+    indices, counts = indices[1:], counts[1:]
+    argsorted = counts.argsort()[::-1]
+    for i in argsorted:
+        obj_size = counts[i]
+        if obj_size > thres_large:
+            idx = indices[i]
+            segm[segm==idx] = 0
+        else:
+            break
+    return segm
+
 def cast2dtype(segm):
     """Cast the segmentation mask to the best dtype to save storage.
     """
