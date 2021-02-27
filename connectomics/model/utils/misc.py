@@ -88,7 +88,8 @@ class SplitActivation(object):
                  output_act: Optional[List[str]] = None,
                  split_only: bool = False,
                  do_cat: bool = True,
-                 do_2d: bool = False):
+                 do_2d: bool = False,
+                 normalize: bool = False):
 
         if output_act is not None:
             assert len(target_opt) == len(output_act)
@@ -97,6 +98,7 @@ class SplitActivation(object):
         self.split_channels = []
         self.target_opt = target_opt
         self.do_cat = do_cat
+        self.normalize = normalize
 
         for topt in self.target_opt:
             if topt[0] == '9':
@@ -116,7 +118,9 @@ class SplitActivation(object):
         if self.split_only:
             return x
 
-        x = [self.act[i](x[i]) for i in range(len(x))]
+        x = [self._apply_act(self.act[i], x[i]) 
+             for i in range(len(x))]
+
         if self.do_cat:
             return torch.cat(x, dim=1)
         return x
@@ -128,13 +132,26 @@ class SplitActivation(object):
             out[i] = get_functional_act(act)
         return out
 
+    def _apply_act(self, act_fn, x):
+        x = act_fn(x)
+        if self.normalize and act_fn == torch.tanh:
+            x = (x + 1.0) / 2.0
+
+        return x
+
     @classmethod
-    def build_from_cfg(cls, cfg, do_cat=True, split_only=False):
+    def build_from_cfg(cls, 
+                       cfg, 
+                       do_cat: bool = True, 
+                       split_only: bool = False, 
+                       normalize: bool = False):
+
         return cls(cfg.MODEL.TARGET_OPT,
                    cfg.INFERENCE.OUTPUT_ACT,
                    split_only=split_only,
                    do_cat=do_cat,
-                   do_2d=cfg.DATASET.DO_2D)
+                   do_2d=cfg.DATASET.DO_2D,
+                   normalize=normalize)
 
 #------------------
 # Swish Activation
