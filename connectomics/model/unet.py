@@ -7,12 +7,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .block import *
-from .utils import model_init, get_activation
-
+from .utils import model_init
 
 class UNet3D(nn.Module):
     """3D residual U-Net architecture. This design is flexible in handling both isotropic data and anisotropic data.
-
     Args:
         block_type (str): the block type at each U-Net stage. Default: ``'residual'``
         in_channel (int): number of input channels. Default: 1
@@ -34,8 +32,7 @@ class UNet3D(nn.Module):
         'residual_se': BasicBlock3dSE,
     }
 
-    def __init__(self,
-                 backbone_type = 'resnet',
+    def __init__(self, 
                  block_type = 'residual',
                  in_channel: int = 1, 
                  out_channel: int = 3, 
@@ -47,26 +44,21 @@ class UNet3D(nn.Module):
                  norm_mode: str = 'bn', 
                  init_mode: str = 'orthogonal',
                  pooling: bool = False,
-                 fmap_size = [17, 257, 257],
                  **kwargs):
         super().__init__()
         assert len(filters) == len(isotropy)
         self.depth = len(filters)
         if is_isotropic:
             isotropy = [True] * self.depth 
-        
+
         self.pooling = pooling
+        block = self.block_dict[block_type]
 
         shared_kwargs = {
             'pad_mode': pad_mode,
             'act_mode': act_mode,
             'norm_mode': norm_mode}
 
-        self.isotropy = isotropy
-        self.fmap_size = fmap_size
-        self.backbone_type = backbone_type
-        self.block_type = block_type
-        
         # input and output layers
         kernel_size_io, padding_io = self._get_kernal_size(is_isotropic, io_layer=True)
         self.conv_in = conv3d_norm_act(in_channel, filters[0], kernel_size_io, 
@@ -84,7 +76,7 @@ class UNet3D(nn.Module):
                 self._make_pooling_layer(isotropy[i], previous, i),
                 conv3d_norm_act(filters[previous], filters[i], kernel_size, 
                                 stride=stride, padding=padding, **shared_kwargs),
-                self._get_block(i, filters[i], filters[i], **shared_kwargs))
+                block(filters[i], filters[i], **shared_kwargs))
             self.down_layers.append(layer)
 
         # decoding path
@@ -94,7 +86,7 @@ class UNet3D(nn.Module):
             layer = nn.ModuleList([
                 conv3d_norm_act(filters[j], filters[j-1], kernel_size, 
                                 padding=padding, **shared_kwargs),
-                self._get_block(j-1, filters[j-1], filters[j-1], **shared_kwargs)]) # j-1 prevents bot block from being used
+                block(filters[j-1], filters[j-1], **shared_kwargs)])
             self.up_layers.append(layer)
 
         #initialization
@@ -107,7 +99,7 @@ class UNet3D(nn.Module):
         for i in range(self.depth-1):
             x = self.down_layers[i](x)
             down_x[i] = x
-        
+
         x = self.down_layers[-1](x)
 
         for j in range(self.depth-1):
@@ -121,7 +113,6 @@ class UNet3D(nn.Module):
 
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
-
         When pooling layer is used, the input size is assumed to be even, 
         therefore :attr:`align_corners` is set to `False` to avoid feature 
         mis-match. When downsampling by stride, the input size is assumed 
@@ -159,30 +150,10 @@ class UNet3D(nn.Module):
             return nn.MaxPool3d(kernel_size, stride)
 
         return nn.Identity()
-    
-    def _get_block(self, i, ni, no, **shared_kwargs):
-        if self.backbone_type == 'botnet' and i == self.depth - 1 :
-            fmap_size = self.fmap_size
-            for iso in self.isotropy[1:]:
-                if iso:
-                    fmap_size = [math.ceil(f/2) for f in fmap_size]
-                else:
-                    fmap_size = fmap_size[:1] + [math.ceil(f/2) for f in fmap_size[1:]]
-            return BottleBlock(dim = ni, 
-                               fmap_size = fmap_size, 
-                               dim_out = no,
-                               proj_factor = 2,
-                               heads = 4,
-                               dim_head = 32,
-                               downsample = False,
-                               activation = get_activation(shared_kwargs['act_mode']))
-        else:
-            return self.block_dict[self.block_type](ni, no, **shared_kwargs)
-            
+
 
 class UNet2D(nn.Module):
     """2D residual U-Net architecture.
-
     Args:
         block_type (str): the block type at each U-Net stage. Default: ``'residual'``
         in_channel (int): number of input channels. Default: 1
@@ -274,7 +245,6 @@ class UNet2D(nn.Module):
 
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
-
         When pooling layer is used, the input size is assumed to be even, 
         therefore :attr:`align_corners` is set to `False` to avoid feature 
         mis-match. When downsampling by stride, the input size is assumed 
