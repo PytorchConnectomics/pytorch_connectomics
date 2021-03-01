@@ -112,6 +112,11 @@ _C.DATASET.IMAGE_NAME = 'train_image.h5'
 _C.DATASET.LABEL_NAME = None
 _C.DATASET.VALID_MASK_NAME = None
 
+_C.DATASET.VAL_IMAGE_NAME = None
+_C.DATASET.VAL_LABEL_NAME = None
+_C.DATASET.VAL_VALID_MASK_NAME = None
+_C.DATASET.VAL_PAD_SIZE = [0, 0, 0]
+
 _C.DATASET.LABEL_VAST = False
 _C.DATASET.INPUT_PATH = 'path/to/input'
 _C.DATASET.OUTPUT_PATH = 'path/to/output'
@@ -161,6 +166,7 @@ _C.DATASET.VALID_RATIO = 0.5
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
+_C.DATASET.REJECT_SAMPLING.DIVERSITY = -1
 _C.DATASET.REJECT_SAMPLING.P = 0.95
 
 _C.DATASET.DISTRIBUTED = False
@@ -249,8 +255,8 @@ _C.SOLVER.ITERATION_STEP = 1
 
 # Save a checkpoint after every this number of iterations.
 _C.SOLVER.ITERATION_SAVE = 5000
-
 _C.SOLVER.ITERATION_TOTAL = 40000
+_C.SOLVER.ITERATION_VAL = 5000
 
 # Whether or not to restart training from iteration 0 regardless
 # of the 'iteration' key in the checkpoint file. This option only 
@@ -316,7 +322,7 @@ _C.MONITOR.LOG_OPT = [1, 1, 0]
 
 _C.MONITOR.VIS_OPT = [0, 16]
 
-_C.MONITOR.ITERATION_NUM = [10, 200]
+_C.MONITOR.ITERATION_NUM = [20, 200]
 
 # # -----------------------------------------------------------------------------
 # # Inference

@@ -135,8 +135,8 @@ def seg_to_instance_bd(seg: np.ndarray,
         sobel_y = np.array(sobel).reshape(1,3)
         for z in range(sz[0]):
             slide = seg[z]
-            edge_x = convolve2d(slide, sobel_x, 'same')
-            edge_y = convolve2d(slide, sobel_y, 'same')
+            edge_x = convolve2d(slide, sobel_x, 'same', boundary='symm')
+            edge_y = convolve2d(slide, sobel_y, 'same', boundary='symm')
             edge = np.maximum(np.abs(edge_x), np.abs(edge_y))
             contour = (edge!=0).astype(np.uint8)
             bd[z] = dilation(contour, np.ones((tsz, tsz), dtype=np.uint8))
@@ -173,26 +173,6 @@ def markInvalid(seg, iter_num=2, do_2d=True):
         out = binary_dilation(seg>0, structure=stel, iterations=iter_num)
         seg[out==0] = -1
     return seg
-
-def seg_to_weights(targets, wopts, mask=None):
-    # input: list of targets
-    out=[None]*len(wopts)
-    for wid, wopt in enumerate(wopts):
-        # 0: no weight
-        out[wid] = seg_to_weight(targets[wid], wopt, mask)
-    return out
-
-def seg_to_weight(target, wopts, mask=None):
-    out=[None]*len(wopts)
-    foo = np.zeros((1), int)
-    for wid, wopt in enumerate(wopts):
-        # 0: no weight
-        out[wid] = foo
-        if wopt == '1': # 1: by gt-target ratio 
-            out[wid] = weight_binary_ratio(target, mask)
-        elif wopt == '2': # 2: unet weight
-            out[wid] = weight_unet3d(target)
-    return out
 
 def seg_to_targets(label, topts):
     # input: (D, H, W)
@@ -243,83 +223,3 @@ def seg_to_targets(label, topts):
             raise NameError("Target option %s is not valid!" % topt[0])
 
     return out
-
-def weight_binary_ratio(label, mask=None, alpha=1.0):
-    """Binary-class rebalancing."""
-    # input: numpy tensor
-    # weight for smaller class is 1, the bigger one is at most 20*alpha
-    if label.max() == label.min(): # uniform weights for single-label volume
-        weight_factor = 1.0
-        weight = np.ones_like(label, np.float32)
-    else:
-        label = (label!=0).astype(int)
-        if mask is None:
-            weight_factor = float(label.sum()) / np.prod(label.shape)
-        else:
-            weight_factor = float((label*mask).sum()) / mask.sum()
-        weight_factor = np.clip(weight_factor, a_min=5e-2, a_max=0.99)
-
-        if weight_factor > 0.5:
-            weight = label + alpha*weight_factor/(1-weight_factor)*(1-label)
-        else:
-            weight = alpha*(1-weight_factor)/weight_factor*label + (1-label)
-
-        if mask is not None:
-            weight = weight*mask
-
-    return weight.astype(np.float32)
-
-def weight_unet3d(seg, w0=10, sigma=5):
-    out = np.zeros_like(seg)
-    zid = np.where((seg>0).max(axis=1).max(axis=1)>0)[0]
-    for z in zid:
-        out[z] = weight_unet2d(seg[z], w0, sigma)
-    return out
-
-def weight_unet2d(seg, w0=10, sigma=5):
-    """
-    Generate the weight maps as specified in the UNet paper
-    for a multi-instance seg map.
-    
-    Parameters
-    ----------
-    seg: array-like
-        A 2D array of shape (image_height, image_width)
-
-    Returns
-    -------
-    array-like
-        A 2D array of shape (image_height, image_width)
-    
-    """    
-    seg_ids = np.unique(seg)
-    seg_ids = seg_ids[seg_ids>0]
-    nrows, ncols = seg.shape    
-    distMap = np.ones((nrows * ncols, 2))*(nrows+ncols)
-    X1, Y1 = np.meshgrid(range(ncols), range(nrows))
-    X1, Y1 = X1.reshape(1,-1), Y1.reshape(1,-1)
-    for i, seg_id in enumerate(seg_ids):
-        # find the boundary of each mask,
-        # compute the distance of each pixel from this boundary
-        bounds = find_boundaries(seg==seg_id, mode='inner')
-        Y2, X2 = np.nonzero(bounds)
-        dist = np.sqrt((X2.reshape(-1,1) - X1) ** 2 + (Y2.reshape(-1,1) - Y1) ** 2).min(axis=0)
-        m1 = dist<distMap[:,0]
-        distMap[m1,1] = distMap[m1,0]
-        distMap[m1,0] = dist[m1]
-        m2 = (dist>distMap[:,0])*(dist<distMap[:,1])*np.logical_not(m1)
-        distMap[m2,1] = dist[m2]
-    if len(seg_ids) == 1:
-        loss_map = w0 * np.exp((-1 * distMap[:,0] ** 2) / (2 * (sigma ** 2)))
-    else:        
-        loss_map = w0 * np.exp((-1 * distMap.sum(axis=1) ** 2) / (2 * (sigma ** 2)))
-    
-    loss_map = loss_map.reshape((nrows,ncols))
-    # add class weight map    
-    wc_1 = (seg==0).mean()
-    wc_0 = 1 - wc_1
-    loss_map[seg>0] += wc_1
-    loss_map[seg==0] += wc_0
-    return loss_map
-
-

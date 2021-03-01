@@ -66,6 +66,7 @@ class Logger(object):
 
             losses_pie = plot_loss_ratio(self.val_dict)
             self.log_tb.add_figure('Loss Ratio', losses_pie, iter_total)
+            plt.close('all')
             
         if self.log_txt is not None:
             self.log_txt.write("[Volume %d] train_loss=%0.4f lr=%.5f\n" % (iter_total, avg, lr))
@@ -92,8 +93,9 @@ class Monitor(object):
                 do_vis = self.do_vis
         return do_vis
 
-    def visualize(self, volume, label, output, iter_total):
-        self.vis.visualize(volume, label, output, iter_total, self.logger.log_tb)
+    def visualize(self, volume, label, output, iter_total, val=False):
+        self.vis.visualize(volume, label, output, iter_total, 
+                           self.logger.log_tb, val)
 
     def load_config(self, cfg):
         self.logger.log_tb.add_text('Config', convert_cfg_markdown(cfg), 0)

@@ -21,7 +21,7 @@ The field of **connectomics** aims to reconstruct the wiring diagram of the brai
 - Distributed and Mixed-precision Training
 - Scalability for Handling Large Datasets
 
-If you want new features that are relatively easy to implement (e.g., loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly. 
+If you want new features that are relatively easy to implement (e.g., loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
 
 ## Environment
 
@@ -34,7 +34,7 @@ The code is developed and tested under the following configurations.
 
 Create a new conda environment:
 
-```
+```shell
 conda create -n py3_torch python=3.8
 source activate py3_torch
 conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
@@ -44,7 +44,7 @@ Please note that this package is mainly developed on the Harvard [FASRC](https:/
 
 Download and install the package:
 
-```
+```shell
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
 pip install --upgrade pip
@@ -58,7 +58,7 @@ For more information and frequently asked questions about installation, please c
 
 ### Data Augmentation
 
-We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/augmentation.html).
+We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/data.html#module-connectomics.data.augmentation).
 
 ### YACS Configuration
 
@@ -73,7 +73,7 @@ and anisotropic datasets. Please check the [documentation](https://zudi-lin.gith
 
 This project is built upon numerous previous projects. Especially, we'd like to thank the contributors of the following github repositories:
 
-- [pyGreenTea](https://github.com/naibaf7/PyGreentea): Janelia FlyEM team 
+- [pyGreenTea](https://github.com/naibaf7/PyGreentea): HHMI Janelia FlyEM Team
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
 - [Detectron2](https://github.com/facebookresearch/detectron2): Facebook AI Reserach
 

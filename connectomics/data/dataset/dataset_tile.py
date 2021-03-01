@@ -39,8 +39,9 @@ class TileDataset(torch.utils.data.Dataset):
         do_2d (bool): load 2d samples from 3d volumes. Default: `False`
         label_erosion (int): label erosion parameter to widen border. Default: 0
         pad_size(list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`
-        reject_size_thres (int): threshold to decide if a sampled volumes contains foreground objects. Default: 0
-        reject_p (float): probability of rejecting non-foreground volumes. Default: 0.95
+        reject_size_thres (int, optional): threshold to decide if a sampled volumes contains foreground objects. Default: 0
+        reject_diversity (int, optional): threshold to decide if a sampled volumes contains multiple objects. Default: 0
+        reject_p (float, optional): probability of rejecting non-foreground volumes. Default: 0.95
     """
 
     def __init__(self, 
@@ -62,7 +63,9 @@ class TileDataset(torch.utils.data.Dataset):
                  do_2d: bool = False,
                  label_erosion: int = 0, 
                  pad_size: List[int] = [0,0,0],
+                 # rejection sampling
                  reject_size_thres: int = 0,
+                 reject_diversity: int = 0,
                  reject_p: float = 0.95):
         
         self.sample_volume_size = sample_volume_size
@@ -105,6 +108,7 @@ class TileDataset(torch.utils.data.Dataset):
 
         # rejection samping
         self.reject_size_thres = reject_size_thres
+        self.reject_diversity = reject_diversity
         self.reject_p = reject_p        
 
     def get_coord_name(self):
@@ -179,4 +183,5 @@ class TileDataset(torch.utils.data.Dataset):
                 # specify chunk iteration number for training and -1 for inference
                 iter_num = self.chunk_iter if self.mode=='train' else -1,
                 reject_size_thres = self.reject_size_thres,
+                reject_diversity = self.reject_diversity,
                 reject_p = self.reject_p)

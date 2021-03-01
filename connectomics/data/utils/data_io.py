@@ -8,9 +8,9 @@ import numpy as np
 import imageio
 from scipy.ndimage import zoom
 
-def readh5(filename, dataset=''):
+def readh5(filename, dataset = None):
     fid = h5py.File(filename,'r')
-    if dataset=='':
+    if dataset is None:
         dataset = list(fid)[0]
     return np.array(fid[dataset])
 
@@ -20,7 +20,7 @@ def readimg_as_vol(filename):
     data = imageio.imread(filename)
     return data[np.newaxis, :, :]
 
-def readvol(filename, dataset=''):
+def readvol(filename, dataset=None):
     r"""Load a image volume in HDF5, TIFF or PNG formats.
     """
     img_suf = filename[filename.rfind('.')+1:]
@@ -86,6 +86,7 @@ def writeh5(filename, dtarray, dataset='main'):
 ####################################################################
 ## tile to volume
 ####################################################################
+
 def vast2Seg(seg):
     # convert to 24 bits
     if seg.ndim==2 or seg.shape[-1]==1:

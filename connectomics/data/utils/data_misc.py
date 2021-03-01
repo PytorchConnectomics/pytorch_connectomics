@@ -55,10 +55,19 @@ def normalize_range(image: np.ndarray) -> np.ndarray:
     normalized = (normalized*255).astype(np.uint8)
     return normalized
 
-
 def normalize_image(image: np.ndarray, 
                     mean: float = 0.5,
                     std: float = 0.5) -> np.ndarray:
     assert image.dtype == np.float32
     image = (image - mean) / std
     return image
+
+def split_masks(label):
+    indices = np.unique(label)
+    if len(indices) > 1:
+        if indices[0] == 0: indices = indices[1:]
+        masks = [(label==x).astype(np.uint8) for x in indices]
+        return np.stack(masks, 0)
+
+    func = np.ones_like if indices[0] != 0 else np.zeros_like
+    return func(label).astype(np.uint8)[np.newaxis]

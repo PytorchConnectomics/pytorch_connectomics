@@ -7,8 +7,8 @@ MODEL:
     - DiceLoss
   - - WeightedBCEWithLogitsLoss
     - DiceLoss
-  - WeightedMSE
-  LOSS_WEIGHT: [[1.0, 0.4], [1.5, 0.5], [1.0]]
+  - - WeightedMSE
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [4.0]]
   WEIGHT_OPT: [['1', '0'], ['1', '0'], ['0']]
   OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid'], ['tanh']]
   # cross-target consistency regularization
