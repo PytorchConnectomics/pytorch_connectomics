@@ -29,7 +29,7 @@ class BotNet3D(nn.Module):
                  pad_mode: str = 'replicate', 
                  act_mode: str = 'elu', 
                  norm_mode: str = 'bn',
-                 fmap_size = [32, 128, 128],
+                 fmap_size = [17, 129, 129],
                  **_):
         super().__init__()
         assert len(filters) == self.num_stages
@@ -52,9 +52,9 @@ class BotNet3D(nn.Module):
         
         for iso in isotropy[1:-1]:
             if iso:
-                fmap_size = [f//2 for f in fmap_size]
+                fmap_size = [math.ceil(f/2) for f in fmap_size]
             else:
-                fmap_size = fmap_size[:1] + [f//2 for f in fmap_size[1:]]
+                fmap_size = fmap_size[:1] + [math.ceil(f/2) for f in fmap_size[1:]]
         
         # Isotopy is forced to True, norm mode is forced to bn
         self.layer4 = BottleStack(dim = filters[3], 

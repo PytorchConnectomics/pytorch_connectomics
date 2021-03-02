@@ -30,6 +30,8 @@ def build_model(cfg, device, rank=None):
     if model_arch == 'fpn_3d':
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE
+        if cfg.MODEL.BACKBONE == 'botnet':
+            kwargs['fmap_size'] = cfg.MODEL.INPUT_SIZE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
     print('model: ', model.__class__.__name__)    

@@ -141,9 +141,10 @@ class TestModelBlock(unittest.TestCase):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = build_model(cfg, device).eval()
 
-        x = torch.rand(2, 1, 32, 128, 128)
+        d, h, w = cfg.MODEL.INPUT_SIZE
+        x = torch.rand(2, 1, d, h, w)
         y1 = model(x)
-        self.assertTupleEqual(tuple(y1.shape), (2, 1, 32, 128, 128))
+        self.assertTupleEqual(tuple(y1.shape), (2, 1, d, h, w))
 
 if __name__ == '__main__':
     unittest.main()
