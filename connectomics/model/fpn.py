@@ -6,8 +6,8 @@ import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .backbone import *
-from .block import *
+from .backbone import build_backbone
+from .block import conv3d_norm_act
 from .utils import model_init
 
 class FPN3D(nn.Module):

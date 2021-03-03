@@ -7,6 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 from torch.jit.annotations import Dict
 
+from ..block.partialconv3d import PartialConv3d
 
 class IntermediateLayerGetter(nn.ModuleDict):
     """
@@ -223,8 +224,8 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     norm = {
         "bn": nn.BatchNorm3d,
         "sync_bn": nn.BatchNorm3d, 
-        "gn": nn.InstanceNorm3d,
-        "in": lambda channels: nn.GroupNorm(16, channels),
+        "in": nn.InstanceNorm3d,
+        "gn": lambda channels: nn.GroupNorm(16, channels),
         "none": nn.Identity,
         }[norm]
     if norm in ["bn", "sync_bn", "in"]:
@@ -247,11 +248,18 @@ def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     norm = {
         "bn": nn.BatchNorm2d,
         "sync_bn": nn.BatchNorm2d, 
-        "gn": nn.InstanceNorm2d,
-        "in": lambda channels: nn.GroupNorm(16, channels),
+        "in": nn.InstanceNorm2d,
+        "gn": lambda channels: nn.GroupNorm(16, channels),
         "none": nn.Identity,
         }[norm]
     if norm in ["bn", "sync_bn", "in"]:
         return norm(out_channels, momentum=bn_momentum)
     else:
         return norm(out_channels)
+
+def get_conv(conv_type='standard'):
+    assert conv_type in ['standard', 'partial']
+    if conv_type=='partial':
+        return PartialConv3d
+    else:
+        return nn.Conv3d
