@@ -1,4 +1,4 @@
-# PyTorch Connectomics (PTC)
+# PyTorch Connectomics (PyTC)
 
 <p align="left">
     <a href="https://www.python.org/">
