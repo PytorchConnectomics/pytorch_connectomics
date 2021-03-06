@@ -8,8 +8,8 @@ MODEL:
   - - WeightedBCEWithLogitsLoss
     - DiceLoss
   - - WeightedMSE
-  LOSS_WEIGHT: [[1.0, 0.5], [0.5, 0.5], [5.0]]
-  WEIGHT_OPT: [['1', '0'], ['1-1', '0'], ['0']]
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [5.0]]
+  WEIGHT_OPT: [['1', '0'], ['1', '0'], ['0']]
   OUTPUT_ACT: [['none', 'sigmoid'], ['none', 'sigmoid'], ['tanh']]
 INFERENCE:
   OUTPUT_ACT: ['sigmoid', 'sigmoid', 'tanh']

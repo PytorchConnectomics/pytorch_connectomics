@@ -213,9 +213,10 @@ def seg_to_targets(label, topts):
             out[tid] = edt_instance(label.copy(), mode=mode)
         elif topt[0] == '6': # distance transform (semantic)
             if len(topt) == 1: 
-                topt = topt + '-2d'
-            _, mode = topt.split('-')
-            distance = edt_semantic(label.copy(), mode=mode)
+                topt = topt + '-2d-8-50'
+            assert len(topt.split('-')) == 4
+            _, mode, a, b = topt.split('-')
+            distance = edt_semantic(label.copy(), mode, float(a), float(b))
             out[tid] = distance[np.newaxis,:].astype(np.float32)
         elif topt[0] == '9': # generic segmantic segmentation
             out[tid] = label.astype(np.int64)

@@ -133,7 +133,7 @@ _C.DATASET.LOAD_2D = False
 _C.DATASET.PAD_SIZE = [2, 64, 64] 
 
 # Normalize the image and cast to uint8 format
-_C.DATASET.NORMALIZE = True
+_C.DATASET.NORMALIZE_RANGE = True
 
 # Half Patch size for 2D label erosion
 _C.DATASET.LABEL_EROSION = 0
@@ -168,6 +168,10 @@ _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
 _C.DATASET.REJECT_SAMPLING.DIVERSITY = -1
 _C.DATASET.REJECT_SAMPLING.P = 0.95
+
+# Normalize model inputs (the images are assumed to be gray-scale).
+_C.DATASET.MEAN = 0.5
+_C.DATASET.STD = 0.5
 
 _C.DATASET.DISTRIBUTED = False
 

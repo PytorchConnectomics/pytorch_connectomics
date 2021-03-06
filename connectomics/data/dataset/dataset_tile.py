@@ -66,7 +66,10 @@ class TileDataset(torch.utils.data.Dataset):
                  # rejection sampling
                  reject_size_thres: int = 0,
                  reject_diversity: int = 0,
-                 reject_p: float = 0.95):
+                 reject_p: float = 0.95,
+                # normalization
+                 data_mean = 0.5,
+                 data_std = 0.5):
         
         self.sample_volume_size = sample_volume_size
         self.sample_label_size = sample_label_size

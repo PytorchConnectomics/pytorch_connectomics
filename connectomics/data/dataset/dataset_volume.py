@@ -61,7 +61,10 @@ class VolumeDataset(torch.utils.data.Dataset):
                  # rejection sampling
                  reject_size_thres: int = 0,
                  reject_diversity: int = 0,
-                 reject_p: float = 0.95):
+                 reject_p: float = 0.95,
+                 # normalization
+                 data_mean = 0.5,
+                 data_std = 0.5):
 
         assert mode in ['train', 'val', 'test']
         self.mode = mode
@@ -82,6 +85,10 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.reject_size_thres = reject_size_thres
         self.reject_diversity = reject_diversity
         self.reject_p = reject_p
+
+        # normalization
+        self.data_mean = data_mean
+        self.data_std = data_std
 
         # dataset: channels, depths, rows, cols
         self.volume_size = [np.array(x.shape) for x in self.volume]  # volume size, could be multi-volume input
@@ -136,7 +143,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         elif self.mode == 'test':
             pos = self._get_pos_test(index)
             out_volume = (crop_volume(self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
-            out_volume = normalize_image(out_volume)
+            out_volume = normalize_image(out_volume, self.data_mean, self.data_std)
             if self.do_2d:
                 out_volume = np.squeeze(out_volume)
             return pos, np.expand_dims(out_volume, 0)
@@ -151,7 +158,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_valid = np.squeeze(out_valid)
             
         out_volume = np.expand_dims(out_volume, 0)
-        out_volume = normalize_image(out_volume)
+        out_volume = normalize_image(out_volume, self.data_mean, self.data_std)
         # output list
         out_target = seg_to_targets(out_label, self.target_opt)
         out_weight = seg_to_weights(out_target, self.weight_opt, out_valid, out_label)

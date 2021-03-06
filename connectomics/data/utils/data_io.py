@@ -24,7 +24,7 @@ def readvol(filename, dataset=None):
     r"""Load a image volume in HDF5, TIFF or PNG formats.
     """
     img_suf = filename[filename.rfind('.')+1:]
-    if img_suf == 'h5':
+    if img_suf in ['h5', 'hdf5']:
         data = readh5(filename, dataset)
     elif 'tif' in img_suf:
         data = imageio.volread(filename).squeeze()
