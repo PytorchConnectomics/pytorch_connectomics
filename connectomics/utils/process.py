@@ -16,6 +16,7 @@ __all__ = ['binary_connected',
            'binary_watershed',
            'bc_connected',
            'bc_watershed',
+           'bcd_watershed',
            'polarity2instance']
 
 # Post-processing functions of mitochondria instance segmentation model outputs
@@ -167,6 +168,8 @@ def bcd_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres4=0.5, thres
         thres1 (float): threshold of seeds. Default: 0.9
         thres2 (float): threshold of instance contours. Default: 0.8
         thres3 (float): threshold of foreground. Default: 0.85
+        thres4 (float): threshold of signed distance for locating seeds. Default: 0.5
+        thres5 (float): threshold of signed distance for foreground. Default: 0.0
         thres_small (int): size threshold of small objects to remove. Default: 128
         scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
         remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``

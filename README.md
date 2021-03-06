@@ -1,4 +1,4 @@
-# PyTorch Connectomics
+# PyTorch Connectomics (PyTC)
 
 <p align="left">
     <a href="https://www.python.org/">
@@ -83,7 +83,7 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ## Citation
 
-If you find PyTorch Connectomics useful in your research, please cite:
+If you find PyTorch Connectomics (PyTC) useful in your research, please cite:
 
 ```bibtex
 @misc{lin2019pytorchconnectomics,
