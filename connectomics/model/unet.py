@@ -11,7 +11,6 @@ from .utils import model_init
 
 class UNet3D(nn.Module):
     """3D residual U-Net architecture. This design is flexible in handling both isotropic data and anisotropic data.
-
     Args:
         block_type (str): the block type at each U-Net stage. Default: ``'residual'``
         in_channel (int): number of input channels. Default: 1
@@ -114,7 +113,6 @@ class UNet3D(nn.Module):
 
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
-
         When pooling layer is used, the input size is assumed to be even, 
         therefore :attr:`align_corners` is set to `False` to avoid feature 
         mis-match. When downsampling by stride, the input size is assumed 
@@ -156,7 +154,6 @@ class UNet3D(nn.Module):
 
 class UNet2D(nn.Module):
     """2D residual U-Net architecture.
-
     Args:
         block_type (str): the block type at each U-Net stage. Default: ``'residual'``
         in_channel (int): number of input channels. Default: 1
@@ -248,7 +245,6 @@ class UNet2D(nn.Module):
 
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
-
         When pooling layer is used, the input size is assumed to be even, 
         therefore :attr:`align_corners` is set to `False` to avoid feature 
         mis-match. When downsampling by stride, the input size is assumed 

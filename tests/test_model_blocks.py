@@ -100,9 +100,15 @@ class TestModelBlock(unittest.TestCase):
                     self.assertTrue(torch.allclose(out1, out2, atol=1e-6))
     
     def test_bottlenect_attention_block(self):
+        # AbsPosEmb
         block3d = BottleBlock(dim=16, fmap_size=(8, 8, 8), dim_out=16, proj_factor=4, downsample=False, dim_head=16, )
         tensor = torch.randn(2, 16, 8, 8, 8)
         self.assertTupleEqual(tuple(block3d(tensor).shape), (2, 16, 8, 8, 8))
+        
+        # RelPosEmb
+        block3d = BottleBlock(dim=16, fmap_size=(8, 16, 18), dim_out=16, proj_factor=4, downsample=False, dim_head=16, rel_pos_emb=True)
+        tensor = torch.randn(2, 16, 8, 16, 18)
+        self.assertTupleEqual(tuple(block3d(tensor).shape), (2, 16, 8, 16, 18))
 
 if __name__ == '__main__':
     unittest.main()

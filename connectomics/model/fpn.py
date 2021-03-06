@@ -44,6 +44,7 @@ class FPN3D(nn.Module):
                  norm_mode: str = 'bn', 
                  init_mode: str = 'orthogonal',
                  deploy: bool = False,
+                 fmap_size = [17, 129, 129],
                  **kwargs):
         super().__init__()
         self.depth = len(filters)
@@ -63,6 +64,7 @@ class FPN3D(nn.Module):
             'filters': filters,
             'isotropy': isotropy,
             'deploy': deploy,
+            'fmap_size': fmap_size,
         }
         backbone_kwargs.update(shared_kwargs)
 
@@ -76,11 +78,11 @@ class FPN3D(nn.Module):
             
         self.smooth = nn.ModuleList()
         for i in range(self.depth):
-            kernel_size, padding = self._get_kernal_size(isotropy[i])
+            kernel_size, padding = self._get_kernel_size(isotropy[i])
             self.smooth.append(conv3d_norm_act(latplanes, latplanes, 
                 kernel_size=kernel_size, padding=padding, **shared_kwargs))
 
-        kernel_size_io, padding_io = self._get_kernal_size(is_isotropic, io_layer=True)
+        kernel_size_io, padding_io = self._get_kernel_size(is_isotropic, io_layer=True)
         self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, 
             padding=padding_io, pad_mode=pad_mode, bias=True, act_mode='none', norm_mode='none')
 
@@ -106,7 +108,7 @@ class FPN3D(nn.Module):
                           align_corners=True)
         return smooth(x) + y
 
-    def _get_kernal_size(self, is_isotropic, io_layer=False):
+    def _get_kernel_size(self, is_isotropic, io_layer=False):
         if io_layer: # kernel and padding size of I/O layers
             if is_isotropic:
                 return (5,5,5), (2,2,2)
