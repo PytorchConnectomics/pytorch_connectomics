@@ -146,5 +146,20 @@ class TestModelBlock(unittest.TestCase):
         y1 = model(x)
         self.assertTupleEqual(tuple(y1.shape), (2, 1, d, h, w))
 
+    def test_build_fpn_with_efficientnet(self):
+        r"""Test building a 3D FPN model with BotNet3D backbone from configs.
+        """
+        cfg = get_cfg_defaults()
+        cfg.MODEL.ARCHITECTURE = 'fpn_3d'
+        cfg.MODEL.BACKBONE = 'efficientnet'
+        cfg.MODEL.BLOCK_TYPE = 'inverted_res'
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = build_model(cfg, device).eval()
+
+        d, h, w = cfg.MODEL.INPUT_SIZE
+        x = torch.rand(2, 1, d, h, w)
+        y1 = model(x)
+        self.assertTupleEqual(tuple(y1.shape), (2, 1, d, h, w))
+
 if __name__ == '__main__':
     unittest.main()

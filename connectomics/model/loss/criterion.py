@@ -51,7 +51,7 @@ class Criterion(object):
 
         self.device = device
         self.target_opt = target_opt
-        self.spliter = SplitActivation(target_opt, split_only=True, do_2d=do_2d)
+        self.splitter = SplitActivation(target_opt, split_only=True, do_2d=do_2d)
 
         self.num_target = len(target_opt)
         self.num_regu = 0 if regu_opt is None else len(regu_opt)
@@ -101,7 +101,7 @@ class Criterion(object):
     def __call__(self, pred, target, weight):
         # target, weight: torch.Tensor or numpy.ndarray
         # pred: torch.Tensor
-        x = self.spliter(pred)
+        x = self.splitter(pred)
 
         loss = 0.0
         # Record individual losses and regularizations for
