@@ -225,7 +225,7 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
         "bn": nn.BatchNorm3d,
         "sync_bn": nn.BatchNorm3d, 
         "in": nn.InstanceNorm3d,
-        "gn": lambda channels: nn.GroupNorm(16, channels),
+        "gn": lambda channels: nn.GroupNorm(channels//2, channels),
         "none": nn.Identity,
         }[norm]
     if norm in ["bn", "sync_bn", "in"]:
