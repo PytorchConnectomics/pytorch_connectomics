@@ -69,5 +69,4 @@ def split_masks(label):
         masks = [(label==x).astype(np.uint8) for x in indices]
         return np.stack(masks, 0)
 
-    func = np.ones_like if indices[0] != 0 else np.zeros_like
-    return func(label).astype(np.uint8)[np.newaxis]
+    return np.ones_like(label).astype(np.uint8)[np.newaxis]

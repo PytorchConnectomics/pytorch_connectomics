@@ -99,7 +99,7 @@ def _get_input(cfg, mode='train', rank=None):
     for i in range(len(img_name)):
         volume[i] = read_fn(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
-        if cfg.DATASET.NORMALIZE:
+        if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
         if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
@@ -157,7 +157,7 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         sample_volume_size = cfg.MODEL.INPUT_SIZE
         sample_label_size = sample_volume_size
         label_erosion = cfg.DATASET.LABEL_EROSION
-        sample_stride = cfg.MODEL.INPUT_SIZE
+        sample_stride = cfg.INFERENCE.STRIDE
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = -1
 
@@ -178,6 +178,8 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         "reject_size_thres": cfg.DATASET.REJECT_SAMPLING.SIZE_THRES,
         "reject_diversity": cfg.DATASET.REJECT_SAMPLING.DIVERSITY,
         "reject_p": cfg.DATASET.REJECT_SAMPLING.P,
+        "data_mean": cfg.DATASET.MEAN,
+        "data_std": cfg.DATASET.STD,
     }
       
     if cfg.DATASET.DO_CHUNK_TITLE==1: # build TileDataset

@@ -133,7 +133,7 @@ _C.DATASET.LOAD_2D = False
 _C.DATASET.PAD_SIZE = [2, 64, 64] 
 
 # Normalize the image and cast to uint8 format
-_C.DATASET.NORMALIZE = True
+_C.DATASET.NORMALIZE_RANGE = True
 
 # Half Patch size for 2D label erosion
 _C.DATASET.LABEL_EROSION = 0
@@ -169,6 +169,10 @@ _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
 _C.DATASET.REJECT_SAMPLING.DIVERSITY = -1
 _C.DATASET.REJECT_SAMPLING.P = 0.95
 
+# Normalize model inputs (the images are assumed to be gray-scale).
+_C.DATASET.MEAN = 0.5
+_C.DATASET.STD = 0.5
+
 _C.DATASET.DISTRIBUTED = False
 
 # -----------------------------------------------------------------------------
@@ -188,7 +192,7 @@ _C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ['mask']
 
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
 _C.AUGMENTOR.ROTATE.ROT90 = True
-_C.AUGMENTOR.ROTATE.P = 0.5
+_C.AUGMENTOR.ROTATE.P = 1.0
 
 _C.AUGMENTOR.RESCALE = CN({"ENABLED": True})
 _C.AUGMENTOR.RESCALE.P = 0.5
@@ -336,6 +340,7 @@ _C.INFERENCE.INPUT_PATH = None
 _C.INFERENCE.IMAGE_NAME = ""
 _C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
+_C.INFERENCE.IS_ABSOLUTE_PATH = None
 
 _C.INFERENCE.PAD_SIZE = None
 # activation for the output for inference and visualization

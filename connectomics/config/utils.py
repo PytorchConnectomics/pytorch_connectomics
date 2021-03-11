@@ -40,8 +40,11 @@ def update_inference_cfg(cfg: CfgNode):
         cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
     cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
     cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
+
     if cfg.INFERENCE.PAD_SIZE is not None:
         cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
+    if cfg.INFERENCE.IS_ABSOLUTE_PATH is not None:
+        cfg.DATASET.IS_ABSOLUTE_PATH = cfg.INFERENCE.IS_ABSOLUTE_PATH
 
     # Model configurations:
     if cfg.INFERENCE.INPUT_SIZE is not None:

@@ -5,15 +5,14 @@ from scipy.ndimage import distance_transform_edt
 from skimage.morphology import binary_dilation
 from .data_misc import split_masks
 
-def seg_to_weights(targets, wopts, mask=None):
+def seg_to_weights(targets, wopts, mask=None, seg=None):
     # input: list of targets
     out=[None]*len(wopts)
     for wid, wopt in enumerate(wopts):
-        # 0: no weight
-        out[wid] = seg_to_weight(targets[wid], wopt, mask)
+        out[wid] = seg_to_weight(targets[wid], wopt, mask, seg)
     return out
 
-def seg_to_weight(target, wopts, mask=None):
+def seg_to_weight(target, wopts, mask=None, seg=None):
     out=[None]*len(wopts)
     foo = np.zeros((1), int)
     for wid, wopt in enumerate(wopts):
@@ -22,8 +21,10 @@ def seg_to_weight(target, wopts, mask=None):
         if wopt[0] == '1': # 1: by gt-target ratio
             dilate = (wopt == '1-1')
             out[wid] = weight_binary_ratio(target, mask, dilate)
-        elif wopt == '2': # 2: unet weight
-            out[wid] = weight_unet3d(target)
+        elif wopt[0] == '2': # 2: unet weight
+            assert seg is not None
+            _, w0, w1 = wopt.split('-')
+            out[wid] = weight_unet3d(seg, float(w0), float(w1))
     return out
 
 def weight_binary_ratio(label, mask=None, dilate=False):
@@ -31,23 +32,23 @@ def weight_binary_ratio(label, mask=None, dilate=False):
         # uniform weights for single-label volume
         return np.ones_like(label, np.float32)
 
-    if dilate:
-        N = label.ndim
-        assert N in [3, 4]
-        struct = np.ones([1]*(N-2) + [5,5])
-
-        label = (label != 0)
-        label = binary_dilation(label, struct)
-
     min_ratio = 5e-2
-    label = (label!=0).astype(np.float32) # foreground
+    label = (label!=0).astype(np.float64) # foreground
     if mask is not None:
         mask = mask.astype(label.dtype)
         ww = (label*mask).sum() / mask.sum()
     else:
         ww = label.sum() / np.prod(label.shape)
     ww = np.clip(ww, a_min=min_ratio, a_max=1-min_ratio)
-    weight_factor = max(ww, 1-ww)/min(ww, 1-ww)
+    weight_factor = max(ww, 1-ww)/min(ww, 1-ww) 
+
+    if dilate:
+        N = label.ndim
+        assert N in [3, 4]
+        struct = np.ones([1]*(N-2) + [3,3])
+
+        label = (label != 0)
+        label = binary_dilation(label, struct).astype(np.float32)
 
     # Case 1 -- Affinity Map
     # In that case, ww is large (i.e., ww > 1 - ww), which means the high weight
@@ -55,7 +56,7 @@ def weight_binary_ratio(label, mask=None, dilate=False):
 
     # Case 2 -- Contour Map
     # In that case, ww is small (i.e., ww < 1 - ww), which means the high weight
-    # factor should be applied to foreground pixels.    
+    # factor should be applied to foreground pixels.   
 
     if ww > 1-ww: 
         # switch when foreground is the dominate class
@@ -67,18 +68,22 @@ def weight_binary_ratio(label, mask=None, dilate=False):
 
     return weight.astype(np.float32)
 
-def weight_unet3d(seg, w0=10, w1=2, sigma=5):
-    out = np.zeros_like(seg)
+def weight_unet3d(seg, w0=10.0, w1=5.0, sigma=5):
+    out = np.ones_like(seg).astype(np.float32)
     zid = np.where((seg>0).max(axis=1).max(axis=1)>0)[0]
     for z in zid:
         out[z] = weight_unet2d(seg[z], w0, w1, sigma)
-    return out
+    return out[np.newaxis]
 
-def weight_unet2d(seg, w0=10, w1=2, sigma=5):
+def weight_unet2d(seg, w0=10.0, w1=5.0, sigma=5):
+    min_val = 1.0
+    max_val = max(w0, w1)
+
     masks = split_masks(seg)
     N, H, W = masks.shape
-    if N < 2: # Total number of segments is smaller than 2.
-        return np.zeros((H,W), dtype=np.float32)
+    if N < 2: # Number of foreground segments is smaller than 2.
+        weight_map = (seg!=0).astype(np.float32) * w1
+        return np.clip(weight_map, min_val, max_val)
     
     distance = []
     foreground = np.zeros((H,W), dtype=np.uint8)
@@ -95,4 +100,5 @@ def weight_unet2d(seg, w0=10, w1=2, sigma=5):
     weight_map = w0 * np.exp((-1 * (d1 + d2) ** 2) / (2 * (sigma ** 2)))
     weight_map = weight_map * (1-foreground).astype(np.float32)     
     weight_map += foreground.astype(np.float32) * w1
-    return weight_map
+
+    return np.clip(weight_map, min_val, max_val)

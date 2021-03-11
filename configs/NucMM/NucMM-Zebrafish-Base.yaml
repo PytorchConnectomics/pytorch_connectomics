@@ -1,0 +1,45 @@
+SYSTEM:
+  NUM_GPUS: 3
+  NUM_CPUS: 12
+MODEL:
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [33, 97, 97]
+  OUTPUT_SIZE: [33, 97, 97]
+  NORM_MODE: gn
+  MIXED_PRECESION: False
+  FILTERS: [32, 64, 96, 128, 160] 
+DATASET:
+  IMAGE_NAME: datasets/NucMM/Zebrafish/img_train.txt
+  LABEL_NAME: datasets/NucMM/Zebrafish/nuc_train.txt
+  OUTPUT_PATH: outputs/NucMM_Zebrafish/
+  IS_ABSOLUTE_PATH: True
+  PAD_SIZE: [8, 32, 32]
+  DATA_SCALE: [1.0, 2.0, 2.0]
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 1.0
+  DISTRIBUTED: True
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.02
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [40, 400]
+INFERENCE:
+  INPUT_SIZE: [33, 257, 257]
+  OUTPUT_SIZE: [33, 257, 257]
+  INPUT_PATH: datasets/NucMM/Zebrafish
+  IMAGE_NAME: crop_em2.tif
+  IS_ABSOLUTE_PATH: False
+  OUTPUT_PATH: outputs/NucMM_Zebrafish/test/
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [16, 32, 32]
+  AUG_MODE: mean
+  AUG_NUM: None
+  STRIDE: [26, 128, 128]
+  SAMPLES_PER_BATCH: 4
+  OUTPUT_SCALE: [1.0, 0.5, 0.5]

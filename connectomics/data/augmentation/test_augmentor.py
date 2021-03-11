@@ -208,7 +208,7 @@ class TestAugmentor(object):
         """
         act = None
         if activation:
-            act=SplitActivation.build_from_cfg(cfg)
+            act=SplitActivation.build_from_cfg(cfg, normalize=True)
 
         return cls(mode = cfg.INFERENCE.AUG_MODE, 
                    do_2d = cfg.DATASET.DO_2D,
