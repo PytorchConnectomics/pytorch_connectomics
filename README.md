@@ -17,7 +17,7 @@ The field of **connectomics** aims to reconstruct the wiring diagram of the brai
 
 ## Key Features
 
-- Multitask, Active and Semi-supervised Learning
+- Multi-task, Active and Semi-supervised Learning
 - Distributed and Mixed-precision Training
 - Scalability for Handling Large Datasets
 

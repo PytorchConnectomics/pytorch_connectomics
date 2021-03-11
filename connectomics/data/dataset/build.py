@@ -157,7 +157,7 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         sample_volume_size = cfg.MODEL.INPUT_SIZE
         sample_label_size = sample_volume_size
         label_erosion = cfg.DATASET.LABEL_EROSION
-        sample_stride = cfg.INFERENCE.STRIDE
+        sample_stride = [x//2 for x in sample_volume_size]
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = -1
 
