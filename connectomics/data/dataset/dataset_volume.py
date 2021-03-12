@@ -129,7 +129,6 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.iter_num = max(
             iter_num, self.sample_num_a) if self.mode == 'train' else self.sample_num_a
         print('Total number of samples to be generated: ', self.iter_num)
-        # print(self.valid_mask)
 
     def __len__(self):
         # total number of possible samples

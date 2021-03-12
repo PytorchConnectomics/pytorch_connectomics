@@ -10,6 +10,7 @@ from .backbone import build_backbone
 from .block import conv3d_norm_act
 from .utils import model_init
 
+
 class FPN3D(nn.Module):
     """3D feature pyramid network (FPN). This design is flexible in handling both isotropic data and anisotropic data.
 
@@ -30,21 +31,21 @@ class FPN3D(nn.Module):
         deploy (bool): build backbone in deploy mode (exclusive for RepVGG backbone). Default: False
     """
 
-    def __init__(self, 
+    def __init__(self,
                  backbone_type: str = 'resnet',
                  block_type: str = 'residual',
                  feature_keys: List[str] = ['feat1', 'feat2', 'feat3', 'feat4', 'feat5'],
-                 in_channel: int = 1, 
-                 out_channel: int = 3, 
+                 in_channel: int = 1,
+                 out_channel: int = 3,
                  filters: List[int] = [28, 36, 48, 64, 80],
-                 is_isotropic: bool = False, 
+                 is_isotropic: bool = False,
                  isotropy: List[bool] = [False, False, False, True, True],
-                 pad_mode: str = 'replicate', 
-                 act_mode: str = 'elu', 
-                 norm_mode: str = 'bn', 
+                 pad_mode: str = 'replicate',
+                 act_mode: str = 'elu',
+                 norm_mode: str = 'bn',
                  init_mode: str = 'orthogonal',
                  deploy: bool = False,
-                 fmap_size = [17, 129, 129],
+                 fmap_size=[17, 129, 129],
                  **kwargs):
         super().__init__()
         self.depth = len(filters)
@@ -68,25 +69,27 @@ class FPN3D(nn.Module):
         }
         backbone_kwargs.update(shared_kwargs)
 
-        self.backbone = build_backbone(backbone_type, feature_keys, **backbone_kwargs)
+        self.backbone = build_backbone(
+            backbone_type, feature_keys, **backbone_kwargs)
         self.feature_keys = feature_keys
 
         latplanes = filters[0]
         self.latlayers = nn.ModuleList(
-            [conv3d_norm_act(x, latplanes, kernel_size=1, 
-            padding=0, **shared_kwargs) for x in filters])
-            
+            [conv3d_norm_act(x, latplanes, kernel_size=1,
+                             padding=0, **shared_kwargs) for x in filters])
+
         self.smooth = nn.ModuleList()
         for i in range(self.depth):
             kernel_size, padding = self._get_kernel_size(isotropy[i])
-            self.smooth.append(conv3d_norm_act(latplanes, latplanes, 
-                kernel_size=kernel_size, padding=padding, **shared_kwargs))
+            self.smooth.append(conv3d_norm_act(latplanes, latplanes,
+                                               kernel_size=kernel_size, padding=padding, **shared_kwargs))
 
-        kernel_size_io, padding_io = self._get_kernel_size(is_isotropic, io_layer=True)
-        self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, 
-            padding=padding_io, pad_mode=pad_mode, bias=True, act_mode='none', norm_mode='none')
+        kernel_size_io, padding_io = self._get_kernel_size(
+            is_isotropic, io_layer=True)
+        self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io,
+                                        padding=padding_io, pad_mode=pad_mode, bias=True, act_mode='none', norm_mode='none')
 
-        #initialization
+        # initialization
         model_init(self, init_mode)
 
     def forward(self, x):
@@ -109,11 +112,11 @@ class FPN3D(nn.Module):
         return smooth(x) + y
 
     def _get_kernel_size(self, is_isotropic, io_layer=False):
-        if io_layer: # kernel and padding size of I/O layers
+        if io_layer:  # kernel and padding size of I/O layers
             if is_isotropic:
-                return (5,5,5), (2,2,2)
-            return (1,5,5), (0,2,2)
-        
+                return (5, 5, 5), (2, 2, 2)
+            return (1, 5, 5), (0, 2, 2)
+
         if is_isotropic:
-            return (3,3,3), (1,1,1)
-        return (1,3,3), (0,1,1)
+            return (3, 3, 3), (1, 1, 1)
+        return (1, 3, 3), (0, 1, 1)

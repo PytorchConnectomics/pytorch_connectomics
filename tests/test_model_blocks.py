@@ -3,6 +3,8 @@ import torch
 
 from connectomics.model.block import *
 from connectomics.model.backbone.repvgg import RepVGGBlock2D, RepVGGBlock3D
+from connectomics.model.backbone.botnet import BottleBlock
+
 
 class TestModelBlock(unittest.TestCase):
 
@@ -31,10 +33,10 @@ class TestModelBlock(unittest.TestCase):
         Test 2D and 3D residual blocks and squeeze-and-excitation residual blocks.
         """
         b, d, h, w = 2, 8, 32, 32
-        c_in = 16 # input channels
+        c_in = 16  # input channels
 
-        for c_out in [c_in, c_in*2]: # output channels
-            x = torch.rand(b, c_in, h, w) # 2d residual blocks
+        for c_out in [c_in, c_in*2]:  # output channels
+            x = torch.rand(b, c_in, h, w)  # 2d residual blocks
             residual_2d = BasicBlock2d(c_in, c_out, dilation=4)
             residual_se_2d = BasicBlock2dSE(c_in, c_out, dilation=4)
 
@@ -45,9 +47,11 @@ class TestModelBlock(unittest.TestCase):
             out_shape = tuple(out.shape)
             self.assertTupleEqual(out_shape, (b, c_out, h, w))
 
-            x = torch.rand(b, c_in, d, h, w) # 3d residual blocks
-            residual_3d = BasicBlock3d(c_in, c_out, dilation=4, isotropic=False)
-            residual_se_3d = BasicBlock3dSE(c_in, c_out, dilation=4, isotropic=False)
+            x = torch.rand(b, c_in, d, h, w)  # 3d residual blocks
+            residual_3d = BasicBlock3d(
+                c_in, c_out, dilation=4, isotropic=False)
+            residual_se_3d = BasicBlock3dSE(
+                c_in, c_out, dilation=4, isotropic=False)
 
             out = residual_3d(x)
             out_shape = tuple(out.shape)
@@ -64,10 +68,12 @@ class TestModelBlock(unittest.TestCase):
 
         for c_out in [8, 16]:
             for dilation in [1, 4]:
-                train_block = RepVGGBlock2D(c_in, c_out, dilation=dilation, deploy=False)
+                train_block = RepVGGBlock2D(
+                    c_in, c_out, dilation=dilation, deploy=False)
                 train_block.eval()
                 kernel, bias = train_block.repvgg_convert()
-                deploy_block = RepVGGBlock2D(c_in, c_out, dilation=dilation, deploy=True)
+                deploy_block = RepVGGBlock2D(
+                    c_in, c_out, dilation=dilation, deploy=True)
                 deploy_block.load_reparam_kernel(kernel, bias)
                 deploy_block.eval()
 
@@ -85,7 +91,7 @@ class TestModelBlock(unittest.TestCase):
         for c_out in [8, 16]:
             for isotropic in [True, False]:
                 for dilation in [1, 4]:
-                    train_block = RepVGGBlock3D(c_in, c_out, dilation=dilation, 
+                    train_block = RepVGGBlock3D(c_in, c_out, dilation=dilation,
                                                 isotropic=isotropic, deploy=False)
                     train_block.eval()
                     kernel, bias = train_block.repvgg_convert()
@@ -98,17 +104,20 @@ class TestModelBlock(unittest.TestCase):
                     out1 = train_block(x)
                     out2 = deploy_block(x)
                     self.assertTrue(torch.allclose(out1, out2, atol=1e-6))
-    
+
     def test_bottlenect_attention_block(self):
         # AbsPosEmb
-        block3d = BottleBlock(dim=16, fmap_size=(8, 8, 8), dim_out=16, proj_factor=4, downsample=False, dim_head=16, )
+        block3d = BottleBlock(dim=16, fmap_size=(
+            8, 8, 8), dim_out=16, proj_factor=4, downsample=False, dim_head=16, )
         tensor = torch.randn(2, 16, 8, 8, 8)
         self.assertTupleEqual(tuple(block3d(tensor).shape), (2, 16, 8, 8, 8))
-        
+
         # RelPosEmb
-        block3d = BottleBlock(dim=16, fmap_size=(8, 16, 18), dim_out=16, proj_factor=4, downsample=False, dim_head=16, rel_pos_emb=True)
+        block3d = BottleBlock(dim=16, fmap_size=(8, 16, 18), dim_out=16,
+                              proj_factor=4, downsample=False, dim_head=16, rel_pos_emb=True)
         tensor = torch.randn(2, 16, 8, 16, 18)
         self.assertTupleEqual(tuple(block3d(tensor).shape), (2, 16, 8, 16, 18))
+
 
 if __name__ == '__main__':
     unittest.main()

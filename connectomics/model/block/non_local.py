@@ -2,10 +2,17 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
-from ..utils import get_norm_3d
+from ..utils import get_norm_1d, get_norm_2d, get_norm_3d
+
+__all__ = [
+    'NONLocalBlock1D',
+    'NONLocalBlock2D',
+    'NONLocalBlock3D',
+]
+
 
 class _NonLocalBlockND(nn.Module):
-    def __init__(self, in_channels, inter_channels=None, dimension=3, 
+    def __init__(self, in_channels, inter_channels=None, dimension=3,
                  sub_sample=True, bn_layer=True, norm_layer='bn'):
         super(_NonLocalBlockND, self).__init__()
 
@@ -24,33 +31,26 @@ class _NonLocalBlockND(nn.Module):
 
         if dimension == 3:
             conv_nd = nn.Conv3d
-            max_pool_layer = nn.MaxPool3d(kernel_size=(1, 2, 2))
-            bn = nn.BatchNorm3d
+            max_pool_layer = nn.MaxPool3d(kernel_size=(2, 2, 2))
+            get_norm_func = get_norm_3d
         elif dimension == 2:
             conv_nd = nn.Conv2d
             max_pool_layer = nn.MaxPool2d(kernel_size=(2, 2))
-            bn = nn.BatchNorm2d
+            get_norm_func = get_norm_2d
         else:
             conv_nd = nn.Conv1d
             max_pool_layer = nn.MaxPool1d(kernel_size=(2))
-            bn = nn.BatchNorm1d
+            get_norm_func = get_norm_1d
 
         self.g = conv_nd(in_channels=self.in_channels, out_channels=self.inter_channels,
                          kernel_size=1, stride=1, padding=0)
 
         if bn_layer:
-            if dimension == 3:
-                self.W = nn.Sequential(
-                    conv_nd(in_channels=self.inter_channels, out_channels=self.in_channels,
-                            kernel_size=1, stride=1, padding=0),
-                    get_norm_3d(norm_layer, self.in_channels)
-                )
-            else:
-                self.W = nn.Sequential(
-                    conv_nd(in_channels=self.inter_channels, out_channels=self.in_channels,
-                            kernel_size=1, stride=1, padding=0),
-                    bn(self.in_channels)
-                )
+            self.W = nn.Sequential(
+                conv_nd(in_channels=self.inter_channels, out_channels=self.in_channels,
+                        kernel_size=1, stride=1, padding=0),
+                get_norm_func(norm_layer, self.in_channels)
+            )
             nn.init.constant_(self.W[1].weight, 0)
             nn.init.constant_(self.W[1].bias, 0)
         else:

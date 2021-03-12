@@ -22,13 +22,13 @@ _C.SYSTEM.PARALLEL = 'DP'
 _C.MODEL = CN()
 
 # Model architectures defined in the package: unet_super, super, fpn, unet_residual_3d
-_C.MODEL.ARCHITECTURE = 'unet_3d' 
+_C.MODEL.ARCHITECTURE = 'unet_3d'
 _C.MODEL.BLOCK_TYPE = 'residual'
 _C.MODEL.BACKBONE = 'resnet'
 _C.MODEL.DEPLOY_MODE = False
 
 # Number of filters per unet block
-_C.MODEL.FILTERS = [28, 36, 48, 64, 80] 
+_C.MODEL.FILTERS = [28, 36, 48, 64, 80]
 
 _C.MODEL.ISOTROPY = [False, False, False, True, True]
 
@@ -36,23 +36,24 @@ _C.MODEL.TARGET_OPT = ['0']
 
 _C.MODEL.WEIGHT_OPT = [['1']]
 
-# Choose the right loss function for each target: 
+# Choose the right loss function for each target:
 # 'WeightedMSE', 'WeightedBCE', 'JaccardLoss', 'DiceLoss'
 _C.MODEL.LOSS_OPTION = [['WeightedBCE']]
-_C.MODEL.OUTPUT_ACT = [['none']] # activation for the output in loss calculation
+# activation for the output in loss calculation
+_C.MODEL.OUTPUT_ACT = [['none']]
 
 # Weight for each loss function
 _C.MODEL.LOSS_WEIGHT = [[1.0]]
 
 # Define the number of input channels. Usually EM images are
-# single-channel gray-scale image. 
-_C.MODEL.IN_PLANES = 1 
+# single-channel gray-scale image.
+_C.MODEL.IN_PLANES = 1
 
 # Define the number of output channels.
-_C.MODEL.OUT_PLANES = 1 
+_C.MODEL.OUT_PLANES = 1
 
 # Padding mode, possible options: 'zeros','circular', 'reflect', 'replicate'
-_C.MODEL.PAD_MODE = 'replicate' 
+_C.MODEL.PAD_MODE = 'replicate'
 
 # Normalization mode, possible options: 'bn', 'sync_bn', 'in', 'gn', 'none'
 _C.MODEL.NORM_MODE = 'bn'
@@ -100,7 +101,7 @@ _C.MODEL.PRE_MODEL_ITER = 0
 _C.DATASET = CN()
 
 # Scale ratio of the input data for different resolutions.
-# Using a DATA_SCALE of [1., 0.5, 0.5] will downsample the 
+# Using a DATA_SCALE of [1., 0.5, 0.5] will downsample the
 # original image by two times (e.g., 4nm -> 8nm).
 _C.DATASET.DATA_SCALE = [1., 1., 1.]
 
@@ -130,7 +131,7 @@ _C.DATASET.DO_2D = False
 _C.DATASET.LOAD_2D = False
 
 # Padding size for the input volumes
-_C.DATASET.PAD_SIZE = [2, 64, 64] 
+_C.DATASET.PAD_SIZE = [2, 64, 64]
 
 # Normalize the image and cast to uint8 format
 _C.DATASET.NORMALIZE_RANGE = True
@@ -200,7 +201,7 @@ _C.AUGMENTOR.RESCALE.P = 0.5
 _C.AUGMENTOR.FLIP = CN({"ENABLED": True})
 _C.AUGMENTOR.FLIP.P = 1.0
 # Conducting x-z and y-z flip only when the dataset is isotropic
-# and the input is cubic. 
+# and the input is cubic.
 _C.AUGMENTOR.FLIP.DO_ZTRANS = 0
 
 _C.AUGMENTOR.ELASTIC = CN({"ENABLED": True})
@@ -263,7 +264,7 @@ _C.SOLVER.ITERATION_TOTAL = 40000
 _C.SOLVER.ITERATION_VAL = 5000
 
 # Whether or not to restart training from iteration 0 regardless
-# of the 'iteration' key in the checkpoint file. This option only 
+# of the 'iteration' key in the checkpoint file. This option only
 # works when a pretrained checkpoint is loaded (default: False).
 _C.SOLVER.ITERATION_RESTART = False
 
@@ -361,15 +362,16 @@ _C.INFERENCE.OUTPUT_SCALE = [1., 1., 1.]
 _C.INFERENCE.DO_EVAL = True
 
 # Number of test workers
-_C.INFERENCE.TEST_NUM = 1 
+_C.INFERENCE.TEST_NUM = 1
 
 # Test worker id
-_C.INFERENCE.TEST_ID = 0 
+_C.INFERENCE.TEST_ID = 0
 
-# Number of samples per GPU (for inference). If we have 8 GPUs and 
-# SAMPLES_PER_BATCH = 4, then each GPU will see 2 samples and the 
+# Number of samples per GPU (for inference). If we have 8 GPUs and
+# SAMPLES_PER_BATCH = 4, then each GPU will see 2 samples and the
 # effective batch size is 32.
 _C.INFERENCE.SAMPLES_PER_BATCH = 4
+
 
 def get_cfg_defaults():
     r"""Get a yacs CfgNode object with default values for my_project."""

@@ -7,7 +7,6 @@ from torch import nn
 import torch.nn.functional as F
 from torch.jit.annotations import Dict
 
-from ..block.partialconv3d import PartialConv3d
 
 class IntermediateLayerGetter(nn.ModuleDict):
     """
@@ -71,6 +70,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out[out_name] = x
         return out
 
+
 class SplitActivation(object):
     r"""Apply different activation functions for the outpur tensor.
     """
@@ -78,14 +78,15 @@ class SplitActivation(object):
     num_channels_dict = {
         '0': 1,
         '1': 3,
-        '2': 3,  
+        '2': 3,
         '3': 1,
         '4': 1,
         '5': 11,
         '6': 1,
     }
-    def __init__(self, 
-                 target_opt: List[str] = ['0'], 
+
+    def __init__(self,
+                 target_opt: List[str] = ['0'],
                  output_act: Optional[List[str]] = None,
                  split_only: bool = False,
                  do_cat: bool = True,
@@ -94,8 +95,9 @@ class SplitActivation(object):
 
         if output_act is not None:
             assert len(target_opt) == len(output_act)
-        if do_2d: self.num_channels_dict['2'] = 2
-        
+        if do_2d:
+            self.num_channels_dict['2'] = 2
+
         self.split_channels = []
         self.target_opt = target_opt
         self.do_cat = do_cat
@@ -115,11 +117,11 @@ class SplitActivation(object):
 
     def __call__(self, x):
         x = torch.split(x, self.split_channels, dim=1)
-        x = list(x) # torch.split returns a tuple
+        x = list(x)  # torch.split returns a tuple
         if self.split_only:
             return x
 
-        x = [self._apply_act(self.act[i], x[i]) 
+        x = [self._apply_act(self.act[i], x[i])
              for i in range(len(x))]
 
         if self.do_cat:
@@ -141,10 +143,10 @@ class SplitActivation(object):
         return x
 
     @classmethod
-    def build_from_cfg(cls, 
-                       cfg, 
-                       do_cat: bool = True, 
-                       split_only: bool = False, 
+    def build_from_cfg(cls,
+                       cfg,
+                       do_cat: bool = True,
+                       split_only: bool = False,
                        normalize: bool = False):
 
         return cls(cfg.MODEL.TARGET_OPT,
@@ -154,15 +156,19 @@ class SplitActivation(object):
                    do_2d=cfg.DATASET.DO_2D,
                    normalize=normalize)
 
-#------------------
+# ------------------
 # Swish Activation
-#------------------
+# ------------------
 # An ordinary implementation of Swish function
+
+
 class Swish(nn.Module):
     def forward(self, x):
         return x * torch.sigmoid(x)
 
 # A memory-efficient implementation of Swish function
+
+
 class SwishImplementation(torch.autograd.Function):
     @staticmethod
     def forward(ctx, i):
@@ -176,13 +182,16 @@ class SwishImplementation(torch.autograd.Function):
         sigmoid_i = torch.sigmoid(i)
         return grad_output * (sigmoid_i * (1 + i * (1 - sigmoid_i)))
 
+
 class MemoryEfficientSwish(nn.Module):
     def forward(self, x):
         return SwishImplementation.apply(x)
 
-#--------------------
+# --------------------
 # Activation Layers
-#--------------------
+# --------------------
+
+
 def get_activation(activation: str = 'relu') -> nn.Module:
     """Get the specified activation layer. 
 
@@ -190,9 +199,9 @@ def get_activation(activation: str = 'relu') -> nn.Module:
         activation (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
             ``'swish'``, 'efficient_swish'`` and ``'none'``. Default: ``'relu'``
     """
-    assert activation in ["relu", "leaky_relu", "elu", "gelu", 
+    assert activation in ["relu", "leaky_relu", "elu", "gelu",
                           "swish", "efficient_swish", "none"], \
-                          "Get unknown activation key {}".format(activation)
+        "Get unknown activation key {}".format(activation)
     activation_dict = {
         "relu": nn.ReLU(inplace=True),
         "leaky_relu": nn.LeakyReLU(negative_slope=0.2, inplace=True),
@@ -204,6 +213,7 @@ def get_activation(activation: str = 'relu') -> nn.Module:
     }
     return activation_dict[activation]
 
+
 def get_functional_act(activation: str = 'relu'):
     """Get the specified activation function. 
 
@@ -212,7 +222,7 @@ def get_functional_act(activation: str = 'relu'):
             ``'softmax'`` and ``'none'``. Default: ``'sigmoid'``
     """
     assert activation in ["relu", "tanh", "elu", "sigmoid", "softmax", "none"], \
-                          "Get unknown activation_fn key {}".format(activation)
+        "Get unknown activation_fn key {}".format(activation)
     activation_dict = {
         'relu': F.relu_,
         'tanh': torch.tanh,
@@ -223,9 +233,11 @@ def get_functional_act(activation: str = 'relu'):
     }
     return activation_dict[activation]
 
-#----------------------
+# ----------------------
 # Normalization Layers
-#----------------------
+# ----------------------
+
+
 def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
     """Get the specified normalization layer for a 3D model.
 
@@ -240,15 +252,16 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
         "Get unknown normalization layer key {}".format(norm)
     norm = {
         "bn": nn.BatchNorm3d,
-        "sync_bn": nn.BatchNorm3d, 
+        "sync_bn": nn.BatchNorm3d,
         "in": nn.InstanceNorm3d,
-        "gn": lambda channels: nn.GroupNorm(channels//2, channels),
+        "gn": lambda channels: nn.GroupNorm(8, channels),
         "none": nn.Identity,
-        }[norm]
+    }[norm]
     if norm in ["bn", "sync_bn", "in"]:
         return norm(out_channels, momentum=bn_momentum)
     else:
         return norm(out_channels)
+
 
 def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
     """Get the specified normalization layer for a 2D model.
@@ -264,19 +277,42 @@ def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
         "Get unknown normalization layer key {}".format(norm)
     norm = {
         "bn": nn.BatchNorm2d,
-        "sync_bn": nn.BatchNorm2d, 
+        "sync_bn": nn.BatchNorm2d,
         "in": nn.InstanceNorm2d,
         "gn": lambda channels: nn.GroupNorm(16, channels),
         "none": nn.Identity,
-        }[norm]
+    }[norm]
     if norm in ["bn", "sync_bn", "in"]:
         return norm(out_channels, momentum=bn_momentum)
     else:
         return norm(out_channels)
 
-def get_conv(conv_type='standard'):
-    assert conv_type in ['standard', 'partial']
-    if conv_type=='partial':
-        return PartialConv3d
+
+def get_norm_1d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Module:
+    """Get the specified normalization layer for a 1D model.
+
+    Args:
+        norm (str): one of ``'bn'``, ``'sync_bn'`` ``'in'``, ``'gn'`` or ``'none'``.
+        out_channels (int): channel number.
+        bn_momentum (float): the momentum of normalization layers.
+    Returns:
+        nn.Module: the normalization layer
+    """
+    assert norm in ["bn", "sync_bn", "gn", "in", "none"], \
+        "Get unknown normalization layer key {}".format(norm)
+    norm = {
+        "bn": nn.BatchNorm1d,
+        "sync_bn": nn.BatchNorm1d,
+        "in": nn.InstanceNorm1d,
+        "gn": lambda channels: nn.GroupNorm(16, channels),
+        "none": nn.Identity,
+    }[norm]
+    if norm in ["bn", "sync_bn", "in"]:
+        return norm(out_channels, momentum=bn_momentum)
     else:
-        return nn.Conv3d
+        return norm(out_channels)
+
+
+def get_num_params(model):
+    num_param = sum([param.nelement() for param in model.parameters()])
+    return num_param
