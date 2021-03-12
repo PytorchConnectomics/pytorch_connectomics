@@ -42,8 +42,11 @@ class ResNet3D(nn.Module):
             kernel_size, padding = 5, 2
         else:
             kernel_size, padding = (1, 5, 5), (0, 2, 2)
-        self.layer0 = conv3d_norm_act(in_channel, filters[0],
-                                      kernel_size=kernel_size, padding=padding, **self.shared_kwargs)
+        self.layer0 = conv3d_norm_act(in_channel,
+                                      filters[0],
+                                      kernel_size=kernel_size,
+                                      padding=padding,
+                                      **self.shared_kwargs)
 
         self.layer1 = self._make_layer(
             filters[0], filters[1], blocks[0], 2, isotropy[1])
@@ -67,7 +70,7 @@ class ResNet3D(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def _forward_impl(self, x):
         x = self.layer0(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -75,3 +78,6 @@ class ResNet3D(nn.Module):
         x = self.layer4(x)
 
         return x
+
+    def forward(self, x):
+        return self._forward_impl(x)

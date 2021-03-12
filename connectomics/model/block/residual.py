@@ -241,18 +241,3 @@ class InvertedResidualDilated(nn.Module):
         for i in range(len(self.dilation_factors)):
             z.append(conv_layers[i](y[i]))
         return torch.cat(z, dim=1)
-
-
-def dw_stack(block, in_ch, out_ch, kernel_size, stride, repeats, isotropic, shared_args):
-    """ Creates a stack of inverted residual blocks. 
-    """
-    assert repeats >= 1
-    # First one has no skip, because feature map size changes.
-    first = block(in_ch, out_ch, kernel_size, stride,
-                  isotropic=isotropic, **shared_args)
-    remaining = []
-    for _ in range(1, repeats):
-        remaining.append(
-            block(out_ch, out_ch, kernel_size, 1,
-                  isotropic=isotropic, **shared_args))
-    return nn.Sequential(first, *remaining)

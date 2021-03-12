@@ -163,7 +163,8 @@ def get_dilated_dw_convs(
 
 
 def dwconv1xkxk(planes, kernel_size=3, stride=1,
-                dilation=1, conv_type='standard', padding_mode='zeros'):
+                dilation=1, conv_type='standard',
+                padding_mode='zeros'):
     """1xkxk depthwise convolution with padding"""
     padding = (kernel_size - 1) * dilation // 2
     dilation = (1, dilation, dilation)
@@ -182,7 +183,8 @@ def dwconv1xkxk(planes, kernel_size=3, stride=1,
 
 
 def dwconvkxkxk(planes, kernel_size=3, stride=1,
-                dilation=1, conv_type='standard', padding_mode='zeros'):
+                dilation=1, conv_type='standard',
+                padding_mode='zeros'):
     """kxkxk depthwise convolution with padding"""
     padding = (kernel_size - 1) * dilation // 2
     return get_conv(conv_type)(

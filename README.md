@@ -21,7 +21,7 @@ The field of **connectomics** aims to reconstruct the wiring diagram of the brai
 - Distributed and Mixed-precision Training
 - Scalability for Handling Large Datasets
 
-If you want new features that are relatively easy to implement (e.g., loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
+If you want new features that are relatively easy to implement (*e.g.*, loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
 
 ## Environment
 

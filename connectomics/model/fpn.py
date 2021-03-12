@@ -87,7 +87,8 @@ class FPN3D(nn.Module):
         kernel_size_io, padding_io = self._get_kernel_size(
             is_isotropic, io_layer=True)
         self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io,
-                                        padding=padding_io, pad_mode=pad_mode, bias=True, act_mode='none', norm_mode='none')
+                                        padding=padding_io, pad_mode=pad_mode, bias=True,
+                                        act_mode='none', norm_mode='none')
 
         # initialization
         model_init(self, init_mode)
