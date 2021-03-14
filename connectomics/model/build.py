@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .unet import UNet3D, UNet2D
-from .fpn import FPN3D
+from .arch import UNet3D, UNet2D, FPN3D
 from .backbone import RepVGG3D
+
 
 def build_model(cfg, device, rank=None):
     MODEL_MAP = {
@@ -34,14 +34,15 @@ def build_model(cfg, device, rank=None):
             kwargs['fmap_size'] = cfg.MODEL.INPUT_SIZE
 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
-    print('model: ', model.__class__.__name__)    
+    print('model: ', model.__class__.__name__)
     return make_parallel(model, cfg, device, rank)
+
 
 def make_parallel(model, cfg, device, rank=None):
     if cfg.SYSTEM.PARALLEL == 'DDP':
         print('Parallelism with DistributedDataParallel.')
-        # Currently SyncBatchNorm only supports DistributedDataParallel (DDP) 
-        # with single GPU per process. Use torch.nn.SyncBatchNorm.convert_sync_batchnorm() 
+        # Currently SyncBatchNorm only supports DistributedDataParallel (DDP)
+        # with single GPU per process. Use torch.nn.SyncBatchNorm.convert_sync_batchnorm()
         # to convert BatchNorm*D layer to SyncBatchNorm before wrapping Network with DDP.
         if cfg.MODEL.NORM_MODE == "sync_bn":
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -52,7 +53,7 @@ def make_parallel(model, cfg, device, rank=None):
         # DistributedDataParallel will use all available devices.
         assert rank is not None
         model = nn.parallel.DistributedDataParallel(
-                    model, device_ids=[rank], output_device=rank)
+            model, device_ids=[rank], output_device=rank)
 
     elif cfg.SYSTEM.PARALLEL == 'DP':
         gpu_device_ids = list(range(cfg.SYSTEM.NUM_GPUS))
@@ -65,6 +66,7 @@ def make_parallel(model, cfg, device, rank=None):
         model = model.to(device)
 
     return model.to(device)
+
 
 def update_state_dict(cfg, model_dict, mode='train'):
     r"""Update state_dict based on the config options.
@@ -79,5 +81,5 @@ def update_state_dict(cfg, model_dict, mode='train'):
 
     if 'n_averaged' in model_dict.keys():
         print("Number of models averaged in SWA: ", model_dict['n_averaged'])
-        
+
     return model_dict

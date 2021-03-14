@@ -2,8 +2,7 @@ import unittest
 import torch
 
 from connectomics.model import build_model
-from connectomics.model.unet import UNet3D, UNet2D
-from connectomics.model.fpn import FPN3D
+from connectomics.model.arch import UNet3D, UNet2D, FPN3D
 from connectomics.model.backbone import RepVGG3D, RepVGGBlock3D
 from connectomics.model.utils.misc import IntermediateLayerGetter
 
