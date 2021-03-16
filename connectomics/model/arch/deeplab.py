@@ -18,7 +18,9 @@ class DeepLabV3(nn.Module):
     """
     Implements DeepLabV3 model from
     `"Rethinking Atrous Convolution for Semantic Image Segmentation"
-    <https://arxiv.org/abs/1706.05587>`_.
+    <https://arxiv.org/abs/1706.05587>`_. This implementation only
+    supports 2D inputs. Pretrained ResNet weights on the ImgeaNet
+    dataset is loaded by default. 
 
     Arguments:
         backbone (nn.Module): the network used to compute the features for the model.
