@@ -34,14 +34,18 @@ class DeepLabV3(nn.Module):
 
     def __init__(self,
                  name: str,
-                 backbone_name: str,
-                 num_classes: int = 1,
+                 backbone_type: str,
+                 out_channel: int = 1,
                  aux_out: bool = False,
                  **kwargs):
+        super().__init__()
         assert name in ['deeplabv3a', 'deeplabv3b', 'deeplabv3c']
-
         # 1. build resnet backbone (also load pretrained weights)
-        backbone = resnet.__dict__[backbone_name](pretrained=True, **kwargs)
+        backbone = resnet.__dict__[backbone_type](
+            pretrained=True,
+            replace_stride_with_dilation=[False, True, True],
+            **kwargs)
+
         return_layers = {'layer4': 'out'}
         if aux_out:
             return_layers['layer3'] = 'aux'
@@ -53,7 +57,7 @@ class DeepLabV3(nn.Module):
         self.aux_classifier = None
         if aux_out:
             inplanes = 1024
-            self.aux_classifier = FCNHead(1024, num_classes, **kwargs)
+            self.aux_classifier = FCNHead(1024, out_channel, **kwargs)
 
         # 3. build deeplab classifier
         head_map = {
@@ -62,7 +66,7 @@ class DeepLabV3(nn.Module):
             'deeplabv3c': DeepLabHeadC,
         }
         inplanes = 2048
-        self.classifier = head_map[name](inplanes, num_classes, **kwargs)
+        self.classifier = head_map[name](inplanes, out_channel, **kwargs)
 
     def forward(self, x):
         input_shape = x.shape[-2:]

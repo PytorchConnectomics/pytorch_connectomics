@@ -1,8 +1,10 @@
 import unittest
+
 import torch
+from collections import OrderedDict
 
 from connectomics.model import build_model
-from connectomics.model.arch import UNet3D, UNet2D, FPN3D
+from connectomics.model.arch import UNet3D, UNet2D, FPN3D, DeepLabV3
 from connectomics.model.backbone import RepVGG3D, RepVGGBlock3D
 from connectomics.model.utils.misc import IntermediateLayerGetter
 
@@ -107,7 +109,8 @@ class TestModelBlock(unittest.TestCase):
         cfg = get_cfg_defaults()
         cfg.MODEL.ARCHITECTURE = 'fpn_3d'
         cfg.MODEL.BACKBONE = 'repvgg'
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         model = build_model(cfg, device).eval()
         message = "Get unexpected model architecture!"
 
@@ -152,7 +155,8 @@ class TestModelBlock(unittest.TestCase):
     def test_build_fpn_with_efficientnet(self):
         r"""Test building a 3D FPN model with EfficientNet3D backbone from configs.
         """
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         cfg = get_cfg_defaults()
         cfg.MODEL.ARCHITECTURE = 'fpn_3d'
         cfg.MODEL.BACKBONE = 'efficientnet'
@@ -171,6 +175,31 @@ class TestModelBlock(unittest.TestCase):
         model = build_model(cfg, device).eval()
         y1 = model(x)
         self.assertTupleEqual(tuple(y1.shape), (2, 1, d, h, w))
+
+    def test_build_deeplab_with_resnet(self):
+        r"""Test building 2D deeplabv3 model with resnet backbone.
+        """
+        device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
+        cfg = get_cfg_defaults()
+        cfg.MODEL.BACKBONE = 'resnet101'
+        cfg.MODEL.AUX_OUT = True
+
+        c_i = cfg.MODEL.IN_PLANES
+        c_o = cfg.MODEL.OUT_PLANES
+        b, h, w = 2, 65, 65
+        x = torch.rand(b, c_i, h, w).to(device)
+
+        for arch in ['deeplabv3a', 'deeplabv3b', 'deeplabv3c']:
+            cfg.MODEL.ARCHITECTURE = arch
+            model = build_model(cfg, device).eval()
+            y = model(x)
+            self.assertTrue(isinstance(y, OrderedDict))
+            self.assertTrue("aux" in y.keys())
+            for key in y.keys():
+                self.assertTupleEqual(
+                    tuple(y[key].shape),
+                    (b, c_o, h, w))
 
 
 if __name__ == '__main__':

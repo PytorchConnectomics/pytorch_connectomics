@@ -95,6 +95,9 @@ _C.MODEL.PRE_MODEL_LAYER = ''
 
 _C.MODEL.PRE_MODEL_ITER = 0
 
+# Predict an auxiliary output (only works with 2D DeeplabV3)
+_C.MODEL.AUX_OUT = False
+
 # -----------------------------------------------------------------------------
 # Dataset
 # -----------------------------------------------------------------------------

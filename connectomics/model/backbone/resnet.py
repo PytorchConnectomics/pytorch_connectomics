@@ -253,7 +253,7 @@ class ResNet2D(nn.Module):
         groups: int = 1,
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
-        image_channels: int = 3,
+        in_channel: int = 3,
         pad_mode: str = 'replicate',
         act_mode: str = 'elu',
         norm_mode: str = 'bn',
@@ -276,7 +276,7 @@ class ResNet2D(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(image_channels, self.inplanes, kernel_size=7, stride=2,
+        self.conv1 = nn.Conv2d(in_channel, self.inplanes, kernel_size=7, stride=2,
                                padding=3, padding_mode=pad_mode, bias=False)
         self.bn1 = get_norm_2d(norm_mode, self.inplanes)
         self.relu = get_activation(act_mode)
