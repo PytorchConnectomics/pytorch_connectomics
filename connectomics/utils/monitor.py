@@ -15,7 +15,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 from .visualizer import Visualizer
-from connectomics.config.utils import convert_cfg_markdown
+from connectomics.config.utils import convert_cfg_markdown, convert_model_to_markdown
 
 
 def build_monitor(cfg):
@@ -123,6 +123,13 @@ class Monitor(object):
 
     def load_config(self, cfg):
         self.logger.log_tb.add_text('Config', convert_cfg_markdown(cfg), 0)
+
+    def load_model(self, model: nn.Module, image: torch.Tensor):
+        self.logger.log_tb.add_graph(model, image)
+
+    def load_model_info(self, model: nn.Module):
+        self.logger.log_tb.add_text(
+            'Model Information', convert_model_to_markdown(model), 0)
 
     def reset(self):
         self.logger.reset()

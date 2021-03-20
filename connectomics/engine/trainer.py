@@ -65,6 +65,8 @@ class Trainer(object):
                 self.monitor = build_monitor(self.cfg)
                 # show config in tensorboard
                 self.monitor.load_config(self.cfg)
+                # Show Model Information in Tensorboard
+                self.monitor.load_model_info(self.model)
 
             self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
             self.total_time = 0
