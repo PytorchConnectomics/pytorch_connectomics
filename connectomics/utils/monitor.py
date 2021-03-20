@@ -13,9 +13,10 @@ from torch.utils.tensorboard import SummaryWriter
 
 import matplotlib
 from matplotlib import pyplot as plt
+from yacs.config import CfgNode
 
 from .visualizer import Visualizer
-from connectomics.config.utils import convert_cfg_markdown, convert_model_to_markdown
+from connectomics.config.utils import convert_cfg_markdown
 
 
 def build_monitor(cfg):
@@ -121,15 +122,17 @@ class Monitor(object):
             self.vis.visualize(volume, label, output[key], weight,
                                iter_total, self.logger.log_tb, suffix_key)
 
-    def load_config(self, cfg):
-        self.logger.log_tb.add_text('Config', convert_cfg_markdown(cfg), 0)
+    def load_info(self, cfg: CfgNode, model: nn.Module):
+        self._load_config(cfg)
+        self._load_model(model)
 
-    def load_model(self, model: nn.Module, image: torch.Tensor):
-        self.logger.log_tb.add_graph(model, image)
-
-    def load_model_info(self, model: nn.Module):
+    def _load_config(self, cfg: CfgNode) -> None:
         self.logger.log_tb.add_text(
-            'Model Information', convert_model_to_markdown(model), 0)
+            'Config', convert_cfg_markdown(cfg), 0)
+
+    def _load_model(self, model: nn.Module) -> None:
+        self.logger.log_tb.add_text(
+            'Model Architecture', convert_model_markdown(model), 0)
 
     def reset(self):
         self.logger.reset()
@@ -150,3 +153,45 @@ def plot_loss_ratio(loss_dict: dict) -> matplotlib.figure.Figure:
     ax.axis('equal')
 
     return fig
+
+
+def convert_model_markdown(model: nn.Module):
+    def extra_repr_func() -> str:
+        return ''
+
+    def _addindent(s_, numSpaces):
+        s = s_.split('\n')
+        # don't do anything for single-line stuff
+        if len(s) == 1:
+            return s_
+        first = s.pop(0)
+        s = [(numSpaces * '  \t') + line for line in s]
+        s = '  \n'.join(s)
+        s = first + '  \n' + s
+        return s
+
+    # treat the extra repr like the sub-module, one item per line
+    extra_lines = []
+    extra_repr = extra_repr_func()
+    # empty string will be split into list ['']
+    if extra_repr:
+        extra_lines = extra_repr.split('\n')
+    child_lines = []
+
+    for key, module in model._modules.items():
+        mod_str = repr(module)
+        mod_str = _addindent(mod_str, 2)
+        tmp_str = "#####({}".format(key) + '):'
+        child_lines.append(tmp_str + mod_str)
+    lines = extra_lines + child_lines
+
+    main_str = model.__class__.__name__ + '('
+    if lines:
+        # simple one-liner info, which most builtin nn.Module will use
+        if len(extra_lines) == 1 and not child_lines:
+            main_str += extra_lines[0]
+        else:
+            main_str += '  \n' + '  \n'.join(lines) + '  \n'
+
+    main_str += ')'
+    return main_str
