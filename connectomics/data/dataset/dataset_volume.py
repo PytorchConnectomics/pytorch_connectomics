@@ -312,12 +312,12 @@ class VolumeDataset(torch.utils.data.Dataset):
     #######################################################
     def _assert_valid_shape(self):
         assert all(
-            [(self.sample_volume_size < x).all()
+            [(self.sample_volume_size <= x).all()
              for x in self.volume_size]
         ), "Input size should be smaller than volume size."
 
         if self.label is not None:
             assert all(
-                [(self.sample_label_size < x).all()
+                [(self.sample_label_size <= x).all()
                  for x in self.volume_size]
             ), "Label size should be smaller than volume size."

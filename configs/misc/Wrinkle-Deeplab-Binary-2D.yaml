@@ -1,0 +1,53 @@
+SYSTEM:
+  NUM_GPUS: 2
+  NUM_CPUS: 16
+MODEL:
+  ARCHITECTURE: deeplabv3c
+  BACKBONE: resnet101
+  AUX_OUT: True
+  INPUT_SIZE: [1, 385, 385]
+  OUTPUT_SIZE: [1, 385, 385]
+  IN_PLANES: 1
+  OUT_PLANES: 1
+  TARGET_OPT: ["0"]
+  LOSS_OPTION:
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  NORM_MODE: gn
+  MIXED_PRECESION: True
+DATASET:
+  INPUT_PATH: datasets/Wrinkle/train/
+  IMAGE_NAME: images/**/*.png
+  LABEL_NAME: wrinkles/**/*.png
+  OUTPUT_PATH: outputs/Wrinkle_Deeplab/
+  PAD_SIZE: [0, 32, 32]
+  REJECT_SAMPLING:
+    SIZE_THRES: 100
+    P: 1.0
+  DISTRIBUTED: True
+  DO_2D: True
+  LOAD_2D: True
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 4
+MONITOR:
+  ITERATION_NUM: [40, 400]
+INFERENCE:
+  INPUT_SIZE: [1, 385, 385]
+  OUTPUT_SIZE: [1, 385, 385]
+  OUTPUT_ACT: ["sigmoid"]
+  INPUT_PATH: datasets/Wrinkle/
+  IMAGE_NAME: test/**/*.png
+  OUTPUT_PATH: outputs/Wrinkle_Deeplab/test/
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [0, 32, 32]
+  AUG_NUM: None
+  STRIDE: [1, 128, 128]
+  SAMPLES_PER_BATCH: 16

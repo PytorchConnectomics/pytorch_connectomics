@@ -1,12 +1,16 @@
 from __future__ import print_function, division
-from typing import Optional, List
+from typing import Optional, List, Union, Tuple
+from collections import OrderedDict
 
 import numpy as np
 import torch
 import torch.nn as nn
+from torch import Tensor
+
 from .loss import *
 from .regularization import *
 from ..utils import get_functional_act, SplitActivation
+
 
 class Criterion(object):
     """Calculating losses and regularizations given the prediction, target and weight mask.
@@ -38,12 +42,12 @@ class Criterion(object):
         'FgDT': ForegroundDTConsistency,
     }
 
-    def __init__(self, 
-                 device: torch.device, 
-                 target_opt: List[str] = ['1'], 
-                 loss_opt: List[List[str]] = [['WeightedBCE']], 
-                 output_act: List[List[str]] = [['none']], 
-                 loss_weight: List[List[float]] = [[1.]], 
+    def __init__(self,
+                 device: torch.device,
+                 target_opt: List[str] = ['1'],
+                 loss_opt: List[List[str]] = [['WeightedBCE']],
+                 output_act: List[List[str]] = [['none']],
+                 loss_weight: List[List[float]] = [[1.]],
                  regu_opt: Optional[List[str]] = None,
                  regu_target: Optional[List[List[int]]] = None,
                  regu_weight: Optional[List[float]] = None,
@@ -51,7 +55,8 @@ class Criterion(object):
 
         self.device = device
         self.target_opt = target_opt
-        self.splitter = SplitActivation(target_opt, split_only=True, do_2d=do_2d)
+        self.splitter = SplitActivation(
+            target_opt, split_only=True, do_2d=do_2d)
 
         self.num_target = len(target_opt)
         self.num_regu = 0 if regu_opt is None else len(regu_opt)
@@ -98,25 +103,31 @@ class Criterion(object):
             return data.to(self.device, non_blocking=True)
         return torch.from_numpy(data).to(self.device)
 
-    def __call__(self, pred, target, weight):
-        # target, weight: torch.Tensor or numpy.ndarray
-        # pred: torch.Tensor
+    def evaluate(self,
+                 pred: Tensor,
+                 target: Union[Tensor, np.ndarray],
+                 weight: Union[Tensor, np.ndarray],
+                 key: Optional[str] = None,
+                 losses_vis: dict = {},  # visualizing individual losses
+                 ) -> Tuple[Tensor, dict]:
+        # split the prediction for each target
         x = self.splitter(pred)
 
         loss = 0.0
-        # Record individual losses and regularizations for
-        # visualization in tensorboardX.
-        losses_vis = {}
         for i in range(self.num_target):
             target_t = self.to_torch(target[i])
             for j in range(len(self.loss_fn[i])):
-                w_mask = None if weight[i][j].shape[-1] == 1 else self.to_torch(weight[i][j])
+                w_mask = None if weight[i][j].shape[-1] == 1 else self.to_torch(
+                    weight[i][j])
                 loss_temp = self.loss_w[i][j] * self.loss_fn[i][j](
-                            self.act[i][j](x[i]), 
-                            target=target_t, 
-                            weight_mask=w_mask)
+                    self.act[i][j](x[i]),
+                    target=target_t,
+                    weight_mask=w_mask)
                 loss += loss_temp
                 loss_tag = self.target_opt[i] + '_' + self.loss_opt[i][j]
+                if key is not None:
+                    loss_tag += '_' + key
+                assert loss_tag not in losses_vis
                 losses_vis[loss_tag] = loss_temp
 
         for i in range(self.num_regu):
@@ -124,9 +135,30 @@ class Criterion(object):
             regu_temp = self.regu_w[i]*self.regu_fn[i](*targets)
             loss += regu_temp
             targets_name = [self.target_opt[j] for j in self.regu_t[i]]
-            regu_tag = '_'.join(targets_name) + '_' + self.regu_opt[i] 
+            regu_tag = '_'.join(targets_name) + '_' + self.regu_opt[i]
+            if key is not None:
+                regu_tag += '_' + key
+            assert regu_tag not in losses_vis
             losses_vis[regu_tag] = regu_temp
-        
+
+        return loss, losses_vis
+
+    def __call__(self,
+                 pred: Union[Tensor, OrderedDict],
+                 target: Union[Tensor, np.ndarray],
+                 weight: Union[Tensor, np.ndarray],
+                 ) -> Tuple[Tensor, dict]:
+        if isinstance(pred, Tensor):
+            return self.evaluate(pred, target, weight)
+
+        # evaluate OrderedDict predicted by DeepLab
+        loss = 0.0
+        losses_vis = {}
+        for key in pred.keys():
+            temp_loss, losses_vis = self.evaluate(
+                pred[key], target, weight, key, losses_vis)
+            loss += temp_loss
+
         return loss, losses_vis
 
     @classmethod
@@ -137,6 +169,6 @@ class Criterion(object):
             cfg (yacs.config.CfgNode): YACS configuration options.
             device (torch.device): model running device type. GPUs are recommended for model training and inference.
         """
-        return cls(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.OUTPUT_ACT, 
-                   cfg.MODEL.LOSS_WEIGHT, cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_TARGET, 
+        return cls(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.OUTPUT_ACT,
+                   cfg.MODEL.LOSS_WEIGHT, cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_TARGET,
                    cfg.MODEL.REGU_WEIGHT, do_2d=cfg.DATASET.DO_2D)

@@ -20,6 +20,7 @@ from ..data.dataset import build_dataloader, get_dataset
 from ..data.utils import build_blending_matrix, writeh5
 from ..data.utils import get_padsize, array_unpad
 
+
 class Trainer(object):
     r"""Trainer class for supervised learning.
 
@@ -30,13 +31,14 @@ class Trainer(object):
         rank (int, optional): node rank for distributed training. Default: `None`
         checkpoint (str, optional): the checkpoint file to be loaded. Default: `None`
     """
-    def __init__(self, 
-                 cfg: CfgNode, 
-                 device: torch.device, 
-                 mode: str = 'train', 
-                 rank: Optional[int] = None, 
+
+    def __init__(self,
+                 cfg: CfgNode,
+                 device: torch.device,
+                 mode: str = 'train',
+                 rank: Optional[int] = None,
                  checkpoint: Optional[str] = None):
-                 
+
         assert mode in ['train', 'test']
         self.cfg = cfg
         self.device = device
@@ -61,24 +63,28 @@ class Trainer(object):
             self.criterion = Criterion.build_from_cfg(self.cfg, self.device)
             if self.is_main_process:
                 self.monitor = build_monitor(self.cfg)
-                self.monitor.load_config(self.cfg) # show config in tensorboard
+                # show config in tensorboard
+                self.monitor.load_config(self.cfg)
 
             self.total_iter_nums = self.cfg.SOLVER.ITERATION_TOTAL - self.start_iter
-            self.total_time = 0                
+            self.total_time = 0
         else:
             self.update_checkpoint(checkpoint)
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor.build_from_cfg(cfg, activation=True)
             if not self.cfg.DATASET.DO_CHUNK_TITLE:
                 self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
-                self.test_filename = self.augmentor.update_name(self.test_filename)
+                self.test_filename = self.augmentor.update_name(
+                    self.test_filename)
 
         self.dataset, self.dataloader = None, None
         if cfg.DATASET.DO_CHUNK_TITLE == 0:
-            self.dataloader = build_dataloader(self.cfg, self.augmentor, self.mode, rank=rank)
+            self.dataloader = build_dataloader(
+                self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
             if self.mode == 'train' and cfg.DATASET.VAL_IMAGE_NAME is not None:
-                self.val_loader = build_dataloader(self.cfg, None, mode='val', rank=rank)
+                self.val_loader = build_dataloader(
+                    self.cfg, None, mode='val', rank=rank)
 
     def train(self):
         r"""Training function of the trainer class.
@@ -102,25 +108,24 @@ class Trainer(object):
                 pred = self.model(volume)
                 loss, losses_vis = self.criterion(pred, target, weight)
 
-            self._train_misc(loss, pred, volume, target, weight, 
+            self._train_misc(loss, pred, volume, target, weight,
                              iter_total, losses_vis)
 
         self.maybe_save_swa_model()
 
-    def _train_misc(self, loss, pred, volume, target, weight, 
+    def _train_misc(self, loss, pred, volume, target, weight,
                     iter_total, losses_vis):
-        self.backward_pass(loss) # backward pass
+        self.backward_pass(loss)  # backward pass
 
         # logging and update record
         if hasattr(self, 'monitor'):
             do_vis = self.monitor.update(iter_total, loss, losses_vis,
-                                         self.optimizer.param_groups[0]['lr']) 
+                                         self.optimizer.param_groups[0]['lr'])
             if do_vis:
-                self.monitor.visualize(volume, target, pred, weight, iter_total)
-                if torch.cuda.is_available(): GPUtil.showUtilization(all=True)
-
-            if iter_total - self.start_iter == 0:
-                self.monitor.load_model(self.model.module, volume)
+                self.monitor.visualize(
+                    volume, target, pred, weight, iter_total)
+                if torch.cuda.is_available():
+                    GPUtil.showUtilization(all=True)
 
         # Save model
         if (iter_total+1) % self.cfg.SOLVER.ITERATION_SAVE == 0:
@@ -137,11 +142,12 @@ class Trainer(object):
             self.iter_time = time.perf_counter() - self.start_time
             self.total_time += self.iter_time
             avg_iter_time = self.total_time / (iter_total+1-self.start_iter)
-            est_time_left = avg_iter_time * (self.total_iter_nums+self.start_iter-iter_total-1) / 3600.0
+            est_time_left = avg_iter_time * \
+                (self.total_iter_nums+self.start_iter-iter_total-1) / 3600.0
             print('[Iteration %05d] Data time: %.4fs, Iter time: %.4fs, Avg iter time: %.4fs, Time Left %.2fh.' % (
                 iter_total, self.data_time, self.iter_time, avg_iter_time, est_time_left))
 
-        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
+        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
         del pred, loss, losses_vis
 
@@ -151,44 +157,45 @@ class Trainer(object):
         self.model.eval() if self.cfg.INFERENCE.DO_EVAL else self.model.train()
         output_scale = self.cfg.INFERENCE.OUTPUT_SCALE
         spatial_size = list(np.ceil(
-            np.array(self.cfg.MODEL.OUTPUT_SIZE) * 
+            np.array(self.cfg.MODEL.OUTPUT_SIZE) *
             np.array(output_scale)).astype(int))
         channel_size = self.cfg.MODEL.OUT_PLANES
-        
+
         sz = tuple([channel_size] + spatial_size)
         ww = build_blending_matrix(spatial_size, self.cfg.INFERENCE.BLENDING)
-        
+
         output_size = [tuple(np.ceil(np.array(x) * np.array(output_scale)).astype(int))
                        for x in self.dataloader._dataset.volume_size]
-        result = [np.stack([np.zeros(x, dtype=np.float32) 
-                  for _ in range(channel_size)]) for x in output_size]
+        result = [np.stack([np.zeros(x, dtype=np.float32)
+                            for _ in range(channel_size)]) for x in output_size]
         weight = [np.zeros(x, dtype=np.float32) for x in output_size]
         print("Total number of batches: ", len(self.dataloader))
 
         start = time.perf_counter()
         with torch.no_grad():
             for i, sample in enumerate(self.dataloader):
-                print('progress: %d/%d batches, total time %.2fs' % 
+                print('progress: %d/%d batches, total time %.2fs' %
                       (i+1, len(self.dataloader), time.perf_counter()-start))
 
                 pos, volume = sample.pos, sample.out_input
                 volume = volume.to(self.device, non_blocking=True)
                 output = self.augmentor(self.model, volume)
 
-                if torch.cuda.is_available() and i % 50 == 0: 
+                if torch.cuda.is_available() and i % 50 == 0:
                     GPUtil.showUtilization(all=True)
 
                 for idx in range(output.shape[0]):
                     st = pos[idx]
-                    st = (np.array(st)*np.array([1]+output_scale)).astype(int).tolist()
+                    st = (np.array(st) *
+                          np.array([1]+output_scale)).astype(int).tolist()
                     out_block = output[idx]
-                    if result[st[0]].ndim - out_block.ndim == 1: # 2d model
-                        out_block = out_block[:,np.newaxis,:]
+                    if result[st[0]].ndim - out_block.ndim == 1:  # 2d model
+                        out_block = out_block[:, np.newaxis, :]
 
-                    result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                        st[3]:st[3]+sz[3]] += out_block * ww[np.newaxis,:]
-                    weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2], \
-                        st[3]:st[3]+sz[3]] += ww
+                    result[st[0]][:, st[1]:st[1]+sz[1], st[2]:st[2]+sz[2],
+                                  st[3]:st[3]+sz[3]] += out_block * ww[np.newaxis, :]
+                    weight[st[0]][st[1]:st[1]+sz[1], st[2]:st[2]+sz[2],
+                                  st[3]:st[3]+sz[3]] += ww
 
         end = time.perf_counter()
         print("Prediction time: %.2fs" % (end-start))
@@ -196,10 +203,10 @@ class Trainer(object):
         for vol_id in range(len(result)):
             if result[vol_id].ndim > weight[vol_id].ndim:
                 weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
-            result[vol_id] /= weight[vol_id] # in-place to save memory
+            result[vol_id] /= weight[vol_id]  # in-place to save memory
             result[vol_id] *= 255
             result[vol_id] = result[vol_id].astype(np.uint8)
-            pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) * \
+            pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) *
                         np.array(output_scale)).astype(int).tolist()
             pad_size = get_padsize(pad_size)
             result[vol_id] = array_unpad(result[vol_id], pad_size)
@@ -211,14 +218,14 @@ class Trainer(object):
             for k in range(len(result)):
                 print(result[k].shape)
             writeh5(os.path.join(self.output_dir, self.test_filename), result,
-                    ['vol%d'%(x) for x in range(len(result))])
+                    ['vol%d' % (x) for x in range(len(result))])
             print('Prediction saved as: ', self.test_filename)
 
     def validate(self, iter_total):
         r"""Validation function of the trainer class.
         """
         if not hasattr(self, 'val_loader'):
-            return 
+            return
 
         self.model.eval()
         with torch.no_grad():
@@ -234,18 +241,20 @@ class Trainer(object):
                     loss, _ = self.criterion(pred, target, weight)
                     val_loss += loss.data
 
-        if hasattr(self, 'monitor'):        
-            self.monitor.logger.log_tb.add_scalar('Validation_Loss', val_loss, iter_total)
-            self.monitor.visualize(volume, target, pred, weight, iter_total, val=True)
+        if hasattr(self, 'monitor'):
+            self.monitor.logger.log_tb.add_scalar(
+                'Validation_Loss', val_loss, iter_total)
+            self.monitor.visualize(volume, target, pred,
+                                   weight, iter_total, suffix='Val')
 
-        if not hasattr(self, 'best_val_loss'): 
+        if not hasattr(self, 'best_val_loss'):
             self.best_val_loss = val_loss
 
         if val_loss < self.best_val_loss:
             self.best_val_loss = val_loss
             self.save_checkpoint(iter_total, is_best=True)
 
-        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to 
+        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
         del pred, loss, val_loss
 
@@ -270,9 +279,9 @@ class Trainer(object):
             # Updates the scale for next iteration.
             self.scaler.update()
 
-        else: # standard backward pass
+        else:  # standard backward pass
             loss.backward()
-            self.optimizer.step()    
+            self.optimizer.step()
 
     def save_checkpoint(self, iteration: int, is_best: bool = False):
         r"""Save the model checkpoint.
@@ -280,11 +289,11 @@ class Trainer(object):
         if self.is_main_process:
             print("Save model checkpoint at iteration ", iteration)
             state = {'iteration': iteration + 1,
-                    # Saving DataParallel or DistributedDataParallel models
-                    'state_dict': self.model.module.state_dict(), 
-                    'optimizer': self.optimizer.state_dict(),
-                    'lr_scheduler': self.lr_scheduler.state_dict()}
-                    
+                     # Saving DataParallel or DistributedDataParallel models
+                     'state_dict': self.model.module.state_dict(),
+                     'optimizer': self.optimizer.state_dict(),
+                     'lr_scheduler': self.lr_scheduler.state_dict()}
+
             # Saves checkpoint to experiment directory
             filename = 'checkpoint_%05d.pth.tar' % (iteration + 1)
             if is_best:
@@ -302,20 +311,22 @@ class Trainer(object):
         print('Load pretrained checkpoint: ', checkpoint)
         checkpoint = torch.load(checkpoint)
         print('checkpoints: ', checkpoint.keys())
-        
+
         # update model weights
         if 'state_dict' in checkpoint.keys():
             pretrained_dict = checkpoint['state_dict']
-            pretrained_dict = update_state_dict(self.cfg, pretrained_dict, mode=self.mode)
-            model_dict = self.model.module.state_dict() # nn.DataParallel
+            pretrained_dict = update_state_dict(
+                self.cfg, pretrained_dict, mode=self.mode)
+            model_dict = self.model.module.state_dict()  # nn.DataParallel
             # 1. filter out unnecessary keys by name
-            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            pretrained_dict = {k: v for k,
+                               v in pretrained_dict.items() if k in model_dict}
             # 2. overwrite entries in the existing state dict (if size match)
             for param_tensor in pretrained_dict:
                 if model_dict[param_tensor].size() == pretrained_dict[param_tensor].size():
-                    model_dict[param_tensor] = pretrained_dict[param_tensor]  
+                    model_dict[param_tensor] = pretrained_dict[param_tensor]
             # 3. load the new state dict
-            self.model.module.load_state_dict(model_dict) # nn.DataParallel
+            self.model.module.load_state_dict(model_dict)  # nn.DataParallel
 
         if self.mode == 'train' and not self.cfg.SOLVER.ITERATION_RESTART:
             if hasattr(self, 'optimizer') and 'optimizer' in checkpoint.keys():
@@ -329,9 +340,9 @@ class Trainer(object):
 
     def maybe_save_swa_model(self):
         if not hasattr(self, 'swa_model'):
-            return 
-        
-        if self.cfg.MODEL.NORM_MODE in ['bn', 'sync_bn']: # update bn statistics
+            return
+
+        if self.cfg.MODEL.NORM_MODE in ['bn', 'sync_bn']:  # update bn statistics
             for _ in range(self.cfg.SOLVER.SWA.BN_UPDATE_ITER):
                 sample = next(self.dataloader)
                 volume = sample.out_input
@@ -350,7 +361,7 @@ class Trainer(object):
     def maybe_update_swa_model(self, iter_total):
         if not hasattr(self, 'swa_model'):
             return
-        
+
         swa_start = self.cfg.SOLVER.SWA.START_ITER
         swa_merge = self.cfg.SOLVER.SWA.MERGE_ITER
         if iter_total >= swa_start and iter_total % swa_merge == 0:
@@ -363,7 +374,7 @@ class Trainer(object):
 
         if self.cfg.SOLVER.LR_SCHEDULER_NAME == 'ReduceLROnPlateau':
             self.lr_scheduler.step(loss)
-        else: 
+        else:
             self.lr_scheduler.step()
 
     # -----------------------------------------------------------------------------
@@ -378,7 +389,7 @@ class Trainer(object):
             self.total_iter_nums = self.cfg.DATASET.DATA_CHUNK_ITER
             for chunk in range(num_chunk):
                 self.dataset.updatechunk()
-                self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, 
+                self.dataloader = build_dataloader(self.cfg, self.augmentor, mode,
                                                    dataset=self.dataset.dataset)
                 self.dataloader = iter(self.dataloader)
                 print('start train for chunk %d' % chunk)
@@ -387,15 +398,17 @@ class Trainer(object):
                 self.start_iter += self.cfg.DATASET.DATA_CHUNK_ITER
                 del self.dataloader
 
-        else: # inference mode
+        else:  # inference mode
             num_chunk = len(self.dataset.chunk_num_ind)
             for chunk in range(num_chunk):
                 self.dataset.updatechunk(do_load=False)
-                self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + '_' + self.dataset.get_coord_name() + '.h5'
-                self.test_filename = self.augmentor.update_name(self.test_filename)
+                self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \
+                    '_' + self.dataset.get_coord_name() + '.h5'
+                self.test_filename = self.augmentor.update_name(
+                    self.test_filename)
                 if not os.path.exists(os.path.join(self.output_dir, self.test_filename)):
                     self.dataset.loadchunk()
-                    self.dataloader = build_dataloader(self.cfg, self.augmentor, mode, 
+                    self.dataloader = build_dataloader(self.cfg, self.augmentor, mode,
                                                        dataset=self.dataset.dataset)
                     self.dataloader = iter(self.dataloader)
                     self.test()

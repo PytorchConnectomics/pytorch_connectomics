@@ -12,6 +12,7 @@ from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
 from ..utils import *
 
+
 def _make_path_list(cfg, dir_name, file_name, rank=None):
     r"""Concatenate directory path(s) and filenames and return
     the complete file paths. 
@@ -21,19 +22,20 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
         if len(dir_name) == 1:
             file_name = [os.path.join(dir_name[0], x) for x in file_name]
         else:
-            file_name = [os.path.join(dir_name[i], file_name[i]) 
-                        for i in range(len(file_name))]
-        
+            file_name = [os.path.join(dir_name[i], file_name[i])
+                         for i in range(len(file_name))]
+
         if cfg.DATASET.LOAD_2D:
             temp_list = copy.deepcopy(file_name)
             file_name = []
             for x in temp_list:
                 suffix = x.split('/')[-1]
                 if suffix in ['*.png', '*.tif']:
-                    file_name += sorted(glob.glob(x))
+                    file_name += sorted(glob.glob(x, recursive=True))
 
     file_name = _distribute_data(cfg, file_name, rank)
     return file_name
+
 
 def _distribute_data(cfg, file_name, rank=None):
     r"""Distribute the data (files) equally for multiprocessing.
@@ -44,12 +46,13 @@ def _distribute_data(cfg, file_name, rank=None):
     world_size = cfg.SYSTEM.NUM_GPUS
     num_files = len(file_name)
     ratio = num_files / float(world_size)
-    ratio = int(math.ceil(ratio-1) + 1) # 1.0 -> 1, 1.1 -> 2
+    ratio = int(math.ceil(ratio-1) + 1)  # 1.0 -> 1, 1.1 -> 2
 
     extended = [file_name[i % num_files] for i in range(world_size*ratio)]
     splited = [extended[i:i+ratio] for i in range(0, len(extended), ratio)]
 
     return splited[rank]
+
 
 def _get_file_list(name: str) -> list:
     suffix = name.split('.')[-1]
@@ -58,6 +61,7 @@ def _get_file_list(name: str) -> list:
         return filelist
 
     return name.split('@')
+
 
 def _get_input(cfg, mode='train', rank=None):
     r"""Load the inputs specified by the configuration options.
@@ -74,7 +78,7 @@ def _get_input(cfg, mode='train', rank=None):
         img_name = cfg.DATASET.IMAGE_NAME
         label_name = cfg.DATASET.LABEL_NAME
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME
-        pad_size = cfg.DATASET.PAD_SIZE        
+        pad_size = cfg.DATASET.PAD_SIZE
 
     img_name = _get_file_list(img_name)
     img_name = _make_path_list(cfg, dir_name, img_name, rank)
@@ -101,7 +105,7 @@ def _get_input(cfg, mode='train', rank=None):
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
-        if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
+        if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
         volume[i] = np.pad(volume[i], get_padsize(pad_size), 'reflect')
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
@@ -110,28 +114,31 @@ def _get_input(cfg, mode='train', rank=None):
             label[i] = read_fn(label_name[i])
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
-            if label[i].ndim == 2: # make it into 3D volume
-                label[i] = label[i][None,:]
-            if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
-                label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0) 
-            if cfg.DATASET.LABEL_EROSION!=0:
-                label[i] = seg_widen_border(label[i], cfg.DATASET.LABEL_EROSION)
-            if cfg.DATASET.LABEL_BINARY and label[i].max()>1:
+            if label[i].ndim == 2:  # make it into 3D volume
+                label[i] = label[i][None, :]
+            if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
+                label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0)
+            if cfg.DATASET.LABEL_EROSION != 0:
+                label[i] = seg_widen_border(
+                    label[i], cfg.DATASET.LABEL_EROSION)
+            if cfg.DATASET.LABEL_BINARY and label[i].max() > 1:
                 label[i] = label[i] // 255
-            if cfg.DATASET.LABEL_MAG !=0:
+            if cfg.DATASET.LABEL_MAG != 0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
-                
+
             label[i] = np.pad(label[i], get_padsize(pad_size), 'reflect')
             print(f"label shape: {label[i].shape}")
 
         if mode in ['val', 'train'] and valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i])
-            if (np.array(cfg.DATASET.DATA_SCALE)!=1).any():
-                valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.DATA_SCALE, order=0) 
+            if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
+                valid_mask[i] = zoom(
+                    valid_mask[i], cfg.DATASET.DATA_SCALE, order=0)
 
-            valid_mask[i] = np.pad(valid_mask[i], get_padsize(pad_size), 'reflect')
+            valid_mask[i] = np.pad(
+                valid_mask[i], get_padsize(pad_size), 'reflect')
             print(f"valid_mask shape: {label[i].shape}")
-                 
+
     return volume, label, valid_mask
 
 
@@ -149,7 +156,7 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         label_erosion = cfg.DATASET.LABEL_EROSION
         sample_stride = (1, 1, 1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
-        iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH 
+        iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH
         if cfg.SOLVER.SWA.ENABLED:
             iter_num += cfg.SOLVER.SWA.BN_UPDATE_ITER
 
@@ -181,8 +188,8 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
         "data_mean": cfg.DATASET.MEAN,
         "data_std": cfg.DATASET.STD,
     }
-      
-    if cfg.DATASET.DO_CHUNK_TITLE==1: # build TileDataset
+
+    if cfg.DATASET.DO_CHUNK_TITLE == 1:  # build TileDataset
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
@@ -190,23 +197,24 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
             if cfg.DATASET.VALID_MASK_NAME is not None:
                 valid_mask_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME
 
-        dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM, 
-                              chunk_num_ind=cfg.DATASET.DATA_CHUNK_NUM_IND, 
-                              chunk_iter=cfg.DATASET.DATA_CHUNK_ITER, 
+        dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
+                              chunk_num_ind=cfg.DATASET.DATA_CHUNK_NUM_IND,
+                              chunk_iter=cfg.DATASET.DATA_CHUNK_ITER,
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
-                              volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME, 
+                              volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME,
                               label_json=label_json,
                               valid_mask_json=valid_mask_json,
-                              label_erosion=label_erosion, 
+                              label_erosion=label_erosion,
                               pad_size=cfg.DATASET.PAD_SIZE,
                               **shared_kwargs)
 
-    else: # build VolumeDataset
+    else:  # build VolumeDataset
         volume, label, valid_mask = _get_input(cfg, mode=mode, rank=rank)
         dataset = VolumeDataset(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 
     return dataset
+
 
 def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
     r"""Prepare dataloader for training and inference.
@@ -234,11 +242,11 @@ def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
         if cfg.DATASET.DISTRIBUTED == False:
             sampler = torch.utils.data.distributed.DistributedSampler(dataset)
 
-    # In PyTorch, each worker will create a copy of the Dataset, so if the data 
+    # In PyTorch, each worker will create a copy of the Dataset, so if the data
     # is preload the data, the memory usage should increase a lot.
     # https://discuss.pytorch.org/t/define-iterator-on-dataloader-is-very-slow/52238/2
     img_loader = torch.utils.data.DataLoader(
-        dataset, batch_size = batch_size, shuffle = False, collate_fn = cf,
-        sampler = sampler, num_workers = num_workers, pin_memory = True)
+        dataset, batch_size=batch_size, shuffle=False, collate_fn=cf,
+        sampler=sampler, num_workers=num_workers, pin_memory=True)
 
     return img_loader
