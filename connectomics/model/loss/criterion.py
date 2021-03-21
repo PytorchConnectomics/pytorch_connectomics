@@ -105,8 +105,8 @@ class Criterion(object):
 
     def evaluate(self,
                  pred: Tensor,
-                 target: Union[Tensor, np.ndarray],
-                 weight: Union[Tensor, np.ndarray],
+                 target: Union[List[Tensor], List[np.ndarray]],
+                 weight: Union[List[Tensor], List[np.ndarray]],
                  key: Optional[str] = None,
                  losses_vis: dict = {},  # visualizing individual losses
                  ) -> Tuple[Tensor, dict]:
@@ -127,7 +127,7 @@ class Criterion(object):
                 loss_tag = self.target_opt[i] + '_' + self.loss_opt[i][j]
                 if key is not None:
                     loss_tag += '_' + key
-                assert loss_tag not in losses_vis
+                assert loss_tag not in losses_vis.keys()
                 losses_vis[loss_tag] = loss_temp
 
         for i in range(self.num_regu):
@@ -138,22 +138,27 @@ class Criterion(object):
             regu_tag = '_'.join(targets_name) + '_' + self.regu_opt[i]
             if key is not None:
                 regu_tag += '_' + key
-            assert regu_tag not in losses_vis
+            assert regu_tag not in losses_vis.keys()
             losses_vis[regu_tag] = regu_temp
 
         return loss, losses_vis
 
     def __call__(self,
                  pred: Union[Tensor, OrderedDict],
-                 target: Union[Tensor, np.ndarray],
-                 weight: Union[Tensor, np.ndarray],
+                 target: Union[List[Tensor], List[np.ndarray]],
+                 weight: Union[List[Tensor], List[np.ndarray]],
                  ) -> Tuple[Tensor, dict]:
+
+        losses_vis = {}
         if isinstance(pred, Tensor):
-            return self.evaluate(pred, target, weight)
+            # Python’s default arguments are evaluated once when the function is defined, not each time the function is
+            # called (like it is in say, Ruby). This means that if you use a mutable default argument and mutate it, you
+            # will and have mutated that object for all future calls to the function as well.
+            # (According to https://docs.python-guide.org/writing/gotchas/)
+            return self.evaluate(pred, target, weight, losses_vis=losses_vis)
 
         # evaluate OrderedDict predicted by DeepLab
         loss = 0.0
-        losses_vis = {}
         for key in pred.keys():
             temp_loss, losses_vis = self.evaluate(
                 pred[key], target, weight, key, losses_vis)
