@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+from typing import Union, List
+
 import os
 import math
 import glob
@@ -15,7 +18,7 @@ from ..utils import *
 
 def _make_path_list(cfg, dir_name, file_name, rank=None):
     r"""Concatenate directory path(s) and filenames and return
-    the complete file paths. 
+    the complete file paths.
     """
     if not cfg.DATASET.IS_ABSOLUTE_PATH:
         assert len(dir_name) == 1 or len(dir_name) == len(file_name)
@@ -54,7 +57,10 @@ def _distribute_data(cfg, file_name, rank=None):
     return splited[rank]
 
 
-def _get_file_list(name: str) -> list:
+def _get_file_list(name: Union[str, List[str]]) -> list:
+    if isinstance(name, list):
+        return name
+
     suffix = name.split('.')[-1]
     if suffix == 'txt':
         filelist = [line.rstrip('\n') for line in open(name)]

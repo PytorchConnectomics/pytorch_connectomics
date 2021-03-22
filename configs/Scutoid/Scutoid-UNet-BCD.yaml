@@ -1,0 +1,18 @@
+MODEL:
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ["0", "4-1-1", "6-2d-16-50"]
+  LOSS_OPTION:
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+    - - WeightedMSE
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [2.0]]
+  WEIGHT_OPT: [["1", "0"], ["1", "0"], ["0"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"], ["tanh"]]
+INFERENCE:
+  OUTPUT_ACT: ["sigmoid", "sigmoid", "tanh"]
+  OUTPUT_PATH: outputs/Scutoid_UNet_BCD/test/
+DATASET:
+  OUTPUT_PATH: outputs/Scutoid_UNet_BCD/
