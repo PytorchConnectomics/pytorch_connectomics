@@ -1,4 +1,4 @@
-# PyTorch Connectomics (PyTC)
+<img src="./github/logo_fullname.png" width="500">
 
 <p align="left">
     <a href="https://www.python.org/">
@@ -11,9 +11,9 @@
       <img src="https://img.shields.io/badge/Documentation-Latest-2BAF2B.svg" /></a>
 </p>
 
-## Introduction
+The field of *connectomics* aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics, which is called **PyTorch Connectomics** (PyTC). This repository is mainly maintained by the Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
 
-The field of **connectomics** aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics. This repository is actively under development by Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
+*PyTorch Connectomics is currently under active development!*
 
 ## Key Features
 
@@ -27,8 +27,8 @@ If you want new features that are relatively easy to implement (*e.g.*, loss fun
 
 The code is developed and tested under the following configurations.
 
-- Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memory) (change ```SYSTEM.NUM_GPU``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.7.0, YACS>=0.1.8***
+- Hardware: 1-8 Nvidia GPUs with at least 12G GPU memory (change ```SYSTEM.NUM_GPU``` accordingly based on the configuration of your machine)
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.0, Python>=3.8, PyTorch>=1.8.0, YACS>=0.1.8***
 
 ## Installation
 
@@ -42,7 +42,7 @@ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
 
-Download and install the package:
+Download and install the package (editable):
 
 ```shell
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
