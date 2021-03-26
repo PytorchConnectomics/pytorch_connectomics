@@ -1,4 +1,4 @@
-<img src="./github/logo_fullname.png" width="500">
+<img src="./.github/logo_fullname.png" width="450">
 
 <p align="left">
     <a href="https://www.python.org/">
