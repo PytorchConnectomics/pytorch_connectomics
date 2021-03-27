@@ -1,15 +1,22 @@
-<img src="./.github/logo_fullname.png" width="450">
+<a href="https://github.com/zudi-lin/pytorch_connectomics">
+<img src="./.github/logo_fullname.png" width="450"></a>
 
 <p align="left">
     <a href="https://www.python.org/">
       <img src="https://img.shields.io/badge/Python-3.8-ff69b4.svg" /></a>
     <a href= "https://pytorch.org/">
-      <img src="https://img.shields.io/badge/PyTorch-1.7-2BAF2B.svg" /></a>
+      <img src="https://img.shields.io/badge/PyTorch-1.8-2BAF2B.svg" /></a>
     <a href= "https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
     <a href= "https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">
       <img src="https://img.shields.io/badge/Documentation-Latest-2BAF2B.svg" /></a>
+    <a href= "https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">
+      <img src="https://img.shields.io/badge/Slack-Join-CC8899.svg" /></a>
 </p>
+
+<hr/>
+
+## Introduction
 
 The field of *connectomics* aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics, which is called **PyTorch Connectomics** (PyTC). This repository is mainly maintained by the Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
 

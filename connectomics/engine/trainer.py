@@ -77,7 +77,7 @@ class Trainer(object):
                     self.test_filename)
 
         self.dataset, self.dataloader = None, None
-        if cfg.DATASET.DO_CHUNK_TITLE == 0:
+        if not self.cfg.DATASET.DO_CHUNK_TITLE:
             self.dataloader = build_dataloader(
                 self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
@@ -396,18 +396,19 @@ class Trainer(object):
                 print('finished train for chunk %d' % chunk)
                 self.start_iter += self.cfg.DATASET.DATA_CHUNK_ITER
                 del self.dataloader
+            return
 
-        else:  # inference mode
-            num_chunk = len(self.dataset.chunk_num_ind)
-            for chunk in range(num_chunk):
-                self.dataset.updatechunk(do_load=False)
-                self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \
-                    '_' + self.dataset.get_coord_name() + '.h5'
-                self.test_filename = self.augmentor.update_name(
-                    self.test_filename)
-                if not os.path.exists(os.path.join(self.output_dir, self.test_filename)):
-                    self.dataset.loadchunk()
-                    self.dataloader = build_dataloader(self.cfg, self.augmentor, mode,
-                                                       dataset=self.dataset.dataset)
-                    self.dataloader = iter(self.dataloader)
-                    self.test()
+        # inference mode
+        num_chunk = len(self.dataset.chunk_num_ind)
+        for chunk in range(num_chunk):
+            self.dataset.updatechunk(do_load=False)
+            self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \
+                '_' + self.dataset.get_coord_name() + '.h5'
+            self.test_filename = self.augmentor.update_name(
+                self.test_filename)
+            if not os.path.exists(os.path.join(self.output_dir, self.test_filename)):
+                self.dataset.loadchunk()
+                self.dataloader = build_dataloader(self.cfg, self.augmentor, mode,
+                                                   dataset=self.dataset.dataset)
+                self.dataloader = iter(self.dataloader)
+                self.test()

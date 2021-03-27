@@ -1,3 +1,3 @@
 from .trainer import *
 
-__all__ = ["Trainer"]
+__all__ = ["Trainer", "TrainerTile"]
