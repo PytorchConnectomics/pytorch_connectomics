@@ -3,4 +3,6 @@ from .dataset_tile import TileDataset
 from .build import build_dataloader, get_dataset
 
 __all__ = ['VolumeDataset',
-           'TileDataset']
+           'TileDataset',
+           'get_dataset',
+           'build_dataloader']

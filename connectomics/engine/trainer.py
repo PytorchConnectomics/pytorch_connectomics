@@ -3,6 +3,7 @@ from typing import Optional
 
 import os
 import time
+import math
 import GPUtil
 import numpy as np
 from yacs.config import CfgNode
@@ -17,6 +18,7 @@ from ..model import *
 from ..utils.monitor import build_monitor
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
+from ..data.dataset.build import _get_file_list, _make_path_list
 from ..data.utils import build_blending_matrix, writeh5
 from ..data.utils import get_padsize, array_unpad
 
@@ -44,6 +46,7 @@ class Trainer(object):
         self.device = device
         self.output_dir = cfg.DATASET.OUTPUT_PATH
         self.mode = mode
+        self.rank = rank
         self.is_main_process = rank is None or rank == 0
 
         self.model = build_model(self.cfg, self.device, rank)
@@ -71,13 +74,13 @@ class Trainer(object):
             self.update_checkpoint(checkpoint)
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor.build_from_cfg(cfg, activation=True)
-            if not self.cfg.DATASET.DO_CHUNK_TITLE:
+            if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.cfg.INFERENCE.DO_SINGLY:
                 self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
                 self.test_filename = self.augmentor.update_name(
                     self.test_filename)
 
         self.dataset, self.dataloader = None, None
-        if not self.cfg.DATASET.DO_CHUNK_TITLE:
+        if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.cfg.INFERENCE.DO_SINGLY:
             self.dataloader = build_dataloader(
                 self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
@@ -150,6 +153,46 @@ class Trainer(object):
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
         del pred, loss, losses_vis
 
+    def validate(self, iter_total):
+        r"""Validation function of the trainer class.
+        """
+        if not hasattr(self, 'val_loader'):
+            return
+
+        self.model.eval()
+        with torch.no_grad():
+            val_loss = 0.0
+            for i, sample in enumerate(self.val_loader):
+                volume = sample.out_input
+                target, weight = sample.out_target_l, sample.out_weight_l
+
+                # prediction
+                volume = volume.to(self.device, non_blocking=True)
+                with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
+                    pred = self.model(volume)
+                    loss, _ = self.criterion(pred, target, weight)
+                    val_loss += loss.data
+
+        if hasattr(self, 'monitor'):
+            self.monitor.logger.log_tb.add_scalar(
+                'Validation_Loss', val_loss, iter_total)
+            self.monitor.visualize(volume, target, pred,
+                                   weight, iter_total, suffix='Val')
+
+        if not hasattr(self, 'best_val_loss'):
+            self.best_val_loss = val_loss
+
+        if val_loss < self.best_val_loss:
+            self.best_val_loss = val_loss
+            self.save_checkpoint(iter_total, is_best=True)
+
+        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to
+        # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
+        del pred, loss, val_loss
+
+        # model.train() only called at the beginning of Trainer.train().
+        self.model.train()
+
     def test(self):
         r"""Inference function of the trainer class.
         """
@@ -220,49 +263,32 @@ class Trainer(object):
                     ['vol%d' % (x) for x in range(len(result))])
             print('Prediction saved as: ', self.test_filename)
 
-    def validate(self, iter_total):
-        r"""Validation function of the trainer class.
-        """
-        if not hasattr(self, 'val_loader'):
-            return
+    def test_singly(self):
+        dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
+        img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME)
+        assert len(dir_name) == 1
 
-        self.model.eval()
-        with torch.no_grad():
-            val_loss = 0.0
-            for i, sample in enumerate(self.val_loader):
-                volume = sample.out_input
-                target, weight = sample.out_target_l, sample.out_weight_l
+        num_file = len(img_name)
+        for i in range(num_file):
+            dataset = get_dataset(
+                self.cfg, self.augmentor, self.mode, self.rank,
+                dir_name_init=dir_name, img_name_init=[img_name[i]])
+            self.dataloader = build_dataloader(
+                self.cfg, self.augmentor, self.mode, dataset, self.rank)
+            self.dataloader = iter(self.dataloader)
 
-                # prediction
-                volume = volume.to(self.device, non_blocking=True)
-                with autocast(enabled=self.cfg.MODEL.MIXED_PRECESION):
-                    pred = self.model(volume)
-                    loss, _ = self.criterion(pred, target, weight)
-                    val_loss += loss.data
+            digits = int(math.log10(num_file))+1
+            self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \
+                '_' + str(i).zfill(digits) + '.h5'
+            self.test_filename = self.augmentor.update_name(
+                self.test_filename)
 
-        if hasattr(self, 'monitor'):
-            self.monitor.logger.log_tb.add_scalar(
-                'Validation_Loss', val_loss, iter_total)
-            self.monitor.visualize(volume, target, pred,
-                                   weight, iter_total, suffix='Val')
-
-        if not hasattr(self, 'best_val_loss'):
-            self.best_val_loss = val_loss
-
-        if val_loss < self.best_val_loss:
-            self.best_val_loss = val_loss
-            self.save_checkpoint(iter_total, is_best=True)
-
-        # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to
-        # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
-        del pred, loss, val_loss
-
-        # model.train() only called at the beginning of Trainer.train().
-        self.model.train()
+            self.test()
 
     # -----------------------------------------------------------------------------
     # Misc functions
     # -----------------------------------------------------------------------------
+
     def backward_pass(self, loss):
         if self.cfg.MODEL.MIXED_PRECESION:
             # Scales loss.  Calls backward() on scaled loss to create scaled gradients.

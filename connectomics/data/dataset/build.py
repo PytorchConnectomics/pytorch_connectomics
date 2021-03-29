@@ -62,18 +62,25 @@ def _get_file_list(name: Union[str, List[str]]) -> list:
         return name
 
     suffix = name.split('.')[-1]
-    if suffix == 'txt':
+    if suffix == 'txt':  # a text file saving the absolute path
         filelist = [line.rstrip('\n') for line in open(name)]
         return filelist
 
     return name.split('@')
 
 
-def _get_input(cfg, mode='train', rank=None):
+def _get_input(cfg,
+               mode='train',
+               rank=None,
+               dir_name_init: Optional[list] = None,
+               img_name_init: Optional[list] = None):
     r"""Load the inputs specified by the configuration options.
     """
     assert mode in ['train', 'val', 'test']
-    dir_name = _get_file_list(cfg.DATASET.INPUT_PATH)
+    if dir_name_init is not None:
+        dir_name = dir_name_init
+    else:
+        dir_name = _get_file_list(cfg.DATASET.INPUT_PATH)
 
     if mode == 'val':
         img_name = cfg.DATASET.VAL_IMAGE_NAME
@@ -86,7 +93,10 @@ def _get_input(cfg, mode='train', rank=None):
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME
         pad_size = cfg.DATASET.PAD_SIZE
 
-    img_name = _get_file_list(img_name)
+    if img_name_init is not None:
+        img_name = img_name_init
+    else:
+        img_name = _get_file_list(img_name)
     img_name = _make_path_list(cfg, dir_name, img_name, rank)
     print(rank, len(img_name), list(map(os.path.basename, img_name)))
 
@@ -148,7 +158,12 @@ def _get_input(cfg, mode='train', rank=None):
     return volume, label, valid_mask
 
 
-def get_dataset(cfg, augmentor, mode='train', rank=None):
+def get_dataset(cfg,
+                augmentor,
+                mode='train',
+                rank=None,
+                dir_name_init: Optional[list] = None,
+                img_name_init: Optional[list] = None):
     r"""Prepare dataset for training and inference.
     """
     assert mode in ['train', 'val', 'test']
@@ -215,7 +230,8 @@ def get_dataset(cfg, augmentor, mode='train', rank=None):
                               **shared_kwargs)
 
     else:  # build VolumeDataset
-        volume, label, valid_mask = _get_input(cfg, mode=mode, rank=rank)
+        volume, label, valid_mask = _get_input(
+            cfg, mode, rank, dir_name_init, img_name_init)
         dataset = VolumeDataset(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 

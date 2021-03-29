@@ -345,6 +345,8 @@ _C.INFERENCE.IMAGE_NAME = None
 _C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
 _C.INFERENCE.IS_ABSOLUTE_PATH = None
+# Load a volume at test time when needed.
+_C.INFERENCE.DO_SINGLY = False
 
 _C.INFERENCE.PAD_SIZE = None
 # activation for the output for inference and visualization
