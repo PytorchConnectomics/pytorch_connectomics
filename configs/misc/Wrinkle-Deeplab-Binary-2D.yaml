@@ -43,8 +43,9 @@ INFERENCE:
   INPUT_SIZE: [1, 385, 385]
   OUTPUT_SIZE: [1, 385, 385]
   OUTPUT_ACT: ["sigmoid"]
-  INPUT_PATH: datasets/Wrinkle/
-  IMAGE_NAME: test/**/*.png
+  IMAGE_NAME: datasets/Wrinkle/test_path.txt
+  IS_ABSOLUTE_PATH: True
+  DO_SINGLY: True
   OUTPUT_PATH: outputs/Wrinkle_Deeplab/test/
   OUTPUT_NAME: result.h5
   PAD_SIZE: [0, 32, 32]

@@ -70,7 +70,8 @@ INFERENCE:
     - image/vol17.tif
     - image/vol19.tif
   OUTPUT_PATH: outputs/Scutoid_UNet/test/
-  OUTPUT_NAME: result.h5
+  DO_SINGLY: True
+  OUTPUT_NAME: result
   PAD_SIZE: [4, 32, 32]
   AUG_MODE: "mean"
   AUG_NUM: None
