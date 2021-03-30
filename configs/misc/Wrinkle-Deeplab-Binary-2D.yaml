@@ -47,7 +47,7 @@ INFERENCE:
   IS_ABSOLUTE_PATH: True
   DO_SINGLY: True
   OUTPUT_PATH: outputs/Wrinkle_Deeplab/test/
-  OUTPUT_NAME: result.h5
+  OUTPUT_NAME: pred
   PAD_SIZE: [0, 32, 32]
   AUG_NUM: None
   STRIDE: [1, 128, 128]

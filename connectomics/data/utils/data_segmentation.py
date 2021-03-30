@@ -193,18 +193,26 @@ def markInvalid(seg, iter_num=2, do_2d=True):
     return seg
 
 
+def seg2binary(label, topt):
+    if len(topt) == 1:
+        return label > 0
+
+    fg_mask = np.zeros_like(label).astype(bool)
+    _, *fg_indices = topt.split('-')
+    for fg in fg_indices:
+        fg_mask = np.logical_or(fg_mask, label == int(fg))
+
+    return fg_mask
+
+
 def seg_to_targets(label, topts):
     # input: (D, H, W), output: (C, D, H, W)
     out = [None]*len(topts)
     for tid, topt in enumerate(topts):
-        if topt[0] == '0':  # binary
-            if len(topt) == 1:
-                fg_mask = label > 0
-            else:
-                _, fg = topt.split('-')
-                fg_mask = label == int(fg)
+        if topt[0] == '0':  # binary mask
+            fg_mask = seg2binary(label, topt)
             out[tid] = fg_mask[np.newaxis, :].astype(np.float32)
-        elif topt[0] == '1':  # synaptic polarity:
+        elif topt[0] == '1':  # synaptic polarity
             tmp = [None]*3
             tmp[0] = np.logical_and((label % 2) == 1, label > 0)
             tmp[1] = np.logical_and((label % 2) == 0, label > 0)
@@ -245,7 +253,7 @@ def seg_to_targets(label, topts):
             _, mode, a, b = topt.split('-')
             distance = edt_semantic(label.copy(), mode, float(a), float(b))
             out[tid] = distance[np.newaxis, :].astype(np.float32)
-        elif topt[0] == '9':  # generic segmantic segmentation
+        elif topt[0] == '9':  # generic semantic segmentation
             out[tid] = label.astype(np.int64)
         else:
             raise NameError("Target option %s is not valid!" % topt[0])

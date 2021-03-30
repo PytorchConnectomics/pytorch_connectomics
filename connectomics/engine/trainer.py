@@ -48,6 +48,7 @@ class Trainer(object):
         self.mode = mode
         self.rank = rank
         self.is_main_process = rank is None or rank == 0
+        self.inference_singly = (mode == 'test') and cfg.INFERENCE.DO_SINGLY
 
         self.model = build_model(self.cfg, self.device, rank)
         if self.mode == 'train':
@@ -74,13 +75,13 @@ class Trainer(object):
             self.update_checkpoint(checkpoint)
             # build test-time augmentor and update output filename
             self.augmentor = TestAugmentor.build_from_cfg(cfg, activation=True)
-            if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.cfg.INFERENCE.DO_SINGLY:
+            if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.inference_singly:
                 self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
                 self.test_filename = self.augmentor.update_name(
                     self.test_filename)
 
         self.dataset, self.dataloader = None, None
-        if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.cfg.INFERENCE.DO_SINGLY:
+        if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.inference_singly:
             self.dataloader = build_dataloader(
                 self.cfg, self.augmentor, self.mode, rank=rank)
             self.dataloader = iter(self.dataloader)
