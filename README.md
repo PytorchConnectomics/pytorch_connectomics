@@ -1,5 +1,5 @@
 <a href="https://github.com/zudi-lin/pytorch_connectomics">
-<img src="./.github/logo_fullname.png" width="450"></a>
+<img src="./.github/logo_fullname.png" width="450" style="vertical-align:middle;margin:0px 0px 20px 0px"></a>
 
 <p align="left">
     <a href="https://www.python.org/">
@@ -10,7 +10,7 @@
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
     <a href= "https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">
       <img src="https://img.shields.io/badge/Documentation-Latest-2BAF2B.svg" /></a>
-    <a href= "https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">
+    <a href= "https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w">
       <img src="https://img.shields.io/badge/Slack-Join-CC8899.svg" /></a>
 </p>
 
