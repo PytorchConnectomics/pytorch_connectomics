@@ -1,5 +1,5 @@
 <a href="https://github.com/zudi-lin/pytorch_connectomics">
-<img src="./.github/logo_fullname.png" width="450" style="vertical-align:middle;margin:0px 0px 20px 0px"></a>
+<img src="./.github/logo_fullname.png" width="450"></a>
 
 <p align="left">
     <a href="https://www.python.org/">
@@ -49,7 +49,7 @@ conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
 
-Download and install the package (editable):
+Download and install the package:
 
 ```shell
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
@@ -59,7 +59,7 @@ pip install -r requirements.txt
 pip install --editable .
 ```
 
-For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
+Since the package is under active development, the editable installation will allow any changes to the original package to reflect directly in the environment. For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
 
 ## Notes
 
