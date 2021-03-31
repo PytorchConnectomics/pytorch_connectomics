@@ -19,7 +19,7 @@ A simple Python script for changing the image paths in the JSON file:
 ```python
 import json
 
-js_path = 'im_train.json'
+js_path = 'mito_train.json'
 my_path = 'path/to/mitoem/'
 with open(js_path, 'r') as fp:
     data = json.load(fp)
@@ -27,7 +27,7 @@ with open(js_path, 'r') as fp:
 for i in range(len(data['image'])):
     x = data['image'][i]
     x = x.strip().split('/')
-    data['image'][i] = my_path+'/'.join(x[-3:])
+    data['image'][i] = my_path+'/'.join(x[-2:])
 
 with open(js_path, 'w') as fp:
     json.dump(data, fp)
