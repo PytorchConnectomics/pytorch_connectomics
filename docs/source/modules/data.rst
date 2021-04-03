@@ -5,7 +5,7 @@ connectomics.data
     :local:
 
 connectomics.data.dataset
---------------------------
+-------------------------------
 
 .. automodule:: connectomics.data.dataset
     :members:
