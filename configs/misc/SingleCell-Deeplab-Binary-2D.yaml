@@ -64,7 +64,7 @@ INFERENCE:
   INPUT_SIZE: [1, 513, 513]
   OUTPUT_SIZE: [1, 513, 513]
   OUTPUT_ACT: ["sigmoid", "sigmoid", "sigmoid", "sigmoid", "sigmoid"]
-  IMAGE_NAME: datasets/SingleCell_Deeplab/test_path.txt
+  IMAGE_NAME: datasets/SingleCell/test_path.txt
   IS_ABSOLUTE_PATH: True
   DO_SINGLY: True
   OUTPUT_PATH: outputs/SingleCell_Deeplab/test/

@@ -14,7 +14,6 @@ MODEL:
   WEIGHT_OPT: [["1", "0"]]
   OUTPUT_ACT: [["none", "sigmoid"]]
   NORM_MODE: sync_bn
-  FILTERS: [32, 64, 96, 128, 160]
 DATASET:
   IMAGE_NAME: datasets/zebrafinch/img_train.txt
   LABEL_NAME: datasets/zebrafinch/seg_train.txt
@@ -23,12 +22,14 @@ DATASET:
   PAD_SIZE: [4, 32, 32]
   LABEL_EROSION: 1
   DISTRIBUTED: True
+  REJECT_SAMPLING:
+    DIVERSITY: 3
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.04
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
-  ITERATION_TOTAL: 100000
+  ITERATION_TOTAL: 200000
   SAMPLES_PER_BATCH: 2
 INFERENCE:
   INPUT_SIZE: [33, 257, 257]
@@ -39,7 +40,7 @@ INFERENCE:
   IMAGE_NAME: test-input.tif # or path to your test images
   OUTPUT_PATH: outputs/Zebrafinch/test
   OUTPUT_NAME: result.h5
-  PAD_SIZE: [4, 64, 64]
+  PAD_SIZE: [4, 32, 32]
   AUG_MODE: min
   AUG_NUM: None
   STRIDE: [8, 128, 128]

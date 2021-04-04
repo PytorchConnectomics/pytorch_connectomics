@@ -135,6 +135,7 @@ _C.DATASET.LOAD_2D = False
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64]
+_C.DATASET.PAD_MODE = 'reflect'  # reflect, constant, symmetric
 
 # Normalize the image and cast to uint8 format
 _C.DATASET.NORMALIZE_RANGE = True
@@ -345,8 +346,10 @@ _C.INFERENCE.IMAGE_NAME = None
 _C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
 _C.INFERENCE.IS_ABSOLUTE_PATH = None
-# Load a volume at test time when needed.
+
+# Do inference one-by-on (load a volume when needed).
 _C.INFERENCE.DO_SINGLY = False
+_C.INFERENCE.DO_SINGLY_START_INDEX = 0
 
 _C.INFERENCE.PAD_SIZE = None
 # activation for the output for inference and visualization

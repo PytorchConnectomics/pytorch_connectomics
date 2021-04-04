@@ -1,4 +1,5 @@
 import unittest
+
 import torch
 
 from connectomics.model.block import *
@@ -59,6 +60,26 @@ class TestModelBlock(unittest.TestCase):
             out = residual_se_3d(x)
             out_shape = tuple(out.shape)
             self.assertTupleEqual(out_shape, (b, c_out, d, h, w))
+
+    def test_non_local_blocks(self):
+        """Test 1D, 2D and 3D non-local blocks.
+        """
+        b, c, d, h, w = 2, 32, 17, 33, 33
+
+        x = torch.rand(b, c, w)
+        nb_block = NonLocalBlock1D(c)
+        out = nb_block(x)
+        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
+
+        x = torch.rand(b, c, h, w)
+        nb_block = NonLocalBlock2D(c)
+        out = nb_block(x)
+        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
+
+        x = torch.rand(b, c, d, h, w)
+        nb_block = NonLocalBlock3D(c)
+        out = nb_block(x)
+        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
 
     def test_repvgg_block_2d(self):
         """Test 2D RepVGG blocks.

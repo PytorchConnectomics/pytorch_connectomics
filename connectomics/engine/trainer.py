@@ -270,7 +270,8 @@ class Trainer(object):
         assert len(dir_name) == 1
 
         num_file = len(img_name)
-        for i in range(num_file):
+        start_idx = self.cfg.INFERENCE.DO_SINGLY_START_INDEX
+        for i in range(start_idx, num_file):
             dataset = get_dataset(
                 self.cfg, self.augmentor, self.mode, self.rank,
                 dir_name_init=dir_name, img_name_init=[img_name[i]])

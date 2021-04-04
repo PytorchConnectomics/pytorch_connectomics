@@ -2,13 +2,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3
+from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D
 from .backbone import RepVGG3D
 
 MODEL_MAP = {
     'unet_3d': UNet3D,
     'unet_2d': UNet2D,
     'fpn_3d': FPN3D,
+    'unet_plus_3d': UNetPlus3D,
     'deeplabv3a': DeepLabV3,
     'deeplabv3b': DeepLabV3,
     'deeplabv3c': DeepLabV3,

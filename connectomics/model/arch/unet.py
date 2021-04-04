@@ -55,7 +55,7 @@ class UNet3D(nn.Module):
         self.pooling = pooling
         block = self.block_dict[block_type]
 
-        shared_kwargs = {
+        self.shared_kwargs = {
             'pad_mode': pad_mode,
             'act_mode': act_mode,
             'norm_mode': norm_mode}
@@ -64,7 +64,7 @@ class UNet3D(nn.Module):
         kernel_size_io, padding_io = self._get_kernal_size(
             is_isotropic, io_layer=True)
         self.conv_in = conv3d_norm_act(in_channel, filters[0], kernel_size_io,
-                                       padding=padding_io, **shared_kwargs)
+                                       padding=padding_io, **self.shared_kwargs)
         self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io, bias=True,
                                         padding=padding_io, pad_mode=pad_mode, act_mode='none', norm_mode='none')
 
@@ -77,8 +77,8 @@ class UNet3D(nn.Module):
             layer = nn.Sequential(
                 self._make_pooling_layer(isotropy[i], previous, i),
                 conv3d_norm_act(filters[previous], filters[i], kernel_size,
-                                stride=stride, padding=padding, **shared_kwargs),
-                block(filters[i], filters[i], **shared_kwargs))
+                                stride=stride, padding=padding, **self.shared_kwargs),
+                block(filters[i], filters[i], **self.shared_kwargs))
             self.down_layers.append(layer)
 
         # decoding path
@@ -87,8 +87,8 @@ class UNet3D(nn.Module):
             kernel_size, padding = self._get_kernal_size(isotropy[j])
             layer = nn.ModuleList([
                 conv3d_norm_act(filters[j], filters[j-1], kernel_size,
-                                padding=padding, **shared_kwargs),
-                block(filters[j-1], filters[j-1], **shared_kwargs)])
+                                padding=padding, **self.shared_kwargs),
+                block(filters[j-1], filters[j-1], **self.shared_kwargs)])
             self.up_layers.append(layer)
 
         # initialization
@@ -118,7 +118,7 @@ class UNet3D(nn.Module):
         When pooling layer is used, the input size is assumed to be even, 
         therefore :attr:`align_corners` is set to `False` to avoid feature 
         mis-match. When downsampling by stride, the input size is assumed 
-        to be 2n+1, and :attr:`align_corners` is set to `False`.
+        to be 2n+1, and :attr:`align_corners` is set to `True`.
         """
         align_corners = False if self.pooling else True
         x = F.interpolate(x, size=y.shape[2:], mode='trilinear',
@@ -152,6 +152,43 @@ class UNet3D(nn.Module):
             return nn.MaxPool3d(kernel_size, stride)
 
         return nn.Identity()
+
+
+class UNetPlus3D(UNet3D):
+    def __init__(self,
+                 filters: List[int] = [28, 36, 48, 64, 80],
+                 norm_mode: str = 'bn',
+                 **kwargs):
+
+        super().__init__(filters=filters, norm_mode=norm_mode, **kwargs)
+        self.feat_layers = nn.ModuleList(
+            [conv3d_norm_act(filters[-1], filters[k-1], 1, **self.shared_kwargs)
+             for k in range(1, self.depth)]
+        )
+        self.non_local = NonLocalBlock3D(
+            filters[-1], sub_sample=False, norm_mode=norm_mode)
+
+    def forward(self, x):
+        x = self.conv_in(x)
+
+        down_x = [None] * (self.depth-1)
+        for i in range(self.depth-1):
+            x = self.down_layers[i](x)
+            down_x[i] = x
+
+        x = self.down_layers[-1](x)
+        x = self.non_local(x)
+        feat = x  # lowest-res feature map
+
+        for j in range(self.depth-1):
+            i = self.depth-2-j
+            x = self.up_layers[i][0](x)
+            x = self._upsample_add(x, down_x[i])
+            x = self._upsample_add(self.feat_layers[i](feat), x)
+            x = self.up_layers[i][1](x)
+
+        x = self.conv_out(x)
+        return x
 
 
 class UNet2D(nn.Module):

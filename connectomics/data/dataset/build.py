@@ -114,6 +114,7 @@ def _get_input(cfg,
         assert len(valid_mask_name) == len(img_name)
         valid_mask = [None]*len(valid_mask_name)
 
+    pad_mode = cfg.DATASET.PAD_MODE
     volume = [None] * len(img_name)
     read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
     for i in range(len(img_name)):
@@ -123,7 +124,7 @@ def _get_input(cfg,
             volume[i] = normalize_range(volume[i])
         if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
             volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
-        volume[i] = np.pad(volume[i], get_padsize(pad_size), 'reflect')
+        volume[i] = np.pad(volume[i], get_padsize(pad_size), pad_mode)
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode in ['val', 'train'] and label is not None:
@@ -142,7 +143,7 @@ def _get_input(cfg,
             if cfg.DATASET.LABEL_MAG != 0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
 
-            label[i] = np.pad(label[i], get_padsize(pad_size), 'reflect')
+            label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
             print(f"label shape: {label[i].shape}")
 
         if mode in ['val', 'train'] and valid_mask is not None:
@@ -152,7 +153,7 @@ def _get_input(cfg,
                     valid_mask[i], cfg.DATASET.DATA_SCALE, order=0)
 
             valid_mask[i] = np.pad(
-                valid_mask[i], get_padsize(pad_size), 'reflect')
+                valid_mask[i], get_padsize(pad_size), pad_mode)
             print(f"valid_mask shape: {label[i].shape}")
 
     return volume, label, valid_mask

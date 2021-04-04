@@ -11,7 +11,7 @@ requirements = [
     'scikit-image>=0.17.2',
     'opencv-python>=4.3.0',
     'matplotlib>=3.3.0',
-    'Cython=0.29.21',
+    'Cython==0.29.21',
     'yacs>=0.1.8',
     'h5py>=2.10.0',
     'gputil>=1.4.0',
