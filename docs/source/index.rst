@@ -44,6 +44,13 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    modules/model
    modules/utils
 
+.. toctree::
+   :glob:
+   :maxdepth: 1
+   :caption: Team
+
+   about
+
 Indices and Tables
 ====================
 
