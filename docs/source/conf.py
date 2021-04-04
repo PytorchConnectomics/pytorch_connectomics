@@ -14,6 +14,10 @@ import datetime
 import sphinx_rtd_theme
 import doctest
 import connectomics
+import pytorch_sphinx_theme
+
+
+sys.path.insert(0, os.path.abspath("../.."))
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -38,7 +42,15 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx_rtd_theme',
     'rst2pdf.pdfbuilder',
+    'sphinx.ext.autosummary',
+    "sphinx.ext.autosectionlabel",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+
 ]
+
+# katex option
+katex_prerender = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -128,21 +140,24 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinx_rtd_theme'
+html_theme = 'pytorch_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
+html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
+
 html_theme_options = {
     'collapse_navigation': False,
     'display_version': True,
     'logo_only': True,
-    'style_nav_header_background': "#FFFFFF",
+    'navigation_with_keys': True, 
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+#html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
@@ -156,7 +171,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = '_static/img/logo_text.png'
+html_logo = '_templates/_static/img/logo-high.svg'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -167,8 +182,10 @@ html_logo = '_static/img/logo_text.png'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-html_context = {'css_files': ['_static/css/custom.css']}
+html_static_path = ["_templates/_static/"]
+html_context = {"css_files": ["_static/css/pytc-theme.css",
+                             "https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
+                             ]}
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
