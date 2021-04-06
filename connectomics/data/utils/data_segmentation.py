@@ -1,3 +1,6 @@
+from __future__ import print_function, division
+from typing import Optional, Union, List
+
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.ndimage.morphology import binary_erosion, binary_dilation
@@ -9,10 +12,9 @@ from scipy.signal import convolve2d
 from .data_affinity import mknhood2d, seg_to_aff
 from .data_transform import *
 
-# reduce the labeling
-
 
 def getSegType(mid):
+    # reduce the label dtype
     m_type = np.uint64
     if mid < 2**8:
         m_type = np.uint8
@@ -205,10 +207,29 @@ def seg2binary(label, topt):
     return fg_mask
 
 
-def seg_to_targets(label, topts):
+def erode_label(label: np.ndarray,
+                index: int,
+                erosion_rates: Optional[Union[List[int], int]] = None):
+    if erosion_rates is None:
+        return label
+
+    if isinstance(erosion_rates, list):
+        label_erosion = erosion_rates[index]
+    else:
+        label_erosion = erosion_rates
+    return seg_widen_border(label, label_erosion)
+
+
+def seg_to_targets(label_orig: np.ndarray,
+                   topts: List[str],
+                   erosion_rates: Optional[Union[List[int], int]] = None):
     # input: (D, H, W), output: (C, D, H, W)
     out = [None]*len(topts)
+
     for tid, topt in enumerate(topts):
+        label = label_orig.copy()
+        label = erode_label(label, tid, erosion_rates)
+
         if topt[0] == '0':  # binary mask
             fg_mask = seg2binary(label, topt)
             out[tid] = fg_mask[np.newaxis, :].astype(np.float32)

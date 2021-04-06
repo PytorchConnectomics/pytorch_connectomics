@@ -124,7 +124,8 @@ class Criterion(object):
                     target=target_t,
                     weight_mask=w_mask)
                 loss += loss_temp
-                loss_tag = self.target_opt[i] + '_' + self.loss_opt[i][j]
+                loss_tag = self.target_opt[i] + '_' + \
+                    self.loss_opt[i][j] + '_' + str(i)
                 if key is not None:
                     loss_tag += '_' + key
                 assert loss_tag not in losses_vis.keys()
@@ -135,7 +136,8 @@ class Criterion(object):
             regu_temp = self.regu_w[i]*self.regu_fn[i](*targets)
             loss += regu_temp
             targets_name = [self.target_opt[j] for j in self.regu_t[i]]
-            regu_tag = '_'.join(targets_name) + '_' + self.regu_opt[i]
+            regu_tag = '_'.join(targets_name) + '_' + \
+                self.regu_opt[i] + '_' + str(i)
             if key is not None:
                 regu_tag += '_' + key
             assert regu_tag not in losses_vis.keys()

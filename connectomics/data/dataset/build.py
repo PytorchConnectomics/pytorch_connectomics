@@ -135,9 +135,6 @@ def _get_input(cfg,
                 label[i] = label[i][None, :]
             if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
                 label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0)
-            if cfg.DATASET.LABEL_EROSION != 0:
-                label[i] = seg_widen_border(
-                    label[i], cfg.DATASET.LABEL_EROSION)
             if cfg.DATASET.LABEL_BINARY and label[i].max() > 1:
                 label[i] = label[i] // 255
             if cfg.DATASET.LABEL_MAG != 0:
@@ -209,6 +206,7 @@ def get_dataset(cfg,
         "reject_p": cfg.DATASET.REJECT_SAMPLING.P,
         "data_mean": cfg.DATASET.MEAN,
         "data_std": cfg.DATASET.STD,
+        "erosion_rates": cfg.MODEL.LABEL_EROSION,
     }
 
     if cfg.DATASET.DO_CHUNK_TITLE == 1:  # build TileDataset

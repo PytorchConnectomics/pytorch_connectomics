@@ -1,7 +1,6 @@
 MODEL:
   ARCHITECTURE: unet_3d
   BLOCK_TYPE: residual_se
-  FILTERS: [32, 64, 96, 128, 192]
 DATASET:
   OUTPUT_PATH: outputs/Zebrafinch_UNet
 INFERENCE:

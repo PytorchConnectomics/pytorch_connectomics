@@ -60,9 +60,9 @@ class TileDataset(torch.utils.data.Dataset):
                  augmentor: AUGMENTOR_TYPE = None,
                  target_opt: TARGET_OPT_TYPE = ['0'],
                  weight_opt: WEIGHT_OPT_TYPE = [['1']],
+                 erosion_rates: Optional[List[int]] = None,
                  mode: str = 'train',
                  do_2d: bool = False,
-                 label_erosion: int = 0,
                  pad_size: List[int] = [0, 0, 0],
                  # rejection sampling
                  reject_size_thres: int = 0,
@@ -80,11 +80,11 @@ class TileDataset(torch.utils.data.Dataset):
 
         self.target_opt = target_opt
         self.weight_opt = weight_opt
+        self.erosion_rates = erosion_rates
 
         self.mode = mode
         self.do_2d = do_2d
         self.chunk_iter = chunk_iter
-        self.label_erosion = label_erosion
         self.pad_size = pad_size
 
         self.chunk_step = 1
@@ -116,6 +116,10 @@ class TileDataset(torch.utils.data.Dataset):
         self.reject_size_thres = reject_size_thres
         self.reject_diversity = reject_diversity
         self.reject_p = reject_p
+
+        # normalization
+        self.data_mean = data_mean
+        self.data_std = data_std
 
     def get_coord_name(self):
         r"""Return the filename suffix based on the chunk coordinates.
@@ -171,8 +175,6 @@ class TileDataset(torch.utils.data.Dataset):
                                          tile_sz=self.json_label['tile_size'], tile_st=self.json_label['tile_st'],
                                          tile_ratio=self.json_label['tile_ratio'], dt=dt[self.json_label['dtype']],
                                          do_im=0), do_type=True)]
-            if self.label_erosion != 0:
-                label[0] = seg_widen_border(label[0], self.label_erosion)
 
         valid_mask = None
         if self.json_valid is not None:
@@ -194,4 +196,6 @@ class TileDataset(torch.utils.data.Dataset):
                                      iter_num=self.chunk_iter if self.mode == 'train' else -1,
                                      reject_size_thres=self.reject_size_thres,
                                      reject_diversity=self.reject_diversity,
-                                     reject_p=self.reject_p)
+                                     reject_p=self.reject_p,
+                                     data_mean=self.data_mean,
+                                     data_std=self.data_std)
