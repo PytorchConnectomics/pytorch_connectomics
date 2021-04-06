@@ -1,9 +1,6 @@
 connectomics.model
 ====================
 
-.. contents:: Contents
-    :local:
-
 connectomics.model.loss
 ------------------------------
 

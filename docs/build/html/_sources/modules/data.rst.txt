@@ -1,11 +1,8 @@
 connectomics.data
 ===================
 
-.. contents:: Contents
-    :local:
-
 connectomics.data.dataset
---------------------------
+-------------------------------
 
 .. automodule:: connectomics.data.dataset
     :members:

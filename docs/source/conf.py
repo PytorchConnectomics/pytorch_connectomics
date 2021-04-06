@@ -9,7 +9,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys, os
+import sys
+import os
 import datetime
 import sphinx_rtd_theme
 import doctest
@@ -46,7 +47,6 @@ extensions = [
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.todo",
     "sphinx.ext.coverage",
-
 ]
 
 # katex option
@@ -71,7 +71,7 @@ master_doc = 'index'
 # General information about the project.
 author = 'Zudi Lin and Donglai Wei'
 project = u'connectomics'
-copyright = u'{}, {}'.format(datetime.datetime.now().year, author)
+copyright = u'2019-{}, {}'.format(datetime.datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -153,7 +153,7 @@ html_theme_options = {
     'collapse_navigation': False,
     'display_version': True,
     'logo_only': True,
-    'navigation_with_keys': True, 
+    'navigation_with_keys': True,
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
@@ -166,26 +166,26 @@ html_theme_options = {
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
-# html_short_title = None
+html_short_title = "PyTC"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = '_templates/_static/img/logo-high.svg'
+html_logo = '_templates/_static/img/logo.svg'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
 #
-# html_favicon = None
+html_favicon = '_templates/_static/img/favicon.svg'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_templates/_static/"]
 html_context = {"css_files": ["_static/css/pytc-theme.css",
-                             "https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
-                             ]}
+                              "https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
+                              ]}
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -353,7 +353,9 @@ texinfo_documents = [
 #
 # texinfo_no_detailmenu = False
 
-pdf_documents = [('index', u'connectomics', u'PyTorch Connectomics Documentation', author),]
+pdf_documents = [
+    ('index', u'connectomics', u'PyTorch Connectomics Documentation', author), ]
+
 
 def setup(app):
     def skip(app, what, name, obj, skip, options):

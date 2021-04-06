@@ -1,7 +1,10 @@
 
 
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
 <head>
   <meta charset="utf-8">
   
@@ -11,161 +14,159 @@
   
 
   
+  
+    <link rel="shortcut icon" href="../_static/favicon.svg"/>
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
   <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-  <link rel="stylesheet" href="../_static/css/custom.css" type="text/css" />
-
-  
-  
-  
-  
-
-  
-  <!--[if lt IE 9]>
-    <script src="../_static/js/html5shiv.min.js"></script>
-  <![endif]-->
-  
-    
-      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
-        <script src="../_static/jquery.js"></script>
-        <script src="../_static/underscore.js"></script>
-        <script src="../_static/doctools.js"></script>
-        <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
-    
-    <script type="text/javascript" src="../_static/js/theme.js"></script>
-
-    
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css" type="text/css" />
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="connectomics.engine" href="engine.html" />
     <link rel="prev" title="Synapse Detection" href="../tutorials/synapse.html" /> 
+
+  <!-- Preload the theme fonts -->
+
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="../_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
 </head>
 
-<body class="wy-body-for-nav">
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
 
-   
-  <div class="wy-grid-for-nav">
-    
-    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
-      <div class="wy-side-scroll">
-        <div class="wy-side-nav-search"  style="background: #FFFFFF" >
-          
+    <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
 
-          
-            <a href="../index.html">
-          
+    <div class="header-container">
 
-          
-            
-            <img src="../_static/logo_text.png" class="logo" alt="Logo"/>
-          
-          </a>
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../index.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+          <li>
+            <a href="../about.html">About Us</a>
+          </li>
 
-          
-            
-            
-              <div class="version">
-                latest
-              </div>
-            
-          
+        </ul>
+      </div>
 
-          
-<div role="search">
-  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
-    <input type="hidden" name="check_keywords" value="yes" />
-    <input type="hidden" name="area" value="default" />
-  </form>
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
 </div>
 
-          
-        </div>
 
-        
-        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+<body class="pytorch-body">
+
+   
+
+    
+
+    <div class="table-of-contents-link-wrapper">
+      <span>Table of Contents</span>
+      <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+    </div>
+
+    <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+      <div class="pytorch-side-scroll">
+        <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          <div class="pytorch-left-menu-search">
+            
+
+            
+              
+              
+                <div class="version">
+                  latest
+                </div>
+              
+            
+
+            <div id="docsearch"></div>
+
+            
+          </div>
+
           
             
             
               
             
             
-              <p class="caption"><span class="caption-text">Notes</span></p>
+              <p class="caption"><span class="caption-text">Get Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#basic-usage">Basic Usage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#multiple-losses-for-a-single-learning-target">Multiple Losses for a Single Learning Target</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#multitask-learning">Multitask Learning</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../notes/config.html#inference">Inference</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../notes/dataloading.html#data-augmentation">Data Augmentation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../notes/dataloading.html#rejection-sampling">Rejection Sampling</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../notes/dataloading.html#tiledataset">TileDataset</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configurations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Tutorials</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/snemi.html">Neuron Segmentation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito.html#introduction">Introduction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito.html#semantic-segmentation">Semantic Segmentation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/mito.html#instance-segmentation">Instance Segmentation</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse.html#introduction">Introduction</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse.html#synaptic-cleft-detection">Synaptic Cleft Detection</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../tutorials/synapse.html#synaptic-polarity-detection">Synaptic Polarity Detection</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Package Reference</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#module-connectomics.data.dataset">connectomics.data.dataset</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-connectomics.data.augmentation">connectomics.data.augmentation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#module-connectomics.data.utils">connectomics.data.utils</a></li>
-</ul>
-</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="engine.html">connectomics.engine</a></li>
-<li class="toctree-l1"><a class="reference internal" href="model.html">connectomics.model</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="model.html#module-connectomics.model.loss">connectomics.model.loss</a></li>
-<li class="toctree-l2"><a class="reference internal" href="model.html#module-connectomics.model.utils">connectomics.model.utils</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">connectomics.model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.utils</a></li>
 </ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.utils</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="utils.html#module-connectomics.utils.process">connectomics.utils.process</a></li>
-<li class="toctree-l2"><a class="reference internal" href="utils.html#module-connectomics.utils.visualizer">connectomics.utils.visualizer</a></li>
-</ul>
-</li>
+<p class="caption"><span class="caption-text">Team</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
 </ul>
 
             
           
         </div>
-        
       </div>
-    </nav>
-
-    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
 
       
-      <nav class="wy-nav-top" aria-label="top navigation">
-        
-          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="../index.html">connectomics</a>
-        
-      </nav>
 
 
-      <div class="wy-nav-content">
-        
-        <div class="rst-content">
-        
+    </nav>
+
+    <div class="pytorch-container">
+      <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+        <div class="pytorch-breadcrumbs-wrapper">
           
 
 
@@ -184,17 +185,24 @@
 
 <div role="navigation" aria-label="breadcrumbs navigation">
 
-  <ul class="wy-breadcrumbs">
+  <ul class="pytorch-breadcrumbs">
     
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
         
       <li>connectomics.data</li>
     
     
-      <li class="wy-breadcrumbs-aside">
+      <li class="pytorch-breadcrumbs-aside">
         
             
-            <a href="../_sources/modules/data.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/modules/data.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
           
         
       </li>
@@ -202,26 +210,31 @@
   </ul>
 
   
-  <hr/>
 </div>
-          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
-           <div itemprop="articleBody">
-            
+        </div>
+
+        <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+          Shortcuts
+        </div>
+      </div>
+
+      <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+        <div class="pytorch-content-left">
+
+        
+          
+          <div class="rst-content">
+          
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+             <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+              
   <div class="section" id="connectomics-data">
 <h1>connectomics.data<a class="headerlink" href="#connectomics-data" title="Permalink to this headline">¶</a></h1>
-<div class="contents local topic" id="contents">
-<p class="topic-title">Contents</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="#module-connectomics.data.dataset" id="id3">connectomics.data.dataset</a></p></li>
-<li><p><a class="reference internal" href="#module-connectomics.data.augmentation" id="id4">connectomics.data.augmentation</a></p></li>
-<li><p><a class="reference internal" href="#module-connectomics.data.utils" id="id5">connectomics.data.utils</a></p></li>
-</ul>
-</div>
 <div class="section" id="module-connectomics.data.dataset">
-<span id="connectomics-data-dataset"></span><h2><a class="toc-backref" href="#id3">connectomics.data.dataset</a><a class="headerlink" href="#module-connectomics.data.dataset" title="Permalink to this headline">¶</a></h2>
+<span id="connectomics-data-dataset"></span><h2>connectomics.data.dataset<a class="headerlink" href="#module-connectomics.data.dataset" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="connectomics.data.dataset.TileDataset">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.dataset.</code><code class="sig-name descname">TileDataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">chunk_num</span><span class="p">:</span> <span class="n">List<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">[2, 2, 2]</span></em>, <em class="sig-param"><span class="n">chunk_num_ind</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>list<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">chunk_iter</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">- 1</span></em>, <em class="sig-param"><span class="n">chunk_stride</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">volume_json</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'path/to/image'</span></em>, <em class="sig-param"><span class="n">label_json</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">valid_mask_json</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">valid_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">sample_volume_size</span><span class="p">:</span> <span class="n">tuple</span> <span class="o">=</span> <span class="default_value">(8, 64, 64)</span></em>, <em class="sig-param"><span class="n">sample_label_size</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>tuple<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">sample_stride</span><span class="p">:</span> <span class="n">tuple</span> <span class="o">=</span> <span class="default_value">(1, 1, 1)</span></em>, <em class="sig-param"><span class="n">augmentor</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>connectomics.data.augmentation.composition.Compose<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">target_opt</span><span class="p">:</span> <span class="n">List<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">['0']</span></em>, <em class="sig-param"><span class="n">weight_opt</span><span class="p">:</span> <span class="n">List<span class="p">[</span>List<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">[['1']]</span></em>, <em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'train'</span></em>, <em class="sig-param"><span class="n">do_2d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">label_erosion</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">pad_size</span><span class="p">:</span> <span class="n">List<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">[0, 0, 0]</span></em>, <em class="sig-param"><span class="n">reject_size_thres</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">reject_p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.95</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></code><code class="sig-name descname"><span class="pre">TileDataset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">chunk_num</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[2,</span> <span class="pre">2,</span> <span class="pre">2]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_num_ind</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_iter</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_stride</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">volume_json</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'path/to/image.json'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_json</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_mask_json</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_volume_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">tuple</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">(8,</span> <span class="pre">64,</span> <span class="pre">64)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_label_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_stride</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">tuple</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augmentor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">connectomics.data.augmentation.composition.Compose</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_opt</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">['0']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_opt</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[['1']]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_2d</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_erosion</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[0,</span> <span class="pre">0,</span> <span class="pre">0]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_size_thres</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_diversity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_mean</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_std</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dataset class for large-scale tile-based datasets. Large-scale volumetric datasets are usually stored as
 individual tiles. Directly loading them as a single array for training and inference is infeasible. This
 class reads the paths of the tiles and construct smaller chunks for processing.</p>
@@ -246,26 +259,27 @@ class reads the paths of the tiles and construct smaller chunks for processing.<
 <li><p><strong>do_2d</strong> (<em>bool</em>) – load 2d samples from 3d volumes. Default: <cite>False</cite></p></li>
 <li><p><strong>label_erosion</strong> (<em>int</em>) – label erosion parameter to widen border. Default: 0</p></li>
 <li><p><strong>pad_size</strong> (<em>list</em>) – padding parameters in <span class="math notranslate nohighlight">\((z, y, x)\)</span> order. Default: <span class="math notranslate nohighlight">\([0,0,0]\)</span></p></li>
-<li><p><strong>reject_size_thres</strong> (<em>int</em>) – threshold to decide if a sampled volumes contains foreground objects. Default: 0</p></li>
-<li><p><strong>reject_p</strong> (<em>float</em>) – probability of rejecting non-foreground volumes. Default: 0.95</p></li>
+<li><p><strong>reject_size_thres</strong> (<em>int</em><em>, </em><em>optional</em>) – threshold to decide if a sampled volumes contains foreground objects. Default: 0</p></li>
+<li><p><strong>reject_diversity</strong> (<em>int</em><em>, </em><em>optional</em>) – threshold to decide if a sampled volumes contains multiple objects. Default: 0</p></li>
+<li><p><strong>reject_p</strong> (<em>float</em><em>, </em><em>optional</em>) – probability of rejecting non-foreground volumes. Default: 0.95</p></li>
 </ul>
 </dd>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.dataset.TileDataset.get_coord_name">
-<code class="sig-name descname">get_coord_name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset.get_coord_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset.get_coord_name" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">get_coord_name</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset.get_coord_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset.get_coord_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Return the filename suffix based on the chunk coordinates.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="connectomics.data.dataset.TileDataset.loadchunk">
-<code class="sig-name descname">loadchunk</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset.loadchunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset.loadchunk" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">loadchunk</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset.loadchunk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset.loadchunk" title="Permalink to this definition">¶</a></dt>
 <dd><p>Load the chunk based on current coordinates and construct a VolumeDataset for processing.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt id="connectomics.data.dataset.TileDataset.updatechunk">
-<code class="sig-name descname">updatechunk</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">do_load</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset.updatechunk"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset.updatechunk" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">updatechunk</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">do_load</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#TileDataset.updatechunk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.TileDataset.updatechunk" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the coordinates to a new chunk in the large volume.</p>
 </dd></dl>
 
@@ -273,7 +287,7 @@ class reads the paths of the tiles and construct smaller chunks for processing.<
 
 <dl class="py class">
 <dt id="connectomics.data.dataset.VolumeDataset">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.dataset.</code><code class="sig-name descname">VolumeDataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">volume</span><span class="p">:</span> <span class="n">list</span></em>, <em class="sig-param"><span class="n">label</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>list<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">valid_mask</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>list<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">valid_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">sample_volume_size</span><span class="p">:</span> <span class="n">tuple</span> <span class="o">=</span> <span class="default_value">(8, 64, 64)</span></em>, <em class="sig-param"><span class="n">sample_label_size</span><span class="p">:</span> <span class="n">tuple</span> <span class="o">=</span> <span class="default_value">(8, 64, 64)</span></em>, <em class="sig-param"><span class="n">sample_stride</span><span class="p">:</span> <span class="n">tuple</span> <span class="o">=</span> <span class="default_value">(1, 1, 1)</span></em>, <em class="sig-param"><span class="n">augmentor</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>connectomics.data.augmentation.composition.Compose<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">target_opt</span><span class="p">:</span> <span class="n">List<span class="p">[</span>str<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">['1']</span></em>, <em class="sig-param"><span class="n">weight_opt</span><span class="p">:</span> <span class="n">List<span class="p">[</span>List<span class="p">[</span>str<span class="p">]</span><span class="p">]</span></span> <span class="o">=</span> <span class="default_value">[['1']]</span></em>, <em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'train'</span></em>, <em class="sig-param"><span class="n">do_2d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">iter_num</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">- 1</span></em>, <em class="sig-param"><span class="n">reject_size_thres</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">reject_p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.95</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></code><code class="sig-name descname"><span class="pre">VolumeDataset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_mask</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_volume_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">tuple</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">(8,</span> <span class="pre">64,</span> <span class="pre">64)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_label_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">tuple</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">(8,</span> <span class="pre">64,</span> <span class="pre">64)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_stride</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">tuple</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augmentor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">connectomics.data.augmentation.composition.Compose</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_opt</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">['1']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_opt</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[['1']]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_2d</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iter_num</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_size_thres</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_diversity</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_mean</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_std</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#VolumeDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.VolumeDataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Dataset class for volumetric image datasets. At training time, subvolumes are randomly sampled from all the large
 input volumes with (optional) rejection sampling to increase the frequency of foreground regions in a batch. At inference
 time, subvolumes are yielded in a sliding-window manner with overlap to counter border artifacts.</p>
@@ -293,8 +307,9 @@ time, subvolumes are yielded in a sliding-window manner with overlap to counter 
 <li><p><strong>mode</strong> (<em>str</em>) – <code class="docutils literal notranslate"><span class="pre">'train'</span></code>, <code class="docutils literal notranslate"><span class="pre">'val'</span></code> or <code class="docutils literal notranslate"><span class="pre">'test'</span></code>. Default: <code class="docutils literal notranslate"><span class="pre">'train'</span></code></p></li>
 <li><p><strong>do_2d</strong> (<em>bool</em>) – load 2d samples from 3d volumes. Default: False</p></li>
 <li><p><strong>iter_num</strong> (<em>int</em>) – total number of training iterations (-1 for inference). Default: -1</p></li>
-<li><p><strong>reject_size_thres</strong> (<em>int</em>) – threshold to decide if a sampled volumes contains foreground objects. Default: 0</p></li>
-<li><p><strong>reject_p</strong> (<em>float</em>) – probability of rejecting non-foreground volumes. Default: 0.95</p></li>
+<li><p><strong>reject_size_thres</strong> (<em>int</em><em>, </em><em>optional</em>) – threshold to decide if a sampled volumes contains foreground objects. Default: 0</p></li>
+<li><p><strong>reject_diversity</strong> (<em>int</em><em>, </em><em>optional</em>) – threshold to decide if a sampled volumes contains multiple objects. Default: 0</p></li>
+<li><p><strong>reject_p</strong> (<em>float</em><em>, </em><em>optional</em>) – probability of rejecting non-foreground volumes. Default: 0.95</p></li>
 </ul>
 </dd>
 </dl>
@@ -306,12 +321,24 @@ Therefore the dataset length is also decided by the training settings.</p>
 </div>
 </dd></dl>
 
+<dl class="py function">
+<dt id="connectomics.data.dataset.build_dataloader">
+<code class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></code><code class="sig-name descname"><span class="pre">build_dataloader</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augmentor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#build_dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.build_dataloader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare dataloader for training and inference.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="connectomics.data.dataset.get_dataset">
+<code class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></code><code class="sig-name descname"><span class="pre">get_dataset</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augmentor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rank</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dir_name_init</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_name_init</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#get_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.get_dataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepare dataset for training and inference.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="module-connectomics.data.augmentation">
-<span id="connectomics-data-augmentation"></span><h2><a class="toc-backref" href="#id4">connectomics.data.augmentation</a><a class="headerlink" href="#module-connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
+<span id="connectomics-data-augmentation"></span><h2>connectomics.data.augmentation<a class="headerlink" href="#module-connectomics.data.augmentation" title="Permalink to this headline">¶</a></h2>
 <dl class="py class">
 <dt id="connectomics.data.augmentation.Compose">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">Compose</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">transforms</span><span class="p">:</span> <span class="n">list</span> <span class="o">=</span> <span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">input_size</span><span class="p">:</span> <span class="n">tuple</span> <span class="o">=</span> <span class="default_value">(8, 256, 256)</span></em>, <em class="sig-param"><span class="n">smooth</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">keep_uncropped</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">keep_non_smoothed</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">Compose</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">list</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">tuple</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">(8,</span> <span class="pre">256,</span> <span class="pre">256)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smooth</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_uncropped</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_non_smoothed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/composition.html#Compose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Compose" title="Permalink to this definition">¶</a></dt>
 <dd><p>Composing a list of data transforms.</p>
 <p>The sample size of the composed augmentor can be larger than the
 specified input size of the model to ensure that all pixels are
@@ -348,7 +375,7 @@ valid after center-crop.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.CutBlur">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">CutBlur</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">length_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.25</span></em>, <em class="sig-param"><span class="n">down_ratio_min</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">2.0</span></em>, <em class="sig-param"><span class="n">down_ratio_max</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">8.0</span></em>, <em class="sig-param"><span class="n">downsample_z</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">CutBlur</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">down_ratio_min</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">down_ratio_max</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">8.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">downsample_z</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur" title="Permalink to this definition">¶</a></dt>
 <dd><p>3D CutBlur data augmentation, adapted from <a class="reference external" href="https://arxiv.org/abs/2004.00448">https://arxiv.org/abs/2004.00448</a>.</p>
 <p>Randomly downsample a cuboid region in the volume to force the model
 to learn super-resolution when making predictions. This augmentation
@@ -367,7 +394,7 @@ is only applied to images.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.CutBlur.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutblur.html#CutBlur.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.CutBlur.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>There is no change in sample size.</p>
 </dd></dl>
 
@@ -375,7 +402,7 @@ is only applied to images.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.CutNoise">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">CutNoise</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">length_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.25</span></em>, <em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'uniform'</span></em>, <em class="sig-param"><span class="n">scale</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.2</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">CutNoise</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'uniform'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise" title="Permalink to this definition">¶</a></dt>
 <dd><p>3D CutNoise data augmentation.</p>
 <p>Randomly add noise to a cuboid region in the volume to force the model
 to learn denoising when making predictions. This augmentation is only
@@ -393,7 +420,7 @@ applied to images.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.CutNoise.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/cutnoise.html#CutNoise.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.CutNoise.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>There is no change in sample size.</p>
 </dd></dl>
 
@@ -401,7 +428,7 @@ applied to images.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.DataAugment">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">DataAugment</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">DataAugment</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment" title="Permalink to this definition">¶</a></dt>
 <dd><p>DataAugment interface. A data augmentor needs to conduct the following steps:</p>
 <ol class="arabic simple">
 <li><p>Set <code class="xref py py-attr docutils literal notranslate"><span class="pre">sample_params</span></code> at initialization to compute required sample size.</p></li>
@@ -420,7 +447,7 @@ should be a subclass of this class.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.DataAugment.set_params">
-<em class="property">abstract </em><code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">abstract</span> </em><code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/augmentor.html#DataAugment.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.DataAugment.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>Calculate the appropriate sample size with data augmentation.</p>
 <p>Some data augmentations (wrap, misalignment, etc.) require a larger sample
 size than the original, depending on the augmentation parameters that are
@@ -432,7 +459,7 @@ parameters and returns an updated data sampling size accordingly.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.Elastic">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">Elastic</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">alpha</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">16.0</span></em>, <em class="sig-param"><span class="n">sigma</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">4.0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">Elastic</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">16.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">4.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic" title="Permalink to this definition">¶</a></dt>
 <dd><p>Elastic deformation of images as described in <a class="reference internal" href="#simard2003" id="id1"><span>[Simard2003]</span></a> (with modifications).
 The implementation is based on <a class="reference external" href="https://gist.github.com/erniejunior/601cdf56d2b424757de5">https://gist.github.com/erniejunior/601cdf56d2b424757de5</a>.
 This augmentation is applied to both images and masks.</p>
@@ -456,7 +483,7 @@ Recognition, 2003.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Elastic.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/warp.html#Elastic.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Elastic.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>The rescale augmentation is only applied to the <cite>xy</cite>-plane. The required
 sample size before transformation need to be larger as decided by the maximum
 pixel-moving distance (<code class="xref py py-attr docutils literal notranslate"><span class="pre">self.alpha</span></code>).</p>
@@ -466,7 +493,7 @@ pixel-moving distance (<code class="xref py py-attr docutils literal notranslate
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.Flip">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">Flip</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">do_ztrans</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">Flip</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">do_ztrans</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip" title="Permalink to this definition">¶</a></dt>
 <dd><p>Randomly flip along <cite>z</cite>-, <cite>y</cite>- and <cite>x</cite>-axes as well as swap <cite>y</cite>- and <cite>x</cite>-axes
 for anisotropic image volumes. For learning on isotropic image volumes set
 <code class="xref py py-attr docutils literal notranslate"><span class="pre">do_ztrans</span></code> to 1 to swap <cite>z</cite>- and <cite>x</cite>-axes (the inputs need to be cubic).
@@ -482,7 +509,7 @@ This augmentation is applied to both images and masks.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Flip.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/flip.html#Flip.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Flip.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>There is no change in sample size.</p>
 </dd></dl>
 
@@ -490,7 +517,7 @@ This augmentation is applied to both images and masks.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.Grayscale">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">Grayscale</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">contrast_factor</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.3</span></em>, <em class="sig-param"><span class="n">brightness_factor</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.3</span></em>, <em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'mix'</span></em>, <em class="sig-param"><span class="n">invert</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">invert_p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">Grayscale</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contrast_factor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">brightness_factor</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'mix'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">invert_p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale" title="Permalink to this definition">¶</a></dt>
 <dd><p>Grayscale intensity augmentation, adapted from ELEKTRONN (<a class="reference external" href="http://elektronn.org/">http://elektronn.org/</a>).</p>
 <p>Randomly adjust contrast/brightness, randomly invert the color space
 and apply gamma correction. This augmentation is only applied to images.</p>
@@ -509,7 +536,7 @@ and apply gamma correction. This augmentation is only applied to images.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Grayscale.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/grayscale.html#Grayscale.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Grayscale.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>There is no change in sample size.</p>
 </dd></dl>
 
@@ -517,7 +544,7 @@ and apply gamma correction. This augmentation is only applied to images.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.MisAlignment">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">MisAlignment</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">displacement</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">16</span></em>, <em class="sig-param"><span class="n">rotate_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">MisAlignment</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">displacement</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rotate_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment" title="Permalink to this definition">¶</a></dt>
 <dd><p>Mis-alignment data augmentation of image stacks. This augmentation is
 applied to both images and masks.</p>
 <dl class="field-list simple">
@@ -532,7 +559,7 @@ applied to both images and masks.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MisAlignment.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/misalign.html#MisAlignment.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MisAlignment.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>The mis-alignment augmentation is only applied to the <cite>xy</cite>-plane. The required
 sample size before transformation need to be larger as decided by <code class="xref py py-attr docutils literal notranslate"><span class="pre">self.displacement</span></code>.</p>
 </dd></dl>
@@ -541,14 +568,13 @@ sample size before transformation need to be larger as decided by <code class="x
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.MissingParts">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">MissingParts</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">deformation_strength</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">0</span></em>, <em class="sig-param"><span class="n">iterations</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">40</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">MissingParts</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">iterations</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts" title="Permalink to this definition">¶</a></dt>
 <dd><p>Missing-parts augmentation of image stacks. This augmentation is only
 applied to images.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>deformation_strength</strong> (<em>int</em>) – Default: 0</p></li>
-<li><p><strong>iterations</strong> (<em>int</em>) – Default: 40</p></li>
+<li><p><strong>iterations</strong> (<em>int</em>) – number of iterations in binary dilation. Default: 64</p></li>
 <li><p><strong>p</strong> (<em>float</em>) – probability of applying the augmentation. Default: 0.5</p></li>
 <li><p><strong>additional_targets</strong> (<em>dict</em><em>, </em><em>optional</em>) – additional targets to augment. Default: None</p></li>
 </ul>
@@ -556,7 +582,7 @@ applied to images.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MissingParts.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_parts.html#MissingParts.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingParts.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>There is no change in sample size.</p>
 </dd></dl>
 
@@ -564,7 +590,7 @@ applied to images.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.MissingSection">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">MissingSection</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">num_sections</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">2</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">MissingSection</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_sections</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection" title="Permalink to this definition">¶</a></dt>
 <dd><p>Missing-section augmentation of image stacks. This augmentation is applied
 to both images and masks.</p>
 <dl class="field-list simple">
@@ -578,7 +604,7 @@ to both images and masks.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MissingSection.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/missing_section.html#MissingSection.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MissingSection.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>The missing-section augmentation is only applied to the <cite>z</cite>-axis. The required
 sample size before transformation need to be larger as decided by <code class="xref py py-attr docutils literal notranslate"><span class="pre">self.num_sections</span></code>.</p>
 </dd></dl>
@@ -587,7 +613,7 @@ sample size before transformation need to be larger as decided by <code class="x
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.MixupAugmentor">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">MixupAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">min_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.7</span></em>, <em class="sig-param"><span class="n">max_ratio</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.9</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">2</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/mixup.html#MixupAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MixupAugmentor" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">MixupAugmentor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.7</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_ratio</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_aug</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/mixup.html#MixupAugmentor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MixupAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Mixup augmentor (experimental). Conduct linear interpolation between two image samples.
 The segmentation mask of the sample with higher weight should be used with the augmented output.</p>
 <p>The input can be a <cite>numpy.ndarray</cite> or <cite>torch.Tensor</cite> of shape <span class="math notranslate nohighlight">\((B, C, Z, Y, X)\)</span>.</p>
@@ -613,7 +639,7 @@ The segmentation mask of the sample with higher weight should be used with the a
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.MotionBlur">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">MotionBlur</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">sections</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">2</span></em>, <em class="sig-param"><span class="n">kernel_size</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">11</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">MotionBlur</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sections</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_size</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">int</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">11</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur" title="Permalink to this definition">¶</a></dt>
 <dd><p>Motion blur data augmentation of image stacks. This augmentation is only
 applied to images.</p>
 <dl class="field-list simple">
@@ -628,7 +654,7 @@ applied to images.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.MotionBlur.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/motion_blur.html#MotionBlur.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.MotionBlur.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>There is no change in sample size.</p>
 </dd></dl>
 
@@ -636,7 +662,7 @@ applied to images.</p>
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.Rescale">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">Rescale</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">low</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.8</span></em>, <em class="sig-param"><span class="n">high</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1.25</span></em>, <em class="sig-param"><span class="n">fix_aspect</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">Rescale</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">low</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">high</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">1.25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fix_aspect</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale" title="Permalink to this definition">¶</a></dt>
 <dd><p>Rescale augmentation. This augmentation is applied to both images and masks.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -651,7 +677,7 @@ applied to images.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Rescale.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rescale.html#Rescale.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Rescale.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>The rescale augmentation is only applied to the <cite>xy</cite>-plane. The required
 sample size before transformation need to be larger as decided by the lowest
 scaling factor (<code class="xref py py-attr docutils literal notranslate"><span class="pre">self.low</span></code>).</p>
@@ -661,7 +687,7 @@ scaling factor (<code class="xref py py-attr docutils literal notranslate"><span
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.Rotate">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">Rotate</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">rot90</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">True</span></em>, <em class="sig-param"><span class="n">p</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.5</span></em>, <em class="sig-param"><span class="n">additional_targets</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>dict<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">Rotate</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rot90</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">float</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">additional_targets</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate" title="Permalink to this definition">¶</a></dt>
 <dd><p>Continuous rotatation of the <cite>xy</cite>-plane.</p>
 <p>If the rotation degree is arbitrary, the sample size for <cite>x</cite>- and <cite>y</cite>-axes should be at
 least <span class="math notranslate nohighlight">\(\sqrt{2}\)</span> times larger than the input size to ensure there is no non-valid region
@@ -677,7 +703,7 @@ after center-crop. This augmentation is applied to both images and masks.</p>
 </dl>
 <dl class="py method">
 <dt id="connectomics.data.augmentation.Rotate.set_params">
-<code class="sig-name descname">set_params</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate.set_params"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate.set_params" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">set_params</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/rotation.html#Rotate.set_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.Rotate.set_params" title="Permalink to this definition">¶</a></dt>
 <dd><p>The rescale augmentation is only applied to the <cite>xy</cite>-plane. If <code class="xref py py-attr docutils literal notranslate"><span class="pre">self.rot90=True</span></code>,
 then there is no change in sample size. For arbitrary rotation degree, the required
 sample size before transformation need to be <span class="math notranslate nohighlight">\(\sqrt{2}\)</span> times larger.</p>
@@ -687,7 +713,7 @@ sample size before transformation need to be <span class="math notranslate nohig
 
 <dl class="py class">
 <dt id="connectomics.data.augmentation.TestAugmentor">
-<em class="property">class </em><code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">TestAugmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">mode</span><span class="p">:</span> <span class="n">str</span> <span class="o">=</span> <span class="default_value">'mean'</span></em>, <em class="sig-param"><span class="n">do_2d</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">num_aug</span><span class="p">:</span> <span class="n">Optional<span class="p">[</span>int<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">None</span></em>, <em class="sig-param"><span class="n">scale_factors</span><span class="p">:</span> <span class="n">List<span class="p">[</span>float<span class="p">]</span></span> <span class="o">=</span> <span class="default_value">[1.0, 1.0, 1.0]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span> </em><code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">TestAugmentor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_2d</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_aug</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_factors</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">[1.0,</span> <span class="pre">1.0,</span> <span class="pre">1.0]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inference_act</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Test-time spatial augmentor.</p>
 <p>Our test-time augmentation includes horizontal/vertical flips over
 the <cite>xy</cite>-plane, swap of <cite>x</cite> and <cite>y</cite> axes, and flip in <cite>z</cite>-dimension,
@@ -715,8 +741,14 @@ returns the pixel-wise mean value of the predictions.</p>
 </dd>
 </dl>
 <dl class="py method">
+<dt id="connectomics.data.augmentation.TestAugmentor.build_from_cfg">
+<em class="property"><span class="pre">classmethod</span> </em><code class="sig-name descname"><span class="pre">build_from_cfg</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor.build_from_cfg"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor.build_from_cfg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Build a TestAugmentor from configs.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt id="connectomics.data.augmentation.TestAugmentor.update_name">
-<code class="sig-name descname">update_name</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">name</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor.update_name"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor.update_name" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname"><span class="pre">update_name</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/test_augmentor.html#TestAugmentor.update_name"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.TestAugmentor.update_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Update the name of the output file to indicate applied test-time augmentations.</p>
 </dd></dl>
 
@@ -724,7 +756,7 @@ returns the pixel-wise mean value of the predictions.</p>
 
 <dl class="py function">
 <dt id="connectomics.data.augmentation.build_train_augmentor">
-<code class="sig-prename descclassname">connectomics.data.augmentation.</code><code class="sig-name descname">build_train_augmentor</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">cfg</span><span class="p">:</span> <span class="n">yacs.config.CfgNode</span></em>, <em class="sig-param"><span class="n">keep_uncropped</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em>, <em class="sig-param"><span class="n">keep_non_smoothed</span><span class="p">:</span> <span class="n">bool</span> <span class="o">=</span> <span class="default_value">False</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/build.html#build_train_augmentor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.augmentation.build_train_augmentor" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname"><span class="pre">connectomics.data.augmentation.</span></code><code class="sig-name descname"><span class="pre">build_train_augmentor</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">yacs.config.CfgNode</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_uncropped</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_non_smoothed</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">bool</span></span> <span class="o"><span class="pre">=</span></span> <span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/augmentation/build.html#build_train_augmentor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.augmentation.build_train_augmentor" title="Permalink to this definition">¶</a></dt>
 <dd><p>Build the training augmentor based on the options specified in the configuration
 file.</p>
 <dl class="field-list simple">
@@ -745,185 +777,207 @@ which are <cite>False</cite> by defaults and can not be adjusted in the config f
 
 </div>
 <div class="section" id="module-connectomics.data.utils">
-<span id="connectomics-data-utils"></span><h2><a class="toc-backref" href="#id5">connectomics.data.utils</a><a class="headerlink" href="#module-connectomics.data.utils" title="Permalink to this headline">¶</a></h2>
-<dl class="py function">
-<dt id="connectomics.data.utils.array_unpad">
-<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">array_unpad</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">data</span><span class="p">:</span> <span class="n">numpy.ndarray</span></em>, <em class="sig-param"><span class="n">pad_size</span><span class="p">:</span> <span class="n">Tuple<span class="p">[</span>int<span class="p">]</span></span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="reference internal" href="../_modules/connectomics/data/utils/data_misc.html#array_unpad"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.array_unpad" title="Permalink to this definition">¶</a></dt>
-<dd><p>Unpad a given numpy.ndarray based on the given padding size.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>data</strong> (<em>numpy.ndarray</em>) – the input volume to unpad.</p></li>
-<li><p><strong>pad_size</strong> (<em>tuple</em>) – number of values removed from the edges of each axis.
-Should be in the format of ((before_1, after_1), … (before_N, after_N))
-representing the unique pad widths for each axis.</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="connectomics.data.utils.blend_bump">
-<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">blend_bump</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">sz</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>Tuple<span class="p">[</span>int<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">t</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">1.5</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="reference internal" href="../_modules/connectomics/data/utils/data_blending.html#blend_bump"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.blend_bump" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bump blending matrix for sliding-window inferences (based on <a class="reference internal" href="#lee2017" id="id2"><span>[Lee2017]</span></a> with modifications).</p>
-<dl class="citation">
-<dt class="label" id="lee2017"><span class="brackets"><a class="fn-backref" href="#id2">Lee2017</a></span></dt>
-<dd><p>Lee, Kisuk, Jonathan Zung, Peter Li, Viren Jain, and
-H. Sebastian Seung. “Superhuman accuracy on the SNEMI3D connectomics
-challenge.” arXiv preprint arXiv:1706.00120, 2017.</p>
-</dd>
-</dl>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>sz</strong> – size of the blending matrix</p></li>
-<li><p><strong>t</strong> – parameter of the bump blending function. Default: 1.5</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="connectomics.data.utils.blend_gaussian">
-<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">blend_gaussian</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">sz</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>Tuple<span class="p">[</span>int<span class="p">]</span><span class="p">, </span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">sigma</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.2</span></em>, <em class="sig-param"><span class="n">mu</span><span class="p">:</span> <span class="n">float</span> <span class="o">=</span> <span class="default_value">0.0</span></em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="reference internal" href="../_modules/connectomics/data/utils/data_blending.html#blend_gaussian"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.blend_gaussian" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gaussian blending matrix for sliding-window inference.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>sz</strong> – size of the blending matrix</p></li>
-<li><p><strong>sigma</strong> (<em>float</em>) – standard deviation of the Gaussian distribution. Default: 0.2</p></li>
-<li><p><strong>mu</strong> (<em>float</em>) – mean of the Gaussian distribution. Default: 0.0</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="connectomics.data.utils.get_padsize">
-<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">get_padsize</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">pad_size</span><span class="p">:</span> <span class="n">Union<span class="p">[</span>int<span class="p">, </span>List<span class="p">[</span>int<span class="p">]</span><span class="p">]</span></span></em>, <em class="sig-param"><span class="n">ndim</span><span class="p">:</span> <span class="n">int</span> <span class="o">=</span> <span class="default_value">3</span></em><span class="sig-paren">)</span> &#x2192; Tuple<span class="p">[</span>int<span class="p">]</span><a class="reference internal" href="../_modules/connectomics/data/utils/data_misc.html#get_padsize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.get_padsize" title="Permalink to this definition">¶</a></dt>
-<dd><p>Convert the padding size for 3D input volumes into numpy.pad compatible format.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>pad_size</strong> (<em>int</em><em>, </em><em>List</em><em>[</em><em>int</em><em>]</em>) – number of values padded to the edges of each axis.</p></li>
-<li><p><strong>ndim</strong> (<em>int</em>) – the dimension of the array to be padded. Default: 3</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt id="connectomics.data.utils.readvol">
-<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">readvol</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">filename</span></em>, <em class="sig-param"><span class="n">dataset</span><span class="o">=</span><span class="default_value">''</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/data_io.html#readvol"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.readvol" title="Permalink to this definition">¶</a></dt>
-<dd><p>Load a image volume in HDF5, TIFF or PNG formats.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt id="connectomics.data.utils.tile2volume">
-<code class="sig-prename descclassname">connectomics.data.utils.</code><code class="sig-name descname">tile2volume</code><span class="sig-paren">(</span><em class="sig-param">tiles: List[str], coord: List[int], coord_m: List[int], tile_sz: int, dt: type = &lt;class 'numpy.uint8'&gt;, tile_st: List[int] = [0, 0], tile_ratio: float = 1.0, do_im: bool = True, background: int = 128</em><span class="sig-paren">)</span> &#x2192; numpy.ndarray<a class="reference internal" href="../_modules/connectomics/data/utils/data_io.html#tile2volume"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#connectomics.data.utils.tile2volume" title="Permalink to this definition">¶</a></dt>
-<dd><p>Construct a volume from image tiles based on the given volume coordinate.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>tiles</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – a list of paths to the image tiles.</p></li>
-<li><p><strong>coord</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – the coordinate of the volume to be constructed.</p></li>
-<li><p><strong>coord_m</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – the coordinate of the whole dataset with the tiles.</p></li>
-<li><p><strong>tile_sz</strong> (<em>int</em>) – the height and width of the tiles, which is assumed to be square.</p></li>
-<li><p><strong>dt</strong> (<em>type</em>) – data type of the constructed volume. Default: numpy.uint8</p></li>
-<li><p><strong>tile_st</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>) – start position of the tiles. Default: [0, 0]</p></li>
-<li><p><strong>tile_ratio</strong> (<em>float</em>) – scale factor for resizing the tiles. Default: 1.0</p></li>
-<li><p><strong>do_im</strong> (<em>bool</em>) – construct an image volume (apply linear interpolation for resizing). Default: <cite>True</cite></p></li>
-<li><p><strong>background</strong> (<em>int</em>) – background value for filling the constructed volume. Default: 128</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
+<span id="connectomics-data-utils"></span><h2>connectomics.data.utils<a class="headerlink" href="#module-connectomics.data.utils" title="Permalink to this headline">¶</a></h2>
 </div>
 </div>
 
 
-           </div>
-           
-          </div>
-          <footer>
-  
-    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
-      
-        <a href="engine.html" class="btn btn-neutral float-right" title="connectomics.engine" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
-      
-      
-        <a href="../tutorials/synapse.html" class="btn btn-neutral float-left" title="Synapse Detection" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
-      
-    </div>
-  
-
-  <hr/>
-
-  <div role="contentinfo">
-    <p>
+             </article>
+             
+            </div>
+            <footer>
+    
+      <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
         
-        &copy; Copyright 2021, Zudi Lin and Donglai Wei
-
-    </p>
-  </div>
-    
-    
-    
-    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
-    
-    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
-    
-    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
-
-</footer>
-
-        </div>
+          <a href="engine.html" class="btn btn-neutral float-right" title="connectomics.engine" accesskey="n" rel="next">Next <img src="../_static/images/chevron-right-orange.svg" class="next-page"></a>
+        
+        
+          <a href="../tutorials/synapse.html" class="btn btn-neutral" title="Synapse Detection" accesskey="p" rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+        
       </div>
-
-    </section>
-
-  </div>
+    
   
+    
+  
+      <hr>
+  
+    
+  
+    <div role="contentinfo">
+      <p>
+          &copy; Copyright 2019-2021, Zudi Lin and Donglai Wei.
+  
+      </p>
+    </div>
+      
+        <div>
+          Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+        </div>
+       
+  
+  </footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">connectomics.data</a><ul>
+<li><a class="reference internal" href="#module-connectomics.data.dataset">connectomics.data.dataset</a></li>
+<li><a class="reference internal" href="#module-connectomics.data.augmentation">connectomics.data.augmentation</a></li>
+<li><a class="reference internal" href="#module-connectomics.data.utils">connectomics.data.utils</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  
+
+     
+       <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+         <script src="../_static/jquery.js"></script>
+         <script src="../_static/underscore.js"></script>
+         <script src="../_static/doctools.js"></script>
+         <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+     
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
 
   <script type="text/javascript">
       jQuery(function () {
           SphinxRtdTheme.Navigation.enable(true);
       });
-  </script>
+  </script> 
 
-  
-  
-    
-  
-  
-    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
-      <span class="rst-current-version" data-toggle="rst-current-version">
-        <span class="fa fa-book"> Read the Docs</span>
-        v: latest
-        <span class="fa fa-caret-down"></span>
-      </span>
-      <div class="rst-other-versions">
-        <dl>
-          <dt>Versions</dt>
-          
-            <dd><a href="#">latest</a></dd>
-          
-        </dl>
-        <dl>
-          <dt>Downloads</dt>
-          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/docs/build/pdf/connectomics.pdf">PDF</a></dd>
-          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/docs/build/html">HTML</a></dd>
-        </dl>
-        <dl>
-          <dt>On Github</dt>
-          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
-          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master/docs">Docs</a></dd>
-        </dl>
+  <!-- Begin Footer -->
+
+  <!-- commented out for Ignite -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Harvard VCG</h2>
+          <p>Visual Computing Group at Harvard</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">Harvard VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Lichtman Lab at Harvard</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>CBS</h2>
+          <p>Center for Brain Science at Harvard</p>
+          <a class="with-right-arrow" href="http://cbs.fas.harvard.edu">CBS</a>
+        </div>
       </div>
     </div>
-  
+  </div>
 
 
+
+  <!-- end of commented out for Ignite -->
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="../_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function() {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function(e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@docsearch/js@1.0.0-alpha.28/dist/umd/index.min.js"></script>
+  <script type="text/javascript">
+  let VERSION
+  if ('latest'.includes('v')) {
+    VERSION = 'latest'
+  } else {
+    VERSION = 'latest'
+  }
+  docsearch({
+    container: '#docsearch',
+    apiKey: '19a7a7a75d87608d6f42c722ed1e293f',
+    indexName: 'ignite',
+    placeholder: 'Search PyTC Docs',
+    searchParameters: {
+      'facetFilters': [`version:${VERSION}`],
+    }
+  });
+  </script>
 </body>
 </html>

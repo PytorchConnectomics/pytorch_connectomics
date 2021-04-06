@@ -1,9 +1,6 @@
 connectomics.utils
 ===================
 
-.. contents:: Contents
-    :local:
-
 connectomics.utils.process
 ---------------------------
 
@@ -15,3 +12,4 @@ connectomics.utils.visualizer
 
 .. automodule:: connectomics.utils.visualizer
     :members:
+    

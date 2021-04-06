@@ -19,7 +19,7 @@ This package can not only reproduce state-of-the-art performance on benchmark da
 .. toctree::
    :glob:
    :maxdepth: 1
-   :caption: Notes
+   :caption: Get Started
 
    notes/installation
    notes/config
@@ -30,7 +30,7 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    :maxdepth: 1
    :caption: Tutorials
 
-   tutorials/snemi
+   tutorials/neuron
    tutorials/mito
    tutorials/synapse
 
@@ -49,7 +49,7 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    :maxdepth: 1
    :caption: Team
 
-   about
+   about/team
 
 Indices and Tables
 ====================

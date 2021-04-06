@@ -1,9 +1,6 @@
 connectomics.data
 ===================
 
-.. contents:: Contents
-    :local:
-
 connectomics.data.dataset
 -------------------------------
 

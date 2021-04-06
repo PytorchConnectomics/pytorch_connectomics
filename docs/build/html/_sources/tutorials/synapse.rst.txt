@@ -1,9 +1,6 @@
 Synapse Detection
 ==================
 
-.. contents::
-   :local:
-
 Introduction
 -------------
 

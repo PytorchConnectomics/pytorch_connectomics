@@ -1,9 +1,6 @@
 Configurations
 ================
 
-.. contents::
-   :local:
-
 `PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ uses a key-value based configuration system 
 that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
 that uses YAML, a human-readable data-serialization language, to manage options.
@@ -118,29 +115,40 @@ several options to be adjusted at inference time by the ``update_inference_cfg``
 
 .. code-block:: python
 
-   def update_inference_cfg(cfg):
+   def update_inference_cfg(cfg: CfgNode):
       r"""Overwrite configurations (cfg) when running mode is inference. Please 
       note that None type is only supported in YACS>=0.1.8.
       """
-      # Dataset configurations:
+      # dataset configurations
       if cfg.INFERENCE.INPUT_PATH is not None:
          cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
       cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
       cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
+
       if cfg.INFERENCE.PAD_SIZE is not None:
          cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
+      if cfg.INFERENCE.IS_ABSOLUTE_PATH is not None:
+         cfg.DATASET.IS_ABSOLUTE_PATH = cfg.INFERENCE.IS_ABSOLUTE_PATH
 
-      # Model configurations:
+      # model configurations
       if cfg.INFERENCE.INPUT_SIZE is not None:
          cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
       if cfg.INFERENCE.OUTPUT_SIZE is not None:
          cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
 
+      # output file name(s)
+      out_name = cfg.INFERENCE.OUTPUT_NAME
+      name_lst = out_name.split(".")
+      assert len(name_lst) <= 2, \
+         "Invalid output file name is given."
+      if len(name_lst) == 2:
+         cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
+
       for topt in cfg.MODEL.TARGET_OPT:
          # For multi-class semantic segmentation and quantized distance
-         # transform, no activation function is applied at the output layer 
-         # during training. For inference where the output is assumed to be 
-         # in (0,1), we apply softmax. 
+         # transform, no activation function is applied at the output layer
+         # during training. For inference where the output is assumed to be
+         # in (0,1), we apply softmax.
          if topt[0] in ['5', '9'] and cfg.MODEL.OUTPUT_ACT == 'none':
                cfg.MODEL.OUTPUT_ACT = 'softmax'
                break
@@ -154,6 +162,6 @@ There are also several options exclusive for inference. For example:
      AUG_NUM: 4
      BLENDING: 'gaussian' # blending function for overlapping inference
      STRIDE: (4, 128, 128) # sampling stride for inference
-     SAMPLES_PER_BATCH: 16 # batchsize for inference
+     SAMPLES_PER_BATCH: 4 # per GPU batchsize for inference 
 
 Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference efficiency. 

@@ -19,12 +19,13 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
         pad_size = pad_size[0]
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
         return tuple(pad_size)
-    elif len(pad_size) == ndim:
+
+    if len(pad_size) == ndim:
         return tuple([tuple([x, x]) for x in pad_size])
-    else:
-        return tuple(
-            [tuple([pad_size[2*i], pad_size[2*i+1]])
-             for i in range(len(pad_size) // 2)])
+
+    return tuple(
+        [tuple([pad_size[2*i], pad_size[2*i+1]])
+            for i in range(len(pad_size) // 2)])
 
 
 def array_unpad(data: np.ndarray,

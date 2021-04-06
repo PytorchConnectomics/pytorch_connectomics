@@ -1,9 +1,6 @@
 Configurations
 ================
 
-.. contents::
-   :local:
-
 `PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ uses a key-value based configuration system 
 that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
 that uses YAML, a human-readable data-serialization language, to manage options.
