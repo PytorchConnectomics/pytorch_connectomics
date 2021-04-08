@@ -128,7 +128,7 @@ def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz:
         pattern = tiles[z]
         for row in range(r0, r1):
             for column in range(c0, c1):
-                if '{' in pattern:
+                if r'{row}_{column}' in pattern:
                     path = pattern.format(row=row+tile_st[0], column=column+tile_st[1])
                 else:
                     path = pattern

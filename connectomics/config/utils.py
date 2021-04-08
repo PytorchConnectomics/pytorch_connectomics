@@ -49,6 +49,9 @@ def update_inference_cfg(cfg: CfgNode):
     if cfg.INFERENCE.IS_ABSOLUTE_PATH is not None:
         cfg.DATASET.IS_ABSOLUTE_PATH = cfg.INFERENCE.IS_ABSOLUTE_PATH
 
+    if cfg.INFERENCE.DO_CHUNK_TITLE is not None:
+        cfg.DATASET.DO_CHUNK_TITLE = cfg.INFERENCE.DO_CHUNK_TITLE
+
     # model configurations
     if cfg.INFERENCE.INPUT_SIZE is not None:
         cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE

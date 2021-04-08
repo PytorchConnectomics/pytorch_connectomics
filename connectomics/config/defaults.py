@@ -346,6 +346,7 @@ _C.INFERENCE.IMAGE_NAME = None
 _C.INFERENCE.OUTPUT_PATH = ""
 _C.INFERENCE.OUTPUT_NAME = 'result.h5'
 _C.INFERENCE.IS_ABSOLUTE_PATH = None
+_C.INFERENCE.DO_CHUNK_TITLE = None
 
 # Do inference one-by-on (load a volume when needed).
 _C.INFERENCE.DO_SINGLY = False

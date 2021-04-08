@@ -30,7 +30,7 @@ class TileDataset(torch.utils.data.Dataset):
         label_json (str, optional): json file for label. Default: `None`
         valid_mask_json (str, optional): json file for valid mask. Default: `None`
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
-        pad_size(list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`
+        pad_size (list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`
     """
 
     def __init__(self,

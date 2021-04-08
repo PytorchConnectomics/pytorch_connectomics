@@ -25,6 +25,7 @@ DATASET:
   DISTRIBUTED: True
   REJECT_SAMPLING:
     DIVERSITY: 3
+  DATA_CHUNK_NUM: [25, 7, 8] # only for inference
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.04
@@ -37,8 +38,9 @@ INFERENCE:
   OUTPUT_SIZE: [33, 257, 257]
   OUTPUT_ACT: ["sigmoid"]
   IS_ABSOLUTE_PATH: False
-  INPUT_PATH: datasets/zebrafinch/test
-  IMAGE_NAME: test-input.tif # or path to your test images
+  DO_CHUNK_TITLE: 1
+  INPUT_PATH: datasets/zebrafinch/
+  IMAGE_NAME: zebrafinch.json
   OUTPUT_PATH: outputs/Zebrafinch/test
   OUTPUT_NAME: result.h5
   PAD_SIZE: [0, 0, 0]
