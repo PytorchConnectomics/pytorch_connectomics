@@ -1,0 +1,9 @@
+MODEL:
+  ARCHITECTURE: fpn_3d
+  BACKBONE: resnet
+  BLOCK_TYPE: residual_se
+  FILTERS: [32, 64, 96, 128, 192]
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_ResNet
+INFERENCE:
+  OUTPUT_PATH: outputs/SNEMI_ResNet/test

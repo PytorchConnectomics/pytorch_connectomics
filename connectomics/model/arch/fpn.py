@@ -22,7 +22,7 @@ class FPN3D(nn.Module):
         filters (List[int]): number of filters at each FPN stage. Default: [28, 36, 48, 64, 80]
         is_isotropic (bool): whether the whole model is isotropic. Default: False
         isotropy (List[bool]): specify each U-Net stage is isotropic or anisotropic. All elements will
-            be `True` if :attr:`is_isotropic` is `True`. Default: [False, False, True, True, True]
+            be `True` if :attr:`is_isotropic` is `True`. Default: [False, False, False, True, True]
         pad_mode (str): one of ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``. Default: ``'replicate'``
         act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
             ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``

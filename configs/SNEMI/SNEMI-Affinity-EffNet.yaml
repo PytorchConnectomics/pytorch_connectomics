@@ -1,0 +1,9 @@
+MODEL:
+  ARCHITECTURE: fpn_3d
+  BACKBONE: efficientnet
+  BLOCK_TYPE: inverted_res
+  FILTERS: [32, 64, 96, 128, 192]
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_EffNet
+INFERENCE:
+  OUTPUT_PATH: outputs/SNEMI_EffNet/test

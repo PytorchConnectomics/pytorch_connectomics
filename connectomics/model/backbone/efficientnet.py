@@ -25,7 +25,7 @@ class EfficientNet3D(nn.Module):
                  in_channel: int = 1,
                  filters: List[int] = [32, 64, 96, 128, 160],
                  blocks: List[int] = [1, 2, 2, 2, 4],
-                 ks: List[int] = [3, 3, 5, 5, 3],
+                 ks: List[int] = [3, 3, 5, 3, 3],
                  isotropy: List[bool] = [False, False, False, True, True],
                  attention: str = 'squeeze_excitation',
                  bn_momentum: float = 0.01,

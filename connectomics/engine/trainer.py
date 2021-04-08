@@ -152,7 +152,7 @@ class Trainer(object):
 
         # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
-        del pred, loss, losses_vis
+        del volume, target, pred, weight, loss, losses_vis
 
     def validate(self, iter_total):
         r"""Validation function of the trainer class.
