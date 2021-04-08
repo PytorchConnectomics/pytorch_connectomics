@@ -166,13 +166,11 @@ def get_dataset(cfg,
     """
     assert mode in ['train', 'val', 'test']
 
-    label_erosion = 0
     sample_label_size = cfg.MODEL.OUTPUT_SIZE
     topt, wopt = ['0'], [['0']]
     if mode == 'train':
         sample_volume_size = augmentor.sample_size if augmentor is not None else cfg.MODEL.INPUT_SIZE
         sample_label_size = sample_volume_size
-        label_erosion = cfg.DATASET.LABEL_EROSION
         sample_stride = (1, 1, 1)
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = cfg.SOLVER.ITERATION_TOTAL * cfg.SOLVER.SAMPLES_PER_BATCH
@@ -182,7 +180,6 @@ def get_dataset(cfg,
     elif mode == 'val':
         sample_volume_size = cfg.MODEL.INPUT_SIZE
         sample_label_size = sample_volume_size
-        label_erosion = cfg.DATASET.LABEL_EROSION
         sample_stride = [x//2 for x in sample_volume_size]
         topt, wopt = cfg.MODEL.TARGET_OPT, cfg.MODEL.WEIGHT_OPT
         iter_num = -1
@@ -224,7 +221,6 @@ def get_dataset(cfg,
                               volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME,
                               label_json=label_json,
                               valid_mask_json=valid_mask_json,
-                              label_erosion=label_erosion,
                               pad_size=cfg.DATASET.PAD_SIZE,
                               **shared_kwargs)
 
