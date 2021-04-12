@@ -18,7 +18,7 @@ class TestCriterion(unittest.TestCase):
                               regu_target=[[0, 1]],
                               regu_weight=[1.0])
 
-        pred = torch.rand(2, 2, 4, 8, 8)
+        pred = torch.rand(2, 2, 4, 8, 8).to(device)
         target = [torch.ones(2, 1, 4, 8, 8), torch.rand(2, 1, 4, 8, 8)]
         weight = [[torch.ones(1), torch.ones(1)], [torch.ones(1)]]
         loss, _ = criterion(pred, target, weight)

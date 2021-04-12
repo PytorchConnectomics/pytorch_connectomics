@@ -249,10 +249,12 @@ class Trainer(object):
             result[vol_id] /= weight[vol_id]  # in-place to save memory
             result[vol_id] *= 255
             result[vol_id] = result[vol_id].astype(np.uint8)
-            pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) *
-                        np.array(output_scale)).astype(int).tolist()
-            pad_size = get_padsize(pad_size)
-            result[vol_id] = array_unpad(result[vol_id], pad_size)
+
+            if self.cfg.INFERENCE.UNPAD:
+                pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) *
+                            np.array(output_scale)).astype(int).tolist()
+                pad_size = get_padsize(pad_size)
+                result[vol_id] = array_unpad(result[vol_id], pad_size)
 
         if self.output_dir is None:
             return result

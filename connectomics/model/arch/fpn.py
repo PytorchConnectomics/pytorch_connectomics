@@ -48,12 +48,15 @@ class FPN3D(nn.Module):
                  fmap_size=[17, 129, 129],
                  **kwargs):
         super().__init__()
+        self.filters = filters
         self.depth = len(filters)
+
         assert len(isotropy) == self.depth
         if is_isotropic:
             isotropy = [True] * self.depth
+        self.isotropy = isotropy
 
-        shared_kwargs = {
+        self.shared_kwargs = {
             'pad_mode': pad_mode,
             'act_mode': act_mode,
             'norm_mode': norm_mode
@@ -67,34 +70,34 @@ class FPN3D(nn.Module):
             'deploy': deploy,
             'fmap_size': fmap_size,
         }
-        backbone_kwargs.update(shared_kwargs)
+        backbone_kwargs.update(self.shared_kwargs)
 
         self.backbone = build_backbone(
             backbone_type, feature_keys, **backbone_kwargs)
         self.feature_keys = feature_keys
 
-        latplanes = filters[0]
-        self.latlayers = nn.ModuleList(
-            [conv3d_norm_act(x, latplanes, kernel_size=1,
-                             padding=0, **shared_kwargs) for x in filters])
+        self.latplanes = filters[0]
+        self.latlayers = nn.ModuleList([
+            conv3d_norm_act(x, self.latplanes, kernel_size=1, padding=0,
+                            **self.shared_kwargs) for x in filters])
 
         self.smooth = nn.ModuleList()
         for i in range(self.depth):
             kernel_size, padding = self._get_kernel_size(isotropy[i])
-            self.smooth.append(conv3d_norm_act(latplanes, latplanes,
-                                               kernel_size=kernel_size, padding=padding, **shared_kwargs))
+            self.smooth.append(conv3d_norm_act(
+                self.latplanes, self.latplanes, kernel_size=kernel_size,
+                padding=padding, **self.shared_kwargs))
 
-        kernel_size_io, padding_io = self._get_kernel_size(
-            is_isotropic, io_layer=True)
-        self.conv_out = conv3d_norm_act(filters[0], out_channel, kernel_size_io,
-                                        padding=padding_io, pad_mode=pad_mode, bias=True,
-                                        act_mode='none', norm_mode='none')
+        self.conv_out = self._get_io_conv(out_channel, isotropy[0])
 
         # initialization
         model_init(self, init_mode)
 
     def forward(self, x):
         z = self.backbone(x)
+        return self._forward_main(z)
+
+    def _forward_main(self, z):
         features = [self.latlayers[i](z[self.feature_keys[i]])
                     for i in range(self.depth)]
 
@@ -103,7 +106,8 @@ class FPN3D(nn.Module):
             i = self.depth-1-j
             out = self._up_smooth_add(out, features[i-1], self.smooth[i])
         out = self.smooth[0](out)
-        return self.conv_out(out)
+        out = self.conv_out(out)
+        return out
 
     def _up_smooth_add(self, x, y, smooth):
         """Upsample, smooth and add two feature maps.
@@ -121,3 +125,11 @@ class FPN3D(nn.Module):
         if is_isotropic:
             return (3, 3, 3), (1, 1, 1)
         return (1, 3, 3), (0, 1, 1)
+
+    def _get_io_conv(self, out_channel, is_isotropic):
+        kernel_size_io, padding_io = self._get_kernel_size(
+            is_isotropic, io_layer=True)
+        return conv3d_norm_act(
+            self.filters[0], out_channel, kernel_size_io, padding=padding_io,
+            pad_mode=self.shared_kwargs['pad_mode'], bias=True,
+            act_mode='none', norm_mode='none')

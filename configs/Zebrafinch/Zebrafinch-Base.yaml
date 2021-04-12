@@ -43,8 +43,8 @@ INFERENCE:
   IMAGE_NAME: zebrafinch.json
   OUTPUT_PATH: outputs/Zebrafinch/test
   OUTPUT_NAME: result.h5
-  PAD_SIZE: [0, 0, 0]
+  PAD_SIZE: [8, 128, 128]
   AUG_MODE: min
   AUG_NUM: None
   STRIDE: [16, 128, 128]
-  SAMPLES_PER_BATCH: 4
+  SAMPLES_PER_BATCH: 12

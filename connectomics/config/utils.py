@@ -59,12 +59,13 @@ def update_inference_cfg(cfg: CfgNode):
         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
 
     # output file name(s)
-    out_name = cfg.INFERENCE.OUTPUT_NAME
-    name_lst = out_name.split(".")
-    assert len(name_lst) <= 2, \
-        "Invalid output file name is given."
-    if len(name_lst) == 2:
-        cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
+    if cfg.DATASET.DO_CHUNK_TITLE or cfg.DATASET.INFERENCE.DO_SINGLY:
+        out_name = cfg.INFERENCE.OUTPUT_NAME
+        name_lst = out_name.split(".")
+        assert len(name_lst) <= 2, \
+            "Invalid output file name is given."
+        if len(name_lst) == 2:
+            cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
 
     for topt in cfg.MODEL.TARGET_OPT:
         # For multi-class semantic segmentation and quantized distance
