@@ -100,3 +100,187 @@ def seg_to_aff(seg, nhood=mknhood3d(1), pad='replicate'):
         aff[1,:,0] = (seg[:,0]>0).astype(aff.dtype)
 
     return aff
+
+def seg2aff_v0(seg, nhood=mknhood3d(1), pad='replicate'):
+    # revised original affinity
+    # constructs an affinity graph from a segmentation 
+    # assume affinity graph is represented as:
+    # shape = (e, z, y, x)
+    # nhood.shape = (edges, 3)
+    shape = seg.shape
+    nEdge = nhood.shape[0]
+    aff = np.zeros((nEdge,)+shape,dtype=np.float32) #  shape = (aff channel, z, y, x) 
+
+    for e in range(nEdge):
+        offset_0 = nhood[e,0]
+        offset_1 = nhood[e,1]
+
+        # position on seg array
+        start_0 = max(0,-offset_0)
+        start_1 = max(0,-offset_1)
+        end_0 = min(shape[0],shape[0]-offset_0)
+        end_1 = min(shape[1],shape[1]-offset_1)
+
+        # position on offset array
+        offstart_0 = max(0,offset_0)
+        offstart_1 = max(0,offset_1)
+        offend_0 = min(shape[0],shape[0]+offset_0)
+        offend_1 = min(shape[1],shape[1]+offset_1)
+
+        if len(shape) == 2:
+            seg_array = seg[start_0:end_0, start_1:end_1]
+            offset_array= seg[offstart_0:offend_0, offstart_1:offend_1]
+            # assign value to aff 
+            aff[e, start_0:end_0, start_1:end_1] = (seg_array == offset_array) *(seg_array > 0)* (offset_array > 0 )
+
+        elif len(shape) == 3:
+            # additional dimension
+            offset_2 = nhood[e,2]
+            start_2 =  max(0,-offset_2)
+            end_2 = min(shape[2],shape[2]-offset_2)
+            offstart_2 = max(0,offset_2)
+            offend_2 = min(shape[2],shape[2]+offset_2)
+
+            seg_array = seg[start_0:end_0, start_1:end_1,start_2:end_2]
+            offset_array= seg[offstart_0:offend_0, offstart_1:offend_1, offstart_2:offend_2]
+            # assgin value to aff
+            # print(seg_array.shape, offset_array.shape)
+            aff[e, start_0:end_0, start_1:end_1, start_2:end_2] = (seg_array == offset_array) *(seg_array > 0)* (offset_array > 0 )
+
+    if nEdge==3 and pad == 'replicate': # pad the boundary affinity, assuming offset is [[-1,  0,  0],[ 0, -1,  0],[ 0,  0, -1]]
+        aff[0,0] = (seg[0]>0).astype(aff.dtype)
+        aff[1,:,0] = (seg[:,0]>0).astype(aff.dtype)
+        aff[2,:,:,0] = (seg[:,:,0]>0).astype(aff.dtype)
+    elif nEdge==2 and pad == 'replicate': # pad the boundary affinity, assuming offset is [[-1,  0],[ 0, -1]]
+        aff[0,0] = (seg[0]>0).astype(aff.dtype)
+        aff[1,:,0] = (seg[:,0]>0).astype(aff.dtype)
+
+    return aff
+
+def seg2aff_v1(seg: np.array, 
+              dz: int = 1,
+              dy: int = 1,
+              dx: int = 1,
+              padding: str = 'edge') -> np.array : 
+    # Calaulate long range affinity. Output: (affs, z, y, x)
+    
+    shape = seg.shape
+    z_1 = slice(dz,None)
+    y_1 = slice(dy,None)
+    x_1 = slice(dx,None)
+    
+    z_2 = slice(None,dz)
+    y_2 = slice(None,dy)
+    x_2 = slice(None,dx)
+    
+    z_3 = slice(None,-dz)
+    y_3 = slice(None,-dy)
+    x_3 = slice(None,-dx)
+    
+    
+    if seg.ndim == 3:       
+        aff = np.zeros((3,) + shape,dtype=np.float32)
+        if padding == 'edge':
+            seg_pad = np.pad(seg,((dz,0),(dy,0),(dx,0)),'edge')
+            # print(seg_pad.shape)
+            aff[2] = (seg == seg_pad[z_1,y_1,x_3]) *(seg!= 0)* (seg_pad[z_1,y_1,x_3] != 0 )
+            aff[1] = (seg == seg_pad[z_1,y_3,x_1]) *(seg!= 0)* (seg_pad[z_1,y_3,x_1] != 0 )
+            aff[0] = (seg == seg_pad[z_3,y_1,x_1]) *(seg!= 0)* (seg_pad[z_3,y_1,x_1] != 0 )
+            
+        else:
+            aff[2,:,:,x_1] = (seg[:,:,x_1] == seg[:,:,x_3]) *(seg[:,:,x_1] != 0)* (seg[:,:,x_3] != 0 )
+            aff[1,:,y_1,:] = (seg[:,y_1,:] == seg[:,y_3,:]) *(seg[:,y_1,:] != 0)* (seg[:,y_3,:] != 0 )
+            aff[0,z_1,:,:] = (seg[z_1,:,:] == seg[z_3,:,:]) *(seg[z_1,:,:] != 0)* (seg[z_3,:,:] != 0 )
+            if padding == 'replicate':
+                aff[2,:,:,x_2] = (seg[:,:,x_2]!= 0).astype(aff.dtype)
+                aff[1,:,y_2,:] = (seg[:,y_2,:]!= 0).astype(aff.dtype)
+                aff[0,z_2,:,:] = (seg[z_2,:,:]!= 0).astype(aff.dtype)                    
+    
+    elif seg.ndim == 2:
+        aff = np.zeros((2,) + shape,dtype=np.float32)
+        if padding == 'edge':
+            seg_pad = np.pad(seg,((dy,0),(dx,0)),'edge')
+            # print(seg_pad.shape)
+            aff[1] = (seg == seg_pad[y_1,x_3]) *(seg!= 0)* (seg_pad[y_1,x_3] != 0 )
+            aff[0] = (seg == seg_pad[y_3,x_1]) *(seg!= 0)* (seg_pad[y_3,x_1] != 0 )
+            
+        else:
+            aff[1,:,x_1] = (seg[:,x_1] == seg[:,x_3]) *(seg[:,x_1] != 0)* (seg[:,x_3] != 0 )
+            aff[0,y_1,:] = (seg[y_1,:] == seg[y_3,:]) *(seg[y_1,:] != 0)* (seg[y_3,:] != 0 )
+            if padding == 'replicate':
+                aff[1,:,x_2] = (seg[:,x_2]!= 0).astype(aff.dtype)
+                aff[0,y_2,:] = (seg[y_2,:]!= 0).astype(aff.dtype)
+            
+    
+    return aff
+
+def seg2aff_v2(seg: np.array, 
+              dz: int = 1,
+              dy: int = 1,
+              dx: int = 1,
+              padding: str = 'edge') -> np.array : 
+    # Calaulate long range affinity. Output: (affs, z, y, x)
+
+    
+    shape = seg.shape
+    z_1 = slice(dz,-dz)
+    y_1 = slice(dy,-dy)
+    x_1 = slice(dx,-dx)
+    
+    z_2 = slice(None,dz)
+    y_2 = slice(None,dy)
+    x_2 = slice(None,dx)
+    
+    z_3 = slice(None,-2*dz)
+    y_3 = slice(None,-2*dy)
+    x_3 = slice(None,-2*dx)
+    
+    z_4 = slice(2*dz,None)
+    y_4 = slice(2*dy,None)
+    x_4 = slice(2*dx,None)
+    
+    z_5 = slice(-dz,None)
+    y_5 = slice(-dy,None)
+    x_5 = slice(-dx,None)
+    
+    if seg.ndim == 3:       
+        aff = np.zeros((3,) + shape,dtype=np.float32)
+        if padding == 'edge':
+            seg_pad = np.pad(seg,((dz,dz),(dy,dy),(dx,dx)),'edge')
+            # print(seg_pad.shape)
+            aff[2] = (seg_pad[z_1,y_1,x_3] == seg_pad[z_1,y_1,x_4]) *(seg_pad[z_1,y_1,x_3]!= 0)* (seg_pad[z_1,y_1,x_4] != 0 )
+            aff[1] = (seg_pad[z_1,y_3,x_1] == seg_pad[z_1,y_4,x_1]) *(seg_pad[z_1,y_3,x_1]!= 0)* (seg_pad[z_1,y_4,x_1] != 0 )
+            aff[0] = (seg_pad[z_3,y_1,x_1] == seg_pad[z_4,y_1,x_1]) *(seg_pad[z_3,y_1,x_1]!= 0)* (seg_pad[z_4,y_1,x_1] != 0 )
+            
+        else:
+            aff[2,:,:,x_1] = (seg[:,:,x_3] == seg[:,:,x_4]) *(seg[:,:,x_3] != 0)* (seg[:,:,x_4] != 0 )
+            aff[1,:,y_1,:] = (seg[:,y_3,:] == seg[:,y_4,:]) *(seg[:,y_3,:] != 0)* (seg[:,y_4,:] != 0 )
+            aff[0,z_1,:,:] = (seg[z_3,:,:] == seg[z_4,:,:]) *(seg[z_3,:,:] != 0)* (seg[z_4,:,:] != 0 )
+            if padding == 'replicate':
+                aff[2,:,:,x_2] = (seg[:,:,x_2]!= 0).astype(aff.dtype)
+                aff[1,:,y_2,:] = (seg[:,y_2,:]!= 0).astype(aff.dtype)
+                aff[0,z_2,:,:] = (seg[z_2,:,:]!= 0).astype(aff.dtype) 
+                aff[2,:,:,x_5] = (seg[:,:,x_5]!= 0).astype(aff.dtype)
+                aff[1,:,y_5,:] = (seg[:,y_5,:]!= 0).astype(aff.dtype)
+                aff[0,z_5,:,:] = (seg[z_5,:,:]!= 0).astype(aff.dtype)   
+    
+    elif seg.ndim == 2:
+        aff = np.zeros((2,) + shape,dtype=np.float32)
+        if padding == 'edge':
+            seg_pad = np.pad(seg,((dy,dy),(dx,dx)),'edge')
+            #print(seg_pad.shape)
+            aff[1] = (seg_pad[y_1,x_3] == seg_pad[y_1,x_4]) *(seg_pad[y_1,x_3]!= 0)* (seg_pad[y_1,x_4]!= 0 )
+            aff[0] = (seg_pad[y_3,x_1] == seg_pad[y_4,x_1]) *(seg_pad[y_3,x_1]!= 0)* (seg_pad[y_4,x_1] != 0 )
+            
+        else:
+            aff[1,:,x_1] = (seg[:,x_3] == seg[:,x_4]) *(seg[:,x_3] != 0)* (seg[:,x_4] != 0 )
+            aff[0,y_1,:] = (seg[y_3,:] == seg[y_4,:]) *(seg[y_3,:] != 0)* (seg[y_4,:] != 0 )
+            if padding == 'replicate':
+                aff[1,:,x_2] = (seg[:,x_2]!= 0).astype(aff.dtype)
+                aff[0,y_2,:] = (seg[y_2,:]!= 0).astype(aff.dtype)
+                aff[1,:,x_5] = (seg[:,x_5]!= 0).astype(aff.dtype)
+                aff[0,y_5,:] = (seg[y_5,:]!= 0).astype(aff.dtype)
+                
+            
+    
+    return aff
