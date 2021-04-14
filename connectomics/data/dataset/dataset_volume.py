@@ -171,6 +171,7 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         out_volume = np.expand_dims(out_volume, 0)
         out_volume = normalize_image(out_volume, self.data_mean, self.data_std)
+
         # output list
         out_target = seg_to_targets(
             out_label, self.target_opt, self.erosion_rates)

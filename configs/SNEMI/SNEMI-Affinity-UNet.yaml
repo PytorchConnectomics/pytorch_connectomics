@@ -1,7 +1,7 @@
 MODEL:
-  ARCHITECTURE: 'unet_3d'
-  BLOCK_TYPE: 'residual_se'
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
 DATASET:
-  OUTPUT_PATH: 'outputs/SNEMI_UNet'
+  OUTPUT_PATH: outputs/SNEMI_UNet
 INFERENCE:
-  OUTPUT_PATH: 'outputs/SNEMI_UNet/test'
+  OUTPUT_PATH: outputs/SNEMI_UNet/test

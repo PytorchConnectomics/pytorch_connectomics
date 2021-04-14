@@ -1,0 +1,32 @@
+# output long-rannge affinity map
+MODEL:
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
+  OUT_PLANES: 12
+  TARGET_OPT:
+    - 2-1-1-1-v1
+    - 2-2-3-3-v1
+    - 2-3-9-9-v1
+    - 2-4-27-27-v1
+  LOSS_OPTION:
+    [
+      ["WeightedBCEWithLogitsLoss", "DiceLoss"],
+      ["WeightedBCEWithLogitsLoss", "DiceLoss"],
+      ["WeightedBCEWithLogitsLoss", "DiceLoss"],
+      ["WeightedBCEWithLogitsLoss", "DiceLoss"],
+    ]
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [1.0, 0.5], [1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"], ["1", "0"], ["1", "0"], ["1", "0"]]
+  OUTPUT_ACT:
+    [
+      ["none", "sigmoid"],
+      ["none", "sigmoid"],
+      ["none", "sigmoid"],
+      ["none", "sigmoid"],
+    ]
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_UNet_LR
+INFERENCE:
+  OUTPUT_PATH: outputs/SNEMI_UNet_LR/test
+  OUTPUT_NAME: result.h5
+  OUTPUT_ACT: ["sigmoid", "sigmoid", "sigmoid", "sigmoid"]
