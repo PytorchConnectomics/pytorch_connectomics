@@ -64,18 +64,31 @@ The configuration files for training can be found in ``configs/SNEMI/``.
 We usually create a ``datasets/`` folder under ``pytorch_connectomics`` and put the SNEMI dataset there. 
 Please modify the following options according to your system configuration and data storage:
 
-- ``IMAGE_NAME``: Name of the volume file (HDF5 or TIFF).
-- ``LABEL_NAME``: Name of the label file (HDF5 or TIFF).
-- ``INPUT_PATH``: Path to both input files above.
-- ``OUTPUT_PATH``: Path to store outputs (checkpoints and Tensorboard events).
-- ``NUM_GPUS``: Number of GPUs to use.
-- ``NUM_CPUS``: Number of CPU cores to use (for data loading).
+- ``IMAGE_NAME``: name of the 3D image file (HDF5 or TIFF)
+- ``LABEL_NAME``: name of the 3D label file (HDF5 or TIFF)
+- ``INPUT_PATH``: directory path to both input files above
+- ``OUTPUT_PATH``: path to save outputs (checkpoints and Tensorboard events)
+- ``NUM_GPUS``: number of GPUs
+- ``NUM_CPUS``: number of CPU cores (for data loading)
 
 .. tip::
 
     By default, we use multi-process distributed training with one GPU per process (and multiple CPUs for data loading). 
     The model is wrapped with `DistributedDataParallel <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_ (DDP). 
-    For more benefits of training with distributed data-parallel, please check `this tutorial <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_.
+    For more benefits of DDP, check `this tutorial <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_.
+    Please note that official synchronized batch normalization (SyncBN) in PyTorch is only supported with DDP. 
+
+We also support `data parallel <https://pytorch.org/docs/stable/generated/torch.nn.DataParallel.html>`_ (DP) training. 
+If the training command above does not work for your system, please use:
+
+.. code-block:: none
+
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+    --config-base configs/SNEMI/SNEMI-Base.yaml \
+    --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
+
+DDP training is our default settings because features like automatic mixed-precision training and synchronized batch 
+normalization are better supported for DDP. Besides, DP usually has an imbalanced GPU memory usage.
 
 3 - Run training with pretrained model (*optional*)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -98,7 +111,7 @@ from the default one.
 
 .. code-block:: none
 
-    tensorboard --logdir outputs/SNEMI3D/
+    tensorboard --logdir outputs/SNEMI_UNet/
 
 5 - Inference of affinity map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -109,8 +122,9 @@ is not needed.
 
 .. code-block:: none
 
-    python scripts/main.py --config-file configs/SNEMI-Neuron.yaml 
-    --inference --checkpoint outputs/SNEMI3D/checkpoint_xxxxx.pth
+    python -u scripts/main.py --config-base configs/SNEMI/SNEMI-Base.yaml \
+    --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml --inference \
+    --checkpoint outputs/SNEMI_UNet/checkpoint_100000.pth
 
 6 - Get segmentation
 ^^^^^^^^^^^^^^^^^^^^^^

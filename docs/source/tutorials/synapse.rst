@@ -37,52 +37,55 @@ dataset class of the synaptic cleft detection task is :class:`connectomics.data.
     :align: center
     :width: 800px
 
-    Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
-    cropped from volume A+, B+, and C+, respectively.
+Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
+cropped from volume A+, B+, and C+, respectively.
 
-#. Get the dataset:
+1 - Get the dataset
+^^^^^^^^^^^^^^^^^^^^^
 
-    Download the dataset from the Harvard RC server:
+Download the dataset from the `challenge page <https://cremi.org/>`_, or the Harvard RC server:
 
-        .. code-block:: none
+.. code-block:: none
 
-            wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
+    wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
     
-    For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
+For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-    .. note::
-        If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
-        different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``, 
-        ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml>`_.
+.. note::
+    If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
+    different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``, 
+    ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml>`_.
 
-#. Run the main.py script for training. This script can take a list of volumes and conduct training/inference at the same time.
+2 - Run training 
+^^^^^^^^^^^^^^^^^^
 
-    .. code-block:: none
+For the CREMI dataset that has multiple volumes, our framework can take a list of volumes and 
+conduct training/inference at the same time.
 
-        $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-          --config-file configs/CREMI-Synaptic-Cleft.yaml
+.. code-block:: none
 
-    - ``config-file``: configuration setting for the current experiment.
+    source activate py3_torch
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    --nproc_per_node=3 --master_port=1234 scripts/main.py --distributed \
+    --config-base configs/CREMI/CREMI-Base.yaml \
+    --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
 
-#. Visualize the training progress:
+3 - Visualize the training progress
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    .. code-block:: none
+.. code-block:: none
 
-        $ tensorboard --logdir runs
+    tensorboard --logdir outputs/CREMI_Binary_UNet
 
-#. Run the main.py script for inference:
+4 - Run inference 
+^^^^^^^^^^^^^^^^^^
 
-    .. code-block:: none
+.. code-block:: none
 
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-          --config-file configs/CREMI-Synaptic-Cleft.yaml \
-          --checkpoint outputs/CREMI_syn_baseline/volume_50000.pth.tar \
-          --inference
-
-    - ``config-file``: configuration setting for current experiments.
-    - ``inference``: will run inference when given, otherwise will run training instead.
-    - ``checkpoint``: the pre-trained checkpoint file for inference.
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+    --inference --config-base configs/CREMI/CREMI-Base.yaml \
+    --config-file configs/CREMI/CREMI-Foreground-UNet.yaml \
+    --checkpoint outputs/CREMI_Binary_UNet/volume_100000.pth.tar
 
 Synaptic Polarity Detection
 ----------------------------
@@ -104,54 +107,66 @@ The pytorch dataset class of synaptic partners is :class:`connectomics.data.data
     :align: center
     :width: 800px
 
-    Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
-    union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.
+Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
+union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.
 
-#. Get the dataset:
+1 - Get the dataset
+^^^^^^^^^^^^^^^^^^^^^
 
-    Download the example dataset for synaptic polarity detection from our server:
+Download the example dataset for synaptic polarity detection from our server:
 
-        .. code-block:: none
+.. code-block:: none
 
-            wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
+    wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
 
-#. Run the training script. The training and inference script can take a list of volumes (separated by '@') in either the yaml config file or by command-line arguments.
+2 - Run training 
+^^^^^^^^^^^^^^^^^^
 
-    .. note::
-        By default the path of images and labels are not specified. To 
-        run the training scripts, please revise the ``IMAGE_NAME``, ``LABEL_NAME``
-        and ``INPUT_PATH`` options in ``configs/Synaptic-Polarity.yaml``.
-        The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
+The training and inference script can take a list of volumes (or a long string of paths that can be separated by `'@'`) 
+in either the yaml config file or by command-line arguments.
 
-    .. code-block:: none
+.. note::
+    By default the path of images and labels are not specified. To 
+    run the training scripts, please revise the ``IMAGE_NAME``, ``LABEL_NAME``
+    and ``INPUT_PATH`` options in ``configs/Synaptic-Polarity.yaml``.
+    The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
 
-        $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-          --config-file configs/Synaptic-Polarity.yaml
-          
-    .. note::
-        We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize
-        false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
-        vast volumes.
+.. code-block:: none
 
-#. Visualize the training progress. More info `here <https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html>`_:
+    source activate py3_torch
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    --nproc_per_node=4 --master_port=5679 scripts/main.py --distributed \
+    --config-file configs/Synaptic-Polarity.yaml
+        
+.. tip::
+    We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize
+    false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
+    vast volumes.
 
-    .. code-block:: none
+3 - Visualize the training progress
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        $ tensorboard --logdir outputs/synaptic_polarity
+.. code-block:: none
 
-#. Run inference on image volumes:
+    tensorboard --logdir outputs/Synaptic_Polarity_UNet
 
-    .. code-block:: none
+4 - Run inference 
+^^^^^^^^^^^^^^^^^^
 
-        $ source activate py3_torch
-        $ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
-          --config-file configs/Synaptic-Polarity.yaml --inference \
-          --checkpoint outputs/synaptic_polarity/volume_xxxxx.pth.tar
+.. code-block:: none
 
-    .. note::
-        By default the path of images for inference are not specified. Please change 
-        the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
+    source activate py3_torch
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+    --config-file configs/Synaptic-Polarity.yaml --inference \
+    --checkpoint outputs/Synaptic_Polarity_UNet/volume_100000.pth.tar
 
-#. Apply post-processing algorithms. Use the ``polarity2instance`` function (`link <https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/utils.html#connectomics.utils.process.polarity2instance>`_) to 
-   convert the probability map into instance/semantic segmentation masks based on the application.
+.. note::
+    The path to images for inference/testing are not specified in the configuration file. 
+    Please change the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
+
+5 - Post-process
+^^^^^^^^^^^^^^^^^
+
+Then convert the predicted probability into segmentation masks in post-processing. Specifically, 
+we use :func:`connectomics.utils.process.polarity2instance` to convert the predictions into instance or semantic 
+masks based on the downstream application.

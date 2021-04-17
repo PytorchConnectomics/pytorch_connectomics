@@ -1,7 +1,7 @@
 About Us
 ==========
 
-This project was started by Zudi Lin `@zudi-lin <https://github.com/zudi-lin>`_ and Donglai Wei `@donglaiw <https://github.com/donglaiw>`_ 
+This project was started by Zudi Lin (`@zudi-lin <https://github.com/zudi-lin>`_) and Donglai Wei (`@donglaiw <https://github.com/donglaiw>`_) 
 in 2019 and supported by the **Visual Computing Group** (`VCG <https://vcg.seas.harvard.edu>`_) at Harvard University. PyTorch Connectomics 
 is currently under active development, and besides handling connectomics data collected with electron microscopy (EM), we are extending the 
 application to other biological structures and more imaging modalities (*e.g.*, micro-CT, fluorescence light microscopy).

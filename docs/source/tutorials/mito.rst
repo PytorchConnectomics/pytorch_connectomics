@@ -6,7 +6,7 @@ Introduction
 
 `Mitochondria <https://en.wikipedia.org/wiki/Mitochondrion>`__ are the primary energy providers for cell activities, thus essential for metabolism. 
 Quantification of the size and geometry of mitochondria is not only crucial to basic neuroscience research, but also informative to 
-clinical studies including, but not limited to, bipolar disorder and diabetes.
+the clinical studies of several diseases including bipolar disorder and diabetes.
 
 This tutorial has two parts. In the first part, you will learn how to make **pixel-wise class prediction** on the widely used benchmark
 dataset released by `Lucchi et al. <https://ieeexplore.ieee.org/document/6619103>`__ in 2012. In the second part, you will learn how to predict the **instance masks** of 
@@ -51,17 +51,21 @@ For description of the data please check `the author page <https://www.epfl.ch/l
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    --nproc_per_node=4 --master_port=2345 scripts/main.py --distributed \
     --config-file configs/Lucchi-Mitochondria.yaml
 
-4 - Visualize the training progress
+Similar to the `neuron segmentation <neuron.html>`_ tutorial, we use distributed data-parallel training considering its high
+efficiency, and also to enable synchronized batch normalization (SyncBN).
+
+3 - Visualize the training progress
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: none
 
-    tensorboard --logdir runs
+    tensorboard --logdir outputs/Lucchi_UNet/
 
-5 - Inference on test data
+4 - Inference on test data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: none
@@ -69,9 +73,9 @@ For description of the data please check `the author page <https://www.epfl.ch/l
     source activate py3_torch
     CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
     --config-file configs/Lucchi-Mitochondria.yaml --inference \
-    --checkpoint outputs/Lucchi_mito_baseline/volume_100000.pth.tar
+    --checkpoint outputs/Lucchi_UNet/volume_100000.pth.tar
 
-6 - Run evaluation
+5 - Run evaluation
 ^^^^^^^^^^^^^^^^^^^^
 
 Since the ground-truth label of the test set is public, we can run the evaluation locally:
@@ -104,7 +108,7 @@ Instance Segmentation
 
 This section provides step-by-step guidance for mitochondria segmentation with our benchmark datasets `MitoEM <https://donglaiw.github.io/page/mitoEM/index.html>`_.
 We consider the task as 3D **instance segmentation** task and provide three different confiurations of the model output. 
-The model is ``unet_res_3d``, similar to the one used in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_.
+The model is ``UNet3D``, similar to the one used in `neuron segmentation <neuron.html>`_.
 The evaluation of the segmentation results is based on the AP-75 (average precision with an IoU threshold of 0.75). 
 
 .. figure:: ../_static/img/mito_complex.png
@@ -121,28 +125,27 @@ Those challenging cases are prevalent but not covered in previous datasets.
 
 .. tip::
 
-    Since the dataset is very large and can not be directly loaded into memory, we use the :class:`connectomics.data.dataset.TileDataset` dataset class that only 
-    loads part of the whole volume by opening involved ``PNG`` or ``TIFF`` images.
+    Since the dataset is very large and can not be directly loaded into memory, we designed the :class:`connectomics.data.dataset.TileDataset` class that only 
+    loads part of the whole volume each time by opening involved ``PNG`` or ``TIFF`` images.
 
-Dataset introduction
-^^^^^^^^^^^^^^^^^^^^^^
+1 - Dataset introduction
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The dataset is publicly available at both the `project <https://donglaiw.github.io/page/mitoEM/index.html>`_ page. and
-the `MitoEM Challenge <https://mitoem.grand-challenge.org/>`_ page. 
-    
-Dataset description:
+The dataset is publicly available at both the `project <https://donglaiw.github.io/page/mitoEM/index.html>`_ page and
+the `MitoEM Challenge <https://mitoem.grand-challenge.org/>`_ page. **Dataset description**:
 
-- ``im``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm). 
-    The 1,000 images are splited into 400, 100 and 500 slices for training, validation and inference, respectively.
+- ``im``: includes 1,000 single-channel ``*.png`` files (**4096x4096**) of raw EM images (with a spatial resolution of **30x8x8** nm).
+  The 1,000 images are splited into 400, 100 and 500 slices for training, validation and inference, respectively.
 
-- ``mito``: includes 500 single-channel ``*.png`` files (**4096x4096**) of instance labels. The files are
-    splited into 400 and 100 slices for training and validation. The ground-truth annotation of the test set (rest 500 slices) 
-    is not publicly provided but can be evaluated online at the `MitoEM challenge page <https://mitoem.grand-challenge.org>`_.
+- ``mito_train/``: includes 400 single-channel ``*.png`` files (**4096x4096**) of instance labels for training. Similarly, 
+  the ``mito_val/`` folder contains 100 slices for validation. The ground-truth annotation of the test set (rest 500 slices) 
+  is not publicly provided but can be evaluated online at the `MitoEM challenge page <https://mitoem.grand-challenge.org>`_.
 
-- ``*.json``: dictionary contains paths to the ``*.png`` files and metadata of the datasets.
+To run training, JSON files containing the metadata of the dataset (for both images and labels) need to be provided. Example 
+JSON files can be found in ``configs/MitoEM``. 
 
-Model configuration
-^^^^^^^^^^^^^^^^^^^^^
+2 - Model configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Configure ``*.yaml`` files for different learning targets:
 
@@ -151,48 +154,54 @@ Configure ``*.yaml`` files for different learning targets:
 - ``MitoEM-R-AC.yaml``: output 4 channels for predicting both affinity and instance contour.
 
 - ``MitoEM-R-BC.yaml``: output 2 channels for predicting both the binary foreground mask and instance contour. This configuration achieves the
-    best overall performance according to our `experiments <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
+  best overall performance according to our `experiments <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
 
-Run training
-^^^^^^^^^^^^^^
+3 - Run training
+^^^^^^^^^^^^^^^^^^
 
 We show examples for running the training script for the **U3D-BC** model: 
 
 .. note::
     By default the path of images and labels are not specified. To 
     run the training scripts, please revise the ``DATASET.IMAGE_NAME``, ``DATASET.LABEL_NAME``, ``DATASET.OUTPUT_PATH``
-    and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM-R-*.yaml``.
+    and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM/MitoEM-R-*.yaml``.
     The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
 
 .. code-block:: none
 
-    $ source activate py3_torch
-    $ python -u scripts/main.py --config-file configs/MitoEM-R-BC.yaml
-        
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    --nproc_per_node=4 --master_port=4321 scripts/main.py --distributed \
+    --config-base configs/MitoEM/MitoEM-R-Base.yaml \
+    --config-file configs/MitoEM/MitoEM-R-BC.yaml 
 
-#. Visualize the training progress. More info `here <https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html>`_:
+4 - Visualize the training progress
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We use TensorBoard to visualize the training progress. For Harvard FASRC cluter users, more 
+info can be found `here <https://vcg.github.io/newbie-wiki/build/html/computation/machine_rc.html>`_.
 
 .. code-block:: none
 
-    $ tensorboard --logdir outputs/MitoEM_R_BC/
+    tensorboard --logdir outputs/MitoEM_R_BC/
 
-#. Run inference on validation/test image volumes (suppose the model is optimized for 100k iterations):
+5 - Run inference
+^^^^^^^^^^^^^^^^^^^
+
+Run inference on validation/test image volumes (suppose the model is optimized for 100k iterations):
 
 .. code-block:: none
 
-    $ source activate py3_torch
-    $ python -u scripts/main.py \
-        --config-file configs/MitoEM-R-BC.yaml --inference \
-        --checkpoint outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
+    python -u scripts/main.py \
+    --config-base configs/MitoEM/MitoEM-R-Base.yaml \
+    --config-file configs/MitoEM/MitoEM-R-BC.yaml --inference \
+    --checkpoint outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
 
 .. note::
     Please change the ``INFERENCE.IMAGE_NAME`` ``INFERENCE.OUTPUT_PATH`` ``INFERENCE.OUTPUT_NAME`` 
-    options in ``configs/MitoEM-R-*.yaml``.
+    options in ``configs/MitoEM-R-*.yaml`` based on your own data path.
 
-Post-processing
+6 - Post-process
 ^^^^^^^^^^^^^^^^^
-
-#. Merge output volumes and run watershed segmentation:
 
 The post-processing step requires merging output volumes and applying watershed segmentation. 
 As mentioned before, the dataset is very large and can hardly be directly loaded into memory for 

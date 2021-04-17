@@ -119,6 +119,10 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
                 "but get {}".format(cfg.MODEL.INPUT_SIZE))
             break
 
+    # Mixed-precision training (only works with DDP)
+    cfg.MODEL.MIXED_PRECESION = (
+        cfg.MODEL.MIXED_PRECESION and args.distributed)
+
 
 def validate_cfg(cfg: CfgNode):
     num_target = len(cfg.MODEL.TARGET_OPT)

@@ -130,6 +130,9 @@ several options to be adjusted at inference time by the ``update_inference_cfg``
       if cfg.INFERENCE.IS_ABSOLUTE_PATH is not None:
          cfg.DATASET.IS_ABSOLUTE_PATH = cfg.INFERENCE.IS_ABSOLUTE_PATH
 
+      if cfg.INFERENCE.DO_CHUNK_TITLE is not None:
+         cfg.DATASET.DO_CHUNK_TITLE = cfg.INFERENCE.DO_CHUNK_TITLE
+
       # model configurations
       if cfg.INFERENCE.INPUT_SIZE is not None:
          cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
@@ -137,12 +140,13 @@ several options to be adjusted at inference time by the ``update_inference_cfg``
          cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
 
       # output file name(s)
-      out_name = cfg.INFERENCE.OUTPUT_NAME
-      name_lst = out_name.split(".")
-      assert len(name_lst) <= 2, \
-         "Invalid output file name is given."
-      if len(name_lst) == 2:
-         cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
+      if cfg.DATASET.DO_CHUNK_TITLE or cfg.DATASET.INFERENCE.DO_SINGLY:
+         out_name = cfg.INFERENCE.OUTPUT_NAME
+         name_lst = out_name.split(".")
+         assert len(name_lst) <= 2, \
+               "Invalid output file name is given."
+         if len(name_lst) == 2:
+               cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
 
       for topt in cfg.MODEL.TARGET_OPT:
          # For multi-class semantic segmentation and quantized distance
@@ -164,4 +168,4 @@ There are also several options exclusive for inference. For example:
      STRIDE: (4, 128, 128) # sampling stride for inference
      SAMPLES_PER_BATCH: 4 # per GPU batchsize for inference 
 
-Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference efficiency. 
+Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference throughput. 

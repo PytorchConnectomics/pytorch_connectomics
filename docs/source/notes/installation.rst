@@ -18,7 +18,7 @@ Please follow the steps below for a successful installation:
 
     conda create -n py3_torch python=3.8
     source activate py3_torch
-    conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+    conda install pytorch torchvision cudatoolkit=11.0 -c pytorch
 
 More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with 
 CUDA 10.2 and 11.0. Then please ensure that at least PyTorch **1.8.0** is installed:
@@ -67,21 +67,26 @@ Verify that ``nvcc`` is accessible from terminal:
 .. code-block:: none
 
     nvcc --version
-    >>> 10.2
+    >>> nvcc: NVIDIA (R) Cuda compiler driver
+    >>> Copyright (c) 2005-2020 NVIDIA Corporation
+    >>> Built on Wed_Jul_22_19:09:09_PDT_2020
+    >>> Cuda compilation tools, release 11.0, V11.0.221
+    >>> Build cuda_11.0_bu.TC445_37.28845127_0
 
 Ensure that PyTorch and system CUDA versions match:
 
 .. code-block:: none
 
     python -c 'import torch; print(torch.version.cuda)'
-    >>> 10.2
-
-    nvcc --version
-    >>> 10.2
+    >>> 11.0
     
-The codebased is mainly developed and tested on the Harvard `FASRC <https://www.rc.fas.harvard.edu>`_ cluster. 
+The codebase is mainly developed and tested on the Harvard `FASRC <https://www.rc.fas.harvard.edu>`_ cluster. 
 For FASRC users, please load required CUDA modules from the `RC server module list <https://portal.rc.fas.harvard.edu/p3/build-reports/>`_ during 
-running and development on the RC server.
+running and development on the cluster. For example:
+
+.. code-block:: none
+
+    module load cuda cudnn
 
 .. note::
 
