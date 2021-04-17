@@ -91,15 +91,15 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 
 Currently six kinds of ``TARGET_OPT`` are supported:
 
-- ``'0'``: binary foreground mask (used in the `mitochondria semantic segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#semantic-segmentation>`_).
+- ``'0'``: binary foreground mask (used in the `mitochondria semantic segmentation tutorial <../tutorials/mito.html#semantic-segmentation>`_).
 
-- ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synapse.html#synaptic-polarity-detection>`_).
+- ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <../tutorials/synapse.html#synaptic-polarity-detection>`_).
 
-- ``'2'``: affinity map (used in the `neuron segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_).
+- ``'2'``: affinity map (used in the `neuron segmentation tutorial <../tutorials/snemi.html>`_).
 
 - ``'3'``: masks of small objects only.
 
-- ``'4'``: instance boundaries (used in the `mitochondria instance segmentation tutorial <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation>`_).
+- ``'4'``: instance boundaries (used in the `mitochondria instance segmentation tutorial <../tutorials/mito.html#instance-segmentation>`_).
 
 - ``'5'``: distance transform. This target represents each pixel as the (quantized) distance to the instance boundaries. By default the distance is calculated for each slice in a given volume. To calculate the distance transform for 3D objects, set the option to ``'5-3d'``.
 

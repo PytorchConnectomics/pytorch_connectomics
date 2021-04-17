@@ -25,10 +25,16 @@ div.container a.header-logo {
   z-index: 400;
 }
 
+.rst-versions.rst-badge {
+  display: block;
+  bottom: 0px;
+
+  width: 25%;
+  /* Workaround for mkdocs which set a specific height for this element */
+  height: auto;
+}
+
 .rst-versions.shift-up {
-  position: fixed;
-  bottom: 0;
-  left: 0;
   width: inherit;
   height: auto;
   max-height: 100%;
@@ -40,8 +46,8 @@ div.container a.header-logo {
 }
 
 .rst-versions .rst-other-versions {
-  font-size: 90%;
-  padding: 12px;
+  font-size: 95%;
+  padding: 15px;
   color: #6c6c6d;
   background: #f2f3f7;
   display: none;
