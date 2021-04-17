@@ -30,7 +30,9 @@ class UNet3D(nn.Module):
 
     block_dict = {
         'residual': BasicBlock3d,
+        'residual_pa': BasicBlock3dPA,
         'residual_se': BasicBlock3dSE,
+        'residual_se_pa': BasicBlock3dPASE,
     }
 
     def __init__(self,

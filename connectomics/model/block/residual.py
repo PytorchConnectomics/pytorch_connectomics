@@ -34,11 +34,12 @@ class BasicBlock2d(nn.Module):
                             stride=1, groups=groups, padding=dilation,
                             pad_mode=pad_mode, norm_mode=norm_mode, act_mode='none')
         )
+
+        self.projector = nn.Identity()
         if in_planes != planes or stride != 1 or projection == True:
-            self.projector = conv2d_norm_act(in_planes, planes, kernel_size=1,
-                                             padding=0, stride=stride, norm_mode=norm_mode, act_mode='none')
-        else:
-            self.projector = nn.Identity()
+            self.projector = conv2d_norm_act(
+                in_planes, planes, kernel_size=1, padding=0,
+                stride=stride, norm_mode=norm_mode, act_mode='none')
         self.act = get_activation(act_mode)
 
     def forward(self, x):
@@ -72,17 +73,60 @@ class BasicBlock3d(nn.Module):
                             stride=1, groups=groups, padding=padding,
                             pad_mode=pad_mode, norm_mode=norm_mode, act_mode='none')
         )
+
+        self.projector = nn.Identity()
         if in_planes != planes or stride != 1 or projection == True:
-            self.projector = conv3d_norm_act(in_planes, planes, kernel_size=1,
-                                             padding=0, stride=stride, norm_mode=norm_mode, act_mode='none')
-        else:
-            self.projector = nn.Identity()
+            self.projector = conv3d_norm_act(
+                in_planes, planes, kernel_size=1, padding=0,
+                stride=stride, norm_mode=norm_mode, act_mode='none')
         self.act = get_activation(act_mode)
 
     def forward(self, x):
         y = self.conv(x)
         y = y + self.projector(x)
         return self.act(y)
+
+
+class BasicBlock3dPA(nn.Module):
+    """Pre-activation 3D basic residual block.
+    """
+
+    def __init__(self,
+                 in_planes: int,
+                 planes: int,
+                 stride: Union[int, tuple] = 1,
+                 dilation: int = 1,
+                 groups: int = 1,
+                 projection: bool = False,
+                 pad_mode: str = 'replicate',
+                 act_mode: str = 'elu',
+                 norm_mode: str = 'bn',
+                 isotropic: bool = False):
+        super(BasicBlock3dPA, self).__init__()
+        if isotropic:
+            kernel_size, padding = 3, dilation
+        else:
+            kernel_size, padding = (1, 3, 3), (0, dilation, dilation)
+
+        self.conv = nn.Sequential(
+            norm_act_conv3d(in_planes, planes, kernel_size=kernel_size, dilation=dilation,
+                            stride=stride, groups=groups, padding=padding,
+                            pad_mode=pad_mode, norm_mode=norm_mode, act_mode=act_mode),
+            norm_act_conv3d(planes, planes, kernel_size=kernel_size, dilation=dilation,
+                            stride=1, groups=groups, padding=padding,
+                            pad_mode=pad_mode, norm_mode=norm_mode, act_mode=act_mode)
+        )
+
+        self.projector = nn.Identity()
+        if in_planes != planes or stride != 1 or projection == True:
+            self.projector = conv3d_norm_act(
+                in_planes, planes, kernel_size=1, padding=0,
+                stride=stride, norm_mode=norm_mode, act_mode='none')
+
+    def forward(self, x):
+        y = self.conv(x)
+        x = y + self.projector(x)
+        return x
 
 # ---------------------------
 # SE Residual Blocks
@@ -101,6 +145,17 @@ class BasicBlock2dSE(BasicBlock2d):
 
 
 class BasicBlock3dSE(BasicBlock3d):
+    def __init__(self, in_planes, planes, act_mode='relu', **kwargs):
+        super().__init__(in_planes=in_planes,
+                         planes=planes,
+                         act_mode=act_mode,
+                         **kwargs)
+        self.conv = nn.Sequential(
+            self.conv,
+            SELayer3d(planes, act_mode=act_mode))
+
+
+class BasicBlock3dPASE(BasicBlock3dPA):
     def __init__(self, in_planes, planes, act_mode='relu', **kwargs):
         super().__init__(in_planes=in_planes,
                          planes=planes,

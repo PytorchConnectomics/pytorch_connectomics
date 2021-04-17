@@ -26,6 +26,10 @@ div.container a.header-logo {
 }
 
 .rst-versions.shift-up {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: inherit;
   height: auto;
   max-height: 100%;
   overflow-y: scroll;

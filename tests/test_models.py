@@ -93,7 +93,7 @@ class TestModelBlock(unittest.TestCase):
         for key in feat_keys:
             # The default eps value added to the denominator for numerical stability
             # in PyTorch batchnormalization layer is 1e-5.
-            self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-5))
+            self.assertTrue(torch.allclose(z1[key], z2[key], atol=1e-4))
 
     def test_build_default_model(self):
         r"""Test building model from configs.

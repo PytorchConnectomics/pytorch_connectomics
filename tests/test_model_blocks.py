@@ -29,57 +29,50 @@ class TestModelBlock(unittest.TestCase):
         out_shape = tuple(out.shape)
         self.assertTupleEqual(out_shape, (b, c_out, d, h, w))
 
+    def _test_residual(self, x, block, target_shape, **kwargs):
+        model = block(**kwargs)
+        out = model(x)
+        out_shape = tuple(out.shape)
+        self.assertTupleEqual(out_shape, target_shape)
+
     def test_residual_blocks(self):
         """
         Test 2D and 3D residual blocks and squeeze-and-excitation residual blocks.
         """
-        b, d, h, w = 2, 8, 32, 32
+        b, d, h, w = 2, 9, 33, 33
         c_in = 16  # input channels
 
         for c_out in [c_in, c_in*2]:  # output channels
             x = torch.rand(b, c_in, h, w)  # 2d residual blocks
-            residual_2d = BasicBlock2d(c_in, c_out, dilation=4)
-            residual_se_2d = BasicBlock2dSE(c_in, c_out, dilation=4)
-
-            out = residual_2d(x)
-            out_shape = tuple(out.shape)
-            self.assertTupleEqual(out_shape, (b, c_out, h, w))
-            out = residual_se_2d(x)
-            out_shape = tuple(out.shape)
-            self.assertTupleEqual(out_shape, (b, c_out, h, w))
+            target_shape = (b, c_out, h, w)
+            for block in [BasicBlock2d, BasicBlock2dSE]:
+                self._test_residual(
+                    x, block, target_shape, in_planes=c_in,
+                    planes=c_out, dilation=4)
 
             x = torch.rand(b, c_in, d, h, w)  # 3d residual blocks
-            residual_3d = BasicBlock3d(
-                c_in, c_out, dilation=4, isotropic=False)
-            residual_se_3d = BasicBlock3dSE(
-                c_in, c_out, dilation=4, isotropic=False)
+            target_shape = (b, c_out, d, h, w)
+            for block in [BasicBlock3d, BasicBlock3dSE,
+                          BasicBlock3dPA, BasicBlock3dPASE]:
+                self._test_residual(
+                    x, block, target_shape, in_planes=c_in,
+                    planes=c_out, dilation=4, isotropic=False)
 
-            out = residual_3d(x)
-            out_shape = tuple(out.shape)
-            self.assertTupleEqual(out_shape, (b, c_out, d, h, w))
-            out = residual_se_3d(x)
-            out_shape = tuple(out.shape)
-            self.assertTupleEqual(out_shape, (b, c_out, d, h, w))
+    def _test_non_local(self, block, x):
+        out = block(x)
+        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
 
     def test_non_local_blocks(self):
         """Test 1D, 2D and 3D non-local blocks.
         """
         b, c, d, h, w = 2, 32, 17, 33, 33
 
-        x = torch.rand(b, c, w)
-        nb_block = NonLocalBlock1D(c)
-        out = nb_block(x)
-        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
-
-        x = torch.rand(b, c, h, w)
-        nb_block = NonLocalBlock2D(c)
-        out = nb_block(x)
-        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
-
-        x = torch.rand(b, c, d, h, w)
-        nb_block = NonLocalBlock3D(c)
-        out = nb_block(x)
-        self.assertTupleEqual(tuple(out.shape), tuple(x.shape))
+        self. _test_non_local(
+            NonLocalBlock1D(c), torch.rand(b, c, w))
+        self. _test_non_local(
+            NonLocalBlock2D(c), torch.rand(b, c, h, w))
+        self. _test_non_local(
+            NonLocalBlock3D(c), torch.rand(b, c, d, h, w))
 
     def test_repvgg_block_2d(self):
         """Test 2D RepVGG blocks.
