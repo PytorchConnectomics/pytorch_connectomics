@@ -17,6 +17,7 @@ python:
   version: 3.8
   install:
     - requirements: docs/requirements.txt
+    - requirements: docs/readthedocs.txt
     - method: pip
       path: .
-  system_packages: true
+  system_packages: false
