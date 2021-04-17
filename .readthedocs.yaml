@@ -9,14 +9,14 @@ version: 2
 sphinx:
   configuration: docs/src/conf.py
 
-build:
-  image: latest
+# Build all formats
+formats: all
 
 # Optionally set the version of Python and requirements required to build your docs
 python:
   version: 3.8
-  system_packages: true
   install:
     - requirements: docs/requirements.txt
-    - method: setuptools
+    - method: pip
       path: .
+  system_packages: true
