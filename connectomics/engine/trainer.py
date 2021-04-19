@@ -429,7 +429,8 @@ class Trainer(object):
             return
 
         # inference mode
-        num_chunk = len(self.dataset.chunk_num_ind)
+        num_chunk = len(self.dataset.chunk_ind)
+        print("Total number of chunks: ", num_chunk)
         for chunk in range(num_chunk):
             self.dataset.updatechunk(do_load=False)
             self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \

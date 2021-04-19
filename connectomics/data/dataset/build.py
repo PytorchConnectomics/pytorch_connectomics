@@ -215,7 +215,8 @@ def get_dataset(cfg,
                 valid_mask_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME
 
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
-                              chunk_num_ind=cfg.DATASET.DATA_CHUNK_NUM_IND,
+                              chunk_ind=cfg.DATASET.DATA_CHUNK_IND,
+                              chunk_ind_split=cfg.DATASET.CHUNK_IND_SPLIT,
                               chunk_iter=cfg.DATASET.DATA_CHUNK_ITER,
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
                               volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME,

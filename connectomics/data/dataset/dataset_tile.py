@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-from typing import Optional, List
+from typing import Optional, List, Union
 import numpy as np
 import json
 import random
@@ -23,7 +23,8 @@ class TileDataset(torch.utils.data.Dataset):
 
     Args:
         chunk_num (list): volume spliting parameters in :math:`(z, y, x)` order. Default: :math:`[2, 2, 2]` 
-        chunk_num_ind (list): predefined list of chunks. Default: `None`
+        chunk_ind (list): predefined list of chunks. Default: `None`
+        chunk_ind_split (list): rank and world_size for spliting chunk_ind in multi-processing. Default: `None`
         chunk_iter (int): number of iterations on each chunk. Default: -1
         chunk_stride (bool): allow overlap between chunks. Default: `True`
         volume_json (str): json file for input image. Default: ``'path/to/image'``
@@ -35,7 +36,8 @@ class TileDataset(torch.utils.data.Dataset):
 
     def __init__(self,
                  chunk_num: List[int] = [2, 2, 2],
-                 chunk_num_ind: Optional[list] = None,
+                 chunk_ind: Optional[list] = None,
+                 chunk_ind_split: Optional[Union[List[int], str]] = None,
                  chunk_iter: int = -1,
                  chunk_stride: bool = True,
                  volume_json: str = 'path/to/image.json',
@@ -55,10 +57,8 @@ class TileDataset(torch.utils.data.Dataset):
             self.chunk_step = 2
 
         self.chunk_num = chunk_num
-        if chunk_num_ind is None:
-            self.chunk_num_ind = range(np.prod(chunk_num))
-        else:
-            self.chunk_num_ind = chunk_num_ind
+        self.chunk_ind = self.get_chunk_ind(
+            chunk_ind, chunk_ind_split)
         self.chunk_id_done = []
 
         self.json_volume = json.load(open(volume_json))
@@ -75,6 +75,28 @@ class TileDataset(torch.utils.data.Dataset):
                                  0, self.json_volume['width']], int)
         self.coord = np.zeros(6, int)
 
+    def get_chunk_ind(self, chunk_ind, split_rule):
+        if chunk_ind is None:
+            chunk_ind = list(
+                range(np.prod(self.chunk_num)))
+
+        if split_rule is not None:
+            if isinstance(split_rule, str):
+                split_rule = split_rule.split('-')
+
+            assert len(split_rule) == 2
+            rank, world_size = split_rule
+            rank, world_size = int(rank), int(world_size)
+            x = len(chunk_ind) // world_size
+            low, high = rank * x, (rank + 1) * x
+            if rank == world_size - 1:
+                # The last split needs to cover
+                # all remaining chunks.
+                high = len(chunk_ind)
+            chunk_ind = chunk_ind[low:high]
+
+        return chunk_ind
+
     def get_coord_name(self):
         r"""Return the filename suffix based on the chunk coordinates.
         """
@@ -83,9 +105,9 @@ class TileDataset(torch.utils.data.Dataset):
     def updatechunk(self, do_load=True):
         r"""Update the coordinates to a new chunk in the large volume.
         """
-        if len(self.chunk_id_done) == len(self.chunk_num_ind):
+        if len(self.chunk_id_done) == len(self.chunk_ind):
             self.chunk_id_done = []
-        id_rest = list(set(self.chunk_num_ind)-set(self.chunk_id_done))
+        id_rest = list(set(self.chunk_ind)-set(self.chunk_id_done))
         if self.mode == 'train':
             id_sample = id_rest[int(np.floor(random.random()*len(id_rest)))]
         elif self.mode == 'test':
