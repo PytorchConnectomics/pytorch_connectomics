@@ -95,7 +95,7 @@ Currently six kinds of ``TARGET_OPT`` are supported:
 
 - ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <../tutorials/synapse.html#synaptic-polarity-detection>`_).
 
-- ``'2'``: affinity map (used in the `neuron segmentation tutorial <../tutorials/snemi.html>`_).
+- ``'2'``: affinity map (used in the `neuron segmentation tutorial <../tutorials/neuron.html>`_).
 
 - ``'3'``: masks of small objects only.
 
