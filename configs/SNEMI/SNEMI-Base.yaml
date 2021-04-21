@@ -32,11 +32,11 @@ INFERENCE:
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
   OUTPUT_ACT: ["sigmoid"]
-  IMAGE_NAME: "test-input.tif" # or path to your test images
-  OUTPUT_PATH: "outputs/SNEMI3D/test"
-  OUTPUT_NAME: "result.h5"
+  IMAGE_NAME: test-input.tif # or path to your test images
+  OUTPUT_PATH: outputs/SNEMI3D/test
+  OUTPUT_NAME: result.h5
   PAD_SIZE: [4, 64, 64]
-  AUG_MODE: "min"
+  AUG_MODE: min
   AUG_NUM: 4
   STRIDE: [8, 128, 128]
   SAMPLES_PER_BATCH: 8

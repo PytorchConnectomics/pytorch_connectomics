@@ -9,7 +9,7 @@ import torch.utils.data
 
 from . import VolumeDataset
 from ..augmentation import Compose
-from ..utils import relabel, seg_widen_border, tile2volume
+from ..utils import relabel, tile2volume
 
 TARGET_OPT_TYPE = List[str]
 WEIGHT_OPT_TYPE = List[List[str]]
@@ -89,9 +89,8 @@ class TileDataset(torch.utils.data.Dataset):
             rank, world_size = int(rank), int(world_size)
             x = len(chunk_ind) // world_size
             low, high = rank * x, (rank + 1) * x
+            # Last split needs to cover remaining chunks.
             if rank == world_size - 1:
-                # The last split needs to cover
-                # all remaining chunks.
                 high = len(chunk_ind)
             chunk_ind = chunk_ind[low:high]
 

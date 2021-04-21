@@ -18,7 +18,7 @@ and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_inform
 The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``. 
 The pytorch target affinity generation is :class:`connectomics.data.dataset.VolumeDataset`.
 
-Neuighboring affinity learning
+Neighboring affinity learning
 -------------------------------
 
 The affinity value between two neighboring pixels (voxels) is 1 if they belong to the same instance and 0 if 

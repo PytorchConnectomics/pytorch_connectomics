@@ -13,6 +13,7 @@ import torch.utils.data
 
 from .dataset_volume import VolumeDataset
 from .dataset_tile import TileDataset
+from .collate import *
 from ..utils import *
 
 
