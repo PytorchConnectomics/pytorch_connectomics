@@ -68,7 +68,7 @@ annotated regions are required. We provide the ``additional_targets`` option to 
 
     The ``'image'`` key in the examples above is to indicate the **name** of the sample, which means other keys can be used
     to retrive corresponding samples in augmentation. However, the ``'img'`` and ``'mask'`` values indicate the **type** of 
-    a sample, which means only the two values can be recognized by the augmentor.   
+    a sample, therefore only the two values can be recognized by the augmentor.   
 
 The ``'label'`` key in ``'mask'`` target type is used by default in the configuration file as most of the tutorial examples belong to the supervised 
 training category. For model training with partially annotated dataset under the supervised setting, we need to add:
@@ -94,7 +94,7 @@ Rejection sampling in the dataloader is applied for the following two purposes:
 
 **1 - Adding more attention to sparse targets**
 
-For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synapse.html#introduction>`_). 
+For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <../tutorials/synapse.html>`_). 
 Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels. 
 Such a design lets the model pay more attention to the foreground pixels to alleviate false negatives (but may introduce
 more false positives). There are two corresponding hyper-parameters in the configuration file:

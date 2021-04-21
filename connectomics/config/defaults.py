@@ -34,6 +34,7 @@ _C.MODEL.ISOTROPY = [False, False, False, True, True]
 
 _C.MODEL.TARGET_OPT = ['0']
 _C.MODEL.LABEL_EROSION = None
+_C.MODEL.LABEL_DILATION = None
 
 _C.MODEL.WEIGHT_OPT = [['1']]
 
@@ -140,8 +141,6 @@ _C.DATASET.PAD_MODE = 'reflect'  # reflect, constant, symmetric
 
 # Normalize the image and cast to uint8 format
 _C.DATASET.NORMALIZE_RANGE = True
-
-_C.DATASET.LABEL_EROSION = None
 
 # If it's a binary label
 _C.DATASET.LABEL_BINARY = False

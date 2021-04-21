@@ -10,6 +10,7 @@ MODEL:
   IN_PLANES: 1
   OUT_PLANES: 1
   TARGET_OPT: ["0-1"]
+  LABEL_DILATION: 3
   LOSS_OPTION:
     - - WeightedBCEWithLogitsLoss
       - DiceLoss

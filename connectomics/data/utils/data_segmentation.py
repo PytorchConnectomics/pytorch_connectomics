@@ -1,17 +1,16 @@
 from __future__ import print_function, division
-from sys import version
 from typing import Optional, Union, List
 
 import numpy as np
-from scipy.sparse import coo_matrix
 from scipy.ndimage.morphology import binary_erosion, binary_dilation
 from skimage.morphology import erosion, dilation
 from skimage.measure import label as label_cc  # avoid namespace conflict
-from skimage.segmentation import find_boundaries
 from scipy.signal import convolve2d
 
 from .data_affinity import *
 from .data_transform import *
+
+RATES_TYPE = Optional[Union[List[int], int]]
 
 
 def getSegType(mid):
@@ -229,26 +228,44 @@ def seg2affinity(label, topt):
 
 def erode_label(label: np.ndarray,
                 index: int,
-                erosion_rates: Optional[Union[List[int], int]] = None):
+                erosion_rates: RATES_TYPE = None):
+
     if erosion_rates is None:
         return label
 
-    if isinstance(erosion_rates, list):
-        label_erosion = erosion_rates[index]
-    else:
-        label_erosion = erosion_rates
+    label_erosion = erosion_rates
+    if isinstance(label_erosion, list):
+        label_erosion = label_erosion[index]
     return seg_widen_border(label, label_erosion)
+
+
+def dilate_label(label: np.ndarray,
+                 index: int,
+                 dilation_rates: RATES_TYPE = None):
+    if dilation_rates is None:
+        return label
+
+    label_dilation = dilation_rates
+    if isinstance(label_dilation, list):
+        label_dilation = label_dilation[index]
+
+    tsz = 2*label_dilation + 1
+    assert label.ndim in [2, 3]
+    shape = (1, tsz, tsz) if label.ndim == 3 else (tsz, tsz)
+    return dilation(label, np.ones(shape, dtype=label.dtype))
 
 
 def seg_to_targets(label_orig: np.ndarray,
                    topts: List[str],
-                   erosion_rates: Optional[Union[List[int], int]] = None):
+                   erosion_rates: RATES_TYPE = None,
+                   dilation_rates: RATES_TYPE = None):
     # input: (D, H, W), output: (C, D, H, W)
     out = [None]*len(topts)
 
     for tid, topt in enumerate(topts):
         label = label_orig.copy()
         label = erode_label(label, tid, erosion_rates)
+        label = dilate_label(label, tid, dilation_rates)
 
         if topt[0] == '0':  # binary mask
             fg_mask = seg2binary(label, topt)
