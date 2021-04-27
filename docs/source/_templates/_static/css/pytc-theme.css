@@ -30,7 +30,6 @@ div.container a.header-logo {
   bottom: 0;
   left: 0;
   width: 25%;
-  /* Workaround for mkdocs which set a specific height for this element */
   height: auto;
   display: block;
 }
@@ -116,7 +115,6 @@ div.container a.header-logo {
 .fa {
   font-family: inherit;
   display: inline-block;
-  /* font: normal normal normal 14px/1 FontAweSome; */
   font-size: inherit;
   text-rendering: auto;
   -webkit-font-smoothing: antialiased;
@@ -198,7 +196,7 @@ so make sure not to go above that value */
 }
 
 :root {
-  --docsearch-primary-color: #D3D3D3 !important;
+  --docsearch-primary-color: #d3d3d3 !important;
 }
 
 .DocSearch-Button {
@@ -217,8 +215,10 @@ so make sure not to go above that value */
   box-shadow: none !important;
 }
 
-@media(max-width: 750px) {
-  .DocSearch-Button-Key, .DocSearch-Button-KeySeparator, .DocSearch-Button-Placeholder {
+@media (max-width: 750px) {
+  .DocSearch-Button-Key,
+  .DocSearch-Button-KeySeparator,
+  .DocSearch-Button-Placeholder {
     display: block !important;
   }
 }

@@ -19,6 +19,8 @@ MODEL:
   OUTPUT_ACT: [["none", "sigmoid"]]
   NORM_MODE: gn
   MIXED_PRECESION: True
+AUGMENTOR:
+  SMOOTH: False
 DATASET:
   INPUT_PATH: datasets/Wrinkle/train/
   IMAGE_NAME: images/**/*.png
