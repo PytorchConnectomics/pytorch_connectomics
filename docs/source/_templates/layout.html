@@ -174,6 +174,8 @@
       </div>
     </div>
 
+    {% include "versions.html" %}
+
     {#
 
       This template exists as a way to implement a version menu without changing what
@@ -182,7 +184,7 @@
     
     #}
     
-    {% block footer %}
+    <!-- {% block footer %}
     {% if not READTHEDOCS %}
     <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
       <span class="rst-current-version" data-toggle="rst-current-version">
@@ -215,9 +217,10 @@
       </div>
     </div>
     {% endif %}
-    {% endblock %}
+    {% endblock %} -->
 
   </nav>
+
 
   <div class="pytorch-container">
     <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
@@ -330,7 +333,7 @@
   <!-- Begin Footer -->
 
   <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
-    <div class="container">
+    <!-- <div class="container">
       <div class="row">
         <div class="col-md-4 text-center">
           <h2>Visual Computing Group</h2>
@@ -348,7 +351,7 @@
           <a class="with-right-arrow" href="{{ theme_variables.external_urls['pytorch'] }}">View PyTorch</a>
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 
 
