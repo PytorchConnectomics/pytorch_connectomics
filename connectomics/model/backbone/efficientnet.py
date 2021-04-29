@@ -6,6 +6,20 @@ from ..block.depthwise import InvertedResidual, InvertedResidualDilated, dw_stac
 from ..utils import get_activation, get_norm_3d, get_conv
 
 
+class DilatedBlock(nn.Module):
+    def __init__(self, conv_type, in_channel, inplanes, dilation_factors, pad_mode):
+        super().__init__()
+        self.conv = nn.ModuleList([get_conv(conv_type)(in_channel, inplanes, kernel_size=3, 
+                bias=False, stride=1, dilation=dilation_factors[i], padding=dilation_factors[i], 
+                padding_mode=pad_mode) for i in range(4)])
+
+    def forward(self, x):
+        return self._conv_and_cat(x, self.conv)
+    
+    def _conv_and_cat(self, x, conv_layers):
+        y = [conv(x) for conv in conv_layers]
+        return torch.cat(y, dim=1)
+        
 class EfficientNet(nn.Module):
     """EfficientNet backbone for 3D instance segmentation.
     """
@@ -19,11 +33,9 @@ class EfficientNet(nn.Module):
         super(EfficientNet, self).__init__()
         self.inplanes = filters[0]
 
-        if isinstance(block, InvertedResidualDilated):
+        if block == InvertedResidualDilated:
             self.all_dilated = True
-            self.conv1 = nn.ModuleList([get_conv(conv_type)(in_channel, self.inplanes // 4, kernel_size=3, 
-                bias=False, stride=1, dilation=self.dilation_factors[i], padding=self.dilation_factors[i], 
-                padding_mode=pad_mode) for i in range(4)])
+            self.conv1 = DilatedBlock(conv_type, in_channel, self.inplanes//4, self.dilation_factors, pad_mode)
         else:
             self.all_dilated = False
             self.conv1 = get_conv(conv_type)(in_channel, self.inplanes, kernel_size=3, stride=1, 
@@ -53,12 +65,9 @@ class EfficientNet(nn.Module):
         self.layer4 = dw_stack(block, filters[3], filters[4], kernel_size=ks[4], stride=2, 
                              repeats=blocks[4], isotropic=isotropy[4], shared_args=shared_args)
 
-    def _forward_impl(self, x):
+    def forward(self, x):
         # See note [TorchScript super()]
-        if self.all_dilated:
-            x = self._conv_and_cat(x, self.conv1)
-        else:
-            x = self.conv1(x)
+        x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
 
@@ -69,13 +78,6 @@ class EfficientNet(nn.Module):
         x = self.layer4(x)
 
         return x
-
-    def _conv_and_cat(self, x, conv_layers):
-        y = [conv(x) for conv in conv_layers]
-        return torch.cat(y, dim=1)
-
-    def forward(self, x):
-        return self._forward_impl(x)
 
 
 def _efficientnet(block, **kwargs):

@@ -25,7 +25,7 @@ def build_model(cfg, device, rank=None):
         'pad_mode': cfg.MODEL.PAD_MODE,
         'act_mode': cfg.MODEL.ACT_MODE,
         'norm_mode': cfg.MODEL.NORM_MODE,
-        'pooling': cfg.MODEL.POOING_LAYER,
+        'pooling': cfg.MODEL.POOLING_LAYER,
     }
     if model_arch == 'fpn_3d':
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
