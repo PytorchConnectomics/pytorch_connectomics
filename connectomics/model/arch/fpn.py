@@ -39,6 +39,7 @@ class FPN3D(nn.Module):
                  out_channel: int = 3,
                  filters: List[int] = [28, 36, 48, 64, 80],
                  ks: List[int] = [3, 3, 5, 3, 3],
+                 attn: str = 'squeeze_excitation',
                  is_isotropic: bool = False,
                  isotropy: List[bool] = [False, False, False, True, True],
                  pad_mode: str = 'replicate',
@@ -71,6 +72,7 @@ class FPN3D(nn.Module):
             'deploy': deploy,
             'fmap_size': fmap_size,
             'ks': ks,
+            'attention': attn,
         }
         backbone_kwargs.update(self.shared_kwargs)
 

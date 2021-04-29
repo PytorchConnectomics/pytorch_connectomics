@@ -23,7 +23,7 @@ class DilatedBlock(nn.Module):
         return torch.cat(y, dim=1)
         
 class EfficientNet3D(nn.Module):
-    """EfficientNet backbone for 3D instance segmentation.
+    """EfficientNet backbone for 3D semantic and instance segmentation.
     """
     expansion_factor = 1
     dilation_factors = [1, 2, 4, 8]
@@ -33,6 +33,7 @@ class EfficientNet3D(nn.Module):
         'inverted_res': InvertedResidual,
         'inverted_res_dilated': InvertedResidualDilated,
     }
+
     def __init__(self,
                  block_type: str = 'inverted_res',
                  in_channel: int = 1,

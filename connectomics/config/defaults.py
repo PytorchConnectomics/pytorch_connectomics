@@ -32,6 +32,8 @@ _C.MODEL.FILTERS = [28, 36, 48, 64, 80]
 
 _C.MODEL.KERNEL_SIZES = [3, 3, 5, 3, 3] #used only in effnet for now
 
+_C.MODEL.ATTENTION: 'squeeze_excitation'
+
 _C.MODEL.ISOTROPY = [False, False, False, True, True]
 
 _C.MODEL.TARGET_OPT = ['0']
