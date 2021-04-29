@@ -105,6 +105,18 @@ class WeightedBCEWithLogitsLoss(nn.Module):
     def forward(self, pred, target, weight_mask=None):
         return F.binary_cross_entropy_with_logits(pred, target, weight_mask)
 
+class WeightedLSBCEWithLogitsLoss(nn.Module):
+    """Weighted binary cross-entropy with logits.
+    """
+    def __init__(self, size_average=True, reduce=True, eps=0.05):
+        super().__init__()
+        self.size_average = size_average
+        self.reduce = reduce
+        self.eps = eps
+
+    def forward(self, pred, target, weight_mask=None):
+        return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), weight_mask)
+
 class WeightedCE(nn.Module):
     """Mask weighted multi-class cross-entropy (CE) loss.
     """
@@ -151,3 +163,22 @@ class WeightedLS(nn.Module):
         if weight_mask is not None:
             loss = loss * weight_mask
         return loss.mean()
+
+class WeightedLSBCEFocalLoss(nn.Module):
+    """Weighted binary focal loss with logits.
+    """
+    def __init__(self, gamma=2., alpha=0.25, eps=0.05):
+        super().__init__()
+        self.eps = eps
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, pred, target, weight_mask=None):
+        pred_sig = pred.sigmoid()
+        with torch.no_grad():
+            pt = (1-target)*(1-pred_sig.detach()) + target * pred_sig.detach()
+            at = (1-self.alpha) * target + self.alpha * (1-target)
+            wt = at * (1 - pt)**self.gamma
+            if weight_mask is not None:
+                wt *= weight_mask
+        return F.binary_cross_entropy(pred_sig, target.clamp(self.eps,1-self.eps), wt)

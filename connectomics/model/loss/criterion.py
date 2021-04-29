@@ -29,6 +29,8 @@ class Criterion(object):
         'DiceLoss': DiceLoss,
         'WeightedCE': WeightedCE,
         'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
+        'WeightedLSBCEWithLogitsLoss': WeightedLSBCEWithLogitsLoss,
+        'WeightedLSBCEFocalLoss': WeightedLSBCEFocalLoss
     }
 
     regu_dict = {
@@ -107,9 +109,9 @@ class Criterion(object):
         # Record individual losses and regularizations for
         # visualization in tensorboardX.
         losses_vis = {}
-        for i in range(self.num_target):
+        for i in range(self.num_target): # iterate over tasks
             target_t = self.to_torch(target[i])
-            for j in range(len(self.loss_fn[i])):
+            for j in range(len(self.loss_fn[i])): # iterate over losses for a task
                 w_mask = None if weight[i][j].shape[-1] == 1 else self.to_torch(weight[i][j])
                 loss_temp = self.loss_w[i][j] * self.loss_fn[i][j](
                             self.act[i][j](x[i]), 
