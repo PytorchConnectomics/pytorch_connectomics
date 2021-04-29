@@ -1,9 +1,6 @@
 Data Loading
 =============
 
-.. contents::
-   :local:
-
 Data Augmentation
 ------------------
 
@@ -62,10 +59,16 @@ annotated regions are required. We provide the ``additional_targets`` option to 
               'valid_mask': valid_mask}
     augmented = augmentor(sample)
 
-.. note::
+.. tip::
 
     Each addition target need to be specified with a name (*e.g.*, ``'valid_mask'``) and a target type (``'img'`` or ``'mask'``). Some augmentations are only
     applied to ``'img'``, and augmentations for both ``'img'`` and ``'mask'`` will use different interpolation modes for them.
+
+.. note::
+
+    The ``'image'`` key in the examples above is to indicate the **name** of the sample, which means other keys can be used
+    to retrive corresponding samples in augmentation. However, the ``'img'`` and ``'mask'`` values indicate the **type** of 
+    a sample, therefore only the two values can be recognized by the augmentor.   
 
 The ``'label'`` key in ``'mask'`` target type is used by default in the configuration file as most of the tutorial examples belong to the supervised 
 training category. For model training with partially annotated dataset under the supervised setting, we need to add:
@@ -89,9 +92,9 @@ Rejection Sampling
 
 Rejection sampling in the dataloader is applied for the following two purposes:
 
-1. **Adding more attention to sparse targets**:
+**1 - Adding more attention to sparse targets**
 
-For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/synapse.html#introduction>`_). 
+For some datasets/tasks, the foreground mask is sparse in the volume (*e.g.*, `synapse detection <../tutorials/synapse.html>`_). 
 Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels. 
 Such a design lets the model pay more attention to the foreground pixels to alleviate false negatives (but may introduce
 more false positives). There are two corresponding hyper-parameters in the configuration file:
@@ -108,7 +111,7 @@ the volume is considered as a foreground volume and is returned by the rejection
 than 1,000 voxels, the function will reject it with a probability ``P: 0.95`` and sample another volume. ``SIZE_THRES`` is
 set to -1 by default to disable the rejection sampling.
 
-2. **Handling partially annotated data**:
+**2 - Handling partially annotated data**
 
 Some datasets are only partially labeled, and the unlabeled region should not be considered in loss calculation. In that case,
 the user can specify the data path to the valid mask using the ``DATASET.VALID_MASK_NAME`` option. The valid mask volume should

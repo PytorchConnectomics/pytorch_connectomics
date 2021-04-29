@@ -1,17 +1,20 @@
 connectomics.model
 ====================
 
-.. contents:: Contents
-    :local:
+Architectures
+----------------
 
-connectomics.model.loss
-------------------------------
+.. automodule:: connectomics.model.arch
+    :members:
+
+Loss Functions
+----------------
 
 .. automodule:: connectomics.model.loss
     :members:
 
-connectomics.model.utils
--------------------------
+Utility Functions
+------------------
 
 .. automodule:: connectomics.model.utils
     :members:

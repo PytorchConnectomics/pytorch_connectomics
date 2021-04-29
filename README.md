@@ -1,34 +1,41 @@
-# PyTorch Connectomics (PyTC)
+<a href="https://github.com/zudi-lin/pytorch_connectomics">
+<img src="./.github/logo_fullname.png" width="450"></a>
 
 <p align="left">
     <a href="https://www.python.org/">
       <img src="https://img.shields.io/badge/Python-3.8-ff69b4.svg" /></a>
     <a href= "https://pytorch.org/">
-      <img src="https://img.shields.io/badge/PyTorch-1.7-2BAF2B.svg" /></a>
+      <img src="https://img.shields.io/badge/PyTorch-1.8-2BAF2B.svg" /></a>
     <a href= "https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-blue.svg" /></a>
     <a href= "https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">
       <img src="https://img.shields.io/badge/Documentation-Latest-2BAF2B.svg" /></a>
+    <a href= "https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w">
+      <img src="https://img.shields.io/badge/Slack-Join-CC8899.svg" /></a>
 </p>
+
+<hr/>
 
 ## Introduction
 
-The field of **connectomics** aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics. This repository is actively under development by Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
+The field of *connectomics* aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics, which is called **PyTorch Connectomics** (PyTC). This repository is mainly maintained by the Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
+
+*PyTorch Connectomics is currently under active development!*
 
 ## Key Features
 
-- Multitask, Active and Semi-supervised Learning
+- Multi-task, Active and Semi-supervised Learning
 - Distributed and Mixed-precision Training
 - Scalability for Handling Large Datasets
 
-If you want new features that are relatively easy to implement (e.g., loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
+If you want new features that are relatively easy to implement (*e.g.*, loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
 
 ## Environment
 
 The code is developed and tested under the following configurations.
 
-- Hardware: 1-8 Nvidia GPUs (with at least 12G GPU memory) (change ```SYSTEM.NUM_GPU``` accordingly)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=10.2, Python>=3.8, PyTorch>=1.7.0, YACS>=0.1.8***
+- Hardware: 1-8 Nvidia GPUs with at least 12G GPU memory (change ```SYSTEM.NUM_GPU``` accordingly based on the configuration of your machine)
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.0, Python>=3.8, PyTorch>=1.8.0, YACS>=0.1.8***
 
 ## Installation
 
@@ -52,7 +59,7 @@ pip install -r requirements.txt
 pip install --editable .
 ```
 
-For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
+Since the package is under active development, the editable installation will allow any changes to the original package to reflect directly in the environment. For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
 
 ## Notes
 

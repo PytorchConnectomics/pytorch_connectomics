@@ -1,0 +1,80 @@
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 16
+MODEL:
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [17, 225, 225]
+  OUTPUT_SIZE: [17, 225, 225]
+  NORM_MODE: gn
+  MIXED_PRECESION: False
+  FILTERS: [32, 64, 96, 128, 160]
+DATASET:
+  INPUT_PATH: datasets/Scutoid/
+  IMAGE_NAME:
+    - image/vol00.tif
+    - image/vol02.tif
+    - image/vol04.tif
+    - image/vol06.tif
+    - image/vol08.tif
+    - image/vol10.tif
+    - image/vol12.tif
+    - image/vol14.tif
+    - image/vol16.tif
+    - image/vol18.tif
+  LABEL_NAME:
+    - label/vol00.tif
+    - label/vol02.tif
+    - label/vol04.tif
+    - label/vol06.tif
+    - label/vol08.tif
+    - label/vol10.tif
+    - label/vol12.tif
+    - label/vol14.tif
+    - label/vol16.tif
+    - label/vol18.tif
+  OUTPUT_PATH: outputs/Scutoid_UNet/
+  PAD_SIZE: [4, 32, 32]
+  DATA_SCALE: [1.0, 0.5, 0.5]
+  LABEL_EROSION: 1
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    DIVERSITY: 3
+    P: 1.0
+  DISTRIBUTED: True
+AUGMENTOR:
+  CUTNOISE:
+    ENABLED: False
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.02
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [40, 200]
+INFERENCE:
+  INPUT_SIZE: [17, 225, 225]
+  OUTPUT_SIZE: [17, 225, 225]
+  INPUT_PATH: datasets/Scutoid/
+  IMAGE_NAME:
+    - image/vol01.tif
+    - image/vol03.tif
+    - image/vol05.tif
+    - image/vol07.tif
+    - image/vol09.tif
+    - image/vol11.tif
+    - image/vol13.tif
+    - image/vol15.tif
+    - image/vol17.tif
+    - image/vol19.tif
+  OUTPUT_PATH: outputs/Scutoid_UNet/test/
+  DO_SINGLY: True
+  OUTPUT_NAME: result
+  PAD_SIZE: [4, 32, 32]
+  AUG_MODE: "mean"
+  AUG_NUM: None
+  STRIDE: [8, 112, 112]
+  OUTPUT_SCALE: [1.0, 2.0, 2.0]
+  SAMPLES_PER_BATCH: 16

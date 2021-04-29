@@ -9,11 +9,23 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys, os
+from docutils.statemachine import StringList
+from docutils.parsers.rst import directives
+from sphinx.ext.autosummary import Autosummary
+import sphinx.ext.autosummary
+from inspect import getmembers, isclass, isfunction
+from importlib import import_module
+from sphinx import addnodes
+from docutils import nodes
+import sphinx.domains.python
+import sys
+import os
 import datetime
-import sphinx_rtd_theme
-import doctest
 import connectomics
+import pytorch_sphinx_theme
+
+
+sys.path.insert(0, os.path.abspath("../.."))
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -29,16 +41,19 @@ needs_sphinx = '3.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages',
-    'sphinx_rtd_theme',
-    'rst2pdf.pdfbuilder',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.doctest",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.autosectionlabel",
 ]
+
+# katex option
+katex_prerender = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -59,7 +74,7 @@ master_doc = 'index'
 # General information about the project.
 author = 'Zudi Lin and Donglai Wei'
 project = u'connectomics'
-copyright = u'{}, {}'.format(datetime.datetime.now().year, author)
+copyright = u'2019-{}, {}'.format(datetime.datetime.now().year, author)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -75,7 +90,7 @@ release = 'latest'
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-# language = None
+language = "en"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -128,21 +143,23 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'pytorch_sphinx_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
+html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
+
 html_theme_options = {
     'collapse_navigation': False,
     'display_version': True,
     'logo_only': True,
-    'style_nav_header_background': "#FFFFFF",
+    'navigation_with_keys': True,
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+#html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
@@ -151,24 +168,26 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
-# html_short_title = None
+html_short_title = "PyTC"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 #
-html_logo = '_static/img/logo_text.png'
+html_logo = '_templates/_static/img/logo.svg'
 
 # The name of an image file (relative to this directory) to use as a favicon of
 # the docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
 #
-# html_favicon = None
+html_favicon = '_templates/_static/img/favicon.svg'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-html_context = {'css_files': ['_static/css/custom.css']}
+html_static_path = ["_templates/_static/"]
+html_context = {"css_files": ["_static/css/pytc-theme.css",
+                              "https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
+                              ]}
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -336,17 +355,162 @@ texinfo_documents = [
 #
 # texinfo_no_detailmenu = False
 
-pdf_documents = [('index', u'connectomics', u'PyTorch Connectomics Documentation', author),]
+# pdf_documents = [
+#     ('index', u'connectomics', u'PyTorch Connectomics Documentation', author), ]
 
-def setup(app):
-    def skip(app, what, name, obj, skip, options):
-        members = [
-            '__init__',
-            '__repr__',
-            '__weakref__',
-            '__dict__',
-            '__module__',
-        ]
-        return True if name in members else skip
 
-    app.connect('autodoc-skip-member', skip)
+# def setup(app):
+#     def skip(app, what, name, obj, skip, options):
+#         members = [
+#             '__init__',
+#             '__repr__',
+#             '__weakref__',
+#             '__dict__',
+#             '__module__',
+#         ]
+#         return True if name in members else skip
+
+#     app.connect('autodoc-skip-member', skip)
+
+
+# -- Extension configuration -------------------------------------------------
+
+# -- Options for intersphinx extension ---------------------------------------
+
+# Example configuration for intersphinx: refer to the Python standard library.
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "torch": ("https://pytorch.org/docs/stable/", None),
+}
+
+# -- Options for todo extension ----------------------------------------------
+
+# If true, `todo` and `todoList` produce output, else they produce nothing.
+todo_include_todos = True
+
+# -- Type hints configs ------------------------------------------------------
+
+autodoc_inherit_docstrings = True
+autoclass_content = "both"
+autodoc_typehints = "description"
+napoleon_attr_annotations = True
+
+# -- A patch that turns-off cross refs for type annotations ------------------
+
+
+# replaces pending_xref node with desc_type for type annotations
+sphinx.domains.python.type_to_xref = lambda t, e=None: addnodes.desc_type(
+    "", nodes.Text(t))
+
+# -- Autosummary patch to get list of a classes, funcs automatically ----------
+
+
+class BetterAutosummary(Autosummary):
+    """Autosummary with autolisting for modules.
+
+    By default it tries to import all public names (__all__),
+    otherwise import all classes and/or functions in a module.
+
+    Options:
+    - :autolist: option to get list of classes and functions from currentmodule.
+    - :autolist-classes: option to get list of classes from currentmodule.
+    - :autolist-functions: option to get list of functions from currentmodule.
+
+    Example Usage:
+
+    .. currentmodule:: ignite.metrics
+
+    .. autosummary::
+        :nosignatures:
+        :autolist:
+    """
+
+    # Add new option
+    _option_spec = Autosummary.option_spec.copy()
+    _option_spec.update(
+        {
+            "autolist": directives.unchanged,
+            "autolist-classes": directives.unchanged,
+            "autolist-functions": directives.unchanged,
+        }
+    )
+    option_spec = _option_spec
+
+    def run(self):
+        for auto in ("autolist", "autolist-classes", "autolist-functions"):
+            if auto in self.options:
+                # Get current module name
+                module_name = self.env.ref_context.get("py:module")
+                # Import module
+                module = import_module(module_name)
+
+                # Get public names (if possible)
+                try:
+                    names = getattr(module, "__all__")
+                except AttributeError:
+                    # Get classes defined in the module
+                    cls_names = [
+                        name[0]
+                        for name in getmembers(module, isclass)
+                        if name[-1].__module__ == module_name and not (name[0].startswith("_"))
+                    ]
+                    # Get functions defined in the module
+                    fn_names = [
+                        name[0]
+                        for name in getmembers(module, isfunction)
+                        if (name[-1].__module__ == module_name) and not (name[0].startswith("_"))
+                    ]
+                    names = cls_names + fn_names
+                    # It may happen that module doesn't have any defined class or func
+                    if not names:
+                        names = [name[0] for name in getmembers(module)]
+
+                # Filter out members w/o doc strings
+                names = [name for name in names if getattr(
+                    module, name).__doc__ is not None]
+
+                if auto == "autolist":
+                    # Get list of all classes and functions inside module
+                    names = [
+                        name for name in names if (isclass(getattr(module, name)) or isfunction(getattr(module, name)))
+                    ]
+                else:
+                    if auto == "autolist-classes":
+                        # Get only classes
+                        check = isclass
+                    elif auto == "autolist-functions":
+                        # Get only functions
+                        check = isfunction
+                    else:
+                        raise NotImplementedError
+
+                    names = [name for name in names if check(
+                        getattr(module, name))]
+
+                # Update content
+                self.content = StringList(names)
+        return super().run()
+
+
+# Patch original Autosummary
+sphinx.ext.autosummary.Autosummary = BetterAutosummary
+
+# --- autosummary config -----------------------------------------------------
+autosummary_generate = True
+
+# --- nitpicky config : check internal links are correct or not --------------
+nitpicky = True
+# ignore links which can't be referenced
+nitpick_ignore = [
+    ("py:class", ".."),
+    ("py:class", "TextIO"),
+    ("py:class", "torch.device"),
+    ("py:class", "_MpDeviceLoader"),
+    ("py:class", "torch.nn.modules.module.Module"),
+    ("py:class", "torch.optim.optimizer.Optimizer"),
+    ("py:class", "torch.utils.data.dataset.Dataset"),
+    ("py:class", "torch.utils.data.sampler.BatchSampler"),
+    ("py:class", "torch.cuda.amp.grad_scaler.GradScaler"),
+    ("py:class", "torch.optim.lr_scheduler._LRScheduler"),
+    ("py:class", "torch.utils.data.dataloader.DataLoader"),
+]

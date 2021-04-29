@@ -4,46 +4,45 @@ SYSTEM:
   NUM_GPUS: 4
   NUM_CPUS: 8
 MODEL:
-  ARCHITECTURE: 'unet_residual_3d'
-  INPUT_SIZE: [8, 256, 256]
-  OUTPUT_SIZE: [8, 256, 256]
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [9, 257, 257]
+  OUTPUT_SIZE: [9, 257, 257]
   IN_PLANES: 1
   OUT_PLANES: 3
-  LOSS_OPTION: [['WeightedBCE', 'DiceLoss']]
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
   LOSS_WEIGHT: [[1.0, 1.0]]
-  TARGET_OPT: ['1']
-  WEIGHT_OPT: [['1', '0']]
-  FILTERS: [32, 64, 128, 256, 256] 
+  TARGET_OPT: ["1"]
+  WEIGHT_OPT: [["1", "0"]]
+  FILTERS: [32, 64, 128, 256, 256]
 # To use the same data processing and model training protocol for
 # different datasets, we leave the image and label paths blank here
 # and use command line options. Please check: ../scripts/main.py
 DATASET:
-  IMAGE_NAME: '<name/of/image (h5py volumes)>'
-  LABEL_NAME: '<name/of/label (h5py volumes)>'
-  INPUT_PATH: '<path/to/data>'
-  OUTPUT_PATH: 'outputs/synaptic_polarity/'
+  IMAGE_NAME: "<name/of/image (h5py volumes)>"
+  LABEL_NAME: "<name/of/label (h5py volumes)>"
+  INPUT_PATH: "<path/to/data>"
+  OUTPUT_PATH: "outputs/Synaptic_Polarity_UNet/"
   PAD_SIZE: [4, 128, 128]
   REJECT_SAMPLING:
     SIZE_THRES: 1000
     P: 0.9
 SOLVER:
-  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
-  BASE_LR: 0.001
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.05
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
-  ITERATION_TOTAL: 50000
-  SAMPLES_PER_BATCH: 8
-  STEPS: (45000, 47500)
-MONITOR:
-  VIS_OPT: [1, 16]
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
 INFERENCE:
-  IMAGE_NAME: '<name/of/image (h5py volumes)>'
-  OUTPUT_PATH: 'outputs/synaptic_polarity/test'
-  AUG_MODE: 'mean'
+  IMAGE_NAME: "<name/of/image (h5py volumes)>"
+  OUTPUT_PATH: "outputs/Synaptic_Polarity_UNet/test"
+  AUG_MODE: "mean"
   AUG_NUM: 4
-  OUTPUT_NAME: 'syn_polarity_pred.h5'
+  OUTPUT_NAME: "result.h5"
   STRIDE: [4, 128, 128]
-  SAMPLES_PER_BATCH: 16
-  INPUT_SIZE: [8, 256, 256]
-  OUTPUT_SIZE: [8, 256, 256]
+  SAMPLES_PER_BATCH: 4
+  INPUT_SIZE: [17, 257, 257]
+  OUTPUT_SIZE: [17, 257, 257]
   PAD_SIZE: [4, 128, 128]
+  OUTPUT_ACT: ["sigmoid"]

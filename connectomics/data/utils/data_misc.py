@@ -2,7 +2,8 @@ from __future__ import print_function, division
 from typing import Optional, Tuple, List, Union
 import numpy as np
 
-def get_padsize(pad_size: Union[int, List[int]], ndim: int=3) -> Tuple[int]:
+
+def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
     """Convert the padding size for 3D input volumes into numpy.pad compatible format.
 
     Args:
@@ -18,12 +19,14 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int=3) -> Tuple[int]:
         pad_size = pad_size[0]
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
         return tuple(pad_size)
-    elif len(pad_size) == ndim:
+
+    if len(pad_size) == ndim:
         return tuple([tuple([x, x]) for x in pad_size])
-    else:
-        return tuple(
-            [tuple([pad_size[2*i], pad_size[2*i+1]]) 
+
+    return tuple(
+        [tuple([pad_size[2*i], pad_size[2*i+1]])
             for i in range(len(pad_size) // 2)])
+
 
 def array_unpad(data: np.ndarray,
                 pad_size: Tuple[int]) -> np.ndarray:
@@ -42,31 +45,36 @@ def array_unpad(data: np.ndarray,
 
     assert len(pad_size) == data.ndim
     index = tuple([
-        slice(pad_size[i][0], data.shape[i]-pad_size[i][1]) 
+        slice(pad_size[i][0], data.shape[i]-pad_size[i][1])
         for i in range(data.ndim)
     ])
     return data[index]
+
 
 def normalize_range(image: np.ndarray) -> np.ndarray:
     """Normalize the input image to (0,1) range and cast 
     to numpy.uint8 dtype.
     """
-    normalized = (image - image.min()) / float(image.max() - image.min()) 
+    eps = 1e-6
+    normalized = (image - image.min()) / float(image.max() - image.min() + eps)
     normalized = (normalized*255).astype(np.uint8)
     return normalized
 
-def normalize_image(image: np.ndarray, 
+
+def normalize_image(image: np.ndarray,
                     mean: float = 0.5,
                     std: float = 0.5) -> np.ndarray:
     assert image.dtype == np.float32
     image = (image - mean) / std
     return image
 
+
 def split_masks(label):
     indices = np.unique(label)
     if len(indices) > 1:
-        if indices[0] == 0: indices = indices[1:]
-        masks = [(label==x).astype(np.uint8) for x in indices]
+        if indices[0] == 0:
+            indices = indices[1:]
+        masks = [(label == x).astype(np.uint8) for x in indices]
         return np.stack(masks, 0)
 
     return np.ones_like(label).astype(np.uint8)[np.newaxis]

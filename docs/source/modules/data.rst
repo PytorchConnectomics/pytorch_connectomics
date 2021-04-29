@@ -1,23 +1,20 @@
 connectomics.data
 ===================
 
-.. contents:: Contents
-    :local:
-
-connectomics.data.dataset
---------------------------
+Datasets
+----------
 
 .. automodule:: connectomics.data.dataset
     :members:
 
-connectomics.data.augmentation
--------------------------------
+Augmentations
+---------------
 
 .. automodule:: connectomics.data.augmentation
     :members:
 
-connectomics.data.utils
-------------------------
+Utility Functions
+------------------
 
 .. automodule:: connectomics.data.utils
     :members:

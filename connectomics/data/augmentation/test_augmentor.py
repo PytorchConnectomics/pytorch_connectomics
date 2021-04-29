@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 from typing import Optional, List
+from collections import OrderedDict
 
 import numpy as np
 import itertools
@@ -7,9 +8,20 @@ import torch
 from skimage.transform import resize
 from connectomics.model.utils import SplitActivation
 
+
+def _forward(model, volume):
+    output = model(volume)
+    assert isinstance(output, (torch.Tensor, OrderedDict))
+    if isinstance(output, torch.Tensor):
+        return output
+
+    main_key = list(output.keys())[0]
+    return output[main_key]
+
+
 class TestAugmentor(object):
     r"""Test-time spatial augmentor. 
-    
+
     Our test-time augmentation includes horizontal/vertical flips over 
     the `xy`-plane, swap of `x` and `y` axes, and flip in `z`-dimension, 
     resulting in 16 variants. Considering inference efficiency, we also 
@@ -29,12 +41,13 @@ class TestAugmentor(object):
         >>> test_augmentor = TestAugmentor(mode='mean', num_aug=16)
         >>> output = test_augmentor(model, inputs) # output is a numpy.ndarray on CPU
     """
-    def __init__(self, 
-                 mode: str = 'mean', 
+
+    def __init__(self,
+                 mode: str = 'mean',
                  do_2d: bool = False,
                  num_aug: Optional[int] = None,
-                 scale_factors: List[float]=[1.0, 1.0, 1.0],
-                 inference_act = None):
+                 scale_factors: List[float] = [1.0, 1.0, 1.0],
+                 inference_act=None):
 
         self.mode = mode
         self.do_2d = do_2d
@@ -42,8 +55,9 @@ class TestAugmentor(object):
         self.inference_act = inference_act
 
         if num_aug is not None:
-            assert num_aug in [4, 8, 16], "TestAugmentor.num_aug should be either 4, 8 or 16!"
-            if self.do_2d: 
+            assert num_aug in [
+                4, 8, 16], "TestAugmentor.num_aug should be either 4, 8 or 16!"
+            if self.do_2d:
                 # maximum num_aug for 2d images
                 num_aug = min(num_aug, 8)
 
@@ -52,13 +66,13 @@ class TestAugmentor(object):
     def __call__(self, model, data):
         if self.do_2d:
             assert len(data.shape) == 4, \
-            "The input has a shape of {}, which not a valid 2D " \
-            "input in (B, C, H, W) format.".format(data.shape)
+                "The input has a shape of {}, which not a valid 2D " \
+                "input in (B, C, H, W) format.".format(data.shape)
             return self._tta_2d(model, data)
         else:
             assert len(data.shape) == 5, \
-            "The input has a shape of {}, which not a valid 3D " \
-            "input in (B, C, Z, Y, X) format.".format(data.shape)
+                "The input has a shape of {}, which not a valid 3D " \
+                "input in (B, C, Z, Y, X) format.".format(data.shape)
             return self._tta_3d(model, data)
 
     def _tta_3d(self, model, data):
@@ -67,13 +81,17 @@ class TestAugmentor(object):
         cc = 0
 
         if self.num_aug == None:
-            opts = itertools.product((False, ), (False, ), (False, ), (False, ))
+            opts = itertools.product(
+                (False, ), (False, ), (False, ), (False, ))
         elif self.num_aug == 4:
-            opts = itertools.product((False, True), (False, True), (False, ), (False, ))
+            opts = itertools.product(
+                (False, True), (False, True), (False, ), (False, ))
         elif self.num_aug == 8:
-            opts = itertools.product((False, True), (False, True), (False, ), (False, True))
+            opts = itertools.product(
+                (False, True), (False, True), (False, ), (False, True))
         else:
-            opts = itertools.product((False, True), (False, True), (False, True), (False, True))
+            opts = itertools.product(
+                (False, True), (False, True), (False, True), (False, True))
 
         for xflip, yflip, zflip, transpose in opts:
             volume = data.clone()
@@ -86,13 +104,14 @@ class TestAugmentor(object):
                 volume = torch.flip(volume, [2])
             if transpose:
                 volume = torch.transpose(volume, 3, 4)
- 
-            if self.inference_act is not None:
-                vout = self.inference_act(model(volume)).detach().cpu()
-            else:
-                vout = model(volume).detach().cpu()
 
-            if transpose: # swap x-/y-axis
+            if self.inference_act is not None:
+                vout = self.inference_act(
+                    _forward(model, volume)).detach().cpu()
+            else:
+                vout = model(_forward(model, volume)).detach().cpu()
+
+            if transpose:  # swap x-/y-axis
                 vout = torch.transpose(vout, 3, 4)
             if zflip:
                 vout = torch.flip(vout, [2])
@@ -100,18 +119,18 @@ class TestAugmentor(object):
                 vout = torch.flip(vout, [3])
             if xflip:
                 vout = torch.flip(vout, [4])
-                
+
             out = self._update_output(vout, out)
-            cc+=1
+            cc += 1
 
         if self.mode == 'mean':
             out = out/cc
 
-        if (np.array(self.scale_factors)!=1).any():
+        if (np.array(self.scale_factors) != 1).any():
             sf = [1.0, 1.0] + self.scale_factors
             spatial_size = np.array(out.shape) * np.array(sf)
             spatial_size = list(np.ceil(spatial_size).astype(int))
-            out = resize(out, spatial_size, order=1, preserve_range=True, 
+            out = resize(out, spatial_size, order=1, preserve_range=True,
                          anti_aliasing=True)
         return out
 
@@ -125,7 +144,8 @@ class TestAugmentor(object):
         elif self.num_aug == 4:
             opts = itertools.product((False, True), (False, True), (False, ))
         else:
-            opts = itertools.product((False, True), (False, True), (False, True))
+            opts = itertools.product(
+                (False, True), (False, True), (False, True))
 
         for xflip, yflip, transpose in opts:
             volume = data.clone()
@@ -136,30 +156,31 @@ class TestAugmentor(object):
                 volume = torch.flip(volume, [2])
             if transpose:
                 volume = torch.transpose(volume, 2, 3)
- 
-            if self.inference_act is not None:
-                vout = self.inference_act(model(volume)).detach().cpu()
-            else:
-                vout = model(volume).detach().cpu()
 
-            if transpose: # swap x-/y-axis
+            if self.inference_act is not None:
+                vout = self.inference_act(
+                    _forward(model, volume)).detach().cpu()
+            else:
+                vout = _forward(model, volume).detach().cpu()
+
+            if transpose:  # swap x-/y-axis
                 vout = torch.transpose(vout, 2, 3)
             if yflip:
                 vout = torch.flip(vout, [2])
             if xflip:
                 vout = torch.flip(vout, [3])
-                
+
             out = self._update_output(vout, out)
-            cc+=1
+            cc += 1
 
         if self.mode == 'mean':
             out = out/cc
 
-        if (np.array(self.scale_factors)[1:]!=1).any():
+        if (np.array(self.scale_factors)[1:] != 1).any():
             sf = [1.0, 1.0] + self.scale_factors[1:]
             spatial_size = np.array(out.shape) * np.array(sf)
             spatial_size = list(np.ceil(spatial_size).astype(int))
-            out = resize(out, spatial_size, order=1, preserve_range=True, 
+            out = resize(out, spatial_size, order=1, preserve_range=True,
                          anti_aliasing=True)
         return out
 
@@ -195,7 +216,7 @@ class TestAugmentor(object):
             extension += "txy"
         elif self.num_aug == 16:
             extension += "tzyx"
-            
+
         # Update the suffix of the output filename to indicate
         # the use of test-time data augmentation.
         name_list = name.split('.')
@@ -208,10 +229,10 @@ class TestAugmentor(object):
         """
         act = None
         if activation:
-            act=SplitActivation.build_from_cfg(cfg, normalize=True)
+            act = SplitActivation.build_from_cfg(cfg, normalize=True)
 
-        return cls(mode = cfg.INFERENCE.AUG_MODE, 
-                   do_2d = cfg.DATASET.DO_2D,
-                   num_aug = cfg.INFERENCE.AUG_NUM,
-                   scale_factors = cfg.INFERENCE.OUTPUT_SCALE,
-                   inference_act = act)
+        return cls(mode=cfg.INFERENCE.AUG_MODE,
+                   do_2d=cfg.DATASET.DO_2D,
+                   num_aug=cfg.INFERENCE.AUG_NUM,
+                   scale_factors=cfg.INFERENCE.OUTPUT_SCALE,
+                   inference_act=act)
