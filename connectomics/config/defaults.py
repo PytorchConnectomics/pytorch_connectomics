@@ -61,7 +61,7 @@ _C.MODEL.NORM_MODE = 'bn'
 _C.MODEL.ACT_MODE = 'elu'
 
 # Use pooling layer for downsampling
-_C.MODEL.POOING_LAYER = False
+_C.MODEL.POOLING_LAYER = False
 
 # Mixed-precision training
 _C.MODEL.MIXED_PRECESION = False

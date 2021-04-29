@@ -53,6 +53,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  sample_label_size: tuple = (8, 64, 64),
                  sample_stride: tuple = (1, 1, 1),
                  augmentor: AUGMENTOR_TYPE = None, 
+                 copy_paste_augmentor = None,
                  target_opt: TARGET_OPT_TYPE = ['1'], 
                  weight_opt: WEIGHT_OPT_TYPE = [['1']],
                  mode: str = 'train',
@@ -76,6 +77,9 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.volume = volume
         self.label = label
         self.augmentor = augmentor
+        if copy_paste_augmentor is not None:
+            self.copy_paste_augmentor = copy_paste_augmentor
+            print('Using copy paste augmentation')
 
         # target and weight options
         self.target_opt = target_opt
@@ -160,6 +164,10 @@ class VolumeDataset(torch.utils.data.Dataset):
             
         out_volume = np.expand_dims(out_volume, 0)
         out_volume = normalize_image(out_volume, self.data_mean, self.data_std)
+
+        if self.copy_paste_augmentor is not None and self.mode == 'train':
+            out_volume = self.copy_paste_augmentor(out_volume, out_label)
+        
         # output list
         out_target = seg_to_targets(out_label, self.target_opt)
         out_weight = seg_to_weights(out_target, self.weight_opt, out_valid, out_label)

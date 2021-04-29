@@ -12,6 +12,7 @@ from .missing_parts import MissingParts
 from .motion_blur import MotionBlur
 from .cutblur import CutBlur
 from .cutnoise import CutNoise
+from .copy_paste import CopyPasteAugmentor
 
 def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_smoothed: bool = False):
     r"""Build the training augmentor based on the options specified in the configuration
@@ -130,8 +131,12 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
                         keep_uncropped=keep_uncropped, 
                         keep_non_smoothed=keep_non_smoothed,
                         additional_targets=additional_targets)
-
-    return augmentor
+    
+    if cfg.AUGMENTOR.USE_COPY_PASTE:
+        copy_paste_augmentor = CopyPasteAugmentor(cfg.AUGMENTOR.COPY_PASTE_THRES)
+    else:
+        copy_paste_augmentor = None
+    return augmentor, copy_paste_augmentor
 
 def build_ssl_augmentor(cfg):
     R"""Build the data augmentor for semi-supervised learning.

@@ -15,6 +15,7 @@ from .motion_blur import MotionBlur
 from .cutblur import CutBlur
 from .cutnoise import CutNoise
 from .mixup import MixupAugmentor
+from .copy_paste import CopyPasteAugmentor
 
 from .build import build_train_augmentor, build_ssl_augmentor
 
@@ -32,5 +33,6 @@ __all__ = ['Compose',
            'CutBlur',
            'CutNoise',
            'MixupAugmentor',
+           'CopyPasteAugmentor',
            'TestAugmentor',
            'build_train_augmentor']
