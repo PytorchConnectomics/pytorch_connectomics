@@ -155,7 +155,7 @@ def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, s
     return cast2dtype(segm)
 
 def bcd_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres4=0.5, thres5=0.0, thres_small=128, 
-                  scale_factors=(1.0, 1.0, 1.0), remove_small_mode='background', seed_thres=32):
+                  scale_factors=(1.0, 1.0, 1.0), remove_small_mode='background', seed_thres=32, return_seed=False):
     r"""Convert binary foreground probability maps, instance contours and signed distance 
     transform to instance masks via watershed segmentation algorithm.
 
@@ -191,7 +191,10 @@ def bcd_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres4=0.5, thres
                        int(semantic.shape[2]*scale_factors[2]))
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
         
-    return cast2dtype(segm)
+    if not return_seed:
+        return cast2dtype(segm)
+
+    return cast2dtype(segm), seed
 
 # Post-processing functions for synaptic polarity model outputs as described
 # in "Two-Stream Active Query Suggestion for Active Learning in Connectomics 

@@ -24,6 +24,7 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    notes/installation
    notes/config
    notes/dataloading
+   notes/faq
 
 .. toctree::
    :glob:

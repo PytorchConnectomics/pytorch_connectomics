@@ -21,11 +21,10 @@ DATASET:
   OUTPUT_PATH: outputs/Zebrafinch/
   IS_ABSOLUTE_PATH: True
   PAD_SIZE: [4, 32, 32]
-  LABEL_EROSION: 1
   DISTRIBUTED: True
   REJECT_SAMPLING:
     DIVERSITY: 3
-  DATA_CHUNK_NUM: [25, 7, 8] # only for inference
+  DATA_CHUNK_NUM: [20, 7, 8] # only for inference
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.04
@@ -47,4 +46,4 @@ INFERENCE:
   AUG_MODE: min
   AUG_NUM: None
   STRIDE: [16, 128, 128]
-  SAMPLES_PER_BATCH: 12
+  SAMPLES_PER_BATCH: 4
