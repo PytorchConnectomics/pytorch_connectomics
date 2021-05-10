@@ -1,4 +1,5 @@
 from __future__ import print_function, division
+from typing import Optional, List, Union, Tuple
 
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ class DiceLoss(nn.Module):
     """
     # https://lars76.github.io/neural-networks/object-detection/losses-for-segmentation/
 
-    def __init__(self, size_average=True, reduce=True, smooth=100.0, power=1):
+    def __init__(self, reduce=True, smooth=100.0, power=1):
         super(DiceLoss, self).__init__()
         self.smooth = smooth
         self.reduce = reduce
@@ -120,15 +121,19 @@ class WeightedCE(nn.Module):
     """Mask weighted multi-class cross-entropy (CE) loss.
     """
 
-    def __init__(self):
+    def __init__(self, class_weight: Optional[List[float]] = None):
         super().__init__()
+        self.class_weight = None
+        if class_weight is not None:
+            self.class_weight = torch.tensor(class_weight)
 
     def forward(self, pred, target, weight_mask=None):
         # Different from, F.binary_cross_entropy, the "weight" parameter
         # in F.cross_entropy is a manual rescaling weight given to each
         # class. Therefore we need to multiply the weight mask after the
         # loss calculation.
-        loss = F.cross_entropy(pred, target, reduction='none')
+        loss = F.cross_entropy(
+            pred, target, weight=self.class_weight, reduction='none')
         if weight_mask is not None:
             loss = loss * weight_mask
         return loss.mean()
