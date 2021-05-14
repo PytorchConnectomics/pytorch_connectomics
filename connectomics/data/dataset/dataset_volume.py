@@ -57,6 +57,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  target_opt: TARGET_OPT_TYPE = ['1'],
                  weight_opt: WEIGHT_OPT_TYPE = [['1']],
                  erosion_rates: Optional[List[int]] = None,
+                 dilation_rates: Optional[List[int]] = None,
                  mode: str = 'train',
                  do_2d: bool = False,
                  iter_num: int = -1,
@@ -83,6 +84,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.target_opt = target_opt
         self.weight_opt = weight_opt
         self.erosion_rates = erosion_rates
+        self.dilation_rates = dilation_rates
 
         # rejection samping
         self.reject_size_thres = reject_size_thres
@@ -174,7 +176,7 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         # output list
         out_target = seg_to_targets(
-            out_label, self.target_opt, self.erosion_rates)
+            out_label, self.target_opt, self.erosion_rates, self.dilation_rates)
         out_weight = seg_to_weights(
             out_target, self.weight_opt, out_valid, out_label)
         return pos, out_volume, out_target, out_weight

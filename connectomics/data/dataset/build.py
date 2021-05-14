@@ -205,6 +205,7 @@ def get_dataset(cfg,
         "data_mean": cfg.DATASET.MEAN,
         "data_std": cfg.DATASET.STD,
         "erosion_rates": cfg.MODEL.LABEL_EROSION,
+        "dilation_rates": cfg.MODEL.LABEL_DILATION,
     }
 
     if cfg.DATASET.DO_CHUNK_TITLE == 1:  # build TileDataset

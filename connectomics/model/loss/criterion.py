@@ -21,6 +21,7 @@ class Criterion(object):
         loss_opt (List[List[str]], optional): loss options for the specified targets. Defaults to [['WeightedBCE']].
         output_act (List[List[str]], optional): activation functions for each loss option. Defaults to [['none']].
         loss_weight (List[List[float]], optional): the scalar weight of each loss. Defaults to [[1.]].
+        loss_kwargs Optional[List[List[dict]]]: a list of kwargs given to the loss functions. Defaults to None.
         regu_opt (Optional[List[str]], optional): regularization options. Defaults to None.
         regu_target (Optional[List[List[int]]], optional): indicies of predictions for applying regularization. Defaults to None.
         regu_weight (Optional[List[float]], optional): the scalar weight of each regularization. Defaults to None.
@@ -48,6 +49,7 @@ class Criterion(object):
                  loss_opt: List[List[str]] = [['WeightedBCE']],
                  output_act: List[List[str]] = [['none']],
                  loss_weight: List[List[float]] = [[1.]],
+                 loss_kwargs: Optional[List[List[dict]]] = None,
                  regu_opt: Optional[List[str]] = None,
                  regu_target: Optional[List[List[int]]] = None,
                  regu_weight: Optional[List[float]] = None,
@@ -62,7 +64,7 @@ class Criterion(object):
         self.num_regu = 0 if regu_opt is None else len(regu_opt)
 
         self.loss_opt = loss_opt
-        self.loss_fn = self.get_loss(loss_opt)
+        self.loss_fn = self.get_loss(loss_opt, loss_kwargs)
         self.loss_w = loss_weight
 
         self.regu_opt = regu_opt
@@ -81,14 +83,24 @@ class Criterion(object):
                 regu[i] = self.regu_dict[ropt]()
         return regu
 
-    def get_loss(self, loss_opt):
+    def get_loss(self, loss_opt, loss_kwargs=None):
         out = [None]*self.num_target
         for i in range(self.num_target):
             out[i] = [None]*len(loss_opt[i])
             for j, lopt in enumerate(loss_opt[i]):
-                assert lopt in self.loss_dict
-                out[i][j] = self.loss_dict[lopt]()
+                params = None
+                if loss_kwargs is not None:
+                    params = loss_kwargs[i][j]
+                out[i][j] = self.get_one_loss(lopt, params)
         return out
+
+    def get_one_loss(self, lopt, params):
+        assert lopt in self.loss_dict
+        if params is None:
+            return self.loss_dict[lopt]()
+
+        # pass the kwargs to the corresponding loss function
+        return self.loss_dict[lopt](**params)
 
     def get_act(self, output_act):
         out = [None]*self.num_target
@@ -176,6 +188,19 @@ class Criterion(object):
             cfg (yacs.config.CfgNode): YACS configuration options.
             device (torch.device): model running device type. GPUs are recommended for model training and inference.
         """
+        loss_kwargs = None
+        if cfg.MODEL.LOSS_KWARGS_KEY is not None:
+            keys = cfg.MODEL.LOSS_KWARGS_KEY
+            vals = cfg.MODEL.LOSS_KWARGS_VAL
+            assert len(keys) == len(vals)
+            loss_kwargs = [None] * len(keys)
+            for i in range(len(keys)):
+                assert len(keys[i]) == len(vals[i])
+                loss_kwargs[i] = [None] * len(keys[i])
+                for j in range(len(keys[i])):
+                    if keys[i][j] is not None:
+                        loss_kwargs[i][j] = dict(zip(keys[i][j], vals[i][j]))
+
         return cls(device, cfg.MODEL.TARGET_OPT, cfg.MODEL.LOSS_OPTION, cfg.MODEL.OUTPUT_ACT,
-                   cfg.MODEL.LOSS_WEIGHT, cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_TARGET,
+                   cfg.MODEL.LOSS_WEIGHT, loss_kwargs, cfg.MODEL.REGU_OPT, cfg.MODEL.REGU_TARGET,
                    cfg.MODEL.REGU_WEIGHT, do_2d=cfg.DATASET.DO_2D)

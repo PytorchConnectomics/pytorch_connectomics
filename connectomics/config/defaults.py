@@ -46,6 +46,8 @@ _C.MODEL.OUTPUT_ACT = [['none']]
 
 # Weight for each loss function
 _C.MODEL.LOSS_WEIGHT = [[1.0]]
+_C.MODEL.LOSS_KWARGS_KEY = None
+_C.MODEL.LOSS_KWARGS_VAL = None
 
 # Define the number of input channels. Usually EM images are
 # single-channel gray-scale image.
