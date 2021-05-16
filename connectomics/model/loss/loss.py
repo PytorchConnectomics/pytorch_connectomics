@@ -132,6 +132,9 @@ class WeightedCE(nn.Module):
         # in F.cross_entropy is a manual rescaling weight given to each
         # class. Therefore we need to multiply the weight mask after the
         # loss calculation.
+        if self.class_weight is not None:
+            self.class_weight = self.class_weight.to(pred.device)
+
         loss = F.cross_entropy(
             pred, target, weight=self.class_weight, reduction='none')
         if weight_mask is not None:
