@@ -194,4 +194,4 @@ class WeightedLSBCEFocalLoss(nn.Module):
             wt = at * (1 - pt)**self.gamma
             if weight_mask is not None:
                 wt *= weight_mask
-        return F.binary_cross_entropy(pred_sig, target.clamp(self.eps,1-self.eps), wt)
+        return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), wt)

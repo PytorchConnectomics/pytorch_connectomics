@@ -79,13 +79,17 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.volume = volume
         self.label = label
         self.augmentor = augmentor
+        self.copy_paste_augmentor = copy_paste_augmentor
         if copy_paste_augmentor is not None:
-            self.copy_paste_augmentor = copy_paste_augmentor
             print('Using copy paste augmentation')
 
         # target and weight options
         self.target_opt = target_opt
         self.weight_opt = weight_opt
+        # For 'all', users will create their own targets
+        if self.target_opt[-1] == 'all':
+            self.target_opt = self.target_opt[:-1]
+            self.weight_opt = self.weight_opt[:-1]
         self.erosion_rates = erosion_rates
 
         # rejection samping

@@ -133,10 +133,9 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
                         additional_targets=additional_targets)
     
     if cfg.AUGMENTOR.USE_COPY_PASTE:
-        copy_paste_augmentor = CopyPasteAugmentor(cfg.AUGMENTOR.COPY_PASTE_THRES)
+        return augmentor, CopyPasteAugmentor(cfg.AUGMENTOR.COPY_PASTE_THRES)
     else:
-        copy_paste_augmentor = None
-    return augmentor, copy_paste_augmentor
+        return augmentor
 
 def build_ssl_augmentor(cfg):
     R"""Build the data augmentor for semi-supervised learning.

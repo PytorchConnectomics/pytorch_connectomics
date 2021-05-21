@@ -122,7 +122,7 @@ class Criterion(object):
         for i in range(self.num_target): # iterate over tasks
             target_t = self.to_torch(target[i])
             for j in range(len(self.loss_fn[i])): # iterate over losses for a task
-                w_mask = None if weight[i][j].shape[-1] == 1 else self.to_torch(weight[i][j])
+                w_mask = self.to_torch(weight[i][j]) if weight[i][j] is not None and weight[i][j].shape[-1] != 1 else None
                 loss_temp = self.loss_w[i][j] * self.loss_fn[i][j](
                     self.act[i][j](x[i]),
                     target=target_t,

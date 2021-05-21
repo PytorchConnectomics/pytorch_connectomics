@@ -187,7 +187,7 @@ def dwconv1xkxk(planes, kernel_size=3, stride=1,
     padding = (kernel_size - 1) * dilation // 2
     dilation = (1, dilation, dilation)
     padding = (0, padding, padding)
-    stride = (1, stride, stride)
+    stride = (1, stride, stride) if isinstance(stride, int) else stride
     return get_conv(conv_type)(
         planes,
         planes,

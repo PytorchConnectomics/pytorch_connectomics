@@ -7,7 +7,6 @@ from ..block.basic import get_conv
 from ..block.residual import InvertedResidual, InvertedResidualDilated
 from ..utils import get_activation, get_norm_3d
 
-
 class DilatedBlock(nn.Module):
     def __init__(self, conv_type, in_channel, inplanes, dilation_factors, pad_mode):
         super().__init__()
