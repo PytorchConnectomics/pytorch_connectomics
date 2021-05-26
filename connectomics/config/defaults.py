@@ -259,6 +259,9 @@ _C.AUGMENTOR.CUTNOISE.SCALE = 0.3
 # -----------------------------------------------------------------------------
 _C.SOLVER = CN()
 
+# Specify the name of the optimizer
+_C.SOLVER.NAME = "SGD"  # "SGD", "Adam", "AdamW"
+
 # Specify the learning rate scheduler.
 _C.SOLVER.LR_SCHEDULER_NAME = "MultiStepLR"
 
@@ -281,6 +284,7 @@ _C.SOLVER.BIAS_LR_FACTOR = 1.0
 _C.SOLVER.WEIGHT_DECAY_BIAS = 0.0
 
 _C.SOLVER.MOMENTUM = 0.9
+_C.SOLVER.BETAS = (0.9, 0.999)  # Adam and AdamW
 
 # The weight decay that's applied to parameters of normalization layers
 # (typically the affine transformation)
