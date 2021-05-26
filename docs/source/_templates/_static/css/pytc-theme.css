@@ -182,6 +182,21 @@ article.pytorch-article div.highlight pre {
   font-weight: bold;
 }
 
+/* code block */
+.highlight .o {
+  font-weight: lighter !important;
+}
+
+.highlight .n {
+  color: #000000;
+  font-weight: lighter !important;
+}
+
+.highlight .p {
+  color: #000000;
+  font-weight: lighter !important;
+}
+
 /* Footer */
 
 footer table {
