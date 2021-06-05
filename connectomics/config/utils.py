@@ -108,14 +108,14 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
 
     # Model I/O size
     for x in cfg.MODEL.INPUT_SIZE:
-        if x % 2 == 0 and not cfg.MODEL.POOING_LAYER:
+        if x % 2 == 0 and not cfg.MODEL.POOLING_LAYER:
             warnings.warn(
                 "When downsampling by stride instead of using pooling "
                 "layers, the cfg.MODEL.INPUT_SIZE are expected to contain "
                 "numbers of 2n+1 to avoid feature mis-matching, "
                 "but get {}".format(cfg.MODEL.INPUT_SIZE))
             break
-        if x % 2 == 1 and cfg.MODEL.POOING_LAYER:
+        if x % 2 == 1 and cfg.MODEL.POOLING_LAYER:
             warnings.warn(
                 "When downsampling by pooling layers the cfg.MODEL.INPUT_SIZE "
                 "are expected to contain even numbers to avoid feature mis-matching, "
