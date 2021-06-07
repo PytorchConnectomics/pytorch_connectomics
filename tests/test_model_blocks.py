@@ -132,6 +132,18 @@ class TestModelBlock(unittest.TestCase):
         tensor = torch.randn(2, 16, 8, 16, 18)
         self.assertTupleEqual(tuple(block3d(tensor).shape), (2, 16, 8, 16, 18))
 
-
+    def test_blurpool_block(self):
+        # Test N-D blurpool
+        blurpool = BlurPool(channels = 10, stride = 2)
+        input_tensor = torch.Tensor(1, 10, 128, 128) # 10 channels, batch_size = 1
+        output_tensor = blurpool(input_tensor)
+        self.assertTupleEqual(tuple(output_tensor.shape), (1, 10, 64, 64))
+        
+        # Test 1-D blurpool
+        blurpool_1d = BlurPool1D(channels = 1, stride = 2)
+        input_tensor = torch.Tensor(1, 1, 6) # Input needs to be of form (batch_size, channels, dim)
+        output_tensor = blurpool_1d(input_tensor)
+        self.assertTupleEqual(tuple(output_tensor.shape), (1, 1, 3))
+        
 if __name__ == '__main__':
     unittest.main()
