@@ -385,54 +385,6 @@ def get_binary_jaccard(pred, gt, thres=[0.5]):
         score[tid] = np.array([iou_fg, iou, precision, recall])
     return score
 
-class CremiVolume:
-    """Custom CREMI Volume class which stores offset, data and resolution
-    """
-    def __init__(self, data, resolution = (1.0, 1.0, 1.0), offset = (0.0, 0.0, 0.0), comment = ""):
-        self.data = data
-        self.resolution = resolution
-        self.offset = offset
-        self.comment = comment
-
-    def __getitem__(self, location):
-        """Get the closest value of this volume to the given location. The 
-        location is in world units, relative to the volumes offset.
-        This method takes into account the resolution of the volume. An 
-        IndexError exception is raised if the location is not contained in this 
-        volume.
-        To access the raw pixel values, use the `data` attribute.
-        """
-
-        i = tuple([ round(location[d]/self.resolution[d]) for d in range(len(location)) ])
-
-        if min(i) >= 0:
-            try:
-                return self.data[i]
-            except IndexError as e:
-                raise IndexError("location " + str(location) + " does not lie inside volume: " + str(e))
-
-        raise IndexError("location " + str(location) + " does not lie inside volume")
-
-    def __setitem__(self, location, value):
-        """Set the closest value of this volume to the given location. The 
-        location is in world units, relative to the volumes offset.
-        This method takes into account the resolution of the volume. An 
-        IndexError exception is raised if the location is not contained in this 
-        volume.
-        To access the raw pixel values, use the `data` attribute.
-        """
-
-        i = tuple([ round(location[d]/self.resolution[d]) for d in range(len(location)) ])
-
-        if min(i) >= 0:
-            try:
-                self.data[i] = value
-                return
-            except IndexError as e:
-                raise IndexError("location " + str(location) + " does not lie inside volume: " + str(e))
-
-        raise IndexError("location " + str(location) + " does not lie inside volume")
-
 def cremi_distance(pred, gt):
     """Function which computes the FP/FN statistics between predictions and ground truth.
        Both pred and gt need to be of the same size.
@@ -471,20 +423,17 @@ def cremi_distance(pred, gt):
             'count': false_negatives.size,
             'median': np.median(false_negatives)}
         return stats
-        
+
     pred = pred.astype(np.uint64)
     pred[pred==0] = 0xffffffffffffffff
     
     gt = gt.astype(np.uint64)
     gt[gt==0] = 0xffffffffffffffff
     
-    print("Prepping CREMI Vol")
-    cremi_vol_pred = CremiVolume(pred, resolution=(40.0, 4.0, 4.0), comment="prediction")
-    cremi_vol_gt = CremiVolume(gt, resolution=(40.0, 4.0, 4.0), comment="prediction")
     
     ## Calculate EDT
-    test_clefts = cremi_vol_pred.data
-    truth_clefts = cremi_vol_gt.data
+    test_clefts = pred
+    truth_clefts = gt
 
     truth_clefts_invalid = truth_clefts == 0xfffffffffffffffe
 
@@ -492,8 +441,8 @@ def cremi_distance(pred, gt):
     truth_clefts_mask = np.logical_or(truth_clefts == 0xffffffffffffffff, truth_clefts_invalid)
 
     print("EDT calculation in progress")
-    test_clefts_edt = ndimage.distance_transform_edt(test_clefts_mask, sampling=(40.0, 4.0, 4.0))
-    truth_clefts_edt = ndimage.distance_transform_edt(truth_clefts_mask, sampling=(40.0, 4.0, 4.0))
+    test_clefts_edt = ndimage.distance_transform_edt(test_clefts_mask)
+    truth_clefts_edt = ndimage.distance_transform_edt(truth_clefts_mask)
 
     false_positive_count = count_false_positives(test_clefts_mask, truth_clefts_edt)
     false_negative_count = count_false_negatives(truth_clefts_mask, test_clefts_edt)
