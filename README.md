@@ -55,7 +55,6 @@ Download and install the package:
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
 pip install --upgrade pip
-pip install -r requirements.txt
 pip install --editable .
 ```
 
