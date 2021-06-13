@@ -1,5 +1,7 @@
 import numpy as np
 import scipy.sparse as sparse
+import h5py
+from scipy import ndimage
 
 __all__ = [
     'get_binary_jaccard',
@@ -382,4 +384,77 @@ def get_binary_jaccard(pred, gt, thres=[0.5]):
         iou = (iou_fg + iou_bg) / 2.0
         score[tid] = np.array([iou_fg, iou, precision, recall])
     return score
+
+def cremi_distance(pred, gt):
+    """Function which computes the FP/FN statistics between predictions and ground truth.
+       Both pred and gt need to be of the same size.
+    """
+    ## Stats Functions
+    def count_false_positives(test_clefts_mask, truth_clefts_edt, threshold = 200):
+        mask1 = np.invert(test_clefts_mask)
+        mask2 = truth_clefts_edt > threshold
+        false_positives = truth_clefts_edt[np.logical_and(mask1, mask2)]
+        return false_positives.size
+
+    def count_false_negatives(truth_clefts_mask, test_clefts_edt, threshold = 200):
+        mask1 = np.invert(truth_clefts_mask)
+        mask2 = test_clefts_edt > threshold
+        false_negatives = test_clefts_edt[np.logical_and(mask1, mask2)]
+        return false_negatives.size
+
+    def acc_false_positives(test_clefts_mask, truth_clefts_edt):
+        mask = np.invert(test_clefts_mask)
+        false_positives = truth_clefts_edt[mask]
+        stats = {
+            'mean': np.mean(false_positives),
+            'std': np.std(false_positives),
+            'max': np.amax(false_positives),
+            'count': false_positives.size,
+            'median': np.median(false_positives)}
+        return stats
+
+    def acc_false_negatives(truth_clefts_mask, test_clefts_edt):
+        mask = np.invert(truth_clefts_mask)
+        false_negatives = test_clefts_edt[mask]
+        stats = {
+            'mean': np.mean(false_negatives),
+            'std': np.std(false_negatives),
+            'max': np.amax(false_negatives),
+            'count': false_negatives.size,
+            'median': np.median(false_negatives)}
+        return stats
+
+    pred = pred.astype(np.uint64)
+    pred[pred==0] = 0xffffffffffffffff
     
+    gt = gt.astype(np.uint64)
+    gt[gt==0] = 0xffffffffffffffff
+    
+    
+    ## Calculate EDT
+    test_clefts = pred
+    truth_clefts = gt
+
+    truth_clefts_invalid = truth_clefts == 0xfffffffffffffffe
+
+    test_clefts_mask = np.logical_or(test_clefts == 0xffffffffffffffff, truth_clefts_invalid)
+    truth_clefts_mask = np.logical_or(truth_clefts == 0xffffffffffffffff, truth_clefts_invalid)
+
+    print("EDT calculation in progress")
+    test_clefts_edt = ndimage.distance_transform_edt(test_clefts_mask)
+    truth_clefts_edt = ndimage.distance_transform_edt(truth_clefts_mask)
+
+    false_positive_count = count_false_positives(test_clefts_mask, truth_clefts_edt)
+    false_negative_count = count_false_negatives(truth_clefts_mask, test_clefts_edt)
+
+    false_positive_stats = acc_false_positives(test_clefts_mask, truth_clefts_edt)
+    false_negative_stats = acc_false_negatives(truth_clefts_mask, test_clefts_edt)
+
+    print("Clefts Statistics")
+    print ("======")
+
+    print ("\tfalse positives: " + str(false_positive_count))
+    print ("\tfalse negatives: " + str(false_negative_count))
+
+    print ("\tdistance to ground truth: " + str(false_positive_stats))
+    print ("\tdistance to proposal    : " + str(false_negative_stats))
