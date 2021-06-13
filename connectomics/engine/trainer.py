@@ -243,6 +243,7 @@ class Trainer(object):
         end = time.perf_counter()
         print("Prediction time: %.2fs" % (end-start))
 
+        del self.dataloader, self.model
         for vol_id in range(len(result)):
             if result[vol_id].ndim > weight[vol_id].ndim:
                 weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)

@@ -18,4 +18,4 @@ DATASET:
   OUTPUT_PATH: outputs/JWR15_Neuron_UNet_MER
 INFERENCE:
   OUTPUT_ACT: ["sigmoid", "sigmoid", "sigmoid"]
-  OUTPUT_PATH: outputs/JWR15_Neuron_UNet_MER/test
+  OUTPUT_PATH: outputs/JWR15_Neuron_UNet_MER/test_all
