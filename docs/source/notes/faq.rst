@@ -19,3 +19,10 @@ This is a list of Frequently Asked Questions about PyTorch Connectomics. Feel fr
     the trainer will also load the status of the optimizer and learning-rate scheduler and resume training at the saved
     iteration. To finetune from beginning (*e.g.*, on a different dataset), we need to change ``SOLVER.ITERATION_RESTART``
     to ``True``.
+
+4. What are the differences between **VolumeDataset** and **TileDataset**?
+    *VolumeDataset* loads a list of 3D numpy arrays and sample random subvolumes during training or stream sliding-window
+    subvolumes during inference. Since large volumes (*e.g.*, `MitoEM <https://mitoem.grand-challenge.org/>`_) can not be
+    completed loaded into memory for processing and are usually stored as indivisual PNG images, we implemented the
+    *TileDataset* class that reads the metadata of large datasets to process them by chunk. *TileDataset* inherits *VolumeDataset*
+    and each chunk is handled by *VolumeDataset*.

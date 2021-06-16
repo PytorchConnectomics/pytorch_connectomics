@@ -225,6 +225,7 @@ def get_dataset(cfg,
                               label_json=label_json,
                               valid_mask_json=valid_mask_json,
                               pad_size=cfg.DATASET.PAD_SIZE,
+                              data_scale=cfg.DATASET.DATA_SCALE,
                               **shared_kwargs)
 
     else:  # build VolumeDataset

@@ -243,7 +243,6 @@ class Trainer(object):
         end = time.perf_counter()
         print("Prediction time: %.2fs" % (end-start))
 
-        del self.dataloader, self.model
         for vol_id in range(len(result)):
             if result[vol_id].ndim > weight[vol_id].ndim:
                 weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
@@ -254,6 +253,12 @@ class Trainer(object):
             if self.cfg.INFERENCE.UNPAD:
                 pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) *
                             np.array(output_scale)).astype(int).tolist()
+                if self.cfg.DATASET.DO_CHUNK_TITLE != 0:
+                    # In chunk-based inference using TileDataset, padding is applied
+                    # before resizing, while in normal inference using VolumeDataset,
+                    # padding is after resizing. Thus we adjust pad_size accordingly.
+                    pad_size = (np.array(self.cfg.DATASET.DATA_SCALE) *
+                                np.array(pad_size)).astype(int).tolist()
                 pad_size = get_padsize(pad_size)
                 result[vol_id] = array_unpad(result[vol_id], pad_size)
 
