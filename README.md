@@ -35,16 +35,16 @@ If you want new features that are relatively easy to implement (*e.g.*, loss fun
 The code is developed and tested under the following configurations.
 
 - Hardware: 1-8 Nvidia GPUs with at least 12G GPU memory (change ```SYSTEM.NUM_GPU``` accordingly based on the configuration of your machine)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.0, Python>=3.8, PyTorch>=1.8.0, YACS>=0.1.8***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.1, Python>=3.8, PyTorch>=1.9.0, YACS>=0.1.8***
 
 ## Installation
 
-Create a new conda environment:
+Create a new conda environment and install PyTorch:
 
 ```shell
 conda create -n py3_torch python=3.8
 source activate py3_torch
-conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+conda install pytorch torchvision cudatoolkit=11.1 -c pytorch -c nvidia
 ```
 
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
