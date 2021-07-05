@@ -34,6 +34,7 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    tutorials/neuron
    tutorials/mito
    tutorials/synapse
+   tutorials/artifact
 
 .. toctree::
    :glob:
