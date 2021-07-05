@@ -186,7 +186,8 @@ html_favicon = '_templates/_static/img/favicon.svg'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_templates/_static/"]
 html_context = {"css_files": ["_static/css/pytc-theme.css",
-                              "https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
+                              "https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js",
+                              #"https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
                               ]}
 
 # Add any extra paths that contain custom files (such as robots.txt or
