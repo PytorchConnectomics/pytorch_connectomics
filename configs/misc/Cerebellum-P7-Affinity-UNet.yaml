@@ -1,0 +1,45 @@
+# All other configurations are set by default. If you want to add new config options,
+# please modify ../connectomics/config/defaults.py
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 16
+MODEL:
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [9, 257, 257]
+  OUTPUT_SIZE: [9, 257, 257]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ["2"]
+  LABEL_EROSION: 1
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  NORM_MODE: sync_bn
+  FILTERS: [32, 64, 96, 128, 192]
+DATASET:
+  IMAGE_NAME: im.h5
+  LABEL_NAME: seg_gt.h5
+  INPUT_PATH: datasets/cerebellum_P7/gt-seg-vol/vol1
+  OUTPUT_PATH: outputs/Cerebellum_P7/
+  PAD_SIZE: [4, 64, 64]
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 120000
+  SAMPLES_PER_BATCH: 2
+INFERENCE:
+  INPUT_SIZE: [17, 257, 257]
+  OUTPUT_SIZE: [17, 257, 257]
+  OUTPUT_ACT: ["sigmoid"]
+  IMAGE_NAME: test-input.tif # or path to your test images
+  OUTPUT_PATH: outputs/Cerebellum_P7/test
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [4, 64, 64]
+  AUG_MODE: min
+  AUG_NUM: 4
+  STRIDE: [8, 128, 128]
+  SAMPLES_PER_BATCH: 8

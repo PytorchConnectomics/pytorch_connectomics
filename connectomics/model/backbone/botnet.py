@@ -222,7 +222,7 @@ class Attention(nn.Module):
         q, k, v = map(lambda t: rearrange(
             t, 'b (h d) x y z -> b h (x y z) d', h=heads), (q, k, v))
 
-        q *= self.scale
+        q = q * self.scale
 
         sim = einsum('b h i d, b h j d -> b h i j', q, k)
         sim += self.pos_emb(q)

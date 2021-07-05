@@ -6,6 +6,7 @@ from connectomics.model.block import *
 from connectomics.model.backbone.repvgg import RepVGGBlock2D, RepVGGBlock3D
 from connectomics.model.backbone.botnet import BottleBlock
 
+
 class TestModelBlock(unittest.TestCase):
 
     def test_basic_blocks(self):
@@ -132,24 +133,37 @@ class TestModelBlock(unittest.TestCase):
         self.assertTupleEqual(tuple(block3d(tensor).shape), (2, 16, 8, 16, 18))
 
     def test_blurpool_block(self):
-        
-        # Test 3-D Blurpool
-        blurpool = BlurPool3D(channels = 10, stride = 2)
-        input_tensor = torch.Tensor(1, 10, 128, 128, 128) # 10 channels, batch_size = 1
+
+        # Test 3-D Blurpool (isotropic)
+        blurpool = BlurPool3D(channels=10, stride=4)
+        # 10 channels, batch_size = 1
+        input_tensor = torch.Tensor(1, 10, 128, 128, 128)
         output_tensor = blurpool(input_tensor)
-        self.assertTupleEqual(tuple(output_tensor.shape), (1, 10, 64, 64, 64))
-        
+        self.assertTupleEqual(tuple(output_tensor.shape), (1, 10, 32, 32, 32))
+
+        # Test 3-D Blurpool (anisotropic)
+        blurpool = BlurPool3D(channels=10, stride=(1, 2, 2))
+        # 10 channels, batch_size = 1
+        input_tensor = torch.Tensor(1, 10, 32, 64, 64)
+        output_tensor = blurpool(input_tensor)
+        self.assertTupleEqual(tuple(output_tensor.shape), (1, 10, 32, 32, 32))
+
         # Test 2-D blurpool
-        blurpool = BlurPool2D(channels = 10, stride = 2)
-        input_tensor = torch.Tensor(1, 10, 128, 128) # 10 channels, batch_size = 1
+        blurpool = BlurPool2D(channels=10, stride=2)
+        # 10 channels, batch_size = 1
+        input_tensor = torch.Tensor(1, 10, 64, 64)
         output_tensor = blurpool(input_tensor)
-        self.assertTupleEqual(tuple(output_tensor.shape), (1, 10, 64, 64))
-        
+        self.assertTupleEqual(tuple(output_tensor.shape), (1, 10, 32, 32))
+
         # Test 1-D blurpool
-        blurpool_1d = BlurPool1D(channels = 1, stride = 2)
-        input_tensor = torch.Tensor(1, 1, 6) # Input needs to be of form (batch_size, channels, dim)
+        length, stride, c = 16, 2, 4
+        blurpool_1d = BlurPool1D(channels=c, stride=stride)
+        # Input needs to be of form (batch_size, channels, dim)
+        input_tensor = torch.Tensor(1, c, length)
         output_tensor = blurpool_1d(input_tensor)
-        self.assertTupleEqual(tuple(output_tensor.shape), (1, 1, 3))
-    
+        self.assertTupleEqual(tuple(output_tensor.shape),
+                              (1, c, length // 2))
+
+
 if __name__ == '__main__':
     unittest.main()
