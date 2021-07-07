@@ -400,7 +400,7 @@ def get_binary_jaccard(pred, gt, thres=[0.5]):
     return score
 
 
-def cremi_distance(pred, gt):
+def cremi_distance(pred, gt, resolution=(40.0, 4.0, 4.0)):
     """Compute the FP/FN statistics between predictions and ground truth as
        in the CREMI challenge (https://cremi.org/). Both inputs (pred, gt) need 
        to be of the same size.
@@ -455,8 +455,8 @@ def cremi_distance(pred, gt):
         truth_clefts == 0xffffffffffffffff, truth_clefts_invalid)
 
     print("EDT calculation in progress")
-    test_clefts_edt = ndimage.distance_transform_edt(test_clefts_mask)
-    truth_clefts_edt = ndimage.distance_transform_edt(truth_clefts_mask)
+    test_clefts_edt = ndimage.distance_transform_edt(test_clefts_mask, sampling=resolution)
+    truth_clefts_edt = ndimage.distance_transform_edt(truth_clefts_mask, sampling=resolution)
 
     false_positive_count = count_false_positives(
         test_clefts_mask, truth_clefts_edt)
