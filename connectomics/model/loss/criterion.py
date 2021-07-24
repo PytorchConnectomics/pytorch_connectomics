@@ -34,7 +34,11 @@ class Criterion(object):
         'WeightedCE': WeightedCE,
         'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
         'WeightedLSBCEWithLogitsLoss': WeightedLSBCEWithLogitsLoss,
-        'WeightedLSBCEFocalLoss': WeightedLSBCEFocalLoss
+        'WeightedLSBCEFocalLoss': WeightedLSBCEFocalLoss,
+        'WeightedBCEFocalLoss': WeightedBCEFocalLoss,
+        'WSDiceLoss': WSDiceLoss,
+        'InvDiceLoss': InvDiceLoss,
+        'DoubleDiceLoss': DoubleDiceLoss
     }
 
     regu_dict = {

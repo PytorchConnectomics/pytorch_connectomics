@@ -80,7 +80,7 @@ class EfficientNet3D(nn.Module):
             'attention': attention,
             'pad_mode': pad_mode,
             'act_mode': act_mode,
-            'norm_mode': norm_mode,
+            # 'norm_mode': norm_mode,
         }
 
         self.layer0 = dw_stack(block, filters[0], filters[0], kernel_size=ks[0], stride=1,

@@ -5,57 +5,57 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class DiceLoss(nn.Module):
-    """DICE loss.
-    """
-    # https://lars76.github.io/neural-networks/object-detection/losses-for-segmentation/
+# class DiceLoss(nn.Module):
+#     """DICE loss.
+#     """
+#     # https://lars76.github.io/neural-networks/object-detection/losses-for-segmentation/
 
-    def __init__(self, size_average=True, reduce=True, smooth=100.0, power=1):
-        super(DiceLoss, self).__init__()
-        self.smooth = smooth
-        self.reduce = reduce
-        self.power = power
+#     def __init__(self, size_average=True, reduce=True, smooth=100.0, power=1):
+#         super(DiceLoss, self).__init__()
+#         self.smooth = smooth
+#         self.reduce = reduce
+#         self.power = power
 
-    def dice_loss(self, pred, target):
-        loss = 0.
+#     def dice_loss(self, pred, target):
+#         loss = 0.
 
-        for index in range(pred.size()[0]):
-            iflat = pred[index].contiguous().view(-1)
-            tflat = target[index].contiguous().view(-1)
-            intersection = (iflat * tflat).sum()
-            if self.power == 1:
-                loss += 1 - ((2. * intersection + self.smooth) /
-                             (iflat.sum() + tflat.sum() + self.smooth))
-            else:
-                loss += 1 - ((2. * intersection + self.smooth) /
-                             ((iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
+#         for index in range(pred.size()[0]):
+#             iflat = pred[index].contiguous().view(-1)
+#             tflat = target[index].contiguous().view(-1)
+#             intersection = (iflat * tflat).sum()
+#             if self.power == 1:
+#                 loss += 1 - ((2. * intersection + self.smooth) /
+#                              (iflat.sum() + tflat.sum() + self.smooth))
+#             else:
+#                 loss += 1 - ((2. * intersection + self.smooth) /
+#                              ((iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
 
-        # size_average=True for the dice loss
-        return loss / float(pred.size()[0])
+#         # size_average=True for the dice loss
+#         return loss / float(pred.size()[0])
 
-    def dice_loss_batch(self, pred, target):
-        iflat = pred.view(-1)
-        tflat = target.view(-1)
-        intersection = (iflat * tflat).sum()
+#     def dice_loss_batch(self, pred, target):
+#         iflat = pred.view(-1)
+#         tflat = target.view(-1)
+#         intersection = (iflat * tflat).sum()
 
-        if self.power == 1:
-            loss = 1 - ((2. * intersection + self.smooth) /
-                        (iflat.sum() + tflat.sum() + self.smooth))
-        else:
-            loss = 1 - ((2. * intersection + self.smooth) /
-                        ((iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
-        return loss
+#         if self.power == 1:
+#             loss = 1 - ((2. * intersection + self.smooth) /
+#                         (iflat.sum() + tflat.sum() + self.smooth))
+#         else:
+#             loss = 1 - ((2. * intersection + self.smooth) /
+#                         ((iflat**self.power).sum() + (tflat**self.power).sum() + self.smooth))
+#         return loss
 
-    def forward(self, pred, target, weight_mask=None):
-        if not (target.size() == pred.size()):
-            raise ValueError("Target size ({}) must be the same as pred size ({})".format(
-                target.size(), pred.size()))
+#     def forward(self, pred, target, weight_mask=None):
+#         if not (target.size() == pred.size()):
+#             raise ValueError("Target size ({}) must be the same as pred size ({})".format(
+#                 target.size(), pred.size()))
 
-        if self.reduce:
-            loss = self.dice_loss(pred, target)
-        else:
-            loss = self.dice_loss_batch(pred, target)
-        return loss
+#         if self.reduce:
+#             loss = self.dice_loss(pred, target)
+#         else:
+#             loss = self.dice_loss_batch(pred, target)
+#         return loss
 
 
 class WeightedMSE(nn.Module):
@@ -115,18 +115,6 @@ class WeightedBCEWithLogitsLoss(nn.Module):
     def forward(self, pred, target, weight_mask=None):
         return F.binary_cross_entropy_with_logits(pred, target, weight_mask)
 
-class WeightedLSBCEWithLogitsLoss(nn.Module):
-    """Weighted binary cross-entropy with logits.
-    """
-    def __init__(self, size_average=True, reduce=True, eps=0.05):
-        super().__init__()
-        self.size_average = size_average
-        self.reduce = reduce
-        self.eps = eps
-
-    def forward(self, pred, target, weight_mask=None):
-        return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), weight_mask)
-
 class WeightedCE(nn.Module):
     """Mask weighted multi-class cross-entropy (CE) loss.
     """
@@ -177,6 +165,18 @@ class WeightedLS(nn.Module):
             loss = loss * weight_mask
         return loss.mean()
 
+class WeightedLSBCEWithLogitsLoss(nn.Module):
+    """Weighted binary cross-entropy with logits.
+    """
+    def __init__(self, size_average=True, reduce=True, eps=0.05):
+        super().__init__()
+        self.size_average = size_average
+        self.reduce = reduce
+        self.eps = eps
+
+    def forward(self, pred, target, weight_mask=None):
+        return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), weight_mask)
+
 class WeightedLSBCEFocalLoss(nn.Module):
     """Weighted binary focal loss with logits.
     """
@@ -188,10 +188,156 @@ class WeightedLSBCEFocalLoss(nn.Module):
 
     def forward(self, pred, target, weight_mask=None):
         pred_sig = pred.sigmoid()
-        with torch.no_grad():
-            pt = (1-target)*(1-pred_sig.detach()) + target * pred_sig.detach()
-            at = (1-self.alpha) * target + self.alpha * (1-target)
-            wt = at * (1 - pt)**self.gamma
-            if weight_mask is not None:
-                wt *= weight_mask
-        return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), wt)
+        # with torch.no_grad():
+        pt = (1-target)*(1-pred_sig) + target * pred_sig
+        at = (1-self.alpha) * target + self.alpha * (1-target)
+        wt = at * (1 - pt)**self.gamma
+        if weight_mask is not None:
+            wt *= weight_mask
+        # return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), wt)
+        bce = F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), reduction='none')
+        return (wt * bce).mean()
+
+
+class WeightedBCEFocalLoss(nn.Module):
+    """Weighted binary focal loss with logits.
+    """
+    def __init__(self, gamma=2., alpha=0.25, eps=0.05):
+        super().__init__()
+        self.eps = eps
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, pred, target, weight_mask=None):
+        pred_sig = pred.sigmoid()
+        pt = (1-target)*(1-pred_sig) + target * pred_sig
+        at = (1-self.alpha) * target + self.alpha * (1-target)
+        wt = at * (1 - pt)**self.gamma
+        if weight_mask is not None:
+            wt *= weight_mask
+        # return -(wt * pt.log()).mean() # log causes overflow
+        bce = F.binary_cross_entropy_with_logits(pred, target, reduction='none')
+        return (wt *  bce).mean()
+
+class WSDiceLoss(nn.Module):
+    def __init__(self, smooth=100.0, power=2.0, v2=0.85, v1=0.15):
+        super().__init__()
+        self.smooth = smooth
+        self.power = power
+        self.v2 = v2
+        self.v1 = v1
+
+    def dice_loss(self, pred, target):
+        iflat = pred.reshape(pred.shape[0], -1)
+        tflat = target.reshape(pred.shape[0], -1)
+        wt = tflat * (self.v2 - self.v1) + self.v1
+        g_pred = wt*(2*iflat - 1)
+        g = wt*(2*tflat - 1)
+        intersection = (g_pred * g).sum(-1)
+        loss = 1 - ((2. * intersection + self.smooth) /
+                    ((g_pred**self.power).sum(-1) + (g**self.power).sum(-1) + self.smooth))
+        # loss = -torch.log10((2. * intersection + self.smooth) /
+        #             ((g_pred**self.power).sum(-1) + (g**self.power).sum(-1) + self.smooth))
+
+        return loss.mean()
+
+    def forward(self, pred, target, weight_mask=None):
+        loss = self.dice_loss(pred, target)
+        return loss
+
+class DiceLoss(nn.Module):
+    """DICE loss with focus on FN
+    """
+    def __init__(self, power=1.0):
+        super().__init__()
+        self.smooth=1e-2
+        self.power = power
+
+    def dice_loss(self, pred, target):
+        iflat = pred.reshape(pred.shape[0], -1)
+        tflat = target.reshape(pred.shape[0], -1)
+        intersection = (iflat * tflat).mean(-1)
+        loss = 1 - ((2. * intersection + self.smooth) /
+                        ((iflat**self.power).mean(-1) + (tflat**self.power).mean(-1) + self.smooth))
+
+        # size_average=True for the dice loss
+        return loss.mean()
+
+    def forward(self, pred, target, weight_mask=None):
+        loss = self.dice_loss(pred, target)
+        return loss
+
+class InvDiceLoss(nn.Module):
+    """DICE loss with focus on FP instead of FN
+    """
+    def __init__(self, power=1.0):
+        super().__init__()
+        self.smooth=1e-2
+        self.power = power
+
+    def dice_loss(self, pred, target):
+        iflat = pred.reshape(pred.shape[0], -1)
+        tflat = target.reshape(pred.shape[0], -1)
+        intersection = (iflat * tflat).mean(-1)
+        loss = 1 - ((2. * intersection + self.smooth) /
+                        ((iflat**self.power).mean(-1) + (tflat**self.power).mean(-1) + self.smooth))
+
+        # size_average=True for the dice loss
+        return loss.mean()
+
+    def forward(self, pred, target, weight_mask=None):
+        loss = self.dice_loss(1-pred, 1-target)
+        return loss
+
+class DoubleDiceLoss(nn.Module):
+    """DICE loss with focus on FP instead of FN
+    """
+    def __init__(self, power=1.0, w1=1.0, w2=0.5):
+        super().__init__()
+        self.smooth=1e-2
+        self.power = power
+        self.w1 = w1
+        self.w2 = w2
+
+    def dice_loss(self, pred, target):
+        iflat = pred.reshape(pred.shape[0], -1)
+        tflat = target.reshape(pred.shape[0], -1)
+        # dice
+        intersection = (iflat * tflat).mean(-1)
+        fn_loss = 1 - ((2. * intersection + self.smooth) /
+                        ((iflat**self.power).mean(-1) + (tflat**self.power).mean(-1) + self.smooth))
+
+        # inv dice
+        iflat, tflat = 1-iflat, 1-tflat
+        intersection = (iflat * tflat).mean(-1)
+        fp_loss = 1 - ((2. * intersection + self.smooth) /
+                        ((iflat**self.power).mean(-1) + (tflat**self.power).mean(-1) + self.smooth))
+        
+        loss = self.w1*fn_loss + self.w2*fp_loss
+        return loss.mean()
+
+    def forward(self, pred, target, weight_mask=None):
+        loss = self.dice_loss(pred, target)
+        return loss
+
+# class InvLSDiceLoss(nn.Module):
+#     """DICE loss with focus on FP instead of FN
+#     """
+#     def __init__(self, eps=0.05):
+#         super().__init__()
+#         self.eps = eps
+#         self.smooth=100.0
+
+#     def dice_loss(self, pred, target):
+#         iflat = pred.reshape(pred.shape[0], -1)
+#         tflat = target.reshape(pred.shape[0], -1)
+#         intersection = (iflat * tflat).sum(-1)
+#         loss = 1 - ((2. * intersection + self.smooth) /
+#                             (iflat.sum(-1) + tflat.sum(-1) + self.smooth))
+
+#         # size_average=True for the dice loss
+#         return loss.mean()
+
+#     def forward(self, pred, target, weight_mask=None):
+#         loss = self.dice_loss(1-pred, (1-target).clamp(self.eps, 1-self.eps))
+#         return loss

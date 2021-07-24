@@ -106,7 +106,9 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
     )
     params: List[Dict[str, Any]] = []
     memo: Set[torch.nn.parameter.Parameter] = set()
+    # counter = 0
     for module in model.modules():
+        # import ipdb; ipdb.set_trace()
         for key, value in module.named_parameters(recurse=False):
             if not value.requires_grad:
                 continue
@@ -121,9 +123,17 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
             elif key == "bias":
                 lr = cfg.SOLVER.BASE_LR * cfg.SOLVER.BIAS_LR_FACTOR
                 weight_decay = cfg.SOLVER.WEIGHT_DECAY_BIAS
+            # print(module.__class__.__name__)
+            # if module.__class__.__name__ == 'SimplePointAttention':
+            #     # import ipdb; ipdb.set_trace()
+            #     counter = 8
+            # if counter > 0:
+            #     lr /= 100
+            #     counter -= 1
             params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
 
-    optimizer = torch.optim.SGD(params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM)
+    # optimizer = torch.optim.SGD(params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM)
+    optimizer = torch.optim.AdamW(params, cfg.SOLVER.BASE_LR)
     optimizer = maybe_add_gradient_clipping(cfg, optimizer)
     print('Optimizer: ', optimizer.__class__.__name__)
     return optimizer
@@ -166,6 +176,13 @@ def build_lr_scheduler(
             mode='min', factor=cfg.SOLVER.GAMMA, patience=1000, 
             threshold=0.001, threshold_mode='rel', cooldown=0, 
             min_lr=1e-06, eps=1e-08
+        )
+    elif name == 'OneCycle':
+        return torch.optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr = cfg.SOLVER.BASE_LR, 
+            pct_start = cfg.SOLVER.WARMUP_ITERS/cfg.SOLVER.MAX_ITER,
+            final_div_factor = 1000,
+            total_steps = cfg.SOLVER.MAX_ITER
         )
     else:
         raise ValueError("Unknown LR scheduler: {}".format(name))

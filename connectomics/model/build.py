@@ -26,6 +26,7 @@ def build_model(cfg, device, rank=None):
         'out_channel': cfg.MODEL.OUT_PLANES,
         'filters': cfg.MODEL.FILTERS,
         'ks': cfg.MODEL.KERNEL_SIZES,
+        'blocks': cfg.MODEL.BLOCKS,
         'attn': cfg.MODEL.ATTENTION,
         'is_isotropic': cfg.DATASET.IS_ISOTROPIC,
         'isotropy': cfg.MODEL.ISOTROPY,

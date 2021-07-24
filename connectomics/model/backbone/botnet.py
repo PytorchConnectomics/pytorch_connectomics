@@ -99,7 +99,6 @@ class BotNet3D(nn.Module):
 
 
 # positional embedding helpers
-
 def expand_dims(t, dims, ks):
     for d in dims:
         t = t.unsqueeze(dim=d)
@@ -124,16 +123,14 @@ def rel_to_abs(x):
 
 def relative_logits_1d(q, rel_k):
     b, heads, d, h, w, dim = q.shape
-    logits = einsum('b h x y z d, r d -> b h x y z r', q, rel_k)
-    logits = rearrange(logits, 'b h x y z r -> b (h x y) z r')
+    logits = einsum('b h z y x d, r d -> b h z y x r', q, rel_k)
+    logits = rearrange(logits, 'b h z y x r -> b (h z y) x r')
     logits = rel_to_abs(logits)
     logits = logits.reshape(b, heads, d, h, w, w)
     logits = expand_dims(logits, dims=[3, 5], ks=[d, h])
     return logits
 
 # positional embeddings
-
-
 class RelPosEmb(nn.Module):
     def __init__(
         self,
@@ -154,20 +151,20 @@ class RelPosEmb(nn.Module):
     def forward(self, q):
         d, h, w = self.fmap_size
 
-        q = rearrange(q, 'b h (x y z) d -> b h x y z d', x=d, y=h, z=w)
+        q = rearrange(q, 'b h (z y x) d -> b h z y x d', x=d, y=h, z=w)
         rel_logits_w = relative_logits_1d(q, self.rel_width)
         rel_logits_w = rearrange(
-            rel_logits_w, 'b h x i y j z k -> b h (x y z) (i j k)')  # ??
+            rel_logits_w, 'b h z i y j x k -> b h (z y x) (i j k)')  # ??
 
-        q = rearrange(q, 'b h x y z d -> b h x z y d')
+        q = rearrange(q, 'b h z y x d -> b h z x y d')
         rel_logits_h = relative_logits_1d(q, self.rel_height)
         rel_logits_h = rearrange(
-            rel_logits_h, 'b h x i z k y j -> b h (x z y) (i k j)')  # ?
+            rel_logits_h, 'b h z i x k y j  -> b h (z y x) (i j k)')  # ?
 
-        q = rearrange(q, 'b h x z y d -> b h y z x d')
+        q = rearrange(q, 'b h z x y d -> b h y x z d')
         rel_logits_d = relative_logits_1d(q, self.rel_depth)
         rel_logits_d = rearrange(
-            rel_logits_d, 'b h y j z k x i -> b h (y z x) (j k i)')
+            rel_logits_d, 'b h y j x k z i-> b h (z y x) (i j k)')
         return rel_logits_w + rel_logits_h + rel_logits_d
 
 
@@ -193,8 +190,6 @@ class AbsPosEmb(nn.Module):
         return logits
 
 # classes
-
-
 class Attention(nn.Module):
     def __init__(
         self,
