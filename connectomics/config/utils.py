@@ -59,13 +59,16 @@ def update_inference_cfg(cfg: CfgNode):
         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
 
     # output file name(s)
-    if cfg.DATASET.DO_CHUNK_TITLE or cfg.DATASET.INFERENCE.DO_SINGLY:
-        out_name = cfg.INFERENCE.OUTPUT_NAME
-        name_lst = out_name.split(".")
+    out_name = cfg.INFERENCE.OUTPUT_NAME
+    name_lst = out_name.split(".")
+    if cfg.DATASET.DO_CHUNK_TITLE or cfg.INFERENCE.DO_SINGLY:
         assert len(name_lst) <= 2, \
             "Invalid output file name is given."
         if len(name_lst) == 2:
             cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
+    else:
+        if len(name_lst) == 1:
+            cfg.INFERENCE.OUTPUT_NAME = name_lst[0] + '.h5'
 
     for topt in cfg.MODEL.TARGET_OPT:
         # For multi-class semantic segmentation and quantized distance
@@ -105,14 +108,14 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
 
     # Model I/O size
     for x in cfg.MODEL.INPUT_SIZE:
-        if x % 2 == 0 and not cfg.MODEL.POOING_LAYER:
+        if x % 2 == 0 and not cfg.MODEL.POOLING_LAYER:
             warnings.warn(
                 "When downsampling by stride instead of using pooling "
                 "layers, the cfg.MODEL.INPUT_SIZE are expected to contain "
                 "numbers of 2n+1 to avoid feature mis-matching, "
                 "but get {}".format(cfg.MODEL.INPUT_SIZE))
             break
-        if x % 2 == 1 and cfg.MODEL.POOING_LAYER:
+        if x % 2 == 1 and cfg.MODEL.POOLING_LAYER:
             warnings.warn(
                 "When downsampling by pooling layers the cfg.MODEL.INPUT_SIZE "
                 "are expected to contain even numbers to avoid feature mis-matching, "
@@ -126,7 +129,8 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
 
 def validate_cfg(cfg: CfgNode):
     num_target = len(cfg.MODEL.TARGET_OPT)
-    assert len(cfg.INFERENCE.OUTPUT_ACT) == num_target
+    assert len(cfg.INFERENCE.OUTPUT_ACT) == num_target, \
+        "Activations need to be specified for each learning target."
 
 
 def convert_cfg_markdown(cfg):

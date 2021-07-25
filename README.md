@@ -35,16 +35,16 @@ If you want new features that are relatively easy to implement (*e.g.*, loss fun
 The code is developed and tested under the following configurations.
 
 - Hardware: 1-8 Nvidia GPUs with at least 12G GPU memory (change ```SYSTEM.NUM_GPU``` accordingly based on the configuration of your machine)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.0, Python>=3.8, PyTorch>=1.8.0, YACS>=0.1.8***
+- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.1, Python>=3.8, PyTorch>=1.9.0, YACS>=0.1.8***
 
 ## Installation
 
-Create a new conda environment:
+Create a new conda environment and install PyTorch:
 
 ```shell
 conda create -n py3_torch python=3.8
 source activate py3_torch
-conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
+conda install pytorch torchvision cudatoolkit=11.1 -c pytorch -c nvidia
 ```
 
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
@@ -55,26 +55,25 @@ Download and install the package:
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
 pip install --upgrade pip
-pip install -r requirements.txt
 pip install --editable .
 ```
 
-Since the package is under active development, the editable installation will allow any changes to the original package to reflect directly in the environment. For more information and frequently asked questions about installation, please check the [installation guide](https://zudi-lin.github.io/pytorch_connectomics/build/html/notes/installation.html).
+Since the package is under active development, the editable installation will allow any changes to the original package to reflect directly in the environment. For more information and frequently asked questions about installation, please check the [installation guide](https://connectomics.readthedocs.io/en/latest/notes/installation.html).
 
 ## Notes
 
 ### Data Augmentation
 
-We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/data.html#module-connectomics.data.augmentation).
+We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](http://connectomics.readthedocs.io/).
 
 ### YACS Configuration
 
-We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage the settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/config.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/config.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
+We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage the settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/defaults.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/defaults.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
 
 ### Segmentation Models
 
 We provide several encoder-decoder architectures, which are customized 3D UNet and Feature Pyramid Network (FPN) models with various blocks and backbones. Those models can be applied for both semantic segmentation and bottom-up instance segmentation of 3D image stacks. Those models can also be constructed specifically for isotropic
-and anisotropic datasets. Please check the [documentation](https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html) for more details.
+and anisotropic datasets. Please check the [documentation](http://connectomics.readthedocs.io/) for more details.
 
 ## Acknowledgement
 

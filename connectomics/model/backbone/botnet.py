@@ -99,6 +99,7 @@ class BotNet3D(nn.Module):
 
 
 # positional embedding helpers
+
 def expand_dims(t, dims, ks):
     for d in dims:
         t = t.unsqueeze(dim=d)
@@ -131,6 +132,8 @@ def relative_logits_1d(q, rel_k):
     return logits
 
 # positional embeddings
+
+
 class RelPosEmb(nn.Module):
     def __init__(
         self,
@@ -190,6 +193,8 @@ class AbsPosEmb(nn.Module):
         return logits
 
 # classes
+
+
 class Attention(nn.Module):
     def __init__(
         self,
@@ -217,7 +222,7 @@ class Attention(nn.Module):
         q, k, v = map(lambda t: rearrange(
             t, 'b (h d) x y z -> b h (x y z) d', h=heads), (q, k, v))
 
-        q *= self.scale
+        q = q * self.scale
 
         sim = einsum('b h i d, b h j d -> b h i j', q, k)
         sim += self.pos_emb(q)

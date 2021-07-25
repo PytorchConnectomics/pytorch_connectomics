@@ -99,7 +99,7 @@ class FPN3D(nn.Module):
         # initialization
         model_init(self, init_mode)
 
-    def forward(self, x, _):
+    def forward(self, x):
         z = self.backbone(x)
         return self._forward_main(z)
 

@@ -26,6 +26,7 @@ class UNet3D(nn.Module):
         norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
         pooling (bool): downsample by max-pooling if `True` else using stride. Default: `False`
+        blurpool (bool): apply blurpool as in Zhang 2019 (https://arxiv.org/abs/1904.11486). Default: `False`
     """
 
     block_dict = {
@@ -47,6 +48,7 @@ class UNet3D(nn.Module):
                  norm_mode: str = 'bn',
                  init_mode: str = 'orthogonal',
                  pooling: bool = False,
+                 blurpool: bool = False,
                  **kwargs):
         super().__init__()
         assert len(filters) == len(isotropy)
@@ -54,9 +56,9 @@ class UNet3D(nn.Module):
         if is_isotropic:
             isotropy = [True] * self.depth
 
-        self.pooling = pooling
         block = self.block_dict[block_type]
 
+        self.pooling, self.blurpool = pooling, blurpool
         self.shared_kwargs = {
             'pad_mode': pad_mode,
             'act_mode': act_mode,

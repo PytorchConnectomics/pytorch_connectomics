@@ -50,6 +50,8 @@ _C.MODEL.OUTPUT_ACT = [['none']]
 
 # Weight for each loss function
 _C.MODEL.LOSS_WEIGHT = [[1.0]]
+_C.MODEL.LOSS_KWARGS_KEY = None
+_C.MODEL.LOSS_KWARGS_VAL = None
 
 # Define the number of input channels. Usually EM images are
 # single-channel gray-scale image.
@@ -263,6 +265,9 @@ _C.AUGMENTOR.USE_COPY_PASTE = False
 # -----------------------------------------------------------------------------
 _C.SOLVER = CN()
 
+# Specify the name of the optimizer
+_C.SOLVER.NAME = "SGD"  # "SGD", "Adam", "AdamW"
+
 # Specify the learning rate scheduler.
 _C.SOLVER.LR_SCHEDULER_NAME = "MultiStepLR"
 
@@ -285,6 +290,7 @@ _C.SOLVER.BIAS_LR_FACTOR = 1.0
 _C.SOLVER.WEIGHT_DECAY_BIAS = 0.0
 
 _C.SOLVER.MOMENTUM = 0.9
+_C.SOLVER.BETAS = (0.9, 0.999)  # Adam and AdamW
 
 # The weight decay that's applied to parameters of normalization layers
 # (typically the affine transformation)

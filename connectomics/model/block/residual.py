@@ -192,7 +192,7 @@ class InvertedResidual(nn.Module):
         # assert stride in [1, 2, (1, 2, 2)]
         assert kernel_size in [3, 5]
         mid_ch = in_ch * expansion_factor
-        self.apply_residual = (in_ch == out_ch and stride == 1)
+        # self.apply_residual = (in_ch == out_ch and stride == 1)
 
         conv_layer = dwconvkxkxk if isotropic else dwconv1xkxk
         DWConv = conv_layer(mid_ch, kernel_size, stride,
@@ -211,6 +211,21 @@ class InvertedResidual(nn.Module):
             get_norm_3d(norm_mode, out_ch, bn_momentum))
 
         self.attention = make_att_3d(attention, mid_ch)
+            
+        self.projector = nn.Identity()
+        if stride != (1,1,1):
+            self.projector = nn.Sequential(
+                nn.AvgPool3d(stride, stride),
+                conv3d_norm_act(
+                in_ch, out_ch, kernel_size=1, padding=0,
+                stride=1, norm_mode=norm_mode, act_mode='none')
+            )
+        elif in_ch != out_ch: 
+             self.projector = conv3d_norm_act(
+                in_ch, out_ch, kernel_size=1, padding=0,
+                stride=1, norm_mode=norm_mode, act_mode='none')
+        else:
+            self.projector = nn.Identity()
 
     def forward(self, x):
         identity = x
@@ -219,8 +234,15 @@ class InvertedResidual(nn.Module):
         out = self.attention(out)
         out = self.layers2(out)
 
-        if self.apply_residual:
-            out += identity
+        if any([out.shape[i]!=identity.shape[i] for i in range(2,5)]):
+            pad=[]
+            for i in range(2,5):
+                if out.shape[i] != identity.shape[i] and identity.shape[i]%2==1:
+                    pad.extend([1,1]) 
+                else:
+                    pad.extend([0,0])
+            identity = F.pad(identity, pad[::-1], mode='replicate')
+        out += self.projector(identity)
 
         return out
 
@@ -242,13 +264,11 @@ class InvertedResidualDilated(nn.Module):
                  act_mode: str = 'elu',
                  norm_mode: str = 'bn',
                  isotropic: bool = True,
-                 iso_dilation: bool = True,
                  bias: bool = False):
         super(InvertedResidualDilated, self).__init__()
 
         # assert stride in [1, 2, (1, 2, 2)]
         assert kernel_size in [3, 5]
-        # self.isotropic = isotropic
         mid_ch = in_ch * expansion_factor
         # self.apply_residual = (in_ch == out_ch and stride == 1)
 
@@ -261,7 +281,6 @@ class InvertedResidualDilated(nn.Module):
             conv_type,
             pad_mode,
             isotropic,
-            iso_dilation
         )
 
         self.layers1_a = nn.Sequential(
@@ -305,7 +324,6 @@ class InvertedResidualDilated(nn.Module):
         out = self.attention(out)
         out = self.layers2(out)
 
-        # if self.apply_residual:
         if any([out.shape[i]!=identity.shape[i] for i in range(2,5)]):
             pad=[]
             for i in range(2,5):

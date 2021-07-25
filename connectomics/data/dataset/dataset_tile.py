@@ -6,6 +6,7 @@ import random
 
 import torch
 import torch.utils.data
+from scipy.ndimage import zoom
 
 from . import VolumeDataset
 from ..augmentation import Compose
@@ -45,12 +46,14 @@ class TileDataset(torch.utils.data.Dataset):
                  valid_mask_json: Optional[str] = None,
                  mode: str = 'train',
                  pad_size: List[int] = [0, 0, 0],
+                 data_scale: List[float] = [1.0, 1.0, 1.0],
                  **kwargs):
 
         self.kwargs = kwargs
         self.mode = mode
         self.chunk_iter = chunk_iter
         self.pad_size = pad_size
+        self.data_scale = data_scale
 
         self.chunk_step = 1
         if chunk_stride and self.mode == 'train':  # 50% overlap between volumes during training
@@ -140,6 +143,7 @@ class TileDataset(torch.utils.data.Dataset):
         volume = [tile2volume(self.json_volume['image'], coord_p, self.coord_m,
                               tile_sz=self.json_volume['tile_size'], tile_st=self.json_volume['tile_st'],
                               tile_ratio=self.json_volume['tile_ratio'])]
+        volume = self.maybe_scale(volume, order=1)  # linear for raw images
 
         label = None
         if self.json_label is not None:
@@ -150,15 +154,25 @@ class TileDataset(torch.utils.data.Dataset):
                                          tile_sz=self.json_label['tile_size'], tile_st=self.json_label['tile_st'],
                                          tile_ratio=self.json_label['tile_ratio'], dt=dt[self.json_label['dtype']],
                                          do_im=0), do_type=True)]
+            label = self.maybe_scale(label, order=0)
 
         valid_mask = None
         if self.json_valid is not None:
             valid_mask = [tile2volume(self.json_valid['image'], coord_p, self.coord_m,
                                       tile_sz=self.json_valid['tile_size'], tile_st=self.json_valid['tile_st'],
                                       tile_ratio=self.json_valid['tile_ratio'])]
+            valid_mask = self.maybe_scale(valid_mask, order=0)
 
-        self.dataset = VolumeDataset(volume, label, valid_mask,
-                                     mode=self.mode,
-                                     # specify chunk iteration number for training and -1 for inference
+        self.dataset = VolumeDataset(volume, label, valid_mask, mode=self.mode,
+                                     # specify chunk iteration number for training (-1 for inference)
                                      iter_num=self.chunk_iter if self.mode == 'train' else -1,
                                      **self.kwargs)
+
+    def maybe_scale(self, data, order=0):
+        if (np.array(self.data_scale) != 1).any():
+            for i in range(len(data)):
+                dt = data[i].dtype
+                data[i] = zoom(data[i], self.data_scale,
+                               order=order).astype(dt)
+
+        return data

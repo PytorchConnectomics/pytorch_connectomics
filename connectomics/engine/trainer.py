@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 from typing import Optional
+import warnings
 
 import os
 import time
@@ -147,8 +148,11 @@ class Trainer(object):
             avg_iter_time = self.total_time / (iter_total+1-self.start_iter)
             est_time_left = avg_iter_time * \
                 (self.total_iter_nums+self.start_iter-iter_total-1) / 3600.0
-            print('[Iteration %05d] Data time: %.4fs, Iter time: %.4fs, Avg iter time: %.4fs, Time Left %.2fh.' % (
-                iter_total, self.data_time, self.iter_time, avg_iter_time, est_time_left))
+            info = [
+                '[Iteration %05d]' % iter_total, 'Data time: %.4fs,' % self.data_time,
+                'Iter time: %.4fs,' % self.iter_time, 'Avg iter time: %.4fs,' % avg_iter_time,
+                'Time Left %.2fh.' % est_time_left]
+            print(' '.join(info))
 
         # Release some GPU memory and ensure same GPU usage in the consecutive iterations according to
         # https://discuss.pytorch.org/t/gpu-memory-consumption-increases-while-training/2770
@@ -253,6 +257,12 @@ class Trainer(object):
             if self.cfg.INFERENCE.UNPAD:
                 pad_size = (np.array(self.cfg.DATASET.PAD_SIZE) *
                             np.array(output_scale)).astype(int).tolist()
+                if self.cfg.DATASET.DO_CHUNK_TITLE != 0:
+                    # In chunk-based inference using TileDataset, padding is applied
+                    # before resizing, while in normal inference using VolumeDataset,
+                    # padding is after resizing. Thus we adjust pad_size accordingly.
+                    pad_size = (np.array(self.cfg.DATASET.DATA_SCALE) *
+                                np.array(pad_size)).astype(int).tolist()
                 pad_size = get_padsize(pad_size)
                 result[vol_id] = array_unpad(result[vol_id], pad_size)
 
@@ -347,6 +357,15 @@ class Trainer(object):
             pretrained_dict = update_state_dict(
                 self.cfg, pretrained_dict, mode=self.mode)
             model_dict = self.model.module.state_dict()  # nn.DataParallel
+
+            # show model keys that do not match pretrained_dict
+            if not model_dict.keys() == pretrained_dict.keys():
+                warnings.warn("Module keys in model.state_dict() do not exactly "
+                              "match the keys in pretrained_dict!")
+                for key in model_dict.keys():
+                    if not key in pretrained_dict:
+                        print(key)
+
             # 1. filter out unnecessary keys by name
             pretrained_dict = {k: v for k,
                                v in pretrained_dict.items() if k in model_dict}

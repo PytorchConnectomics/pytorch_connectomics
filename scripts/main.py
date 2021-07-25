@@ -1,6 +1,7 @@
 import os
 import argparse
 
+import random
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -34,15 +35,19 @@ def get_args():
     args = parser.parse_args()
     return args
 
+def init_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 def main():
     args = get_args()
+    args.local_rank = int(os.environ["LOCAL_RANK"])
     if args.local_rank == 0 or args.local_rank is None:
         print("Command line arguments: ", args)
 
     manual_seed = 0 if args.local_rank is None else args.local_rank
-    np.random.seed(manual_seed)
-    torch.manual_seed(manual_seed)
+    init_seed(manual_seed)
 
     cfg = load_cfg(args)
     if args.local_rank == 0 or args.local_rank is None:
@@ -57,11 +62,11 @@ def main():
             save_all_cfg(cfg, cfg.DATASET.OUTPUT_PATH)
 
     if args.distributed:
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)
         assert torch.cuda.is_available(), \
             "Distributed training without GPUs is not supported!"
         dist.init_process_group("nccl", init_method='env://')
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

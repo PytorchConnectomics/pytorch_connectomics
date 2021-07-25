@@ -13,9 +13,11 @@ from .lr_scheduler import WarmupCosineLR, WarmupMultiStepLR
 _GradientClipperInput = Union[torch.Tensor, Iterable[torch.Tensor]]
 _GradientClipper = Callable[[_GradientClipperInput], None]
 
+
 class GradientClipType(Enum):
     VALUE = "value"
     NORM = "norm"
+
 
 def _create_gradient_clipper(cfg: CfgNode) -> _GradientClipper:
     """
@@ -35,6 +37,7 @@ def _create_gradient_clipper(cfg: CfgNode) -> _GradientClipper:
         GradientClipType.NORM: clip_grad_norm,
     }
     return _GRADIENT_CLIP_TYPE_TO_CLIPPER[GradientClipType(cfg.CLIP_TYPE)]
+
 
 def _generate_optimizer_class_with_gradient_clipping(
     optimizer_type: Type[torch.optim.Optimizer], gradient_clipper: _GradientClipper
@@ -56,6 +59,7 @@ def _generate_optimizer_class_with_gradient_clipping(
         {"step": optimizer_wgc_step},
     )
     return OptimizerWithGradientClip
+
 
 def maybe_add_gradient_clipping(
     cfg: CfgNode, optimizer: torch.optim.Optimizer
@@ -88,6 +92,7 @@ def maybe_add_gradient_clipping(
 
 # 1. Build Optimizer
 
+
 def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimizer:
     """
     Build an optimizer from config.
@@ -106,9 +111,7 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
     )
     params: List[Dict[str, Any]] = []
     memo: Set[torch.nn.parameter.Parameter] = set()
-    # counter = 0
     for module in model.modules():
-        # import ipdb; ipdb.set_trace()
         for key, value in module.named_parameters(recurse=False):
             if not value.requires_grad:
                 continue
@@ -123,22 +126,23 @@ def build_optimizer(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimiz
             elif key == "bias":
                 lr = cfg.SOLVER.BASE_LR * cfg.SOLVER.BIAS_LR_FACTOR
                 weight_decay = cfg.SOLVER.WEIGHT_DECAY_BIAS
-            # print(module.__class__.__name__)
-            # if module.__class__.__name__ == 'SimplePointAttention':
-            #     # import ipdb; ipdb.set_trace()
-            #     counter = 8
-            # if counter > 0:
-            #     lr /= 100
-            #     counter -= 1
-            params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
+            params += [{"params": [value], "lr": lr,
+                        "weight_decay": weight_decay}]
 
-    # optimizer = torch.optim.SGD(params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM)
-    optimizer = torch.optim.AdamW(params, cfg.SOLVER.BASE_LR)
+    name = cfg.SOLVER.NAME
+    assert name in ["SGD", "Adam", "AdamW"]
+    if name == "SGD":
+        optimizer = torch.optim.SGD(
+            params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM)
+    else:
+        optimizer = getattr(torch.optim, name)(
+            params, cfg.SOLVER.BASE_LR, betas=cfg.SOLVER.BETAS)
     optimizer = maybe_add_gradient_clipping(cfg, optimizer)
     print('Optimizer: ', optimizer.__class__.__name__)
     return optimizer
 
 # 2. Build LR Scheduler
+
 
 def build_lr_scheduler(
     cfg: CfgNode, optimizer: torch.optim.Optimizer
@@ -167,14 +171,14 @@ def build_lr_scheduler(
     elif name == "MultiStepLR":
         return MultiStepLR(
             optimizer,
-            milestones = cfg.SOLVER.STEPS,
-            gamma = cfg.SOLVER.GAMMA
+            milestones=cfg.SOLVER.STEPS,
+            gamma=cfg.SOLVER.GAMMA
         )
     elif name == "ReduceLROnPlateau":
         return ReduceLROnPlateau(
             optimizer,
-            mode='min', factor=cfg.SOLVER.GAMMA, patience=1000, 
-            threshold=0.001, threshold_mode='rel', cooldown=0, 
+            mode='min', factor=cfg.SOLVER.GAMMA, patience=1000,
+            threshold=0.001, threshold_mode='rel', cooldown=0,
             min_lr=1e-06, eps=1e-08
         )
     elif name == 'OneCycle':
@@ -189,10 +193,11 @@ def build_lr_scheduler(
 
 # 3. Build SWA model
 
-def build_swa_model(cfg: CfgNode, 
-                    model: torch.nn.Module, 
+
+def build_swa_model(cfg: CfgNode,
+                    model: torch.nn.Module,
                     optimizer: torch.optim.Optimizer):
-    # Instead of copying weights during initialization, the SWA model copys 
+    # Instead of copying weights during initialization, the SWA model copys
     # the model weights when self.update_parameters is first called.
     # https://github.com/pytorch/pytorch/blob/1.7/torch/optim/swa_utils.py#L107
 

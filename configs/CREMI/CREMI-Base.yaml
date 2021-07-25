@@ -8,6 +8,7 @@ MODEL:
   OUTPUT_SIZE: [17, 257, 257]
   IN_PLANES: 1
   NORM_MODE: sync_bn
+  FILTERS: [32, 64, 96, 128, 160]
 DATASET:
   IMAGE_NAME: images/im_A_v2_200.h5@images/im_B_v2_200.h5@images/im_C_v2_200.h5
   LABEL_NAME: gt-syn/syn_A_v2_200.h5@gt-syn/syn_B_v2_200.h5@gt-syn/syn_C_v2_200.h5
@@ -32,8 +33,9 @@ INFERENCE:
   IMAGE_NAME: images/im_A+_v2_200_nocrack.h5@images/im_B+_v2_200.h5@images/im_C+_v2_200.h5
   OUTPUT_PATH: outputs/CREMI_syn_baseline/test
   OUTPUT_NAME: result.h5
+  DO_SINGLY: True
   PAD_SIZE: [0, 32, 32]
   AUG_MODE: mean
-  AUG_NUM: 4
+  AUG_NUM: 8
   STRIDE: [8, 128, 128]
   SAMPLES_PER_BATCH: 8

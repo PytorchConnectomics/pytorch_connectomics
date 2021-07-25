@@ -164,14 +164,10 @@ def get_dilated_dw_convs(
     conv_type: str = 'standard',
     pad_mode: str = 'zeros',
     isotropic: bool = False,
-    iso_dilation: bool = True
 ):
     assert channels % len(dilation_factors) == 0
     num_split = len(dilation_factors)
-    if not iso_dilation:
-        conv_layer = dwconvkxkxk
-    else:
-        conv_layer = dwconvkxkxk if isotropic else dwconv1xkxk
+    conv_layer = dwconvkxkxk if isotropic else dwconv1xkxk
     return nn.ModuleList([
         conv_layer(
             channels // num_split,
@@ -179,15 +175,14 @@ def get_dilated_dw_convs(
             stride,
             conv_type=conv_type,
             padding_mode=pad_mode,
-            dilation=dilation_factors[i],
-            iso_dilation=iso_dilation)
+            dilation=dilation_factors[i])
         for i in range(num_split)
     ])
 
 
 def dwconv1xkxk(planes, kernel_size=3, stride=1,
                 dilation=1, conv_type='standard',
-                padding_mode='zeros', **_):
+                padding_mode='zeros'):
     """1xkxk depthwise convolution with padding"""
     padding = ((kernel_size - 1) * dilation )// 2
     dilation = (1, dilation, dilation)
@@ -206,15 +201,10 @@ def dwconv1xkxk(planes, kernel_size=3, stride=1,
 
 
 def dwconvkxkxk(planes, kernel_size=3, stride=1,
-                dilation=1, iso_dilation=True, conv_type='standard',
+                dilation=1, conv_type='standard',
                 padding_mode='zeros'):
     """kxkxk depthwise convolution with padding"""
     padding = ((kernel_size - 1) * dilation )// 2
-    # use iso_stride, not iso_dilation
-    if not iso_dilation:
-        padding = ((kernel_size -1)//2, padding, padding)
-        dilation = (1, dilation, dilation)
-        stride = (1, stride, stride) if isinstance(stride, int) else stride
     return get_conv(conv_type)(
         planes,
         planes,

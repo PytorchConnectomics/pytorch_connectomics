@@ -83,7 +83,7 @@ class SplitActivation(object):
         '4': 1,
         '5': 11,
         '6': 1,
-        'all': None
+        'a': -1
     }
 
     def __init__(self,
@@ -114,7 +114,7 @@ class SplitActivation(object):
                 self.split_channels.append(channels)
             else:
                 self.split_channels.append(
-                    self.num_channels_dict[topt])
+                    self.num_channels_dict[topt[0]])
 
         self.split_only = split_only
         if not self.split_only:
@@ -122,7 +122,7 @@ class SplitActivation(object):
 
     def __call__(self, x):
         split_channels = self.split_channels.copy()
-        if split_channels[-1] is None:
+        if split_channels[-1] == -1:
             split_channels[-1] = x.shape[1] - sum(split_channels[:-1])
         x = torch.split(x, split_channels, dim=1)
         x = list(x)  # torch.split returns a tuple
@@ -258,12 +258,11 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     """
     assert norm in ["bn", "sync_bn", "gn", "in", "none"], \
         "Get unknown normalization layer key {}".format(norm)
-    # if norm == "gn": assert out_channels%8 == 0, "GN requires channels to separable into 8 groups"
+    if norm == "gn": assert out_channels%8 == 0, "GN requires channels to separable into 8 groups"
     norm = {
         "bn": nn.BatchNorm3d,
         "sync_bn": nn.SyncBatchNorm,
         "in": nn.InstanceNorm3d,
-        # "gn": lambda channels: nn.GroupNorm(channels//2, channels),
         "gn": lambda channels: nn.GroupNorm(8, channels),
         "none": nn.Identity,
     }[norm]
@@ -287,9 +286,9 @@ def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
         "Get unknown normalization layer key {}".format(norm)
     norm = {
         "bn": nn.BatchNorm2d,
-        "sync_bn": nn.BatchNorm2d,
+        "sync_bn": nn.SyncBatchNorm,
         "in": nn.InstanceNorm2d,
-        "gn": lambda channels: nn.GroupNorm(channels//4, channels),
+        "gn": lambda channels: nn.GroupNorm(16, channels),
         "none": nn.Identity,
     }[norm]
     if norm in ["bn", "sync_bn", "in"]:
