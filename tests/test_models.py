@@ -163,6 +163,7 @@ class TestModelBlock(unittest.TestCase):
         cfg = get_cfg_defaults()
         cfg.MODEL.ARCHITECTURE = 'fpn_3d'
         cfg.MODEL.BACKBONE = 'efficientnet'
+        cfg.MODEL.BLOCKS = [1, 2, 2, 2, 4]
 
         d, h, w = 9, 65, 65
         x = torch.rand(2, 1, d, h, w).to(device)

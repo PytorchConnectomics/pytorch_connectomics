@@ -124,6 +124,13 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
                      p=cfg.AUGMENTOR.CUTNOISE.P, 
                      additional_targets=additional_targets))
 
+    #12. copy-paste
+    if cfg.AUGMENTOR.COPYPASTE.ENABLED:
+        aug_list.append(
+            CopyPasteAugmentor(aug_thres=cfg.AUGMENTOR.COPYPASTE.AUG_THRES,
+                     p=cfg.AUGMENTOR.CUTNOISE.P, 
+                     additional_targets=additional_targets))
+
     # compose the list of transforms
     augmentor = Compose(transforms=aug_list, 
                         input_size=cfg.MODEL.INPUT_SIZE, 
@@ -132,10 +139,11 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
                         keep_non_smoothed=keep_non_smoothed,
                         additional_targets=additional_targets)
     
-    if cfg.AUGMENTOR.USE_COPY_PASTE:
-        return augmentor, CopyPasteAugmentor(cfg.AUGMENTOR.COPY_PASTE_THRES)
-    else:
-        return augmentor
+    return augmentor
+    # if cfg.AUGMENTOR.USE_COPY_PASTE:
+    #     return augmentor, CopyPasteAugmentor(cfg.AUGMENTOR.COPY_PASTE_THRES)
+    # else:
+    #     return augmentor
 
 def build_ssl_augmentor(cfg):
     R"""Build the data augmentor for semi-supervised learning.

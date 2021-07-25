@@ -1,41 +1,46 @@
-import random
+from typing import Optional
+
+from .augmentor import DataAugment
 import numpy as np
-from numpy.core.numeric import indices
 import torch
 import torchvision.transforms.functional as tf
-from itertools import combinations
 from scipy.ndimage.morphology import binary_dilation
 from scipy.ndimage.morphology import generate_binary_structure
 
-class CopyPasteAugmentor(object):
+class CopyPasteAugmentor(DataAugment):
     r"""Copy-paste augmentor (experimental).
 
-    The input can be a `numpy.ndarray` or `torch.Tensor` of shape :math:`(B, C, Z, Y, X)`.
+    The input can be a `numpy.ndarray` or `torch.Tensor` of shape :math:`(C, Z, Y, X)` or :math:`(Z, Y, X)`.
     
     Args:
         aug_thres: Maximum fractional size of neuron occupying the volume. If 
                    the neuron is too large it is not augmented. Default: 0.7
-
-    Examples::
-        >>> from connectomics.data.augmentation import CopyPasteAugmentor
-        >>> mixup_augmentor = CopyPasteAugmentor()
-        >>> volume = mixup_augmentor(volume, label)
-        >>> pred = model(volume)
     """  
-    def __init__(self, aug_thres=0.7):
+    def __init__(self, 
+                 aug_thres: float = 0.7, 
+                 p: float = 0.8, 
+                 additional_targets: Optional[dict] = {'label': 'mask'}):
+        assert additional_targets is not None and 'label' in additional_targets.keys(), "Copy paste needs labels to work"
+        super().__init__(p, additional_targets)
         self.aug_thres = aug_thres
         self.dil_struct = generate_binary_structure(3,3)
+
+    def set_params(self):
+        '''Doesn't change sample size'''
         pass
 
-    def __call__(self, volume, label):
+    def __call__(self, sample, random_state=np.random.RandomState()):
+    # def __call__(self, volume, label):
+        assert 'label' in sample.keys(), "Labels not found in sample"
+        volume, label = sample['image'], sample['label']
         if not isinstance(volume, (torch.Tensor, np.ndarray)):
             raise TypeError("Type {} is not supported in CopyPasteAugmentor".format(type(volume)))
         
         is_np = isinstance(volume, np.ndarray)
         label = torch.from_numpy(label.copy()).bool() if isinstance(label, np.ndarray) else label.bool()
         if is_np: volume = torch.from_numpy(volume.copy())
-        assert label.ndim == 3 and (volume.ndim == 4 or volume.ndim == 3)
-        label_flipped = label[torch.arange(label.shape[0]-1,-1,-1)]
+        assert label.ndim == 3 and (volume.ndim == 4 or volume.ndim == 3), "CopyPaste doesn't work on batched data"
+        label_flipped = label[torch.arange(label.shape[0]-1,-1,-1)] #flip on z-axis
         if label.float().mean() <= self.aug_thres: 
             neuron_tensor = volume * label
             neuron_tensor, label = self.copy_paste_single(torch.stack([label, label_flipped]), neuron_tensor)

@@ -213,9 +213,9 @@ class InvertedResidual(nn.Module):
         self.attention = make_att_3d(attention, mid_ch)
             
         self.projector = nn.Identity()
-        if stride != (1,1,1):
+        if DWConv.stride != (1,1,1):
             self.projector = nn.Sequential(
-                nn.AvgPool3d(stride, stride),
+                nn.AvgPool3d(DWConv.stride, DWConv.stride),
                 conv3d_norm_act(
                 in_ch, out_ch, kernel_size=1, padding=0,
                 stride=1, norm_mode=norm_mode, act_mode='none')
@@ -300,9 +300,9 @@ class InvertedResidualDilated(nn.Module):
         self.attention = make_att_3d(attention, mid_ch)
 
         self.projector = nn.Identity()
-        if stride != (1,1,1):
+        if self.DWConv[0].stride != (1,1,1):
             self.projector = nn.Sequential(
-                nn.AvgPool3d(stride, stride),
+                nn.AvgPool3d(self.DWConv[0].stride, self.DWConv[0].stride),
                 conv3d_norm_act(
                 in_ch, out_ch, kernel_size=1, padding=0,
                 stride=1, norm_mode=norm_mode, act_mode='none')

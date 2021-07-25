@@ -29,7 +29,7 @@ _C.MODEL.DEPLOY_MODE = False
 
 # Number of filters per unet block
 _C.MODEL.FILTERS = [28, 36, 48, 64, 80]
-
+_C.MODEL.BLOCKS = [2, 2, 2, 2]
 _C.MODEL.KERNEL_SIZES = [3, 3, 5, 3, 3] #used only in effnet for now
 
 _C.MODEL.ATTENTION = 'squeeze_excitation'
@@ -258,7 +258,9 @@ _C.AUGMENTOR.CUTNOISE.P = 0.75
 _C.AUGMENTOR.CUTNOISE.LENGTH_RATIO = 0.4
 _C.AUGMENTOR.CUTNOISE.SCALE = 0.3
 
-_C.AUGMENTOR.USE_COPY_PASTE = False
+_C.AUGMENTOR.COPYPASTE = CN({"ENABLED": False})
+_C.AUGMENTOR.COPYPASTE.AUG_THRES = 0.7
+_C.AUGMENTOR.COPYPASTE.P = 0.8
 
 # -----------------------------------------------------------------------------
 # Solver

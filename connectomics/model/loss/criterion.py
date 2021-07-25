@@ -34,8 +34,6 @@ class Criterion(object):
         'DiceLoss': DiceLoss,
         'WeightedCE': WeightedCE,
         'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
-        'WeightedLSBCEWithLogitsLoss': WeightedLSBCEWithLogitsLoss,
-        'WeightedLSBCEFocalLoss': WeightedLSBCEFocalLoss,
         'WeightedBCEFocalLoss': WeightedBCEFocalLoss,
         'WSDiceLoss': WSDiceLoss
     }
