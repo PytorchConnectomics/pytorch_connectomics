@@ -38,7 +38,7 @@ def get_args():
 def init_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
+    torch.manual_seed(seed)    
 
 def main():
     args = get_args()
