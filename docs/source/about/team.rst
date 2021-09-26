@@ -10,8 +10,8 @@ Authors
 ------------
 The following people are currently core contributors to PyTorch Connectomics’s development and maintenance:
 
-- `Zudi Lin <https://zudi-lin.github.io/>`_ - Ph.D. student at Harvard University
-- `Donglai Wei <https://donglaiw.github.io/>`_ - Postdoctoral scholar at Harvard University
+- `Zudi Lin <https://zudi-lin.github.io/>`_ - Ph.D. candidate at Harvard University
+- `Donglai Wei <https://donglaiw.github.io/>`_ - Assistant professor of Computer Science at Boston College. Previous postdoctoral fellow at Harvard University
 
 Advisors
 ------------
