@@ -181,6 +181,13 @@ def build_lr_scheduler(
             threshold=0.001, threshold_mode='rel', cooldown=0,
             min_lr=1e-06, eps=1e-08
         )
+    elif name == 'OneCycle':
+        return torch.optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr = cfg.SOLVER.BASE_LR, 
+            pct_start = cfg.SOLVER.WARMUP_ITERS/cfg.SOLVER.MAX_ITER,
+            final_div_factor = 1000,
+            total_steps = cfg.SOLVER.MAX_ITER
+        )
     else:
         raise ValueError("Unknown LR scheduler: {}".format(name))
 

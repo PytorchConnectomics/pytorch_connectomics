@@ -20,7 +20,9 @@ def xavier_init(model):
     for m in model.modules():
         if isinstance(m, (nn.Conv2d, nn.Conv3d, nn.Linear)):
             nn.init.xavier_uniform_(
-                m.weight(), gain=nn.init.calculate_gain('relu'))
+                m.weight, gain=nn.init.calculate_gain('relu'))
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
 
 def kaiming_init(model):
     # he initialization

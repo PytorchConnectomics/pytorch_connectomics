@@ -119,7 +119,7 @@ class TestModelBlock(unittest.TestCase):
                     out2 = deploy_block(x)
                     self.assertTrue(torch.allclose(out1, out2, atol=1e-6))
 
-    def test_bottlenect_attention_block(self):
+    def test_bottleneck_attention_block(self):
         # AbsPosEmb
         block3d = BottleBlock(dim=16, fmap_size=(
             8, 8, 8), dim_out=16, proj_factor=4, downsample=False, dim_head=16, )

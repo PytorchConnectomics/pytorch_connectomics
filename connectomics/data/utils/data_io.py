@@ -146,9 +146,9 @@ def vast2Seg(seg):
     if seg.ndim == 2 or seg.shape[-1] == 1:
         return np.squeeze(seg)
     elif seg.ndim == 3:  # 1 rgb image
-        return seg[:, :, 0].astype(np.uint32)*65536+seg[:, :, 1].astype(np.uint32)*256+seg[:, :, 2].astype(np.uint32)
+        return seg[:, :, 0].astype(np.uint32)*65536 + seg[:, :, 1].astype(np.uint32)*256 + seg[:, :, 2].astype(np.uint32)
     elif seg.ndim == 4:  # n rgb image
-        return seg[:, :, :, 0].astype(np.uint32)*65536+seg[:, :, :, 1].astype(np.uint32)*256+seg[:, :, :, 2].astype(np.uint32)
+        return seg[:, :, :, 0].astype(np.uint32)*65536 + seg[:, :, :, 1].astype(np.uint32)*256 + seg[:, :, :, 2].astype(np.uint32)
 
 
 def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz: int,

@@ -83,6 +83,7 @@ class SplitActivation(object):
         '4': 1,
         '5': 11,
         '6': 1,
+        'a': -1
     }
 
     def __init__(self,
@@ -103,7 +104,11 @@ class SplitActivation(object):
         self.do_cat = do_cat
         self.normalize = normalize
 
-        for topt in self.target_opt:
+        for i,topt in enumerate(self.target_opt):
+            if i<len(self.target_opt)-1: 
+                assert topt != 'all', "Only last target can be all"
+            if isinstance(topt, int):
+                self.split_channels.append(topt)
             if topt[0] == '9':
                 channels = int(topt.split('-')[1])
                 self.split_channels.append(channels)
@@ -116,7 +121,10 @@ class SplitActivation(object):
             self.act = self._get_act(output_act)
 
     def __call__(self, x):
-        x = torch.split(x, self.split_channels, dim=1)
+        split_channels = self.split_channels.copy()
+        if split_channels[-1] == -1:
+            split_channels[-1] = x.shape[1] - sum(split_channels[:-1])
+        x = torch.split(x, split_channels, dim=1)
         x = list(x)  # torch.split returns a tuple
         if self.split_only:
             return x
@@ -250,9 +258,10 @@ def get_norm_3d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
     """
     assert norm in ["bn", "sync_bn", "gn", "in", "none"], \
         "Get unknown normalization layer key {}".format(norm)
+    if norm == "gn": assert out_channels%8 == 0, "GN requires channels to separable into 8 groups"
     norm = {
         "bn": nn.BatchNorm3d,
-        "sync_bn": nn.BatchNorm3d,
+        "sync_bn": nn.SyncBatchNorm,
         "in": nn.InstanceNorm3d,
         "gn": lambda channels: nn.GroupNorm(8, channels),
         "none": nn.Identity,
@@ -277,7 +286,7 @@ def get_norm_2d(norm: str, out_channels: int, bn_momentum: float = 0.1) -> nn.Mo
         "Get unknown normalization layer key {}".format(norm)
     norm = {
         "bn": nn.BatchNorm2d,
-        "sync_bn": nn.BatchNorm2d,
+        "sync_bn": nn.SyncBatchNorm,
         "in": nn.InstanceNorm2d,
         "gn": lambda channels: nn.GroupNorm(16, channels),
         "none": nn.Identity,

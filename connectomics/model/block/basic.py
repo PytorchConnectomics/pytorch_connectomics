@@ -184,10 +184,10 @@ def dwconv1xkxk(planes, kernel_size=3, stride=1,
                 dilation=1, conv_type='standard',
                 padding_mode='zeros'):
     """1xkxk depthwise convolution with padding"""
-    padding = (kernel_size - 1) * dilation // 2
+    padding = ((kernel_size - 1) * dilation )// 2
     dilation = (1, dilation, dilation)
     padding = (0, padding, padding)
-    stride = (1, stride, stride)
+    stride = (1, stride, stride) if isinstance(stride, int) else stride
     return get_conv(conv_type)(
         planes,
         planes,
@@ -204,7 +204,7 @@ def dwconvkxkxk(planes, kernel_size=3, stride=1,
                 dilation=1, conv_type='standard',
                 padding_mode='zeros'):
     """kxkxk depthwise convolution with padding"""
-    padding = (kernel_size - 1) * dilation // 2
+    padding = ((kernel_size - 1) * dilation )// 2
     return get_conv(conv_type)(
         planes,
         planes,

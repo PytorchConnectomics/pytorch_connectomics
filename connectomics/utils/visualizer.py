@@ -35,6 +35,7 @@ class Visualizer(object):
     def visualize(self, volume, label, output, weight, iter_total, writer,
                   suffix: Optional[str] = None):
         # split the prediction into chunks along the channel dimension
+        volume = (volume * self.cfg.DATASET.STD) + self.cfg.DATASET.MEAN
         output = self.act(output)
         assert len(output) == len(label)
 

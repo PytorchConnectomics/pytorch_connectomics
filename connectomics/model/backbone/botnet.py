@@ -100,11 +100,11 @@ class BotNet3D(nn.Module):
 
 # positional embedding helpers
 
-def expand_dims(t, dims, ks):
+def expand_dims(t, dims, values):
     for d in dims:
         t = t.unsqueeze(dim=d)
     expand_shape = [-1] * len(t.shape)
-    for d, k in zip(dims, ks):
+    for d, k in zip(dims, values):
         expand_shape[d] = k
     return t.expand(*expand_shape)
 
@@ -123,12 +123,12 @@ def rel_to_abs(x):
 
 
 def relative_logits_1d(q, rel_k):
-    b, heads, d, h, w, dim = q.shape
-    logits = einsum('b h x y z d, r d -> b h x y z r', q, rel_k)
-    logits = rearrange(logits, 'b h x y z r -> b (h x y) z r')
-    logits = rel_to_abs(logits)
-    logits = logits.reshape(b, heads, d, h, w, w)
-    logits = expand_dims(logits, dims=[3, 5], ks=[d, h])
+    b, heads, z, y, x, dim = q.shape
+    logits = einsum('b h z y x d, r d -> b h z y x r', q, rel_k) # r = 2x-1
+    logits = rearrange(logits, 'b h z y x r -> b (h z y) x r')
+    logits = rel_to_abs(logits) # b hzy x x
+    logits = logits.reshape(b, heads, z, y, x, x) 
+    logits = expand_dims(logits, dims=[3, 5], values=[z, y]) # b h zz yy xx
     return logits
 
 # positional embeddings
@@ -154,20 +154,20 @@ class RelPosEmb(nn.Module):
     def forward(self, q):
         d, h, w = self.fmap_size
 
-        q = rearrange(q, 'b h (x y z) d -> b h x y z d', x=d, y=h, z=w)
+        q = rearrange(q, 'b h (z y x) d -> b h z y x d', z=d, y=h, x=w)
         rel_logits_w = relative_logits_1d(q, self.rel_width)
         rel_logits_w = rearrange(
-            rel_logits_w, 'b h x i y j z k -> b h (x y z) (i j k)')  # ??
+            rel_logits_w, 'b h z z1 y y1 x x1 -> b h (z y x) (z1 y1 x1)')
 
-        q = rearrange(q, 'b h x y z d -> b h x z y d')
+        q = rearrange(q, 'b h z y x d -> b h z x y d')
         rel_logits_h = relative_logits_1d(q, self.rel_height)
         rel_logits_h = rearrange(
-            rel_logits_h, 'b h x i z k y j -> b h (x z y) (i k j)')  # ?
+            rel_logits_h, 'b h z z1 x x1 y y1 -> b h (z y x) (z1 y1 x1)')
 
-        q = rearrange(q, 'b h x z y d -> b h y z x d')
+        q = rearrange(q, 'b h z x y d -> b h y x z d')
         rel_logits_d = relative_logits_1d(q, self.rel_depth)
         rel_logits_d = rearrange(
-            rel_logits_d, 'b h y j z k x i -> b h (y z x) (j k i)')
+            rel_logits_d, 'b h y y1 x x1 z z1 -> b h (z y x) (z1 y1 x1)')
         return rel_logits_w + rel_logits_h + rel_logits_d
 
 
@@ -220,7 +220,7 @@ class Attention(nn.Module):
 
         q, k, v = self.to_qkv(fmap).chunk(3, dim=1)
         q, k, v = map(lambda t: rearrange(
-            t, 'b (h d) x y z -> b h (x y z) d', h=heads), (q, k, v))
+            t, 'b (h d) z y x -> b h (z y x) d', h=heads), (q, k, v))
 
         q = q * self.scale
 
@@ -230,7 +230,7 @@ class Attention(nn.Module):
         attn = sim.softmax(dim=-1)
 
         out = einsum('b h i j, b h j d -> b h i d', attn, v)
-        out = rearrange(out, 'b h (x y z) d -> b (h d) x y z', x=d, y=h, z=w)
+        out = rearrange(out, 'b h (z y x) d -> b (h d) z y x', z=d, y=h, x=w)
         return out
 
 

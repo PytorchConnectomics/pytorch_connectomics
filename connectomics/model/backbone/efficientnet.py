@@ -7,7 +7,20 @@ from ..block.basic import get_conv
 from ..block.residual import InvertedResidual, InvertedResidualDilated
 from ..utils import get_activation, get_norm_3d
 
+class DilatedBlock(nn.Module):
+    def __init__(self, conv_type, in_channel, inplanes, dilation_factors, pad_mode):
+        super().__init__()
+        self.conv = nn.ModuleList([get_conv(conv_type)(in_channel, inplanes, kernel_size=3, 
+                bias=False, stride=1, dilation=dilation_factors[i], padding=dilation_factors[i], 
+                padding_mode=pad_mode) for i in range(4)])
 
+    def forward(self, x):
+        return self._conv_and_cat(x, self.conv)
+    
+    def _conv_and_cat(self, x, conv_layers):
+        y = [conv(x) for conv in conv_layers]
+        return torch.cat(y, dim=1)
+        
 class EfficientNet3D(nn.Module):
     """EfficientNet backbone for 3D semantic and instance segmentation.
     """
@@ -38,22 +51,15 @@ class EfficientNet3D(nn.Module):
         block = self.block_dict[block_type]
 
         self.inplanes = filters[0]
-        if isinstance(block, InvertedResidualDilated):
-            # dilated convolution also for the input layer
+
+        if block == InvertedResidualDilated:
             self.all_dilated = True
             num_conv = len(self.dilation_factors)
-            self.conv1 = self.conv1 = nn.ModuleList([
-                get_conv(conv_type)(
-                    in_channel,
-                    self.inplanes // num_conv,
-                    kernel_size=3,
-                    bias=False,
-                    stride=1,
-                    dilation=self.dilation_factors[i],
-                    padding=self.dilation_factors[i],
-                    padding_mode=pad_mode)
-                for i in range(num_conv)
-            ])
+            self.conv1 = DilatedBlock(conv_type, 
+                            in_channel, 
+                            self.inplanes//num_conv, 
+                            self.dilation_factors, 
+                            pad_mode)
         else:
             self.all_dilated = False
             self.conv1 = get_conv(conv_type)(
@@ -75,7 +81,6 @@ class EfficientNet3D(nn.Module):
             'attention': attention,
             'pad_mode': pad_mode,
             'act_mode': act_mode,
-            'norm_mode': norm_mode,
         }
 
         self.layer0 = dw_stack(block, filters[0], filters[0], kernel_size=ks[0], stride=1,
@@ -89,11 +94,9 @@ class EfficientNet3D(nn.Module):
         self.layer4 = dw_stack(block, filters[3], filters[4], kernel_size=ks[4], stride=2,
                                repeats=blocks[4], isotropic=isotropy[4], shared=shared_kwargs)
 
-    def _forward_impl(self, x):
-        if self.all_dilated:
-            x = self._conv_and_cat(x, self.conv1)
-        else:
-            x = self.conv1(x)
+    def forward(self, x):
+        # See note [TorchScript super()]
+        x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
 
@@ -104,13 +107,6 @@ class EfficientNet3D(nn.Module):
         x = self.layer4(x)
 
         return x
-
-    def _conv_and_cat(self, x, conv_layers):
-        y = [conv(x) for conv in conv_layers]
-        return torch.cat(y, dim=1)
-
-    def forward(self, x):
-        return self._forward_impl(x)
 
 
 def dw_stack(block, in_ch, out_ch, kernel_size, stride,

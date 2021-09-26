@@ -108,13 +108,14 @@ class WeightedBCEWithLogitsLoss(nn.Module):
     """Weighted binary cross-entropy with logits.
     """
 
-    def __init__(self, size_average=True, reduce=True):
+    def __init__(self, size_average=True, reduce=True, eps=0.):
         super().__init__()
         self.size_average = size_average
         self.reduce = reduce
+        self.eps = eps
 
     def forward(self, pred, target, weight_mask=None):
-        return F.binary_cross_entropy_with_logits(pred, target, weight_mask)
+        return F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), weight_mask)
 
 
 class WeightedCE(nn.Module):
@@ -173,3 +174,50 @@ class WeightedLS(nn.Module):
         if weight_mask is not None:
             loss = loss * weight_mask
         return loss.mean()
+
+class WeightedBCEFocalLoss(nn.Module):
+    """Weighted binary focal loss with logits.
+    """
+    def __init__(self, gamma=2., alpha=0.25, eps=0.):
+        super().__init__()
+        self.eps = eps
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, pred, target, weight_mask=None):
+        pred_sig = pred.sigmoid()
+        pt = (1-target)*(1-pred_sig) + target * pred_sig
+        at = (1-self.alpha) * target + self.alpha * (1-target)
+        wt = at * (1 - pt)**self.gamma
+        if weight_mask is not None:
+            wt *= weight_mask
+        # return -(wt * pt.log()).mean() # log causes overflow
+        bce = F.binary_cross_entropy_with_logits(pred, target.clamp(self.eps,1-self.eps), reduction='none')
+        return (wt *  bce).mean()
+
+
+class WSDiceLoss(nn.Module):
+    def __init__(self, smooth=100.0, power=2.0, v2=0.85, v1=0.15):
+        super().__init__()
+        self.smooth = smooth
+        self.power = power
+        self.v2 = v2
+        self.v1 = v1
+
+    def dice_loss(self, pred, target):
+        iflat = pred.reshape(pred.shape[0], -1)
+        tflat = target.reshape(pred.shape[0], -1)
+        wt = tflat * (self.v2 - self.v1) + self.v1
+        g_pred = wt*(2*iflat - 1)
+        g = wt*(2*tflat - 1)
+        intersection = (g_pred * g).sum(-1)
+        loss = 1 - ((2. * intersection + self.smooth) /
+                    ((g_pred**self.power).sum(-1) + (g**self.power).sum(-1) + self.smooth))
+        # loss = -torch.log10((2. * intersection + self.smooth) /
+        #             ((g_pred**self.power).sum(-1) + (g**self.power).sum(-1) + self.smooth))
+
+        return loss.mean()
+
+    def forward(self, pred, target, weight_mask=None):
+        loss = self.dice_loss(pred, target)
+        return loss

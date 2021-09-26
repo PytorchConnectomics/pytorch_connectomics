@@ -25,6 +25,9 @@ def build_model(cfg, device, rank=None):
         'in_channel': cfg.MODEL.IN_PLANES,
         'out_channel': cfg.MODEL.OUT_PLANES,
         'filters': cfg.MODEL.FILTERS,
+        'ks': cfg.MODEL.KERNEL_SIZES,
+        'blocks': cfg.MODEL.BLOCKS,
+        'attn': cfg.MODEL.ATTENTION,
         'is_isotropic': cfg.DATASET.IS_ISOTROPIC,
         'isotropy': cfg.MODEL.ISOTROPY,
         'pad_mode': cfg.MODEL.PAD_MODE,
@@ -49,7 +52,7 @@ def build_model(cfg, device, rank=None):
     return make_parallel(model, cfg, device, rank)
 
 
-def make_parallel(model, cfg, device, rank=None):
+def make_parallel(model, cfg, device, rank=None, find_unused_parameters=False):
     if cfg.SYSTEM.PARALLEL == 'DDP':
         print('Parallelism with DistributedDataParallel.')
         # Currently SyncBatchNorm only supports DistributedDataParallel (DDP)
@@ -64,7 +67,7 @@ def make_parallel(model, cfg, device, rank=None):
         # DistributedDataParallel will use all available devices.
         assert rank is not None
         model = nn.parallel.DistributedDataParallel(
-            model, device_ids=[rank], output_device=rank)
+            model, device_ids=[rank], output_device=rank, find_unused_parameters=find_unused_parameters)
 
     elif cfg.SYSTEM.PARALLEL == 'DP':
         gpu_device_ids = list(range(cfg.SYSTEM.NUM_GPUS))

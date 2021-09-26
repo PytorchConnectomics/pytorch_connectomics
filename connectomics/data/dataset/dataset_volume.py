@@ -53,8 +53,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                  sample_volume_size: tuple = (8, 64, 64),
                  sample_label_size: tuple = (8, 64, 64),
                  sample_stride: tuple = (1, 1, 1),
-                 augmentor: AUGMENTOR_TYPE = None,
-                 target_opt: TARGET_OPT_TYPE = ['1'],
+                 augmentor: AUGMENTOR_TYPE = None, 
+                 target_opt: TARGET_OPT_TYPE = ['1'], 
                  weight_opt: WEIGHT_OPT_TYPE = [['1']],
                  erosion_rates: Optional[List[int]] = None,
                  dilation_rates: Optional[List[int]] = None,
@@ -83,6 +83,10 @@ class VolumeDataset(torch.utils.data.Dataset):
         # target and weight options
         self.target_opt = target_opt
         self.weight_opt = weight_opt
+        # For 'all', users will create their own targets
+        if self.target_opt[-1] == 'all':
+            self.target_opt = self.target_opt[:-1]
+            self.weight_opt = self.weight_opt[:-1]
         self.erosion_rates = erosion_rates
         self.dilation_rates = dilation_rates
 
