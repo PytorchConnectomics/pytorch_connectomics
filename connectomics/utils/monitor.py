@@ -144,7 +144,7 @@ def plot_loss_ratio(loss_dict: dict) -> matplotlib.figure.Figure:
     sizes = []
     for key in loss_dict.keys():
         labels.append(key)
-        sizes.append(loss_dict[key])
+        sizes.append(loss_dict[key].cpu().data.numpy())
 
     fig, ax = plt.subplots()
     colors = ['#ff6666', '#ffcc99', '#99ff99', '#66b3ff', '#c2c2f0', '#ffb3e6']
