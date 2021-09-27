@@ -35,14 +35,16 @@ def get_args():
     args = parser.parse_args()
     return args
 
+
 def init_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)    
+    torch.manual_seed(seed)
+
 
 def main():
     args = get_args()
-    args.local_rank = int(os.environ["LOCAL_RANK"])
+    args.local_rank = int(os.environ["LOCAL_RANK"]) if args.distributed else 0
     if args.local_rank == 0 or args.local_rank is None:
         print("Command line arguments: ", args)
 

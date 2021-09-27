@@ -8,7 +8,7 @@ MODEL:
   OUTPUT_SIZE: [33, 97, 97]
   NORM_MODE: gn
   MIXED_PRECESION: False
-  FILTERS: [32, 64, 96, 128, 160] 
+  FILTERS: [32, 64, 96, 128, 160]
 DATASET:
   INPUT_PATH: datasets/NucMM/Mouse/train
   IMAGE_NAME: img_0_200_200.h5@img_0_604_576.h5@img_508_200_576.h5@img_508_604_200.h5
@@ -37,7 +37,7 @@ INFERENCE:
   OUTPUT_PATH: outputs/NucMM_Mouse/test/
   OUTPUT_NAME: result.h5
   PAD_SIZE: [16, 32, 32]
-  AUG_MODE: 'mean'
+  AUG_MODE: "mean"
   AUG_NUM: None
   STRIDE: [26, 128, 128]
   SAMPLES_PER_BATCH: 4

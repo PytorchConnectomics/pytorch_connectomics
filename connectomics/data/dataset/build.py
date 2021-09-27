@@ -142,7 +142,8 @@ def _get_input(cfg,
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
 
             label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
-            print(f"label shape: {label[i].shape}")
+            print(f"label shape (after scaling and padding): {label[i].shape}")
+            assert (volume[i].shape == label[i].shape)
 
         if mode in ['val', 'train'] and valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i])
@@ -152,7 +153,8 @@ def _get_input(cfg,
 
             valid_mask[i] = np.pad(
                 valid_mask[i], get_padsize(pad_size), pad_mode)
-            print(f"valid_mask shape: {label[i].shape}")
+            print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
+            assert (volume[i].shape == valid_mask[i].shape)
 
     return volume, label, valid_mask
 
