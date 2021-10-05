@@ -2,13 +2,13 @@ SYSTEM:
   NUM_GPUS: 4
   NUM_CPUS: 16
 MODEL:
-  ARCHITECTURE: unet_3d
+  ARCHITECTURE: unet_3d_plus
   BLOCK_TYPE: residual_se
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
   IN_PLANES: 1
   NORM_MODE: sync_bn
-  LABEL_EROSION: 1
+  FILTERS: [32, 64, 96, 128, 160]
 DATASET:
   IMAGE_NAME: im_train.json
   LABEL_NAME: mito_train.json

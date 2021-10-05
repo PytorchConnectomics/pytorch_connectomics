@@ -72,7 +72,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-author = 'Zudi Lin and Donglai Wei'
+author = 'PyTorch Connectomics Contributors'
 project = u'connectomics'
 copyright = u'2019-{}, {}'.format(datetime.datetime.now().year, author)
 
@@ -187,7 +187,7 @@ html_favicon = '_templates/_static/img/favicon.svg'
 html_static_path = ["_templates/_static/"]
 html_context = {"css_files": ["_static/css/pytc-theme.css",
                               "https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js",
-                              #"https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
+                              # "https://cdn.jsdelivr.net/npm/@docsearch/css@1.0.0-alpha.28/dist/style.min.css"
                               ]}
 
 # Add any extra paths that contain custom files (such as robots.txt or

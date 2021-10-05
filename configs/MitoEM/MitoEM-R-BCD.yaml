@@ -1,6 +1,6 @@
 MODEL:
   OUT_PLANES: 3
-  TARGET_OPT: ["0", "4-0-1", "6"]
+  TARGET_OPT: ["0", "4-1-1", "6"]
   LOSS_OPTION:
     - - WeightedBCEWithLogitsLoss
       - DiceLoss
@@ -12,6 +12,6 @@ MODEL:
   OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"], ["tanh"]]
 INFERENCE:
   OUTPUT_ACT: ["sigmoid", "sigmoid", "tanh"]
-  OUTPUT_PATH: outputs/NucMM_Mouse_BCD/test/
+  OUTPUT_PATH: outputs/MitoEM_R_BCD/test/
 DATASET:
-  OUTPUT_PATH: outputs/NucMM_Mouse_BCD/
+  OUTPUT_PATH: outputs/MitoEM_R_BCD/

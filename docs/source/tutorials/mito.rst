@@ -51,7 +51,7 @@ For description of the data please check `the author page <https://www.epfl.ch/l
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch \
     --nproc_per_node=4 --master_port=2345 scripts/main.py --distributed \
     --config-file configs/Lucchi-Mitochondria.yaml
 
@@ -169,7 +169,7 @@ We show examples for running the training script for the **U3D-BC** model:
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch \
     --nproc_per_node=4 --master_port=4321 scripts/main.py --distributed \
     --config-base configs/MitoEM/MitoEM-R-Base.yaml \
     --config-file configs/MitoEM/MitoEM-R-BC.yaml 
