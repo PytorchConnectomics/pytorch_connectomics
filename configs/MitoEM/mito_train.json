@@ -404,7 +404,7 @@
         "/path/to/MitoEM-R/mito_train/seg0399.tif"
     ],
     "height": 4096,
-    "tile_ratio": 2,
+    "tile_ratio": 1,
     "n_columns": 1,
     "tile_st": [
         0,
