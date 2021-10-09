@@ -25,6 +25,8 @@ def get_args():
                         help='node rank for distributed training', default=None)
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='path to load the checkpoint')
+    parser.add_argument('--debug', action='store_true',
+                        help='run the scripts in debug mode')
     # Merge configs from command line (e.g., add 'SYSTEM.NUM_GPUS 8').
     parser.add_argument(
         "opts",

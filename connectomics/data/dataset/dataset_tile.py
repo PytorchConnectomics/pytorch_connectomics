@@ -153,14 +153,14 @@ class TileDataset(torch.utils.data.Dataset):
             label = [relabel(tile2volume(self.json_label['image'], coord_p, self.coord_m,
                                          tile_sz=self.json_label['tile_size'], tile_st=self.json_label['tile_st'],
                                          tile_ratio=self.json_label['tile_ratio'], dt=dt[self.json_label['dtype']],
-                                         do_im=0), do_type=True)]
+                                         do_im=False), do_type=True)]
             label = self.maybe_scale(label, order=0)
 
         valid_mask = None
         if self.json_valid is not None:
             valid_mask = [tile2volume(self.json_valid['image'], coord_p, self.coord_m,
                                       tile_sz=self.json_valid['tile_size'], tile_st=self.json_valid['tile_st'],
-                                      tile_ratio=self.json_valid['tile_ratio'])]
+                                      tile_ratio=self.json_valid['tile_ratio'], do_im=False)]
             valid_mask = self.maybe_scale(valid_mask, order=0)
 
         self.dataset = VolumeDataset(volume, label, valid_mask, mode=self.mode,

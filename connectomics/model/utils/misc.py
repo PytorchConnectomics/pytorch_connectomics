@@ -104,8 +104,8 @@ class SplitActivation(object):
         self.do_cat = do_cat
         self.normalize = normalize
 
-        for i,topt in enumerate(self.target_opt):
-            if i<len(self.target_opt)-1: 
+        for i, topt in enumerate(self.target_opt):
+            if i < len(self.target_opt) - 1: 
                 assert topt != 'all', "Only last target can be all"
             if isinstance(topt, int):
                 self.split_channels.append(topt)
