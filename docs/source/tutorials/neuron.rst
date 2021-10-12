@@ -113,19 +113,17 @@ from the default one.
 
     tensorboard --logdir outputs/SNEMI_UNet/
     
-To visualize the training process and generate a public link to share the results with collaborators, `tensorboard dev <https://tensorboard.dev/>`_. can be used. Specify ``--logdir`` with your own experiment directory, which can be different from the default one. 
+To visualize the training process and generate a **public link** to share the results with collaborators, we 
+use `tensorboard dev <https://tensorboard.dev/>`_. Similar to local visualization, we specify ``--logdir`` with the experiment 
+directory (which can be different from the default one). 
 
 .. code-block:: none
 
-    pip install -U tensorboard
+    tensorboard dev upload --logdir outputs/SNEMI_UNet/
 
-    tensorboard dev upload --logdir outputs/SNEMI_UNet/ \
-    --name "(optional) Neuron Segmentation" \
-    --description "(optional) Visualization for neuron segmentation with SENMI3D benchmark datasets."
-
-Please refer this `example <https://colab.research.google.com/github/tensorflow/tensorboard/blob/master/docs/tbdev_getting_started.ipynb#scrollTo=oKW8V5chyx6e>`_ google colab notebook: "Getting started with TensorBoard.dev" for a step-by-step tutorial.
-
-Note: Tensorboard Dev `does not suppport <https://github.com/tensorflow/tensorboard/issues/3585/>`_ images as of 12 October, 2021.
+Please refer this `example <https://colab.research.google.com/github/tensorflow/tensorboard/blob/master/docs/tbdev_getting_started.ipynb#scrollTo=oKW8V5chyx6e>`_ Google Colab
+notebook for a step-by-step tutorial. Please also note that Tensorboard Dev `does not suppport <https://github.com/tensorflow/tensorboard/issues/3585/>`_ images 
+in the visualization with public link as of 12 October, 2021.
 
 5 - Inference of affinity map
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
