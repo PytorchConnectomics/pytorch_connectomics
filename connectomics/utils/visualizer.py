@@ -77,9 +77,15 @@ class Visualizer(object):
         volume_visual = volume.detach().cpu().expand(sz[0], 3, sz[2], sz[3])
         canvas.append(volume_visual)
 
+        def maybe2rgb(temp):
+            if temp.shape[1] == 2: # 2d affinity map has two channels
+                temp = torch.cat([temp, torch.zeros(
+                    sz[0], 1, sz[2], sz[3]).type(temp.dtype)], dim=1)
+            return temp
+
         if RGB:
-            output_visual = [output.detach().cpu()]
-            label_visual = [label.detach().cpu()]
+            output_visual = [maybe2rgb(output.detach().cpu())]
+            label_visual = [maybe2rgb(label.detach().cpu())]
         else:
             output_visual = [self.vol_reshape(
                 output[:, i], sz) for i in range(sz[1])]
@@ -88,8 +94,8 @@ class Visualizer(object):
 
         weight_visual = []
         for key in weight_maps.keys():
-            weight_visual.append(
-                weight_maps[key].detach().cpu().expand(sz[0], 3, sz[2], sz[3]))
+            weight_visual.append(maybe2rgb(weight_maps[key]).detach().cpu().expand(
+                                 sz[0], 3, sz[2], sz[3]))
 
         canvas = canvas + output_visual + label_visual + weight_visual
         canvas_merge = torch.cat(canvas, 0)

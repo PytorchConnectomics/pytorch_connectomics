@@ -10,18 +10,21 @@ import imageio
 from scipy.ndimage import zoom
 
 
+def readimg_as_vol(filename, drop_channel=True):
+    img_suf = filename[filename.rfind('.')+1:]
+    assert img_suf in ['png', 'tif']
+    data = imageio.imread(filename)
+    if drop_channel and data.ndim == 3:
+        # convert RGB image to grayscale by average
+        data = np.mean(data, axis=-1).astype(np.uint8)
+    return data[np.newaxis, :, :]
+
+
 def readh5(filename, dataset=None):
     fid = h5py.File(filename, 'r')
     if dataset is None:
         dataset = list(fid)[0]
     return np.array(fid[dataset])
-
-
-def readimg_as_vol(filename):
-    img_suf = filename[filename.rfind('.')+1:]
-    assert img_suf in ['png', 'tif']
-    data = imageio.imread(filename)
-    return data[np.newaxis, :, :]
 
 
 def readvol(filename, dataset=None):

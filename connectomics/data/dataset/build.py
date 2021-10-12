@@ -29,13 +29,15 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
             file_name = [os.path.join(dir_name[i], file_name[i])
                          for i in range(len(file_name))]
 
-        if cfg.DATASET.LOAD_2D:
+        if cfg.DATASET.LOAD_2D: # load 2d images
             temp_list = copy.deepcopy(file_name)
             file_name = []
             for x in temp_list:
                 suffix = x.split('/')[-1]
                 if suffix in ['*.png', '*.tif']:
                     file_name += sorted(glob.glob(x, recursive=True))
+                else: # complete filename is specified
+                    file_name.append(x)
 
     file_name = _distribute_data(cfg, file_name, rank)
     return file_name
