@@ -60,7 +60,8 @@ def _distribute_data(cfg, file_name, rank=None):
     return splited[rank]
 
 
-def _get_file_list(name: Union[str, List[str]]) -> list:
+def _get_file_list(name: Union[str, List[str]],
+                   prefix: Optional[str] = None) -> list:
     if isinstance(name, list):
         return name
 
@@ -68,6 +69,13 @@ def _get_file_list(name: Union[str, List[str]]) -> list:
     if suffix == 'txt':  # a text file saving the absolute path
         filelist = [line.rstrip('\n') for line in open(name)]
         return filelist
+
+    suffix = name.split('/')[-1] # find all image files under a folder
+    if suffix in ['*.png', '*.tif']:
+        assert prefix is not None
+        filelist = sorted(glob.glob(os.path.join(
+            prefix, name), recursive=True))
+        return [os.path.relpath(x, prefix) for x in filelist]
 
     return name.split('@')
 

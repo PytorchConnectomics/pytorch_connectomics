@@ -45,12 +45,12 @@ INFERENCE:
   INPUT_SIZE: [1, 513, 513]
   OUTPUT_SIZE: [1, 513, 513]
   OUTPUT_ACT: ['sigmoid']
-  INPUT_PATH: 'datasets/planes/test/'
-  IMAGE_NAME: 'image/*.png'
+  INPUT_PATH: datasets/Hydra
+  IMAGE_NAME: slice_0025/**/*.png
+  DO_SINGLY: True
   OUTPUT_PATH: outputs/Hydra_UNet_2D/test/
-  OUTPUT_NAME: result.h5
-  PAD_SIZE: [0, 32, 32]
-  AUG_MODE: 'mean'
-  AUG_NUM: 4
+  OUTPUT_NAME: pred
+  PAD_SIZE: [0, 64, 64]
+  AUG_NUM: None
   STRIDE: [1, 256, 256]
   SAMPLES_PER_BATCH: 16
