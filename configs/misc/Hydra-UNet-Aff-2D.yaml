@@ -8,16 +8,16 @@ MODEL:
   OUTPUT_SIZE: [1, 193, 193]
   IN_PLANES: 1
   OUT_PLANES: 2
-  TARGET_OPT: ['2']
+  TARGET_OPT: ["2"]
   LOSS_OPTION:
-  - - WeightedBCEWithLogitsLoss
-    - DiceLoss
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
   LOSS_WEIGHT: [[1.0, 0.5]]
-  WEIGHT_OPT: [['1', '0']]
-  OUTPUT_ACT: [['none', 'sigmoid']]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
   NORM_MODE: bn
   MIXED_PRECESION: False
-  FILTERS: [32, 64, 128, 256, 512] 
+  FILTERS: [32, 64, 128, 256, 512]
 DATASET:
   INPUT_PATH: datasets/Hydra/seg_2d/
   IMAGE_NAME: hydra_w03_export_s024.png
@@ -44,13 +44,15 @@ SOLVER:
 INFERENCE:
   INPUT_SIZE: [1, 513, 513]
   OUTPUT_SIZE: [1, 513, 513]
-  OUTPUT_ACT: ['sigmoid']
+  DATA_SCALE: [1.0, 1.0, 1.0]
+  OUTPUT_ACT: ["sigmoid"]
   INPUT_PATH: datasets/Hydra
   IMAGE_NAME: slice_0025/**/*.png
   DO_SINGLY: True
-  OUTPUT_PATH: outputs/Hydra_UNet_2D/test/
+  OUTPUT_PATH: outputs/Hydra_UNet_2D/test_mip2/
   OUTPUT_NAME: pred
   PAD_SIZE: [0, 64, 64]
-  AUG_NUM: None
+  AUG_NUM: 4
+  AUG_MODE: min
   STRIDE: [1, 256, 256]
   SAMPLES_PER_BATCH: 16
