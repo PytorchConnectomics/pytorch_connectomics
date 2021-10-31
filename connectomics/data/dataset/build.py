@@ -29,13 +29,15 @@ def _make_path_list(cfg, dir_name, file_name, rank=None):
             file_name = [os.path.join(dir_name[i], file_name[i])
                          for i in range(len(file_name))]
 
-        if cfg.DATASET.LOAD_2D:
+        if cfg.DATASET.LOAD_2D: # load 2d images
             temp_list = copy.deepcopy(file_name)
             file_name = []
             for x in temp_list:
                 suffix = x.split('/')[-1]
                 if suffix in ['*.png', '*.tif']:
                     file_name += sorted(glob.glob(x, recursive=True))
+                else: # complete filename is specified
+                    file_name.append(x)
 
     file_name = _distribute_data(cfg, file_name, rank)
     return file_name
@@ -58,7 +60,8 @@ def _distribute_data(cfg, file_name, rank=None):
     return splited[rank]
 
 
-def _get_file_list(name: Union[str, List[str]]) -> list:
+def _get_file_list(name: Union[str, List[str]],
+                   prefix: Optional[str] = None) -> list:
     if isinstance(name, list):
         return name
 
@@ -66,6 +69,13 @@ def _get_file_list(name: Union[str, List[str]]) -> list:
     if suffix == 'txt':  # a text file saving the absolute path
         filelist = [line.rstrip('\n') for line in open(name)]
         return filelist
+
+    suffix = name.split('/')[-1] # find all image files under a folder
+    if suffix in ['*.png', '*.tif']:
+        assert prefix is not None
+        filelist = sorted(glob.glob(os.path.join(
+            prefix, name), recursive=True))
+        return [os.path.relpath(x, prefix) for x in filelist]
 
     return name.split('@')
 
@@ -214,16 +224,30 @@ def get_dataset(cfg,
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
-                label_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME
+                if isinstance(cfg.DATASET.LABEL_NAME, str):
+                    label_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME
+                else:
+                    label_json = [ 
+                        cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i] 
+                        for i in range(len(cfg.DATASET.LABEL_NAME)) 
+                    ]
             if cfg.DATASET.VALID_MASK_NAME is not None:
                 valid_mask_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME
+
+        if isinstance(cfg.DATASET.IMAGE_NAME, str):
+            volume_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.IMAGE_NAME
+        else:
+            volume_json=[
+                cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME[i]
+                for i in range(len(cfg.DATASET.IMAGE_NAME))
+            ]
 
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
                               chunk_ind=cfg.DATASET.DATA_CHUNK_IND,
                               chunk_ind_split=cfg.DATASET.CHUNK_IND_SPLIT,
                               chunk_iter=cfg.DATASET.DATA_CHUNK_ITER,
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
-                              volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME,
+                              volume_json=volume_json,
                               label_json=label_json,
                               valid_mask_json=valid_mask_json,
                               pad_size=cfg.DATASET.PAD_SIZE,
