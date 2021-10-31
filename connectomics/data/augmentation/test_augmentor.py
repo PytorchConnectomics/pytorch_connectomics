@@ -48,17 +48,16 @@ class TestAugmentor(object):
                  num_aug: Optional[int] = None,
                  scale_factors: List[float] = [1.0, 1.0, 1.0],
                  inference_act=None):
-
+        assert mode in ['mean', 'max', 'min']
         self.mode = mode
         self.do_2d = do_2d
         self.scale_factors = scale_factors
         self.inference_act = inference_act
 
         if num_aug is not None:
-            assert num_aug in [
-                4, 8, 16], "TestAugmentor.num_aug should be either 4, 8 or 16!"
-            if self.do_2d:
-                # maximum num_aug for 2d images
+            assert num_aug in [4, 8, 16], \
+                "TestAugmentor.num_aug should be either 4, 8 or 16!"
+            if self.do_2d: # max num_aug for 2d images
                 num_aug = min(num_aug, 8)
 
         self.num_aug = num_aug

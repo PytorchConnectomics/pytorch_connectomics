@@ -19,7 +19,7 @@ from ..model import *
 from ..utils.monitor import build_monitor
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
-from ..data.dataset.build import _get_file_list, _make_path_list
+from ..data.dataset.build import _get_file_list
 from ..data.utils import build_blending_matrix, writeh5
 from ..data.utils import get_padsize, array_unpad
 
@@ -278,8 +278,13 @@ class Trainer(object):
 
     def test_singly(self):
         dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
-        img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME)
-        assert len(dir_name) == 1
+        img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
+        assert len(dir_name) == 1 # avoid ambiguity when DO_SINGLY is True
+
+        # save input image names for further reference
+        fw = open(os.path.join(self.output_dir, "images.txt"), "w")
+        fw.write('\n'.join(img_name))
+        fw.close()
 
         num_file = len(img_name)
         start_idx = self.cfg.INFERENCE.DO_SINGLY_START_INDEX

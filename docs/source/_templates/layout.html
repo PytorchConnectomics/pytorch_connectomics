@@ -84,7 +84,7 @@
   {% include "fonts.html" %}
 
   <!-- at the end of the HEAD -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
 </head>
 
 <div class="container-fluid header-holder tutorials-header" id="header-holder">
@@ -425,36 +425,19 @@
       });
     })
   </script>
-  <!-- <script type="text/javascript"
-    src="https://cdn.jsdelivr.net/npm/@docsearch/js@1.0.0-alpha.28/dist/umd/index.min.js"></script>
-  <script type="text/javascript">
-    let VERSION
-    if ('{{ version }}'.includes('v')) {
-      VERSION = '{{ version }}'
-    } else {
-      VERSION = '{{ release }}'
-    }
-    docsearch({
-      container: '#docsearch',
-      apiKey: '19a7a7a75d87608d6f42c722ed1e293f',
-      indexName: 'connectomics',
-      placeholder: 'Search PyTorch Connectomics Docs',
-      searchParameters: {
-        'facetFilters': [`version:${VERSION}`],
-      }
-    });
-  </script> -->
+
   <!-- at the end of the BODY -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
-  <script type="text/javascript">
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
     docsearch({
-      apiKey: 'f072ddc06d4d2d86f6b26fb6f12a4699',
-      indexName: 'readthedocs',
-      inputSelector: '#docsearch',
-      placeholder: 'Search PyTorch Connectomics Docs',
-      debug: false // Set debug to true if you want to inspect the dropdown
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
     });
   </script>
+
 </body>
 
 </html>

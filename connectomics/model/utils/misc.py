@@ -96,7 +96,7 @@ class SplitActivation(object):
 
         if output_act is not None:
             assert len(target_opt) == len(output_act)
-        if do_2d:
+        if do_2d: # 2d affinity only has x and y
             self.num_channels_dict['2'] = 2
 
         self.split_channels = []

@@ -51,6 +51,8 @@ def update_inference_cfg(cfg: CfgNode):
 
     if cfg.INFERENCE.DO_CHUNK_TITLE is not None:
         cfg.DATASET.DO_CHUNK_TITLE = cfg.INFERENCE.DO_CHUNK_TITLE
+    if cfg.INFERENCE.DATA_SCALE is not None:
+        cfg.DATASET.DATA_SCALE = cfg.INFERENCE.DATA_SCALE
 
     # model configurations
     if cfg.INFERENCE.INPUT_SIZE is not None:

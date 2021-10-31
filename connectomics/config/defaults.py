@@ -382,7 +382,8 @@ _C.INFERENCE.BLENDING = 'gaussian'
 _C.INFERENCE.AUG_MODE = 'mean'
 _C.INFERENCE.AUG_NUM = None
 
-_C.INFERENCE.OUTPUT_SCALE = [1., 1., 1.]
+_C.INFERENCE.DATA_SCALE = None # Overwrites DATASET.DATA_SCALE if is not None
+_C.INFERENCE.OUTPUT_SCALE = [1., 1., 1.] # Rescale after model prediction
 
 # Run the model forward pass with model.eval() if DO_EVAL is True, else
 # run with model.train(). Layers like batchnorm and dropout will be affected.
