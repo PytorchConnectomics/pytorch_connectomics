@@ -41,9 +41,9 @@ class TileDataset(torch.utils.data.Dataset):
                  chunk_ind_split: Optional[Union[List[int], str]] = None,
                  chunk_iter: int = -1,
                  chunk_stride: bool = True,
-                 volume_json: Union[List[str], str] = 'path/to/image.json',
-                 label_json: Optional[Union[List[str], str]] = None,
-                 valid_mask_json: Optional[str] = None,
+                 volume_json: List[str] = 'path/to/image.json',
+                 label_json: Optional[List[str]] = None,
+                 valid_mask_json: Optional[List[str]] = None,
                  mode: str = 'train',
                  pad_size: List[int] = [0, 0, 0],
                  data_scale: List[float] = [1.0, 1.0, 1.0],
@@ -64,38 +64,24 @@ class TileDataset(torch.utils.data.Dataset):
             chunk_ind, chunk_ind_split)
         self.chunk_id_done = []
 
-        if isinstance(volume_json, str):
-            self.num_volumes = 1
-            self.json_volume = [json.load(open(volume_json))]
-            self.json_label = [json.load(open(label_json))] if (
-                label_json is not None) else None
-            self.json_size = [[self.json_volume[0]['depth'],
-                               self.json_volume[0]['height'],
-                               self.json_volume[0]['width']]]
+        self.num_volumes = len(volume_json)
+        self.json_volume = [ json.load(open(volume_json[i])) for i in range(self.num_volumes) ]
+        self.json_label = [ json.load(open(label_json[i])) for i in range(self.num_volumes) ] if (
+            label_json is not None) else None
 
-            self.coord_m = np.array([[0, self.json_volume[0]['depth'],
-                                      0, self.json_volume[0]['height'],
-                                      0, self.json_volume[0]['width']]], int)
-            
-        else:
-            self.num_volumes = len(volume_json)
-            self.json_volume = [ json.load(open(volume_json[i])) for i in range(self.num_volumes) ]
-            self.json_label = [ json.load(open(label_json[i])) for i in range(self.num_volumes) ] if (
-                label_json is not None) else None
+        self.json_size = [
+            [self.json_volume[i]['depth'],
+                self.json_volume[i]['height'],
+                self.json_volume[i]['width']]
+            for i in range(self.num_volumes) ] 
 
-            self.json_size = [
-                [self.json_volume[i]['depth'],
-                 self.json_volume[i]['height'],
-                 self.json_volume[i]['width']]
-                for i in range(self.num_volumes) ] 
+        self.coord_m = np.array([
+            [0, self.json_volume[i]['depth'],
+                0, self.json_volume[i]['height'],
+                0, self.json_volume[i]['width']]
+            for i in range(self.num_volumes) ], int)
 
-            self.coord_m = np.array([
-                [0, self.json_volume[i]['depth'],
-                 0, self.json_volume[i]['height'],
-                 0, self.json_volume[i]['width']]
-                for i in range(self.num_volumes) ], int)
-
-        self.json_valid = json.load(open(valid_mask_json)) if (
+        self.json_valid = [ json.load(open(valid_mask_json[i])) for i in range(self.num_volumes) ] if (
             valid_mask_json is not None) else None
         
         self.coord = [ np.zeros(6, int) for i in range(self.num_volumes) ]
@@ -196,9 +182,9 @@ class TileDataset(torch.utils.data.Dataset):
 
         valid_mask = None
         if self.json_valid is not None:
-            valid_mask = [tile2volume(self.json_valid['image'], coord_p[0], self.coord_m,
-                                      tile_sz=self.json_valid['tile_size'], tile_st=self.json_valid['tile_st'],
-                                      tile_ratio=self.json_valid['tile_ratio'], do_im=False)]
+            valid_mask = [tile2volume(self.json_valid[i]['image'], coord_p[i], self.coord_m[i],
+                                      tile_sz=self.json_valid[i]['tile_size'], tile_st=self.json_valid[i]['tile_st'],
+                                      tile_ratio=self.json_valid[i]['tile_ratio'], do_im=False)  for i in range(self.num_volumes)]
             valid_mask = self.maybe_scale(valid_mask, order=0)
 
         self.dataset = VolumeDataset(volume, label, valid_mask, mode=self.mode,
