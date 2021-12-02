@@ -224,16 +224,34 @@ def get_dataset(cfg,
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
-                label_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME
+                if isinstance(cfg.DATASET.LABEL_NAME, str):
+                    label_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME]
+                else:
+                    label_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i] 
+                                    for i in range(len(cfg.DATASET.LABEL_NAME)) 
+                                ]
+
             if cfg.DATASET.VALID_MASK_NAME is not None:
-                valid_mask_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME
+                if isinstance(cfg.DATASET.VALID_MASK_NAME, str):
+                    valid_mask_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME]
+                else:
+                    valid_mask_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME[i] 
+                                        for i in range(len(cfg.DATASET.VALID_MASK_NAME)) 
+                                    ]
+
+        if isinstance(cfg.DATASET.IMAGE_NAME, str):
+            volume_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.IMAGE_NAME]
+        else:
+            volume_json=[ cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME[i]
+                            for i in range(len(cfg.DATASET.IMAGE_NAME))
+                        ]
 
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
                               chunk_ind=cfg.DATASET.DATA_CHUNK_IND,
                               chunk_ind_split=cfg.DATASET.CHUNK_IND_SPLIT,
                               chunk_iter=cfg.DATASET.DATA_CHUNK_ITER,
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
-                              volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME,
+                              volume_json=volume_json,
                               label_json=label_json,
                               valid_mask_json=valid_mask_json,
                               pad_size=cfg.DATASET.PAD_SIZE,
