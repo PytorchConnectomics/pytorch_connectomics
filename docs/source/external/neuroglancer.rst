@@ -2,16 +2,16 @@ Neuroglancer
 ===============
 
 Introduction
------------------
+--------------
 `Neuroglancer <https://github.com/google/neuroglancer>`_ is a high-performance, flexible WebGL-based viewer and visualization 
-framework for volumetric data developed `Google Connectomics Team <https://research.google/teams/connectomics/>`_.
+framework for volumetric data developed by the `Google Connectomics Team <https://research.google/teams/connectomics/>`_.
 It supports a wide variety of data sources and can display arbitrary (non axis-aligned) cross-sectional views of volumetric 
 data and 3-D meshes and line-segment-based models (skeletons). Neuroglancer is a powerful tool for large-scale neuroscience 
 datasets, which can be impractical to visualize with other traditional image viewer applications.
 
 
 Installation and Quick Start
------------------------------
+------------------------------
 
 1 - Install neuroglancer a virtual environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -56,6 +56,11 @@ client, and which also can serve local volume data and handles sending and recei
 to the viewer (only while the script is running). Note that anyone with the link can obtain any authentication credentials that 
 the neuroglancer Python module obtains when the viewer is running.
 
+.. note::
+    Users need to start a local neuroglancer server with ``python -i [YOUR_SCRIPT].py`` or use a jupyter notebook. 
+    It cannot be run as a non-interactive python script, *i.e.*, do **not** use ``python [YOUR_SCRIPT].py`` because 
+    the server will shut down immediately after running the code.
+
 .. code-block:: python
 
     import neuroglancer
@@ -66,11 +71,6 @@ the neuroglancer Python module obtains when the viewer is running.
 
     viewer = neuroglancer.Viewer()
     print(viewer)   
-
-.. note::
-    Users need to start a local neuroglancer server with ``python -i [YOUR_SCRIPT].py`` or use a jupyter notebook. 
-    It cannot be run as a non-interactive python script, *i.e.*, do **not** use ``python [YOUR_SCRIPT].py`` because 
-    the server will shut down immediately after running the code.
 
 Publicly available datasets can be loaded either by navigating to the source tab using the GUI or by using the Python interface. Below
 is an example to load a public dataset in Python:
@@ -91,7 +91,7 @@ is an example to load a public dataset in Python:
 
     print(viewer)
 
-Then copy the printed viewer address to your browser (Chrome) to visualize the data.
+Then copy the printed viewer address to your browser (best with Chrome) to visualize the data.
 
 
 3 - Using neuroglancer with a local dataset
@@ -202,14 +202,17 @@ Some other commonly used commands include:
 * zooming in/out (cltr + mousewheel)
 * scrolling through the planes (mousewheel)
 * selecting a segment (double click)
-* snapping back to initial position ('z' key)
+* snapping back to initial position ('Z' key)
 * translating (left click and drag)
 
-**The above and other available commands** can be seen in the help menu which can be accessed by pressing **'h'** key.
+The above and other available commands can be seen in the help menu which can be accessed by pressing **'H'** key.
 
 
-Loading a mesh layer 
-----------------------
+Additional examples
+--------------------
+
+1. Load a mesh layer 
+^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
@@ -228,8 +231,8 @@ Loading a mesh layer
     print(viewer)
 
 
-Showing array of active segments
-----------------------------------------
+2. Show indices of active segments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This code outputs the currently selected layers. The code can be added to a python script or run as a python notebook codeblock.
 
@@ -241,13 +244,14 @@ This code outputs the currently selected layers. The code can be added to a pyth
 
     while True:
         print(np.array(list(viewer.state.layers['segmentation'].segments)))
-        time.sleep(3)
+        time.sleep(3) # specify an interval
 
-Logging mouse position and selected layers
---------------------------------------------
+3. Log mouse position
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-This code can be used to log (output in terminal) the current mouse position in voxel space and the selected layers. 
-A log is created if the key ``L`` is pressed. The code can be added to a python script or run as a python notebook codeblock.
+This code can be used to log (output in terminal) the current mouse position in voxel space and the selected object (if there is
+a ``'segmentation'`` layer in the viewer). A log is created if the key ``L`` is pressed. The code can be added to a python 
+script or run as a python notebook codeblock.
 
 .. code-block:: python
 
