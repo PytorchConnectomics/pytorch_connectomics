@@ -41,9 +41,9 @@ class TileDataset(torch.utils.data.Dataset):
                  chunk_ind_split: Optional[Union[List[int], str]] = None,
                  chunk_iter: int = -1,
                  chunk_stride: bool = True,
-                 volume_json: str = 'path/to/image.json',
-                 label_json: Optional[str] = None,
-                 valid_mask_json: Optional[str] = None,
+                 volume_json: List[str] = 'path/to/image.json',
+                 label_json: Optional[List[str]] = None,
+                 valid_mask_json: Optional[List[str]] = None,
                  mode: str = 'train',
                  pad_size: List[int] = [0, 0, 0],
                  data_scale: List[float] = [1.0, 1.0, 1.0],
@@ -64,19 +64,27 @@ class TileDataset(torch.utils.data.Dataset):
             chunk_ind, chunk_ind_split)
         self.chunk_id_done = []
 
-        self.json_volume = json.load(open(volume_json))
-        self.json_label = json.load(open(label_json)) if (
+        self.num_volumes = len(volume_json)
+        self.json_volume = [ json.load(open(volume_json[i])) for i in range(self.num_volumes) ]
+        self.json_label = [ json.load(open(label_json[i])) for i in range(self.num_volumes) ] if (
             label_json is not None) else None
-        self.json_valid = json.load(open(valid_mask_json)) if (
-            valid_mask_json is not None) else None
-        self.json_size = [self.json_volume['depth'],
-                          self.json_volume['height'],
-                          self.json_volume['width']]
 
-        self.coord_m = np.array([0, self.json_volume['depth'],
-                                 0, self.json_volume['height'],
-                                 0, self.json_volume['width']], int)
-        self.coord = np.zeros(6, int)
+        self.json_size = [
+            [self.json_volume[i]['depth'],
+                self.json_volume[i]['height'],
+                self.json_volume[i]['width']]
+            for i in range(self.num_volumes) ] 
+
+        self.coord_m = np.array([
+            [0, self.json_volume[i]['depth'],
+                0, self.json_volume[i]['height'],
+                0, self.json_volume[i]['width']]
+            for i in range(self.num_volumes) ], int)
+
+        self.json_valid = [ json.load(open(valid_mask_json[i])) for i in range(self.num_volumes) ] if (
+            valid_mask_json is not None) else None
+        
+        self.coord = [ np.zeros(6, int) for i in range(self.num_volumes) ]
 
     def get_chunk_ind(self, chunk_ind, split_rule):
         if chunk_ind is None:
@@ -120,14 +128,18 @@ class TileDataset(torch.utils.data.Dataset):
         yid = float((id_sample//self.chunk_num[2]) % (self.chunk_num[1]))
         xid = float(id_sample % self.chunk_num[2])
 
-        x0, x1 = np.floor(np.array([xid, xid+self.chunk_step])/(
-            self.chunk_num[2]+self.chunk_step-1)*self.json_size[2]).astype(int)
-        y0, y1 = np.floor(np.array([yid, yid+self.chunk_step])/(
-            self.chunk_num[1]+self.chunk_step-1)*self.json_size[1]).astype(int)
-        z0, z1 = np.floor(np.array([zid, zid+self.chunk_step])/(
-            self.chunk_num[0]+self.chunk_step-1)*self.json_size[0]).astype(int)
+        self.coord = []
 
-        self.coord = np.array([z0, z1, y0, y1, x0, x1], int)
+        for i in range(self.num_volumes):
+
+            x0, x1 = np.floor(np.array([xid, xid+self.chunk_step])/(
+                self.chunk_num[2]+self.chunk_step-1)*self.json_size[i][2]).astype(int)
+            y0, y1 = np.floor(np.array([yid, yid+self.chunk_step])/(
+                self.chunk_num[1]+self.chunk_step-1)*self.json_size[i][1]).astype(int)
+            z0, z1 = np.floor(np.array([zid, zid+self.chunk_step])/(
+                self.chunk_num[0]+self.chunk_step-1)*self.json_size[i][0]).astype(int)
+
+            self.coord.append(np.array([z0, z1, y0, y1, x0, x1], int))
 
         if do_load:
             self.loadchunk()
@@ -135,14 +147,23 @@ class TileDataset(torch.utils.data.Dataset):
     def loadchunk(self):
         r"""Load the chunk based on current coordinates and construct a VolumeDataset for processing.
         """
-        coord_p = self.coord + [-self.pad_size[0], self.pad_size[0],
-                                -self.pad_size[1], self.pad_size[1],
-                                -self.pad_size[2], self.pad_size[2]]
+        # Assuming same padding for the list of volumes given
+        coord_p = [
+            self.coord[i] + [-self.pad_size[0], self.pad_size[0],
+                             -self.pad_size[1], self.pad_size[1],
+                             -self.pad_size[2], self.pad_size[2]]
+            for i in range(self.num_volumes) 
+        ]
         print('load chunk: ', coord_p)
         # keep it in uint8 to save memory
-        volume = [tile2volume(self.json_volume['image'], coord_p, self.coord_m,
-                              tile_sz=self.json_volume['tile_size'], tile_st=self.json_volume['tile_st'],
-                              tile_ratio=self.json_volume['tile_ratio'])]
+
+        volume = [
+            tile2volume(self.json_volume[i]['image'], coord_p[i], self.coord_m[i],
+            tile_sz=self.json_volume[i]['tile_size'], tile_st=self.json_volume[i]['tile_st'],
+            tile_ratio=self.json_volume[i]['tile_ratio'])
+        for i in range(self.num_volumes)
+        ]
+
         volume = self.maybe_scale(volume, order=1)  # linear for raw images
 
         label = None
@@ -150,17 +171,20 @@ class TileDataset(torch.utils.data.Dataset):
             dt = {'uint8': np.uint8, 'uint16': np.uint16,
                   'uint32': np.uint32, 'uint64': np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
-            label = [relabel(tile2volume(self.json_label['image'], coord_p, self.coord_m,
-                                         tile_sz=self.json_label['tile_size'], tile_st=self.json_label['tile_st'],
-                                         tile_ratio=self.json_label['tile_ratio'], dt=dt[self.json_label['dtype']],
-                                         do_im=False), do_type=True)]
+            label = [
+                relabel(tile2volume(self.json_label[i]['image'], coord_p[i], self.coord_m[i],
+                            tile_sz=self.json_label[i]['tile_size'], tile_st=self.json_label[i]['tile_st'],
+                            tile_ratio=self.json_label[i]['tile_ratio'], dt=dt[self.json_label[i]['dtype']],
+                            do_im=False), do_type=True)
+                for i in range(self.num_volumes)
+            ]
             label = self.maybe_scale(label, order=0)
 
         valid_mask = None
         if self.json_valid is not None:
-            valid_mask = [tile2volume(self.json_valid['image'], coord_p, self.coord_m,
-                                      tile_sz=self.json_valid['tile_size'], tile_st=self.json_valid['tile_st'],
-                                      tile_ratio=self.json_valid['tile_ratio'], do_im=False)]
+            valid_mask = [tile2volume(self.json_valid[i]['image'], coord_p[i], self.coord_m[i],
+                                      tile_sz=self.json_valid[i]['tile_size'], tile_st=self.json_valid[i]['tile_st'],
+                                      tile_ratio=self.json_valid[i]['tile_ratio'], do_im=False)  for i in range(self.num_volumes)]
             valid_mask = self.maybe_scale(valid_mask, order=0)
 
         self.dataset = VolumeDataset(volume, label, valid_mask, mode=self.mode,
