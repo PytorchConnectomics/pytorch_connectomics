@@ -35,7 +35,13 @@ This package can not only reproduce state-of-the-art performance on benchmark da
    tutorials/mito
    tutorials/synapse
    tutorials/artifact
-   tutorials/neuroglancer
+
+.. toctree::
+   :glob:
+   :maxdepth: 1
+   :caption: External
+   
+   external/neuroglancer
 
 .. toctree::
    :glob:
