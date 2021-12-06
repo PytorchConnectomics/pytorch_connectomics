@@ -220,11 +220,12 @@ and apply the segmentation algorithm:
     chunks = glob.glob(output_files)
 
     vol_shape = (2, 500, 4096, 4096) # MitoEM test set
+    # vol_shape = (2, 100, 4096, 4096) # MitoEM validation set
     pred = np.ones(vol_shape, dtype=np.uint8)
     for x in chunks:
         pos = x.strip().split("/")[-1]
         print("process chunk: ", pos)
-        pos = pos.split("_")[-1].split(".")[0].split("-")
+        pos = pos.split("_")[1].split("-")
         pos = list(map(int, pos))
         chunk = readvol(x)
         pred[:, pos[0]:pos[1], pos[2]:pos[3], pos[4]:pos[5]] = chunk
@@ -236,3 +237,28 @@ and apply the segmentation algorithm:
 Then the segmentation map should be ready to be submitted to the MitoEM challenge website for
 evaluation. Please note that this tutorial only take the **MitoEM-Rat** set as an example. The
 **MitoEM-Human** set also need to be segmented for online evaluation.
+
+7 - Validation evaluation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume <https://github.com/ygCoconut/mAP_3Dvolume/tree/grand-challenge>`__ repository. The ground truth ``h5`` can be generated using the following script:
+
+.. code-block:: python
+
+  import glob
+  import numpy as np
+  from connectomics.data.utils import writeh5, readvol
+
+
+  gt_path = "datasets/MitoEM_R/mito_val/*.tif"
+  files = sorted(glob.glob(gt_path))
+
+  data = []
+  for i, file in enumerate(files):
+      print("process chunk: ", i)
+      data.append(readvol(file))
+
+  data = np.array(data)
+  writeh5("validation_gt.h5", data)
+
+The resulting scores can then be obtained by executing ``python demo.py -gt /path/to/validation_gt.h5 -p /path/to/segmentation_result.h5``
