@@ -28,7 +28,7 @@ SOLVER:
 INFERENCE:
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
-  IMAGE_NAME: im_test.json
+  IMAGE_NAME: im_test.json # replace this with im_val.json to run validation
   OUTPUT_PATH: outputs/MitoEM_R/test/
   OUTPUT_NAME: result # will automatically save to HDF5
   PAD_SIZE: [4, 64, 64]
