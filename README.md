@@ -85,7 +85,7 @@ This project is built upon numerous previous projects. Especially, we'd like to 
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
+This project is licensed under the MIT License and the copyright belongs to all PyTorch Connectomics contributors - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
 
 ## Citation
 

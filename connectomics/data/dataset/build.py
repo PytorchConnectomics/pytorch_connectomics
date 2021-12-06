@@ -70,8 +70,8 @@ def _get_file_list(name: Union[str, List[str]],
         filelist = [line.rstrip('\n') for line in open(name)]
         return filelist
 
-    suffix = name.split('/')[-1] # find all image files under a folder
-    if suffix in ['*.png', '*.tif']:
+    suffix = name.split('/')[-1]
+    if suffix in ['*.png', '*.tif']: # find all image files under a folder
         assert prefix is not None
         filelist = sorted(glob.glob(os.path.join(
             prefix, name), recursive=True))
@@ -88,10 +88,11 @@ def _get_input(cfg,
     r"""Load the inputs specified by the configuration options.
     """
     assert mode in ['train', 'val', 'test']
+    dir_path = cfg.DATASET.INPUT_PATH
     if dir_name_init is not None:
         dir_name = dir_name_init
     else:
-        dir_name = _get_file_list(cfg.DATASET.INPUT_PATH)
+        dir_name = _get_file_list(dir_path)
 
     if mode == 'val':
         img_name = cfg.DATASET.VAL_IMAGE_NAME
@@ -107,20 +108,20 @@ def _get_input(cfg,
     if img_name_init is not None:
         img_name = img_name_init
     else:
-        img_name = _get_file_list(img_name)
+        img_name = _get_file_list(img_name, prefix=dir_path)
     img_name = _make_path_list(cfg, dir_name, img_name, rank)
     print(rank, len(img_name), list(map(os.path.basename, img_name)))
 
     label = None
     if mode in ['val', 'train'] and label_name is not None:
-        label_name = _get_file_list(label_name)
+        label_name = _get_file_list(label_name, prefix=dir_path)
         label_name = _make_path_list(cfg, dir_name, label_name, rank)
         assert len(label_name) == len(img_name)
         label = [None]*len(label_name)
 
     valid_mask = None
     if mode in ['val', 'train'] and valid_mask_name is not None:
-        valid_mask_name = _get_file_list(valid_mask_name)
+        valid_mask_name = _get_file_list(valid_mask_name, prefix=dir_path)
         valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
         assert len(valid_mask_name) == len(img_name)
         valid_mask = [None]*len(valid_mask_name)
@@ -224,16 +225,34 @@ def get_dataset(cfg,
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
-                label_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME
+                if isinstance(cfg.DATASET.LABEL_NAME, str):
+                    label_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME]
+                else:
+                    label_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i] 
+                                    for i in range(len(cfg.DATASET.LABEL_NAME)) 
+                                ]
+
             if cfg.DATASET.VALID_MASK_NAME is not None:
-                valid_mask_json = cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME
+                if isinstance(cfg.DATASET.VALID_MASK_NAME, str):
+                    valid_mask_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME]
+                else:
+                    valid_mask_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME[i] 
+                                        for i in range(len(cfg.DATASET.VALID_MASK_NAME)) 
+                                    ]
+
+        if isinstance(cfg.DATASET.IMAGE_NAME, str):
+            volume_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.IMAGE_NAME]
+        else:
+            volume_json=[ cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME[i]
+                            for i in range(len(cfg.DATASET.IMAGE_NAME))
+                        ]
 
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
                               chunk_ind=cfg.DATASET.DATA_CHUNK_IND,
                               chunk_ind_split=cfg.DATASET.CHUNK_IND_SPLIT,
                               chunk_iter=cfg.DATASET.DATA_CHUNK_ITER,
                               chunk_stride=cfg.DATASET.DATA_CHUNK_STRIDE,
-                              volume_json=cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME,
+                              volume_json=volume_json,
                               label_json=label_json,
                               valid_mask_json=valid_mask_json,
                               pad_size=cfg.DATASET.PAD_SIZE,

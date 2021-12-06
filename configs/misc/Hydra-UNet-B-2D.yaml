@@ -1,0 +1,55 @@
+SYSTEM:
+  NUM_GPUS: 1
+  NUM_CPUS: 4
+MODEL:
+  ARCHITECTURE: unet_2d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [1, 193, 193]
+  OUTPUT_SIZE: [1, 193, 193]
+  IN_PLANES: 1
+  OUT_PLANES: 1
+  TARGET_OPT: ["0"]
+  LOSS_OPTION:
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  NORM_MODE: bn
+  MIXED_PRECESION: False
+  FILTERS: [32, 64, 128, 256, 512]
+DATASET:
+  IMAGE_NAME: datasets/Hydra/mip2_image.txt
+  LABEL_NAME: datasets/Hydra/mip2_label.txt
+  IS_ABSOLUTE_PATH: True
+  OUTPUT_PATH: outputs/Hydra_UNet_B_2D/
+  PAD_SIZE: [0, 32, 32]
+  REJECT_SAMPLING:
+    SIZE_THRES: 100
+    P: 1.0
+  DO_2D: True
+  LOAD_2D: True
+AUGMENTOR:
+  MISSINGPARTS:
+    ENABLED: False
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.01
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 16
+INFERENCE:
+  INPUT_SIZE: [1, 513, 513]
+  OUTPUT_SIZE: [1, 513, 513]
+  OUTPUT_ACT: ["sigmoid"]
+  INPUT_PATH: datasets/Hydra
+  IMAGE_NAME: mip2_image/**/*.png
+  DO_SINGLY: True
+  OUTPUT_PATH: outputs/Hydra_UNet_B_2D/test_mip2/
+  OUTPUT_NAME: pred
+  PAD_SIZE: [0, 64, 64]
+  AUG_NUM: 4
+  AUG_MODE: mean
+  STRIDE: [1, 256, 256]
+  SAMPLES_PER_BATCH: 16
