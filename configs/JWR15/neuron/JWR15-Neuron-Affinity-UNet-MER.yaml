@@ -1,6 +1,4 @@
 MODEL:
-  ARCHITECTURE: unet_3d
-  BLOCK_TYPE: residual_se
   OUT_PLANES: 9
   TARGET_OPT: ["2", "2", "2"]
   LABEL_EROSION: [1, 4, 8]

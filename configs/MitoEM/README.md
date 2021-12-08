@@ -63,6 +63,8 @@ segm = bc_watershed(pred, thres1=0.85, thres2=0.6, thres3=0.8, thres_small=1024)
 
 ### Citation
 
+This paper is published at the 23rd International Conference on Medical Image Computing and Computer Assisted Intervention (**MICCAI 2020**).
+
 ```bibtex
 @inproceedings{wei2020mitoem,
   title={MitoEM Dataset: Large-scale 3D Mitochondria Instance Segmentation from EM Images},
