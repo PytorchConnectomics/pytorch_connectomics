@@ -234,14 +234,22 @@ and apply the segmentation algorithm:
     # Please allocate enough memory for processing.
     segm = bc_watershed(pred, thres1=0.85, thres2=0.6, thres3=0.8, thres_small=1024)
 
-Then the segmentation map should be ready to be submitted to the MitoEM challenge website for
+.. note::
+
+    The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different 
+    segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.   
+
+Then the segmentation map should be ready to be submitted to the `MitoEM <https://mitoem.grand-challenge.org/>`_ challenge website for
 evaluation. Please note that this tutorial only take the **MitoEM-Rat** set as an example. The
 **MitoEM-Human** set also need to be segmented for online evaluation.
 
-7 - Validation evaluation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+7 - Evaluate on the validation set
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume <https://github.com/ygCoconut/mAP_3Dvolume/tree/grand-challenge>`__ repository. The ground truth ``h5`` can be generated using the following script:
+The performance of the MitoEM test sets can only be evaluated on the challenge website. Dataset users are encouraged to experiment 
+with the metric code on the validation set to understand the evaluation function and conduct a hyper-parameter search. 
+Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume <https://github.com/ygCoconut/mAP_3Dvolume/tree/grand-challenge>`__ repository. 
+The ground truth ``.h5`` file can be generated from the 2D images using the following script:
 
 .. code-block:: python
 
@@ -249,10 +257,9 @@ Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume 
   import numpy as np
   from connectomics.data.utils import writeh5, readvol
 
-
   gt_path = "datasets/MitoEM_R/mito_val/*.tif"
   files = sorted(glob.glob(gt_path))
-
+  
   data = []
   for i, file in enumerate(files):
       print("process chunk: ", i)
