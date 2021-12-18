@@ -39,10 +39,10 @@ a scientific publication, we would appreciate citations to the project.
 .. code-block:: text
 
     @article{lin2021pytorch,
-    title={PyTorch Connectomics: A Scalable and Flexible Segmentation Framework for EM Connectomics},
-    author={Lin, Zudi and Wei, Donglai and Lichtman, Jeff and Pfister, Hanspeter},
-    journal={arXiv preprint arXiv:2112.05754},
-    year={2021}
+        title={PyTorch Connectomics: A Scalable and Flexible Segmentation Framework for EM Connectomics},
+        author={Lin, Zudi and Wei, Donglai and Lichtman, Jeff and Pfister, Hanspeter},
+        journal={arXiv preprint arXiv:2112.05754},
+        year={2021}
     }
 
 We gratefully acknowledge the support from NSF awards IIS-1835231 and IIS-2124179.

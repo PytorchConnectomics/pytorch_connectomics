@@ -136,6 +136,13 @@ segmentation dataset for demonstration.
 
 Please note that the mask volume needs to be loaded as a ``'segmentation'`` layer.
 
+.. tip::
+
+    To show the 3D meshes of all segments, print the segment indices in the Python script and copy it
+    to the segment tab of the corresponding ``'segmentation'`` layer. May need to wait a couple of 
+    minutes before seeing the rendered 3D meshes.
+
+
 4 - Loading public datasets in GUI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
