@@ -83,19 +83,21 @@ This project is built upon numerous previous projects. Especially, we'd like to 
 - [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
 - [Detectron2](https://github.com/facebookresearch/detectron2): Facebook AI Reserach
 
+We gratefully acknowledge the support from NSF awards IIS-1835231 and IIS-2124179.
+
 ## License
 
 This project is licensed under the MIT License and the copyright belongs to all PyTorch Connectomics contributors - see the [LICENSE](https://github.com/zudi-lin/pytorch_connectomics/blob/master/LICENSE) file for details.
 
 ## Citation
 
-If you find PyTorch Connectomics (PyTC) useful in your research, please cite:
+For a detailed description of our framework, please read this [technical report](https://arxiv.org/abs/2112.05754). If you find PyTorch Connectomics (PyTC) useful in your research, please cite:
 
 ```bibtex
-@misc{lin2019pytorchconnectomics,
-  author =       {Zudi Lin and Donglai Wei},
-  title =        {PyTorch Connectomics},
-  howpublished = {\url{https://github.com/zudi-lin/pytorch_connectomics}},
-  year =         {2019}
+@article{lin2021pytorch,
+  title={PyTorch Connectomics: A Scalable and Flexible Segmentation Framework for EM Connectomics},
+  author={Lin, Zudi and Wei, Donglai and Lichtman, Jeff and Pfister, Hanspeter},
+  journal={arXiv preprint arXiv:2112.05754},
+  year={2021}
 }
 ```

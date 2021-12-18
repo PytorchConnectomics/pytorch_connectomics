@@ -10,7 +10,7 @@ Authors
 ------------
 The following people are currently core contributors to PyTorch Connectomics’s development and maintenance:
 
-- `Zudi Lin <https://zudi-lin.github.io/>`_ - Ph.D. candidate at Harvard University
+- `Zudi Lin <https://zudi-lin.github.io/>`_ - Ph.D. candidate in the Visual Computing Group at Harvard University
 - `Donglai Wei <https://donglaiw.github.io/>`_ - Assistant Professor of Computer Science at Boston College. Previous postdoctoral fellow in the Visual Computing Group at Harvard University
 
 Advisors
@@ -33,13 +33,16 @@ Zudi (`@zudi-lin <https://github.com/zudi-lin>`_) via email (linzudi@g.harvard.e
 Citation
 ----------
 
-If you use PyTorch Connectomics in a scientific publication, we would appreciate citations to the project.
+Please read this `technical report <https://arxiv.org/abs/2112.05754>`_ for a detailed description of the framework. If you use PyTorch Connectomics (PyTC) in 
+a scientific publication, we would appreciate citations to the project.
 
 .. code-block:: text
 
-    @misc{lin2019pytorchconnectomics,
-    author =       {Zudi Lin and Donglai Wei},
-    title =        {PyTorch Connectomics},
-    howpublished = {\url{https://github.com/zudi-lin/pytorch_connectomics}},
-    year =         {2019}
+    @article{lin2021pytorch,
+    title={PyTorch Connectomics: A Scalable and Flexible Segmentation Framework for EM Connectomics},
+    author={Lin, Zudi and Wei, Donglai and Lichtman, Jeff and Pfister, Hanspeter},
+    journal={arXiv preprint arXiv:2112.05754},
+    year={2021}
     }
+
+We gratefully acknowledge the support from NSF awards IIS-1835231 and IIS-2124179.
