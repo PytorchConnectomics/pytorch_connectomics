@@ -253,18 +253,41 @@ This code outputs the currently selected layers. The code can be added to a pyth
         print(np.array(list(viewer.state.layers['segmentation'].segments)))
         time.sleep(3) # specify an interval
 
-3. Log mouse position
+3. Custom Actions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-This code can be used to log (output in terminal) the current mouse position in voxel space and the selected object (if there is
-a ``'segmentation'`` layer in the viewer). A log is created if the key ``L`` is pressed. The code can be added to a python 
+Custom actions can be added to the neuroglancer viewer object. The following code shows how to register a custom action to a key press.
+
+.. code-block:: python
+
+    # assume a viewer with is already created
+    import numpy as np
+    
+    def action(action_state):
+        # do something
+
+
+    viewer.actions.add('custom_action', action)  # register the function as neuroglancer action
+    with viewer.config_state.txn() as s:
+        s.input_event_bindings.viewer['shift+mousedown0'] = 'custom_action'  # the function will be called on pressing shift+left mouse button
+        
+Neuroglancer will provide the custom function with an ``ActionState`` object. This object contains the current mouse position in voxels, a ``ViewerState`` object that contains information about the current state of the viewer and a dictionary of ``selected_values`` which contains information about the options selected for each layer in the viewer. The next section has a simple example about how to log mouse position using a custom action
+
+
+4. Display mouse position
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+This code can be used to display the current mouse position as a point annotation. It also logs the mouse position in voxel space, and the selected object (if there is a ``'segmentation'`` layer in the viewer) to the terminal. The action is triggered if the key ``L`` is pressed. The code can be added to a python 
 script or run as a python notebook codeblock.
 
 .. code-block:: python
 
     # assume a viewer with is already created
     import numpy as np
-
+    
+    with viewer.txn() as s:
+        s.layers['points'] = neuroglancer.LocalAnnotationLayer(dimensions=res)
+    
     num_actions = 0
     def logger(s):
         global num_actions
@@ -276,9 +299,63 @@ script or run as a python notebook codeblock.
         print('Log event')
         print('Mouse position: ', np.array(s.mouse_voxel_coordinates))
         print('Layer selected values:', (np.array(list(viewer.state.layers['segmentation'].segments))))
+        with viewer.txn() as s:
+            point = np.array(s.mouse_voxel_coordinates)
+            point_anno = neuroglancer.PointAnnotation(
+                             id=repr(point), 
+                             point=point
+                         )
+            s.layers['points'].annotations = [point_anno]
 
 
     viewer.actions.add('logger', logger)
     with viewer.config_state.txn() as s:
         s.input_event_bindings.viewer['keyl'] = 'logger'
         s.status_messages['hello'] = 'Add a promt for neuroglancer'
+
+5. Re-render a layer
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+If changes are made to a neuroglancer layer through custom actions, the layer needs to be re-rendered for the changes to be visible in the viewer. To re-render a layer simply call the ``invalidate()`` function on a ``LocalVolume`` object
+
+.. code-block:: python
+
+    # assume a viewer with is already created
+    
+    mesh_volume = neuroglancer.LocalVolume(
+            data=data, dimensions=res)
+    with viewer.txn() as s:
+        s.layers['mesh'] = neuroglancer.SegmentationLayer(
+                source=mesh_volume
+            )
+    
+    # do something ...
+    
+    # re-renders the 'mesh' layer in viewer
+    mesh_volume.invalidate()
+    
+6. Using custom shaders with images
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Neuroglancer allows using custom shaders to control how an image layer appears in the viewers rather than simple black and white. The following code snippet shows how to render an image layer with the Jet colormap.
+
+.. code-block:: python
+
+    # assume a viewer with is already created
+    
+    data_volume = neuroglancer.LocalVolume(
+            data=data, dimensions=res)
+    with viewer.txn() as s:
+        s.layers['image'] = neuroglancer.ImageLayer(
+                source=data_volume,
+                shader='''
+                    void main() {
+                    float v = toNormalized(getDataValue(0));
+                    vec4 rgba = vec4(0,0,0,0);
+                    if (v != 0.0) {
+                        rgba = vec4(colormapJet(v), 1.0);
+                    }
+                    emitRGBA(rgba);
+                    }
+                    '''
+                )
