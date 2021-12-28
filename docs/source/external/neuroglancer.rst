@@ -138,7 +138,7 @@ Please note that the mask volume needs to be loaded as a ``'segmentation'`` laye
 
 .. tip::
 
-    To show the 3D meshes of all segments, print the segment indices in the Python script and copy it
+    To show the 3D meshes of all segments, print the segment indices in the Python script (use ``numpy.unique``) and copy it
     to the segment tab of the corresponding ``'segmentation'`` layer. May need to wait a couple of 
     minutes before seeing the rendered 3D meshes.
 
@@ -254,9 +254,9 @@ This code outputs the currently selected layers. The code can be added to a pyth
         time.sleep(3) # specify an interval
 
 3. Custom Actions
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
 
-Custom actions can be added to the neuroglancer viewer object. The following code shows how to register a custom action to a key press.
+Custom actions can be added to the neuroglancer viewer object. The following code shows how to register a *custom action* to a key press.
 
 .. code-block:: python
 
@@ -266,19 +266,21 @@ Custom actions can be added to the neuroglancer viewer object. The following cod
     def action(action_state):
         # do something
 
-
     viewer.actions.add('custom_action', action)  # register the function as neuroglancer action
     with viewer.config_state.txn() as s:
         s.input_event_bindings.viewer['shift+mousedown0'] = 'custom_action'  # the function will be called on pressing shift+left mouse button
         
-Neuroglancer will provide the custom function with an ``ActionState`` object. This object contains the current mouse position in voxels, a ``ViewerState`` object that contains information about the current state of the viewer and a dictionary of ``selected_values`` which contains information about the options selected for each layer in the viewer. The next section has a simple example about how to log mouse position using a custom action
+Neuroglancer will provide the custom function with an ``ActionState`` object. This object contains the current mouse position in voxels, a ``ViewerState`` object 
+that contains information about the current state of the viewer and a dictionary of ``selected_values`` which contains information about the options selected for 
+each layer in the viewer. The next section has a simple example about how to log mouse position using a custom action.
 
 
 4. Display mouse position
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This code can be used to display the current mouse position as a point annotation. It also logs the mouse position in voxel space, and the selected object (if there is a ``'segmentation'`` layer in the viewer) to the terminal. The action is triggered if the key ``L`` is pressed. The code can be added to a python 
-script or run as a python notebook codeblock.
+This code can be used to display the current mouse position as a point annotation. It also logs the mouse position in voxel space, and 
+the selected object (if there is a ``'segmentation'`` layer in the viewer) to the terminal. The action is triggered if the key ``L`` is pressed. 
+The code can be added to a Python script or run as a Python notebook codeblock.
 
 .. code-block:: python
 
@@ -303,8 +305,7 @@ script or run as a python notebook codeblock.
             point = np.array(s.mouse_voxel_coordinates)
             point_anno = neuroglancer.PointAnnotation(
                              id=repr(point), 
-                             point=point
-                         )
+                             point=point)
             s.layers['points'].annotations = [point_anno]
 
 
@@ -314,9 +315,10 @@ script or run as a python notebook codeblock.
         s.status_messages['hello'] = 'Add a promt for neuroglancer'
 
 5. Re-render a layer
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
-If changes are made to a neuroglancer layer through custom actions, the layer needs to be re-rendered for the changes to be visible in the viewer. To re-render a layer simply call the ``invalidate()`` function on a ``LocalVolume`` object
+If changes are made to a neuroglancer layer through custom actions, the layer needs to be re-rendered for the changes to be visible 
+in the viewer. To re-render a layer simply call the ``invalidate()`` function on a ``LocalVolume`` object
 
 .. code-block:: python
 
@@ -326,8 +328,7 @@ If changes are made to a neuroglancer layer through custom actions, the layer ne
             data=data, dimensions=res)
     with viewer.txn() as s:
         s.layers['mesh'] = neuroglancer.SegmentationLayer(
-                source=mesh_volume
-            )
+                source=mesh_volume)
     
     # do something ...
     
