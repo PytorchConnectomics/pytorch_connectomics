@@ -20,7 +20,7 @@ Synaptic Cleft Detection
 
 This tutorial provides step-by-step guidance for synaptic cleft detection with `CREMI <https://cremi.org>`_ benchmark datasets.
 We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
-the models used in affinity prediction in `neuron segmentation <https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html>`_.
+the models used in affinity prediction in `neuron segmentation <neuron.html>`_.
 The evaluation of the synapse detection results is based on the F1 score and average distance. See `CREMI metrics <https://cremi.org/metrics/>`_
 for more details.
 

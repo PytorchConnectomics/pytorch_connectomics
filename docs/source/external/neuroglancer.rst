@@ -323,7 +323,6 @@ in the viewer. To re-render a layer simply call the ``invalidate()`` function on
 .. code-block:: python
 
     # assume a viewer with is already created
-    
     mesh_volume = neuroglancer.LocalVolume(
             data=data, dimensions=res)
     with viewer.txn() as s:
@@ -338,12 +337,12 @@ in the viewer. To re-render a layer simply call the ``invalidate()`` function on
 6. Using custom shaders with images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Neuroglancer allows using custom shaders to control how an image layer appears in the viewers rather than simple black and white. The following code snippet shows how to render an image layer with the Jet colormap.
+Neuroglancer allows using custom shaders to control how an image layer appears in the viewers rather than simple black and white. The 
+following code snippet shows how to render an image layer with the Jet colormap.
 
 .. code-block:: python
 
     # assume a viewer with is already created
-    
     data_volume = neuroglancer.LocalVolume(
             data=data, dimensions=res)
     with viewer.txn() as s:
@@ -360,3 +359,46 @@ Neuroglancer allows using custom shaders to control how an image layer appears i
                     }
                     '''
                 )
+
+7. Visualize RGB images
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Sometimes visualizing RGB images (*e.g.*, 3-channel affinity or synaptic polarity prediction) with raw images can be a convenient way for debugging and error 
+analysis. The following code snippet shows an example to display the overlay of gray-scale and RGB images.
+
+.. code-block:: python
+
+    # assume a viewer with is already created
+
+    # coordinate space for gray-scale volume (z,y,x)
+    res0 = neuroglancer.CoordinateSpace(
+            names=['z', 'y', 'x'],
+            units=['nm', 'nm', 'nm'],
+            scales=[30, 4, 4])
+
+    # coordinate space for RGB volume (c,z,y,x)
+    res1 = neuroglancer.CoordinateSpace(
+            names=['c^', 'z', 'y', 'x'],
+            units=['', 'nm', 'nm', 'nm'],
+            scales=[1, 30, 4, 4])
+
+    def ngLayer(data,res,oo=[0,0,0],tt='segmentation'):
+        return neuroglancer.LocalVolume(data,dimensions=res,volume_type=tt,voxel_offset=oo)
+        
+    with viewer.txn() as s:
+        # im: 3d array in (z,y,x). im_rgb: 4d array in (c,z,y,x), c=3
+        s.layers.append(name='im',layer=ngLayer(im,res0,tt='image')),
+        s.layers.append(name='im_rgb',layer=ngLayer(im_rgb,res1,oo=[0,0,0,0],tt='image'),
+        shader="""
+            void main() {
+            emitRGB(vec3(toNormalized(getDataValue(0)),
+            toNormalized(getDataValue(1)),
+            toNormalized(getDataValue(2))));
+            }
+        """
+        )
+    print(viewer)
+
+.. image :: ../_static/img/ng_rgb.png
+
+Visualization of EM images overlay with synaptic polarity prediction. See `synapse detection <../tutorials/synapse.html#synaptic-polarity-detection>`_ for details.
