@@ -255,6 +255,15 @@ def dilate_label(label: np.ndarray,
     return dilation(label, np.ones(shape, dtype=label.dtype))
 
 
+def seg2polarity(label):
+    # segmentation to 3-channel synaptic polarity masks
+    tmp = [None]*3
+    tmp[0] = np.logical_and((label % 2) == 1, label > 0)
+    tmp[1] = np.logical_and((label % 2) == 0, label > 0)
+    tmp[2] = (label > 0)
+    return np.stack(tmp, 0).astype(np.float32)
+
+
 def seg_to_targets(label_orig: np.ndarray,
                    topts: List[str],
                    erosion_rates: RATES_TYPE = None,
@@ -271,11 +280,7 @@ def seg_to_targets(label_orig: np.ndarray,
             fg_mask = seg2binary(label, topt)
             out[tid] = fg_mask[np.newaxis, :].astype(np.float32)
         elif topt[0] == '1':  # synaptic polarity
-            tmp = [None]*3
-            tmp[0] = np.logical_and((label % 2) == 1, label > 0)
-            tmp[1] = np.logical_and((label % 2) == 0, label > 0)
-            tmp[2] = (label > 0)
-            out[tid] = np.stack(tmp, 0).astype(np.float32)
+            out[tid] = seg2polarity(label)
         elif topt[0] == '2':  # affinity
             out[tid] = seg2affinity(label, topt)
         elif topt[0] == '3':  # small object mask
