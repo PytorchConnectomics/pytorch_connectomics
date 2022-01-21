@@ -45,7 +45,7 @@ INFERENCE:
   OUTPUT_PATH: outputs/JWR15_Synapse/test
   OUTPUT_NAME: result.h5
   PAD_SIZE: [8, 128, 128]
-  AUG_MODE: min
+  AUG_MODE: mean
   AUG_NUM: None
   STRIDE: [16, 128, 128]
   SAMPLES_PER_BATCH: 4

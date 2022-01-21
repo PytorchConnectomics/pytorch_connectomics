@@ -57,12 +57,13 @@ def _edt_binary_mask(mask, resolution, alpha):
 def edt_instance(label: np.ndarray,
                  mode: str = '2d',
                  quantize: bool = True,
-                 resolution: Tuple[float] = (1.0, 1.0, 1.0)):
+                 resolution: Tuple[float] = (1.0, 1.0, 1.0),
+                 padding: bool = False):
     assert mode in ['2d', '3d']
     if mode == '3d':
         # calculate 3d distance transform for instances
         vol_distance, vol_semantic = distance_transform(
-            label, resolution=resolution)
+            label, resolution=resolution, padding=padding)
         if quantize:
             vol_distance = energy_quantize(vol_distance)
         return vol_distance
@@ -71,7 +72,7 @@ def edt_instance(label: np.ndarray,
     vol_semantic = []
     for i in range(label.shape[0]):
         label_img = label[i].copy()
-        distance, semantic = distance_transform(label_img)
+        distance, semantic = distance_transform(label_img, padding=padding)
         vol_distance.append(distance)
         vol_semantic.append(semantic)
 

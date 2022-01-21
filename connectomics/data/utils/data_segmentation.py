@@ -300,9 +300,9 @@ def seg_to_targets(label_orig: np.ndarray,
                     None, :].astype(np.float32)
         elif topt[0] == '5':  # distance transform (instance)
             if len(topt) == 1:
-                topt = topt + '-2d'
-            _, mode = topt.split('-')
-            out[tid] = edt_instance(label.copy(), mode=mode)
+                topt = topt + '-2d-0' # 2d DT without padding (default)
+            _, mode, padding = topt.split('-')
+            out[tid] = edt_instance(label.copy(), mode, padding=bool(padding))
         elif topt[0] == '6':  # distance transform (semantic)
             if len(topt) == 1:
                 topt = topt + '-2d-8-50'
