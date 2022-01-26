@@ -10,7 +10,7 @@ MODEL:
   IN_PLANES: 1
   OUT_PLANES: 1
   LOSS_OPTION: [['WeightedCE']]
-  TARGET_OPT: ['5']
+  TARGET_OPT: ['5'] # '5-2d-1' for DT with padding
   WEIGHT_OPT: [['0']]
   OUTPUT_ACT: 'none'
 DATASET:

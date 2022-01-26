@@ -7,7 +7,7 @@
 
 ## Lucchi Mitochondria Semantic Segmentation <a name="lucchi"></a>
 
-The model is trained using the [Lucchi-Mitochondria.yaml](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Lucchi-Mitochondria.yaml) configuration file. A detailed tutorial of this task can be found [here](https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#semantic-segmentation). We show the performance comparison under different
+The model is trained using the [Lucchi-Mitochondria.yaml](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/Lucchi-Mitochondria.yaml) configuration file. A detailed tutorial of this task can be found [here](https://connectomics.readthedocs.io/en/latest/tutorials/mito.html#semantic-segmentation). We show the performance comparison under different
 thresholds, with or without post-processing (median filtering).
 
 * **Dataset**: the test volume of size 165x1024x768 voxels.
@@ -22,7 +22,7 @@ thresholds, with or without post-processing (median filtering).
 
 ## MitoEM Mitochondria Instance Segmentation <a name="mitoem"></a>
 
-The model is trained using the [MitoEM-R-BC.yaml](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/MitoEM-R-BC.yaml) configuration file which predicts both the foreground mask and instance contour map. A detailed tutorial of this task can be found [here](https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/mito.html#instance-segmentation). We show the performance comparison on the MitoEM-R validation set with different parameters in the [```bc_watershed```](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/utils.html#connectomics.utils.process.bc_watershed) function.
+The model is trained using the [MitoEM-R-BC.yaml](https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/MitoEM/MitoEM-R-BC.yaml) configuration file which predicts both the foreground mask and instance contour map. A detailed tutorial of this task can be found [here](https://connectomics.readthedocs.io/en/latest/tutorials/mito.html#instance-segmentation). We show the performance comparison on the MitoEM-R validation set with different parameters in the [```bc_watershed```](https://zudi-lin.github.io/pytorch_connectomics/build/html/modules/utils.html#connectomics.utils.process.bc_watershed) function.
 
 * **Dataset**: each of the two validation volumes has a shape of 100x4096x4096 voxels, and each of the two test volumes has a shape of 500x4096x4096 voxels. We only show the results on the MitoEM-Rat set for validation.
 * **Evaluation Metric**: following the [**MitoEM Challenge**](https://mitoem.grand-challenge.org), we use the average precision (AP) metric with an IoU threshold of 0.75, which is denoted as **AP-75**.

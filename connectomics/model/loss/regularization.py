@@ -126,3 +126,27 @@ class FgContourConsistency(nn.Module):
         if mask is not None:
             loss *= mask
         return loss.mean()
+
+class NonoverlapReg(nn.Module):
+    """Regularization to prevent overlapping prediction of pre- and post-synaptic
+    masks in synaptic polarity prediction ("1" in MODEL.TARGET_OPT).
+
+    Args:
+        fg_masked (bool): mask the regularization region with predicted cleft. Defaults: True
+    """
+    def __init__(self, fg_masked: bool = True) -> None:
+        super().__init__()
+        self.fg_masked = fg_masked
+
+    def forward(self, pred: torch.Tensor):
+        # pred in (B, C, Z, Y, X)
+        pos = torch.sigmoid(pred[:, 0]) # pre-synaptic
+        neg = torch.sigmoid(pred[:, 1]) # post-synaptic
+        loss = pos * neg
+
+        if self.fg_masked:
+            # masked by the cleft (union of pre and post)
+            # detached to avoid decreasing the cleft probability
+            loss = loss * torch.sigmoid(pred[:, 2].detach())
+
+        return loss.mean()

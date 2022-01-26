@@ -43,6 +43,7 @@ class Criterion(object):
         'FgContour': FgContourConsistency,
         'ContourDT': ContourDTConsistency,
         'FgDT': ForegroundDTConsistency,
+        'Nonoverlap': NonoverlapReg,
     }
 
     def __init__(self,

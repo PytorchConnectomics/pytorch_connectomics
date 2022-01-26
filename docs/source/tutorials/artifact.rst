@@ -6,7 +6,7 @@ Wrinkle Detection
 
 For pre-processing, we create a folder ``datasets/Wrinkle/train/``, and put (or soft link) the training images and wrinkle labels under
 the folder, which perserves a directory structure like ``images/**/*.png`` and ``wrinkles/**/*.png``. The model will randomly sample patches
-from the large images at training time and run sliding-window inference at test time, with the image resolution unchanged.    
+from the large images at training time and run sliding-window inference at test time, with the image resolution unchanged.
 
 The config file for training wrinkle detection model from EM images is ``configs/misc/Wrinkle-Deeplab-Binary-2D.yaml``. We have tested
 the training with 2 Nvidia V100 GPUs and 16 CPU cores. After intalling the package, run
