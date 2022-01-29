@@ -104,6 +104,7 @@ def distance_transform(label: np.ndarray,
         label = np.pad(label, pad_size, mode='constant', constant_values=0)
 
     label_shape = label.shape
+    all_bg_sample = False
     distance = np.zeros(label_shape, dtype=np.float32) + bg_value
     semantic = np.zeros(label_shape, dtype=np.uint8)
 
