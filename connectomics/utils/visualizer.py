@@ -48,7 +48,7 @@ class Visualizer(object):
             if topt[0] == '5':
                 output[idx] = decode_quantize(
                     output[idx], mode='max').unsqueeze(1)
-                temp_label = label[idx].copy().astype(np.float32)[
+                temp_label = label[idx].clone().float()[
                     :, np.newaxis]
                 label[idx] = temp_label / temp_label.max() + 1e-6
 
