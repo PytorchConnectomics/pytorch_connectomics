@@ -104,6 +104,7 @@ def distance_transform(label: np.ndarray,
         label = np.pad(label, pad_size, mode='constant', constant_values=0)
 
     label_shape = label.shape
+    all_bg_sample = False
     distance = np.zeros(label_shape, dtype=np.float32) + bg_value
     semantic = np.zeros(label_shape, dtype=np.uint8)
 
@@ -112,16 +113,17 @@ def distance_transform(label: np.ndarray,
         if len(indices) > 1:  # exclude background
             indices = indices[1:]
         else:  # all-background sample
-            return distance, semantic
+            all_bg_sample = True
 
-    for idx in indices:
-        temp1 = label.copy() == idx
-        temp2 = remove_small_holes(temp1, 16, connectivity=1)
+    if not all_bg_sample:
+        for idx in indices:
+            temp1 = label.copy() == idx
+            temp2 = remove_small_holes(temp1, 16, connectivity=1)
 
-        semantic += temp2.astype(np.uint8)
-        boundary_edt = distance_transform_edt(temp2, resolution)
-        energy = boundary_edt / (boundary_edt.max() + eps)  # normalize
-        distance = np.maximum(distance, energy * temp2.astype(np.float32))
+            semantic += temp2.astype(np.uint8)
+            boundary_edt = distance_transform_edt(temp2, resolution)
+            energy = boundary_edt / (boundary_edt.max() + eps)  # normalize
+            distance = np.maximum(distance, energy * temp2.astype(np.float32))
 
     if padding:
         # Unpad the output array to preserve original shape.
