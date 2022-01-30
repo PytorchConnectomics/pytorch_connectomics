@@ -10,11 +10,14 @@ MODEL:
   NORM_MODE: sync_bn
   FILTERS: [32, 64, 96, 128, 160]
 DATASET:
-  IMAGE_NAME: [vol0_im.h5]
-  LABEL_NAME: [vol0_mito_gt.h5]
-  INPUT_PATH:  datasets/MitoEM_R/ # or your own dataset path
-  OUTPUT_PATH: outputs/MitoEM_R/
+  IMAGE_NAME: [MitoEM_R/im_train.json,MitoEM_H/im_train.json] 
+  LABEL_NAME: [MitoEM_R/mito_train.json,MitoEM_H/mito_train.json]
+  INPUT_PATH: datasets/MitoEM/ # or your own dataset path
+  OUTPUT_PATH: outputs/MitoEM/
   PAD_SIZE: [4, 64, 64]
+  DO_CHUNK_TITLE: 1
+  DATA_CHUNK_NUM: [4, 8, 8]
+  DATA_CHUNK_ITER: 10000
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.04
@@ -25,9 +28,9 @@ SOLVER:
 INFERENCE:
   INPUT_SIZE:   [17, 257, 257]
   OUTPUT_SIZE:  [17, 257, 257]
-  IMAGE_NAME: im_test.json 
-  OUTPUT_PATH: outputs/MitoEM_R/test/
-  OUTPUT_NAME: result  # will automatically save to HDF5
+  IMAGE_NAME: im_test.json
+  OUTPUT_PATH: outputs/MitoEM/test/
+  OUTPUT_NAME: result # will automatically save to HDF5
   PAD_SIZE: [4, 64, 64]
   AUG_MODE: mean
   AUG_NUM: 4
