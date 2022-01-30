@@ -1,0 +1,38 @@
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 16
+MODEL:
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [17, 225, 225]
+  OUTPUT_SIZE: [17, 225, 225]
+  IN_PLANES: 1
+  NORM_MODE: sync_bn
+  FILTERS: [32, 64, 96, 128, 160]
+DATASET:
+  IMAGE_NAME: [MitoEM_R/im_train.json,MitoEM_H/im_train.json] 
+  LABEL_NAME: [MitoEM_R/mito_train.json,MitoEM_H/mito_train.json]
+  INPUT_PATH: datasets/MitoEM/ # or your own dataset path
+  OUTPUT_PATH: outputs/MitoEM/
+  PAD_SIZE: [4, 64, 64]
+  DO_CHUNK_TITLE: 1
+  DATA_CHUNK_NUM: [4, 8, 8]
+  DATA_CHUNK_ITER: 10000
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 300000
+  SAMPLES_PER_BATCH: 2
+INFERENCE:
+  INPUT_SIZE:   [17, 257, 257]
+  OUTPUT_SIZE:  [17, 257, 257]
+  IMAGE_NAME: im_test.json
+  OUTPUT_PATH: outputs/MitoEM/test/
+  OUTPUT_NAME: result # will automatically save to HDF5
+  PAD_SIZE: [4, 64, 64]
+  AUG_MODE: mean
+  AUG_NUM: 4
+  STRIDE: [8, 128, 128]
+  SAMPLES_PER_BATCH: 8
