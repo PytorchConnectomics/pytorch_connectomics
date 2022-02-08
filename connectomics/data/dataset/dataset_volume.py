@@ -72,8 +72,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.do_2d = do_2d
-        if self.do_2d:
-            assert (sample_volume_size[0] == 1) * (sample_label_size[0] == 1)
+        # if self.do_2d:
+        #     assert (sample_volume_size[0] == 1) * (sample_label_size[0] == 1)
 
         # data format
         self.volume = volume

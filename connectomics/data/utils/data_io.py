@@ -20,6 +20,18 @@ def readimg_as_vol(filename, drop_channel=True):
     return data[np.newaxis, :, :]
 
 
+def read_multi_img_as_vol(filename):
+    data = imageio.imread(filename)
+    if data.ndim == 3:  # 3-channel RGB image
+        data = data.transpose(2,0,1)
+    elif data.ndim == 2: # single channel labels
+        data = data[np.newaxis, :, :]
+    else:
+        raise ValueError("Images are expected to have 2-dimensional (single channel) or 3-dimensional \
+                        (multi channel), got {} dimensional input image".format(data.ndim))
+    return data
+
+
 def readh5(filename, dataset=None):
     fid = h5py.File(filename, 'r')
     if dataset is None:

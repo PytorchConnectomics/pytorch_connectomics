@@ -128,7 +128,11 @@ def _get_input(cfg,
 
     pad_mode = cfg.DATASET.PAD_MODE
     volume = [None] * len(img_name)
-    read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
+    if cfg.DATASET.LOAD_2D:
+        read_fn = readimg_as_vol if  cfg.DATASET.INPUT_CHANNELS_2D == 1 else read_multi_img_as_vol 
+    else:
+        read_fn = readvol 
+        
     for i in range(len(img_name)):
         volume[i] = read_fn(img_name[i])
         print(f"volume shape (original): {volume[i].shape}")
@@ -154,7 +158,10 @@ def _get_input(cfg,
 
             label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
             print(f"label shape (after scaling and padding): {label[i].shape}")
-            assert (volume[i].shape == label[i].shape)
+            if cfg.DATASET.LOAD_2D:
+                assert (volume[i].shape[1:] == label[i].shape[1:])
+            else:
+                assert (volume[i].shape == label[i].shape)
 
         if mode in ['val', 'train'] and valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i])
@@ -165,7 +172,10 @@ def _get_input(cfg,
             valid_mask[i] = np.pad(
                 valid_mask[i], get_padsize(pad_size), pad_mode)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
-            assert (volume[i].shape == valid_mask[i].shape)
+            if cfg.DATASET.LOAD_2D:
+                assert (volume[i].shape[1:] == valid_mask[i].shape[1:])
+            else:
+                assert (volume[i].shape == label[i].shape)
 
     return volume, label, valid_mask
 
