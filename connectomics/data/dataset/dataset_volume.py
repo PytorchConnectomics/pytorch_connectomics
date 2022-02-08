@@ -182,9 +182,9 @@ class VolumeDataset(torch.utils.data.Dataset):
         if out_label is None:
             return pos, out_volume, None, None
         else:
-            out_target = self._seg_to_targets(
+            out_target = seg_to_targets(
                 out_label, self.target_opt, self.erosion_rates, self.dilation_rates)
-            out_weight = self._seg_to_weights(
+            out_weight = seg_to_weights(
                 out_target, self.weight_opt, out_valid, out_label)
             return pos, out_volume, out_target, out_weight
 
@@ -278,15 +278,14 @@ class VolumeDataset(torch.utils.data.Dataset):
         out_valid = None
         if self.label is not None:
             pos_l = np.round(pos[1:]*self.label_vol_ratio)
-            out_label = self._crop_volume(
-                self.label[pos[0]], self.sample_label_size, pos_l)
+            out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
             # For warping: cv2.remap requires input to be float32.
             # Make labels index smaller. Otherwise uint32 and float32 are not
             # the same for some values.
-            out_label = self._relabel(out_label.copy()).astype(np.float32)
+            out_label = relabel(out_label.copy()).astype(np.float32)
 
             if self.valid_mask is not None:
-                out_valid = self._crop_volume(self.label[pos[0]],
+                out_valid = crop_volume(self.label[pos[0]],
                                         self.sample_label_size, pos_l)
                 out_valid = (out_valid != 0).astype(np.float32)
 
