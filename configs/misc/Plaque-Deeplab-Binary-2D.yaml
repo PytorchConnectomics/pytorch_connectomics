@@ -5,12 +5,11 @@ MODEL:
   ARCHITECTURE: deeplabv3c
   BACKBONE: resnet101
   AUX_OUT: True
-  INPUT_SIZE: [1, 385, 385]
-  OUTPUT_SIZE: [1, 385, 385]
+  INPUT_SIZE: [1, 513, 513]
+  OUTPUT_SIZE: [1, 513, 513]
   IN_PLANES: 1
   OUT_PLANES: 1
   TARGET_OPT: ["0-1"]
-  LABEL_DILATION: 3
   LOSS_OPTION:
     - - WeightedBCEWithLogitsLoss
       - DiceLoss
@@ -18,21 +17,22 @@ MODEL:
   WEIGHT_OPT: [["1", "0"]]
   OUTPUT_ACT: [["none", "sigmoid"]]
   NORM_MODE: gn
-  MIXED_PRECESION: True
+  MIXED_PRECESION: False
 AUGMENTOR:
-  SMOOTH: False # SMOOTH can significantly change thin structures
+  SMOOTH: False
 DATASET:
-  INPUT_PATH: datasets/Wrinkle/train/
-  IMAGE_NAME: images/**/*.png
-  LABEL_NAME: wrinkles/**/*.png
-  OUTPUT_PATH: outputs/Wrinkle_Deeplab/
-  PAD_SIZE: [0, 32, 32]
+  INPUT_PATH: datasets/amyloid_plaque/
+  IMAGE_NAME: image/*.png
+  LABEL_NAME: label/*.png
+  OUTPUT_PATH: outputs/Amyloid_Plaque_Deeplab/
+  PAD_SIZE: [0, 64, 64]
   REJECT_SAMPLING:
-    SIZE_THRES: 100
+    SIZE_THRES: 1000
     P: 1.0
   DISTRIBUTED: True
   DO_2D: True
   LOAD_2D: True
+  DATA_SCALE: [1.0, 0.5, 0.5]
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.04
@@ -43,15 +43,16 @@ SOLVER:
 MONITOR:
   ITERATION_NUM: [40, 400]
 INFERENCE:
-  INPUT_SIZE: [1, 385, 385]
-  OUTPUT_SIZE: [1, 385, 385]
+  INPUT_SIZE: [1, 2049, 2049]
+  OUTPUT_SIZE: [1, 2049, 2049]
   OUTPUT_ACT: ["sigmoid"]
-  IMAGE_NAME: datasets/Wrinkle/test_path.txt
+  IMAGE_NAME: datasets/amyloid_plaque/test_path.txt
   IS_ABSOLUTE_PATH: True
   DO_SINGLY: True
-  OUTPUT_PATH: outputs/Wrinkle_Deeplab/large/
+  OUTPUT_PATH: outputs/Amyloid_Plaque_Deeplab/test/
   OUTPUT_NAME: pred
-  PAD_SIZE: [0, 32, 32]
-  AUG_NUM: None
-  STRIDE: [1, 128, 128]
-  SAMPLES_PER_BATCH: 16
+  PAD_SIZE: [0, 64, 64]
+  AUG_NUM: 8
+  AUG_MODE: mean
+  STRIDE: [1, 1024, 1024]
+  SAMPLES_PER_BATCH: 2

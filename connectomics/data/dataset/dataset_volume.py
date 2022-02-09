@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 from typing import Optional, List
 import numpy as np
 import random
@@ -36,6 +35,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         reject_size_thres (int, optional): threshold to decide if a sampled volumes contains foreground objects. Default: 0
         reject_diversity (int, optional): threshold to decide if a sampled volumes contains multiple objects. Default: 0
         reject_p (float, optional): probability of rejecting non-foreground volumes. Default: 0.95
+        data_mean (float): mean of pixels for images normalized to (0,1). Default: 0.5
+        data_std (float): standard deviation of pixels for images normalized to (0,1). Default: 0.5
 
     Note: 
         For relatively small volumes, the total number of possible subvolumes can be smaller than the total number 

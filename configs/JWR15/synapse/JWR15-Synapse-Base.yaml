@@ -13,15 +13,14 @@ MODEL:
   FILTERS: [32, 64, 96, 128, 192]
 DATASET:
   IMAGE_NAME:
-    - vol3/im_orig_noPad.h5
-    - vol4/im_orig_noPad.h5
+    - vol3/im_Yx2.h5
+    - vol4/im_Yx2.h5
   LABEL_NAME:
-    - vol3/syn_gt_v3.h5
-    - vol4/syn_gt_v3.h5
+    - vol3/syn_Yx2.h5
+    - vol4/syn_Yx2.h5
   INPUT_PATH: datasets/JWR15/roi_8x8x3um/
   OUTPUT_PATH: outputs/JWR15_Synapse/
-  DATA_SCALE: [1.0, 2.0, 1.0]
-  PAD_SIZE: [2, 32, 32]
+  PAD_SIZE: [4, 48, 48]
   DISTRIBUTED: True
   REJECT_SAMPLING:
     SIZE_THRES: 2000
