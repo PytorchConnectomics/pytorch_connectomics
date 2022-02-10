@@ -142,8 +142,10 @@ _C.DATASET.IS_ISOTROPIC = False
 
 # 2d or 3d dataset
 _C.DATASET.DO_2D = False
-_C.DATASET.INPUT_CHANNELS_2D = 1
 _C.DATASET.LOAD_2D = False
+
+# Specify whether to drop channels in multi-channel images/volumes
+_C.DATASET.DROP_CHANNEL = True
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64]

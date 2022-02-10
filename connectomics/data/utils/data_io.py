@@ -14,22 +14,17 @@ def readimg_as_vol(filename, drop_channel=True):
     img_suf = filename[filename.rfind('.')+1:]
     assert img_suf in ['png', 'tif']
     data = imageio.imread(filename)
-    if drop_channel and data.ndim == 3:
+
+    if data.ndim == 3 and not drop_channel:
+        # convert (y,x,c) to (c,y,x) shape
+        data = data.transpose(2,0,1)
+        return data
+    
+    elif drop_channel and data.ndim == 3:
         # convert RGB image to grayscale by average
         data = np.mean(data, axis=-1).astype(np.uint8)
-    return data[np.newaxis, :, :]
 
-
-def read_multi_img_as_vol(filename):
-    data = imageio.imread(filename)
-    if data.ndim == 3:  # 3-channel RGB image
-        data = data.transpose(2,0,1)
-    elif data.ndim == 2: # single channel labels
-        data = data[np.newaxis, :, :]
-    else:
-        raise ValueError("Images are expected to have 2-dimensional (single channel) or 3-dimensional \
-                        (multi channel), got {} dimensional input image".format(data.ndim))
-    return data
+    return data[np.newaxis, :, :]   # return data as (1,y,x) shape
 
 
 def readh5(filename, dataset=None):
@@ -39,7 +34,7 @@ def readh5(filename, dataset=None):
     return np.array(fid[dataset])
 
 
-def readvol(filename, dataset=None):
+def readvol(filename, dataset=None, drop_channel=True):
     r"""Load a image volume in HDF5, TIFF or PNG formats.
     """
     img_suf = filename[filename.rfind('.')+1:]
@@ -47,10 +42,23 @@ def readvol(filename, dataset=None):
         data = readh5(filename, dataset)
     elif 'tif' in img_suf:
         data = imageio.volread(filename).squeeze()
+        if data.ndim == 4:
+            # convert (z,c,y,x) to (c,z,y,x) shape
+            data = data.transpose(1,0,2,3)
     elif 'png' in img_suf:
         data = readimgs(filename)
+        if data.ndim == 4:
+            # convert (z,y,x,c) to (c,z,y,x) shape
+            data = data.transpose(3,0,1,2)
     else:
         raise ValueError('unrecognizable file format for %s' % (filename))
+
+    if drop_channel and data.ndim == 4:
+        # convert multiple channels to grayscale by average
+        data = np.mean(data, axis=0).astype(np.uint8)
+    
+    assert data.ndim in [3,4], "Volume data should be 3D or 4D, got {}D".format(data.ndim)
+ 
     return data
 
 
@@ -83,7 +91,10 @@ def readimgs(filename):
 
     # decide numpy array shape:
     img = imageio.imread(filelist[0])
-    data = np.zeros((num_imgs, img.shape[0], img.shape[1]), dtype=np.uint8)
+    if img.ndim == 2:
+        data = np.zeros((num_imgs, img.shape[0], img.shape[1]), dtype=np.uint8)
+    elif img.ndim == 3:
+        data = np.zeros((num_imgs, img.shape[0], img.shape[1], img.shape[2]), dtype=np.uint8)
     data[0] = img
 
     # load all images
