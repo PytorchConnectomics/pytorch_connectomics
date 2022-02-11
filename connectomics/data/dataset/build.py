@@ -129,8 +129,9 @@ def _get_input(cfg,
     pad_mode = cfg.DATASET.PAD_MODE
     volume = [None] * len(img_name)
     read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
+        
     for i in range(len(img_name)):
-        volume[i] = read_fn(img_name[i])
+        volume[i] = read_fn(img_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
@@ -140,7 +141,7 @@ def _get_input(cfg,
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode in ['val', 'train'] and label is not None:
-            label[i] = read_fn(label_name[i])
+            label[i] = read_fn(label_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
             if label[i].ndim == 2:  # make it into 3D volume
@@ -154,10 +155,13 @@ def _get_input(cfg,
 
             label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
             print(f"label shape (after scaling and padding): {label[i].shape}")
-            assert (volume[i].shape == label[i].shape)
+            if cfg.DATASET.LOAD_2D:
+                assert (volume[i].shape[1:] == label[i].shape[1:])
+            else:
+                assert (volume[i].shape == label[i].shape)
 
         if mode in ['val', 'train'] and valid_mask is not None:
-            valid_mask[i] = read_fn(valid_mask_name[i])
+            valid_mask[i] = read_fn(valid_mask_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
             if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
                 valid_mask[i] = zoom(
                     valid_mask[i], cfg.DATASET.DATA_SCALE, order=0)
@@ -165,7 +169,10 @@ def _get_input(cfg,
             valid_mask[i] = np.pad(
                 valid_mask[i], get_padsize(pad_size), pad_mode)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
-            assert (volume[i].shape == valid_mask[i].shape)
+            if cfg.DATASET.LOAD_2D:
+                assert (volume[i].shape[1:] == valid_mask[i].shape[1:])
+            else:
+                assert (volume[i].shape == label[i].shape)
 
     return volume, label, valid_mask
 

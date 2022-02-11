@@ -144,6 +144,9 @@ _C.DATASET.IS_ISOTROPIC = False
 _C.DATASET.DO_2D = False
 _C.DATASET.LOAD_2D = False
 
+# Specify whether to drop channels in multi-channel images/volumes
+_C.DATASET.DROP_CHANNEL = True
+
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64]
 _C.DATASET.PAD_MODE = 'reflect'  # reflect, constant, symmetric
