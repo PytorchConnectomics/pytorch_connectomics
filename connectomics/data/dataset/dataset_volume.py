@@ -73,8 +73,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.do_2d = do_2d
-        if self.do_2d:
-            assert (sample_volume_size[0] == 1) * (sample_label_size[0] == 1)
+        # if self.do_2d:
+        #     assert (sample_volume_size[0] == 1) * (sample_label_size[0] == 1)
 
         # data format
         self.volume = volume
@@ -180,11 +180,14 @@ class VolumeDataset(torch.utils.data.Dataset):
         out_volume = normalize_image(out_volume, self.data_mean, self.data_std)
 
         # output list
-        out_target = seg_to_targets(
-            out_label, self.target_opt, self.erosion_rates, self.dilation_rates)
-        out_weight = seg_to_weights(
-            out_target, self.weight_opt, out_valid, out_label)
-        return pos, out_volume, out_target, out_weight
+        if out_label is None:
+            return pos, out_volume, None, None
+        else:
+            out_target = seg_to_targets(
+                out_label, self.target_opt, self.erosion_rates, self.dilation_rates)
+            out_weight = seg_to_weights(
+                out_target, self.weight_opt, out_valid, out_label)
+            return pos, out_volume, out_target, out_weight
 
     #######################################################
     # Position Calculator
@@ -272,19 +275,20 @@ class VolumeDataset(torch.utils.data.Dataset):
         out_volume = (crop_volume(
             self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
         # position in the label and valid mask
-        pos_l = np.round(pos[1:]*self.label_vol_ratio)
-        out_label = crop_volume(
-            self.label[pos[0]], self.sample_label_size, pos_l)
-        # For warping: cv2.remap requires input to be float32.
-        # Make labels index smaller. Otherwise uint32 and float32 are not
-        # the same for some values.
-        out_label = relabel(out_label.copy()).astype(np.float32)
-
+        out_label = None
         out_valid = None
-        if self.valid_mask is not None:
-            out_valid = crop_volume(self.label[pos[0]],
-                                    self.sample_label_size, pos_l)
-            out_valid = (out_valid != 0).astype(np.float32)
+        if self.label is not None:
+            pos_l = np.round(pos[1:]*self.label_vol_ratio)
+            out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
+            # For warping: cv2.remap requires input to be float32.
+            # Make labels index smaller. Otherwise uint32 and float32 are not
+            # the same for some values.
+            out_label = relabel(out_label.copy()).astype(np.float32)
+
+            if self.valid_mask is not None:
+                out_valid = crop_volume(self.label[pos[0]],
+                                        self.sample_label_size, pos_l)
+                out_valid = (out_valid != 0).astype(np.float32)
 
         return pos, out_volume, out_label, out_valid
 
@@ -292,7 +296,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         """Decide whether the sampled region is valid or not using
         the corresponding valid mask.
         """
-        if self.valid_mask is None:
+        if self.valid_mask is None or out_valid is None:
             return True
         ratio = float(out_valid.sum()) / np.prod(np.array(out_valid.shape))
         return ratio > self.valid_ratio
