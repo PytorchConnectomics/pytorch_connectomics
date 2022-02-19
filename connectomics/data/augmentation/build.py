@@ -16,7 +16,7 @@ from .copy_paste import CopyPasteAugmentor
 
 def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_smoothed: bool = False):
     r"""Build the training augmentor based on the options specified in the configuration
-    file. 
+    file.
 
     Args:
         cfg (yacs.config.CfgNode): YACS configuration options.
@@ -28,7 +28,7 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
         which are `False` by defaults and can not be adjusted in the config file.
     """
     aug_list = []
-    
+
     names = cfg.AUGMENTOR.ADDITIONAL_TARGETS_NAME
     types = cfg.AUGMENTOR.ADDITIONAL_TARGETS_TYPE
     if names is None:
@@ -40,113 +40,132 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
             additional_targets[names[i]] = types[i]
 
     #1. rotate
-    if cfg.AUGMENTOR.ROTATE.ENABLED:
+    rotate_aug = cfg.AUGMENTOR.ROTATE
+    if rotate_aug.ENABLED:
         aug_list.append(
-            Rotate(rot90=cfg.AUGMENTOR.ROTATE.ROT90,
-                   p=cfg.AUGMENTOR.ROTATE.P,
-                   additional_targets=additional_targets))
+            Rotate(rot90=rotate_aug.ROT90, p=rotate_aug.P,
+                   additional_targets=additional_targets,
+                   skip_targets=rotate_aug.SKIP))
 
     #2. rescale
-    if cfg.AUGMENTOR.RESCALE.ENABLED:
+    rescale_aug = cfg.AUGMENTOR.RESCALE.
+    if rescale_aug.ENABLED:
         aug_list.append(
-            Rescale(p=cfg.AUGMENTOR.RESCALE.P,
-                    additional_targets=additional_targets))
+            Rescale(p=rescale_aug.P, fix_aspect=rescale_aug.FIX_ASPECT,
+                    additional_targets=additional_targets,
+                    skip_targets=rescale_aug.SKIP))
 
     #3. flip
-    if cfg.AUGMENTOR.FLIP.ENABLED:
+    flip_aug = cfg.AUGMENTOR.FLIP
+    if flip_aug.ENABLED:
         aug_list.append(
-            Flip(do_ztrans=cfg.AUGMENTOR.FLIP.DO_ZTRANS,
-                 p=cfg.AUGMENTOR.FLIP.P, 
-                 additional_targets=additional_targets))
+            Flip(do_ztrans=flip_aug.DO_ZTRANS, p=flip_aug.P,
+                 additional_targets=additional_targets,
+                 skip_targets=flip_aug.SKIP))
 
     #4. elastic
-    if cfg.AUGMENTOR.ELASTIC.ENABLED:
+    elastic_aug = cfg.AUGMENTOR.ELASTIC
+    if elastic_aug.ENABLED:
         aug_list.append(
-            Elastic(alpha=cfg.AUGMENTOR.ELASTIC.ALPHA, 
-                    sigma=cfg.AUGMENTOR.ELASTIC.SIGMA, 
-                    p=cfg.AUGMENTOR.ELASTIC.P,
-                    additional_targets=additional_targets))
+            Elastic(alpha=elastic_aug.ALPHA,
+                    sigma=elastic_aug.SIGMA,
+                    p=elastic_aug.P,
+                    additional_targets=additional_targets,
+                    skip_targets=elastic_aug.SKIP))
 
     #5. grayscale
-    if cfg.AUGMENTOR.GRAYSCALE.ENABLED:
+    grayscale_aug = cfg.AUGMENTOR.GRAYSCALE
+    if grayscale_aug.ENABLED:
         aug_list.append(
-            Grayscale(p=cfg.AUGMENTOR.GRAYSCALE.P,
-                      additional_targets=additional_targets))
+            Grayscale(p=grayscale_aug.P,
+                      additional_targets=additional_targets,
+                      skip_targets=grayscale_aug.SKIP))
 
     #6. missingparts
-    if cfg.AUGMENTOR.MISSINGPARTS.ENABLED:
+    missingparts_aug = cfg.AUGMENTOR.MISSINGPARTS
+    if missingparts_aug.ENABLED:
         aug_list.append(
-            MissingParts(iterations=cfg.AUGMENTOR.MISSINGPARTS.ITER,
-                         p=cfg.AUGMENTOR.MISSINGPARTS.P,
-                         additional_targets=additional_targets))
+            MissingParts(iterations=missingparts_aug.ITER,
+                         p=missingparts_aug.P,
+                         additional_targets=additional_targets,
+                         skip_targets=missingparts_aug.SKIP))
 
     #7. missingsection
-    if cfg.AUGMENTOR.MISSINGSECTION.ENABLED and not cfg.DATASET.DO_2D:
+    missingsection_aug = cfg.AUGMENTOR.MISSINGSECTION
+    if missingsection_aug.ENABLED and not cfg.DATASET.DO_2D:
             aug_list.append(
                 MissingSection(
-                    num_sections=cfg.AUGMENTOR.MISSINGSECTION.NUM_SECTION,
-                    p=cfg.AUGMENTOR.MISSINGSECTION.P, 
-                    additional_targets=additional_targets))
+                    num_sections=missingsection_aug.NUM_SECTION,
+                    p=missingsection_aug.P,
+                    additional_targets=additional_targets,
+                    skip_targets=missingsection_aug.SKIP))
 
     #8. misalignment
-    if cfg.AUGMENTOR.MISALIGNMENT.ENABLED and not cfg.DATASET.DO_2D:
+    misalignment_aug = cfg.AUGMENTOR.MISALIGNMENT
+    if misalignment_aug.ENABLED and not cfg.DATASET.DO_2D:
             aug_list.append(
-                MisAlignment( 
-                    displacement=cfg.AUGMENTOR.MISALIGNMENT.DISPLACEMENT,
-                    rotate_ratio=cfg.AUGMENTOR.MISALIGNMENT.ROTATE_RATIO,
-                    p=cfg.AUGMENTOR.MISALIGNMENT.P,
-                    additional_targets=additional_targets))
+                MisAlignment(
+                    displacement=misalignment_aug.DISPLACEMENT,
+                    rotate_ratio=misalignment_aug.ROTATE_RATIO,
+                    p=misalignment_aug.P,
+                    additional_targets=additional_targets,
+                    skip_targets=misalignment_aug.SKIP))
 
     #9. motion-blur
-    if cfg.AUGMENTOR.MOTIONBLUR.ENABLED:
+    motionblur_aug = cfg.AUGMENTOR.MOTIONBLUR
+    if motionblur_aug.ENABLED:
         aug_list.append(
-            MotionBlur( 
-                sections=cfg.AUGMENTOR.MOTIONBLUR.SECTIONS, 
-                kernel_size=cfg.AUGMENTOR.MOTIONBLUR.KERNEL_SIZE,
-                p=cfg.AUGMENTOR.MOTIONBLUR.P,
-                additional_targets=additional_targets))
+            MotionBlur(
+                sections=motionblur_aug.SECTIONS,
+                kernel_size=motionblur_aug.KERNEL_SIZE,
+                p=motionblur_aug.P,
+                additional_targets=additional_targets,
+                skip_targets=motionblur_aug.SKIP))
 
     #10. cut-blur
-    if cfg.AUGMENTOR.CUTBLUR.ENABLED:
+    cutblur_aug = cfg.AUGMENTOR.CUTBLUR
+    if cutblur_aug.ENABLED:
         aug_list.append(
-            CutBlur(length_ratio=cfg.AUGMENTOR.CUTBLUR.LENGTH_RATIO, 
-                    down_ratio_min=cfg.AUGMENTOR.CUTBLUR.DOWN_RATIO_MIN,
-                    down_ratio_max=cfg.AUGMENTOR.CUTBLUR.DOWN_RATIO_MAX,
-                    downsample_z=cfg.AUGMENTOR.CUTBLUR.DOWNSAMPLE_Z,
-                    p=cfg.AUGMENTOR.CUTBLUR.P,
-                    additional_targets=additional_targets))
+            CutBlur(length_ratio=cutblur_aug.LENGTH_RATIO,
+                    down_ratio_min=cutblur_aug.DOWN_RATIO_MIN,
+                    down_ratio_max=cutblur_aug.DOWN_RATIO_MAX,
+                    downsample_z=cutblur_aug.DOWNSAMPLE_Z,
+                    p=cutblur_aug.P,
+                    additional_targets=additional_targets,
+                    skip_targets=cutblur_aug.SKIP))
 
     #11. cut-noise
-    if cfg.AUGMENTOR.CUTNOISE.ENABLED:
+    cutnoise_aug = cfg.AUGMENTOR.CUTNOISE
+    if cutnoise_aug.ENABLED:
         aug_list.append(
-            CutNoise(length_ratio=cfg.AUGMENTOR.CUTNOISE.LENGTH_RATIO, 
-                     scale=cfg.AUGMENTOR.CUTNOISE.SCALE,
-                     p=cfg.AUGMENTOR.CUTNOISE.P, 
-                     additional_targets=additional_targets))
+            CutNoise(length_ratio=cutnoise_aug.LENGTH_RATIO,
+                     scale=cutnoise_aug.SCALE,
+                     p=cutnoise_aug.P,
+                     additional_targets=additional_targets,
+                     skip_targets=cutnoise_aug.SKIP))
 
     #12. copy-paste
-    if cfg.AUGMENTOR.COPYPASTE.ENABLED:
+    copypaste_aug = cfg.AUGMENTOR.COPYPASTE
+    if copypaste_aug.ENABLED:
         aug_list.append(
-            CopyPasteAugmentor(aug_thres=cfg.AUGMENTOR.COPYPASTE.AUG_THRES,
-                     p=cfg.AUGMENTOR.CUTNOISE.P, 
-                     additional_targets=additional_targets))
+            CopyPasteAugmentor(aug_thres=copypaste_aug.AUG_THRES,
+                     p=copypaste_aug.P,
+                     additional_targets=additional_targets,
+                     skip_targets=copypaste_aug.SKIP))
 
     # compose the list of transforms
-    augmentor = Compose(transforms=aug_list, 
-                        input_size=cfg.MODEL.INPUT_SIZE, 
+    augmentor = Compose(transforms=aug_list,
+                        input_size=cfg.MODEL.INPUT_SIZE,
                         smooth=cfg.AUGMENTOR.SMOOTH,
-                        keep_uncropped=keep_uncropped, 
+                        keep_uncropped=keep_uncropped,
                         keep_non_smoothed=keep_non_smoothed,
                         additional_targets=additional_targets)
-    
+
     return augmentor
-    # if cfg.AUGMENTOR.USE_COPY_PASTE:
-    #     return augmentor, CopyPasteAugmentor(cfg.AUGMENTOR.COPY_PASTE_THRES)
-    # else:
-    #     return augmentor
+
 
 def build_ssl_augmentor(cfg):
-    R"""Build the data augmentor for semi-supervised learning.
+    r"""Build the data augmentor for semi-supervised learning.
     """
     aug_list = []
 
@@ -175,15 +194,15 @@ def build_ssl_augmentor(cfg):
     #5. motion-blur
     if cfg.AUGMENTOR.MOTIONBLUR.ENABLED:
         aug_list.append(
-            MotionBlur( 
-                sections=cfg.AUGMENTOR.MOTIONBLUR.SECTIONS, 
+            MotionBlur(
+                sections=cfg.AUGMENTOR.MOTIONBLUR.SECTIONS,
                 kernel_size=cfg.AUGMENTOR.MOTIONBLUR.KERNEL_SIZE,
                 p=cfg.AUGMENTOR.MOTIONBLUR.P))
 
     #6. cut-blur
     if cfg.AUGMENTOR.CUTBLUR.ENABLED:
         aug_list.append(
-            CutBlur(length_ratio=cfg.AUGMENTOR.CUTBLUR.LENGTH_RATIO, 
+            CutBlur(length_ratio=cfg.AUGMENTOR.CUTBLUR.LENGTH_RATIO,
                     down_ratio_min=cfg.AUGMENTOR.CUTBLUR.DOWN_RATIO_MIN,
                     down_ratio_max=cfg.AUGMENTOR.CUTBLUR.DOWN_RATIO_MAX,
                     downsample_z=cfg.AUGMENTOR.CUTBLUR.DOWNSAMPLE_Z,
@@ -192,11 +211,11 @@ def build_ssl_augmentor(cfg):
     #7. cut-noise
     if cfg.AUGMENTOR.CUTNOISE.ENABLED:
         aug_list.append(
-            CutNoise(length_ratio=cfg.AUGMENTOR.CUTNOISE.LENGTH_RATIO, 
+            CutNoise(length_ratio=cfg.AUGMENTOR.CUTNOISE.LENGTH_RATIO,
                      scale=cfg.AUGMENTOR.CUTNOISE.SCALE,
                      p=cfg.AUGMENTOR.CUTNOISE.P))
 
-    return Compose(transforms=aug_list, 
-                   input_size=cfg.MODEL.INPUT_SIZE, 
+    return Compose(transforms=aug_list,
+                   input_size=cfg.MODEL.INPUT_SIZE,
                    smooth=cfg.AUGMENTOR.SMOOTH,
                    additional_targets=None)
