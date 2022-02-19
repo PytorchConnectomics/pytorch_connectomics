@@ -15,6 +15,7 @@ _C.SYSTEM.NUM_CPUS = 4
 # Run distributed training using DistributedDataparallel model
 _C.SYSTEM.DISTRIBUTED = False
 _C.SYSTEM.PARALLEL = 'DP'
+_C.SYSTEM.DISTRIBUTED_BACKEND = 'nccl'
 # Debug mode is for tackle cases where this is no errors 
 # but the model behavior are unexpected.
 _C.SYSTEM.DEBUG = False
