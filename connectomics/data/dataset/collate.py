@@ -25,9 +25,9 @@ def collate_fn_test(batch):
 
 class TrainBatch:
     def __init__(self, batch):
-        self._handle_basics(*zip(*batch))
+        self._handle_batch(*zip(*batch))
 
-    def _handle_basics(self, pos, out_input, out_target, out_weight):
+    def _handle_batch(self, pos, out_input, out_target, out_weight):
         self.pos = pos
         self.out_input = torch.from_numpy(np.stack(out_input, 0))
 
@@ -52,16 +52,44 @@ class TrainBatch:
 
     # custom memory pinning method on custom type
     def pin_memory(self):
-        self._pin_basics()
+        self._pin_batch()
         return self
 
-    def _pin_basics(self):
+    def _pin_batch(self):
         self.out_input = self.out_input.pin_memory()
         for i in range(len(self.out_target_l)):
             self.out_target_l[i] = self.out_target_l[i].pin_memory()
         for i in range(len(self.out_weight_l)):
             for j in range(len(self.out_weight_l[i])):
                 self.out_weight_l[i][j] = self.out_weight_l[i][j].pin_memory()
+
+
+class TrainBatchRecon(TrainBatch):
+    def _handle_batch(self, pos, out_input, out_target, out_weight, out_recon):
+        super()._handle_batch(pos, out_input, out_target, out_weight)
+        self.out_recon = torch.from_numpy(np.stack(out_recon, 0))
+
+    # custom memory pinning method on custom type
+    def pin_memory(self):
+        self._pin_batch()
+        self.out_recon = self.out_recon.pin_memory()
+        return self
+
+
+class TrainBatchReconOnly:
+    def __init__(self, batch):
+        self._handle_batch(*zip(*batch))
+
+    def _handle_batch(self, pos, out_input, out_recon):
+        self.pos = pos
+        self.out_input = torch.from_numpy(np.stack(out_input, 0))
+        self.out_recon = torch.from_numpy(np.stack(out_recon, 0))
+
+    # custom memory pinning method on custom type
+    def pin_memory(self):
+        self.out_input = self.out_input.pin_memory()
+        self.out_recon = self.out_recon.pin_memory()
+        return self
 
 
 class TestBatch:
