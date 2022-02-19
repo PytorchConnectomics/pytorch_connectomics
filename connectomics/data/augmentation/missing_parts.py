@@ -8,7 +8,7 @@ from skimage.draw import line
 from scipy.ndimage.morphology import binary_dilation
 
 class MissingParts(DataAugment):
-    r"""Missing-parts augmentation of image stacks. This augmentation is only 
+    r"""Missing-parts augmentation of image stacks. This augmentation is only
     applied to images.
 
     Args:
@@ -16,11 +16,12 @@ class MissingParts(DataAugment):
         p (float): probability of applying the augmentation. Default: 0.5
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
-    def __init__(self, 
-                 iterations: int = 64, 
+    def __init__(self,
+                 iterations: int = 64,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
-        super(MissingParts, self).__init__(p, additional_targets)
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
+        super(MissingParts, self).__init__(p, additional_targets, skip_targets)
         self.iterations = iterations
         self.set_params()
 
@@ -46,7 +47,7 @@ class MissingParts(DataAugment):
 
         # dilate the line mask
         line_mask = binary_dilation(line_mask, iterations=self.iterations)
-        
+
         return line_mask
 
     def deform_2d(self, image2d, transform_params):
@@ -55,7 +56,7 @@ class MissingParts(DataAugment):
         mean = section.mean()
 
         section[line_mask] = mean
-        return section 
+        return section
 
     def apply_deform(self, images, transforms):
         transformedimgs = np.copy(images)
@@ -86,7 +87,7 @@ class MissingParts(DataAugment):
 
         # apply the same augmentation to other images
         for key in self.additional_targets.keys():
-            if self.additional_targets[key] == 'img':
+            if key not in self.skip_targets and self.additional_targets[key] == 'img':
                 sample[key] = self.apply_deform(sample[key].copy(), transforms)
 
         return sample

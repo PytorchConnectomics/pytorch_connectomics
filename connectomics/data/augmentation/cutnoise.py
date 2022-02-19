@@ -8,7 +8,7 @@ class CutNoise(DataAugment):
     r"""3D CutNoise data augmentation.
 
     Randomly add noise to a cuboid region in the volume to force the model
-    to learn denoising when making predictions. This augmentation is only 
+    to learn denoising when making predictions. This augmentation is only
     applied to images.
 
     Args:
@@ -19,14 +19,15 @@ class CutNoise(DataAugment):
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
 
-    def __init__(self, 
-                 length_ratio: float = 0.25, 
+    def __init__(self,
+                 length_ratio: float = 0.25,
                  mode: str = 'uniform',
                  scale: float = 0.2,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
 
-        super(CutNoise, self).__init__(p, additional_targets)
+        super(CutNoise, self).__init__(p, additional_targets, skip_targets)
         self.length_ratio = length_ratio
         self.mode = mode
         self.scale = scale
@@ -67,15 +68,15 @@ class CutNoise(DataAugment):
 
         z_len = zh - zl if zdim > 1 else 1
         noise_shape = (z_len, yh-yl, xh-xl)
-        noise = random_state.uniform(-self.scale, self.scale, noise_shape)        
+        noise = random_state.uniform(-self.scale, self.scale, noise_shape)
         return zl, zh, yl, yh, xl, xh, noise
 
     def __call__(self, sample, random_state=np.random.RandomState()):
         images = sample['image'].copy()
-        random_params = self.get_random_params(images, random_state) 
-    
+        random_params = self.get_random_params(images, random_state)
+
         sample['image'] = self.cut_noise(images, *random_params)
         for key in self.additional_targets.keys():
-            if self.additional_targets[key] == 'img':
+            if key not in self.skip_targets and self.additional_targets[key] == 'img':
                 sample[key] = self.cut_noise(sample[key].copy(), *random_params)
         return sample

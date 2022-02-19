@@ -20,16 +20,17 @@ class Grayscale(DataAugment):
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
 
-    def __init__(self, 
-                 contrast_factor: float = 0.3, 
-                 brightness_factor: float = 0.3, 
+    def __init__(self,
+                 contrast_factor: float = 0.3,
+                 brightness_factor: float = 0.3,
                  mode: str = 'mix',
-                 invert: bool = False, 
+                 invert: bool = False,
                  invert_p: float = 0.0,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
 
-        super(Grayscale, self).__init__(p, additional_targets)
+        super(Grayscale, self).__init__(p, additional_targets, skip_targets)
         self._set_mode(mode)
         self.invert = invert
         self.invert_p = invert_p
@@ -49,18 +50,18 @@ class Grayscale(DataAugment):
             mode = self.mode
 
         images = sample['image'].copy()
-        assert mode in ['2D', '3D']  
+        assert mode in ['2D', '3D']
         if self.mode == '2D':
-            aug_func = self._augment2D 
+            aug_func = self._augment2D
             ran = random_state.rand(images.shape[-3]*3)
         else:
-            aug_func = self._augment3D 
+            aug_func = self._augment3D
             ran = random_state.rand(3)
 
         do_invert = self.invert and random_state.rand() < self.invert_p
         sample['image'] = aug_func(images, ran, do_invert)
         for key in self.additional_targets.keys():
-            if self.additional_targets[key] == 'img':
+            if key not in self.skip_targets and self.additional_targets[key] == 'img':
                 sample[key] = aug_func(sample[key].copy(), ran, do_invert)
 
         return sample
@@ -80,7 +81,7 @@ class Grayscale(DataAugment):
 
         if do_invert:
             return self._invert(transformedimgs)
-        return transformedimgs    
+        return transformedimgs
 
     def _augment3D(self, imgs, ran, do_invert=False):
         r"""
@@ -91,7 +92,7 @@ class Grayscale(DataAugment):
         transformedimgs += (ran[1] - 0.5)*self.BRIGHTNESS_FACTOR
         transformedimgs = np.clip(transformedimgs, 0, 1)
         transformedimgs **= 2.0**(ran[2]*2 - 1)
-        
+
         if do_invert:
             return self._invert(transformedimgs)
         return transformedimgs

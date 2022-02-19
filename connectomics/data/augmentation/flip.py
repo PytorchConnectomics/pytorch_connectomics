@@ -6,8 +6,8 @@ from .augmentor import DataAugment
 
 class Flip(DataAugment):
     r"""
-    Randomly flip along `z`-, `y`- and `x`-axes as well as swap `y`- and `x`-axes 
-    for anisotropic image volumes. For learning on isotropic image volumes set 
+    Randomly flip along `z`-, `y`- and `x`-axes as well as swap `y`- and `x`-axes
+    for anisotropic image volumes. For learning on isotropic image volumes set
     :attr:`do_ztrans` to 1 to swap `z`- and `x`-axes (the inputs need to be cubic).
     This augmentation is applied to both images and masks.
 
@@ -16,12 +16,13 @@ class Flip(DataAugment):
         p (float): probability of applying the augmentation. Default: 0.5
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
-    def __init__(self, 
-                 do_ztrans: int = 0, 
+    def __init__(self,
+                 do_ztrans: int = 0,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
 
-        super(Flip, self).__init__(p, additional_targets)
+        super(Flip, self).__init__(p, additional_targets, skip_targets)
         self.do_ztrans = do_ztrans
 
     def set_params(self):
@@ -64,11 +65,12 @@ class Flip(DataAugment):
             if self.do_ztrans==1 and rule[4]:
                 data = data.transpose(0, 3, 2, 1)
         return data
-    
+
     def __call__(self, sample, random_state=np.random.RandomState()):
         rule = random_state.randint(2, size=4+self.do_ztrans)
         sample['image'] = self.flip_and_swap(sample['image'].copy(), rule)
         for key in self.additional_targets.keys():
-            sample[key] = self.flip_and_swap(sample[key].copy(), rule)
+            if key not in self.skip_targets:
+                sample[key] = self.flip_and_swap(sample[key].copy(), rule)
 
         return sample

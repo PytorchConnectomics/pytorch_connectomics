@@ -8,7 +8,7 @@ from skimage.transform import resize
 class Rescale(DataAugment):
     r"""
     Rescale augmentation. This augmentation is applied to both images and masks.
-    
+
     Args:
         low (float): lower bound of the random scale factor. Default: 0.8
         high (float): higher bound of the random scale factor. Default: 1.2
@@ -20,14 +20,15 @@ class Rescale(DataAugment):
     interpolation = {'img': 1, 'mask': 0}
     anti_aliasing = {'img': True, 'mask': False}
 
-    def __init__(self, 
-                 low: float = 0.8, 
-                 high: float = 1.25, 
-                 fix_aspect: bool = False, 
+    def __init__(self,
+                 low: float = 0.8,
+                 high: float = 1.25,
+                 fix_aspect: bool = False,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
 
-        super(Rescale, self).__init__(p, additional_targets) 
+        super(Rescale, self).__init__(p, additional_targets, skip_targets)
         self.low = low
         self.high = high
         self.fix_aspect = fix_aspect
@@ -35,7 +36,7 @@ class Rescale(DataAugment):
         self.set_params()
 
     def set_params(self):
-        r"""The rescale augmentation is only applied to the `xy`-plane. The required 
+        r"""The rescale augmentation is only applied to the `xy`-plane. The required
         sample size before transformation need to be larger as decided by the lowest
         scaling factor (:attr:`self.low`).
         """
@@ -81,23 +82,23 @@ class Rescale(DataAugment):
         x0, x1, x_mode = x_params
         y0, y1, y_mode = y_params
         transformed_image = image.copy()
-        
+
         # process y-axis
         if y_mode == 'upscale':
             transformed_image = transformed_image[:, y0:y1, :]
         else:
-            transformed_image = np.pad(transformed_image, ((0, 0),(y0, y1),(0, 0)), 
+            transformed_image = np.pad(transformed_image, ((0, 0),(y0, y1),(0, 0)),
                                        mode='constant')
 
         # process x-axis
         if x_mode == 'upscale':
             transformed_image = transformed_image[:, :, x0:x1]
         else:
-            transformed_image = np.pad(transformed_image, ((0, 0),(0, 0),(x0, x1)), 
+            transformed_image = np.pad(transformed_image, ((0, 0),(0, 0),(x0, x1)),
                                        mode='constant')
 
-        output_image = resize(transformed_image, image.shape, order=self.interpolation[target_type], 
-                              mode='constant', cval=0, clip=True, preserve_range=True, 
+        output_image = resize(transformed_image, image.shape, order=self.interpolation[target_type],
+                              mode='constant', cval=0, clip=True, preserve_range=True,
                               anti_aliasing=self.anti_aliasing[target_type])
         return output_image
 
@@ -107,7 +108,8 @@ class Rescale(DataAugment):
         sample['image'] = self.apply_rescale(images, x_params, y_params, 'img')
 
         for key in self.additional_targets.keys():
-            sample[key] = self.apply_rescale(sample[key].copy(), x_params, y_params, 
-                target_type = self.additional_targets[key])
+            if key not in self.skip_targets:
+                sample[key] = self.apply_rescale(sample[key].copy(), x_params, y_params, 
+                    target_type = self.additional_targets[key])
 
         return sample

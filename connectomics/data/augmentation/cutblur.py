@@ -21,15 +21,15 @@ class CutBlur(DataAugment):
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
 
-    def __init__(self, 
-                 length_ratio: float = 0.25, 
+    def __init__(self,
+                 length_ratio: float = 0.25,
                  down_ratio_min: float = 2.0,
                  down_ratio_max: float = 8.0,
                  downsample_z: bool = False,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
-
-        super(CutBlur, self).__init__(p, additional_targets)
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
+        super(CutBlur, self).__init__(p, additional_targets, skip_targets)
         self.length_ratio = length_ratio
         self.down_ratio_min = down_ratio_min
         self.down_ratio_max = down_ratio_max
@@ -41,7 +41,7 @@ class CutBlur(DataAugment):
         pass
 
     def cut_blur(self, images, zl, zh, yl, yh, xl, xh, down_ratio):
-        zdim = images.shape[0]        
+        zdim = images.shape[0]
         if zdim == 1:
             temp = images[:, yl:yh, xl:xh].copy()
         else:
@@ -53,9 +53,9 @@ class CutBlur(DataAugment):
             out_shape = np.array(temp.shape) /  np.array([1, down_ratio, down_ratio])
 
         out_shape = out_shape.astype(int)
-        downsampled = resize(temp, out_shape, order=1, mode='reflect', 
+        downsampled = resize(temp, out_shape, order=1, mode='reflect',
                              clip=True, preserve_range=True, anti_aliasing=True)
-        upsampled = resize(downsampled, temp.shape, order=0, mode='reflect', 
+        upsampled = resize(downsampled, temp.shape, order=0, mode='reflect',
                              clip=True, preserve_range=True, anti_aliasing=False)
 
         if zdim == 1:
@@ -79,15 +79,15 @@ class CutBlur(DataAugment):
         yl, yh = self.random_region(images.shape[1], random_state)
         xl, xh = self.random_region(images.shape[2], random_state)
 
-        down_ratio = random_state.uniform(self.down_ratio_min, self.down_ratio_max)    
+        down_ratio = random_state.uniform(self.down_ratio_min, self.down_ratio_max)
         return zl, zh, yl, yh, xl, xh, down_ratio
 
     def __call__(self, sample, random_state=np.random.RandomState()):
         images = sample['image'].copy()
-        random_params = self.get_random_params(images, random_state)         
+        random_params = self.get_random_params(images, random_state)
 
         sample['image'] = self.cut_blur(images, *random_params)
         for key in self.additional_targets.keys():
-            if self.additional_targets[key] == 'img':
+            if key not in self.skip_targets and self.additional_targets[key] == 'img':
                 sample[key] = self.cut_blur(sample[key].copy(), *random_params)
         return sample

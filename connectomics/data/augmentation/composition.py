@@ -4,10 +4,10 @@ import numpy as np
 from skimage.filters import gaussian
 
 class Compose(object):
-    r"""Composing a list of data transforms. 
-    
-    The sample size of the composed augmentor can be larger than the 
-    specified input size of the model to ensure that all pixels are 
+    r"""Composing a list of data transforms.
+
+    The sample size of the composed augmentor can be larger than the
+    specified input size of the model to ensure that all pixels are
     valid after center-crop.
 
     Args:
@@ -25,7 +25,7 @@ class Compose(object):
         >>>                      Flip(p=1.0, **kwargs),
         >>>                      Elastic(alpha=12.0, p=0.75, **kwargs),
         >>>                      Grayscale(p=0.75, **kwargs),
-        >>>                      MissingParts(p=0.9, **kwargs)], 
+        >>>                      MissingParts(p=0.9, **kwargs)],
         >>>                      input_size = (8, 256, 256), **kwargs)
         >>> sample = {'image':input, 'label':label}
         >>> augmented = augmentor(data)
@@ -35,8 +35,8 @@ class Compose(object):
     smooth_sigma = 2.0
     smooth_threshold = 0.5
 
-    def __init__(self, 
-                 transforms: list = [], 
+    def __init__(self,
+                 transforms: list = [],
                  input_size: tuple = (8,256,256),
                  smooth: bool = True,
                  keep_uncropped: bool = False,
@@ -62,7 +62,7 @@ class Compose(object):
     def set_flip(self):
         # Some data augmentation techniques (e.g., elastic wrap, missing parts) are designed only
         # for x-y planes while some (e.g., missing section, mis-alignment) are only applied along
-        # the z axis. Thus we let flip augmentation the last one to be applied otherwise shape 
+        # the z axis. Thus we let flip augmentation the last one to be applied otherwise shape
         # mis-match can happen when do_ztrans is 1 for cubic input volumes.
         self.flip_aug = None
         flip_idx = None
@@ -93,7 +93,7 @@ class Compose(object):
                     for _ in range(2):
                         binary = gaussian(binary, sigma=self.smooth_sigma, preserve_range=True)
                         binary = (binary > self.smooth_threshold).astype(np.uint8)
-            
+
                     temp[np.where(temp==idx)]=0
                     temp[np.where(binary==1)]=idx
 
@@ -111,17 +111,20 @@ class Compose(object):
         z_low, z_high = margin_z, margin_z + self.input_size[0]
         y_low, y_high = margin_y, margin_y + self.input_size[1]
         x_low, x_high = margin_x, margin_x + self.input_size[2]
-        
+
         if images.ndim == 3:
             return images[z_low:z_high, y_low:y_high, x_low:x_high]
         else:
-            return images[:, z_low:z_high, y_low:y_high, x_low:x_high]                                   
+            return images[:, z_low:z_high, y_low:y_high, x_low:x_high]
 
     def __call__(self, sample, random_state=np.random.RandomState()):
         # According to this blog post (https://www.sicara.ai/blog/2019-01-28-how-computer-generate-random-numbers):
-        # we need to be careful when using numpy.random in multiprocess application as it can always generate the 
+        # we need to be careful when using numpy.random in multiprocess application as it can always generate the
         # same output for different processes. Therefore we use np.random.RandomState().
         sample['image'] = sample['image'].astype(np.float32)
+        for name in self.additional_targets.keys():
+            if self.additional_targets[name] == 'img':
+                sample[name] = sample[name].astype(np.float32)
 
         ran = random_state.rand(len(self.transforms))
         for tid, t in enumerate(reversed(self.transforms)):
