@@ -70,7 +70,7 @@ def main():
         device = torch.device("cuda", args.local_rank)
         assert torch.cuda.is_available(), \
             "Distributed training without GPUs is not supported!"
-        dist.init_process_group("nccl", init_method='env://')
+        dist.init_process_group(cfg.SYSTEM.DISTRIBUTED_BACKEND, init_method='env://')
     else:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
