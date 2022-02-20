@@ -48,7 +48,7 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
                    skip_targets=rotate_aug.SKIP))
 
     #2. rescale
-    rescale_aug = cfg.AUGMENTOR.RESCALE.
+    rescale_aug = cfg.AUGMENTOR.RESCALE
     if rescale_aug.ENABLED:
         aug_list.append(
             Rescale(p=rescale_aug.P, fix_aspect=rescale_aug.FIX_ASPECT,

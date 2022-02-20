@@ -14,7 +14,7 @@ class TestModelBlock(unittest.TestCase):
         volume = mixup_augmentor(volume)
 
         volume = torch.ones(4,1,8,32,32)
-        volume = mixup_augmentor(volume) 
+        volume = mixup_augmentor(volume)
 
     def test_copypaste(self):
         """Test copypaste augment for numpy.ndarray and torch.Tensor.
