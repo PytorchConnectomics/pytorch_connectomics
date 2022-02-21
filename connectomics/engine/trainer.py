@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.cuda.amp import autocast, GradScaler
 
+from .base import TrainerBase
 from .solver import *
 from ..model import *
 from ..utils.monitor import build_monitor
@@ -24,7 +25,7 @@ from ..data.utils import build_blending_matrix, writeh5
 from ..data.utils import get_padsize, array_unpad
 
 
-class Trainer(object):
+class Trainer(TrainerBase):
     r"""Trainer class for supervised learning.
 
     Args:
@@ -41,15 +42,7 @@ class Trainer(object):
                  mode: str = 'train',
                  rank: Optional[int] = None,
                  checkpoint: Optional[str] = None):
-
-        assert mode in ['train', 'test']
-        self.cfg = cfg
-        self.device = device
-        self.output_dir = cfg.DATASET.OUTPUT_PATH
-        self.mode = mode
-        self.rank = rank
-        self.is_main_process = rank is None or rank == 0
-        self.inference_singly = (mode == 'test') and cfg.INFERENCE.DO_SINGLY
+        super().__init__(cfg, device, mode, rank)
 
         self.model = build_model(self.cfg, self.device, rank)
         if self.mode == 'train':

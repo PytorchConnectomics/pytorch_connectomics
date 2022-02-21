@@ -276,8 +276,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
 
         # position in the label and valid mask
-        out_label = None
-        out_valid = None
+        out_label, out_valid = None, None
         if self.label is not None:
             pos_l = np.round(pos[1:]*self.label_vol_ratio)
             out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
@@ -286,10 +285,10 @@ class VolumeDataset(torch.utils.data.Dataset):
             # the same for some values.
             out_label = relabel(out_label.copy()).astype(np.float32)
 
-            if self.valid_mask is not None:
-                out_valid = crop_volume(self.label[pos[0]],
-                                        self.sample_label_size, pos_l)
-                out_valid = (out_valid != 0).astype(np.float32)
+        if self.valid_mask is not None:
+            out_valid = crop_volume(self.label[pos[0]],
+                                    self.sample_label_size, pos_l)
+            out_valid = (out_valid != 0).astype(np.float32)
 
         return pos, out_volume, out_label, out_valid
 
@@ -306,6 +305,9 @@ class VolumeDataset(torch.utils.data.Dataset):
         """Decide whether the sample belongs to a foreground decided
         by the rejection sampling criterion.
         """
+        if self.label is None or out_label is None:
+            return True
+
         p = self.reject_p
         size_thres = self.reject_size_thres
         if size_thres > 0:
@@ -384,7 +386,7 @@ class VolumeDatasetRecon(VolumeDataset):
 
         # output list
         if out_label is None: # unlabeled data
-            return pos, out_volume, None, None, out_recon
+            return pos, out_volume, out_recon
 
         # convert masks to different learning targets
         out_target = seg_to_targets(

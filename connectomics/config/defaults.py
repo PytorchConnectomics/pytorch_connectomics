@@ -182,6 +182,7 @@ _C.DATASET.VALID_RATIO = 0.5
 # For some datasets the foreground mask is sparse in the volume. Therefore
 # we perform reject sampling to decrease (all completely avoid) regions
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
+# Note that reject sampling only works when label is given.
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
 _C.DATASET.REJECT_SAMPLING.DIVERSITY = -1
@@ -190,6 +191,7 @@ _C.DATASET.REJECT_SAMPLING.P = 0.95
 # Normalize model inputs (the images are assumed to be gray-scale).
 _C.DATASET.MEAN = 0.5
 _C.DATASET.STD = 0.5
+_C.DATASET.MATCH_ACT = 'none'
 
 _C.DATASET.DISTRIBUTED = False
 

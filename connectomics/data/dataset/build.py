@@ -129,7 +129,7 @@ def _get_input(cfg,
     pad_mode = cfg.DATASET.PAD_MODE
     volume = [None] * len(img_name)
     read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
-        
+
     for i in range(len(img_name)):
         volume[i] = read_fn(img_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
         print(f"volume shape (original): {volume[i].shape}")
@@ -181,6 +181,7 @@ def get_dataset(cfg,
                 augmentor,
                 mode='train',
                 rank=None,
+                dataset_class=VolumeDataset,
                 dir_name_init: Optional[list] = None,
                 img_name_init: Optional[list] = None):
     r"""Prepare dataset for training and inference.
@@ -224,6 +225,7 @@ def get_dataset(cfg,
         "reject_p": cfg.DATASET.REJECT_SAMPLING.P,
         "data_mean": cfg.DATASET.MEAN,
         "data_std": cfg.DATASET.STD,
+        "data_match_act": cfg.DATASET.MATCH_ACT,
         "erosion_rates": cfg.MODEL.LABEL_EROSION,
         "dilation_rates": cfg.MODEL.LABEL_DILATION,
     }
@@ -235,16 +237,16 @@ def get_dataset(cfg,
                 if isinstance(cfg.DATASET.LABEL_NAME, str):
                     label_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME]
                 else:
-                    label_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i] 
-                                    for i in range(len(cfg.DATASET.LABEL_NAME)) 
+                    label_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i]
+                                    for i in range(len(cfg.DATASET.LABEL_NAME))
                                 ]
 
             if cfg.DATASET.VALID_MASK_NAME is not None:
                 if isinstance(cfg.DATASET.VALID_MASK_NAME, str):
                     valid_mask_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME]
                 else:
-                    valid_mask_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME[i] 
-                                        for i in range(len(cfg.DATASET.VALID_MASK_NAME)) 
+                    valid_mask_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME[i]
+                                        for i in range(len(cfg.DATASET.VALID_MASK_NAME))
                                     ]
 
         if isinstance(cfg.DATASET.IMAGE_NAME, str):
@@ -269,30 +271,29 @@ def get_dataset(cfg,
     else:  # build VolumeDataset
         volume, label, valid_mask = _get_input(
             cfg, mode, rank, dir_name_init, img_name_init)
-        dataset = VolumeDataset(volume=volume, label=label, valid_mask=valid_mask,
+        dataset = dataset_class(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 
     return dataset
 
 
-def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
+def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None,
+                     dataset_class=VolumeDataset, cf=collate_fn_train):
     r"""Prepare dataloader for training and inference.
     """
     assert mode in ['train', 'val', 'test']
     print('Mode: ', mode)
 
     if mode == 'train':
-        cf = collate_fn_train
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH
     elif mode == 'val':
-        cf = collate_fn_train
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH * 4
     else:
-        cf = collate_fn_test
+        cf = collate_fn_test # update the collate function
         batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH * cfg.SYSTEM.NUM_GPUS
 
-    if dataset == None:
-        dataset = get_dataset(cfg, augmentor, mode, rank)
+    if dataset is None: # no pre-defined dataset instance
+        dataset = get_dataset(cfg, augmentor, mode, rank, dataset_class)
 
     sampler = None
     num_workers = cfg.SYSTEM.NUM_CPUS
