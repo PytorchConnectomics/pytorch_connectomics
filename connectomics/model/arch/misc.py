@@ -23,9 +23,9 @@ class Discriminator3D(nn.Module):
 
     def __init__(self,
                  in_channel: int = 1,
-                 filters: List[int] = [32, 64, 96, 96, 96],
+                 filters: List[int] = [64, 64, 128, 128, 256],
                  pad_mode: str = 'replicate',
-                 act_mode: str = 'elu',
+                 act_mode: str = 'leaky_relu',
                  norm_mode: str = 'in',
                  dilation: int = 1,
                  is_isotropic: bool = False,
