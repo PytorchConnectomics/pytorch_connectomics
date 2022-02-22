@@ -119,6 +119,9 @@ _C.DATASET = CN()
 # Using a DATA_SCALE of [1., 0.5, 0.5] will downsample the
 # original image by two times (e.g., 4nm -> 8nm).
 _C.DATASET.DATA_SCALE = [1., 1., 1.]
+_C.DATASET.IMAGE_SCALE = None
+_C.DATASET.LABEL_SCALE = None
+_C.DATASET.VALID_MASK_SCALE = None
 
 # Scaling factor for super resolution
 _C.DATASET.SCALE_FACTOR = [2, 3, 3]

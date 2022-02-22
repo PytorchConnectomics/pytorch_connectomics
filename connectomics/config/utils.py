@@ -134,6 +134,14 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
     # Mixed-precision training (only works with DDP)
     cfg.MODEL.MIXED_PRECESION = (
         cfg.MODEL.MIXED_PRECESION and args.distributed)
+ 
+    # Scaling factors for image, label and valid mask
+    if cfg.DATASET.IMAGE_SCALE is None:
+        cfg.DATASET.IMAGE_SCALE = cfg.DATASET.DATA_SCALE
+    if cfg.DATASET.LABEL_SCALE is None:
+        cfg.DATASET.LABEL_SCALE = cfg.DATASET.DATA_SCALE
+    if cfg.DATASET.VALID_MASK_SCALE is None:
+        cfg.DATASET.VALID_MASK_SCALE = cfg.DATASET.DATA_SCALE
 
 
 def validate_cfg(cfg: CfgNode):
