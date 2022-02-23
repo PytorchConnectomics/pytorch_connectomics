@@ -34,6 +34,8 @@ class Visualizer(object):
 
     def visualize(self, volume, label, output, weight, iter_total, writer,
                   suffix: Optional[str] = None, additional_image_groups: Optional[dict] = None):
+        self.visualize_image_groups(writer, iter_total, additional_image_groups)
+        
         volume = self._denormalize(volume)
         # split the prediction into chunks along the channel dimension
         output = self.act(output)
@@ -46,11 +48,15 @@ class Visualizer(object):
                 label[idx] = self.get_semantic_map(
                     label[idx], topt, argmax=False)
             if topt[0] == '5':
-                output[idx] = decode_quantize(
-                    output[idx], mode='max').unsqueeze(1)
-                temp_label = label[idx].clone().float()[
-                    :, np.newaxis]
-                label[idx] = temp_label / temp_label.max() + 1e-6
+                if len(topt) == 1:
+                    topt = topt + '-2d-0-0-5.0' # default
+                _, mode, padding, quant, z_res = topt.split('-')
+                if bool(int(quant)): # only the quantized version needs decoding
+                    output[idx] = decode_quantize(
+                        output[idx], mode='max').unsqueeze(1)
+                    temp_label = label[idx].clone().float()[
+                        :, np.newaxis]
+                    label[idx] = temp_label / temp_label.max() + 1e-6
 
             RGB = (topt[0] in ['1', '2', '9'])
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
@@ -67,7 +73,6 @@ class Visualizer(object):
 
             self.visualize_consecutive(volume, label[idx], output[idx], weight_maps,
                                        iter_total, writer, RGB=RGB, vis_name=vis_name)
-            self.visualize_image_groups(writer, iter_total, additional_image_groups)
 
     def visualize_image_groups(self, writer, iteration, image_groups: Optional[dict] = None):
         if image_groups is None:

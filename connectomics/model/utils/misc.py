@@ -76,14 +76,14 @@ class SplitActivation(object):
     """
     # number of channels of different target options
     num_channels_dict = {
-        '0': 1,
-        '1': 3,
-        '2': 3,
-        '3': 1,
-        '4': 1,
-        '5': 11,
-        '6': 1,
-        'a': -1
+        '0': 1, # binary foreground
+        '1': 3, # synaptic polarity
+        '2': 3, # affinity
+        '3': 1, # small object
+        '4': 1, # instance boundary
+        '5': 1, # instance edt (11 channels for quantized)
+        '6': 1, # semantic edt
+        'all': -1 # all remaining channels
     }
 
     def __init__(self,
@@ -104,21 +104,38 @@ class SplitActivation(object):
         self.do_cat = do_cat
         self.normalize = normalize
 
-        for i, topt in enumerate(self.target_opt):
-            if i < len(self.target_opt) - 1: 
-                assert topt != 'all', "Only last target can be all"
-            if isinstance(topt, int):
-                self.split_channels.append(topt)
-            if topt[0] == '9':
-                channels = int(topt.split('-')[1])
-                self.split_channels.append(channels)
-            else:
-                self.split_channels.append(
-                    self.num_channels_dict[topt[0]])
-
         self.split_only = split_only
         if not self.split_only:
             self.act = self._get_act(output_act)
+
+        for i, topt in enumerate(self.target_opt):
+            assert isinstance(topt, str)
+            if i < len(self.target_opt) - 1:
+                assert topt != 'all', "Only last target can be all"
+
+            if topt[0] == 'I': # image with specified channel number
+                if len(topt) == 1:
+                    topt = topt + '-1' # gray-scale image
+                _, channels = topt.split('-')
+                self.split_channels.append(int(channels))
+                continue
+
+            if topt[0] == '5': # instance_edt
+                if len(topt) == 1:
+                    topt = topt + '-2d-0-0-5.0' # 2d w/o padding or quantize
+                _, mode, padding, quant, z_res = topt.split('-')
+                if bool(int(quant)): # quantized by 0.1 bin (additional one for bg)
+                    self.split_channels.append(11)
+                    continue
+
+            if topt[0] == '9': # semantic masks
+                channels = int(topt.split('-')[1])
+                self.split_channels.append(channels)
+                continue
+
+            # use the default channel number for other cases
+            self.split_channels.append(self.num_channels_dict[topt[0]])
+        print("Channel split rule for prediction: ", self.split_channels)
 
     def __call__(self, x):
         split_channels = self.split_channels.copy()
@@ -201,10 +218,10 @@ class MemoryEfficientSwish(nn.Module):
 
 
 def get_activation(activation: str = 'relu') -> nn.Module:
-    """Get the specified activation layer. 
+    """Get the specified activation layer.
 
     Args:
-        activation (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
+        activation (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``,
             ``'swish'``, 'efficient_swish'`` and ``'none'``. Default: ``'relu'``
     """
     assert activation in ["relu", "leaky_relu", "elu", "gelu",
@@ -223,10 +240,10 @@ def get_activation(activation: str = 'relu') -> nn.Module:
 
 
 def get_functional_act(activation: str = 'relu'):
-    """Get the specified activation function. 
+    """Get the specified activation function.
 
     Args:
-        activation (str): one of ``'relu'``, ``'tanh'``, ``'elu'``, ``'sigmoid'``, 
+        activation (str): one of ``'relu'``, ``'tanh'``, ``'elu'``, ``'sigmoid'``,
             ``'softmax'`` and ``'none'``. Default: ``'sigmoid'``
     """
     assert activation in ["relu", "tanh", "elu", "sigmoid", "softmax", "none"], \

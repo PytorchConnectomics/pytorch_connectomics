@@ -131,23 +131,25 @@ def _get_input(cfg,
     read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
 
     for i in range(len(img_name)):
-        volume[i] = read_fn(img_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
+        volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
-        if (np.array(cfg.DATASET.IMAGE_SCALE) != 1).any():
-            volume[i] = zoom(volume[i], cfg.DATASET.IMAGE_SCALE, order=1)
+        im_scale = cfg.DATASET.IMAGE_SCALE
+        if im_scale is not None and (np.array(im_scale) != 1).any():
+            volume[i] = zoom(volume[i], im_scale, order=1)
         volume[i] = np.pad(volume[i], get_padsize(pad_size), pad_mode)
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode in ['val', 'train'] and label is not None:
-            label[i] = read_fn(label_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
+            label[i] = read_fn(label_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
             if label[i].ndim == 2:  # make it into 3D volume
                 label[i] = label[i][None, :]
-            if (np.array(cfg.DATASET.LABEL_SCALE) != 1).any():
-                label[i] = zoom(label[i], cfg.DATASET.LABEL_SCALE, order=0)
+            gt_scale = cfg.DATASET.LABEL_SCALE
+            if gt_scale is not None and (np.array(gt_scale) != 1).any():
+                label[i] = zoom(label[i], gt_scale, order=0)
             if cfg.DATASET.LABEL_BINARY and label[i].max() > 1:
                 label[i] = label[i] // 255
             if cfg.DATASET.LABEL_MAG != 0:
@@ -161,9 +163,10 @@ def _get_input(cfg,
                 assert (volume[i].shape == label[i].shape)
 
         if mode in ['val', 'train'] and valid_mask is not None:
-            valid_mask[i] = read_fn(valid_mask_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
-            if (np.array(cfg.DATASET.VALID_MASK_SCALE) != 1).any():
-                valid_mask[i] = zoom(valid_mask[i], cfg.DATASET.VALID_MASK_SCALE, order=0)
+            valid_mask[i] = read_fn(valid_mask_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
+            valid_mask_scale = cfg.DATASET.VALID_MASK_SCALE
+            if valid_mask_scale is not None and (np.array(valid_mask_scale) != 1).any():
+                valid_mask[i] = zoom(valid_mask[i], valid_mask_scale, order=0)
 
             valid_mask[i] = np.pad(
                 valid_mask[i], get_padsize(pad_size), pad_mode)

@@ -97,14 +97,6 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
         cfg.SYSTEM.DISTRIBUTED = True
         cfg.SYSTEM.PARALLEL = 'DDP'
 
-    # Target options:
-    for topt in cfg.MODEL.TARGET_OPT:
-        if topt[0] == '5':  # quantized distance transform
-            cfg.MODEL.OUT_PLANES = 11
-            assert len(cfg.MODEL.TARGET_OPT) == 1, \
-                "Multi-task learning with quantized distance transform " \
-                "is currently not supported."
-
     # Update augmentation options when valid masks are specified
     if cfg.DATASET.VALID_MASK_NAME is not None:
         assert cfg.DATASET.LABEL_NAME is not None, \
@@ -134,7 +126,7 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
     # Mixed-precision training (only works with DDP)
     cfg.MODEL.MIXED_PRECESION = (
         cfg.MODEL.MIXED_PRECESION and args.distributed)
- 
+
     # Scaling factors for image, label and valid mask
     if cfg.DATASET.IMAGE_SCALE is None:
         cfg.DATASET.IMAGE_SCALE = cfg.DATASET.DATA_SCALE

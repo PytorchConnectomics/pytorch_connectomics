@@ -42,7 +42,7 @@ class Trainer(TrainerBase):
                  mode: str = 'train',
                  rank: Optional[int] = None,
                  checkpoint: Optional[str] = None):
-        super().__init__(cfg, device, mode, rank)
+        self.init_basics(cfg, device, mode, rank)
 
         self.model = build_model(self.cfg, self.device, rank)
         if self.mode == 'train':
@@ -71,8 +71,7 @@ class Trainer(TrainerBase):
             self.augmentor = TestAugmentor.build_from_cfg(cfg, activation=True)
             if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.inference_singly:
                 self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME
-                self.test_filename = self.augmentor.update_name(
-                    self.test_filename)
+                self.test_filename = self.augmentor.update_name(self.test_filename)
 
         self.dataset, self.dataloader = None, None
         if not self.cfg.DATASET.DO_CHUNK_TITLE and not self.inference_singly:
@@ -82,6 +81,9 @@ class Trainer(TrainerBase):
             if self.mode == 'train' and cfg.DATASET.VAL_IMAGE_NAME is not None:
                 self.val_loader = build_dataloader(
                     self.cfg, None, mode='val', rank=rank)
+
+    def init_basics(self, *args):
+        super().__init__(*args)
 
     def train(self):
         r"""Training function of the trainer class.

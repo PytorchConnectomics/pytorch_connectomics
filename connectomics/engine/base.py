@@ -23,15 +23,6 @@ class TrainerBase(object):
         self.is_main_process = rank is None or rank == 0
         self.inference_singly = (mode == 'test') and cfg.INFERENCE.DO_SINGLY
 
-    def train(self):
-        pass
-
-    def valiate(self):
-        pass
-
-    def test(self):
-        pass
-
     def to_device(self, *args):
         if len(args) == 1:
             return args[0].to(self,device, non_blocking=True)
