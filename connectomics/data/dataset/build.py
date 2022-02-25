@@ -80,6 +80,12 @@ def _get_file_list(name: Union[str, List[str]],
     return name.split('@')
 
 
+def _rescale(data: np.array, scales: List[float], order: int):
+    if scales is not None and (np.array(scales) != 1).any():
+        return zoom(data, scales, order=order)
+    return data # no rescaling
+
+
 def _get_input(cfg,
                mode='train',
                rank=None,
@@ -135,9 +141,7 @@ def _get_input(cfg,
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
-        im_scale = cfg.DATASET.IMAGE_SCALE
-        if im_scale is not None and (np.array(im_scale) != 1).any():
-            volume[i] = zoom(volume[i], im_scale, order=1)
+        volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=1)
         volume[i] = np.pad(volume[i], get_padsize(pad_size), pad_mode)
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
@@ -147,14 +151,12 @@ def _get_input(cfg,
                 label[i] = vast2Seg(label[i])
             if label[i].ndim == 2:  # make it into 3D volume
                 label[i] = label[i][None, :]
-            gt_scale = cfg.DATASET.LABEL_SCALE
-            if gt_scale is not None and (np.array(gt_scale) != 1).any():
-                label[i] = zoom(label[i], gt_scale, order=0)
             if cfg.DATASET.LABEL_BINARY and label[i].max() > 1:
                 label[i] = label[i] // 255
             if cfg.DATASET.LABEL_MAG != 0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
 
+            label[i] = _rescale(label[i], cfg.DATASET.LABEL_SCALE, order=0) # nearest
             label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
             print(f"label shape (after scaling and padding): {label[i].shape}")
             if cfg.DATASET.LOAD_2D:
@@ -164,12 +166,8 @@ def _get_input(cfg,
 
         if mode in ['val', 'train'] and valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
-            valid_mask_scale = cfg.DATASET.VALID_MASK_SCALE
-            if valid_mask_scale is not None and (np.array(valid_mask_scale) != 1).any():
-                valid_mask[i] = zoom(valid_mask[i], valid_mask_scale, order=0)
-
-            valid_mask[i] = np.pad(
-                valid_mask[i], get_padsize(pad_size), pad_mode)
+            valid_mask[i] = _rescale(valid_mask[i], cfg.DATASET.VALID_MASK_SCALE, order=0)
+            valid_mask[i] = np.pad(valid_mask[i], get_padsize(pad_size), pad_mode)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
             if cfg.DATASET.LOAD_2D:
                 assert (volume[i].shape[1:] == valid_mask[i].shape[1:])
@@ -279,7 +277,7 @@ def get_dataset(cfg,
     return dataset
 
 
-def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None,
+def build_dataloader(cfg, augmentor=None, mode='train', dataset=None, rank=None,
                      dataset_class=VolumeDataset, cf=collate_fn_train):
     r"""Prepare dataloader for training and inference.
     """

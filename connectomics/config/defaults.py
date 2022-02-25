@@ -201,7 +201,7 @@ _C.DATASET.DISTRIBUTED = False
 # -----------------------------------------------------------------------------
 # Augmentor
 # -----------------------------------------------------------------------------
-_C.AUGMENTOR = CN()
+_C.AUGMENTOR = CN({"ENABLED": True})
 
 # The nearest interpolation for the label mask during data augmentation
 # can result in masks with coarse boundaries. Thus we apply Gaussian filtering

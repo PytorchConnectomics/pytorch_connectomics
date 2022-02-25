@@ -349,27 +349,29 @@ class VolumeDataset(torch.utils.data.Dataset):
 
 class VolumeDatasetRecon(VolumeDataset):
     def _rejection_sampling(self, vol_size):
-        target_dict = self.augmentor.additional_targets
         while True:
             sample = self._random_sampling(vol_size)
             pos, out_volume, out_label, out_valid = sample
             if self.augmentor is not None:
-
                 if out_valid is not None:
                     assert 'valid_mask' in target_dict.keys(), \
                         "Need to specify the 'valid_mask' option in additional_targets " \
                         "of the data augmentor when training with partial annotation."
 
+                target_dict = self.augmentor.additional_targets
                 assert 'recon_image' in target_dict.keys() and target_dict['recon_image'] == 'img'
                 data = {'image': out_volume,
                         'label': out_label,
                         'valid_mask': out_valid,
-                        'recon_image': out_volume}
+                        'recon_image': out_volume.copy()}
 
                 augmented = self.augmentor(data)
                 out_volume, out_label = augmented['image'], augmented['label']
                 out_valid = augmented['valid_mask']
                 out_recon = augmented['recon_image']
+
+            else: # no augmentation, out_recon is out_volume
+                out_recon = out_volume.copy()
 
             if self._is_valid(out_valid) and self._is_fg(out_label):
                 return pos, out_volume, out_label, out_valid, out_recon

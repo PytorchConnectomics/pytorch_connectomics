@@ -27,6 +27,9 @@ def build_train_augmentor(cfg: CfgNode, keep_uncropped: bool = False, keep_non_s
         The two arguments, keep_uncropped and keep_non_smoothed, are used only for debugging,
         which are `False` by defaults and can not be adjusted in the config file.
     """
+    if not cfg.AUGMENTOR.ENABLED: # no data augmentation
+        return None
+
     aug_list = []
 
     names = cfg.AUGMENTOR.ADDITIONAL_TARGETS_NAME
