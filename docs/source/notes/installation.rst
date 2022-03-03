@@ -2,8 +2,8 @@ Installation
 ==============
 
 The PyTorch Connectomics package is mainly developed on Linux machines with NVIDIA GPUs. We recommend the users to
-follow the `Linux Installation <installation.html#linux-installation>`_ guidance to ensure the compatibility of latest
-features with your system. For Windows users, please check the `Windows Installation <installation.html#windows-installation>`_ section.
+follow the `Linux Installation <installation.html#id1>`_ guidance to ensure the compatibility of latest
+features with your system. For Windows users, please check the `Windows Installation <installation.html#id2>`_ section.
 
 Linux Installation
 ^^^^^^^^^^^^^^^^^^^^
