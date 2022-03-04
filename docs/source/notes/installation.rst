@@ -6,7 +6,7 @@ follow the `Linux Installation <installation.html#id1>`_ guidance to ensure the 
 features with your system. For Windows users, please check the `Windows Installation <installation.html#id2>`_ section.
 
 Linux Installation
-^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS Linux 7.4 (Core) operation system. 
 
@@ -19,7 +19,7 @@ The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS
 Please follow the steps below for a successful installation:
 
 1 - Install PyTorch in a virtual environment
-----------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: none
 
@@ -36,7 +36,7 @@ CUDA 10.2 and 11.0. Then please ensure that at least PyTorch **1.8.0** is instal
     >>> 1.8.0
 
 2 - Install PyTorch Connectomics
-----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: none
 
@@ -48,7 +48,7 @@ We install the package in editable mode by default so that there is no need to
 re-install it when making changes to the code. 
 
 3 - Ensure CUDA is setup correctly (*optional*)
--------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Check that PyTorch is installed with CUDA support:
 
@@ -102,7 +102,7 @@ running and development on the cluster. For example:
     make sure that the installation is correct and also have an intial taste of the functions/modules.
 
 Windows Installation
-^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 These installation instructions were tested on two different Windows 10 machines, each with 1 GPU device. 
 
@@ -113,18 +113,18 @@ These installation instructions were tested on two different Windows 10 machines
 Please follow the steps below for a successful installation:
 
 1 - Install Miniconda
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The instructions to install miniconda can be found `here <https://docs.conda.io/en/latest/miniconda.html>`_.
 Most likely you want to use the link for "Miniconda3 Windows 64-bit"
 
 2 - Open Anaconda Prompt
--------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Open the anaconda prompt. You should be able to find this in the windows start menu with your other programs. Either search for it, or look in the folder most likely called "Anaconda 3 (64-bit)" Another way to find it is by clicking the start menu / press the windows key, start typing miniconda, and select "Anaconda Prompt (Miniconda3)"
 
 3 - Navigate to where you want to install the package
-------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Set miniconda's working directory to where you want to install the program by typing the following command with out the <>. You can install the program wherever you want, just remember where you choose to install it. The default is to install it in your C:\Users\YourUsername folder. If you are ok with that location, skip this step.
 
@@ -133,7 +133,7 @@ Set miniconda's working directory to where you want to install the program by ty
     cd <path of where you want to install the program folder, example: C:\\Users\\YourUsername\\Documents>
     
 4 - Run the following commands
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The next few commands create a virtual environment, install pytorch and pytorch_connectomics, and also some libraries that windows needs to process images properly.
 

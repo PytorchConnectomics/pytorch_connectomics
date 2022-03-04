@@ -36,3 +36,11 @@ This is a list of Frequently Asked Questions about PyTorch Connectomics. Feel fr
     For later stages where the feature becomes roughly isotropic after downsampling the *xy*-plane multiple times, we apply 
     symmetric 3D convolutions and downsample all three dimensions with the same ratio (see :class:`connectomics.model.arch.UNet3D`). 
     Transformer-based architectures can follow a similar design.
+
+6. What are the differences between 2D and 3D affinity maps?
+    The affinity between two pixels (usually 2 adjacent ones) is 1 if and only if they share the same segment 
+    index and the index does not mean background (usually 0). For 2D images, the affinity map has 2 channels, one 
+    channel for the affinity between (x,y) to (x+1,y), the other channel for the affinity between (x,y) to (x,y+1). 
+    Thus the prediction from a 2D affinity model is commonly (2,h,w). For 3D volumes, the affinity map has 3 channels, 
+    one channel for the affinity between (x,y,z) to (x+1,y,z), the second channel for (x,y,z) to (x,y+1,z), and 
+    the third channel for (x,y,z) to (x,y,z+1). Therefore the prediction from a 3D affinity model is commonly (3,d,h,w).
