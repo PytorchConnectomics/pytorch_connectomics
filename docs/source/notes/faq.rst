@@ -37,7 +37,7 @@ This is a list of Frequently Asked Questions about PyTorch Connectomics. Feel fr
     symmetric 3D convolutions and downsample all three dimensions with the same ratio (see :class:`connectomics.model.arch.UNet3D`). 
     Transformer-based architectures can follow a similar design.
 
-6. What are the differences between 2D and 3D affinity maps?
+6. What are the differences between 2D and 3D **affinity maps**?
     The affinity between two pixels (usually 2 adjacent ones) is 1 if and only if they share the same segment 
     index and the index does not mean background (usually 0). For 2D images, the affinity map has 2 channels, one 
     channel for the affinity between (x,y) to (x+1,y), the other channel for the affinity between (x,y) to (x,y+1). 

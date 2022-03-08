@@ -41,8 +41,8 @@ _C.MODEL.ATTENTION = 'squeeze_excitation'
 _C.MODEL.ISOTROPY = [False, False, False, True, True]
 
 _C.MODEL.TARGET_OPT = ['0']
-_C.MODEL.LABEL_EROSION = None
-_C.MODEL.LABEL_DILATION = None
+_C.MODEL.LABEL_EROSION = None # erode masks
+_C.MODEL.LABEL_DILATION = None # dilate masks
 
 _C.MODEL.WEIGHT_OPT = [['1']]
 
@@ -205,8 +205,10 @@ _C.AUGMENTOR = CN({"ENABLED": True})
 
 # The nearest interpolation for the label mask during data augmentation
 # can result in masks with coarse boundaries. Thus we apply Gaussian filtering
-# to smooth the object boundary (default: True).
-_C.AUGMENTOR.SMOOTH = True
+# to smooth the object boundary (default: False).
+# WARNING: applying label smoothing can erase the segmentation masks of thin 
+# structures like spine necks and wrinkle artifacts.
+_C.AUGMENTOR.SMOOTH = False
 
 # CfgNodes can only contain a limited set of valid types:
 # _VALID_TYPES = {tuple, list, str, int, float, bool, type(None)}

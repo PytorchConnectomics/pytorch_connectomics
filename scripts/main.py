@@ -21,10 +21,13 @@ def get_args():
                         help='inference mode')
     parser.add_argument('--distributed', action='store_true',
                         help='distributed training')
-    parser.add_argument('--local_rank', type=int,
-                        help='node rank for distributed training', default=None)
     parser.add_argument('--checkpoint', type=str, default=None,
                         help='path to load the checkpoint')
+    parser.add_argument('--manual-seed', type=int, default=None)
+    parser.add_argument('--local_world_size', type=int, default=1,
+                        help='number of GPUs each process.')
+    parser.add_argument('--local_rank', type=int, default=None,
+                        help='node rank for distributed training')
     parser.add_argument('--debug', action='store_true',
                         help='run the scripts in debug mode')
     # Merge configs from command line (e.g., add 'SYSTEM.NUM_GPUS 8').
@@ -46,17 +49,52 @@ def init_seed(seed):
 
 def main():
     args = get_args()
-    args.local_rank = int(os.environ["LOCAL_RANK"]) if args.distributed else 0
-    if args.local_rank == 0 or args.local_rank is None:
-        print("Command line arguments: ", args)
-
-    manual_seed = 0 if args.local_rank is None else args.local_rank
-    init_seed(manual_seed)
-
     cfg = load_cfg(args)
+
+    if args.distributed:  # parameters to initialize the process group
+        assert torch.cuda.is_available(), \
+            "Distributed training without GPUs is not supported!"
+
+        env_dict = {
+            key: os.environ[key]
+            for key in ("MASTER_ADDR", "MASTER_PORT", "RANK",
+                        "LOCAL_RANK", "WORLD_SIZE")}
+        print(f"[{os.getpid()}] Initializing process group with: {env_dict}")
+        dist.init_process_group(cfg.SYSTEM.DISTRIBUTED_BACKEND, init_method='env://')
+        print(
+            f"[{os.getpid()}] world_size = {dist.get_world_size()}, "
+            + f"rank = {dist.get_rank()}, backend={dist.get_backend()}"
+        )
+
+        args.rank = int(os.environ["RANK"])
+        args.local_rank = int(os.environ["LOCAL_RANK"])
+        n = torch.cuda.device_count() // args.local_world_size
+        device_ids = list(
+            range(args.local_rank * n, (args.local_rank + 1) * n))
+
+        torch.cuda.set_device(args.local_rank)
+        device = torch.device("cuda", args.local_rank)
+
+        print(
+            f"[{os.getpid()}] rank = {dist.get_rank()} ({args.rank}), "
+            + f"world_size = {dist.get_world_size()}, n = {n}, device_ids = {device_ids}"
+        )
+
+        manual_seed = args.local_rank if args.manual_seed is None \
+            else args.manual_seed
+    else:
+        manual_seed = 0 if args.manual_seed is None else args.manual_seed
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    print("rank: {}, device: {}, seed: {}".format(args.local_rank, device, manual_seed))
+    # init random seeds for reproducibility
+    init_seed(manual_seed)
+    cudnn.enabled = True
+    cudnn.benchmark = True
+
     if args.local_rank == 0 or args.local_rank is None:
-        # In distributed training, only print and save the
-        # configurations using the node with local_rank=0.
+        # In distributed training, only print and save the configurations 
+        # using the node with local_rank=0.
         print("PyTorch: ", torch.__version__)
         print(cfg)
 
@@ -65,19 +103,7 @@ def main():
             os.makedirs(cfg.DATASET.OUTPUT_PATH)
             save_all_cfg(cfg, cfg.DATASET.OUTPUT_PATH)
 
-    if args.distributed:
-        torch.cuda.set_device(args.local_rank)
-        device = torch.device("cuda", args.local_rank)
-        assert torch.cuda.is_available(), \
-            "Distributed training without GPUs is not supported!"
-        dist.init_process_group(cfg.SYSTEM.DISTRIBUTED_BACKEND, init_method='env://')
-    else:
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    print("Rank: {}. Device: {}".format(args.local_rank, device))
-    cudnn.enabled = True
-    cudnn.benchmark = True
-
+    # start training or inference
     mode = 'test' if args.inference else 'train'
     trainer = Trainer(cfg, device, mode,
                       rank=args.local_rank,

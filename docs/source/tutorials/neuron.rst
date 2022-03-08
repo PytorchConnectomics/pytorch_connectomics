@@ -55,7 +55,7 @@ Provide the ``yaml`` configuration files to run training:
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
     --config-base configs/SNEMI/SNEMI-Base.yaml \
     --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
@@ -91,13 +91,13 @@ DDP training is our default settings because features like automatic mixed-preci
 normalization are better supported for DDP. Besides, DP usually has an imbalanced GPU memory usage.
 
 3 - Run training with pretrained model (*optional*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (*Optional*) To run training starting from pretrained weights, add a checkpoint file:
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
     --config-base configs/SNEMI/SNEMI-Base.yaml \
     --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml \

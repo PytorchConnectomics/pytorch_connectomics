@@ -46,7 +46,8 @@ Create a new conda environment and install PyTorch:
 ```shell
 conda create -n py3_torch python=3.8
 source activate py3_torch
-conda install pytorch torchvision cudatoolkit=11.1 -c pytorch -c nvidia
+pip install --upgrade pip setuptools==59.5.0
+conda install pytorch torchvision cudatoolkit=11.3 -c pytorch
 ```
 
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
