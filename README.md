@@ -63,6 +63,13 @@ pip install --editable .
 
 Since the package is under active development, the editable installation will allow any changes to the original package to reflect directly in the environment. For more information and frequently asked questions about installation, please check the [installation guide](https://connectomics.readthedocs.io/en/latest/notes/installation.html).
 
+### Docker
+
+We pushed a PyCT Docker image to the public docker registry to improve usability.
+Additionally, we provide the corresponding Dockerfile to enable individual modifications.
+Pleas refer to our [Docker page](docs/docker.md) for more information.
+
+
 ## Notes
 
 ### Data Augmentation

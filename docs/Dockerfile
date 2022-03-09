@@ -1,0 +1,28 @@
+# Based on cuda ready nivdia image
+FROM nvidia/cuda:10.1-base
+  
+# Update the package manger and install base functions
+RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6  wget unzip curl bzip2 git
+
+# Install and setup miniconda
+RUN curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+RUN bash Miniconda3-latest-Linux-x86_64.sh -p /miniconda -b
+RUN rm Miniconda3-latest-Linux-x86_64.sh
+ENV PATH=/miniconda/bin:${PATH}
+
+# Update conda
+RUN conda update -y conda
+# Install pytorch and torchvision
+RUN conda install -y pytorch torchvision -c pytorch
+
+# We do not require a conda environment since the container is allready isolated
+# However, we switch user to not install pip packges as root
+RUN useradd -ms /bin/bash pyct
+ENV PATH="/home/pyct/.local/bin:${PATH}"
+USER pyct
+
+# Setup and install the git repo
+WORKDIR /home/pyct/
+RUN cd /home/pyct/ && git clone https://github.com/zudi-lin/pytorch_connectomics.git
+RUN pip install --upgrade pip setuptools==59.5.0
+RUN cd pytorch_connectomics && pip install --upgrade pip && pip install --editable .
