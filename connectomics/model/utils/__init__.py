@@ -8,4 +8,5 @@ __all__ = [
     'get_norm_3d',
     'get_norm_2d',
     'SplitActivation',
+    'ImagePool',
 ]

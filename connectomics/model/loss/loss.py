@@ -213,11 +213,82 @@ class WSDiceLoss(nn.Module):
         intersection = (g_pred * g).sum(-1)
         loss = 1 - ((2. * intersection + self.smooth) /
                     ((g_pred**self.power).sum(-1) + (g**self.power).sum(-1) + self.smooth))
-        # loss = -torch.log10((2. * intersection + self.smooth) /
-        #             ((g_pred**self.power).sum(-1) + (g**self.power).sum(-1) + self.smooth))
 
         return loss.mean()
 
     def forward(self, pred, target, weight_mask=None):
         loss = self.dice_loss(pred, target)
+        return loss
+
+
+class GANLoss(nn.Module):
+    """Define different GAN objectives (vanilla, lsgan, and wgangp).
+    Based on Based on https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+
+    The GANLoss class abstracts away the need to create the target label tensor
+    that has the same size as the input.
+    """
+
+    def __init__(self,
+                 gan_mode: str = 'lsgan',
+                 target_real_label: float = 1.0,
+                 target_fake_label: float = 0.0):
+        """ Initialize the GANLoss class.
+
+        Args:
+            gan_mode (str): the type of GAN objective. It currently supports vanilla, lsgan, and wgangp.
+            target_real_label (bool): label for a real image
+            target_fake_label (bool): label of a fake image
+
+        Note: Do not use sigmoid as the last layer of Discriminator.
+        LSGAN needs no sigmoid. vanilla GANs will handle it with BCEWithLogitsLoss.
+        """
+        super(GANLoss, self).__init__()
+        self.register_buffer('real_label', torch.tensor(target_real_label))
+        self.register_buffer('fake_label', torch.tensor(target_fake_label))
+        self.gan_mode = gan_mode
+        if gan_mode == 'lsgan':
+            self.loss = nn.MSELoss()
+        elif gan_mode == 'vanilla':
+            self.loss = nn.BCEWithLogitsLoss()
+        elif gan_mode in ['wgangp']:
+            self.loss = None
+        else:
+            raise NotImplementedError('gan mode %s not implemented' % gan_mode)
+
+    def get_target_tensor(self, prediction: torch.Tensor, target_is_real: bool):
+        """Create label tensors with the same size as the input.
+
+        Args:
+            prediction (torch.Tensor): tpyically the prediction from a discriminator
+            target_is_real (bool): if the ground truth label is for real images or fake images
+
+        Returns:
+            A label tensor filled with ground truth label, and with the size of the input
+        """
+
+        if target_is_real:
+            target_tensor = self.real_label
+        else:
+            target_tensor = self.fake_label
+        return target_tensor.expand_as(prediction)
+
+    def __call__(self, prediction: torch.Tensor, target_is_real: bool):
+        """Calculate loss given Discriminator's output and grount truth labels.
+
+        Args:
+            prediction (torch.Tensor): tpyically the prediction output from a discriminator
+            target_is_real (bool): if the ground truth label is for real images or fake images
+
+        Returns:
+            the calculated loss.
+        """
+        if self.gan_mode in ['lsgan', 'vanilla']:
+            target_tensor = self.get_target_tensor(prediction, target_is_real)
+            loss = self.loss(prediction, target_tensor)
+        elif self.gan_mode == 'wgangp':
+            if target_is_real:
+                loss = -prediction.mean()
+            else:
+                loss = prediction.mean()
         return loss
