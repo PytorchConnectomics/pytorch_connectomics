@@ -10,7 +10,7 @@ import imageio
 from scipy.ndimage import zoom
 
 
-def readimg_as_vol(filename, drop_channel=True):
+def readimg_as_vol(filename, drop_channel=False):
     img_suf = filename[filename.rfind('.')+1:]
     assert img_suf in ['png', 'tif']
     data = imageio.imread(filename)

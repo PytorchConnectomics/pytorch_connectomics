@@ -13,8 +13,8 @@ class CopyPasteAugmentor(DataAugment):
     The input can be a `numpy.ndarray` or `torch.Tensor` of shape :math:`(C, Z, Y, X)` or :math:`(Z, Y, X)`.
 
     Args:
-        aug_thres: Maximum fractional size of neuron occupying the volume. If
-                   the neuron is too large it is not augmented. Default: 0.7
+        aug_thres: Maximum fractional size of the object occupying the volume. If
+                   the object is too large it is not augmented. Default: 0.7
     """
     def __init__(self,
                  aug_thres: float = 0.7,
@@ -32,7 +32,6 @@ class CopyPasteAugmentor(DataAugment):
         pass
 
     def __call__(self, sample, random_state=np.random.RandomState()):
-    # def __call__(self, volume, label):
         assert 'label' in sample.keys(), "Labels not found in sample"
         volume, label = sample['image'], sample['label']
         if not isinstance(volume, (torch.Tensor, np.ndarray)):
@@ -47,7 +46,7 @@ class CopyPasteAugmentor(DataAugment):
             neuron_tensor = volume * label
             neuron_tensor, label = self.copy_paste_single(torch.stack([label, label_flipped]), neuron_tensor)
             volume = volume * (~label) + neuron_tensor * label
-            # print('used copy paste')
+
         return np.array(volume) if is_np else volume
 
     def rotate(self, tensor, angle):
@@ -108,9 +107,9 @@ class CopyPasteAugmentor(DataAugment):
             else:
                 min_overlap = overlap1
                 rot_angle, ind = angle, 1
+
         rot_label = rot_label[ind].unsqueeze(0)
-        if ind:
-            # flip
+        if ind: # flip
             neuron_tensor = neuron_tensor[torch.arange(neuron_tensor.shape[0]-1,-1,-1)]
         rot_label, neuron_tensor = self.rotate(rot_label, rot_angle).squeeze(0), \
                                     self.rotate(neuron_tensor.unsqueeze(0), rot_angle).squeeze(0)

@@ -11,7 +11,7 @@ from scipy.ndimage import zoom
 import torch
 import torch.utils.data
 
-from .dataset_volume import VolumeDataset
+from .dataset_volume import VolumeDataset, VolumeDatasetMultiSeg
 from .dataset_tile import TileDataset
 from .collate import *
 from ..utils import *
@@ -82,8 +82,26 @@ def _get_file_list(name: Union[str, List[str]],
 
 def _rescale(data: np.array, scales: List[float], order: int):
     if scales is not None and (np.array(scales) != 1).any():
-        return zoom(data, scales, order=order)
+        if data.ndim == 3:
+            return zoom(data, scales, order=order)
+
+        assert data.ndim == 4 # c,z,y,x
+        n_maps = data.shape[0]
+        return np.stack([
+            zoom(data[i], scales, order=order) for i in range(n_maps)
+        ], 0)
+
     return data # no rescaling
+
+
+def _pad(data: np.array, pad_size: Union[List[int], int], pad_mode: str):
+    pad_size = get_padsize(pad_size)
+    if data.ndim == 3:
+        return np.pad(data, pad_size, pad_mode)
+
+    assert data.ndim == 4 # c,z,y,x
+    pad_size = [(0, 0)] + list(pad_size) # no padding for channel dim
+    return np.pad(data, tuple(pad_size), pad_mode)
 
 
 def _get_input(cfg,
@@ -141,8 +159,8 @@ def _get_input(cfg,
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
-        volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=1)
-        volume[i] = np.pad(volume[i], get_padsize(pad_size), pad_mode)
+        volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=3)
+        volume[i] = _pad(volume[i], pad_size, pad_mode)
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode in ['val', 'train'] and label is not None:
@@ -157,22 +175,22 @@ def _get_input(cfg,
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
 
             label[i] = _rescale(label[i], cfg.DATASET.LABEL_SCALE, order=0) # nearest
-            label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
+            label[i] = _pad(label[i], pad_size, pad_mode)
             print(f"label shape (after scaling and padding): {label[i].shape}")
             if cfg.DATASET.LOAD_2D:
-                assert (volume[i].shape[1:] == label[i].shape[1:])
+                assert volume[i].shape[1:] == label[i].shape[1:]
             else:
-                assert (volume[i].shape == label[i].shape)
+                assert volume[i].shape == label[i].shape[-3:]
 
         if mode in ['val', 'train'] and valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             valid_mask[i] = _rescale(valid_mask[i], cfg.DATASET.VALID_MASK_SCALE, order=0)
-            valid_mask[i] = np.pad(valid_mask[i], get_padsize(pad_size), pad_mode)
+            valid_mask[i] = _pad(valid_mask[i], pad_size, pad_mode)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
             if cfg.DATASET.LOAD_2D:
-                assert (volume[i].shape[1:] == valid_mask[i].shape[1:])
+                assert volume[i].shape[1:] == valid_mask[i].shape[1:]
             else:
-                assert (volume[i].shape == label[i].shape)
+                assert volume[i].shape == label[i].shape[-3:]
 
     return volume, label, valid_mask
 
@@ -268,9 +286,12 @@ def get_dataset(cfg,
                               data_scale=cfg.DATASET.DATA_SCALE,
                               **shared_kwargs)
 
-    else:  # build VolumeDataset
+    else:  # build VolumeDataset or VolumeDatasetMultiSeg
         volume, label, valid_mask = _get_input(
             cfg, mode, rank, dir_name_init, img_name_init)
+
+        if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
+            shared_kwargs['multiseg_split'] = cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT
         dataset = dataset_class(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 
@@ -293,6 +314,8 @@ def build_dataloader(cfg, augmentor=None, mode='train', dataset=None, rank=None,
         batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH * cfg.SYSTEM.NUM_GPUS
 
     if dataset is None: # no pre-defined dataset instance
+        if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
+            dataset_class = VolumeDatasetMultiSeg
         dataset = get_dataset(cfg, augmentor, mode, rank, dataset_class)
 
     sampler = None

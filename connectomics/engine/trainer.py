@@ -344,7 +344,9 @@ class Trainer(TrainerBase):
         r"""Update the model with the specified checkpoint file path.
         """
         if checkpoint is None:
-            return
+            if self.mode == 'test':
+                warnings.warn("Test mode without specified checkpoint!")
+            return # nothing to load
 
         # load pre-trained model
         print('Load pretrained checkpoint: ', checkpoint)
