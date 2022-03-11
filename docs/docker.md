@@ -1,6 +1,6 @@
-# PyCT Docker
+# PyTC Docker
 
-We pushed a PyCT Docker image to the public docker registry to improve usability.
+To improve usability, we pushed a PyTC Docker image to the public docker registry.
 Additionally, we provide the corresponding Dockerfile to enable individual modifications.
 
 ## Prerequisite
@@ -8,19 +8,53 @@ Additionally, we provide the corresponding Dockerfile to enable individual modif
 - Install [docker-ce](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
 - Install [nvidia-docker](https://github.com/NVIDIA/nvidia-docker#quickstart)
 
-## Limitations 
+### Limitations 
 
-Nvidia-docker is only compatible with Linux distributions. If you are trying to run PyCT Docker on a macOS or Windows machine, please adapt the Dockerfile accordingly and build a new docker image as explained below.  
+Nvidia-docker is only compatible with Linux distributions. If you are trying to run PyTC Docker on a macOS or Windows machine, please adapt the Dockerfile accordingly and build a new docker image as explained below.  
 
-## Obtaining a Docker image
+### Quick setup (03/11/2022)
 
-### Pull pre-built image 
+If your current system does not meet the prerequisite, here is a quick setup guide with the steps copied directly from the official installation websites.
 
-Run the following command to pull the pre-built docker image from the public registry.
+**Docker-CE**
+
+Docker-CE on Ubuntu can be setup using [Docker’s official convenience script](https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script):
 
 ```bash
-docker pull lauenburg/pyct_docker
+$ curl https://get.docker.com | sh \
+  && sudo systemctl --now enable docker
 ```
+
+**NVIDIA Docker**
+
+- Setup the stable repository and the GPG key:
+
+```bash
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+   && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
+   && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+```
+
+- Install the nvidia-docker2 package (and dependencies) after updating the package listing:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y nvidia-docker2
+```
+
+- Restart the Docker daemon to complete the installation after setting the default runtime:
+
+```bash
+sudo systemctl restart docker
+```
+
+- At this point, a working setup can be tested by running a base CUDA container:
+
+```bash
+sudo docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+```
+
+## Obtaining a Docker image
 
 ### Building image from Dockerfile
 
@@ -29,7 +63,17 @@ Download the [Dockerfile](Dockerfile) from this directory and run
 ```bash
 docker build -t [target_tag] <path to folder containing the downloaded Dockerfile>
 ```
-Use `.` for the path argument when running the command inside the directory that contains the Dockerfile.
+
+- Replace `[target_tag]` with the name that you want to assign to the image.
+- Use `.` for the path argument when running the command inside the directory that contains the Dockerfile.
+
+### Pull pre-built image 
+
+Run the following command to pull the pre-built docker image from the public registry.
+
+```bash
+docker pull lauenburg/pytc_docker
+```
 
 ## Create and run a Docker container
 
@@ -37,22 +81,13 @@ Use `.` for the path argument when running the command inside the directory that
 Start an interactive docker session:
 
 ```bash
-nvidia-docker run -it -p 6006:6006  lauenburg/pyct_docker
+nvidia-docker run -it -p 6006:6006  [target_tag]
 ```
 
-- If you build the docker image from the Dockerfile, replace `lauenburg/pyct_docker` with the `target_tag` defined in the build command
+- If you pulled the image from the public container registry, replace `[target_tag]` with `lauenburg/pytc_docker`.
 - We map the container's TCP port `6006` to the port `6006` on the Docker host to access the TensorBoard visualization on the host machine.
 
 
-## Use the PyCT container
-
-- Now you are in the Docker environment. Go to our code repo and start running things.
-```bash
-cd /workspace/pytorch-CycleGAN-and-pix2pix
-bash datasets/download_pix2pix_dataset.sh facades
-python -m visdom.server &
-bash scripts/train_pix2pix.sh
-```
 
 ## Hints and additional information
 
@@ -89,7 +124,6 @@ Singularity is preinstalled on the cluster. For more information click [here](ht
 
 When creating a GPU compute instance using the Google Cloud Platform, you need to install the Nvidia driver.
 The easiest way to do this is using the install script referenced by GCP [here](https://cloud.google.com/compute/docs/gpus/install-drivers-gpu#installation_scripts).
-
 
 - Privilege
 

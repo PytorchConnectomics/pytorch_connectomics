@@ -2,7 +2,7 @@
 FROM nvidia/cuda:10.1-base
   
 # Update the package manger and install base functions
-RUN apt-get update && apt-get install -y ffmpeg libsm6 libxext6  wget unzip curl bzip2 git
+RUN apt-get update && apt-get install -y wget unzip curl bzip2 git
 
 # Install and setup miniconda
 RUN curl -LO http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
