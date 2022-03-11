@@ -92,7 +92,7 @@ class Criterion(object):
             out[i] = [None]*len(loss_opt[i])
             for j, lopt in enumerate(loss_opt[i]):
                 params = None
-                if loss_kwargs is not None:
+                if loss_kwargs is not None and loss_kwargs[i] is not None:
                     params = loss_kwargs[i][j]
                 out[i][j] = self.get_one_loss(lopt, params)
         return out
@@ -197,9 +197,15 @@ class Criterion(object):
         if cfg.MODEL.LOSS_KWARGS_KEY is not None:
             keys = cfg.MODEL.LOSS_KWARGS_KEY
             vals = cfg.MODEL.LOSS_KWARGS_VAL
+            loss_opt = cfg.MODEL.TARGET_OPT
             assert len(keys) == len(vals)
+            assert len(keys) == len(loss_opt)
+
             loss_kwargs = [None] * len(keys)
             for i in range(len(keys)):
+                if len(keys[i]) == 0:
+                    continue
+
                 assert len(keys[i]) == len(vals[i])
                 loss_kwargs[i] = [None] * len(keys[i])
                 for j in range(len(keys[i])):

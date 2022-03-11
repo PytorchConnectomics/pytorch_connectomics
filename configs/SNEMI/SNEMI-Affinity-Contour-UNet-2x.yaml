@@ -15,7 +15,7 @@ MODEL:
   OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"]]
 DATASET:
   OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x
-  DATA_SCALE: [2.0, 2.0, 2.0]
+  DATA_SCALE: [1.0, 2.0, 2.0]
 INFERENCE:
   OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x/test
   OUTPUT_ACT: ["sigmoid", "sigmoid"]

@@ -41,6 +41,8 @@ _C.MODEL.ATTENTION = 'squeeze_excitation'
 _C.MODEL.ISOTROPY = [False, False, False, True, True]
 
 _C.MODEL.TARGET_OPT = ['0']
+_C.MODEL.TARGET_OPT_MULTISEG_SPLIT = None
+
 _C.MODEL.LABEL_EROSION = None # erode masks
 _C.MODEL.LABEL_DILATION = None # dilate masks
 
@@ -149,7 +151,7 @@ _C.DATASET.DO_2D = False
 _C.DATASET.LOAD_2D = False
 
 # Specify whether to drop channels in multi-channel images/volumes
-_C.DATASET.DROP_CHANNEL = True
+_C.DATASET.DROP_CHANNEL = False
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64]

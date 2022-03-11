@@ -33,14 +33,14 @@ SOLVER:
 MONITOR:
   ITERATION_NUM: [200, 1000]
 INFERENCE:
-  INPUT_SIZE: [17, 257, 257]
-  OUTPUT_SIZE: [17, 257, 257]
+  INPUT_SIZE: [17, 513, 513]
+  OUTPUT_SIZE: [17, 513, 513]
   OUTPUT_ACT: ["sigmoid"]
   IMAGE_NAME: test-input.tif # or path to your test images
   OUTPUT_PATH: outputs/SNEMI3D/test
   OUTPUT_NAME: result.h5
-  PAD_SIZE: [4, 64, 64]
+  PAD_SIZE: [4, 32, 32]
   AUG_MODE: min
-  AUG_NUM: 4
-  STRIDE: [8, 128, 128]
-  SAMPLES_PER_BATCH: 8
+  AUG_NUM: None
+  STRIDE: [8, 256, 256]
+  SAMPLES_PER_BATCH: 4

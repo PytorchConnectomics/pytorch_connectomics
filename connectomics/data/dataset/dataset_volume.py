@@ -396,3 +396,74 @@ class VolumeDatasetRecon(VolumeDataset):
         out_weight = seg_to_weights(
             out_target, self.weight_opt, out_valid, out_label)
         return pos, out_volume, out_target, out_weight, out_recon
+
+
+class VolumeDatasetMultiSeg(VolumeDataset):
+    def __init__(self, multiseg_split: list = [1,2], **kwargs):
+        self.multiseg_split = multiseg_split
+        super().__init__(**kwargs)
+
+        assert len(self.target_opt) == sum(multiseg_split)
+        self.multiseg_cumsum = [0] + list(np.cumsum(multiseg_split))
+        self.target_opt_multiseg = []
+        for i in range(len(multiseg_split)):
+            self.target_opt_multiseg.append(
+                self.target_opt[self.multiseg_cumsum[i]:self.multiseg_cumsum[i+1]])
+        print("Multiseg target options: ", self.target_opt_multiseg)
+
+    def _rejection_sampling(self, vol_size):
+        while True:
+            sample = self._random_sampling(vol_size)
+            pos, out_volume, out_label, out_valid = sample
+            n_seg_maps =  out_label.shape[0]
+
+            if self.augmentor is not None:
+                if out_valid is not None:
+                    assert 'valid_mask' in target_dict.keys(), \
+                        "Need to specify the 'valid_mask' option in additional_targets " \
+                        "of the data augmentor when training with partial annotation."
+
+                data = {'image': out_volume}
+                target_dict = self.augmentor.additional_targets
+                for i in range(n_seg_maps):
+                    assert 'label%d' % i in target_dict.keys() # each channel is augmented
+                    data['label%d' % i] = out_label[i,:,:,:]
+
+                augmented = self.augmentor(data)
+                out_volume = augmented['image']
+                out_label = [augmented['label%d' % i] for i in range(n_seg_maps)]
+
+            else: # no augmentation, out_recon is out_volume
+                out_label = [out_label[i,:,:,:] for i in range(n_seg_maps)]
+
+            # the first segmentation map is used for rejection sampling
+            if self._is_valid(out_valid) and self._is_fg(out_label[0]):
+                return pos, out_volume, out_label, out_valid
+
+    def _process_targets(self, sample):
+        pos, out_volume, out_label, out_valid = sample
+
+        if self.do_2d:
+            out_volume, out_valid = numpy_squeeze(out_volume, out_valid)
+            out_label = numpy_squeeze(*out_label)
+
+        out_volume = self._process_image(out_volume)
+
+        if out_label is None: # unlabeled data
+            return pos, out_volume, None, None
+
+        # convert masks to different learning targets
+        out_target = self.multiseg_to_targets(out_label)
+        out_weight = seg_to_weights(
+            out_target, self.weight_opt, out_valid, out_label)
+        return pos, out_volume, out_target, out_weight
+
+    def multiseg_to_targets(self, out_label):
+        assert len(out_label) == len(self.target_opt_multiseg)
+        out_target = []
+        for i in range(len(out_label)):
+            out_target.extend(seg_to_targets(
+                out_label[i], self.target_opt_multiseg[i], 
+                self.erosion_rates, self.dilation_rates))
+        
+        return out_target

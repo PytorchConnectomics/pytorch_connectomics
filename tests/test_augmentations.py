@@ -22,7 +22,7 @@ class TestModelBlock(unittest.TestCase):
         np.random.seed(42)
         cp_augmentor = CopyPasteAugmentor()
         volume, label = np.random.randn(8,32,32), np.zeros((8,32,32))
-        label[2:4, 10:20, 10:20] += 1
+        label[2:4, 10:20, 10:20] = 1
         volume_np = cp_augmentor({'image': volume, 'label':label})
 
         volume, label = torch.from_numpy(volume), torch.from_numpy(label)
