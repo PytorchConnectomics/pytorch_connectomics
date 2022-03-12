@@ -74,7 +74,7 @@ docker build -t [target_tag] <path to folder containing the downloaded Dockerfil
 Run the following command to pull the pre-built docker image from the public registry.
 
 ```bash
-docker pull lauenburg/pytc_docker
+docker pull lauenburg/pytc
 ```
 
 ## Create and run a Docker container
@@ -86,7 +86,7 @@ Start an interactive docker session:
 nvidia-docker run -it -p 6006:6006  [target_tag]
 ```
 
-- If you pulled the image from the public container registry, replace `[target_tag]` with `lauenburg/pytc_docker`.
+- If you pulled the image from the public container registry, replace `[target_tag]` with `lauenburg/pytc`.
 - We map the container's TCP port `6006` to the port `6006` on the Docker host to access the TensorBoard visualization on the host machine.
 
 
