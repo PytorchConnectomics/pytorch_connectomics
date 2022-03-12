@@ -1,5 +1,5 @@
 # Based on cuda ready nivdia image
-FROM nvidia/cuda:10.1-base
+FROM nvidia/cuda:11.3.1-base-ubuntu20.04
   
 # Update the package manger and install base functions
 RUN apt-get update && apt-get install -y wget unzip curl bzip2 git
@@ -17,12 +17,12 @@ RUN conda install -y pytorch torchvision -c pytorch
 
 # We do not require a conda environment since the container is allready isolated
 # However, we switch user to not install pip packges as root
-RUN useradd -ms /bin/bash pyct
-ENV PATH="/home/pyct/.local/bin:${PATH}"
-USER pyct
+RUN useradd -ms /bin/bash pytc
+ENV PATH="/home/pytc/.local/bin:${PATH}"
+USER pytc
 
 # Setup and install the git repo
-WORKDIR /home/pyct/
-RUN cd /home/pyct/ && git clone https://github.com/zudi-lin/pytorch_connectomics.git
+WORKDIR /home/pytc/
+RUN cd /home/pytc/ && git clone https://github.com/zudi-lin/pytorch_connectomics.git
 RUN pip install --upgrade pip setuptools==59.5.0
 RUN cd pytorch_connectomics && pip install --upgrade pip && pip install --editable .
