@@ -56,6 +56,8 @@ sudo docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
 
 ## Obtaining a Docker image
 
+To obtain the docker image, pull the prebuilt image from the public registry or build it directly using the provided Dockerfile.
+
 ### Building image from Dockerfile
 
 Download the [Dockerfile](Dockerfile) from this directory and run 

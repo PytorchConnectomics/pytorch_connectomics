@@ -65,10 +65,9 @@ Since the package is under active development, the editable installation will al
 
 ### Docker
 
-We pushed a PyCT Docker image to the public docker registry to improve usability.
+We pushed a PyTC Docker image to the public docker registry (03/12/2022) to improve usability.
 Additionally, we provide the corresponding Dockerfile to enable individual modifications.
-Pleas refer to our [Docker page](docs/docker.md) for more information.
-
+Pleas refer to our [Docker page](Docker/docker.md) for more information.
 
 ## Notes
 
