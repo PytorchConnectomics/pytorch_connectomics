@@ -25,5 +25,5 @@ class TrainerBase(object):
 
     def to_device(self, *args):
         if len(args) == 1:
-            return args[0].to(self,device, non_blocking=True)
+            return args[0].to(self.device, non_blocking=True)
         return [x.to(self.device, non_blocking=True) for x in args]

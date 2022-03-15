@@ -164,11 +164,10 @@ class VolumeDataset(torch.utils.data.Dataset):
             pos = self._get_pos_test(index)
             out_volume = (crop_volume(
                 self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
-            out_volume = normalize_image(out_volume, self.data_mean, self.data_std,
-                                         match_act=self.data_match_act)
             if self.do_2d:
                 out_volume = np.squeeze(out_volume)
-            return pos, np.expand_dims(out_volume, 0)
+
+            return pos, self._process_image(out_volume)
 
     def _process_targets(self, sample):
         pos, out_volume, out_label, out_valid = sample
@@ -178,9 +177,8 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_volume, out_label, out_valid)
 
         out_volume = self._process_image(out_volume)
-
-        if out_label is None: # unlabeled data
-            return pos, out_volume, None, None
+        if out_label is None: # unlabeled data, compatible with collate_fn_test
+            return pos, out_volume
 
         # convert masks to different learning targets
         out_target = seg_to_targets(

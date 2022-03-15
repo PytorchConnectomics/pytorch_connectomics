@@ -1,6 +1,7 @@
 MODEL:
   ARCHITECTURE: unet_plus_3d
   BLOCK_TYPE: residual_se
+  FILTERS: [32, 64, 96, 128, 160]
   OUT_PLANES: 4
   TARGET_OPT: ["2", "4-1-1"]
   LABEL_EROSION: 1
@@ -13,8 +14,8 @@ MODEL:
   WEIGHT_OPT: [["1", "0"], ["1", "0"]]
   OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"]]
 DATASET:
-  OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x
+  OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x_GANLoss
   DATA_SCALE: [1.0, 2.0, 2.0]
 INFERENCE:
-  OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x/test
+  OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x_GANLoss/test
   OUTPUT_ACT: ["sigmoid", "sigmoid"]

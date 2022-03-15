@@ -47,6 +47,7 @@ def init_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
 
 def init_devices(args, cfg):
