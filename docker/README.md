@@ -1,4 +1,4 @@
-# PyTC Docker
+# PyTC Docker Guidance
 
 To improve usability, we pushed a PyTC Docker image to the public docker registry.
 Additionally, we provide the corresponding Dockerfile to enable individual modifications.
@@ -113,7 +113,7 @@ We did not define a command or entry point at the end of our Dockerfile. It is, 
 
 - HPC users
 
-It is impossible to install or use Docker on the HPC environment, since Docker requires root privileges.
+It is impossible to install or use Docker on the HPC environment, since Docker requires root (`sudo`) privileges.
 
 > Docker containers need root privileges for full functionality, which is not suitable for a shared HPC environment. 
 >
