@@ -401,6 +401,9 @@ class VolumeDatasetMultiSeg(VolumeDataset):
         self.multiseg_split = multiseg_split
         super().__init__(**kwargs)
 
+        if self.mode == 'test': 
+            return # no need for target_opt and multiseg_split in inference
+
         assert len(self.target_opt) == sum(multiseg_split)
         self.multiseg_cumsum = [0] + list(np.cumsum(multiseg_split))
         self.target_opt_multiseg = []
