@@ -23,7 +23,7 @@ class TrainerGANLoss(Trainer):
         # 1. build the discriminator
         self.seg_handler = SplitActivation.build_from_cfg(cfg, do_cat=True)
         self.Ds = self.build_discriminator(sum(self.seg_handler.split_channels))
-        pool_size = 20 * self.cfg.SOLVER.SAMPLES_PER_BATCH
+        pool_size = 50 * self.cfg.SOLVER.SAMPLES_PER_BATCH
         self.image_pool = ImagePool(pool_size, self.device, on_cpu=True)
 
         # 2. build optimizers and loss functions
@@ -67,7 +67,7 @@ class TrainerGANLoss(Trainer):
                 fake_seg = self.seg_handler(pred)               
 
             loss_gan = self.criterionGAN(self.Ds(fake_seg), True)
-            loss = loss + loss_gan
+            loss = loss + loss_gan * float(self.cfg.UNLABELED.GAN_WEIGHT)
             losses_vis["GAN_Loss_SSL"] = loss_gan # for visualization only
 
             self._train_misc(loss, pred, volume, target, weight,
@@ -107,6 +107,7 @@ class TrainerGANLoss(Trainer):
         return volume, target, weight, volume_unlabeled
 
     def build_discriminator(self, in_channel: int = 1):
-        _D = Discriminator3D(in_channel=in_channel, act_mode=self.cfg.MODEL.ACT_MODE)
+        _D = Discriminator3D(in_channel=in_channel, act_mode=self.cfg.MODEL.ACT_MODE,
+                             dilation=self.cfg.UNLABELED.D_DILATION)
         return make_parallel(_D, self.cfg, self.device, self.rank)
         

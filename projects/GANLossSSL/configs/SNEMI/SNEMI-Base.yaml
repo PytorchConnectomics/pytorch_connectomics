@@ -5,6 +5,8 @@ SYSTEM:
   NUM_CPUS: 16
 AUGMENTOR:
   SMOOTH: False
+  MISSINGPARTS:
+    ITER: 128 # mask out more image regions
 MODEL:
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
@@ -17,11 +19,13 @@ MODEL:
   WEIGHT_OPT: [["1", "0"]]
   OUTPUT_ACT: [["none", "sigmoid"]]
   FILTERS: [32, 64, 96, 128, 160]
+  ACT_MODE: leaky_relu
   NORM_MODE: gn
 # Configurations specific to GANLossSSL
 UNLABELED:
   IMAGE_NAME: test-input_z29-62.h5
   GAN_UNLABELED_ONLY: False
+  D_DILATION: 4
 DATASET:
   IMAGE_NAME: train_image.h5
   LABEL_NAME: train_label.h5
