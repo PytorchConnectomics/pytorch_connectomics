@@ -1,5 +1,5 @@
 SYSTEM:
-  NUM_GPUS: 4
+  NUM_GPUS: 2
   NUM_CPUS: 16
 MODEL:
   ARCHITECTURE: unet_plus_3d
@@ -9,7 +9,7 @@ MODEL:
   IN_PLANES: 1
   OUT_PLANES: 3
   TARGET_OPT: ["1"]
-  NORM_MODE: sync_bn
+  NORM_MODE: gn
   FILTERS: [32, 64, 96, 128, 192]
 DATASET:
   IMAGE_NAME:
