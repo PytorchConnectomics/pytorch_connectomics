@@ -1,3 +1,8 @@
+from __future__ import print_function, division
+from typing import Optional
+import warnings
+
+import os
 import time
 import copy
 import torch
@@ -37,7 +42,9 @@ class TrainerGANLoss(Trainer):
         cfg_unlabel.DATASET.LABEL_NAME = None
         cfg_unlabel.AUGMENTOR.ADDITIONAL_TARGETS_NAME = None
         cfg_unlabel.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = None
-        cfg_unlabel.SOLVER.SAMPLES_PER_BATCH = max(cfg.SOLVER.SAMPLES_PER_BATCH // 2, 1)
+        bs_unlabel = cfg.UNLABELED.SAMPLES_PER_BATCH
+        cfg_unlabel.SOLVER.SAMPLES_PER_BATCH = bs_unlabel if bs_unlabel is not None \
+            else max(cfg.SOLVER.SAMPLES_PER_BATCH // 2, 1)
 
         augmentor_unlabeled = build_train_augmentor(cfg_unlabel)
         self.loader_unlabled = iter(build_dataloader(
@@ -66,8 +73,9 @@ class TrainerGANLoss(Trainer):
             else: # apply GAN loss to both labeled and unlabeled samples
                 fake_seg = self.seg_handler(pred)               
 
-            loss_gan = self.criterionGAN(self.Ds(fake_seg), True)
-            loss = loss + loss_gan * float(self.cfg.UNLABELED.GAN_WEIGHT)
+            loss_gan_weight = float(self.cfg.UNLABELED.GAN_WEIGHT)
+            loss_gan = self.criterionGAN(self.Ds(fake_seg), True) * loss_gan_weight
+            loss = loss + loss_gan
             losses_vis["GAN_Loss_SSL"] = loss_gan # for visualization only
 
             self._train_misc(loss, pred, volume, target, weight,
@@ -111,3 +119,43 @@ class TrainerGANLoss(Trainer):
                              dilation=self.cfg.UNLABELED.D_DILATION)
         return make_parallel(_D, self.cfg, self.device, self.rank)
         
+    def save_checkpoint(self, iteration: int, is_best: bool = False):
+        r"""Save the model checkpoint (including the discriminator).
+        """
+        if self.is_main_process:
+            print("Save model checkpoint at iteration ", iteration)
+            state = {'iteration': iteration + 1,
+                     # Saving DataParallel or DistributedDataParallel models
+                     'state_dict': self.model.module.state_dict(),
+                     'optimizer': self.optimizer.state_dict(),
+                     'lr_scheduler': self.lr_scheduler.state_dict()}
+
+            Ds_state = {
+                'state_dict': self.Ds.module.state_dict(),
+                'optimizer': self.optimizer_Ds.state_dict(),
+                'lr_scheduler': self.lr_scheduler_Ds.state_dict()}
+            state['Ds'] = Ds_state
+
+            # Saves checkpoint to experiment directory
+            filename = 'checkpoint_%05d.pth.tar' % (iteration + 1)
+            if is_best:
+                filename = 'checkpoint_best.pth.tar'
+            filename = os.path.join(self.output_dir, filename)
+            torch.save(state, filename)
+
+    def update_checkpoint(self, checkpoint: Optional[str] = None):
+        super().update_checkpoint(checkpoint) # checkpoint for self.model
+
+        if checkpoint is None:
+            if self.mode == 'test':
+                warnings.warn("Test mode without specified checkpoint!")
+            return # nothing to load
+
+        if self.mode == 'train':
+            if 'Ds' in checkpoint.keys():
+                Ds_state = checkpoint['Ds']
+                self.Ds.module.load_state_dict(Ds_state['state_dict'])
+                self.optimizer_Ds.load_state_dict(Ds_state['optimizer'])
+                self.lr_scheduler_Ds.load_state_dict(Ds_state['lr_scheduler'])
+            else:
+                warnings.warn("Checkpoint is given, but Ds states are not given.")

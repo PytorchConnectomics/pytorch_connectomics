@@ -10,8 +10,6 @@ import numpy as np
 from yacs.config import CfgNode
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.cuda.amp import autocast, GradScaler
 
 from .base import TrainerBase

@@ -6,3 +6,4 @@ def add_ganloss_config(cfg):
     cfg.UNLABELED.GAN_UNLABELED_ONLY = True
     cfg.UNLABELED.GAN_WEIGHT = 0.1
     cfg.UNLABELED.D_DILATION = 1
+    cfg.UNLABELED.SAMPLES_PER_BATCH = None

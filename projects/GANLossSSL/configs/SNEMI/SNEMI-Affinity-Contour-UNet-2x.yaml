@@ -1,10 +1,6 @@
 MODEL:
-  ARCHITECTURE: unet_plus_3d
-  BLOCK_TYPE: residual_se
-  FILTERS: [32, 64, 96, 128, 160]
   OUT_PLANES: 4
   TARGET_OPT: ["2", "4-1-1"]
-  LABEL_EROSION: 1
   LOSS_OPTION:
   - - WeightedBCEWithLogitsLoss
     - DiceLoss
