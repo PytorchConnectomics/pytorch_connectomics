@@ -175,6 +175,11 @@ _C.DATASET.DATA_CHUNK_NUM = [1, 1, 1]
 _C.DATASET.DATA_CHUNK_IND = None
 _C.DATASET.CHUNK_IND_SPLIT = None
 
+# For TileDataset, specify the coordintate range of data to use.
+# If not None, should be a list of format [z0, z1, y0, y1, x0, x1] applied to all volumes,
+# or List[List[int]] with a range for each input TileDataset volume.
+_C.DATASET.DATA_COORD_RANGE = None
+
 # Boolean variable, euqal to 'int(args.data_chunk_num[-1:])==1'
 _C.DATASET.DATA_CHUNK_STRIDE = True
 

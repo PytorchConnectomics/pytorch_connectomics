@@ -284,6 +284,7 @@ def get_dataset(cfg,
                               valid_mask_json=valid_mask_json,
                               pad_size=cfg.DATASET.PAD_SIZE,
                               data_scale=cfg.DATASET.DATA_SCALE,
+                              coord_range=cfg.DATASET.DATA_COORD_RANGE,
                               **shared_kwargs)
 
     else:  # build VolumeDataset or VolumeDatasetMultiSeg
