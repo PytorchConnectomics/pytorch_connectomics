@@ -25,10 +25,8 @@ Please follow the steps below for a successful installation:
 
     conda create -n py3_torch python=3.8
     source activate py3_torch
-    pip install setuptools==59.5.0
     conda install pytorch torchvision cudatoolkit=11.3 -c pytorch
 
-We have tested that ``setuptools==59.5.0`` does not produce any errors or warnings related to ``distutils`` or ``setuptools``.
 More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with 
 CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is installed:
 
