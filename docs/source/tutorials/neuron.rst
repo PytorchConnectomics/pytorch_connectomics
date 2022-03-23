@@ -51,7 +51,7 @@ For description of the SNEMI dataset please check `this page <https://vcg.github
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
 
-Provide the ``yaml`` configuration files to run training:
+Provide the **YAML** configuration files to run training:
 
 .. code-block:: none
 
@@ -156,7 +156,7 @@ Follow the instructions on the repository to install the ``waterz`` package. We 
 - ``aff_thresholds``. The values in the affinity maps will be constrained to lie between these thresholds. Recommended values are ``[0.05,0.995]``.
 - ``seg_thresholds``. This is an array of segmentation threshold values. Recommended values are ``[0.1,0.3,0.6]``. The API will produce a segmentation volume for each segmentation threshold in the array.
 - ``merge_function``. The function that will be used while merging the nodes of the region adjacency graph. Recommended value for this parameter is  ``"aff50_his256"``.
-- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the ``Rand`` and ``VI`` score. 
+- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the *Rand* and *VOI* scores. 
 
 .. code-block:: python
 
@@ -188,5 +188,10 @@ segmentation. See details `here <https://github.com/zudi-lin/zwatershed>`_.
 
 Long-range affinity learning
 ------------------------------
+
+ToDo
+
+Semi-supervised affinity learning
+-----------------------------------
 
 ToDo

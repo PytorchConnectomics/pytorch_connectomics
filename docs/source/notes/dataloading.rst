@@ -128,22 +128,27 @@ Therefore we designed the :class:`connectomics.data.dataset.TileDataset` class t
 construct tractable chunks for processing. To use this dataset class, the user needs to prepare a **JSON** file which contains
 the information of the dataset. An example for the MitoEM dataset can be 
 found `here <https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/configs/MitoEM/im_train.json>`_.
-
-Below is a list of (incomplete) configurations exclusive for **TileDataset**:
+Below is a list of (incomplete) configurations exclusive for *TileDataset*:
 
 .. code-block:: yaml
 
     DATASET:
       DO_CHUNK_TITLE: 1 # set to 1 to use TileDataset (default is 0)
-      DATA_CHUNK_NUM: [2, 2, 2] # split the large volume into chunks
-      DATA_CHUNK_ITER: 1000 # (training) number of iterations for a chunk
+      DATA_CHUNK_NUM: [2, 4, 4] # split the large volume into chunks
+      DATA_CHUNK_ITER: 5000 # (training) number of iterations for a chunk
 
-Suppose the input volume is of size (1000, 4096, 4096) in (z,y,x) order, setting ``DATASET.DATA_CHUNK_NUM = [2,4,4]`` will
-split the *z* axis by 2 and *x* and *y* axes by 4, so that the process can handle (500, 1024, 1024) chunks sequentially, which 
+Suppose the input volume is of size (2000,6400,6400) in `(z,y,x)` order, setting ``DATASET.DATA_CHUNK_NUM = [2,4,4]`` will
+split the `z`` axis by 2 and `x` and `y` axes by 4, so that the process can handle (500,1600,1600) chunks sequentially, which 
 is more manageable. The actual chunk size can be larger due to overlap sampling (only for training) and padding.
 
-Below is a Python snippet for creating the JSON file for a new dataset of size (2000, 6400, 6400), which are stored as 
-2000 individual PNG images of size (6400, 6400).
+.. note::
+
+    When using padding, the coordinate range of a chunk can have negative numbers, *e.g.*, ``[-4, 104, -64, 864, -64, 864]``, or
+    numbers that are larger than the whole volume size, which is not an error. Those regions are padded so that the size of 
+    sampled chunks stay unchanged.
+
+Below is a Python snippet for creating the JSON file for a new dataset of size (2000,6400,6400), which are stored as 
+2000 individual PNG images of size (6400,6400).
 
 .. code-block:: python
 
@@ -185,6 +190,38 @@ each slice is saved as multiple non-overlapping patches, ``data_dict["dtype"]`` 
         "n_rows": 4,
     }
 
-The name ``{row}_{column}.png`` in the JSON file is just a placeholder, and there is no need to give an exact input number. 
-For the case above, each 2D slice is saved as 4x4 patches, so the files in ``path/to/images/xxxx/`` should be ``0_0.png``, 
-``1_0.png`` until ``3_3.png``.
+Each slice uses a folder named by the *z* index. The name ''{row}_{column}.png'' in the JSON file is just a placeholder, 
+and there is no need to give an exact input number. For the case above, each 2D slice is saved as 4x4 patches, so the real
+images files in each ''path/to/images/xxxx/'' directory should be ''0_0.png'', ''1_0.png'' until ''3_3.png''.
+
+Handling 2D Data
+------------------
+
+We design two ways to run inference for a trained 2D model. The first way is to directly load a 3D volume, but the inference
+pipeline will predict each slice one-by-one and stack them back to a 3D volume. For representations depend on the dimension of
+the inputs (*e.g.*, affinity map has three channels for 3D masks but only two channels for 2D masks), the number of output
+channels is consistent with the 2D model. The second way is to directly load 2D PNG or TIFF images. Below are the configurations
+for streaming 2D inputs at inference time:
+
+.. code-block:: yaml
+
+    DATASET:
+      DO_2D: True # use 2d models
+      LOAD_2D: True # load 2d images
+    INFERENCE:
+      IMAGE_NAME: datasets/test_path.txt
+      IS_ABSOLUTE_PATH: True
+      DO_SINGLY: True
+
+Please note that the `test_path.txt` should be a list of absolute paths like the example below to avoid ambiguity:
+
+.. code-block::
+
+    /data/test/slice_0001.png
+    /data/test/slice_0002.png
+    /data/test/slice_0003.png
+    ...
+    /data/test/slice_0004.png
+
+Additionally, ``INFERENCE.DO_SINGLY = True`` will let the pipeline process and save each input image separately, to
+avoid loading all files into memory at the same time.
