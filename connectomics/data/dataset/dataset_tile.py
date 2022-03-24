@@ -122,7 +122,9 @@ class TileDataset(torch.utils.data.Dataset):
     def get_coord_name(self):
         r"""Return the filename suffix based on the chunk coordinates.
         """
-        return '-'.join([str(x) for x in self.coord])
+        # this function should only be called in test mode
+        assert self.mode == 'test' and len(self.coord) == 1
+        return '-'.join([str(x) for x in self.coord[0]])
 
     def get_coord_range(self, coord_range):
         if coord_range is not None:

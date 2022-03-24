@@ -249,30 +249,23 @@ def get_dataset(cfg,
     }
 
     if cfg.DATASET.DO_CHUNK_TITLE == 1:  # build TileDataset
+        def _make_json_path(path, name):
+            if isinstance(name, str):
+                return [os.path.join(path, name)]
+
+            assert isinstance(name, (list, tuple))
+            json_list = [os.path.join(path, name[i]) for i in range(len(name))]
+            return json_list
+
+        input_path = cfg.DATASET.INPUT_PATH
+        volume_json = _make_json_path(input_path, cfg.DATASET.IMAGE_NAME)
+
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
-                if isinstance(cfg.DATASET.LABEL_NAME, str):
-                    label_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME]
-                else:
-                    label_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i]
-                                    for i in range(len(cfg.DATASET.LABEL_NAME))
-                                ]
-
+                label_json = _make_json_path(input_path, cfg.DATASET.LABEL_NAME)
             if cfg.DATASET.VALID_MASK_NAME is not None:
-                if isinstance(cfg.DATASET.VALID_MASK_NAME, str):
-                    valid_mask_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME]
-                else:
-                    valid_mask_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME[i]
-                                        for i in range(len(cfg.DATASET.VALID_MASK_NAME))
-                                    ]
-
-        if isinstance(cfg.DATASET.IMAGE_NAME, str):
-            volume_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.IMAGE_NAME]
-        else:
-            volume_json=[ cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME[i]
-                            for i in range(len(cfg.DATASET.IMAGE_NAME))
-                        ]
+                valid_mask_json = _make_json_path(input_path, cfg.DATASET.VALID_MASK_NAME)
 
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
                               chunk_ind=cfg.DATASET.DATA_CHUNK_IND,

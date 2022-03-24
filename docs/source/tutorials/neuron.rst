@@ -5,7 +5,7 @@ This tutorial provides step-by-step guidance for neuron segmentation with SENMI3
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of **instance segmentation**.
 The methodology is to first predict the affinity map (the connectivity of each pixel to neighboring pixels)
 with an encoder-decoder ConvNets and then generate the segmentation map using a standard
-segmentation algorithm (e.g., watershed).
+segmentation algorithm (*e.g.*, watershed).
 
 The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
 and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.

@@ -138,7 +138,7 @@ Below is a list of (incomplete) configurations exclusive for *TileDataset*:
       DATA_CHUNK_ITER: 5000 # (training) number of iterations for a chunk
 
 Suppose the input volume is of size (2000,6400,6400) in `(z,y,x)` order, setting ``DATASET.DATA_CHUNK_NUM = [2,4,4]`` will
-split the `z`` axis by 2 and `x` and `y` axes by 4, so that the process can handle (500,1600,1600) chunks sequentially, which 
+split the `z` axis by 2 and `x` and `y` axes by 4, so that the process can handle (500,1600,1600) chunks sequentially, which 
 is more manageable. The actual chunk size can be larger due to overlap sampling (only for training) and padding.
 
 .. note::
@@ -190,9 +190,9 @@ each slice is saved as multiple non-overlapping patches, ``data_dict["dtype"]`` 
         "n_rows": 4,
     }
 
-Each slice uses a folder named by the *z* index. The name ''{row}_{column}.png'' in the JSON file is just a placeholder, 
+Each slice uses a folder named by the *z* index. The name **{row}_{column}.png** in the JSON file is just a placeholder, 
 and there is no need to give an exact input number. For the case above, each 2D slice is saved as 4x4 patches, so the real
-images files in each ''path/to/images/xxxx/'' directory should be ''0_0.png'', ''1_0.png'' until ''3_3.png''.
+images files in each *path/to/images/xxxx/* directory should be *0_0.png*, *1_0.png* until *3_3.png*.
 
 Handling 2D Data
 ------------------
