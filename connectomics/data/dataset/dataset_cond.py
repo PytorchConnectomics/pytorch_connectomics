@@ -10,6 +10,8 @@ from ..augmentation import Compose
 from ..utils import *
 
 AUGMENTOR_TYPE = Optional[Compose]
+WEIGHT_OPT_TYPE = List[List[str]]
+
 
 class VolumeDatasetCond(torch.utils.data.Dataset):
     """
@@ -34,30 +36,58 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
                  label_type: str = 'seg',
                  augmentor: AUGMENTOR_TYPE = None,
                  sample_size: tuple = (9, 65, 65),
+                 weight_opt: WEIGHT_OPT_TYPE = [['1']],
                  mode: str = 'train',
                  iter_num: int = -1,
                  # normalization
                  data_mean=0.5,
                  data_std=0.5):
 
-        assert mode in ['train', 'val', 'test']
+        assert mode in ['train','test']
         self.mode = mode
 
+        self.weight_opt = weight_opt
+        
         assert label_type in ['seg', 'syn']
         self.label_type = label_type
 
-        self.volume = volume # list of numpy arrays
+        self.volume = volume 
         self.num_vols = len(self.volume)
 
+        # list of the sizes of the different volumes - used while inferencing
+        self.volume_size = [np.array(x.shape) for x in self.volume]
+
+        self.sample_size = sample_size
+
         self.label = label
+    
         if self.label_type == 'syn':
             self.aux_label = [(x+1) // 2 for x in self.label]
             self.bbox_dict, self.idx_dict = self.get_bounding_box(self.aux_label)
+                            
+            # convert the 2D bounding boxes to 3D
+            if self.mode == 'test':   
+
+                 # min volume boundaries             
+                zl, yl, xl = [0, 0, 0]
+
+                # factor by which to expand the 2D volume in to the z direction
+                swell_z = [((self.sample_size[0])//2), ((self.sample_size[0]+1)//2)]
+
+                for i in range(self.num_vols):
+                    # max volume boundaries
+                    zh, yh, xh = self.volume_size[i] 
+                    for l, bb in enumerate(self.bbox_dict[i]):
+                        z0, z1, y0, y1, x0, x1 = bb
+                        z0 = max(z0-swell_z[0], 0)
+                        z1 = min(z1+swell_z[1], zh)
+                        self.bbox_dict[i][l] = (z0, z1, y0, y1, x0, x1)
+
         else:
             self.bbox_dict, self.idx_dict = self.get_bounding_box(self.label)
 
+
         self.num_bbox = sum([len(x) for _, x in self.bbox_dict.items()])
-        self.sample_size = sample_size
 
         # normalization
         self.data_mean = data_mean
@@ -85,11 +115,35 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
             pos = (vol_id,) + tuple(bbox)
             out_volume = self.prepare_volume(crop_box, vol_id)
             out_target = self.prepare_label(crop_box, vol_id, box_id)
-            out_weight = self.prepare_weight(out_target)
+            out_weight = seg_to_weights(out_target, self.weight_opt)
             return pos, out_volume, out_target, out_weight
 
         elif self.mode == 'test':
-            raise NotImplementedError
+            
+            # ToDo: Inferencing can currently only handle a single volume
+            assert (self.num_vols == 1), "Only provide a single volume for testing"
+
+            bbox_list = self.bbox_dict[0]
+            bbox = bbox_list[index]
+
+            for i in range(len(bbox)//2):
+                # assert upper bound is larger then lower bound
+                assert (bbox[(i*2)+1] >= bbox[i*2])
+                # truncate bbox if larger then model sample_size
+                if bbox[(i*2)+1]-bbox[i*2] > self.sample_size[i]:
+                    bbox = list(bbox)
+                    print(f"Truncating the bounding box {index} by {bbox[(i*2)+1] - (bbox[i*2] + self.sample_size[i]-1)} for axes {i}.")
+                    bbox[(i*2)+1] = bbox[i*2] + self.sample_size[i]-1
+                    bbox = tuple(bbox)
+
+            crop_box = self.update_box(bbox)
+            pos = (0,) + tuple(bbox)
+            out_volume = self.prepare_volume(crop_box, 0)
+            out_target = self.prepare_label(crop_box, 0, index)
+
+            # return the original pos and the pos of the cropped/padded box
+            return [pos, (0,) + tuple(crop_box)], out_volume, out_target
+
 
     def prepare_volume(self, box, vol_id):
         image = self.crop_with_box(box, self.volume[vol_id], constant_values=128)
@@ -99,9 +153,9 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
         return image
 
     def prepare_label(self, box, vol_id, box_id):
-        # target is a list to be consistent with VolumeDataset
-        label = self.crop_with_box(box, self.label[vol_id])
         idx = self.idx_dict[vol_id][box_id]
+        # target is a list to be consistent with VolumeDataset
+        label = self.crop_with_box(box, self.label[vol_id])  
         if self.label_type == 'seg':
             return [(label==idx).astype(np.float32)]
 
@@ -112,10 +166,6 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
         label = label * gating_mask
         return [seg2polarity(label)]
 
-    def prepare_weight(self, _):
-        # weight is a list of list to be consistent with VolumeDataset
-        foo = np.zeros((1), int)
-        return [[foo]]
 
     def crop_with_box(self, box, vol, constant_values = 0):
         # crop with given box (needs padding if touch boundary)
