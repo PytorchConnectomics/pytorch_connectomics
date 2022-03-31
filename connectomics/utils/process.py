@@ -372,3 +372,95 @@ def cast2dtype(segm):
     max_id = np.amax(np.unique(segm))
     m_type = getSegType(int(max_id))
     return segm.astype(m_type)
+
+
+def stitch_3d(masks, stitch_threshold=0.25):
+    r""" Takes a volume stack of 2D annotations and stitches into 3D annotations using IOU.
+
+    Args:
+        mask (numpy.ndarray): 3D volume comprised of a 2D annotations stack of shape :math:`(Z, Y, X)`.
+        stitch_threshold (float): threshold for joining 2D annotations via IOU. Default: 0.25
+
+    """
+    
+    mmax = masks[0].max()
+    empty = 0
+    
+    for i in range(len(masks)-1):
+        # retrive all intersecting pairs, discard background
+        iou = intersection_over_union(masks[i+1], masks[i])[1:,1:]
+        if not iou.size and empty == 0:
+            mmax = masks[i+1].max()
+        elif not iou.size and not empty == 0:
+            icount = masks[i+1].max()
+            istitch = np.arange(mmax+1, mmax + icount+1, 1, int)
+            mmax += icount
+            istitch = np.append(np.array(0), istitch)
+            masks[i+1] = istitch[masks[i+1]]
+        else:
+            # set all iou value that did not breach the threshold to zero
+            iou[iou < stitch_threshold] = 0.0
+            # we calculated the IoU for each possible masks pair
+            # for each mask only consider the pairing with the greatest IoU 
+            iou[iou < iou.max(axis=0)] = 0.0
+            istitch = iou.argmax(axis=1) + 1
+            ino = np.nonzero(iou.max(axis=1)==0.0)[0]
+            istitch[ino] = np.arange(mmax+1, mmax+len(ino)+1, 1, int)
+            mmax += len(ino)
+            istitch = np.append(np.array(0), istitch)
+            masks[i+1] = istitch[masks[i+1]]
+            empty = 1
+            
+    return masks
+
+
+# Abducted from the cellpose repository (https://github.com/MouseLand/cellpose/blob/master/cellpose/metrics.py).
+def intersection_over_union(masks_true, masks_pred):
+    """ Calculates the intersection over union for all mask pairs.
+    
+    Args:
+        x (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math: `(Y, X)`.
+        y (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math: `(Y, X)`.
+
+    Return:
+        A ND-array recording the IoU score (flaot) for each label pair, size [x.max()+1, y.max()+1]
+    """
+
+    overlap = _label_overlap(masks_true, masks_pred)
+
+    # index vise encoding of how often a predicted label coincides with true labels
+    n_pixels_pred = np.sum(overlap, axis=0, keepdims=True)
+    # index vise encoding of how often a true label coincides with predicted labels
+    n_pixels_true = np.sum(overlap, axis=1, keepdims=True)
+    
+    iou = overlap / (n_pixels_pred + n_pixels_true - overlap)
+    iou[np.isnan(iou)] = 0.0
+    return iou
+
+def _label_overlap(x, y):
+    """ Creates a look up table that records the pixel overlap
+        between two 2D label arryes.
+        
+    Args:
+        x (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math: `(Y, X)`.
+        y (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math: `(Y, X)`.
+        
+    
+    Returns
+        A ND-array matrix recording the pixel overlaps, size :math: `[x.max()+1, y.max()+1]`    
+    """
+    # flatten the 2D label arryes 
+    x = x.ravel()
+    y = y.ravel()
+    
+    assert len(x) == len(y), f"The label masks must have the same shape" 
+    
+    # initialize the lookup tabel
+    overlap = np.zeros((1+x.max(),1+y.max()), dtype=np.uint)
+    
+    # loop over the labels in x and add to the corresponding
+    # overlap entry. If label A in x and label B in y share P
+    # pixels, then the resulting overlap is P
+    for i in range(len(x)):
+        overlap[x[i],y[i]] += 1
+    return overlap
