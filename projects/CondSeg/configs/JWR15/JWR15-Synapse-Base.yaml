@@ -1,0 +1,51 @@
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 4
+MODEL:
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [9, 65, 65]
+  OUTPUT_SIZE: [9, 65, 65]
+  IN_PLANES: 4
+  OUT_PLANES: 3
+  TARGET_OPT: ["1"]
+  NORM_MODE: sync_bn
+  FILTERS: [32, 64, 96, 128, 192]
+CONDITIONAL:
+  LABEL_TYPE: syn
+  INFERENCE_CONDITIONAL: vol3/syn_Yx2_zoom_down_2_2D.h5
+DATASET:
+  IMAGE_NAME:
+    - vol3/im_Yx2_zoom_down_2.h5
+    - vol4/im_Yx2_zoom_down_2.h5
+  LABEL_NAME:
+    - vol3/syn_Yx2_zoom_down_2.h5
+    - vol4/syn_Yx2_zoom_down_2.h5
+  INPUT_PATH: datasets/JWR15/roi_8x8x3um
+  OUTPUT_PATH: outputs/JWR_15_results/
+  PAD_SIZE: [16, 64, 64]
+  DISTRIBUTED: True
+  REJECT_SAMPLING:
+    SIZE_THRES: 2000
+    P: 0.95
+  DATA_CHUNK_NUM: [20, 7, 8] # only for inference
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.04
+  ITERATION_STEP: 0
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 200000
+  SAMPLES_PER_BATCH: 2
+INFERENCE:
+  INPUT_SIZE: [9, 129, 129]
+  OUTPUT_SIZE: [9, 129, 129]
+  OUTPUT_ACT: ["sigmoid"]
+  IS_ABSOLUTE_PATH: False
+  DO_CHUNK_TITLE: 0
+  INPUT_PATH: datasets/JWR15/roi_8x8x3um
+  IMAGE_NAME: vol3/im_Yx2_zoom_down_2.h5
+  OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE/test
+  OUTPUT_NAME: result.h5
+  AUG_MODE: mean
+  AUG_NUM: None
+  SAMPLES_PER_BATCH: 1

@@ -1,0 +1,7 @@
+MODEL:
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+DATASET:
+    OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE/
