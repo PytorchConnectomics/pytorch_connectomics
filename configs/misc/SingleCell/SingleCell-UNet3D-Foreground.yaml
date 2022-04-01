@@ -1,0 +1,13 @@
+MODEL:
+  OUT_PLANES: 1
+  TARGET_OPT: ["0"]
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_WEIGHT: [[1.0, 1.0]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+DATASET:
+  LABEL_NAME: lab_CM_foreground15.tif
+  OUTPUT_PATH: outputs/SingleCell-UNet3D-Foreground/
+INFERENCE:
+  OUTPUT_ACT: ["sigmoid"]
+  OUTPUT_PATH: outputs/SingleCell-UNet3D-Foreground/test/

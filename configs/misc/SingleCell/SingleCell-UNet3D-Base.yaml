@@ -2,30 +2,21 @@ SYSTEM:
   NUM_GPUS: 2
   NUM_CPUS: 16
 MODEL:
-  ARCHITECTURE: unet_3d
+  ARCHITECTURE: unet_plus_3d
   BLOCK_TYPE: residual_se
   INPUT_SIZE: [9, 257, 257]
   OUTPUT_SIZE: [9, 257, 257]
+  FILTERS: [32, 64, 96, 128, 160]
   IN_PLANES: 1
-  OUT_PLANES: 6
-  TARGET_OPT: ["9-6"]
-  LOSS_OPTION: [["WeightedCE"]]
-  LOSS_KWARGS_KEY: [[["class_weight"]]]
-  LOSS_KWARGS_VAL: [[[[1.0, 2.0, 4.0, 4.0, 4.0, 8.0]]]]
-  LOSS_WEIGHT: [[1.0]]
-  WEIGHT_OPT: [["0"]]
-  OUTPUT_ACT: [["none"]]
-  NORM_MODE: sync_bn
+  NORM_MODE: gn
 DATASET:
-  INPUT_PATH: datasets/SingleCell/
-  IMAGE_NAME: train_image.h5
-  LABEL_NAME: train_label.h5
-  OUTPUT_PATH: outputs/SingleCell_UNet/
-  PAD_SIZE: [0, 64, 64]
+  INPUT_PATH: datasets/SingleCell/EM
+  IMAGE_NAME: raw_data15.tif
+  PAD_SIZE: [2, 0, 0]
   DATA_SCALE: [1.0, 0.5, 0.5]
   REJECT_SAMPLING:
     SIZE_THRES: 2000
-    P: 1.0
+    P: 0.9
   DISTRIBUTED: False
 AUGMENTOR:
   SMOOTH: False
@@ -35,18 +26,16 @@ SOLVER:
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 100000
-  SAMPLES_PER_BATCH: 4
+  SAMPLES_PER_BATCH: 2
 MONITOR:
   ITERATION_NUM: [40, 400]
 INFERENCE:
   INPUT_SIZE: [9, 257, 257]
   OUTPUT_SIZE: [9, 257, 257]
-  OUTPUT_ACT: ["softmax"]
   IMAGE_NAME: test_image.h5
-  OUTPUT_PATH: outputs/SingleCell_Deeplab/test/
   OUTPUT_NAME: result.h5
-  PAD_SIZE: [0, 64, 64]
+  PAD_SIZE: [2, 0, 0]
   AUG_NUM: None
   STRIDE: [4, 128, 128]
   SAMPLES_PER_BATCH: 4
-  OUTPUT_SCALE: [1.0, 2.0, 2.0]
+  OUTPUT_SCALE: [1.0, 1.0, 1.0]

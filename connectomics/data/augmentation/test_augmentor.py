@@ -214,7 +214,7 @@ class TestAugmentor(object):
         elif self.num_aug == 8:
             extension += "txy"
         elif self.num_aug == 16:
-            extension += "tzyx"
+            extension += "txyz"
 
         # Update the suffix of the output filename to indicate
         # the use of test-time data augmentation.

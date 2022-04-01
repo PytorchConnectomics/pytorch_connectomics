@@ -5,7 +5,7 @@ This tutorial provides step-by-step guidance for neuron segmentation with SENMI3
 Dense neuron segmentation in electronic microscopy (EM) images belongs to the category of **instance segmentation**.
 The methodology is to first predict the affinity map (the connectivity of each pixel to neighboring pixels)
 with an encoder-decoder ConvNets and then generate the segmentation map using a standard
-segmentation algorithm (e.g., watershed).
+segmentation algorithm (*e.g.*, watershed).
 
 The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
 and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
@@ -51,11 +51,11 @@ For description of the SNEMI dataset please check `this page <https://vcg.github
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
 
-Provide the ``yaml`` configuration files to run training:
+Provide the **YAML** configuration files to run training:
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
     --config-base configs/SNEMI/SNEMI-Base.yaml \
     --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
@@ -91,13 +91,13 @@ DDP training is our default settings because features like automatic mixed-preci
 normalization are better supported for DDP. Besides, DP usually has an imbalanced GPU memory usage.
 
 3 - Run training with pretrained model (*optional*)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 (*Optional*) To run training starting from pretrained weights, add a checkpoint file:
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
     --config-base configs/SNEMI/SNEMI-Base.yaml \
     --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml \
@@ -156,7 +156,7 @@ Follow the instructions on the repository to install the ``waterz`` package. We 
 - ``aff_thresholds``. The values in the affinity maps will be constrained to lie between these thresholds. Recommended values are ``[0.05,0.995]``.
 - ``seg_thresholds``. This is an array of segmentation threshold values. Recommended values are ``[0.1,0.3,0.6]``. The API will produce a segmentation volume for each segmentation threshold in the array.
 - ``merge_function``. The function that will be used while merging the nodes of the region adjacency graph. Recommended value for this parameter is  ``"aff50_his256"``.
-- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the ``Rand`` and ``VI`` score. 
+- ``seg_gt``. This is the ground-truth segmentation used for evaluating the segmentation result. If ground truth is not available, this parameter is supposed to be ``None``. If the ground truth is available, the API prints the *Rand* and *VOI* scores. 
 
 .. code-block:: python
 
@@ -188,5 +188,10 @@ segmentation. See details `here <https://github.com/zudi-lin/zwatershed>`_.
 
 Long-range affinity learning
 ------------------------------
+
+ToDo
+
+Semi-supervised affinity learning
+-----------------------------------
 
 ToDo

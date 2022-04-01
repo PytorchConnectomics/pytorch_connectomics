@@ -65,7 +65,7 @@ conduct training/inference at the same time.
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=3 --master_port=1234 scripts/main.py --distributed \
     --config-base configs/CREMI/CREMI-Base.yaml \
     --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
@@ -134,7 +134,7 @@ in either the yaml config file or by command-line arguments.
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=4 --master_port=5679 scripts/main.py --distributed \
     --config-file configs/Synaptic-Polarity.yaml
 

@@ -22,10 +22,10 @@ DATASET:
   IMAGE_NAME: "<name/of/image (h5py volumes)>"
   LABEL_NAME: "<name/of/label (h5py volumes)>"
   INPUT_PATH: "<path/to/data>"
-  OUTPUT_PATH: "outputs/semantic_seg/"
+  OUTPUT_PATH: outputs/Semantic_Seg/
   PAD_SIZE: [4, 128, 128]
 SOLVER:
-  LR_SCHEDULER_NAME: "WarmupMultiStepLR"
+  LR_SCHEDULER_NAME: WarmupMultiStepLR
   BASE_LR: 0.01
   ITERATION_STEP: 1
   ITERATION_SAVE: 5000
@@ -34,10 +34,10 @@ SOLVER:
   STEPS: (40000, 45000)
 INFERENCE:
   IMAGE_NAME: "<name/of/image (h5py volumes)>"
-  OUTPUT_PATH: "outputs/semantic_seg/test"
-  AUG_MODE: "mean"
-  AUG_NUM: 4
-  OUTPUT_NAME: "semantic_pred.h5"
+  OUTPUT_PATH: outputs/Semantic_Seg/test
+  AUG_MODE: mean
+  AUG_NUM: None
+  OUTPUT_NAME: semantic_pred.h5
   STRIDE: [4, 128, 128]
   SAMPLES_PER_BATCH: 16
   INPUT_SIZE: [8, 256, 256]

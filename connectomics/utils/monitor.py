@@ -107,11 +107,12 @@ class Monitor(object):
         return do_vis
 
     def visualize(self, volume, label, output, weight, iter_total,
-                  suffix: Optional[str] = None) -> None:
+                  suffix: Optional[str] = None, **kwargs) -> None:
         assert isinstance(output, (torch.Tensor, OrderedDict))
         if isinstance(output, torch.Tensor):
-            self.vis.visualize(volume, label, output, weight,
-                               iter_total, self.logger.log_tb, suffix)
+            self.vis.visualize(
+                volume, label, output, weight, iter_total,
+                self.logger.log_tb, suffix, **kwargs)
             return
 
         # visualize OrderedDict predicted by DeepLab

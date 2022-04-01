@@ -1,0 +1,20 @@
+MODEL:
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  OUT_PLANES: 4
+  TARGET_OPT: ["2", "4-1-1"]
+  LABEL_EROSION: 1
+  LOSS_OPTION:
+  - - WeightedBCEWithLogitsLoss
+    - DiceLoss
+  - - WeightedBCEWithLogitsLoss
+    - DiceLoss
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"], ["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"]]
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x
+  DATA_SCALE: [1.0, 2.0, 2.0]
+INFERENCE:
+  OUTPUT_PATH: outputs/SNEMI_UNet_AC_2x/test
+  OUTPUT_ACT: ["sigmoid", "sigmoid"]

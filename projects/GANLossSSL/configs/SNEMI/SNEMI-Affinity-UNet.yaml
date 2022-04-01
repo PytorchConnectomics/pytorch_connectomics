@@ -1,0 +1,4 @@
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_UNet_GANLoss
+INFERENCE:
+  OUTPUT_PATH: outputs/SNEMI_UNet_GANLoss/test

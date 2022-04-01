@@ -1,0 +1,19 @@
+MODEL:
+  OUT_PLANES: 6
+  TARGET_OPT: ["9-5", "0"]
+  TARGET_OPT_MULTISEG_SPLIT: [1, 1]
+  LOSS_OPTION: [["WeightedCE"], ["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_KWARGS_KEY: [[["class_weight"]], []]
+  LOSS_KWARGS_VAL: [[[[1.0, 2.0, 3.0, 4.0, 5.0]]], []] # weights for semantic classes
+  LOSS_WEIGHT: [[2.0], [1.0, 1.0]]
+  WEIGHT_OPT: [["0"], ["1", "0"]]
+  OUTPUT_ACT: [["none"], ["none", "sigmoid"]]
+DATASET:
+  LABEL_NAME: lab_all.h5
+  OUTPUT_PATH: outputs/SingleCell-UNet3D-MultiSeg/
+AUGMENTOR:
+  ADDITIONAL_TARGETS_NAME: ['label0', 'label1']
+  ADDITIONAL_TARGETS_TYPE: ['mask', 'mask']
+INFERENCE:
+  OUTPUT_ACT: ["softmax", "sigmoid"]
+  OUTPUT_PATH: outputs/SingleCell-UNet3D-MultiSeg/test/

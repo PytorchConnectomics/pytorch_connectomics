@@ -2,8 +2,8 @@ from __future__ import print_function, division
 from typing import Optional, Union, List
 
 import numpy as np
-from scipy.ndimage.morphology import binary_erosion, binary_dilation
-from skimage.morphology import erosion, dilation
+from skimage.morphology import binary_dilation, binary_erosion
+from skimage.morphology import erosion, dilation, disk
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from scipy.signal import convolve2d
 
@@ -263,6 +263,17 @@ def seg2polarity(label):
     tmp[2] = (label > 0)
     return np.stack(tmp, 0).astype(np.float32)
 
+def seg2inst_edt(label, topt):
+    # Format of the target option: 5-a-b-c-d
+    # a: mode, b: padding, c: quantize, d: z_resolution
+    if len(topt) == 1:
+        topt = topt + '-2d-0-0-5.0' # 2d w/o padding or quantize (default)
+
+    _, mode, padding, quant, z_res = topt.split('-')
+    resolution = (float(z_res), 1.0, 1.0)
+    return edt_instance(label.copy(), mode, resolution=resolution,
+                        quantize=bool(int(quant)), padding=bool(int(padding)))
+
 
 def seg_to_targets(label_orig: np.ndarray,
                    topts: List[str],
@@ -299,10 +310,8 @@ def seg_to_targets(label_orig: np.ndarray,
                 out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[
                     None, :].astype(np.float32)
         elif topt[0] == '5':  # distance transform (instance)
-            if len(topt) == 1:
-                topt = topt + '-2d-0' # 2d DT without padding (default)
-            _, mode, padding = topt.split('-')
-            out[tid] = edt_instance(label.copy(), mode, padding=bool(int(padding)))
+            distance = seg2inst_edt(label, topt)
+            out[tid] = distance[np.newaxis, :].astype(np.float32)
         elif topt[0] == '6':  # distance transform (semantic)
             if len(topt) == 1:
                 topt = topt + '-2d-8-50'
@@ -316,3 +325,28 @@ def seg_to_targets(label_orig: np.ndarray,
             raise NameError("Target option %s is not valid!" % topt[0])
 
     return out
+
+
+def syn_sem2inst(label: np.array):
+    # For synaptic polarity, convert semantic annotation to instance
+    # annotation. It assumes the pre- and post-synaptic masks are
+    # closely in touch with their parteners.
+    indices = np.unique(label)
+    assert list(indices) == [0,1,2]
+
+    fg = (label!=0).astype(bool)
+    struct = disk(2, dtype=bool)[np.newaxis,:,:] # only for xy plane
+    fg = binary_dilation(fg, struct)
+    segm = label_cc(fg).astype(int)
+
+    seg_pos = (label==1).astype(segm.dtype)
+    seg_neg = (label==2).astype(segm.dtype)
+
+    seg_pos = seg_pos * (segm * 2 - 1)
+    seg_neg = seg_neg * (segm * 2)
+    instance_label = np.maximum(seg_pos, seg_neg)
+
+    # Cast the mask to the best dtype to save storage.
+    max_id = np.amax(np.unique(instance_label))
+    m_type = getSegType(int(max_id))
+    return instance_label.astype(m_type)

@@ -1,3 +1,4 @@
-from .trainer import *
+from .base import TrainerBase
+from .trainer import Trainer
 
-__all__ = ["Trainer", "TrainerTile"]
+__all__ = ["TrainerBase", "Trainer"]

@@ -11,7 +11,7 @@ from scipy.ndimage import zoom
 import torch
 import torch.utils.data
 
-from .dataset_volume import VolumeDataset
+from .dataset_volume import VolumeDataset, VolumeDatasetMultiSeg
 from .dataset_tile import TileDataset
 from .collate import *
 from ..utils import *
@@ -80,6 +80,30 @@ def _get_file_list(name: Union[str, List[str]],
     return name.split('@')
 
 
+def _rescale(data: np.array, scales: List[float], order: int):
+    if scales is not None and (np.array(scales) != 1).any():
+        if data.ndim == 3:
+            return zoom(data, scales, order=order)
+
+        assert data.ndim == 4 # c,z,y,x
+        n_maps = data.shape[0]
+        return np.stack([
+            zoom(data[i], scales, order=order) for i in range(n_maps)
+        ], 0)
+
+    return data # no rescaling
+
+
+def _pad(data: np.array, pad_size: Union[List[int], int], pad_mode: str):
+    pad_size = get_padsize(pad_size)
+    if data.ndim == 3:
+        return np.pad(data, pad_size, pad_mode)
+
+    assert data.ndim == 4 # c,z,y,x
+    pad_size = [(0, 0)] + list(pad_size) # no padding for channel dim
+    return np.pad(data, tuple(pad_size), pad_mode)
+
+
 def _get_input(cfg,
                mode='train',
                rank=None,
@@ -129,50 +153,44 @@ def _get_input(cfg,
     pad_mode = cfg.DATASET.PAD_MODE
     volume = [None] * len(img_name)
     read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
-        
+
     for i in range(len(img_name)):
-        volume[i] = read_fn(img_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
+        volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
         print(f"volume shape (original): {volume[i].shape}")
         if cfg.DATASET.NORMALIZE_RANGE:
             volume[i] = normalize_range(volume[i])
-        if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
-            volume[i] = zoom(volume[i], cfg.DATASET.DATA_SCALE, order=1)
-        volume[i] = np.pad(volume[i], get_padsize(pad_size), pad_mode)
+        volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=3)
+        volume[i] = _pad(volume[i], pad_size, pad_mode)
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode in ['val', 'train'] and label is not None:
-            label[i] = read_fn(label_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
+            label[i] = read_fn(label_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
             if label[i].ndim == 2:  # make it into 3D volume
                 label[i] = label[i][None, :]
-            if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
-                label[i] = zoom(label[i], cfg.DATASET.DATA_SCALE, order=0)
             if cfg.DATASET.LABEL_BINARY and label[i].max() > 1:
                 label[i] = label[i] // 255
             if cfg.DATASET.LABEL_MAG != 0:
                 label[i] = (label[i]/cfg.DATASET.LABEL_MAG).astype(np.float32)
 
-            label[i] = np.pad(label[i], get_padsize(pad_size), pad_mode)
+            label[i] = _rescale(label[i], cfg.DATASET.LABEL_SCALE, order=0) # nearest
+            label[i] = _pad(label[i], pad_size, pad_mode)
             print(f"label shape (after scaling and padding): {label[i].shape}")
             if cfg.DATASET.LOAD_2D:
-                assert (volume[i].shape[1:] == label[i].shape[1:])
+                assert volume[i].shape[1:] == label[i].shape[1:]
             else:
-                assert (volume[i].shape == label[i].shape)
+                assert volume[i].shape == label[i].shape[-3:]
 
         if mode in ['val', 'train'] and valid_mask is not None:
-            valid_mask[i] = read_fn(valid_mask_name[i],drop_channel=cfg.DATASET.DROP_CHANNEL)
-            if (np.array(cfg.DATASET.DATA_SCALE) != 1).any():
-                valid_mask[i] = zoom(
-                    valid_mask[i], cfg.DATASET.DATA_SCALE, order=0)
-
-            valid_mask[i] = np.pad(
-                valid_mask[i], get_padsize(pad_size), pad_mode)
+            valid_mask[i] = read_fn(valid_mask_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
+            valid_mask[i] = _rescale(valid_mask[i], cfg.DATASET.VALID_MASK_SCALE, order=0)
+            valid_mask[i] = _pad(valid_mask[i], pad_size, pad_mode)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
             if cfg.DATASET.LOAD_2D:
-                assert (volume[i].shape[1:] == valid_mask[i].shape[1:])
+                assert volume[i].shape[1:] == valid_mask[i].shape[1:]
             else:
-                assert (volume[i].shape == label[i].shape)
+                assert volume[i].shape == label[i].shape[-3:]
 
     return volume, label, valid_mask
 
@@ -181,6 +199,7 @@ def get_dataset(cfg,
                 augmentor,
                 mode='train',
                 rank=None,
+                dataset_class=VolumeDataset,
                 dir_name_init: Optional[list] = None,
                 img_name_init: Optional[list] = None):
     r"""Prepare dataset for training and inference.
@@ -224,35 +243,29 @@ def get_dataset(cfg,
         "reject_p": cfg.DATASET.REJECT_SAMPLING.P,
         "data_mean": cfg.DATASET.MEAN,
         "data_std": cfg.DATASET.STD,
+        "data_match_act": cfg.DATASET.MATCH_ACT,
         "erosion_rates": cfg.MODEL.LABEL_EROSION,
         "dilation_rates": cfg.MODEL.LABEL_DILATION,
     }
 
     if cfg.DATASET.DO_CHUNK_TITLE == 1:  # build TileDataset
+        def _make_json_path(path, name):
+            if isinstance(name, str):
+                return [os.path.join(path, name)]
+
+            assert isinstance(name, (list, tuple))
+            json_list = [os.path.join(path, name[i]) for i in range(len(name))]
+            return json_list
+
+        input_path = cfg.DATASET.INPUT_PATH
+        volume_json = _make_json_path(input_path, cfg.DATASET.IMAGE_NAME)
+
         label_json, valid_mask_json = None, None
         if mode == 'train':
             if cfg.DATASET.LABEL_NAME is not None:
-                if isinstance(cfg.DATASET.LABEL_NAME, str):
-                    label_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME]
-                else:
-                    label_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.LABEL_NAME[i] 
-                                    for i in range(len(cfg.DATASET.LABEL_NAME)) 
-                                ]
-
+                label_json = _make_json_path(input_path, cfg.DATASET.LABEL_NAME)
             if cfg.DATASET.VALID_MASK_NAME is not None:
-                if isinstance(cfg.DATASET.VALID_MASK_NAME, str):
-                    valid_mask_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME]
-                else:
-                    valid_mask_json = [ cfg.DATASET.INPUT_PATH + cfg.DATASET.VALID_MASK_NAME[i] 
-                                        for i in range(len(cfg.DATASET.VALID_MASK_NAME)) 
-                                    ]
-
-        if isinstance(cfg.DATASET.IMAGE_NAME, str):
-            volume_json = [cfg.DATASET.INPUT_PATH + cfg.DATASET.IMAGE_NAME]
-        else:
-            volume_json=[ cfg.DATASET.INPUT_PATH+cfg.DATASET.IMAGE_NAME[i]
-                            for i in range(len(cfg.DATASET.IMAGE_NAME))
-                        ]
+                valid_mask_json = _make_json_path(input_path, cfg.DATASET.VALID_MASK_NAME)
 
         dataset = TileDataset(chunk_num=cfg.DATASET.DATA_CHUNK_NUM,
                               chunk_ind=cfg.DATASET.DATA_CHUNK_IND,
@@ -264,35 +277,40 @@ def get_dataset(cfg,
                               valid_mask_json=valid_mask_json,
                               pad_size=cfg.DATASET.PAD_SIZE,
                               data_scale=cfg.DATASET.DATA_SCALE,
+                              coord_range=cfg.DATASET.DATA_COORD_RANGE,
                               **shared_kwargs)
 
-    else:  # build VolumeDataset
+    else:  # build VolumeDataset or VolumeDatasetMultiSeg
         volume, label, valid_mask = _get_input(
             cfg, mode, rank, dir_name_init, img_name_init)
-        dataset = VolumeDataset(volume=volume, label=label, valid_mask=valid_mask,
+
+        if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
+            shared_kwargs['multiseg_split'] = cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT
+        dataset = dataset_class(volume=volume, label=label, valid_mask=valid_mask,
                                 iter_num=iter_num, **shared_kwargs)
 
     return dataset
 
 
-def build_dataloader(cfg, augmentor, mode='train', dataset=None, rank=None):
+def build_dataloader(cfg, augmentor=None, mode='train', dataset=None, rank=None,
+                     dataset_class=VolumeDataset, cf=collate_fn_train):
     r"""Prepare dataloader for training and inference.
     """
     assert mode in ['train', 'val', 'test']
     print('Mode: ', mode)
 
     if mode == 'train':
-        cf = collate_fn_train
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH
     elif mode == 'val':
-        cf = collate_fn_train
         batch_size = cfg.SOLVER.SAMPLES_PER_BATCH * 4
     else:
-        cf = collate_fn_test
+        cf = collate_fn_test # update the collate function
         batch_size = cfg.INFERENCE.SAMPLES_PER_BATCH * cfg.SYSTEM.NUM_GPUS
 
-    if dataset == None:
-        dataset = get_dataset(cfg, augmentor, mode, rank)
+    if dataset is None: # no pre-defined dataset instance
+        if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
+            dataset_class = VolumeDatasetMultiSeg
+        dataset = get_dataset(cfg, augmentor, mode, rank, dataset_class)
 
     sampler = None
     num_workers = cfg.SYSTEM.NUM_CPUS

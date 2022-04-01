@@ -1,12 +1,39 @@
 from __future__ import division, print_function
-import os,sys
+import os, sys
+import itertools
 import numpy as np
 import h5py, json
-from scipy.misc import imread
 from skimage.transform import resize
 
-# Functions
-#-------------------------------
+# https://stackoverflow.com/questions/31400769
+def bbox2_ND(img):
+    N = img.ndim
+    out = []
+    for ax in itertools.combinations(reversed(range(N)), N - 1):
+        nonzero = np.any(img, axis=ax)
+        out.extend(np.where(nonzero)[0][[0, -1]])
+    return tuple(out)
+
+def rand_window(w0, w1, sz, rand_shift: int = 0):
+    assert (w1 >= w0)
+    diff = np.abs((w1-w0)-sz)
+    if (w1-w0) <= sz:
+        if rand_shift > 0: # random shift augmentation
+            start_l = max(w0-diff//2-rand_shift, w1-sz)
+            start_r = min(w0, w0-diff//2+rand_shift)
+            low = np.random.randint(start_l, start_r)
+        else:
+            low = w0 - diff//2 
+    else:
+        if rand_shift > 0: # random shift augmentation
+            start_l = max(w0, w0+diff//2-rand_shift)
+            start_r = min(w0+diff//2+rand_shift, w1-sz)
+            low = np.random.randint(start_l, start_r)
+        else:
+            low = w0 + diff//2 
+    high = low + sz    
+    return low, high
+
 def get_dataset_image(dataset_dict, x0p, x1p, y0p, y1p, z0p, z1p):
     # calculate padding at the boundary
     #print('original: ', z0p, z1p, y0p, y1p, x0p, x1p)
@@ -151,23 +178,7 @@ def get_dataset_label(path, x0p, x1p, y0p, y1p, z0p, z1p):
                  (pad_need[2], pad_need[3]),
                  (pad_need[4], pad_need[5])], 'reflect')
     #print('input shape: ', result.shape)
-    return result  
-
-def random_window(w0, w1, sz, shift=False):
-    assert (w1 >= w0)
-    diff = np.abs((w1-w0)-sz)
-    if (w1-w0) <= sz:
-        if shift==True: # shift augmentation
-            low = np.random.randint(w0-diff//2-5, w0-diff//2+5)
-        else:
-            low = w0 - diff//2 
-    else:
-        if shift==True: # shift augmentation
-            low = np.random.randint(w0, w1-sz)
-        else:
-            low = w0 + diff//2 
-    high = low+sz    
-    return low, high
+    return result
 
 def process_bbox(bfly_db,bbox, gt=True, use_gt=True):
     #print(bbox)
@@ -211,12 +222,4 @@ def process_bbox(bfly_db,bbox, gt=True, use_gt=True):
     else:
         pseudo_label = np.zeros(label_io_size, dtype=np.float32)                
 
-    # hk = h5py.File('visual.h5','w')
-    # hk.create_dataset('main',data=image)
-    # hk.close()
-
-    # hk = h5py.File('label.h5','w')
-    # hk.create_dataset('main',data=label)
-    # hk.close()
-    #print(z0p, z1p, y0p, y1p, x0p, x1p)
     return image, pseudo_label

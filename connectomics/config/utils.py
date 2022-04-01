@@ -5,11 +5,13 @@ from yacs.config import CfgNode
 from .defaults import get_cfg_defaults
 
 
-def load_cfg(args: argparse.Namespace):
+def load_cfg(args: argparse.Namespace, freeze=True, add_cfg_func=None):
     """Load configurations.
     """
     # Set configurations
     cfg = get_cfg_defaults()
+    if add_cfg_func is not None:
+        add_cfg_func(cfg)
     if args.config_base is not None:
         cfg.merge_from_file(args.config_base)
     cfg.merge_from_file(args.config_file)
@@ -19,7 +21,12 @@ def load_cfg(args: argparse.Namespace):
     if args.inference:
         update_inference_cfg(cfg)
     overwrite_cfg(cfg, args)
-    cfg.freeze()
+
+    if freeze:
+        cfg.freeze()
+    else:
+        warnings.warn("Configs are mutable during the process, "
+                      "please make sure that is expected.")
     return cfg
 
 
@@ -35,7 +42,7 @@ def save_all_cfg(cfg: CfgNode, output_dir: str):
 
 
 def update_inference_cfg(cfg: CfgNode):
-    r"""Overwrite configurations (cfg) when running mode is inference. Please 
+    r"""Overwrite configurations (cfg) when running mode is inference. Please
     note that None type is only supported in YACS>=0.1.8.
     """
     # dataset configurations
@@ -90,14 +97,6 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
         cfg.SYSTEM.DISTRIBUTED = True
         cfg.SYSTEM.PARALLEL = 'DDP'
 
-    # Target options:
-    for topt in cfg.MODEL.TARGET_OPT:
-        if topt[0] == '5':  # quantized distance transform
-            cfg.MODEL.OUT_PLANES = 11
-            assert len(cfg.MODEL.TARGET_OPT) == 1, \
-                "Multi-task learning with quantized distance transform " \
-                "is currently not supported."
-
     # Update augmentation options when valid masks are specified
     if cfg.DATASET.VALID_MASK_NAME is not None:
         assert cfg.DATASET.LABEL_NAME is not None, \
@@ -127,6 +126,14 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
     # Mixed-precision training (only works with DDP)
     cfg.MODEL.MIXED_PRECESION = (
         cfg.MODEL.MIXED_PRECESION and args.distributed)
+
+    # Scaling factors for image, label and valid mask
+    if cfg.DATASET.IMAGE_SCALE is None:
+        cfg.DATASET.IMAGE_SCALE = cfg.DATASET.DATA_SCALE
+    if cfg.DATASET.LABEL_SCALE is None:
+        cfg.DATASET.LABEL_SCALE = cfg.DATASET.DATA_SCALE
+    if cfg.DATASET.VALID_MASK_SCALE is None:
+        cfg.DATASET.VALID_MASK_SCALE = cfg.DATASET.DATA_SCALE
 
 
 def validate_cfg(cfg: CfgNode):

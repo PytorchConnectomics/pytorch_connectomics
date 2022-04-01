@@ -15,7 +15,8 @@ _C.SYSTEM.NUM_CPUS = 4
 # Run distributed training using DistributedDataparallel model
 _C.SYSTEM.DISTRIBUTED = False
 _C.SYSTEM.PARALLEL = 'DP'
-# Debug mode is for tackle cases where this is no errors 
+_C.SYSTEM.DISTRIBUTED_BACKEND = 'nccl'
+# Debug mode is for tackle cases where this is no errors
 # but the model behavior are unexpected.
 _C.SYSTEM.DEBUG = False
 
@@ -40,8 +41,10 @@ _C.MODEL.ATTENTION = 'squeeze_excitation'
 _C.MODEL.ISOTROPY = [False, False, False, True, True]
 
 _C.MODEL.TARGET_OPT = ['0']
-_C.MODEL.LABEL_EROSION = None
-_C.MODEL.LABEL_DILATION = None
+_C.MODEL.TARGET_OPT_MULTISEG_SPLIT = None
+
+_C.MODEL.LABEL_EROSION = None # erode masks
+_C.MODEL.LABEL_DILATION = None # dilate masks
 
 _C.MODEL.WEIGHT_OPT = [['1']]
 
@@ -118,6 +121,9 @@ _C.DATASET = CN()
 # Using a DATA_SCALE of [1., 0.5, 0.5] will downsample the
 # original image by two times (e.g., 4nm -> 8nm).
 _C.DATASET.DATA_SCALE = [1., 1., 1.]
+_C.DATASET.IMAGE_SCALE = None
+_C.DATASET.LABEL_SCALE = None
+_C.DATASET.VALID_MASK_SCALE = None
 
 # Scaling factor for super resolution
 _C.DATASET.SCALE_FACTOR = [2, 3, 3]
@@ -145,7 +151,7 @@ _C.DATASET.DO_2D = False
 _C.DATASET.LOAD_2D = False
 
 # Specify whether to drop channels in multi-channel images/volumes
-_C.DATASET.DROP_CHANNEL = True
+_C.DATASET.DROP_CHANNEL = False
 
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64]
@@ -169,6 +175,11 @@ _C.DATASET.DATA_CHUNK_NUM = [1, 1, 1]
 _C.DATASET.DATA_CHUNK_IND = None
 _C.DATASET.CHUNK_IND_SPLIT = None
 
+# For TileDataset, specify the coordintate range of data to use.
+# If not None, should be a list of format [z0, z1, y0, y1, x0, x1] applied to all volumes,
+# or List[List[int]] with a range for each input TileDataset volume.
+_C.DATASET.DATA_COORD_RANGE = None
+
 # Boolean variable, euqal to 'int(args.data_chunk_num[-1:])==1'
 _C.DATASET.DATA_CHUNK_STRIDE = True
 
@@ -181,6 +192,7 @@ _C.DATASET.VALID_RATIO = 0.5
 # For some datasets the foreground mask is sparse in the volume. Therefore
 # we perform reject sampling to decrease (all completely avoid) regions
 # without foreground masks. Set REJECT_SAMPLING.SIZE_THRES = -1 to disable.
+# Note that reject sampling only works when label is given.
 _C.DATASET.REJECT_SAMPLING = CN()
 _C.DATASET.REJECT_SAMPLING.SIZE_THRES = -1
 _C.DATASET.REJECT_SAMPLING.DIVERSITY = -1
@@ -189,36 +201,45 @@ _C.DATASET.REJECT_SAMPLING.P = 0.95
 # Normalize model inputs (the images are assumed to be gray-scale).
 _C.DATASET.MEAN = 0.5
 _C.DATASET.STD = 0.5
+_C.DATASET.MATCH_ACT = 'none'
 
 _C.DATASET.DISTRIBUTED = False
 
 # -----------------------------------------------------------------------------
 # Augmentor
 # -----------------------------------------------------------------------------
-_C.AUGMENTOR = CN()
+_C.AUGMENTOR = CN({"ENABLED": True})
 
 # The nearest interpolation for the label mask during data augmentation
 # can result in masks with coarse boundaries. Thus we apply Gaussian filtering
-# to smooth the object boundary (default: True).
-_C.AUGMENTOR.SMOOTH = True
+# to smooth the object boundary (default: False).
+# WARNING: applying label smoothing can erase the segmentation masks of thin 
+# structures like spine necks and wrinkle artifacts.
+_C.AUGMENTOR.SMOOTH = False
 
 # CfgNodes can only contain a limited set of valid types:
 # _VALID_TYPES = {tuple, list, str, int, float, bool, type(None)}
 _C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ['label']
 _C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ['mask']
 
+# _C.AUGMENTOR.[xxx].SKIP specify the sample
+# key to skip for that augmentation
 _C.AUGMENTOR.ROTATE = CN({"ENABLED": True})
 _C.AUGMENTOR.ROTATE.ROT90 = True
 _C.AUGMENTOR.ROTATE.P = 1.0
+_C.AUGMENTOR.ROTATE.SKIP = []
 
 _C.AUGMENTOR.RESCALE = CN({"ENABLED": True})
+_C.AUGMENTOR.RESCALE.FIX_ASPECT = False
 _C.AUGMENTOR.RESCALE.P = 0.5
+_C.AUGMENTOR.RESCALE.SKIP = []
 
 _C.AUGMENTOR.FLIP = CN({"ENABLED": True})
 _C.AUGMENTOR.FLIP.P = 1.0
 # Conducting x-z and y-z flip only when the dataset is isotropic
 # and the input is cubic.
 _C.AUGMENTOR.FLIP.DO_ZTRANS = 0
+_C.AUGMENTOR.FLIP.SKIP = []
 
 _C.AUGMENTOR.ELASTIC = CN({"ENABLED": True})
 _C.AUGMENTOR.ELASTIC.P = 0.75
@@ -226,17 +247,22 @@ _C.AUGMENTOR.ELASTIC.P = 0.75
 _C.AUGMENTOR.ELASTIC.ALPHA = 16.0
 # Standard deviation of the Gaussian filter
 _C.AUGMENTOR.ELASTIC.SIGMA = 4.0
+_C.AUGMENTOR.ELASTIC.SKIP = []
 
 _C.AUGMENTOR.GRAYSCALE = CN({"ENABLED": True})
 _C.AUGMENTOR.GRAYSCALE.P = 0.75
+_C.AUGMENTOR.GRAYSCALE.SKIP = []
 
+# Randomly mask out some input regions
 _C.AUGMENTOR.MISSINGPARTS = CN({"ENABLED": True})
 _C.AUGMENTOR.MISSINGPARTS.P = 0.9
 _C.AUGMENTOR.MISSINGPARTS.ITER = 64
+_C.AUGMENTOR.MISSINGPARTS.SKIP = []
 
 _C.AUGMENTOR.MISSINGSECTION = CN({"ENABLED": True})
 _C.AUGMENTOR.MISSINGSECTION.P = 0.5
 _C.AUGMENTOR.MISSINGSECTION.NUM_SECTION = 2
+_C.AUGMENTOR.MISSINGSECTION.SKIP = []
 
 _C.AUGMENTOR.MISALIGNMENT = CN({"ENABLED": True})
 _C.AUGMENTOR.MISALIGNMENT.P = 0.5
@@ -244,6 +270,7 @@ _C.AUGMENTOR.MISALIGNMENT.P = 0.5
 _C.AUGMENTOR.MISALIGNMENT.DISPLACEMENT = 16
 # The ratio of mis-alignment by rotation among all mis-alignment augmentations.
 _C.AUGMENTOR.MISALIGNMENT.ROTATE_RATIO = 0.5
+_C.AUGMENTOR.MISALIGNMENT.SKIP = []
 
 _C.AUGMENTOR.MOTIONBLUR = CN({"ENABLED": True})
 _C.AUGMENTOR.MOTIONBLUR.P = 0.5
@@ -251,6 +278,7 @@ _C.AUGMENTOR.MOTIONBLUR.P = 0.5
 _C.AUGMENTOR.MOTIONBLUR.SECTIONS = 2
 # Kernel size of motion blur
 _C.AUGMENTOR.MOTIONBLUR.KERNEL_SIZE = 11
+_C.AUGMENTOR.MOTIONBLUR.SKIP = []
 
 _C.AUGMENTOR.CUTBLUR = CN({"ENABLED": True})
 _C.AUGMENTOR.CUTBLUR.P = 0.5
@@ -258,15 +286,18 @@ _C.AUGMENTOR.CUTBLUR.LENGTH_RATIO = 0.4
 _C.AUGMENTOR.CUTBLUR.DOWN_RATIO_MIN = 2.0
 _C.AUGMENTOR.CUTBLUR.DOWN_RATIO_MAX = 8.0
 _C.AUGMENTOR.CUTBLUR.DOWNSAMPLE_Z = False
+_C.AUGMENTOR.CUTBLUR.SKIP = []
 
 _C.AUGMENTOR.CUTNOISE = CN({"ENABLED": True})
 _C.AUGMENTOR.CUTNOISE.P = 0.75
 _C.AUGMENTOR.CUTNOISE.LENGTH_RATIO = 0.4
 _C.AUGMENTOR.CUTNOISE.SCALE = 0.3
+_C.AUGMENTOR.CUTNOISE.SKIP = []
 
 _C.AUGMENTOR.COPYPASTE = CN({"ENABLED": False})
 _C.AUGMENTOR.COPYPASTE.AUG_THRES = 0.7
 _C.AUGMENTOR.COPYPASTE.P = 0.8
+_C.AUGMENTOR.COPYPASTE.SKIP = []
 
 # -----------------------------------------------------------------------------
 # Solver

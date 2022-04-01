@@ -9,12 +9,7 @@ import torch.utils.data
 from scipy.ndimage import zoom
 
 from . import VolumeDataset
-from ..augmentation import Compose
 from ..utils import relabel, tile2volume
-
-TARGET_OPT_TYPE = List[str]
-WEIGHT_OPT_TYPE = List[List[str]]
-AUGMENTOR_TYPE = Optional[Compose]
 
 
 class TileDataset(torch.utils.data.Dataset):
@@ -32,7 +27,20 @@ class TileDataset(torch.utils.data.Dataset):
         label_json (str, optional): json file for label. Default: `None`
         valid_mask_json (str, optional): json file for valid mask. Default: `None`
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
-        pad_size (list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0,0,0]`
+        pad_size (list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0, 0, 0]`
+        data_scale (list): volume scaling factors in :math:`(z, y, x)` order. Default: :math:`[1.0, 1.0, 1.0]`
+        coord_range (list): the valid coordinate range of volumes. Default: `None`
+
+    Note:
+        To run inference using multiple nodes in an asynchronous manner, ``chunk_ind_split`` specifies the number of
+        parts to split the total number of chunks in inference, and which part should the current node/process see. For
+        example, ``chunk_ind_split = "0-5"`` means the chunks are split into 5 parts (thus can be processed asynchronously
+        using 5 nodes), and the current node/process is handling the first (0-base) part of the chunks.
+
+    Note:
+        The ``coord_range`` option specify the region of a volume to use. Suppose the fisrt input volume has a voxel size 
+        of (1000, 10000, 10000), and only the center subvolume of size (400, 2000, 2000) needs to be used for training or 
+        inference, then set ``coord_range=[[300, 700, 4000, 6000, 4000, 6000]]``.
     """
 
     def __init__(self,
@@ -41,12 +49,13 @@ class TileDataset(torch.utils.data.Dataset):
                  chunk_ind_split: Optional[Union[List[int], str]] = None,
                  chunk_iter: int = -1,
                  chunk_stride: bool = True,
-                 volume_json: List[str] = 'path/to/image.json',
+                 volume_json: List[str] = ['path/to/image.json'],
                  label_json: Optional[List[str]] = None,
                  valid_mask_json: Optional[List[str]] = None,
                  mode: str = 'train',
                  pad_size: List[int] = [0, 0, 0],
                  data_scale: List[float] = [1.0, 1.0, 1.0],
+                 coord_range: Optional[List[List[int]]] = None,
                  **kwargs):
 
         self.kwargs = kwargs
@@ -60,31 +69,33 @@ class TileDataset(torch.utils.data.Dataset):
             self.chunk_step = 2
 
         self.chunk_num = chunk_num
-        self.chunk_ind = self.get_chunk_ind(
-            chunk_ind, chunk_ind_split)
+        self.chunk_ind = self.get_chunk_ind(chunk_ind, chunk_ind_split)
         self.chunk_id_done = []
 
-        self.num_volumes = len(volume_json)
-        self.json_volume = [ json.load(open(volume_json[i])) for i in range(self.num_volumes) ]
-        self.json_label = [ json.load(open(label_json[i])) for i in range(self.num_volumes) ] if (
+        self.num_volumes = len(volume_json) # number of volumes specified by json files
+        if self.mode == 'test':
+            assert self.num_volumes == 1, "Only one json file should be given in inference!"
+
+        self.json_volume = [json.load(open(volume_json[i])) for i in range(self.num_volumes)]
+        self.json_label = [json.load(open(label_json[i])) for i in range(self.num_volumes)] if (
             label_json is not None) else None
-
-        self.json_size = [
-            [self.json_volume[i]['depth'],
-                self.json_volume[i]['height'],
-                self.json_volume[i]['width']]
-            for i in range(self.num_volumes) ] 
-
-        self.coord_m = np.array([
-            [0, self.json_volume[i]['depth'],
-                0, self.json_volume[i]['height'],
-                0, self.json_volume[i]['width']]
-            for i in range(self.num_volumes) ], int)
-
-        self.json_valid = [ json.load(open(valid_mask_json[i])) for i in range(self.num_volumes) ] if (
+        self.json_valid = [json.load(open(valid_mask_json[i])) for i in range(self.num_volumes)] if (
             valid_mask_json is not None) else None
-        
-        self.coord = [ np.zeros(6, int) for i in range(self.num_volumes) ]
+
+        self.json_size = [[
+            self.json_volume[i]['depth'],
+            self.json_volume[i]['height'],
+            self.json_volume[i]['width']]
+            for i in range(self.num_volumes)] 
+
+        self.coord_m = np.array([[
+            0, self.json_volume[i]['depth'],
+            0, self.json_volume[i]['height'],
+            0, self.json_volume[i]['width']]
+            for i in range(self.num_volumes)], int)
+
+        # specify the coordintate range of data to use
+        self.get_coord_range(coord_range)
 
     def get_chunk_ind(self, chunk_ind, split_rule):
         if chunk_ind is None:
@@ -92,6 +103,7 @@ class TileDataset(torch.utils.data.Dataset):
                 range(np.prod(self.chunk_num)))
 
         if split_rule is not None:
+            # keep only the chunk indicies for current node/process
             if isinstance(split_rule, str):
                 split_rule = split_rule.split('-')
 
@@ -103,14 +115,44 @@ class TileDataset(torch.utils.data.Dataset):
             # Last split needs to cover remaining chunks.
             if rank == world_size - 1:
                 high = len(chunk_ind)
-            chunk_ind = chunk_ind[low:high]
+            chunk_ind = chunk_ind[low: high]
 
         return chunk_ind
 
     def get_coord_name(self):
         r"""Return the filename suffix based on the chunk coordinates.
         """
-        return '-'.join([str(x) for x in self.coord])
+        # this function should only be called in test mode
+        assert self.mode == 'test' and len(self.coord) == 1
+        return '-'.join([str(x) for x in self.coord[0]])
+
+    def get_coord_range(self, coord_range):
+        if coord_range is not None:
+            if isinstance(coord_range[0], int):
+                assert len(coord_range) == 6
+                self.coord_range = [coord_range for _ in range(self.num_volumes)]
+            elif isinstance(coord_range[0], list):
+                self.coord_range = coord_range
+        else:
+            self.coord_range = self.coord_m # use all data
+
+        assert len(self.coord_range) == self.num_volumes
+        self.coord_range_l, self.coord_range_r = [], []
+        for temp in self.coord_range: # lower and higher boundaries
+            self.coord_range_l.append([temp[2*i] for i in range(3)])
+            self.coord_range_r.append([temp[2*i+1] for i in range(3)])
+
+    def get_range_axis(self, axis_id, vol_id, axis: str='z'):
+        axis_map = {'z': 0, 'y': 1, 'x': 2}
+        l_bd = self.coord_range_l[vol_id][axis_map[axis]]
+        r_bd = self.coord_range_r[vol_id][axis_map[axis]]
+        assert r_bd > l_bd
+        length = r_bd - l_bd
+
+        steps = np.array([axis_id, axis_id + self.chunk_step])
+        axis_range = np.floor(steps / (
+            self.chunk_num[axis_map[axis]] + self.chunk_step-1) * length).astype(int)
+        return axis_range + l_bd
 
     def updatechunk(self, do_load=True):
         r"""Update the coordinates to a new chunk in the large volume.
@@ -129,16 +171,10 @@ class TileDataset(torch.utils.data.Dataset):
         xid = float(id_sample % self.chunk_num[2])
 
         self.coord = []
-
         for i in range(self.num_volumes):
-
-            x0, x1 = np.floor(np.array([xid, xid+self.chunk_step])/(
-                self.chunk_num[2]+self.chunk_step-1)*self.json_size[i][2]).astype(int)
-            y0, y1 = np.floor(np.array([yid, yid+self.chunk_step])/(
-                self.chunk_num[1]+self.chunk_step-1)*self.json_size[i][1]).astype(int)
-            z0, z1 = np.floor(np.array([zid, zid+self.chunk_step])/(
-                self.chunk_num[0]+self.chunk_step-1)*self.json_size[i][0]).astype(int)
-
+            z0, z1 = self.get_range_axis(zid, vol_id=i, axis='z')
+            y0, y1 = self.get_range_axis(yid, vol_id=i, axis='y')
+            x0, x1 = self.get_range_axis(xid, vol_id=i, axis='x')
             self.coord.append(np.array([z0, z1, y0, y1, x0, x1], int))
 
         if do_load:
@@ -148,28 +184,24 @@ class TileDataset(torch.utils.data.Dataset):
         r"""Load the chunk based on current coordinates and construct a VolumeDataset for processing.
         """
         # Assuming same padding for the list of volumes given
-        coord_p = [
-            self.coord[i] + [-self.pad_size[0], self.pad_size[0],
-                             -self.pad_size[1], self.pad_size[1],
-                             -self.pad_size[2], self.pad_size[2]]
-            for i in range(self.num_volumes) 
-        ]
+        padding = np.array([
+            -self.pad_size[0], self.pad_size[0],
+            -self.pad_size[1], self.pad_size[1],
+            -self.pad_size[2], self.pad_size[2]])
+
+        coord_p = [self.coord[i] + padding for i in range(self.num_volumes)]
         print('load chunk: ', coord_p)
-        # keep it in uint8 to save memory
 
         volume = [
             tile2volume(self.json_volume[i]['image'], coord_p[i], self.coord_m[i],
             tile_sz=self.json_volume[i]['tile_size'], tile_st=self.json_volume[i]['tile_st'],
-            tile_ratio=self.json_volume[i]['tile_ratio'])
-        for i in range(self.num_volumes)
+            tile_ratio=self.json_volume[i]['tile_ratio']) for i in range(self.num_volumes)
         ]
-
-        volume = self.maybe_scale(volume, order=1)  # linear for raw images
+        volume = self.maybe_scale(volume, order=3)
 
         label = None
         if self.json_label is not None:
-            dt = {'uint8': np.uint8, 'uint16': np.uint16,
-                  'uint32': np.uint32, 'uint64': np.uint64}
+            dt = {'uint8': np.uint8, 'uint16': np.uint16, 'uint32': np.uint32, 'uint64': np.uint64}
             # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
             label = [
                 relabel(tile2volume(self.json_label[i]['image'], coord_p[i], self.coord_m[i],

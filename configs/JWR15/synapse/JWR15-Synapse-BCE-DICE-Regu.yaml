@@ -6,6 +6,6 @@ MODEL:
   # non-overlap regularization
   REGU_OPT: ["Nonoverlap"]
   REGU_TARGET: [[0]]
-  REGU_WEIGHT: [2.0]
+  REGU_WEIGHT: [4.0]
 DATASET:
     OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE_Regu/

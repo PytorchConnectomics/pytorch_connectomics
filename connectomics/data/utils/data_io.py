@@ -10,7 +10,7 @@ import imageio
 from scipy.ndimage import zoom
 
 
-def readimg_as_vol(filename, drop_channel=True):
+def readimg_as_vol(filename, drop_channel=False):
     img_suf = filename[filename.rfind('.')+1:]
     assert img_suf in ['png', 'tif']
     data = imageio.imread(filename)
@@ -30,12 +30,13 @@ def readimg_as_vol(filename, drop_channel=True):
 def readh5(filename, dataset=None):
     fid = h5py.File(filename, 'r')
     if dataset is None:
+        # load the first dataset in the h5 file
         dataset = list(fid)[0]
     return np.array(fid[dataset])
 
 
-def readvol(filename, dataset=None, drop_channel=True):
-    r"""Load a image volume in HDF5, TIFF or PNG formats.
+def readvol(filename: str, dataset: Optional[str]=None, drop_channel: bool=False):
+    r"""Load volumetric data in HDF5, TIFF or PNG formats.
     """
     img_suf = filename[filename.rfind('.')+1:]
     if img_suf in ['h5', 'hdf5']:
@@ -43,21 +44,22 @@ def readvol(filename, dataset=None, drop_channel=True):
     elif 'tif' in img_suf:
         data = imageio.volread(filename).squeeze()
         if data.ndim == 4:
-            # convert (z,c,y,x) to (c,z,y,x) shape
+            # convert (z,c,y,x) to (c,z,y,x) order
             data = data.transpose(1,0,2,3)
     elif 'png' in img_suf:
         data = readimgs(filename)
         if data.ndim == 4:
-            # convert (z,y,x,c) to (c,z,y,x) shape
+            # convert (z,y,x,c) to (c,z,y,x) order
             data = data.transpose(3,0,1,2)
     else:
         raise ValueError('unrecognizable file format for %s' % (filename))
 
+    assert data.ndim in [3, 4], "Currently supported volume data should " + \
+        "be 3D (z,y,x) or 4D (c,z,y,x), got {}D".format(data.ndim)
     if drop_channel and data.ndim == 4:
-        # convert multiple channels to grayscale by average
-        data = np.mean(data, axis=0).astype(np.uint8)
-    
-    assert data.ndim in [3,4], "Volume data should be 3D or 4D, got {}D".format(data.ndim)
+        # merge multiple channels to grayscale by average
+        orig_dtype = data.dtype
+        data = np.mean(data, axis=0).astype(orig_dtype)
  
     return data
 

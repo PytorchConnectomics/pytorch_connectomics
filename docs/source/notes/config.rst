@@ -169,3 +169,19 @@ There are also several options exclusive for inference. For example:
      SAMPLES_PER_BATCH: 4 # per GPU batchsize for inference 
 
 Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference throughput. 
+
+2D Models
+-----------
+
+Our package is mainly developed for volumetric data, but also supported 2D trainin and inference. There are a bunch of 
+configuration options to update for 2D functionalities:
+
+.. code-block:: yaml
+
+   MODEL:
+     ARCHITECTURE: unet_2d # specify a 2D architecture
+     INPUT_SIZE: [1, 513, 513] # the z-dimension will be ignored
+     OUTPUT_SIZE: [1, 513, 513]
+   DATASET:
+     DO_2D: True # stream 2D samples
+     LOAD_2D: True # directly load 2D data if True, else load 3D and sample 2D patches

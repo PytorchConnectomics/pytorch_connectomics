@@ -20,7 +20,7 @@ MODEL:
   NORM_MODE: gn
   MIXED_PRECESION: True
 AUGMENTOR:
-  SMOOTH: False
+  SMOOTH: False # SMOOTH can significantly change thin structures
 DATASET:
   INPUT_PATH: datasets/Wrinkle/train/
   IMAGE_NAME: images/**/*.png

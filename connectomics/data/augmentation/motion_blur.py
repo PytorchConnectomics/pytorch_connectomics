@@ -7,22 +7,23 @@ import numpy as np
 from .augmentor import DataAugment
 
 class MotionBlur(DataAugment):
-    r"""Motion blur data augmentation of image stacks. This augmentation is only 
+    r"""Motion blur data augmentation of image stacks. This augmentation is only
     applied to images.
-    
+
     Args:
         sections (int): number of sections along z dimension to apply motion blur. Default: 2
         kernel_size (int): kernel size for motion blur. Default: 11
         p (float): probability of applying the augmentation. Default: 0.5
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
-    def __init__(self, 
-                 sections: int = 2, 
-                 kernel_size: int = 11, 
+    def __init__(self,
+                 sections: int = 2,
+                 kernel_size: int = 11,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
 
-        super(MotionBlur, self).__init__(p, additional_targets)
+        super(MotionBlur, self).__init__(p, additional_targets, skip_targets)
         self.size = kernel_size
         self.sections = sections
         self.set_params()
@@ -58,7 +59,7 @@ class MotionBlur(DataAugment):
 
         sample['image'] = self.motion_blur(images, kernel_motion_blur, selected_idx)
         for key in self.additional_targets.keys():
-            if self.additional_targets[key] == 'img':
-                sample[key] = self.motion_blur(sample[key].copy(), 
+            if key not in self.skip_targets and self.additional_targets[key] == 'img':
+                sample[key] = self.motion_blur(sample[key].copy(),
                         kernel_motion_blur, selected_idx)
         return sample

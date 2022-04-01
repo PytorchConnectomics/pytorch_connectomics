@@ -22,7 +22,7 @@ class UNet3D(nn.Module):
         isotropy (List[bool]): specify each U-Net stage is isotropic or anisotropic. All elements will
             be `True` if :attr:`is_isotropic` is `True`. Default: [False, False, False, True, True]
         pad_mode (str): one of ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``. Default: ``'replicate'``
-        act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
+        act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``,
             ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``
         norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
@@ -52,10 +52,10 @@ class UNet3D(nn.Module):
                  blurpool: bool = False,
                  **kwargs):
         super().__init__()
-        assert len(filters) == len(isotropy)
         self.depth = len(filters)
         if is_isotropic:
             isotropy = [True] * self.depth
+        assert len(filters) == len(isotropy)
 
         block = self.block_dict[block_type]
 
@@ -121,9 +121,9 @@ class UNet3D(nn.Module):
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
 
-        When pooling layer is used, the input size is assumed to be even, 
-        therefore :attr:`align_corners` is set to `False` to avoid feature 
-        mis-match. When downsampling by stride, the input size is assumed 
+        When pooling layer is used, the input size is assumed to be even,
+        therefore :attr:`align_corners` is set to `False` to avoid feature
+        mis-match. When downsampling by stride, the input size is assumed
         to be 2n+1, and :attr:`align_corners` is set to `True`.
         """
         align_corners = False if self.pooling else True
@@ -204,11 +204,11 @@ class UNet2D(nn.Module):
         block_type (str): the block type at each U-Net stage. Default: ``'residual'``
         in_channel (int): number of input channels. Default: 1
         out_channel (int): number of output channels. Default: 3
-        filters (List[int]): number of filters at each U-Net stage. Default: [28, 36, 48, 64, 80]
+        filters (List[int]): number of filters at each U-Net stage. Default: [32, 64, 128, 256, 512]
         pad_mode (str): one of ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``. Default: ``'replicate'``
-        act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``, 
-            ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'relu'``
-        norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'bn'``
+        act_mode (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``,
+            ``'swish'``, ``'efficient_swish'`` or ``'none'``. Default: ``'leaky_relu'``
+        norm_mode (str): one of ``'bn'``, ``'sync_bn'`` ``'in'`` or ``'gn'``. Default: ``'gn'``
         init_mode (str): one of ``'xavier'``, ``'kaiming'``, ``'selu'`` or ``'orthogonal'``. Default: ``'orthogonal'``
         pooling (bool): downsample by max-pooling if `True` else using stride. Default: `False`
     """
@@ -224,8 +224,8 @@ class UNet2D(nn.Module):
                  out_channel: int = 3,
                  filters: List[int] = [32, 64, 128, 256, 512],
                  pad_mode: str = 'replicate',
-                 act_mode: str = 'elu',
-                 norm_mode: str = 'bn',
+                 act_mode: str = 'leaky_relu',
+                 norm_mode: str = 'gn',
                  init_mode: str = 'orthogonal',
                  pooling: bool = False,
                  **kwargs):
@@ -234,14 +234,14 @@ class UNet2D(nn.Module):
         self.pooling = pooling
         block = self.block_dict[block_type]
 
-        shared_kwargs = {
+        self.shared_kwargs = {
             'pad_mode': pad_mode,
             'act_mode': act_mode,
             'norm_mode': norm_mode}
 
         # input and output layers
         self.conv_in = conv2d_norm_act(
-            in_channel, filters[0], 5, padding=2, **shared_kwargs)
+            in_channel, filters[0], 5, padding=2, **self.shared_kwargs)
         self.conv_out = conv2d_norm_act(filters[0], out_channel, 5, padding=2,
                                         bias=True, pad_mode=pad_mode, act_mode='none', norm_mode='none')
 
@@ -254,8 +254,8 @@ class UNet2D(nn.Module):
             layer = nn.Sequential(
                 self._make_pooling_layer(previous, i),
                 conv2d_norm_act(filters[previous], filters[i], kernel_size,
-                                stride=stride, padding=padding, **shared_kwargs),
-                block(filters[i], filters[i], **shared_kwargs))
+                                stride=stride, padding=padding, **self.shared_kwargs),
+                block(filters[i], filters[i], **self.shared_kwargs))
             self.down_layers.append(layer)
 
         # decoding path
@@ -264,8 +264,8 @@ class UNet2D(nn.Module):
             kernel_size, padding = 3, 1
             layer = nn.ModuleList([
                 conv2d_norm_act(filters[j], filters[j-1], kernel_size,
-                                padding=padding, **shared_kwargs),
-                block(filters[j-1], filters[j-1], **shared_kwargs)])
+                                padding=padding, **self.shared_kwargs),
+                block(filters[j-1], filters[j-1], **self.shared_kwargs)])
             self.up_layers.append(layer)
 
         # initialization
@@ -292,10 +292,10 @@ class UNet2D(nn.Module):
 
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
-        
-        When pooling layer is used, the input size is assumed to be even, 
-        therefore :attr:`align_corners` is set to `False` to avoid feature 
-        mis-match. When downsampling by stride, the input size is assumed 
+
+        When pooling layer is used, the input size is assumed to be even,
+        therefore :attr:`align_corners` is set to `False` to avoid feature
+        mis-match. When downsampling by stride, the input size is assumed
         to be 2n+1, and :attr:`align_corners` is set to `False`.
         """
         align_corners = False if self.pooling else True
@@ -314,3 +314,40 @@ class UNet2D(nn.Module):
             return nn.MaxPool2d(kernel_size, stride)
 
         return nn.Identity()
+
+
+class UNetPlus2D(UNet2D):
+    def __init__(self,
+                 filters: List[int] = [32, 64, 128, 256, 512],
+                 norm_mode: str = 'gn',
+                 **kwargs):
+
+        super().__init__(filters=filters, norm_mode=norm_mode, **kwargs)
+        self.feat_layers = nn.ModuleList(
+            [conv2d_norm_act(filters[-1], filters[k-1], 1, **self.shared_kwargs)
+             for k in range(1, self.depth)]
+        )
+        self.non_local = NonLocalBlock2D(
+            filters[-1], sub_sample=False, norm_mode=norm_mode)
+
+    def forward(self, x):
+        x = self.conv_in(x)
+
+        down_x = [None] * (self.depth-1)
+        for i in range(self.depth-1):
+            x = self.down_layers[i](x)
+            down_x[i] = x
+
+        x = self.down_layers[-1](x)
+        x = self.non_local(x)
+        feat = x  # lowest-res feature map
+
+        for j in range(self.depth-1):
+            i = self.depth-2-j
+            x = self.up_layers[i][0](x)
+            x = self._upsample_add(x, down_x[i])
+            x = self._upsample_add(self.feat_layers[i](feat), x)
+            x = self.up_layers[i][1](x)
+
+        x = self.conv_out(x)
+        return x

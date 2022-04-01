@@ -24,7 +24,7 @@ class Elastic(DataAugment):
         additional_targets(dict, optional): additional targets to augment. Default: None
     """
 
-    interpolation = {'img': cv2.INTER_LINEAR, 
+    interpolation = {'img': cv2.INTER_LINEAR,
                      'mask': cv2.INTER_NEAREST}
     border_mode = cv2.BORDER_CONSTANT
 
@@ -32,16 +32,17 @@ class Elastic(DataAugment):
                  alpha: float = 16.0,
                  sigma: float = 4.0,
                  p: float = 0.5,
-                 additional_targets: Optional[dict] = None):
-        
-        super(Elastic, self).__init__(p, additional_targets)
+                 additional_targets: Optional[dict] = None,
+                 skip_targets: list = []):
+
+        super(Elastic, self).__init__(p, additional_targets, skip_targets)
         self.alpha = alpha
         self.sigma = sigma
         self.set_params()
 
     def set_params(self):
-        r"""The rescale augmentation is only applied to the `xy`-plane. The required 
-        sample size before transformation need to be larger as decided by the maximum 
+        r"""The rescale augmentation is only applied to the `xy`-plane. The required
+        sample size before transformation need to be larger as decided by the maximum
         pixel-moving distance (:attr:`self.alpha`).
         """
         max_margin = int(self.alpha) + 1
@@ -53,12 +54,12 @@ class Elastic(DataAugment):
         assert images.ndim in [3, 4]
         for i in range(images.shape[-3]):
             if images.ndim == 3:
-                transformed_images.append(cv2.remap(images[i], mapx, mapy, 
-                    self.interpolation[target_type], borderMode=self.border_mode))     
+                transformed_images.append(cv2.remap(images[i], mapx, mapy,
+                    self.interpolation[target_type], borderMode=self.border_mode))
             else: # multi-channel images in (c,z,y,x) format
-                temp = [cv2.remap(images[channel, i], mapx, mapy, self.interpolation[target_type], 
-                        borderMode=self.border_mode) for channel in range(images.shape[0])]     
-                transformed_images.append(np.stack(temp, 0))          
+                temp = [cv2.remap(images[channel, i], mapx, mapy, self.interpolation[target_type],
+                        borderMode=self.border_mode) for channel in range(images.shape[0])]
+                transformed_images.append(np.stack(temp, 0))
 
         axis = 0 if images.ndim == 3 else 1
         transformed_images = np.stack(transformed_images, axis)
@@ -81,8 +82,8 @@ class Elastic(DataAugment):
         sample['image'] = self.elastic_wrap(images, mapx, mapy, 'img')
 
         for key in self.additional_targets.keys():
-            sample[key] = self.elastic_wrap(sample[key].copy(), mapx, mapy, 
-                target_type = self.additional_targets[key])
+            if key not in self.skip_targets:
+                sample[key] = self.elastic_wrap(sample[key].copy(), mapx, mapy,
+                    target_type = self.additional_targets[key])
 
         return sample
-        

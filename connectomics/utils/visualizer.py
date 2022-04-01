@@ -33,9 +33,11 @@ class Visualizer(object):
                 self.semantic_colors[topt] = torch.stack(colors, 0)
 
     def visualize(self, volume, label, output, weight, iter_total, writer,
-                  suffix: Optional[str] = None):
+                  suffix: Optional[str] = None, additional_image_groups: Optional[dict] = None):
+        self.visualize_image_groups(writer, iter_total, additional_image_groups)
+        
+        volume = self._denormalize(volume)
         # split the prediction into chunks along the channel dimension
-        volume = (volume * self.cfg.DATASET.STD) + self.cfg.DATASET.MEAN
         output = self.act(output)
         assert len(output) == len(label)
 
@@ -46,11 +48,15 @@ class Visualizer(object):
                 label[idx] = self.get_semantic_map(
                     label[idx], topt, argmax=False)
             if topt[0] == '5':
-                output[idx] = decode_quantize(
-                    output[idx], mode='max').unsqueeze(1)
-                temp_label = label[idx].clone().float()[
-                    :, np.newaxis]
-                label[idx] = temp_label / temp_label.max() + 1e-6
+                if len(topt) == 1:
+                    topt = topt + '-2d-0-0-5.0' # default
+                _, mode, padding, quant, z_res = topt.split('-')
+                if bool(int(quant)): # only the quantized version needs decoding
+                    output[idx] = decode_quantize(
+                        output[idx], mode='max').unsqueeze(1)
+                    temp_label = label[idx].clone().float()[
+                        :, np.newaxis]
+                    label[idx] = temp_label / temp_label.max() + 1e-6
 
             RGB = (topt[0] in ['1', '2', '9'])
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
@@ -65,8 +71,24 @@ class Visualizer(object):
                     w_name = vis_name + '_' + wopt
                     weight_maps[w_name] = weight[idx][j]
 
-            self.visualize_consecutive(volume, label[idx], output[idx], weight_maps, iter_total,
-                                       writer, RGB=RGB, vis_name=vis_name)
+            self.visualize_consecutive(volume, label[idx], output[idx], weight_maps,
+                                       iter_total, writer, RGB=RGB, vis_name=vis_name)
+
+    def visualize_image_groups(self, writer, iteration, image_groups: Optional[dict] = None):
+        if image_groups is None:
+            return
+
+        for name in image_groups.keys():
+            image_list = image_groups[name]
+            image_list = [self._denormalize(x) for x in image_list]
+            image_list = [self.permute_truncate(x, is_3d=True) for x in image_list]
+            sz = image_list[0].size()
+            canvas = [x.detach().cpu().expand(sz[0], 3, sz[2], sz[3]) for x in image_list]
+            canvas_merge = torch.cat(canvas, 0)
+            canvas_show = vutils.make_grid(
+                canvas_merge, nrow=8, normalize=True, scale_each=True)
+
+            writer.add_image('Image_Group_%s' % name, canvas_show, iteration)
 
     def visualize_consecutive(self, volume, label, output, weight_maps, iteration,
                               writer, RGB=False, vis_name='0_0'):
@@ -140,3 +162,11 @@ class Visualizer(object):
     def vol_reshape(self, vol, sz):
         vol = vol.detach().cpu().unsqueeze(1)
         return vol.expand(sz[0], 3, sz[2], sz[3])
+
+    def _denormalize(self, volume):
+        match_act = self.cfg.DATASET.MATCH_ACT
+        if match_act == 'none':
+            volume = (volume * self.cfg.DATASET.STD) + self.cfg.DATASET.MEAN
+        elif match_act == 'tanh':
+            volume = (volume + 1.0) * 0.5
+        return volume
