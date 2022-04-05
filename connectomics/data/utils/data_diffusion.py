@@ -118,3 +118,47 @@ def extend_centers(neighbors, centers, isneighbor, h, w, n_iter: int = 200):
 
     mu = np.stack((dy.cpu().squeeze(), dx.cpu().squeeze()), axis=-2)
     return mu
+
+
+def normalize_to_range(X,lower=0.01,upper=99.99):
+    """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
+    x01,x99 = np.percentile(X, 1),np.percentile(X, 99)
+    return (X - x01) / (x99 - x01)
+
+
+# sinebow color
+def dx_to_circ(flows, alpha=False, mask=None):
+    """ Y & X flows to 'optic' flow representation. This function adapted from
+    https://github.com/MouseLand/cellpose.
+    Args: 
+        flows : n x 2 x Ly x Lx array of flow field components [dy,dx]
+        alpha: bool, magnitude of flow controls opacity, not lightness (clear background)
+        mask: 2D array multiplied to each RGB component to suppress noise
+    """
+    flows = np.array(flows)
+    if flows.ndim == 3 and flows[0]==2:
+        flows = np.expand_dims(flows,0)
+    
+    assert flows.ndim == 4, "Expected flows to be of shape (n,2,y,x)"
+
+    imgs = []
+    for flow in flows:
+        magnitude = np.clip(normalize_to_range(np.sqrt(np.sum(flow**2,axis=0))), 0, 1.)
+        angles = np.arctan2(flow[1], flow[0])+np.pi
+        a = 2
+        r = ((np.cos(angles)+1)/a)
+        g = ((np.cos(angles+2*np.pi/3)+1)/a)
+        b = ((np.cos(angles+4*np.pi/3)+1)/a)
+
+        if alpha:
+            img = np.stack((r,g,b,magnitude),axis=-1)
+        else:
+            img = np.stack((r*magnitude,g*magnitude,b*magnitude),axis=-1)
+
+        if mask is not None and alpha and flow.shape[0]<3:
+            img[:,:,-1] *= mask
+
+        img = (np.clip(img, 0, 1) * 255).astype(np.uint8)
+        imgs.append(img)
+
+    return np.transpose(np.array(imgs),(3,0,1,2))
