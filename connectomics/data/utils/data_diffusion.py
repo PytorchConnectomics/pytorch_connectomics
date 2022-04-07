@@ -4,10 +4,8 @@ import numpy as np
 
 def seg2diffgrads(label: np.ndarray) -> np.array:
     # input: (y, x) for 2D data or (z, y, x) with z>1 for 3D data
-    # output: (3, y, x) for 2D data & (3, z, y, x) for 3D data (channel first)
-    # 1st channel is Y flow, 2nd channel is X flow, 3rd channel is foreground map
+    # output: (2, y, x) for 2D data & (2, z, y, x) for 3D data (channel first)
     masks = label.squeeze().astype(np.int32)
-    label = np.expand_dims(label, axis=0)
 
     if masks.ndim==3:
         z, y, x = masks.shape
@@ -15,10 +13,10 @@ def seg2diffgrads(label: np.ndarray) -> np.array:
         for z in range(z):
             mu0 = masks2flows(masks[z])[0]
             mu[:, z] = mu0 
-        flows = np.concatenate([mu, label>0.5], axis=0).astype(np.float32)
+        flows = mu.astype(np.float32)
     elif masks.ndim==2:
         mu, _, _ = masks2flows(masks)
-        flows = np.concatenate([mu, label>0.5], axis=0).astype(np.float32)
+        flows = mu.astype(np.float32)
     else:
         raise ValueError('expecting 2D or 3D labels but received %dD input!' % masks.ndim)
 

@@ -1,6 +1,6 @@
 ## Semi-supervised Segmentation with GAN Loss
 
-### Unique configurations
+### Unique Configurations
 
 We show below the list of configurations exclusive for semi-supervised segmentation using
 GAN losses, which extends the basic configurations in PyTorch Connectomics.

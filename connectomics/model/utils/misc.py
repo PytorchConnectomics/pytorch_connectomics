@@ -84,6 +84,7 @@ class SplitActivation(object):
         '4': 1, # instance boundary
         '5': 1, # instance edt (11 channels for quantized)
         '6': 1, # semantic edt
+        '7': 2, # diffusion gradients (2d)
         'all': -1 # all remaining channels
     }
 
