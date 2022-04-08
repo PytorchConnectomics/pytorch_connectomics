@@ -1,0 +1,57 @@
+SYSTEM:
+  NUM_GPUS: 2
+  NUM_CPUS: 16
+AUGMENTOR:
+  SMOOTH: False
+  ADDITIONAL_TARGETS_NAME: ['label', 'recon_image']
+  ADDITIONAL_TARGETS_TYPE: ['mask', 'img']
+  MISSINGPARTS:
+    ITER: 48
+    SKIP: ['recon_image']
+  MOTIONBLUR:
+    SKIP: ['recon_image']
+  CUTBLUR:
+    SKIP: ['recon_image']
+  CUTNOISE:
+    SKIP: ['recon_image']
+MODEL:
+  ARCHITECTURE: unet_plus_3d # unet_3d
+  BLOCK_TYPE: residual_se
+  ACT_MODE: leaky_relu
+  INPUT_SIZE: [17, 129, 129]
+  OUTPUT_SIZE: [17, 129, 129]
+  NORM_MODE: gn
+  MIXED_PRECESION: False
+  FILTERS: [32, 64, 96, 128, 160]
+DATASET:
+  INPUT_PATH: datasets/CySGAN/train/ # or your own dataset path
+  IMAGE_NAME: imageX.tif
+  LABEL_NAME: labelX_smooth_dilate.tif
+  PAD_SIZE: [4, 42, 42]
+  MATCH_ACT: tanh
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 0.9
+  DISTRIBUTED: True
+NEW_DOMAIN:
+  IMAGE_NAME: imageY.tif
+SOLVER:
+  NAME: AdamW
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 2e-3
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [20, 200]
+INFERENCE:
+  INPUT_SIZE: [33, 257, 257]
+  OUTPUT_SIZE: [33, 257, 257]
+  IMAGE_NAME: imageY.tif
+  OUTPUT_NAME: pred0.h5
+  PAD_SIZE: [4, 16, 16]
+  AUG_MODE: mean
+  AUG_NUM: None
+  STRIDE: [16, 128, 128]
+  SAMPLES_PER_BATCH: 4
