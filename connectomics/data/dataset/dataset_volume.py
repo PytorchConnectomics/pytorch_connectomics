@@ -283,7 +283,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             # For warping: cv2.remap requires input to be float32.
             # Make labels index smaller. Otherwise uint32 and float32 are not
             # the same for some values.
-            out_label = reduce_label(out_label.copy()) if self.do_relable else out_label.copy()
+            out_label = reduce_label(out_label.copy()) if self.do_relabel else out_label.copy()
             out_label = out_label.astype(np.float32)
 
         if self.valid_mask is not None:
