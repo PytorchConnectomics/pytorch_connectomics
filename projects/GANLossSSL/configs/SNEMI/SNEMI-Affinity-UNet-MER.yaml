@@ -1,0 +1,20 @@
+# MER: Multiple Erosion Rates
+MODEL:
+  LABEL_EROSION: [1, 2, 4]
+  OUT_PLANES: 9
+  TARGET_OPT: ["2", "2", "2"]
+  LOSS_OPTION:
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+  LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"], ["1", "0"], ["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"], ["none", "sigmoid"]]
+DATASET:
+  OUTPUT_PATH: "outputs/SNEMI_UNet_MER_GANLoss"
+INFERENCE:
+  OUTPUT_ACT: ["sigmoid", "sigmoid", "sigmoid"]
+  OUTPUT_PATH: "outputs/SNEMI_UNet_MER_GANLoss/test"

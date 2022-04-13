@@ -40,13 +40,11 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u projects/CySGAN/main.py \
 ### Citation
 
 ```bibtex
-@misc{lauenburg2022instance,
-      title={Instance Segmentation of Unlabeled Modalities via Cyclic Segmentation GAN}, 
-      author={Leander Lauenburg and Zudi Lin and Ruihan Zhang and Márcia dos Santos and Siyu Huang and Ignacio Arganda-Carreras and Edward S. Boyden and Hanspeter Pfister and Donglai Wei},
-      year={2022},
-      eprint={2204.03082},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article{lauenburg2022instance,
+  title={Instance Segmentation of Unlabeled Modalities via Cyclic Segmentation GAN},
+  author={Lauenburg, Leander and Lin, Zudi and Zhang, Ruihan and Santos, M{\'a}rcia dos and Huang, Siyu and Arganda-Carreras, Ignacio and Boyden, Edward S and Pfister, Hanspeter and Wei, Donglai},
+  journal={arXiv preprint arXiv:2204.03082},
+  year={2022}
 }
 ```
 

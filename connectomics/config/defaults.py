@@ -153,6 +153,9 @@ _C.DATASET.LOAD_2D = False
 # Specify whether to drop channels in multi-channel images/volumes
 _C.DATASET.DROP_CHANNEL = False
 
+# Reduce the the mask indicies in a sampled label volume
+_C.DATASET.REDUCE_LABEL = True
+
 # Padding size for the input volumes
 _C.DATASET.PAD_SIZE = [2, 64, 64]
 _C.DATASET.PAD_MODE = 'reflect'  # reflect, constant, symmetric

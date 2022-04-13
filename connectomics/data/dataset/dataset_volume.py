@@ -32,6 +32,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
         do_2d (bool): load 2d samples from 3d volumes. Default: False
         iter_num (int): total number of training iterations (-1 for inference). Default: -1
+        do_relabel (bool): reduce the the mask indicies in a sampled label volume. This option be set to
+            False for semantic segmentation, otherwise the classes can shift. Default: True
         reject_size_thres (int, optional): threshold to decide if a sampled volumes contains foreground objects. Default: 0
         reject_diversity (int, optional): threshold to decide if a sampled volumes contains multiple objects. Default: 0
         reject_p (float, optional): probability of rejecting non-foreground volumes. Default: 0.95
@@ -63,6 +65,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  mode: str = 'train',
                  do_2d: bool = False,
                  iter_num: int = -1,
+                 do_relabel: bool = True,
                  # rejection sampling
                  reject_size_thres: int = 0,
                  reject_diversity: int = 0,
@@ -75,8 +78,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         assert mode in ['train', 'val', 'test']
         self.mode = mode
         self.do_2d = do_2d
-        # if self.do_2d:
-        #     assert (sample_volume_size[0] == 1) * (sample_label_size[0] == 1)
+        self.do_relabel = do_relabel
 
         # data format
         self.volume = volume
@@ -281,7 +283,8 @@ class VolumeDataset(torch.utils.data.Dataset):
             # For warping: cv2.remap requires input to be float32.
             # Make labels index smaller. Otherwise uint32 and float32 are not
             # the same for some values.
-            out_label = relabel(out_label.copy()).astype(np.float32)
+            out_label = reduce_label(out_label.copy()) if self.do_relable else out_label.copy()
+            out_label = out_label.astype(np.float32)
 
         if self.valid_mask is not None:
             out_valid = crop_volume(self.label[pos[0]],

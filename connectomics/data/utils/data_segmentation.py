@@ -26,7 +26,11 @@ def getSegType(mid):
     return m_type
 
 
-def relabel(seg, do_type=False):
+def reduce_label(seg, do_type=False):
+    """Reduce the mask indicies in a given segmentation volume. For example, [0,2,3,4] will
+    become [0,1,2,3] (background-only volumes will be ignored in the processing). This
+    function is not expected for semantic segmentation, which may result in class shift.
+    """
     # get the unique labels
     uid = np.unique(seg)
     # ignore all-background samples

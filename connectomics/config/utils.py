@@ -135,6 +135,12 @@ def overwrite_cfg(cfg: CfgNode, args: argparse.Namespace):
     if cfg.DATASET.VALID_MASK_SCALE is None:
         cfg.DATASET.VALID_MASK_SCALE = cfg.DATASET.DATA_SCALE
 
+    # Disable label reducing for semantic segmentation to avoid class shift
+    for topt in cfg.MODEL.TARGET_OPT:
+        if topt[0] == '9': # semantic segmentation mode
+            cfg.DATASET.REDUCE_LABEL = False
+            break
+
 
 def validate_cfg(cfg: CfgNode):
     num_target = len(cfg.MODEL.TARGET_OPT)

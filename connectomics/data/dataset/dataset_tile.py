@@ -9,7 +9,7 @@ import torch.utils.data
 from scipy.ndimage import zoom
 
 from . import VolumeDataset
-from ..utils import relabel, tile2volume
+from ..utils import reduce_label, tile2volume
 
 
 class TileDataset(torch.utils.data.Dataset):
@@ -30,6 +30,8 @@ class TileDataset(torch.utils.data.Dataset):
         pad_size (list): padding parameters in :math:`(z, y, x)` order. Default: :math:`[0, 0, 0]`
         data_scale (list): volume scaling factors in :math:`(z, y, x)` order. Default: :math:`[1.0, 1.0, 1.0]`
         coord_range (list): the valid coordinate range of volumes. Default: `None`
+        do_relabel (bool): reduce the the mask indicies in a sampled label volume. This option be set to
+            False for semantic segmentation, otherwise the classes can shift. Default: True
 
     Note:
         To run inference using multiple nodes in an asynchronous manner, ``chunk_ind_split`` specifies the number of
@@ -56,6 +58,7 @@ class TileDataset(torch.utils.data.Dataset):
                  pad_size: List[int] = [0, 0, 0],
                  data_scale: List[float] = [1.0, 1.0, 1.0],
                  coord_range: Optional[List[List[int]]] = None,
+                 do_relabel: bool = True,
                  **kwargs):
 
         self.kwargs = kwargs
@@ -63,6 +66,7 @@ class TileDataset(torch.utils.data.Dataset):
         self.chunk_iter = chunk_iter
         self.pad_size = pad_size
         self.data_scale = data_scale
+        self.do_relabel = do_relabel
 
         self.chunk_step = 1
         if chunk_stride and self.mode == 'train':  # 50% overlap between volumes during training
@@ -183,7 +187,7 @@ class TileDataset(torch.utils.data.Dataset):
     def loadchunk(self):
         r"""Load the chunk based on current coordinates and construct a VolumeDataset for processing.
         """
-        # Assuming same padding for the list of volumes given
+        # assuming same padding for the list of volumes given
         padding = np.array([
             -self.pad_size[0], self.pad_size[0],
             -self.pad_size[1], self.pad_size[1],
@@ -202,24 +206,27 @@ class TileDataset(torch.utils.data.Dataset):
         label = None
         if self.json_label is not None:
             dt = {'uint8': np.uint8, 'uint16': np.uint16, 'uint32': np.uint32, 'uint64': np.uint64}
-            # float32 may misrepresent large uint32/uint64 numbers -> relabel to decrease the label index
             label = [
-                relabel(tile2volume(self.json_label[i]['image'], coord_p[i], self.coord_m[i],
+                tile2volume(self.json_label[i]['image'], coord_p[i], self.coord_m[i],
                             tile_sz=self.json_label[i]['tile_size'], tile_st=self.json_label[i]['tile_st'],
                             tile_ratio=self.json_label[i]['tile_ratio'], dt=dt[self.json_label[i]['dtype']],
-                            do_im=False), do_type=True)
-                for i in range(self.num_volumes)
+                            do_im=False) for i in range(self.num_volumes)
             ]
+            # float32 may misrepresent large uint32/uint64 numbers -> reduce the label indices
+            if self.do_relabel:
+                label = [reduce_label(x, do_type=True) for x in label]
             label = self.maybe_scale(label, order=0)
 
         valid_mask = None
         if self.json_valid is not None:
-            valid_mask = [tile2volume(self.json_valid[i]['image'], coord_p[i], self.coord_m[i],
-                                      tile_sz=self.json_valid[i]['tile_size'], tile_st=self.json_valid[i]['tile_st'],
-                                      tile_ratio=self.json_valid[i]['tile_ratio'], do_im=False)  for i in range(self.num_volumes)]
+            valid_mask = [
+                tile2volume(self.json_valid[i]['image'], coord_p[i], self.coord_m[i],
+                            tile_sz=self.json_valid[i]['tile_size'], tile_st=self.json_valid[i]['tile_st'],
+                            tile_ratio=self.json_valid[i]['tile_ratio'], do_im=False) for i in range(self.num_volumes)
+            ]
             valid_mask = self.maybe_scale(valid_mask, order=0)
 
-        self.dataset = VolumeDataset(volume, label, valid_mask, mode=self.mode,
+        self.dataset = VolumeDataset(volume, label, valid_mask, mode=self.mode, do_relabel=self.do_relabel,
                                      # specify chunk iteration number for training (-1 for inference)
                                      iter_num=self.chunk_iter if self.mode == 'train' else -1,
                                      **self.kwargs)

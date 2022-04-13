@@ -15,7 +15,6 @@ MODEL:
   IN_PLANES: 1
   OUT_PLANES: 3
   TARGET_OPT: ["2"]
-  LABEL_EROSION: 1
   LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
   LOSS_WEIGHT: [[1.0, 0.5]]
   WEIGHT_OPT: [["1", "0"]]
