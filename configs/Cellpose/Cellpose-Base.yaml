@@ -3,11 +3,11 @@ SYSTEM:
   NUM_GPUS: 1 #4
   NUM_CPUS: 1 #16
 MODEL:
-  INPUT_SIZE: [3, 112, 112]
-  OUTPUT_SIZE: [3, 112, 112]
-  IN_PLANES: 3
+  INPUT_SIZE: [1, 112, 112]
+  OUTPUT_SIZE: [1, 112, 112]
+  IN_PLANES: 1
   OUT_PLANES: 3
-  TARGET_OPT: ["7"]
+  TARGET_OPT: ["7-0"]
   ARCHITECTURE: cellpose
   FILTERS: [32, 64, 128, 256]
   ACT_MODE: relu
@@ -17,7 +17,8 @@ MODEL:
   WEIGHT_OPT: [["1", "0"]]
   OUTPUT_ACT: [["none", "none"]]
   NORM_MODE: bn
-
+MONITOR:
+  ITERATION_NUM: [2, 2]
 DATASET:
   IMAGE_NAME: ../../../../datasets/cellpose/train/imgs_names.txt
   LABEL_NAME: ../../../../datasets/cellpose/train/masks_names.txt
@@ -44,10 +45,9 @@ AUGMENTOR:
   RESCALE:
     ENABLED: False
 
-
 INFERENCE:
-  INPUT_SIZE: [3, 112, 112]
-  OUTPUT_SIZE: [3, 112, 112]
+  INPUT_SIZE: [1, 112, 112]
+  OUTPUT_SIZE: [1, 112, 112]
   OUTPUT_ACT: ["none"]
   IMAGE_NAME: ["000_img.png","001_img.png"] # or path to your test images
   OUTPUT_PATH: outputs/Cellpose/test

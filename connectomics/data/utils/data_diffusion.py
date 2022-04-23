@@ -118,14 +118,14 @@ def extend_centers(neighbors, centers, isneighbor, h, w, n_iter: int = 200):
     return mu
 
 
-def normalize_to_range(X,lower=0.01,upper=99.99):
+def normalize_to_range(X,lower=0.01,upper=0.9999):
     """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
-    x01,x99 = np.percentile(X, 1),np.percentile(X, 99)
+    x01,x99 = torch.quantile(X, 0.01),torch.quantile(X, 0.99)
     return (X - x01) / (x99 - x01)
 
 
 # sinebow color
-def dx_to_circ(flows, alpha=False, mask=None):
+def dx_to_circ(flows, alpha=False, mask=None, return_nparr = False):
     """ Y & X flows to 'optic' flow representation. This function adapted from
     https://github.com/MouseLand/cellpose.
     Args: 
@@ -133,30 +133,34 @@ def dx_to_circ(flows, alpha=False, mask=None):
         alpha: bool, magnitude of flow controls opacity, not lightness (clear background)
         mask: 2D array multiplied to each RGB component to suppress noise
     """
-    flows = np.array(flows)
+    if isinstance(flows,(np.ndarray,np.generic)):
+        flows = torch.from_numpy(flows)
+        return_nparr = True
+    
     if flows.ndim == 3 and flows[0]==2:
-        flows = np.expand_dims(flows,0)
+        flows = torch.unsqueeze(flows,0)
     
     assert flows.ndim == 4, "Expected flows to be of shape (n,2,y,x)"
 
     imgs = []
     for flow in flows:
-        magnitude = np.clip(normalize_to_range(np.sqrt(np.sum(flow**2,axis=0))), 0, 1.)
-        angles = np.arctan2(flow[1], flow[0])+np.pi
+        magnitude = torch.clip(normalize_to_range(torch.sqrt(torch.sum(flow**2,axis=0))), 0, 1.)
+        angles = torch.arctan2(flow[1], flow[0])+torch.pi
         a = 2
-        r = ((np.cos(angles)+1)/a)
-        g = ((np.cos(angles+2*np.pi/3)+1)/a)
-        b = ((np.cos(angles+4*np.pi/3)+1)/a)
+        r = ((torch.cos(angles)+1)/a)
+        g = ((torch.cos(angles+2*torch.pi/3)+1)/a)
+        b = ((torch.cos(angles+4*torch.pi/3)+1)/a)
 
         if alpha:
-            img = np.stack((r,g,b,magnitude),axis=-1)
+            img = torch.stack((r,g,b,magnitude),axis=-1)
         else:
-            img = np.stack((r*magnitude,g*magnitude,b*magnitude),axis=-1)
+            img = torch.stack((r*magnitude,g*magnitude,b*magnitude),axis=-1)
 
         if mask is not None and alpha and flow.shape[0]<3:
             img[:,:,-1] *= mask
 
-        img = (np.clip(img, 0, 1) * 255).astype(np.uint8)
+        img = (torch.clip(img, 0, 1) * 255).to(torch.uint8)
         imgs.append(img)
 
-    return np.transpose(np.array(imgs),(3,0,1,2))
+    vis = torch.permute(torch.stack(imgs),(0,3,1,2))
+    return vis.numpy() if return_nparr else vis

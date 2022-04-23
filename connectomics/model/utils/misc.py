@@ -135,6 +135,13 @@ class SplitActivation(object):
                 self.split_channels.append(channels)
                 continue
 
+            if topt[0] == '7':
+                if (len(topt) > 1) and (topt.split('-')[1] == '0'): 
+                    self.split_channels.append(3)   # cellpose targets + binary mask
+                else:
+                    self.split_channels.append(2)   # only cellpose targets
+                continue
+
             # use the default channel number for other cases
             self.split_channels.append(self.num_channels_dict[topt[0]])
         print("Channel split rule for prediction: ", self.split_channels)
