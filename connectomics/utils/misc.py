@@ -85,6 +85,19 @@ def diff_segm(seg1: np.ndarray, seg2: np.ndarray, iou_thres: float = 0.75,
               progress: bool = False) -> dict:
     """Check the differences between two 3D instance segmentation maps. The 
     background pixels (value=0) are ignored.
+
+    Args:
+        seg1 (np.ndarray): the first segmentation map.
+        seg2 (np.ndarray): the second segmentation map.
+        iou_thres (float): the threshold of intersection-over-union. Default: 0.75
+        progress (bool): show progress bar. Default: False
+
+    Returns:
+        dict: a dict contains lists of shared and unique indicies
+
+    Note:
+        The shared segments in two segmentation maps can have different indices,
+        therefore they are saved separately in the output dict.
     """
     def _get_indices_counts(seg: np.ndarray):
         # return indices and counts while ignoring the background
@@ -97,7 +110,8 @@ def diff_segm(seg1: np.ndarray, seg2: np.ndarray, iou_thres: float = 0.75,
     results ={
         "seg1_unique": [],
         "seg2_unique": [],
-        "shared": [],
+        "shared1": [],
+        "shared2": [],
     }
 
     indices1, counts1 = _get_indices_counts(seg1)
@@ -129,12 +143,14 @@ def diff_segm(seg1: np.ndarray, seg2: np.ndarray, iou_thres: float = 0.75,
             iou = overlap / float(union)
             if iou > best_iou:
                 best_iou = iou
+                matched_idx2 = idx2
 
         if best_iou < iou_thres:
             results["seg1_unique"].append(idx1)
         else: # the segment is shared in both segmentation maps
-            results["shared"].append(idx1)
+            results["shared1"].append(idx1)
+            results["shared2"].append(matched_idx2)
 
-    # "seg2_unique" contains elements in indices2 but not in "shared"
-    results["seg2_unique"] = list(set(indices2) - set(results["shared"]))
+    # "seg2_unique" contains elements in indices2 but not in "shared2"
+    results["seg2_unique"] = list(set(indices2) - set(results["shared2"]))
     return results
