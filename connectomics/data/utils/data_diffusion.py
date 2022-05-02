@@ -31,6 +31,9 @@ def masks2flows(masks: np.ndarray):
     """
     h, w = masks.shape
     masks_padded = np.pad(masks, 1, mode='constant', constant_values=0).astype(np.int64)
+    mu0 = np.zeros((2, h, w))
+    mu_c = np.zeros_like(mu0)
+    centers = np.zeros((masks.max(), 2), 'int')
 
     # get mask pixel neighbors
     y, x = np.nonzero(masks_padded)
@@ -44,7 +47,6 @@ def masks2flows(masks: np.ndarray):
 
     # get mask centers
     slices = scipy.ndimage.find_objects(masks)
-    centers = np.zeros((masks.max(), 2), 'int')
     for i, si in enumerate(slices):
         if si is None: # the object index does not exist
             continue
@@ -70,6 +72,9 @@ def masks2flows(masks: np.ndarray):
             sr, sc = slice_data
             ext.append([sr.stop - sr.start + 1, sc.stop - sc.start + 1])
     ext = np.array(ext)
+    if(len(ext)==0):
+        return mu0, mu_c, centers
+
     n_iter = 2 * (ext.sum(axis=1)).max()
 
     # run diffusion
@@ -79,9 +84,7 @@ def masks2flows(masks: np.ndarray):
     mu /= (1e-20 + (mu**2).sum(axis=0)**0.5)
 
     # put into original image
-    mu0 = np.zeros((2, h, w))
     mu0[:, y-1, x-1] = mu
-    mu_c = np.zeros_like(mu0)
     return mu0, mu_c, centers
 
 
@@ -113,7 +116,6 @@ def extend_centers(neighbors, centers, isneighbor, h, w, n_iter: int = 200):
     grads = T[:, pt[[2,1,4,3],:,0], pt[[2,1,4,3],:,1]]
     dy = grads[:,0] - grads[:,1]
     dx = grads[:,2] - grads[:,3]
-
     mu = np.stack((dy.cpu().squeeze(), dx.cpu().squeeze()), axis=-2)
     return mu
 

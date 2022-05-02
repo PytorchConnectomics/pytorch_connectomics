@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D, UNetPlus2D, Cellpose
+from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D, UNetPlus2D
 from .backbone import RepVGG3D
 
 MODEL_MAP = {
@@ -14,7 +14,6 @@ MODEL_MAP = {
     'deeplabv3a': DeepLabV3,
     'deeplabv3b': DeepLabV3,
     'deeplabv3c': DeepLabV3,
-    'cellpose': Cellpose,
 }
 
 
