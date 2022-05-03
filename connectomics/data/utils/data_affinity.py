@@ -7,7 +7,7 @@ __all__ = [
 ]
 
 
-def mknhood2d(radius=1):
+def mknhood2d(radius: int=1):
     # Makes nhood structures for some most used dense graphs.
     # Janelia pyGreentea: https://github.com/naibaf7/PyGreentea
 
@@ -27,7 +27,7 @@ def mknhood2d(radius=1):
     return nhood
 
 
-def mknhood3d(radius=1):
+def mknhood3d(radius: int=1):
     # Makes nhood structures for some most used dense graphs.
     # Janelia pyGreentea: https://github.com/naibaf7/PyGreentea
 
@@ -53,7 +53,7 @@ def mknhood3d(radius=1):
     return np.ascontiguousarray(np.flipud(nhood))
 
 
-def mknhood3d_aniso(radiusxy=1, radiusxy_zminus1=1.8):
+def mknhood3d_aniso(radiusxy: int=1, radiusxy_zminus1: float=1.8):
     # Makes nhood structures for some most used dense graphs.
     # Janelia pyGreentea: https://github.com/naibaf7/PyGreentea
 
@@ -188,7 +188,7 @@ def seg2aff_v0(seg, pad='replicate'):
     return aff
 
 
-def seg2aff_v1(seg: np.array,
+def seg2aff_v1(seg: np.ndarray,
                dz: int = 1,
                dy: int = 1,
                dx: int = 1,
@@ -254,7 +254,7 @@ def seg2aff_v1(seg: np.array,
     return aff
 
 
-def seg2aff_v2(seg: np.array,
+def seg2aff_v2(seg: np.ndarray,
                dz: int = 1,
                dy: int = 1,
                dx: int = 1,

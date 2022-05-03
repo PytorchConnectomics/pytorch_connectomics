@@ -80,7 +80,7 @@ def _get_file_list(name: Union[str, List[str]],
     return name.split('@')
 
 
-def _rescale(data: np.array, scales: List[float], order: int):
+def _rescale(data: np.ndarray, scales: List[float], order: int):
     if scales is not None and (np.array(scales) != 1).any():
         if data.ndim == 3:
             return zoom(data, scales, order=order)
@@ -94,7 +94,7 @@ def _rescale(data: np.array, scales: List[float], order: int):
     return data # no rescaling
 
 
-def _pad(data: np.array, pad_size: Union[List[int], int], pad_mode: str):
+def _pad(data: np.ndarray, pad_size: Union[List[int], int], pad_mode: str):
     pad_size = get_padsize(pad_size)
     if data.ndim == 3:
         return np.pad(data, pad_size, pad_mode)
