@@ -4,7 +4,7 @@ from typing import Optional, List, Union, Tuple
 import torch
 import torchvision.utils as vutils
 import numpy as np
-from ..data.utils import decode_quantize
+from ..data.utils import decode_quantize, dx_to_circ
 from connectomics.model.utils import SplitActivation
 
 __all__ = [
@@ -57,8 +57,10 @@ class Visualizer(object):
                     temp_label = label[idx].clone().float()[
                         :, np.newaxis]
                     label[idx] = temp_label / temp_label.max() + 1e-6
+            if topt[0]=='7':
+                output[idx] = dx_to_circ(output[idx][:,:2,:])
 
-            RGB = (topt[0] in ['1', '2', '9'])
+            RGB = (topt[0] in ['1', '2', '7', '9'])
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
             if suffix is not None:
                 vis_name = vis_name + '_' + suffix

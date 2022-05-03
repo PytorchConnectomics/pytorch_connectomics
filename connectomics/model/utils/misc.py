@@ -135,6 +135,7 @@ class SplitActivation(object):
                 self.split_channels.append(channels)
                 continue
 
+
             # use the default channel number for other cases
             self.split_channels.append(self.num_channels_dict[topt[0]])
         print("Channel split rule for prediction: ", self.split_channels)
