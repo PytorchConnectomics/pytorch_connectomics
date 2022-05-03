@@ -1,42 +1,44 @@
 # All other configurations are set by default from ../connectomics/config/defaults.py
 SYSTEM:
   NUM_GPUS: 1 #4
-  NUM_CPUS: 1 #16
+  NUM_CPUS: 4 #16
 MODEL:
-  INPUT_SIZE: [3, 112, 112]
-  OUTPUT_SIZE: [3, 112, 112]
-  IN_PLANES: 3
+  INPUT_SIZE: [1, 224, 224]
+  OUTPUT_SIZE: [1, 224, 224]
+  IN_PLANES: 1
   OUT_PLANES: 3
-  TARGET_OPT: ["7"]
-  ARCHITECTURE: cellpose
+  ARCHITECTURE: unet_2d
+  BLOCK_TYPE: residual_se
+  TARGET_OPT: ["0","7"]
   FILTERS: [32, 64, 128, 256]
   ACT_MODE: relu
   PAD_MODE: zeros
-  LOSS_OPTION: [["WeightedMSE","WeightedBCEWithLogitsLoss"]]
-  LOSS_WEIGHT: [[1.0, 1.0]]
-  WEIGHT_OPT: [["1", "0"]]
-  OUTPUT_ACT: [["none", "none"]]
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss"],["WeightedMSE"]]
+  LOSS_WEIGHT: [[1.0],[1.0]]
+  WEIGHT_OPT: [["1"], ["0"]]
+  OUTPUT_ACT: [["none"],["none"]]
   NORM_MODE: bn
-
+MONITOR:
+  ITERATION_NUM: [50, 100]
 DATASET:
-  IMAGE_NAME: ../../../../datasets/cellpose/train/imgs_names.txt
-  LABEL_NAME: ../../../../datasets/cellpose/train/masks_names.txt
-  INPUT_PATH: ../../../../datasets/cellpose/train # dataset path
+  IMAGE_NAME: ../../../gray/imgs_names.txt
+  LABEL_NAME: ../../../gray/masks_names.txt
+  INPUT_PATH: datasets/cellpose # dataset path
   OUTPUT_PATH: outputs/Cellpose/
   DO_2D: True
   LOAD_2D: True
   IS_ISOTROPIC: True 
   SCALE_FACTOR: [1,1]
-  PAD_SIZE: [0, 0, 0]
+  PAD_SIZE: [0, 50, 50]
   DROP_CHANNEL: False
 
 SOLVER:
-  # LR_SCHEDULER_NAME: WarmupCosineLR
-  BASE_LR: 0.2
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.005
   ITERATION_STEP: 1
-  ITERATION_SAVE: 500
+  ITERATION_SAVE: 5000
   ITERATION_TOTAL: 50000
-  SAMPLES_PER_BATCH: 4
+  SAMPLES_PER_BATCH: 32
 
 AUGMENTOR:
   ELASTIC:
@@ -44,12 +46,11 @@ AUGMENTOR:
   RESCALE:
     ENABLED: False
 
-
 INFERENCE:
-  INPUT_SIZE: [3, 112, 112]
-  OUTPUT_SIZE: [3, 112, 112]
-  OUTPUT_ACT: ["none"]
-  IMAGE_NAME: ["000_img.png","001_img.png"] # or path to your test images
+  INPUT_SIZE: [1, 224, 224]
+  OUTPUT_SIZE: [1, 224, 224]
+  OUTPUT_ACT:  ["none","none"]
+  IMAGE_NAME:  ../../../gray_test/imgs_names.txt # or path to your test images
   OUTPUT_PATH: outputs/Cellpose/test
   OUTPUT_NAME: result.h5
   PAD_SIZE: [0,0,0]

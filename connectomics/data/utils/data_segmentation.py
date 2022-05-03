@@ -325,7 +325,14 @@ def seg_to_targets(label_orig: np.ndarray,
             distance = edt_semantic(label.copy(), mode, float(a), float(b))
             out[tid] = distance[np.newaxis, :].astype(np.float32)
         elif topt[0] == '7':  # 2d diffusion gradients (cellpose targets)
-            out[tid] = seg2diffgrads(label)
+            diffgrads = seg2diffgrads(label)
+            if '0' in (topt.split('-')):
+                bin_mask = seg2binary(label, ['0'])
+                if bin_mask.ndim<diffgrads.ndim:
+                    bin_mask = np.expand_dims(bin_mask,0)
+                out[tid] = np.concatenate((diffgrads,bin_mask), axis=0)
+            else:
+                out[tid] = seg2diffgrads(label)
         elif topt[0] == '9':  # generic semantic segmentation
             out[tid] = label.astype(np.int64)
         else:
