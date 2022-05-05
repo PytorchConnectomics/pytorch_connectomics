@@ -224,4 +224,9 @@ Please note that the `test_path.txt` should be a list of absolute paths like the
     /data/test/slice_0004.png
 
 Additionally, ``INFERENCE.DO_SINGLY = True`` will let the pipeline process and save each input image separately, to
-avoid loading all files into memory at the same time.
+avoid loading all files into memory at the same time. The useful Linux command to get the absolute paths of all PNG
+images in a folder is:
+
+.. code-block:: console
+
+    ls -d $(pwd -P)/*.png > path.txt

@@ -43,11 +43,11 @@ class Visualizer(object):
 
         for idx in range(len(self.cfg.MODEL.TARGET_OPT)):
             topt = self.cfg.MODEL.TARGET_OPT[idx]
-            if topt[0] == '9':
+            if topt[0] == '9': # semantic segmentation
                 output[idx] = self.get_semantic_map(output[idx], topt)
                 label[idx] = self.get_semantic_map(
                     label[idx], topt, argmax=False)
-            if topt[0] == '5':
+            if topt[0] == '5': # distance transform
                 if len(topt) == 1:
                     topt = topt + '-2d-0-0-5.0' # default
                 _, mode, padding, quant, z_res = topt.split('-')
@@ -57,8 +57,9 @@ class Visualizer(object):
                     temp_label = label[idx].clone().float()[
                         :, np.newaxis]
                     label[idx] = temp_label / temp_label.max() + 1e-6
-            if topt[0]=='7':
-                output[idx] = dx_to_circ(output[idx][:,:2,:])
+            if topt[0]=='7': # diffusion gradient
+                output[idx] = dx_to_circ(output[idx])
+                label[idx] = dx_to_circ(label[idx])
 
             RGB = (topt[0] in ['1', '2', '7', '9'])
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)

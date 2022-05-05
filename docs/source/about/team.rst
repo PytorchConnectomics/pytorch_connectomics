@@ -8,7 +8,7 @@ application to other biological structures and more imaging modalities (*e.g.*, 
 
 Authors
 ------------
-The following people are currently core contributors to PyTorch Connectomics’s development and maintenance:
+The following people are currently core contributors to PyTorch Connectomics's development and maintenance:
 
 - `Zudi Lin <https://zudi-lin.github.io/>`_ - Ph.D. candidate in the Visual Computing Group at Harvard University
 - `Donglai Wei <https://donglaiw.github.io/>`_ - Assistant Professor of Computer Science at Boston College. Previous postdoctoral fellow in the Visual Computing Group at Harvard University

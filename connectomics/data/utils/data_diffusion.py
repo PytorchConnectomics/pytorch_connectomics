@@ -120,9 +120,9 @@ def extend_centers(neighbors, centers, isneighbor, h, w, n_iter: int = 200):
     return mu
 
 
-def normalize_to_range(X,lower=0.01,upper=0.9999):
+def normalize_to_range(X, lower=0.01, upper=0.9999):
     """ normalize image so 0.0 is 0.01st percentile and 1.0 is 99.99th percentile """
-    x01,x99 = torch.quantile(X, 0.01),torch.quantile(X, 0.99)
+    x01, x99 = torch.quantile(X, 0.01),torch.quantile(X, 0.99)
     return (X - x01) / (x99 - x01)
 
 
@@ -139,15 +139,15 @@ def dx_to_circ(flows, alpha=False, mask=None, return_nparr = False):
         flows = torch.from_numpy(flows)
         return_nparr = True
     
-    if flows.ndim == 3 and flows[0]==2:
-        flows = torch.unsqueeze(flows,0)
+    if flows.ndim == 3 and flows.shape[0] == 2:
+        flows = torch.unsqueeze(flows, 0)
     
     assert flows.ndim == 4, "Expected flows to be of shape (n,2,y,x)"
 
     imgs = []
     for flow in flows:
         magnitude = torch.clip(normalize_to_range(torch.sqrt(torch.sum(flow**2,axis=0))), 0, 1.)
-        angles = torch.arctan2(flow[1], flow[0])+torch.pi
+        angles = torch.atan2(flow[1], flow[0])+torch.pi
         a = 2
         r = ((torch.cos(angles)+1)/a)
         g = ((torch.cos(angles+2*torch.pi/3)+1)/a)

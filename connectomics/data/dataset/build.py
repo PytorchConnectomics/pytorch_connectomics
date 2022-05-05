@@ -7,6 +7,7 @@ import glob
 import copy
 import numpy as np
 from scipy.ndimage import zoom
+from skimage.transform import resize
 
 import torch
 import torch.utils.data
@@ -104,11 +105,36 @@ def _pad(data: np.ndarray, pad_size: Union[List[int], int], pad_mode: str):
     return np.pad(data, tuple(pad_size), pad_mode)
 
 
+def _resize2target(data: np.ndarray, enabled: bool = False, order: int = 0,
+                   target_size: Optional[tuple] = None):
+    """If the data is not larger than or equal to the target size in
+    all dimensions, resize to the minimal size adequate for sampling.
+    """
+    if (not enabled) or (target_size is None):
+        return data
+
+    # data should be in (z,y,x) or (c,z,y,x) formats
+    assert data.ndim in [3, 4]
+    data_size, target_size = np.array(data.shape), np.array(target_size)
+    if (data_size[-3:] >= target_size).all():
+        return data # size is large enough for sampling
+                
+    dtype = data.dtype
+    min_size = tuple(np.maximum(data_size[-3:], target_size))
+    if data.ndim == 4:
+        min_size = tuple(data.shape[0] + list(min_size)) # keep channel number
+    data = resize(data, min_size, order=order, anti_aliasing=False, 
+                  preserve_range=True).astype(dtype)
+
+    return data
+
+
 def _get_input(cfg,
                mode='train',
                rank=None,
                dir_name_init: Optional[list] = None,
-               img_name_init: Optional[list] = None):
+               img_name_init: Optional[list] = None,
+               min_size: Optional[tuple] = None):
     r"""Load the inputs specified by the configuration options.
     """
     assert mode in ['train', 'val', 'test']
@@ -161,6 +187,8 @@ def _get_input(cfg,
             volume[i] = normalize_range(volume[i])
         volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=3)
         volume[i] = _pad(volume[i], pad_size, pad_mode)
+        volume[i] = _resize2target(volume[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
+                                   order=3, target_size=min_size)
         print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
         if mode in ['val', 'train'] and label is not None:
@@ -176,6 +204,8 @@ def _get_input(cfg,
 
             label[i] = _rescale(label[i], cfg.DATASET.LABEL_SCALE, order=0) # nearest
             label[i] = _pad(label[i], pad_size, pad_mode)
+            label[i] = _resize2target(label[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
+                                      order=0, target_size=min_size)
             print(f"label shape (after scaling and padding): {label[i].shape}")
             if cfg.DATASET.LOAD_2D:
                 assert volume[i].shape[1:] == label[i].shape[1:]
@@ -186,6 +216,8 @@ def _get_input(cfg,
             valid_mask[i] = read_fn(valid_mask_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             valid_mask[i] = _rescale(valid_mask[i], cfg.DATASET.VALID_MASK_SCALE, order=0)
             valid_mask[i] = _pad(valid_mask[i], pad_size, pad_mode)
+            valid_mask[i] = _resize2target(valid_mask[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
+                                           order=0, target_size=min_size)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
             if cfg.DATASET.LOAD_2D:
                 assert volume[i].shape[1:] == valid_mask[i].shape[1:]
@@ -283,7 +315,7 @@ def get_dataset(cfg,
 
     else:  # build VolumeDataset or VolumeDatasetMultiSeg
         volume, label, valid_mask = _get_input(
-            cfg, mode, rank, dir_name_init, img_name_init)
+            cfg, mode, rank, dir_name_init, img_name_init, min_size=sample_volume_size)
 
         if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
             shared_kwargs['multiseg_split'] = cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT

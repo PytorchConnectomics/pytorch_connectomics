@@ -160,6 +160,11 @@ _C.DATASET.REDUCE_LABEL = True
 _C.DATASET.PAD_SIZE = [2, 64, 64]
 _C.DATASET.PAD_MODE = 'reflect'  # reflect, constant, symmetric
 
+# Upsample the input to at least the required sample size. If data 
+# augmentor is used, the min_size is augmentor.sample_size, else is
+# MODEL.INPUT_SIZE.
+_C.DATASET.ENSURE_MIN_SIZE = False
+
 # Normalize the image and cast to uint8 format
 _C.DATASET.NORMALIZE_RANGE = True
 

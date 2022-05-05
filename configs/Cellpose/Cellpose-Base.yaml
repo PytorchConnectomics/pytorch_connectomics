@@ -1,37 +1,36 @@
 # All other configurations are set by default from ../connectomics/config/defaults.py
 SYSTEM:
-  NUM_GPUS: 1 #4
-  NUM_CPUS: 4 #16
+  NUM_GPUS: 1
+  NUM_CPUS: 16
 MODEL:
-  INPUT_SIZE: [1, 224, 224]
-  OUTPUT_SIZE: [1, 224, 224]
-  IN_PLANES: 1
-  OUT_PLANES: 3
   ARCHITECTURE: unet_2d
   BLOCK_TYPE: residual_se
-  TARGET_OPT: ["0","7"]
-  FILTERS: [32, 64, 128, 256]
-  ACT_MODE: relu
-  PAD_MODE: zeros
-  LOSS_OPTION: [["WeightedBCEWithLogitsLoss"],["WeightedMSE"]]
-  LOSS_WEIGHT: [[1.0],[1.0]]
-  WEIGHT_OPT: [["1"], ["0"]]
-  OUTPUT_ACT: [["none"],["none"]]
-  NORM_MODE: bn
-MONITOR:
-  ITERATION_NUM: [50, 100]
+  INPUT_SIZE: [1, 225, 225]
+  OUTPUT_SIZE: [1, 225, 225]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ["0", "7"]
+  ACT_MODE: leaky_relu
+  LOSS_OPTION:
+    - - WeightedBCEWithLogitsLoss
+      - DiceLoss
+    - - WeightedMSE
+  LOSS_WEIGHT: [[1.0, 0.5], [4.0]]
+  WEIGHT_OPT: [["1", "0"], ["0"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["tanh"]]
+  NORM_MODE: gn
+  FILTERS: [32, 64, 128, 256, 512] 
 DATASET:
-  IMAGE_NAME: ../../../gray/imgs_names.txt
-  LABEL_NAME: ../../../gray/masks_names.txt
-  INPUT_PATH: datasets/cellpose # dataset path
-  OUTPUT_PATH: outputs/Cellpose/
+  IMAGE_NAME: datasets/cellpose/images.txt
+  LABEL_NAME: datasets/cellpose/masks.txt
+  OUTPUT_PATH: outputs/Cellpose_UNet2D/
   DO_2D: True
   LOAD_2D: True
-  IS_ISOTROPIC: True 
-  SCALE_FACTOR: [1,1]
-  PAD_SIZE: [0, 50, 50]
+  IS_ABSOLUTE_PATH: True
+  SCALE_FACTOR: [1, 1]
+  PAD_SIZE: [0, 16, 16]
   DROP_CHANNEL: False
-
+  ENSURE_MIN_SIZE: True
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.005
@@ -39,19 +38,22 @@ SOLVER:
   ITERATION_SAVE: 5000
   ITERATION_TOTAL: 50000
   SAMPLES_PER_BATCH: 32
-
 AUGMENTOR:
   ELASTIC:
     ENABLED: False
   RESCALE:
     ENABLED: False
-
+  MISSINGPARTS:
+    ENABLED: False
+MONITOR:
+  ITERATION_NUM: [50, 100]
 INFERENCE:
   INPUT_SIZE: [1, 224, 224]
   OUTPUT_SIZE: [1, 224, 224]
-  OUTPUT_ACT:  ["none","none"]
+  OUTPUT_ACT:  ["sigmoid", "tanh"]
   IMAGE_NAME:  ../../../gray_test/imgs_names.txt # or path to your test images
-  OUTPUT_PATH: outputs/Cellpose/test
-  OUTPUT_NAME: result.h5
-  PAD_SIZE: [0,0,0]
-  SAMPLES_PER_BATCH: 4
+  OUTPUT_PATH: outputs/Cellpose_UNet2D/test
+  OUTPUT_NAME: pred
+  PAD_SIZE: [0,32,32]
+  SAMPLES_PER_BATCH: 32
+  
