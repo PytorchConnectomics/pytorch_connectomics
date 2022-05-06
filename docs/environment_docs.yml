@@ -100,3 +100,4 @@ dependencies:
     - sphinxcontrib-katex==0.8.6
     - sphinxcontrib-qthelp==1.0.3
     - sphinxcontrib-serializinghtml==1.1.5
+    - git+https://github.com/zudi-lin/pytorch_connectomics.git # connectomics
