@@ -9,12 +9,16 @@ version: 2
 sphinx:
   configuration: docs/source/conf.py
 
+# Specify dependency based on conda environment
+conda:
+  environment: docs/environment_docs.yml
+
 # Optionally set the version of Python and requirements required to build your docs
-python:
-  version: 3.8
-  install:
-    - requirements: docs/requirements.txt
-    - requirements: docs/readthedocs.txt
-    - method: pip
-      path: .
-  system_packages: false
+# python:
+#   version: 3.8
+#   install:
+#     - requirements: docs/requirements.txt
+#     - requirements: docs/readthedocs.txt
+#     - method: pip
+#       path: .
+#   system_packages: false
