@@ -82,7 +82,7 @@ Verify that ``nvcc`` is accessible from terminal:
 
 Ensure that PyTorch and system CUDA versions match:
 
-.. code-block:: none
+.. code-block:: console
 
     python -c 'import torch; print(torch.version.cuda)'
     >>> 11.0
@@ -91,9 +91,17 @@ The codebase is mainly developed and tested on the Harvard `FASRC <https://www.r
 For FASRC users, please load required CUDA modules from the `RC server module list <https://portal.rc.fas.harvard.edu/p3/build-reports/>`_ during 
 running and development on the cluster. For example:
 
-.. code-block:: none
+.. code-block:: console
 
     module load cuda cudnn
+
+if you only want to install pytorch_connectomics as a Python library without clone the repository with all the pre-defined configuration files, please
+use ``pip`` to directly install the library from GitHub:
+
+.. code-block:: console
+
+    pip install git+https://github.com/zudi-lin/pytorch_connectomics.git    
+
 
 .. note::
 

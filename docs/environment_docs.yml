@@ -81,24 +81,9 @@ dependencies:
   - zlib=1.2.11=h166bdaf_1014
   - zstd=1.5.2=ha95c52a_0
   - pip:
-    - alabaster==0.7.12
-    - babel==2.10.1
-    - docutils==0.18.1
-    - imagesize==1.3.0
-    - jinja2==3.0.3
-    - markupsafe==2.1.1
-    - packaging==21.3
-    - pygments==2.12.0
-    - pyparsing==3.0.8
-    - pytz==2022.1
-    - snowballstemmer==2.2.0
-    - sphinx==3.4.3
-    - sphinxcontrib-applehelp==1.0.2
-    - sphinxcontrib-devhelp==1.0.2
-    - sphinxcontrib-htmlhelp==2.0.0
-    - sphinxcontrib-jsmath==1.0.1
-    - sphinxcontrib-katex==0.8.6
-    - sphinxcontrib-qthelp==1.0.3
-    - sphinxcontrib-serializinghtml==1.1.5
+    - sphinx==3.5.4
+    - Jinja2==3.0.*
+    - docutils==0.16
+    - -e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
+    - sphinxcontrib.katex
     - git+https://github.com/zudi-lin/pytorch_connectomics.git # connectomics
-    - git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
