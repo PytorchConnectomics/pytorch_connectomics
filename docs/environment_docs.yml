@@ -101,3 +101,4 @@ dependencies:
     - sphinxcontrib-qthelp==1.0.3
     - sphinxcontrib-serializinghtml==1.1.5
     - git+https://github.com/zudi-lin/pytorch_connectomics.git # connectomics
+    - git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
