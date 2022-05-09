@@ -3,7 +3,7 @@ import torch
 
 from connectomics.utils.system import get_args, init_devices
 from connectomics.config import load_cfg, save_all_cfg
-from ganloss_ssl.trainer import TrainerGANLoss
+from ganloss_ssl.trainer import TrainerGANLoss, TrainerGANLossFeatAlign
 from ganloss_ssl.config import add_ganloss_config
 
 
@@ -25,9 +25,10 @@ def main():
 
     # start training or inference
     mode = 'test' if args.inference else 'train'
-    trainer = TrainerGANLoss(
-        cfg, device=device, mode=mode,
-        rank=args.local_rank, checkpoint=args.checkpoint)
+    feat_align = cfg.UNLABELED.FEATURE_ALIGNMENT.ENABLED
+    _t = TrainerGANLossFeatAlign if feat_align else TrainerGANLoss
+    trainer = _t(cfg, device=device, mode=mode, rank=args.local_rank, 
+                 checkpoint=args.checkpoint)
 
     # Start training or inference:
     assert cfg.DATASET.DO_CHUNK_TITLE == 0 # TileDataset case is not supported

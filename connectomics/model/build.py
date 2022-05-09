@@ -35,6 +35,7 @@ def build_model(cfg, device, rank=None):
         'act_mode': cfg.MODEL.ACT_MODE,
         'norm_mode': cfg.MODEL.NORM_MODE,
         'pooling': cfg.MODEL.POOLING_LAYER,
+        'return_feats': cfg.MODEL.RETURN_FEATS,
     }
 
     if model_arch == 'fpn_3d':

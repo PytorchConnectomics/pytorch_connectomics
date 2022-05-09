@@ -1,0 +1,62 @@
+SYSTEM:
+  NUM_GPUS: 2
+  NUM_CPUS: 16
+AUGMENTOR:
+  SMOOTH: False
+  MISSINGPARTS:
+    ITER: 128 # mask out more image regions
+MODEL:
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [17, 257, 257]
+  OUTPUT_SIZE: [17, 257, 257]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ["2"]
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  FILTERS: [32, 64, 96, 128, 160]
+  ACT_MODE: leaky_relu
+  NORM_MODE: gn
+  RETURN_FEATS: [0, 4]
+# Configurations specific to GANLossSSL
+UNLABELED:
+  IMAGE_NAME: test-input_z29-62.h5
+  GAN_UNLABELED_ONLY: False
+  D_DILATION: 4 # dilated conv in the discriminator
+  SAMPLES_PER_BATCH: 2
+  FEATURE_ALIGNMENT: 
+    ENABLED: True # enable feature alignment
+    D_IS_ISOTROPIC: [True, False]
+    D_FILTERS: [[64, 64, 64, 64, 64], [64, 64, 64, 128, 128]]
+    STRIDE_LIST: [[1, 1, 1, 1, 1], "default"]
+DATASET:
+  IMAGE_NAME: train_image.h5
+  LABEL_NAME: train_label.h5
+  INPUT_PATH: datasets/SNEMI3D/ # or your own dataset path
+  OUTPUT_PATH: outputs/SNEMI3D/
+  PAD_SIZE: [4, 64, 64]
+SOLVER:
+  NAME: AdamW
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 2e-3
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 10000
+  ITERATION_TOTAL: 150000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [40, 1000]
+INFERENCE:
+  INPUT_SIZE: [17, 513, 513]
+  OUTPUT_SIZE: [17, 513, 513]
+  OUTPUT_ACT: ["sigmoid"]
+  IMAGE_NAME: test-input.tif # or path to your test images
+  OUTPUT_PATH: outputs/SNEMI3D/test
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [4, 32, 32]
+  AUG_MODE: mean
+  AUG_NUM: None
+  STRIDE: [8, 256, 256]
+  SAMPLES_PER_BATCH: 4

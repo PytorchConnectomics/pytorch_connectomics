@@ -18,7 +18,7 @@ class Discriminator3D(nn.Module):
         is_isotropic (bool): whether the whole model is isotropic. Default: False
         isotropy (List[bool]): specify each discriminator layer is isotropic or anisotropic. All elements will
             be `True` if :attr:`is_isotropic` is `True`. Default: [False, False, False, True, True]
-        stride_list (List[int]): list of strides for each conv layer. Default: [2, 2, 2, 1, 1]
+        stride_list (List[int]): list of strides for each conv layer. Default: [2, 2, 2, 2, 1]
     """
 
     def __init__(self,

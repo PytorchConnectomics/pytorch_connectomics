@@ -95,13 +95,12 @@ running and development on the cluster. For example:
 
     module load cuda cudnn
 
-if you only want to install pytorch_connectomics as a Python library without clone the repository with all the pre-defined configuration files, please
-use ``pip`` to directly install the library from GitHub:
+If you only want to install pytorch_connectomics as a Python library without clone the repository with all the pre-defined configuration files, please
+use ``pip`` to directly install it from GitHub:
 
 .. code-block:: console
 
     pip install git+https://github.com/zudi-lin/pytorch_connectomics.git    
-
 
 .. note::
 

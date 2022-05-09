@@ -109,6 +109,8 @@ _C.MODEL.PRE_MODEL_LAYER = ''
 
 _C.MODEL.PRE_MODEL_ITER = 0
 
+# Return specified feature maps (only works with 3D U-Net and child classes)
+_C.MODEL.RETURN_FEATS = None
 # Predict an auxiliary output (only works with 2D DeeplabV3)
 _C.MODEL.AUX_OUT = False
 

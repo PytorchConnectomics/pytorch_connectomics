@@ -11,7 +11,8 @@ from connectomics.model.utils import SplitActivation
 
 def _forward(model, volume):
     output = model(volume)
-    assert isinstance(output, (torch.Tensor, OrderedDict))
+    assert isinstance(output, (torch.Tensor, OrderedDict)), "Output is expected to be " + \
+        f"torch.Tensor or OrderedDict, but got {type(output)}!"
     if isinstance(output, torch.Tensor):
         return output
 

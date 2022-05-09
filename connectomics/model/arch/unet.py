@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 from typing import Optional, List
+from collections import OrderedDict
 
 import torch
 import math
@@ -50,15 +51,19 @@ class UNet3D(nn.Module):
                  init_mode: str = 'orthogonal',
                  pooling: bool = False,
                  blurpool: bool = False,
+                 return_feats: Optional[list] = None,
                  **kwargs):
         super().__init__()
         self.depth = len(filters)
+        self.do_return_feats = (return_feats is not None)
+        self.return_feats = return_feats
+        print(f"Return feature maps from 3D U-Net? {self.do_return_feats}")
+
         if is_isotropic:
             isotropy = [True] * self.depth
         assert len(filters) == len(isotropy)
 
         block = self.block_dict[block_type]
-
         self.pooling, self.blurpool = pooling, blurpool
         self.shared_kwargs = {
             'pad_mode': pad_mode,
@@ -108,15 +113,32 @@ class UNet3D(nn.Module):
             down_x[i] = x
 
         x = self.down_layers[-1](x)
-
+        self._maybe_collect_feat(x, restart=True) # the first one to collect
+        
         for j in range(self.depth-1):
             i = self.depth-2-j
             x = self.up_layers[i][0](x)
             x = self._upsample_add(x, down_x[i])
             x = self.up_layers[i][1](x)
+            self._maybe_collect_feat(x)
 
         x = self.conv_out(x)
+        if self.do_return_feats:
+            return x, self.feats
         return x
+
+    def _maybe_collect_feat(self, x, restart: bool=False):
+        """Collect U-Net features at different pyramid levels."""
+        if not self.do_return_feats:
+            return
+    
+        if restart:
+            self.feats = OrderedDict()
+            self.feat_index = -1
+
+        self.feat_index += 1
+        if self.feat_index in self.return_feats:
+            self.feats[self.feat_index] = x
 
     def _upsample_add(self, x, y):
         """Upsample and add two feature maps.
@@ -185,6 +207,7 @@ class UNetPlus3D(UNet3D):
         x = self.down_layers[-1](x)
         x = self.non_local(x)
         feat = x  # lowest-res feature map
+        self._maybe_collect_feat(x, restart=True) # the first one to collect
 
         for j in range(self.depth-1):
             i = self.depth-2-j
@@ -192,8 +215,11 @@ class UNetPlus3D(UNet3D):
             x = self._upsample_add(x, down_x[i])
             x = self._upsample_add(self.feat_layers[i](feat), x)
             x = self.up_layers[i][1](x)
+            self._maybe_collect_feat(x)
 
         x = self.conv_out(x)
+        if self.do_return_feats:
+            return x, self.feats
         return x
 
 
