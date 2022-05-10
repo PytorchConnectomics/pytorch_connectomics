@@ -89,7 +89,7 @@ boundary to distinguish closely touching objects. Specifically, we can use the f
 
 ``TARGET_OPT``: a list of the targets to learn.
 
-Currently six kinds of ``TARGET_OPT`` are supported:
+Currently seven types of ``TARGET_OPT`` are supported:
 
 - ``'0'``: binary foreground mask (used in the `mitochondria semantic segmentation tutorial <../tutorials/mito.html#semantic-segmentation>`_).
 
@@ -105,7 +105,8 @@ Currently six kinds of ``TARGET_OPT`` are supported:
 
 - ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents the 12 semantic classes.
 
-More options will be provided during the development!
+The list of learning targets here can be outdated. To check the latest version of supported learning targets, please see the 
+``seg_to_targets`` function in this `file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/data/utils/data_segmentation.py>`_.
 
 Inference
 -----------

@@ -14,6 +14,19 @@ UNLABELED:
   SAMPLES_PER_BATCH: 2 # batch size of the unlabeled data
 ```
 
+There are also configurations for feature-level distribution alignment, under `UNLABELED`:
+
+```yaml
+UNLABELED:
+  FEATURE_ALIGNMENT:
+    ENABLED: False # whether to enable feature-level alignment
+    D_IS_ISOTROPIC: None # isotropy of feature discriminator
+    D_FILTERS: None # filters of feature discriminator 
+    STRIDE_LIST: None # strides of feature discriminator
+```
+
+For each of the feature discriminator configurations, setting it to `None` means using the defaults.
+
 ### Command
 
 Training command (after `source activate py3_torch`) using distributed data parallel:

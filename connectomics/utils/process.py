@@ -5,12 +5,13 @@ import numpy as np
 from scipy import ndimage
 from skimage.measure import label
 from skimage.transform import resize
-from skimage.morphology import dilation
+from skimage.morphology import dilation, binary_dilation
 from skimage.segmentation import watershed
 from skimage.morphology import remove_small_objects
 
 from connectomics.data.utils import getSegType
 from .misc import bbox_ND, crop_ND
+
 
 __all__ = ['binary_connected',
            'binary_watershed',
@@ -18,6 +19,7 @@ __all__ = ['binary_connected',
            'bc_watershed',
            'bcd_watershed',
            'polarity2instance']
+
 
 # Post-processing functions of mitochondria instance segmentation model outputs
 # as described in "MitoEM Dataset: Large-scale 3D Mitochondria Instance Segmentation
@@ -46,6 +48,7 @@ def binary_connected(volume, thres=0.8, thres_small=128, scale_factors=(1.0, 1.0
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
 
     return cast2dtype(segm)
+
 
 def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                      remove_small_mode='background', seed_thres=32):
@@ -79,6 +82,7 @@ def binary_watershed(volume, thres1=0.98, thres2=0.85, thres_small=128, scale_fa
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
 
     return cast2dtype(segm)
+
 
 def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                  dilation_struct=(1,5,5), remove_small_mode='background'):
@@ -117,6 +121,7 @@ def bc_connected(volume, thres1=0.8, thres2=0.5, thres_small=128, scale_factors=
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
 
     return cast2dtype(segm)
+
 
 def bc_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres_small=128, scale_factors=(1.0, 1.0, 1.0),
                  remove_small_mode='background', seed_thres=32, return_seed=False, precomputed_seed=None):
@@ -210,11 +215,12 @@ def bcd_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres4=0.5, thres
 
     return cast2dtype(segm), seed
 
+
 # Post-processing functions for synaptic polarity model outputs as described
 # in "Two-Stream Active Query Suggestion for Active Learning in Connectomics
 # (ECCV 2020, https://zudi-lin.github.io/projects/#two_stream_active)".
-def polarity2instance(volume, thres=0.5, thres_small=128,
-                      scale_factors=(1.0, 1.0, 1.0), semantic=False):
+def polarity2instance(volume: np.ndarray, thres: float=0.5, thres_small: int=128, 
+                      scale_factors: tuple=(1.0, 1.0, 1.0), semantic: bool=False, dilate_sz: int=5):
     r"""From synaptic polarity prediction to instance masks via connected-component
     labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`
     where :math:`C=3`, representing pre-synaptic region, post-synaptic region and their
@@ -239,6 +245,7 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         thres_small (int): size threshold of small objects to remove. Default: 128
         scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
         semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False
+        dilate_sz (int): define a struct of size (1, dilate_sz, dilate_sz) to dilate the masks. Default: 5
 
     Examples::
         >>> from connectomics.data.utils import readvol, savevol
@@ -248,12 +255,12 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         >>> savevol(output_name, instances)
     """
     thres = int(255.0 * thres)
-    temp = (volume > thres).astype(np.uint8)
+    temp = (volume > thres) # boolean array
 
-    syn_pre = temp[0] * temp[2]
+    syn_pre = np.logical_and(temp[0], temp[2])
     syn_pre = remove_small_objects(syn_pre,
                 min_size=thres_small, connectivity=1)
-    syn_post = temp[1] * temp[2]
+    syn_post = np.logical_and(temp[1], temp[2])
     syn_post = remove_small_objects(syn_post,
                 min_size=thres_small, connectivity=1)
 
@@ -263,9 +270,10 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         segm = np.maximum(syn_pre.astype(np.uint8),
                           syn_post.astype(np.uint8) * 2)
 
-    else:
-        # Generate the instance mask.
-        foreground = dilation(temp[2].copy(), np.ones((1,5,5)))
+    else:# Generate the instance mask.
+        # The pre- and post-synaptic masks may not touch each other. Dilating the 
+        # union masks to define each synapse instance.
+        foreground = binary_dilation(temp[2], np.ones((1,dilate_sz,dilate_sz), bool))
         foreground = label(foreground)
 
         # Since non-zero pixels in seg_pos and seg_neg are subsets of temp[2],
@@ -275,12 +283,11 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         segm = np.maximum(seg_pre, seg_post)
 
         # Report the number of synapses
-        num_syn_pre = len(np.unique(seg_pre))-1
-        num_syn_post = len(np.unique(seg_post))-1
-        num_syn = min(num_syn_pre, num_syn_post) # a conservative estimate
-        print("Stats: found %d pre- and %d post-" % (num_syn_pre, num_syn_post) +
-              "synaptic segments in the volume")
-        print("There are %d synapses under a conservative estimate." % num_syn)
+        num_pre = len(np.unique(seg_pre))-1
+        num_post = len(np.unique(seg_post))-1
+        num_syn = min(num_pre, num_post) # a conservative estimate
+        print(f"Stats: found {num_pre} pre- and {num_post} post-synaptic segments.")
+        print(f"There are {num_syn} synapses under a conservative estimate.")
 
     # resize the segmentation based on specified scale factors
     if not all(x==1.0 for x in scale_factors):
@@ -290,6 +297,7 @@ def polarity2instance(volume, thres=0.5, thres_small=128,
         segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
 
     return cast2dtype(segm)
+
 
 # utils for post-processing
 def binarize_and_median(pred, size=(7,7,7), thres=0.8):
@@ -303,6 +311,7 @@ def binarize_and_median(pred, size=(7,7,7), thres=0.8):
     pred = (pred > thres).astype(np.uint8)
     pred = ndimage.median_filter(pred, size=size)
     return pred
+
 
 def remove_small_instances(segm: np.ndarray,
                            thres_small: int = 128,
@@ -318,6 +327,10 @@ def remove_small_instances(segm: np.ndarray,
     if mode == 'none':
         return segm
 
+    # The function remove_small_objects expects ar to be an array with labeled objects, and 
+    # removes objects smaller than min_size. If ar is bool, the image is first labeled. This 
+    # leads to potentially different behavior for bool and 0-and-1 arrays. Reference:
+    # https://scikit-image.org/docs/stable/api/skimage.morphology.html#remove-small-objects
     if mode == 'background':
         return remove_small_objects(segm, thres_small)
     elif mode == 'background_2d':
@@ -331,6 +344,7 @@ def remove_small_instances(segm: np.ndarray,
         temp = [merge_small_objects(segm[i], thres_small)
                 for i in range(segm.shape[0])]
         return np.stack(temp, axis=0)
+
 
 def merge_small_objects(segm, thres_small, do_3d=False):
     struct = np.ones((1,3,3)) if do_3d else np.ones((3,3))
@@ -355,6 +369,7 @@ def merge_small_objects(segm, thres_small, do_3d=False):
 
     return segm
 
+
 def remove_large_instances(segm: np.ndarray,
                            max_size: int = 2000):
     """Remove large instances given a maximum size threshold.
@@ -365,6 +380,7 @@ def remove_large_instances(segm: np.ndarray,
     too_large_mask = too_large[segm]
     out[too_large_mask] = 0
     return out
+
 
 def cast2dtype(segm):
     """Cast the segmentation mask to the best dtype to save storage.
@@ -382,7 +398,6 @@ def stitch_3d(masks, stitch_threshold=0.25):
         stitch_threshold (float): threshold for joining 2D annotations via IOU. Default: 0.25
 
     """
-    
     mmax = masks[0].max()
     empty = 0
     
@@ -436,6 +451,7 @@ def intersection_over_union(masks_true, masks_pred):
     iou = overlap / (n_pixels_pred + n_pixels_true - overlap)
     iou[np.isnan(iou)] = 0.0
     return iou
+
 
 def _label_overlap(x, y):
     """ Creates a look up table that records the pixel overlap
