@@ -171,6 +171,8 @@ class TrainerGANLossFeatAlign(TrainerGANLoss):
     """
     def __init__(self, cfg: CfgNode, **kwargs):
         super().__init__(cfg, **kwargs)
+        if self.mode != 'train':
+            return # initialization is done if not training
 
         # build the discriminator(s) for feature alignment
         self.feat_indices = cfg.MODEL.RETURN_FEATS

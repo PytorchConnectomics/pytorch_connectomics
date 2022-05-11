@@ -13,5 +13,6 @@ MODEL:
 INFERENCE:
   OUTPUT_ACT: ['sigmoid', 'sigmoid']
   OUTPUT_PATH: outputs/NucExM_DA_BC/test/
+  MODEL_RETURN_FEATS: None # features not needed for inference
 DATASET:
   OUTPUT_PATH: outputs/NucExM_DA_BC/

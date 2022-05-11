@@ -66,6 +66,8 @@ def update_inference_cfg(cfg: CfgNode):
         cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
     if cfg.INFERENCE.OUTPUT_SIZE is not None:
         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+    # specify feature maps to return as inference time
+    cfg.MODEL.RETURN_FEATS = cfg.INFERENCE.MODEL_RETURN_FEATS
 
     # output file name(s)
     out_name = cfg.INFERENCE.OUTPUT_NAME

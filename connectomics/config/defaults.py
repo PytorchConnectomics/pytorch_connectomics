@@ -444,6 +444,9 @@ _C.INFERENCE.TEST_ID = 0
 # effective batch size is 32.
 _C.INFERENCE.SAMPLES_PER_BATCH = 4
 
+# Change MODEL.RETURN_FEATS at inference time.
+_C.INFERENCE.MODEL_RETURN_FEATS = None
+
 
 def get_cfg_defaults():
     r"""Get a yacs CfgNode object with default values for my_project."""

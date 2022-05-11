@@ -45,6 +45,7 @@ SOLVER:
 MONITOR:
   ITERATION_NUM: [20, 200]
 INFERENCE:
+  MODEL_RETURN_FEATS: None # features not needed for inference
   INPUT_SIZE: [33, 257, 257]
   OUTPUT_SIZE: [33, 257, 257]
   IMAGE_NAME: imageY.tif
