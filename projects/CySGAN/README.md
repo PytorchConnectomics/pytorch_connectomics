@@ -28,13 +28,27 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.launch \
 --config-file projects/CySGAN/configs/CySGAN-UNet-BCD.yaml
 ```
 
-Inference command using data parallel:
+Inference command using data parallel (remember to change the checkpoint path if you are using a pretrained model):
 
 ```bash
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u projects/CySGAN/main.py \
 --inference --config-base projects/CySGAN/configs/CySGAN-Base.yaml \
 --config-file projects/CySGAN/configs/CySGAN-UNet-BCD.yaml \
 --checkpoint outputs/CySGAN_BCD/checkpoint_100000.pth.tar
+```
+
+To convert the predicted probability maps into instance segmentation, use the following post-processing code. Please note that the translated image is not required for segmentation, only the BCD representations are needed.
+
+```python
+from connectomics.data.utils import readvol, savevol
+from connectomics.utils.process import bcd_watershed
+pred = readvol("CySGAN_BCD/test/pred.h5") # your own path to prediction
+
+segm_pred = pred[1:] # the 1st channel is translated image
+segm, seed = bcd_watershed(
+    segm_pred, thres1=0.9, thres2=0.2, thres3=0.7, thres4=0.5, thres5=-0.1, 
+    return_seed=True, seed_thres=32, thres_small=256)
+savevol("segm.h5", segm) # your own path to save segm
 ```
 
 ### Citation
@@ -48,6 +62,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u projects/CySGAN/main.py \
 }
 ```
 
-### Acknowledgement
+Please also cite the [PyTorch Connectomics](https://github.com/zudi-lin/pytorch_connectomics#citation) package if you find our codebase useful.
+
+### Acknowledgements
 
 This work has been partially supported by NSF awards IIS-1835231 and IIS-2124179 and NIH grant 5U54CA225088-03.
