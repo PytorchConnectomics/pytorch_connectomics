@@ -1,53 +1,52 @@
-Acknowledgement: Adapted from [Pytorch](https://github.com/pytorch/pytorch/edit/master/CONTRIBUTING.md)
-
+Acknowledgement: this document is adapted from [Pytorch](https://github.com/pytorch/pytorch/edit/master/CONTRIBUTING.md).
 
 # Table of Contents
 <!-- toc -->
-- [Contributing to PyTorchConnectomics](#contributing-to-pytorch)
-- [Developing PyTorchConnectomics](#developing-pytorch)
+- [Contributing to PyTorch Connectomics](#contributing-to-pytorch)
+- [Developing PyTorch Connectomics](#developing-pytorch)
   - [Tips and Debugging](#tips-and-debugging)
-- [Codebase structure](#codebase-structure)
-- [Unit testing](#unit-testing)
-  - [Python Unit Testing](#python-unit-testing)
+- [Codebase Structure](#codebase-structure)
+- [Unit Testing](#unit-testing)
+  - [Python unit testing](#python-unit-testing)
   - [Better local unit tests with `pytest`](#better-local-unit-tests-with-pytest)
   - [Local linting](#local-linting)
-- [Writing documentation](#writing-documentation)
+- [Writing Documentation](#writing-documentation)
   - [Building documentation](#building-documentation)
     - [Tips](#tips)
   - [Previewing changes locally](#previewing-changes-locally)
   - [Adding documentation tests](#adding-documentation-tests)
 <!-- tocstop -->
 
-## Contributing to PyTorchConnectomics
+## Contributing to PyTorch Connectomics
 
-Thank you for your interest in contributing to PyTorchConnectomics! Before you begin writing code, it is important
-that you share your intention to contribute with the team, based on the type of contribution:
+Thank you for your interest in contributing to PyTorch Connectomics! Before you begin writing code, it is important that you share your intention to contribute with the team, based on the type of contribution:
 
 1. You want to propose a new feature and implement it.
     - Post about your intended feature in an [issue](https://github.com/zudi-lin/pytorch_connectomics/issues),
     and we shall discuss the design and implementation. Once we agree that the plan looks good,
     go ahead and implement it.
+
 2. You want to implement a feature or bug-fix for an outstanding issue.
-    - Search for your issue in the [PytorchConnectomics issue list]([https://github.com/zudi-lin/pytorch_connectomics/issues](https://github.com/zudi-lin/pytorch_connectomics/issues)).
+    - Search for your issue in the [Pytorch Connectomics issue list]([https://github.com/zudi-lin/pytorch_connectomics/issues](https://github.com/zudi-lin/pytorch_connectomics/issues)).
     - Pick an issue and comment that you'd like to work on the feature or bug-fix.
     - If you need more context on a particular issue, please ask and we shall provide.
 
-Once you implement and test your feature or bug-fix, please submit a Pull Request to
-https://github.com/zudi-lin/pytorch_connectomics.
+Once you implement and test your feature or bug-fix, please submit a **pull request (PR)** to
+https://github.com/zudi-lin/pytorch_connectomics/pulls.
 
 
-## Developing PyTorchConnectomics
+## Developing PyTorch Connectomics
 
-To develop PyTorchConnectomics on your machine, here are some tips:
+To develop PyTorch Connectomics on your machine, here are some tips:
 
-1. Clone a copy of PyTorchConnectomics from source:
+I. Clone a copy of PyTorch Connectomics from source:
 
 ```bash
 git clone https://github.com/zudi-lin/pytorch_connectomics
 cd pytorch_connectomics
 ```
 
-2.1. If you already have PyTorchConnectomics from source, update it:
+II. If you already have PyTorch Connectomics from source, update it:
 
 ```bash
 git pull --rebase
@@ -57,7 +56,7 @@ git submodule update --init --recursive --jobs 0
 
 If you want to have no-op incremental rebuilds (which are fast), see the section below titled "Make no-op build fast."
 
-3. Install PyTorchConnectomics in `develop` mode:
+III. Install PyTorch Connectomics in `develop` mode:
 
 The change you have to make is to replace
 
@@ -71,15 +70,12 @@ with
 python setup.py develop
 ```
 
-This mode will symlink the PyTorchConnectomics files from the current local source
-tree into the Python install.  Hence, if you modify a Python file, you
-do not need to reinstall PyTorch again and again.  This is especially
-useful if you are only changing Python files.
+This mode will symlink the PyTorch Connectomics files from the current local source tree into the Python install. Hence, if you modify a Python file, you do not need to reinstall PyTorch again and again.  This is especially useful if you are only changing Python files.
 
 For example:
-- Install local PyTorchConnectomics in `develop` mode
-- modify your PyTorchConnectomics file `connectomics/__init__.py` (for example)
-- test functionality
+- Install local PyTorch Connectomics in `develop` mode
+- Modify your PyTorch Connectomics file `connectomics/__init__.py` (for example)
+- Test functionality
 
 ### Tips and Debugging
 * Our `setup.py` requires Python >= 3.7
@@ -110,15 +106,15 @@ For example:
 
 ## Codebase structure
 
-* [connectomics](connectomics) - The actual Pytorchconnectomics library.
+* [connectomics](connectomics) - The actual Pytorch Connectomics library.
     * [data](connectomics/data) - Dataset and dataloader for large-scale volumetric data
     * [model](connectomics/model) - Model zoo for 3D segmentation
     * [engine](connectomics/engine) - Training and inference routines
     * [config](connectomics/config) - Configuration files for training and inference
 
-* [tests](tests) - Python unit tests for Pytorchconnectomics Python frontend.
-* [notebooks](notebooks) - Jupyter Notebooks
-* [projects](projects) - Research projects that are built upon the repo
+* [tests](tests) - Python unit tests for PytorchConnectomics Python frontend.
+* [notebooks](notebooks) - Jupyter notebooks with visualization.
+* [projects](projects) - Research projects that are built upon the repo.
 
 
 
