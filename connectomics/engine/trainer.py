@@ -81,6 +81,8 @@ class Trainer(TrainerBase):
                     self.cfg, None, mode='val', rank=rank)
 
     def init_basics(self, *args):
+        # This function is used for classes that inherit Trainer but only 
+        # need to initialize basic attributes in TrainerBase.
         super().__init__(*args)
 
     def train(self):
@@ -194,6 +196,7 @@ class Trainer(TrainerBase):
     def test(self):
         r"""Inference function of the trainer class.
         """
+        # with batchnorm, train mode use the current batch statistics
         self.model.eval() if self.cfg.INFERENCE.DO_EVAL else self.model.train()
         output_scale = self.cfg.INFERENCE.OUTPUT_SCALE
         spatial_size = list(np.ceil(

@@ -8,5 +8,7 @@ __all__ = ['VolumeDataset',
            'VolumeDatasetRecon',
            'TileDataset',
            'VolumeDatasetCond',
+           'collate_fn_train',
+           'collate_fn_test',
            'get_dataset',
            'build_dataloader']

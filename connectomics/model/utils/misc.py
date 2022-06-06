@@ -289,9 +289,9 @@ def get_activation(activation: str = 'relu') -> nn.Module:
 
     Args:
         activation (str): one of ``'relu'``, ``'leaky_relu'``, ``'elu'``, ``'gelu'``,
-            ``'swish'``, 'efficient_swish'`` and ``'none'``. Default: ``'relu'``
+            ``'silu'``, ``'swish'``, 'efficient_swish'`` and ``'none'``. Default: ``'relu'``
     """
-    assert activation in ["relu", "leaky_relu", "elu", "gelu",
+    assert activation in ["relu", "leaky_relu", "elu", "gelu", "silu",
                           "swish", "efficient_swish", "none"], \
         "Get unknown activation key {}".format(activation)
     activation_dict = {
@@ -299,6 +299,7 @@ def get_activation(activation: str = 'relu') -> nn.Module:
         "leaky_relu": nn.LeakyReLU(negative_slope=0.2, inplace=True),
         "elu": nn.ELU(alpha=1.0, inplace=True),
         "gelu": nn.GELU(),
+        "silu": nn.SiLU(inplace=True),
         "swish": Swish(),
         "efficient_swish": MemoryEfficientSwish(),
         "none": nn.Identity(),
@@ -324,6 +325,7 @@ def get_functional_act(activation: str = 'relu'):
         'none': lambda x: x,
     }
     return activation_dict[activation]
+
 
 # ----------------------
 # Normalization Layers

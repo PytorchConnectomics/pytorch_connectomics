@@ -1,0 +1,8 @@
+DATASET:  
+  MATCH_ACT: tanh
+  IMAGE_NAME:
+    - vol3/im_Yx2.h5
+    - vol4/im_Yx2.h5
+  OUTPUT_PATH: outputs/JWR15_Syn_VAE_Image/
+TWOSTREAM:
+  LATENT_DIM: 1024

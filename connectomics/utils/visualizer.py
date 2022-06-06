@@ -77,14 +77,15 @@ class Visualizer(object):
             self.visualize_consecutive(volume, label[idx], output[idx], weight_maps,
                                        iter_total, writer, RGB=RGB, vis_name=vis_name)
 
-    def visualize_image_groups(self, writer, iteration, image_groups: Optional[dict] = None):
+    def visualize_image_groups(self, writer, iteration, image_groups: Optional[dict] = None,
+                               is_3d: bool = True) -> None:
         if image_groups is None:
             return
 
         for name in image_groups.keys():
             image_list = image_groups[name]
             image_list = [self._denormalize(x) for x in image_list]
-            image_list = [self.permute_truncate(x, is_3d=True) for x in image_list]
+            image_list = [self.permute_truncate(x, is_3d=is_3d) for x in image_list]
             sz = image_list[0].size()
             canvas = [x.detach().cpu().expand(sz[0], 3, sz[2], sz[3]) for x in image_list]
             canvas_merge = torch.cat(canvas, 0)
@@ -143,7 +144,7 @@ class Visualizer(object):
         return volume, label, output, weight_maps
 
     def permute_truncate(self, data, is_3d=False):
-        if is_3d:
+        if is_3d: # show consecutive slices of a 3d volume
             data = data[0].permute(1, 0, 2, 3)
         high = min(data.size()[0], self.N)
         return data[:high]

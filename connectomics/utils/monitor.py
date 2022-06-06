@@ -108,6 +108,9 @@ class Monitor(object):
 
     def visualize(self, volume, label, output, weight, iter_total,
                   suffix: Optional[str] = None, **kwargs) -> None:
+        """Visualize inputs, predictions, labels and weight masks for
+        common supervised and semi-supervised training schemes.
+        """
         assert isinstance(output, (torch.Tensor, OrderedDict))
         if isinstance(output, torch.Tensor):
             self.vis.visualize(
@@ -123,6 +126,14 @@ class Monitor(object):
                 suffix_key = key
             self.vis.visualize(volume, label, output[key], weight,
                                iter_total, self.logger.log_tb, suffix_key)
+
+    def visualize_image_groups(self, iter_total: int, image_groups: dict,
+                               **kwargs) -> None:
+        """Flexible visualization interface for cases that are
+        hard to handle in visualize().
+        """
+        self.vis.visualize_image_groups(
+            self.logger.log_tb, iter_total, image_groups, **kwargs)
 
     def load_info(self, cfg: CfgNode, model: nn.Module):
         self._load_config(cfg)
