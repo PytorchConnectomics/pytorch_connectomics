@@ -9,6 +9,9 @@ It supports a wide variety of data sources and can display arbitrary (non axis-a
 data and 3-D meshes and line-segment-based models (skeletons). Neuroglancer is a powerful tool for large-scale neuroscience 
 datasets, which can be impractical to visualize with other traditional image viewer applications.
 
+.. note::
+    The tutorial below is only tested with the Google `Chrome <https://www.google.com/chrome/downloads/>`_ web browser. You may 
+    see different behaviors or errors when using other browsers.
 
 Installation and Quick Start
 ------------------------------
