@@ -26,9 +26,10 @@ The field of *connectomics* aims to reconstruct the wiring diagram of the brain 
 
 ## Key Features
 
-- Multi-task, Active and Semi-supervised Learning
-- Distributed and Mixed-precision Training
-- Scalability for Handling Large Datasets
+- Multi-task, active and semi-supervised learning
+- Distributed and mixed-precision optimization
+- Scalability for handling large datasets
+- Comprehensive augmentations for volumetric data
 
 If you want new features that are relatively easy to implement (*e.g.*, loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
 

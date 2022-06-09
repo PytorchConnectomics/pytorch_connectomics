@@ -1,6 +1,6 @@
 ## Two-Stream Active Query Suggestion for Active Learning in Connectomics
 
-[[Paper](https://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf)] [[Supp.](https://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103-supp.pdf)]
+[[Paper](https://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf)] [[Supplement](https://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103-supp.pdf)]
 
 ### Abstract
 
@@ -43,7 +43,6 @@ This paper is published at the 16th European Conference on Computer Vision (**EC
   pages={103--120},
   year={2020},
   organization={Springer}
-}
 }
 ```
 
