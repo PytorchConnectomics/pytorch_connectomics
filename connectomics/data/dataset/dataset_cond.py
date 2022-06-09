@@ -15,12 +15,12 @@ WEIGHT_OPT_TYPE = List[List[str]]
 
 class VolumeDatasetCond(torch.utils.data.Dataset):
     """
-    Dataset class for volumetric images in conditional segmentation.
+    Dataset class for volumetric images in conditional segmentation. The label volumes are always required for this class.
 
     Args:
+        label (list): list of label volumes.
         volume (list): list of image volumes.
-        label (list, optional): list of label volumes. Default: None
-        label_type (str): type of the annotation. Default: ``'seg'``
+        label_type (str): type of the annotation. Default: ``'syn'``
         augmentor (connectomics.data.augmentation.composition.Compose, optional): data augmentor for training. Default: None
         sample_size (tuple): model input size. Default: (9, 65, 65)
         weight_opt (list): list of options for generating pixel-wise weight masks.
@@ -32,9 +32,9 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
     background: int = 0  # background label index
 
     def __init__(self,
-                 volume: list,
                  label: list,
-                 label_type: str = 'seg',
+                 volume: Optional[list] = None,
+                 label_type: str = 'syn',
                  augmentor: AUGMENTOR_TYPE = None,
                  sample_size: tuple = (9, 65, 65),
                  weight_opt: WEIGHT_OPT_TYPE = [['1']],
@@ -42,11 +42,11 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
                  iter_num: int = -1,
                  data_mean: float = 0.5,
                  data_std: float = 0.5):
-
         assert mode in ['train','test']
         self.mode = mode        
         assert label_type in ['seg', 'syn']
         self.label_type = label_type
+        self.augmentor = augmentor
 
         self.volume = volume 
         self.num_vols = len(self.volume)
@@ -149,7 +149,6 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
         gating_mask = (gating_mask==idx).astype(label.dtype)
         label = label * gating_mask
         return [seg2polarity(label)]
-
 
     def crop_with_box(self, box, vol, constant_values = 0):
         # crop with given box (needs padding if touch boundary)

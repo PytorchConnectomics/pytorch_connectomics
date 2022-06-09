@@ -137,6 +137,15 @@ def _get_input(cfg,
                min_size: Optional[tuple] = None):
     r"""Load the inputs specified by the configuration options.
     """
+    def _validate_shape(cfg, image, mask, i):
+        if image is None:
+            return
+
+        if cfg.DATASET.LOAD_2D:
+            assert image[i].shape[1:] == mask[i].shape[1:]
+        else:
+            assert image[i].shape == mask[i].shape[-3:]
+
     assert mode in ['train', 'val', 'test']
     dir_path = cfg.DATASET.INPUT_PATH
     if dir_name_init is not None:
@@ -154,44 +163,47 @@ def _get_input(cfg,
         label_name = cfg.DATASET.LABEL_NAME
         valid_mask_name = cfg.DATASET.VALID_MASK_NAME
         pad_size = cfg.DATASET.PAD_SIZE
+    assert not all([elem == None for elem in [img_name, label_name]]), \
+        "At least one of img_name and label_name should not be None!"
 
+    volume, label, valid_mask = None, None, None
     if img_name_init is not None:
         img_name = img_name_init
-    else:
-        img_name = _get_file_list(img_name, prefix=dir_path)
-    img_name = _make_path_list(cfg, dir_name, img_name, rank)
-    print(rank, len(img_name), list(map(os.path.basename, img_name)))
 
-    label = None
-    if mode in ['val', 'train'] and label_name is not None:
+    if img_name is not None:
+        img_name = _get_file_list(img_name, prefix=dir_path)
+        img_name = _make_path_list(cfg, dir_name, img_name, rank)
+        volume = [None] * len(img_name)
+        print(rank, len(img_name), list(map(os.path.basename, img_name)))
+
+    if label_name is not None:
         label_name = _get_file_list(label_name, prefix=dir_path)
         label_name = _make_path_list(cfg, dir_name, label_name, rank)
-        assert len(label_name) == len(img_name)
         label = [None]*len(label_name)
+        print(rank, len(label_name), list(map(os.path.basename, label_name)))
 
-    valid_mask = None
-    if mode in ['val', 'train'] and valid_mask_name is not None:
+    if valid_mask_name is not None:
         valid_mask_name = _get_file_list(valid_mask_name, prefix=dir_path)
         valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
-        assert len(valid_mask_name) == len(img_name)
         valid_mask = [None]*len(valid_mask_name)
 
     pad_mode = cfg.DATASET.PAD_MODE
-    volume = [None] * len(img_name)
     read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
+    num_vols = len(img_name) if img_name is not None else len(label_name)
 
-    for i in range(len(img_name)):
-        volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
-        print(f"volume shape (original): {volume[i].shape}")
-        if cfg.DATASET.NORMALIZE_RANGE:
-            volume[i] = normalize_range(volume[i])
-        volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=3)
-        volume[i] = _pad(volume[i], pad_size, pad_mode)
-        volume[i] = _resize2target(volume[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
-                                   order=3, target_size=min_size)
-        print(f"volume shape (after scaling and padding): {volume[i].shape}")
+    for i in range(num_vols):
+        if volume is not None:
+            volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
+            print(f"volume shape (original): {volume[i].shape}")
+            if cfg.DATASET.NORMALIZE_RANGE:
+                volume[i] = normalize_range(volume[i])
+            volume[i] = _rescale(volume[i], cfg.DATASET.IMAGE_SCALE, order=3)
+            volume[i] = _pad(volume[i], pad_size, pad_mode)
+            volume[i] = _resize2target(volume[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
+                                    order=3, target_size=min_size)
+            print(f"volume shape (after scaling and padding): {volume[i].shape}")
 
-        if mode in ['val', 'train'] and label is not None:
+        if label is not None:
             label[i] = read_fn(label_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             if cfg.DATASET.LABEL_VAST:
                 label[i] = vast2Seg(label[i])
@@ -207,22 +219,16 @@ def _get_input(cfg,
             label[i] = _resize2target(label[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
                                       order=0, target_size=min_size)
             print(f"label shape (after scaling and padding): {label[i].shape}")
-            if cfg.DATASET.LOAD_2D:
-                assert volume[i].shape[1:] == label[i].shape[1:]
-            else:
-                assert volume[i].shape == label[i].shape[-3:]
+            _validate_shape(cfg, volume, label, i)
 
-        if mode in ['val', 'train'] and valid_mask is not None:
+        if valid_mask is not None:
             valid_mask[i] = read_fn(valid_mask_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             valid_mask[i] = _rescale(valid_mask[i], cfg.DATASET.VALID_MASK_SCALE, order=0)
             valid_mask[i] = _pad(valid_mask[i], pad_size, pad_mode)
             valid_mask[i] = _resize2target(valid_mask[i], enabled=cfg.DATASET.ENSURE_MIN_SIZE,
                                            order=0, target_size=min_size)
             print(f"valid_mask shape (after scaling and padding): {valid_mask[i].shape}")
-            if cfg.DATASET.LOAD_2D:
-                assert volume[i].shape[1:] == valid_mask[i].shape[1:]
-            else:
-                assert volume[i].shape == label[i].shape[-3:]
+            _validate_shape(cfg, volume, valid_mask, i)
 
     return volume, label, valid_mask
 
@@ -232,6 +238,7 @@ def get_dataset(cfg,
                 mode='train',
                 rank=None,
                 dataset_class=VolumeDataset,
+                dataset_options={},
                 dir_name_init: Optional[list] = None,
                 img_name_init: Optional[list] = None):
     r"""Prepare dataset for training and inference.
@@ -320,13 +327,13 @@ def get_dataset(cfg,
         if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
             shared_kwargs['multiseg_split'] = cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT
         dataset = dataset_class(volume=volume, label=label, valid_mask=valid_mask,
-                                iter_num=iter_num, **shared_kwargs)
+                                iter_num=iter_num, **shared_kwargs, **dataset_options)
 
     return dataset
 
 
 def build_dataloader(cfg, augmentor=None, mode='train', dataset=None, rank=None,
-                     dataset_class=VolumeDataset, cf=collate_fn_train):
+                     dataset_class=VolumeDataset, dataset_options={}, cf=collate_fn_train):
     r"""Prepare dataloader for training and inference.
     """
     assert mode in ['train', 'val', 'test']
@@ -343,7 +350,7 @@ def build_dataloader(cfg, augmentor=None, mode='train', dataset=None, rank=None,
     if dataset is None: # no pre-defined dataset instance
         if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
             dataset_class = VolumeDatasetMultiSeg
-        dataset = get_dataset(cfg, augmentor, mode, rank, dataset_class)
+        dataset = get_dataset(cfg, augmentor, mode, rank, dataset_class, dataset_options)
 
     sampler = None
     num_workers = cfg.SYSTEM.NUM_CPUS

@@ -14,7 +14,8 @@ from connectomics.data.dataset import build_dataloader, collate_fn_test
 from connectomics.utils.monitor import build_monitor
 
 from .vae import VAE
-from .utils import VAELoss
+from .dataset import VolumeDatasetCenterPatch
+from .utils import VAELoss, collate_fn_patch
 
 class TrainerVAE(Trainer):
     def __init__(self,
@@ -27,19 +28,33 @@ class TrainerVAE(Trainer):
         self.model = self.build_vae(self.cfg)
 
         if self.mode == 'train':
-            self._init_train()
+            self._init_train(checkpoint)
+        else:
+            self.update_checkpoint(checkpoint)
 
         # Since only 2d vae models are currently supported, load 2d patches 
         # from 3d volumes or directly load 2d images.
-        self.dataloader = build_dataloader(self.cfg, None, self.mode, rank=rank, 
-                                           cf=collate_fn_test)
+        ts_cfg = self.cfg.TWOSTREAM
+        if ts_cfg.IMAGE_VAE:
+            self.dataloader = build_dataloader(
+                self.cfg, None, self.mode, rank=rank, cf=collate_fn_test)
+        else: # mask vae dataloader (depends on bounding boxes)
+            dataset_options = {
+                "sample_size": ts_cfg.WIDTH,
+                "label_type": ts_cfg.LABEL_TYPE}
+            self.dataloader = build_dataloader(
+                self.cfg, None, self.mode, rank=rank,
+                dataset_class=VolumeDatasetCenterPatch,
+                dataset_options=dataset_options,
+                cf=collate_fn_patch)
         self.dataloader = iter(self.dataloader)
 
-    def _init_train(self):
-        self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
+    def _init_train(self, checkpoint):        
         self.optimizer = build_optimizer(self.cfg, self.model)
         self.lr_scheduler = build_lr_scheduler(self.cfg, self.optimizer)
         self.criterion = VAELoss(self.cfg.TWOSTREAM.KLD_WEIGHT).to(self.device)
+        self.start_iter = self.cfg.MODEL.PRE_MODEL_ITER
+        self.update_checkpoint(checkpoint)
 
         if self.is_main_process:
             self.monitor = build_monitor(self.cfg)
@@ -58,7 +73,7 @@ class TrainerVAE(Trainer):
 
             # load data
             sample = next(self.dataloader)
-            inputs = sample.out_input
+            inputs = sample.out_input if self.cfg.TWOSTREAM.IMAGE_VAE else sample.seg
             self.data_time = time.perf_counter() - self.start_time
 
             # prediction

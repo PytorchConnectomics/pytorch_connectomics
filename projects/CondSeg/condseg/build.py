@@ -121,8 +121,8 @@ def get_dataset(cfg,
         "data_std": cfg.DATASET.STD
         }
 
-    dataset = dataset_class(volume=volume, label=[syn_sem2inst(ll) for ll in label],
-                                iter_num=iter_num, **kwargs)
+    dataset = dataset_class(label=[syn_sem2inst(ll) for ll in label],
+                            volume=volume, iter_num=iter_num, **kwargs)
 
     return dataset
 

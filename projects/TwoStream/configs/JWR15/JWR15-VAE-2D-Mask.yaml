@@ -2,3 +2,9 @@ DATASET:
   LABEL_NAME:
     - vol3/syn_Yx2.h5
     - vol4/syn_Yx2.h5
+  OUTPUT_PATH: outputs/JWR15_Syn_VAE_Mask/
+TWOSTREAM:
+  IMAGE_VAE: False
+  LABEL_TYPE: syn
+  LATENT_DIM: 16
+  KLD_WEIGHT: 1e-4

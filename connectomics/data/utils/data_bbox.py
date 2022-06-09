@@ -41,6 +41,16 @@ def bbox_relax(coord: Union[tuple, list],
     return tuple(coord)
 
 
+def adjust_bbox(low, high, sz):
+    assert high >= low
+    bbox_sz = high - low
+    diff = abs(sz - bbox_sz) // 2
+    if bbox_sz >= sz:
+        return low + diff, low + diff + sz
+
+    return low - diff, low - diff + sz
+
+
 def index2bbox(seg: np.ndarray, indices: list, relax: int = 0,
                iterative: bool = False) -> dict:
     """Calculate the bounding boxes associated with the given mask indices. 
@@ -95,6 +105,31 @@ def crop_ND(img: np.ndarray, coord: Tuple[int],
         slicing.append(slice(start, end))
     slicing = tuple(slicing)
     return img[slicing].copy()
+
+
+def crop_pad_data(data, z, bbox_2d, pad_val=0, mask=None, return_box=False):
+    """Crop a 2D patch from 3D volume given the z index and 2d bbox.
+    """
+    sz = data.shape[1:]
+    y1o, y2o, x1o, x2o = bbox_2d  # region to crop
+    y1m, y2m, x1m, x2m = 0, sz[0], 0, sz[1]
+    y1, x1 = max(y1o, y1m), max(x1o, x1m)
+    y2, x2 = min(y2o, y2m), min(x2o, x2m)
+    cropped = data[z, y1:y2, x1:x2]
+
+    if mask is not None:
+        mask_2d = mask[z, y1:y2, x1:x2]
+        cropped = cropped * (mask_2d != 0).astype(cropped.dtype)
+
+    pad = ((y1 - y1o, y2o - y2), (x1 - x1o, x2o - x2))
+    if not all(v == 0 for v in pad):
+        cropped = np.pad(cropped, pad, mode='constant',
+                         constant_values=pad_val)
+
+    if not return_box:
+        return cropped
+
+    return cropped, [y1, y2, x1, x2], pad
 
 
 def rand_window(w0, w1, sz, rand_shift: int = 0):
