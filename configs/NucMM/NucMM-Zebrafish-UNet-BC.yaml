@@ -1,5 +1,4 @@
 MODEL:
-  IN_PLANES: 1
   OUT_PLANES: 2
   TARGET_OPT: ['0','4-0-1']
   LOSS_OPTION:
