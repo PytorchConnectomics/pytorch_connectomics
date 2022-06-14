@@ -1,27 +1,16 @@
-import h5py  # read h5 files
+from __future__ import print_function, division
+
 import numpy as np  # handle volume data
 import pandas as pd  # use pandas data frames for plotting with seaborn
 from tqdm import tqdm  # show progress
 # derive the center of mass of instances
 from scipy.ndimage.measurements import center_of_mass
+from scipy.spatial import KDTree
+
+from connectomics.data.utils import *
 
 
-def voxel_instance_size_h5(h5_target: str, ds_name: str) -> pd.DataFrame:
-    # Loads the data from an h5 file. See -> voxel_instance_size()
-    return voxel_instance_size(np.asarray(read_h5py(h5_target)), ds_name)
-
-
-def distance_nn(h5_target: str, ds_name: str, iso=[1, 1, 1]) -> pd.DataFrame:
-    # Loads the data from an h5 file. See -> distance_nn()
-    return distance_nn(np.asarray(read_h5py(h5_target)), ds_name, iso=iso)
-
-
-def pixel_intensity(h5_source: str, h5_target: str, bOrF: str, ds_name: str) -> pd.DataFrame:
-    # Loads the data from the h5 files. See -> pixel_intensity()
-    return pixel_intensity(np.asarray(read_h5py(h5_source)), np.asarray(read_h5py(h5_target)), bOrF, ds_name)
-
-
-def voxel_instance_size(target: np.ndarray, ds_name: str) -> pd.DataFrame:
+def voxel_instance_size(target: np.ndarray, ds_name: str = 'main') -> pd.DataFrame:
     ''' Calculate the voxel based size of each instance in an instance segmentation map.
 
         Args:
@@ -38,74 +27,51 @@ def voxel_instance_size(target: np.ndarray, ds_name: str) -> pd.DataFrame:
     # save the pixel count to a pandas data frame
     idx_pix_count = {x: y for x, y in zip(
         idx[1:], count[1:])}  # 1:, skip background
-    idx_pix_count_pd = pd.DataFrame(data=list(idx_pix_count.values()),
-                                    columns=["Size"], index=list(idx_pix_count.keys()))
-
-    # add column with dataset name
+    idx_pix_count_pd = pd.DataFrame(data=list(idx_pix_count.values()), columns=["Size"], 
+                                    index=list(idx_pix_count.keys()))
     idx_pix_count_pd["Dataset"] = ds_name
 
     return idx_pix_count_pd
 
 
-def distance_nn(target: np.ndarray, ds_name: str, iso=[1, 1, 1]) -> pd.DataFrame:
+def distance_nn(target: np.ndarray, ds_name: str = 'main', 
+                resolution=[1.0, 1.0, 1.0]) -> pd.DataFrame:
     ''' Caculate the distance to the NN for each instance in the target matrix. 
 
         Args:
             target: The target data as numpy ndarray
-            iso: Axis scaling factor in case of anisotropy
             ds_name: Name of the dataset, saved in pd column
+            resolution: Axis scaling factors in case of anisotropy
 
         Return
             A single column Panda data frame that contains the distance of each instance to its NN
     '''
-
     # convert the instance map to binary
     binary = (target != 0).astype(np.uint8)
 
     # derive the center of mass of each instance in the target matrix
     cm = center_of_mass(binary, target, list(np.unique(target))[1:])
+    cm = np.array(cm) * np.array(resolution)[None, :]
 
-    distance = []
-
-    # calculate for each instance the distance to the NN
-    for i, vi in tqdm(enumerate(list(cm))):
-        # the second argument of closest_node() is a list with the coordinates of
-        # all instances center of mass, except of the cm of the current selected instane
-        distance.append(closest_node(vi, np.array(
-            cm)[np.arange(len(list(cm))) != i]))
+    kd_tree = KDTree(cm)
+    distance = kd_tree.query(cm, k=2)
+    distance = np.array(distance)[:,1]
 
     # write the distance value to a pandas data frame
-    idx_zxy_values_pd = pd.DataFrame(data=list(distance),
-                                     columns=["NN_Distance"])
-
-    # add column with dataset name
+    idx_zxy_values_pd = pd.DataFrame(data=list(distance), columns=["NN_Distance"])
     idx_zxy_values_pd["Dataset"] = ds_name
 
     return idx_zxy_values_pd
 
 
-def closest_node(point, points):
-    ''' Calculate the distance between a point and a list of points.
-        Returns the shortest distance. Used by: distance_nn()
-
-        Args:
-            point: A single point with x,y or x,y,z values
-            points: A list of points with x,y or x,y,z values
-
-        Return
-    '''
-    points = np.asarray(points)
-    dist_2 = np.sum((points - point)**2, axis=1)
-    return np.min(dist_2)
-
-
-def pixel_intensity(source: np.ndarray, target: np.ndarray, bOrF: str, ds_name: str) -> pd.DataFrame:
+def pixel_intensity(source: np.ndarray, target: np.ndarray, bOrF: str = 'foreground', 
+                    ds_name: str = 'main') -> pd.DataFrame:
     ''' Retrives the intesity of each pixel. Writes them to a Pandas data frame.
         Can handle background for foreground.
         Args:
             source: Source numpy ndarray
             target: Target numpy ndarray
-            bOrF: Either 'Foreground' or 'Background', indicates which intensities to estimate
+            bOrF: Either 'foreground' or 'background', indicates which intensities to estimate
             ds_name: Name of the dataset, saved in pd column
 
         Return
@@ -114,14 +80,11 @@ def pixel_intensity(source: np.ndarray, target: np.ndarray, bOrF: str, ds_name: 
     '''
 
     # mask out forground or background
-    assert (bOrF == 'Foreground' or bOrF ==
-            'Background'), f"bOrF has to equal \"Foreground\" or \"Background\", not {bOrF}"
-    mask_bOrF = 1 if bOrF == 'Foreground' else 0
+    assert bOrF in ['foreground', 'background'], \
+        f"bOrF has to be \"foreground\" or \"background\", not {bOrF}"
+    mask_bOrF = 1 if bOrF == 'foreground' else 0
 
-    # create mask with all values greater 0
     mask = target > 0
-
-    # mask out forground
     masked_source = source[mask == mask_bOrF]
 
     # create the pd data frame
@@ -130,13 +93,13 @@ def pixel_intensity(source: np.ndarray, target: np.ndarray, bOrF: str, ds_name: 
     return pix_int_count_front_pd
 
 
-def pi_pd(mask: np.ndarray, bOrF: str, ds_name: str) -> pd.DataFrame:
+def pi_pd(mask: np.ndarray, bOrF: str = 'foreground', ds_name: str = 'main') -> pd.DataFrame:
     ''' Creates pandas data frame of the intesity of all pixels in the mask.
         Used by: pixel_intensity()
 
         Args:
             mask: Numpy array of masked out pixels 
-            bOrF: Either 'Forground' or 'Background', indicates which intesities are estimated
+            bOrF: Either 'foreground' or 'background', indicates which intesities are estimated
             ds_name: Name of the dataset
 
         Return
@@ -156,17 +119,76 @@ def pi_pd(mask: np.ndarray, bOrF: str, ds_name: str) -> pd.DataFrame:
     return pix_int_count_pd
 
 
-def read_h5py(file_name: str, key: str = 'main') -> list:
-    ''' Read h5 file.
+def diff_segm(seg1: np.ndarray, seg2: np.ndarray, iou_thres: float = 0.75, 
+              progress: bool = False) -> dict:
+    """Check the differences between two 3D instance segmentation maps. The 
+    background pixels (value=0) are ignored.
 
-        Args:
-            file_name: Path to the h5 file
-            key: Key under which the data is stored in the h5 file
+    Args:
+        seg1 (np.ndarray): the first segmentation map.
+        seg2 (np.ndarray): the second segmentation map.
+        iou_thres (float): the threshold of intersection-over-union. Default: 0.75
+        progress (bool): show progress bar. Default: False
 
-        Return
-            The data as list.
-    '''
-    data = None
-    with h5py.File(file_name, 'r') as h5:
-        data = list(h5.get(key))
-    return data
+    Returns:
+        dict: a dict contains lists of shared and unique indicies
+
+    Note:
+        The shared segments in two segmentation maps can have different indices,
+        therefore they are saved separately in the output dict.
+    """
+    def _get_indices_counts(seg: np.ndarray):
+        # return indices and counts while ignoring the background
+        indices, counts = np.unique(seg, return_counts=True)
+        if indices[0] == 0:
+            return indices[1:], counts[1:]
+        else:
+            return indices, counts
+
+    results ={
+        "seg1_unique": [],
+        "seg2_unique": [],
+        "shared1": [],
+        "shared2": [],
+    }
+
+    indices1, counts1 = _get_indices_counts(seg1)
+    indices2, counts2 = _get_indices_counts(seg2)
+    if len(indices1) == 0: # no non-background objects
+        results["seg2_unique"] = list(indices2)
+        return results
+    if len(indices2) == 0:
+        results["seg1_unique"] = list(indices1)
+        return results
+    
+    counts_dict1 = dict(zip(indices1, counts1))
+    counts_dict2 = dict(zip(indices2, counts2))
+    bbox_dict1 = index2bbox(seg1, indices1, relax=1, progress=progress)
+
+    for idx1 in (tqdm(indices1) if progress else indices1):
+        bbox = bbox_dict1[idx1]
+        crop_seg1, crop_seg2 = crop_ND(seg1, bbox), crop_ND(seg2, bbox)
+        temp1 = (crop_seg1==idx1).astype(int)
+
+        best_iou = 0.0
+        crop_indices = np.unique(crop_seg2)
+        for idx2 in crop_indices:
+            if idx2 == 0: # ignore background
+                continue 
+            temp2 = (crop_seg2==idx2).astype(int)
+            overlap = (temp1*temp2).sum()
+            union = counts_dict1[idx1] + counts_dict2[idx2] - overlap
+            iou = overlap / float(union)
+            if iou > best_iou:
+                best_iou = iou
+                matched_idx2 = idx2
+
+        if best_iou < iou_thres:
+            results["seg1_unique"].append(idx1)
+        else: # the segment is shared in both segmentation maps
+            results["shared1"].append(idx1)
+            results["shared2"].append(matched_idx2)
+
+    # "seg2_unique" contains elements in indices2 but not in "shared2"
+    results["seg2_unique"] = list(set(indices2) - set(results["shared2"]))
+    return results
