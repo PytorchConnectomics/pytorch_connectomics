@@ -480,3 +480,35 @@ def _label_overlap(x, y):
     for i in range(len(x)):
         overlap[x[i],y[i]] += 1
     return overlap
+
+
+def remove_masks(vol: np.ndarray, indices: List[int]) -> np.ndarray:
+    """Remove objects by indices from a segmentation volume.
+    """
+    for idx in indices:
+        vol[np.where(vol==idx)] = 0
+    return vol
+
+
+def add_masks(vol_base: np.ndarray, vol: np.ndarray, indices: List[int]) -> np.ndarray:
+    """Add the instances in a new segmentation volume to the 
+    original one. A new instance can overwrite existing object
+    pixels if the corresponding region contains non-background.
+    """
+    max_idx = max(np.unique(vol_base))
+    for i, idx in enumerate(indices):
+        vol_base[np.where(vol==idx)] = max_idx+i+1
+    return vol_base
+
+
+def merge_masks(vol: np.ndarray, indices: List[List[int]]) -> np.ndarray:
+    """Merge two or more masks into a single one.
+    """
+    for merges in indices:
+        temp = np.zeros_like(vol)
+        for i, idx in enumerate(merges):
+            if i == 0:
+                main_idx = idx
+            temp = temp + (vol==idx).astype(temp.dtype)
+        vol[np.where(temp!=0)] = main_idx
+    return vol  
