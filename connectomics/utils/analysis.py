@@ -29,7 +29,7 @@ def voxel_instance_size(target: np.ndarray, ds_name: str) -> pd.DataFrame:
             ds_name: Name of the dataset, saved in pd column
 
         Return
-            A single columne Panda data frame that contains the voxel based instance sizes.
+            A single column Panda data frame that contains the voxel based instance sizes.
     '''
 
     # find the unique values and their number of accurancy
@@ -56,7 +56,7 @@ def distance_nn(target: np.ndarray, ds_name: str, iso=[1, 1, 1]) -> pd.DataFrame
             ds_name: Name of the dataset, saved in pd column
 
         Return
-            A single columne Panda data frame that contains the distance of each instance to its NN
+            A single column Panda data frame that contains the distance of each instance to its NN
     '''
 
     # convert the instance map to binary
@@ -101,16 +101,16 @@ def closest_node(point, points):
 
 def pixel_intensity(source: np.ndarray, target: np.ndarray, bOrF: str, ds_name: str) -> pd.DataFrame:
     ''' Retrives the intesity of each pixel. Writes them to a Pandas data frame.
-        Can handle background for forground.
+        Can handle background for foreground.
         Args:
             source: Source numpy ndarray
             target: Target numpy ndarray
-            bOrF: Either 'Forground' or 'Background', indicates which intesities to estimate
+            bOrF: Either 'Foreground' or 'Background', indicates which intensities to estimate
             ds_name: Name of the dataset, saved in pd column
 
         Return
-            A pandas frame with the intensity of each pixels, if the pixel belongs to background
-            or forground, and the dataset it belongs to.
+            A pandas frame with the intensity of each pixel, if the pixel belongs to the background
+            or foreground, and the dataset it belongs to.
     '''
 
     # mask out forground or background
