@@ -129,12 +129,23 @@ def _resize2target(data: np.ndarray, enabled: bool = False, order: int = 0,
     return data
 
 
+def _load_label_condition(name, mode: str, image_only_test: bool):
+    condition0 = name is not None
+    condition1 = mode in ['train', 'val']
+    if image_only_test: # only load image during inference
+        return condition0 and condition1
+    
+    # mask can also be loaded at inference time if not None
+    return condition0
+ 
+
 def _get_input(cfg,
                mode='train',
                rank=None,
                dir_name_init: Optional[list] = None,
                img_name_init: Optional[list] = None,
-               min_size: Optional[tuple] = None):
+               min_size: Optional[tuple] = None,
+               image_only_test: bool = True):
     r"""Load the inputs specified by the configuration options.
     """
     def _validate_shape(cfg, image, mask, i):
@@ -176,13 +187,13 @@ def _get_input(cfg,
         volume = [None] * len(img_name)
         print(rank, len(img_name), list(map(os.path.basename, img_name)))
 
-    if label_name is not None:
+    if _load_label_condition(label_name, mode, image_only_test):
         label_name = _get_file_list(label_name, prefix=dir_path)
         label_name = _make_path_list(cfg, dir_name, label_name, rank)
         label = [None]*len(label_name)
         print(rank, len(label_name), list(map(os.path.basename, label_name)))
 
-    if valid_mask_name is not None:
+    if _load_label_condition(valid_mask_name, mode, image_only_test):
         valid_mask_name = _get_file_list(valid_mask_name, prefix=dir_path)
         valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
         valid_mask = [None]*len(valid_mask_name)
