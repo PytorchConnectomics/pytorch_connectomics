@@ -54,6 +54,7 @@ def distance_nn(target: np.ndarray, ds_name: str = 'main',
     cm = np.array(cm) * np.array(resolution)[None, :]
 
     kd_tree = KDTree(cm)
+    # see https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.KDTree.query.html
     distance, _ = kd_tree.query(cm, k=2)
     distance = np.array(distance)[:,1]
 
