@@ -9,12 +9,26 @@ Instance segmentation for unlabeled imaging modalities is a challenging but esse
 ### Unique Configurations
 
 We show below the list of configurations exclusive for semi-supervised segmentation using
-GAN losses, which extends the basic configurations in PyTorch Connectomics.
+GAN losses, which extends the basic configurations in PyTorch Connectomics (PyTC).
 
 ```yaml
 NEW_DOMAIN:
   IMAGE_NAME: imageY.tif # image file name for the new domain
   SEMI_SUP: True # use semi-supervised segmentation loss. default: True
+```
+
+This work focus on nuclei segmentation using the BCD representation as in the [NucMM Dataset](https://arxiv.org/abs/2107.05840) paper. Other learning targets defined in PyTC, including the 3D affinity map, can also be easily configured to build a CySGAN model.
+
+### Training Data Preparation
+
+CySGAN training requires an annotated source domain and an unlabeled target domain. We recommend the users rescale the source and target volumes to have visually similar object sizes for optimal performance. Please remember to update the source and target file names in the [CySGAN-Base.yaml](configs/CySGAN-Base.yaml) file:
+
+```yaml
+DATASET:
+  IMAGE_NAME: imageX.tif # image file name (source domain)
+  LABEL_NAME: labelX.tif # label file name (source domain)
+NEW_DOMAIN:
+  IMAGE_NAME: imageY.tif # image file name for the new domain
 ```
 
 ### Command

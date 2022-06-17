@@ -9,8 +9,7 @@ from skimage.morphology import dilation, binary_dilation
 from skimage.segmentation import watershed
 from skimage.morphology import remove_small_objects
 
-from connectomics.data.utils import getSegType
-from .misc import bbox_ND, crop_ND
+from connectomics.data.utils import getSegType, bbox_ND, crop_ND
 
 
 __all__ = ['binary_connected',

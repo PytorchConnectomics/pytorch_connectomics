@@ -114,6 +114,7 @@ class TileDataset(torch.utils.data.Dataset):
             assert len(split_rule) == 2
             rank, world_size = split_rule
             rank, world_size = int(rank), int(world_size)
+            assert rank < world_size # rank is 0-base
             x = len(chunk_ind) // world_size
             low, high = rank * x, (rank + 1) * x
             # Last split needs to cover remaining chunks.

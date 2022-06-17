@@ -1,6 +1,10 @@
 from __future__ import print_function, division
 from typing import Optional, List
 
+# Avoid PIL "IOError: image file truncated"
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 import os
 import h5py
 import math
