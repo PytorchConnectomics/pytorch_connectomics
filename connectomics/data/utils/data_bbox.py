@@ -91,20 +91,41 @@ def index2bbox(seg: np.ndarray, indices: list, relax: int = 0,
     return bbox_dict
 
 
+def _coord2slice(coord: Tuple[int], ndim: int, end_included: bool = False):
+    assert len(coord) == ndim * 2
+    slicing = []
+    for i in range(ndim):
+        start = coord[2*i]
+        end = coord[2*i+1] + 1 if end_included else coord[2*i+1]
+        slicing.append(slice(start, end))
+    slicing = tuple(slicing)
+    return slicing
+
+
 def crop_ND(img: np.ndarray, coord: Tuple[int], 
             end_included: bool = False) -> np.ndarray:
     """Crop a chunk from a N-dimensional array based on the 
     bounding box coordinates.
     """
-    N = img.ndim
-    assert len(coord) == N * 2
-    slicing = []
-    for i in range(N):
-        start = coord[2*i]
-        end = coord[2*i+1] + 1 if end_included else coord[2*i+1]
-        slicing.append(slice(start, end))
-    slicing = tuple(slicing)
+    slicing = _coord2slice(coord, img.ndim, end_included)
     return img[slicing].copy()
+
+
+def replace_ND(img: np.ndarray, replacement: np.ndarray, coord: Tuple[int], 
+               end_included: bool = False, overwrite_bg: bool = False) -> np.ndarray:
+    """Replace a chunk from a N-dimensional array based on the 
+    bounding box coordinates.
+    """
+    slicing = _coord2slice(coord, img.ndim, end_included)
+
+    if not overwrite_bg: # only overwrite foreground pixels
+        temp = img[slicing].copy()
+        mask_fg = (replacement!=0).astype(temp.dtype)
+        mask_bg = (replacement==0).astype(temp.dtype)
+        replacement = replacement * mask_fg + temp * mask_bg
+
+    img[slicing] = replacement
+    return img.copy()
 
 
 def crop_pad_data(data, z, bbox_2d, pad_val=0, mask=None, return_box=False):

@@ -8,8 +8,9 @@ from skimage.transform import resize
 from skimage.morphology import dilation, binary_dilation
 from skimage.segmentation import watershed
 from skimage.morphology import remove_small_objects
+from skimage.feature import peak_local_max
 
-from connectomics.data.utils import getSegType, bbox_ND, crop_ND
+from connectomics.data.utils import getSegType, bbox_ND, crop_ND, replace_ND
 
 
 __all__ = ['binary_connected',
@@ -511,3 +512,34 @@ def merge_masks(vol: np.ndarray, indices: List[List[int]]) -> np.ndarray:
             temp = temp + (vol==idx).astype(temp.dtype)
         vol[np.where(temp!=0)] = main_idx
     return vol  
+
+
+def watershed_split(vol: np.ndarray, index: int, show_id: bool = False,
+                    min_distance: int = 5) -> np.ndarray:
+    """Apply watershed transform to split an 3D object into two or more 
+    parts based on the given index.
+    """
+    assert vol.ndim == 3 # 3D label array
+    max_idx = max(np.unique(vol))
+    binary = (vol == index)
+    bbox = bbox_ND(binary, relax=1) # avoid cropped object touching borders
+    cropped = crop_ND(binary, bbox, end_included=True)
+
+    # see https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_watershed.html 
+    distance = ndimage.distance_transform_edt(cropped)
+    coords = peak_local_max(distance, min_distance=min_distance, labels=cropped)
+    mask = np.zeros(distance.shape, dtype=bool)
+    mask[tuple(coords.T)] = True
+    markers = label(mask)
+    split_objects = watershed(-distance, markers, mask=cropped)
+
+    seg_id = np.unique(split_objects)
+    new_id = []
+    if seg_id[0] == 0: seg_id = seg_id[1:] # ignore background pixels
+    for i, idx in enumerate(seg_id):
+        split_objects[np.where(split_objects==idx)] = max_idx + i + 1
+        new_id.append(max_idx + i + 1)
+    if show_id: print(new_id)
+
+    vol = replace_ND(vol, split_objects, bbox, end_included=True)
+    return vol
