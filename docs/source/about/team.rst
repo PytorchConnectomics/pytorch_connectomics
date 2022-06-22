@@ -10,8 +10,8 @@ Authors
 ------------
 The following people are currently core contributors to PyTorch Connectomics's development and maintenance:
 
-- `Zudi Lin <https://zudi-lin.github.io/>`_ - Ph.D. candidate in the Visual Computing Group at Harvard University
-- `Donglai Wei <https://donglaiw.github.io/>`_ - Assistant Professor of Computer Science at Boston College. Previous postdoctoral fellow in the Visual Computing Group at Harvard University
+- `Zudi Lin <https://zudi-lin.github.io/>`_ - Applied Scientist at Amazon. Previous Ph.D. student in the Visual Computing Group at Harvard University.
+- `Donglai Wei <https://donglaiw.github.io/>`_ - Assistant Professor of Computer Science at Boston College. Previous postdoctoral fellow in the Visual Computing Group at Harvard University.
 
 Advisors
 ------------
@@ -27,8 +27,8 @@ We would like to thank all current and previous `contributors <https://github.co
 
 We are looking for motivated contributors to become collaborators and help out with the project. Besides opening issues and pull request on Github, please
 join our `Slack community <https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w>`_ to discuss bugs and feature 
-requests. If you are interested in working on this as a research intern at the Visual Computing Group at Harvard University, please contact 
-Zudi (`@zudi-lin <https://github.com/zudi-lin>`_) via email (linzudi@g.harvard.edu) for more details.
+requests. If you are interested in working on this project as a research intern at Harvard University or Boston College, please contact 
+Prof. `Donglai Wei <https://github.com/donglaiw>`_ or Prof. `Hanspeter Pfister <https://en.wikipedia.org/wiki/Hanspeter_Pfister>`_ via email for more details.
 
 Citation
 ----------

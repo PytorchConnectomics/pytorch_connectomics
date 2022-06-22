@@ -27,13 +27,14 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
         mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
         iter_num (int): total number of training iterations (-1 for inference). Default: -1
         data_mean (float): mean of pixels for images normalized to (0,1). Default: 0.5
-        data_std (float): standard deviation of pixels for images normalized to (0,1). Default: 0.5
+        data_std (float): standard deviation of pixels for images normalized to (0,1). Default: 0.5      
     """
     background: int = 0  # background label index
+    bbox_iterative: bool = False # calculate bbox iteratively (can be very slow if True)
 
     def __init__(self,
-                 label: list,
-                 volume: Optional[list] = None,
+                 volume: List[np.ndarray],
+                 label: List[np.ndarray],
                  label_type: str = 'syn',
                  augmentor: AUGMENTOR_TYPE = None,
                  sample_size: tuple = (9, 65, 65),
@@ -186,7 +187,7 @@ class VolumeDatasetCond(torch.utils.data.Dataset):
         indices = np.unique(vol)
         assert indices[0] == 0 # background
         indices = indices[1:]
-        ind2box_dict = index2bbox(vol, indices, iterative=False)
+        ind2box_dict = index2bbox(vol, indices, iterative=self.bbox_iterative)
         bbox_list = list(ind2box_dict.values())
         idx_list = list(ind2box_dict.keys())
         return bbox_list, idx_list
