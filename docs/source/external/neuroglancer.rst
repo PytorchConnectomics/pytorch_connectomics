@@ -405,3 +405,32 @@ analysis. The following code snippet shows an example to display the overlay of 
 .. image :: ../_static/img/ng_rgb.png
 
 Visualization of EM images overlay with synaptic polarity prediction. See `synapse detection <../tutorials/synapse.html#synaptic-polarity-detection>`_ for details.
+
+8. Visualize Point Annotations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Quite often, it is necessary to visualize point annotations in a 3D volume of a microscopy image. These points for instance could denote centroids of segment masks of nuclei or synapses. The following code can be used to perform such an action.
+
+.. code-block :: python
+
+    # assume a viewer with is already created
+    # here, assume that we are loading the 3D coordinates from a text file
+    points = np.genfromtxt(fname='fixed.txt', delimiter=' ', dtype='uint8')
+    counter = 0
+
+    with viewer.txn() as s:
+        # define an annotation layer
+        s.layers['annotation'] = neuroglancer.AnnotationLayer()
+        annotations = s.layers['annotation'].annotations
+
+        # each point annotation has a unique id
+        for (x, y, z) in points[::10]:
+            pt = neuroglancer.PointAnnotation(point=[x, y, z], id=f'point{counter}')
+            annotations.append(pt)
+            counter += 1
+
+        # image layer
+        s.layers.append(name='im', layer=ngLayer(im, res, tt='image'))
+
+    print(viewer)
+
+.. image :: ../_static/img/ng_pt_annotation.png
