@@ -1,0 +1,12 @@
+MODEL:
+  TARGET_OPT: ["1-1"] # exclusive pos and neg masks
+  LOSS_OPTION: [["WeightedCE"]]
+  LOSS_KWARGS_KEY: [[["class_weight"]]]
+  LOSS_KWARGS_VAL: [[[[1.0, 10.0, 10.0]]]] # class weights
+  LOSS_WEIGHT: [[1.0]]
+  WEIGHT_OPT: [["0"]]
+  OUTPUT_ACT: [["none"]]
+DATASET:
+  OUTPUT_PATH: outputs/JWR15_Syn_Semantic/
+INFERENCE:
+  OUTPUT_ACT: ["softmax"]

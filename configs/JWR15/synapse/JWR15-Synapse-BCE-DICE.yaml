@@ -4,4 +4,4 @@ MODEL:
   WEIGHT_OPT: [["1", "0"]]
   OUTPUT_ACT: [["none", "sigmoid"]]
 DATASET:
-    OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE/
+  OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE/

@@ -18,7 +18,7 @@ class DiceLoss(nn.Module):
         self.power = power
 
     def dice_loss(self, pred, target):
-        loss = 0.
+        loss = 0.0
 
         for index in range(pred.size()[0]):
             iflat = pred[index].contiguous().view(-1)
@@ -174,6 +174,7 @@ class WeightedLS(nn.Module):
         if weight_mask is not None:
             loss = loss * weight_mask
         return loss.mean()
+
 
 class WeightedBCEFocalLoss(nn.Module):
     """Weighted binary focal loss with logits.

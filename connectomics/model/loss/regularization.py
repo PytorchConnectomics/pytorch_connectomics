@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class BinaryReg(nn.Module):
     """Regularization for encouraging the outputs to be binary.
 
@@ -24,6 +25,7 @@ class BinaryReg(nn.Module):
         if mask is not None:
             loss *= mask
         return loss.mean()
+
 
 class ForegroundDTConsistency(nn.Module):    
     """Consistency regularization between the binary foreground mask and
@@ -53,6 +55,7 @@ class ForegroundDTConsistency(nn.Module):
             loss *= mask
         return loss.mean()
 
+
 class ContourDTConsistency(nn.Module):
     """Consistency regularization between the instance contour map and
     signed distance transform.
@@ -76,6 +79,7 @@ class ContourDTConsistency(nn.Module):
         if mask is not None:
             loss *= mask
         return loss.mean()
+
 
 class FgContourConsistency(nn.Module):
     """Consistency regularization between the binary foreground map and 
@@ -126,6 +130,7 @@ class FgContourConsistency(nn.Module):
         if mask is not None:
             loss *= mask
         return loss.mean()
+
 
 class NonoverlapReg(nn.Module):
     """Regularization to prevent overlapping prediction of pre- and post-synaptic

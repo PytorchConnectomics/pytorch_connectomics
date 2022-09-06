@@ -260,13 +260,26 @@ def dilate_label(label: np.ndarray,
     return dilation(label, np.ones(shape, dtype=label.dtype))
 
 
-def seg2polarity(label):
-    # segmentation to 3-channel synaptic polarity masks
-    tmp = [None]*3
-    tmp[0] = np.logical_and((label % 2) == 1, label > 0)
-    tmp[1] = np.logical_and((label % 2) == 0, label > 0)
-    tmp[2] = (label > 0)
-    return np.stack(tmp, 0).astype(np.float32)
+def seg2polarity(label: np.ndarray, topt: str) -> np.ndarray:
+    """Convert the label to synaptic polarity target.
+    """
+    pos = np.logical_and((label % 2) == 1, label > 0)
+    neg = np.logical_and((label % 2) == 0, label > 0)
+
+    if len(topt) == 1:
+        # Convert segmentation to 3-channel synaptic polarity masks.
+        # The three channels are not exclusive. There are learned by 
+        # binary cross-entropy (BCE) losses after per-pixel sigmoid.
+        tmp = [None]*3
+        tmp[0], tmp[1], tmp[2] = pos, neg, (label > 0)
+        return np.stack(tmp, 0).astype(np.float32)
+
+    # Learn the exclusive semantic (synaptic polarity) masks
+    # using the cross-entropy (CE) loss for three classes.
+    _, exclusive = topt.split('-')
+    assert int(exclusive), f"Option {topt} is not expected!"
+    return np.maximum(pos.astype(np.int64), 2*neg.astype(np.int64))
+
 
 def seg2inst_edt(label, topt):
     # Format of the target option: 5-a-b-c-d
@@ -280,11 +293,15 @@ def seg2inst_edt(label, topt):
                         quantize=bool(int(quant)), padding=bool(int(padding)))
 
 
-def seg_to_targets(label_orig: np.ndarray,
-                   topts: List[str],
-                   erosion_rates: RATES_TYPE = None,
-                   dilation_rates: RATES_TYPE = None):
-    # input: (D, H, W), output: (C, D, H, W)
+def seg_to_targets(
+    label_orig: np.ndarray,
+    topts: List[str],
+    erosion_rates: RATES_TYPE = None,
+    dilation_rates: RATES_TYPE = None
+) -> List[np.ndarray]:
+    """Convert the label array into a list of learning targets specified
+    by the target options (topts).
+    """
     out = [None]*len(topts)
 
     for tid, topt in enumerate(topts):
@@ -296,7 +313,7 @@ def seg_to_targets(label_orig: np.ndarray,
             fg_mask = seg2binary(label, topt)
             out[tid] = fg_mask[np.newaxis, :].astype(np.float32)
         elif topt[0] == '1':  # synaptic polarity
-            out[tid] = seg2polarity(label)
+            out[tid] = seg2polarity(label, topt)
         elif topt[0] == '2':  # affinity
             out[tid] = seg2affinity(label, topt)
         elif topt[0] == '3':  # small object mask

@@ -83,7 +83,7 @@ class Criterion(object):
             regu = [None]*len(regu_opt)
             for i, ropt in enumerate(regu_opt):
                 assert ropt in self.regu_dict
-                regu[i] = self.regu_dict[ropt]()
+                regu[i] = self.regu_dict[ropt]()  # custom options are not yet supported
         return regu
 
     def get_loss(self, loss_opt, loss_kwargs=None):
@@ -140,7 +140,7 @@ class Criterion(object):
                     self.act[i][j](x[i]),
                     target=target_t,
                     weight_mask=w_mask)
-                loss += loss_temp
+                loss = loss + loss_temp
                 loss_tag = self.target_opt[i] + '_' + \
                     self.loss_opt[i][j] + '_' + str(i)
                 if key is not None:
@@ -148,10 +148,11 @@ class Criterion(object):
                 assert loss_tag not in losses_vis.keys()
                 losses_vis[loss_tag] = loss_temp
 
+        # Regularizations usually only take predictions as inputs.
         for i in range(self.num_regu):
-            targets = [x[j] for j in self.regu_t[i]]
-            regu_temp = self.regu_w[i]*self.regu_fn[i](*targets)
-            loss += regu_temp
+            regu_inputs = [x[j] for j in self.regu_t[i]]
+            regu_temp = self.regu_w[i]*self.regu_fn[i](*regu_inputs)
+            loss = loss + regu_temp
             targets_name = [self.target_opt[j] for j in self.regu_t[i]]
             regu_tag = '_'.join(targets_name) + '_' + \
                 self.regu_opt[i] + '_' + str(i)

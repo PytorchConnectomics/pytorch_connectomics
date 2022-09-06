@@ -4,4 +4,4 @@ MODEL:
   WEIGHT_OPT: [["1"]]
   OUTPUT_ACT: [["none"]]
 DATASET:
-    OUTPUT_PATH: outputs/JWR15_Syn_BCE/
+  OUTPUT_PATH: outputs/JWR15_Syn_BCE/

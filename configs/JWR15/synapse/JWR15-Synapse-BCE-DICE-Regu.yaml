@@ -8,4 +8,4 @@ MODEL:
   REGU_TARGET: [[0]]
   REGU_WEIGHT: [4.0]
 DATASET:
-    OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE_Regu/
+  OUTPUT_PATH: outputs/JWR15_Syn_BCE_DICE_Regu/

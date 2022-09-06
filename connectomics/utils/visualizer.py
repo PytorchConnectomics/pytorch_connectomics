@@ -30,7 +30,16 @@ class Visualizer(object):
                 channels = int(topt.split('-')[1])
                 colors = [torch.rand(3) for _ in range(channels)]
                 colors[0] = torch.zeros(3)  # make background black
-                self.semantic_colors[topt] = torch.stack(colors, 0)
+                self.semantic_colors[topt] = torch.stack(colors, dim=0)
+                
+            if topt[0] == '1' and len(topt) != 1: # synaptic cleft (exclusive)
+                _, exclusive = topt.split('-')
+                assert int(exclusive), f"Option {topt} is not expected!"    
+                colors = torch.stack([
+                    torch.tensor([0.0, 0.0, 0.0]),
+                    torch.tensor([1.0, 0.0, 1.0]),
+                    torch.tensor([0.0, 1.0, 1.0])], dim=0)      
+                self.semantic_colors[topt] = colors
 
     def visualize(self, volume, label, output, weight, iter_total, writer,
                   suffix: Optional[str] = None, additional_image_groups: Optional[dict] = None):
@@ -45,8 +54,14 @@ class Visualizer(object):
             topt = self.cfg.MODEL.TARGET_OPT[idx]
             if topt[0] == '9': # semantic segmentation
                 output[idx] = self.get_semantic_map(output[idx], topt)
-                label[idx] = self.get_semantic_map(
-                    label[idx], topt, argmax=False)
+                label[idx] = self.get_semantic_map(label[idx], topt, argmax=False)
+
+            if topt[0] == '1' and len(topt) != 1: # synaptic cleft segmentation
+                _, exclusive = topt.split('-')
+                assert int(exclusive), f"Option {topt} is not expected!"
+                output[idx] = self.get_semantic_map(output[idx], topt)
+                label[idx] = self.get_semantic_map(label[idx], topt, argmax=False)
+
             if topt[0] == '5': # distance transform
                 if len(topt) == 1:
                     topt = topt + '-2d-0-0-5.0' # default
@@ -57,6 +72,7 @@ class Visualizer(object):
                     temp_label = label[idx].clone().float()[
                         :, np.newaxis]
                     label[idx] = temp_label / temp_label.max() + 1e-6
+
             if topt[0]=='7': # diffusion gradient
                 output[idx] = dx_to_circ(output[idx])
                 label[idx] = dx_to_circ(label[idx])
