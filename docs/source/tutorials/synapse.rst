@@ -170,3 +170,39 @@ in either the yaml config file or by command-line arguments.
 Then convert the predicted probability into segmentation masks in post-processing. Specifically,
 we use :func:`connectomics.utils.process.polarity2instance` to convert the predictions into instance or semantic
 masks based on the downstream application.
+
+6 - Learning exclusive polarity masks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The tutorial shown above predicts three channels *independently* with binary cross-entropy losses (BCE) using
+the following model configurations:
+
+.. code-block:: json
+
+    MODEL:
+      TARGET_OPT: ["1"]
+      LOSS_OPTION: [["WeightedBCEWithLogitsLoss"]]
+      LOSS_WEIGHT: [[1.0]]
+      WEIGHT_OPT: [["1"]]
+      OUTPUT_ACT: [["none"]]
+    INFERENCE:
+      OUTPUT_ACT: ["sigmoid"]
+
+Because the three channels are not exclusive, overlap can happen between pre- and post-synaptic masks. Therefore we
+also provide a config file to conduct standard semantic segmentation with exclusive masks. The main configurations are
+
+.. code-block:: json
+
+    MODEL:
+      TARGET_OPT: ["1-1"] # exclusive pos and neg masks
+      LOSS_OPTION: [["WeightedCE"]]
+      LOSS_KWARGS_KEY: [[["class_weight"]]]
+      LOSS_KWARGS_VAL: [[[[1.0, 10.0, 10.0]]]] # class weights
+      LOSS_WEIGHT: [[1.0]]
+      WEIGHT_OPT: [["0"]]
+      OUTPUT_ACT: [["none"]]
+    INFERENCE:
+      OUTPUT_ACT: ["softmax"]
+
+The prediction of the non-exclusive synaptic masks can also be converted into instance masks to identify individual
+synapse instances.
