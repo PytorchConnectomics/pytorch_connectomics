@@ -219,12 +219,15 @@ def bcd_watershed(volume, thres1=0.9, thres2=0.8, thres3=0.85, thres4=0.5, thres
 # Post-processing functions for synaptic polarity model outputs as described
 # in "Two-Stream Active Query Suggestion for Active Learning in Connectomics
 # (ECCV 2020, https://zudi-lin.github.io/projects/#two_stream_active)".
-def polarity2instance(volume: np.ndarray, thres: float=0.5, thres_small: int=128, 
-                      scale_factors: tuple=(1.0, 1.0, 1.0), semantic: bool=False, dilate_sz: int=5):
+def polarity2instance(
+    volume: np.ndarray, thres: float=0.5, thres_small: int=128, scale_factors: tuple=(1.0, 1.0, 1.0), 
+    semantic: bool=False, dilate_sz: int=5, exclusive: bool = False,
+) -> np.ndarray:
     r"""From synaptic polarity prediction to instance masks via connected-component
     labeling. The input volume should be a 3-channel probability map of shape :math:`(C, Z, Y, X)`
     where :math:`C=3`, representing pre-synaptic region, post-synaptic region and their
-    union, respectively.
+    union, respectively. The function also handles the case where the pre- and post-synaptic masks
+    are exclusive (applied a softmax function before post-processing).
 
     Note:
         For each pair of pre- and post-synaptic segmentation, the decoding function will
@@ -246,6 +249,7 @@ def polarity2instance(volume: np.ndarray, thres: float=0.5, thres_small: int=128
         scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
         semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False
         dilate_sz (int): define a struct of size (1, dilate_sz, dilate_sz) to dilate the masks. Default: 5
+        exclusive (bool): whether the synaptic masks are exclusive (with softmax) or not. Default: False
 
     Examples::
         >>> from connectomics.data.utils import readvol, savevol
@@ -254,8 +258,16 @@ def polarity2instance(volume: np.ndarray, thres: float=0.5, thres_small: int=128
         >>> instances = polarity2instance(volume)
         >>> savevol(output_name, instances)
     """
-    thres = int(255.0 * thres)
-    temp = (volume > thres) # boolean array
+    if exclusive:
+        idx_arr = np.argmax(volume, axis=0)
+        temp = np.stack([
+            idx_arr == 1,
+            idx_arr == 2,
+            idx_arr != 0,  # union of pre- and post-synaptic masks
+        ], axis=0)
+    else:
+        thres = int(255.0 * thres)
+        temp = (volume > thres) # boolean array
 
     syn_pre = np.logical_and(temp[0], temp[2])
     syn_pre = remove_small_objects(syn_pre,

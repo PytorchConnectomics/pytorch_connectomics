@@ -177,7 +177,7 @@ masks based on the downstream application.
 The tutorial shown above predicts three channels *independently* with binary cross-entropy losses (BCE) using
 the following model configurations:
 
-.. code-block:: json
+.. code-block:: yaml
 
     MODEL:
       TARGET_OPT: ["1"]
@@ -191,7 +191,7 @@ the following model configurations:
 Because the three channels are not exclusive, overlap can happen between pre- and post-synaptic masks. Therefore we
 also provide a config file to conduct standard semantic segmentation with exclusive masks. The main configurations are
 
-.. code-block:: json
+.. code-block:: yaml
 
     MODEL:
       TARGET_OPT: ["1-1"] # exclusive pos and neg masks
@@ -205,4 +205,4 @@ also provide a config file to conduct standard semantic segmentation with exclus
       OUTPUT_ACT: ["softmax"]
 
 The prediction of the non-exclusive synaptic masks can also be converted into instance masks to identify individual
-synapse instances.
+synapse instances using :func:`connectomics.utils.process.polarity2instance` with the option ``exclusive=True``.
