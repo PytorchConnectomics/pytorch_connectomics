@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D, UNetPlus2D
+from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D, UNetPlus2D, SwinUNETR, UNETR
 from .backbone import RepVGG3D
 
 MODEL_MAP = {
@@ -14,6 +14,8 @@ MODEL_MAP = {
     'deeplabv3a': DeepLabV3,
     'deeplabv3b': DeepLabV3,
     'deeplabv3c': DeepLabV3,
+    'swinunetr': SwinUNETR,
+    'unetr' : UNETR,
 }
 
 
@@ -38,6 +40,32 @@ def build_model(cfg, device, rank=None):
         'return_feats': cfg.MODEL.RETURN_FEATS,
     }
 
+    if model_arch == 'swinunetr':
+        kwargs['img_size'] = cfg.MODEL.INPUT_SIZE
+        kwargs['depths'] = cfg.MODEL.DEPTHS
+        kwargs['num_heads'] = cfg.MODEL.SWIN_UNETR_NUM_HEADS
+        kwargs['feature_size'] = cfg.MODEL.SWIN_UNETR_FEATURE_SIZE
+        kwargs['norm_name'] = cfg.MODEL.NORM_NAME
+        kwargs['drop_rate'] = cfg.MODEL.SWIN_UNETR_DROPOUT_RATE
+        kwargs['attn_drop_rate']  = cfg.MODEL.ATTN_DROP_RATE
+        kwargs['dropout_path_rate'] = cfg.MODEL.DROPOUT_PATH_RATE
+        kwargs['normalize'] = cfg.MODEL.NORMALIZE
+        kwargs['use_checkpoint'] = cfg.MODEL.USE_CHECKPOINT
+        kwargs['spatial_dims'] = cfg.MODEL.SPATIAL_DIMS
+        kwargs['downsample'] = cfg.MODEL.DOWNSAMPLE
+
+    if model_arch == 'unetr':
+        kwargs['img_size'] = cfg.MODEL.INPUT_SIZE
+        kwargs['feature_size'] = cfg.MODEL.UNETR_FEATURE_SIZE
+        kwargs['hidden_size'] = cfg.MODEL.HIDDEN_SIZE
+        kwargs['mlp_dim'] = cfg.MODEL.MLP_DIM
+        kwargs['num_heads'] = cfg.MODEL.UNETR_NUM_HEADS
+        kwargs['pos_embed'] = cfg.MODEL.POS_EMBED
+        kwargs['norm_name'] = cfg.MODEL.NORM_NAME
+        kwargs['conv_block'] = cfg.MODEL.CONV_BLOCK
+        kwargs['res_block'] = cfg.MODEL.RES_BLOCK
+        kwargs['dropout_rate'] = cfg.MODEL.UNETR_DROPOUT_RATE
+
     if model_arch == 'fpn_3d':
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE
@@ -49,7 +77,9 @@ def build_model(cfg, device, rank=None):
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['aux_out'] = cfg.MODEL.AUX_OUT
 
+    # Make scaleable 
     model = MODEL_MAP[cfg.MODEL.ARCHITECTURE](**kwargs)
+    
     print('model: ', model.__class__.__name__)
     return make_parallel(model, cfg, device, rank)
 

@@ -1,0 +1,61 @@
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 8
+  DISTRIBUTED: False
+  PARALLEL: DP
+AUGMENTOR:
+  SMOOTH: False
+MODEL:
+  ARCHITECTURE: unetr
+  INPUT_SIZE: [16, 256, 256] #Must be divisible by patch size (16, 16, 16)
+  OUTPUT_SIZE: [16, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ["2"]
+  LABEL_EROSION: 1
+  LABEL_DILATION: None
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  NORM_MODE: gn
+  UNETR_FEATURE_SIZE: 16
+  HIDDEN_SIZE: 768
+  MLP_DIM: 3072
+  UNETR_NUM_HEADS: 12
+  POS_EMBED: 'perceptron'
+  NORM_NAME: 'instance'
+  CONV_BLOCK: False
+  RES_BLOCK: True
+  UNETR_DROPOUT_RATE: 0.0
+DATASET:
+  IMAGE_NAME: train.h5
+  LABEL_NAME: train-labels.h5
+  INPUT_PATH: ./data # or your own dataset path
+  OUTPUT_PATH: ./outputs/transformer
+  IMAGE_SCALE: [1.0, 1.0, 1.0]
+  VALID_MASK_SCALE: [1.0, 1.0, 1.0]
+  PAD_SIZE: [4, 64, 64]
+  PAD_MODE: 'reflect'
+SOLVER:
+  NAME: SGD
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.02
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 4000
+  ITERATION_TOTAL: 150000
+  ITERATION_VAL: 4000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [200, 1000]
+INFERENCE:
+  INPUT_PATH: ./data
+  OUTPUT_ACT: ["sigmoid"]
+  IMAGE_NAME: test.h5 # or path to your test images
+  OUTPUT_PATH: ./outputs/transformer/test
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [4, 64, 64]
+  AUG_MODE: min
+  AUG_NUM: None
+  STRIDE: [4, 128, 128]
+  SAMPLES_PER_BATCH: 4

@@ -1,0 +1,63 @@
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 8
+  DISTRIBUTED: False
+  PARALLEL: DP
+AUGMENTOR:
+  SMOOTH: False
+MODEL:
+  ARCHITECTURE: swinunetr
+  INPUT_SIZE: [32, 256, 256] #Must be 2^n, mininum 32 because of hierarchal structure (otherwise use UNETR)
+  OUTPUT_SIZE: [32, 256, 256]
+  IN_PLANES: 1
+  OUT_PLANES: 3
+  TARGET_OPT: ["2"]
+  LABEL_EROSION: 1
+  LABEL_DILATION: None
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  LOSS_WEIGHT: [[1.0, 0.5]]
+  WEIGHT_OPT: [["1", "0"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  NORM_MODE: gn
+  DEPTHS: (2, 2, 2, 2)
+  SWIN_UNETR_NUM_HEADS: (3, 6, 12, 24)
+  SWIN_UNETR_FEATURE_SIZE: 24
+  NORM_NAME: 'instance'
+  SWIN_UNETR_DROPOUT_RATE: 0.0
+  ATTN_DROP_RATE: 0.0
+  DROPOUT_PATH_RATE:  0.0
+  NORMALIZE: True
+  USE_CHECKPOINT: False
+  SPATIAL_DIMS: 3
+  DOWNSAMPLE: 'merging'
+DATASET:
+  IMAGE_NAME: train.h5
+  LABEL_NAME: train-labels.h5
+  INPUT_PATH: ./data # or your own dataset path
+  OUTPUT_PATH: ./outputs/transformer
+  IMAGE_SCALE: [1.0, 1.0, 1.0]
+  VALID_MASK_SCALE: [1.0, 1.0, 1.0]
+  PAD_SIZE: [4, 64, 64]
+  PAD_MODE: 'reflect'
+SOLVER:
+  NAME: SGD
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.02
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 4000
+  ITERATION_TOTAL: 150000
+  ITERATION_VAL: 4000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [200, 1000]
+INFERENCE:
+  INPUT_PATH: ./data
+  OUTPUT_ACT: ["sigmoid"]
+  IMAGE_NAME: test.h5 # or path to your test images
+  OUTPUT_PATH: ./outputs/transformer/test
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [4, 64, 64]
+  AUG_MODE: min
+  AUG_NUM: None
+  STRIDE: [4, 128, 128]
+  SAMPLES_PER_BATCH: 2
