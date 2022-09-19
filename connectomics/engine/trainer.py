@@ -351,7 +351,7 @@ class Trainer(TrainerBase):
 
         # load pre-trained model
         print('Load pretrained checkpoint: ', checkpoint)
-        checkpoint = torch.load(checkpoint)
+        checkpoint = torch.load(checkpoint, map_location=self.device)
         print('checkpoints: ', checkpoint.keys())
 
         # update model weights
