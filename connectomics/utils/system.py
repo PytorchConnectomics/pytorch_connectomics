@@ -32,8 +32,6 @@ def get_args():
                         help='node rank for distributed training')
     parser.add_argument('--debug', action='store_true',
                         help='run the scripts in debug mode')
-    parser.add_argument('use_cpu', action='store_true',
-                        help='use CPU for inference')
     # Merge configs from command line (e.g., add 'SYSTEM.NUM_GPUS 8').
     parser.add_argument(
         "opts",
@@ -86,7 +84,7 @@ def init_devices(args, cfg):
             else args.manual_seed
     else:
         manual_seed = 0 if args.manual_seed is None else args.manual_seed
-        device = torch.device("cuda" if (torch.cuda.is_available() and not args.use_cpu) else "cpu")
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print("rank: {}, device: {}, seed: {}".format(args.local_rank, device, manual_seed))
     # use manual_seed seeds for reproducibility
