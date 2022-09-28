@@ -114,6 +114,70 @@ _C.MODEL.RETURN_FEATS = None
 # Predict an auxiliary output (only works with 2D DeeplabV3)
 _C.MODEL.AUX_OUT = False
 
+## Configurations for SwinUNETR
+# Dimension of network feature size.
+_C.MODEL.SWIN_UNETR_FEATURE_SIZE = 24
+
+# Number of layers in each stage.
+_C.MODEL.DEPTHS = (2, 2, 2, 2)
+
+# Number of attention heads.
+_C.MODEL.SWIN_UNETR_NUM_HEADS = (3, 6, 12, 24)
+
+# Feature normalization type and arguments.
+_C.MODEL.NORM_NAME = 'instance'
+
+# Dropout rate.
+_C.MODEL.SWIN_UNETR_DROPOUT_RATE = 0.0
+
+# Attention dropout rate.
+_C.MODEL.ATTN_DROP_RATE = 0.0
+
+# Dropout path rate.
+_C.MODEL.DROPOUT_PATH_RATE =  0.0
+
+# Normalize output intermediate features in each stage.
+_C.MODEL.NORMALIZE = True
+
+# Use gradient checkpointing for reduced memory usage.
+_C.MODEL.USE_CHECKPOINT = False
+
+# Number of spatial dims.
+_C.MODEL.SPATIAL_DIMS = 3
+
+# Module used for downsampling, available options are `"mergingv2"`, `"merging"` and a user-specified `nn.Module`
+_C.MODEL.DOWNSAMPLE = 'merging'
+
+
+## Configurations for UNETR
+# Dimension of network feature size.
+_C.MODEL.UNETR_FEATURE_SIZE = 16
+
+# Dimension of hidden layer.
+_C.MODEL.HIDDEN_SIZE = 768
+
+# Dimension of feedforward layer.
+_C.MODEL.MLP_DIM = 3072
+
+# Number of attention heads.
+_C.MODEL.UNETR_NUM_HEADS = 12
+
+# Position embedding layer type.
+_C.MODEL.POS_EMBED = 'perceptron'
+
+# Feature normalization type and arguments.
+_C.MODEL.NORM_NAME = 'instance'
+
+# bool argument to determine if convolutional block is used.
+_C.MODEL.CONV_BLOCK = False
+
+# bool argument to determine if residual block is used.
+_C.MODEL.RES_BLOCK = True
+
+# action of the input units to drop.
+_C.MODEL.UNETR_DROPOUT_RATE = 0.0
+
+
 # -----------------------------------------------------------------------------
 # Dataset
 # -----------------------------------------------------------------------------
@@ -418,7 +482,7 @@ _C.INFERENCE.UNPAD = True
 # activation for the output for inference and visualization
 _C.INFERENCE.OUTPUT_ACT = ['sigmoid']
 
-_C.INFERENCE.STRIDE = [4, 128, 129]
+_C.INFERENCE.STRIDE = [4, 128, 128]
 
 # Blending function for overlapping inference.
 _C.INFERENCE.BLENDING = 'gaussian'
