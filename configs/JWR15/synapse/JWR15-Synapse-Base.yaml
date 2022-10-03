@@ -8,7 +8,7 @@ MODEL:
   OUTPUT_SIZE: [17, 257, 257]
   IN_PLANES: 1
   OUT_PLANES: 3
-  TARGET_OPT: ["1"]
+  TARGET_OPT: ["1"] # non-exclusive synaptic masks
   NORM_MODE: gn
   FILTERS: [32, 64, 96, 128, 192]
 DATASET:

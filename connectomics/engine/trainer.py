@@ -268,9 +268,9 @@ class Trainer(TrainerBase):
             print('Final prediction shapes are:')
             for k in range(len(result)):
                 print(result[k].shape)
-            writeh5(os.path.join(self.output_dir, self.test_filename), result,
-                    ['vol%d' % (x) for x in range(len(result))])
-            print('Prediction saved as: ', self.test_filename)
+            save_path = os.path.join(self.output_dir, self.test_filename)
+            writeh5(save_path, result, ['vol%d' % (x) for x in range(len(result))])
+            print('Prediction saved as: ', save_path)
 
     def test_singly(self):
         dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
