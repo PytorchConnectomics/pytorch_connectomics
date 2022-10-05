@@ -1,0 +1,21 @@
+MODEL:
+  LABEL_EROSION: 1
+  ARCHITECTURE: unetr
+  INPUT_SIZE: [16, 256, 256]  # Must be divisible by patch size (16, 16, 16)
+  OUTPUT_SIZE: [16, 256, 256]
+  UNETR_FEATURE_SIZE: 16
+  HIDDEN_SIZE: 768
+  MLP_DIM: 3072
+  UNETR_NUM_HEADS: 12
+  POS_EMBED: 'perceptron'
+  NORM_NAME: 'instance'
+  CONV_BLOCK: False
+  RES_BLOCK: True
+  UNETR_DROPOUT_RATE: 0.0
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_UNETR_GANLoss
+INFERENCE:
+  INPUT_SIZE: [16, 512, 512]
+  OUTPUT_SIZE: [16, 512, 512]
+  OUTPUT_PATH: outputs/SNEMI_UNETR_GANLoss/test
+  OUTPUT_NAME: result_unetr_ganloss.h5

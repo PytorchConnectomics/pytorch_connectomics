@@ -1,0 +1,23 @@
+MODEL:
+  LABEL_EROSION: 1
+  ARCHITECTURE: swinunetr
+  INPUT_SIZE: [32, 256, 256]  # Must be 2^n, mininum 32 because of hierarchical structure (otherwise use UNETR)
+  OUTPUT_SIZE: [32, 256, 256]
+  DEPTHS: (2, 2, 2, 2)
+  SWIN_UNETR_NUM_HEADS: (3, 6, 12, 24)
+  SWIN_UNETR_FEATURE_SIZE: 48
+  NORM_NAME: 'instance'
+  SWIN_UNETR_DROPOUT_RATE: 0.0
+  ATTN_DROP_RATE: 0.0
+  DROPOUT_PATH_RATE:  0.0
+  NORMALIZE: True
+  USE_CHECKPOINT: False
+  SPATIAL_DIMS: 3
+  DOWNSAMPLE: 'merging'
+DATASET:
+  OUTPUT_PATH: outputs/SNEMI_SwinUNETR_GANLoss
+INFERENCE:
+  INPUT_SIZE: [32, 256, 256]
+  OUTPUT_SIZE: [32, 256, 256]
+  OUTPUT_PATH: outputs/SNEMI_SwinUNETR_GANLoss/test
+  OUTPUT_NAME: result_swinunetr_ganloss.h5
