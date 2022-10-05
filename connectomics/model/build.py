@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D, UNetPlus2D, SwinUNETR, UNETR
+from .arch import UNet3D, UNet2D, FPN3D, DeepLabV3, UNetPlus3D, UNetPlus2D, UNETR, SwinUNETR
 from .backbone import RepVGG3D
 
 MODEL_MAP = {
@@ -14,8 +14,8 @@ MODEL_MAP = {
     'deeplabv3a': DeepLabV3,
     'deeplabv3b': DeepLabV3,
     'deeplabv3c': DeepLabV3,
-    'swinunetr': SwinUNETR,
     'unetr' : UNETR,
+    'swinunetr': SwinUNETR,
 }
 
 
@@ -53,8 +53,7 @@ def build_model(cfg, device, rank=None):
         kwargs['use_checkpoint'] = cfg.MODEL.USE_CHECKPOINT
         kwargs['spatial_dims'] = cfg.MODEL.SPATIAL_DIMS
         kwargs['downsample'] = cfg.MODEL.DOWNSAMPLE
-
-    if model_arch == 'unetr':
+    elif model_arch == 'unetr':
         kwargs['img_size'] = cfg.MODEL.INPUT_SIZE
         kwargs['feature_size'] = cfg.MODEL.UNETR_FEATURE_SIZE
         kwargs['hidden_size'] = cfg.MODEL.HIDDEN_SIZE
@@ -65,14 +64,12 @@ def build_model(cfg, device, rank=None):
         kwargs['conv_block'] = cfg.MODEL.CONV_BLOCK
         kwargs['res_block'] = cfg.MODEL.RES_BLOCK
         kwargs['dropout_rate'] = cfg.MODEL.UNETR_DROPOUT_RATE
-
-    if model_arch == 'fpn_3d':
+    elif model_arch == 'fpn_3d':
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE
         if cfg.MODEL.BACKBONE == 'botnet':
             kwargs['fmap_size'] = cfg.MODEL.INPUT_SIZE
-
-    if model_arch[:7] == 'deeplab':
+    elif model_arch[:7] == 'deeplab':
         kwargs['name'] = model_arch
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['aux_out'] = cfg.MODEL.AUX_OUT
