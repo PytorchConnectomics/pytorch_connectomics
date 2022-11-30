@@ -169,7 +169,7 @@ We show examples for running the training script for the **U3D-BC** model:
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3 python python -u -m torch.distributed.run \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python -u -m torch.distributed.run \
     --nproc_per_node=4 --master_port=4321 scripts/main.py --distributed \
     --config-base configs/MitoEM/MitoEM-R-Base.yaml \
     --config-file configs/MitoEM/MitoEM-R-BC.yaml
