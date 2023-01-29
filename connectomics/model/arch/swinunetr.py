@@ -71,7 +71,7 @@ class SwinUNETR(nn.Module):
                 user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
                 The default is currently `"merging"` 
         """
-        # Bride to PyTC
+        # Bridge to PyTC
         in_channels = in_channel
         out_channels = out_channel
 

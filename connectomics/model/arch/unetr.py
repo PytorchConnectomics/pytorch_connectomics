@@ -1,11 +1,8 @@
 from __future__ import print_function, division
-from typing import Optional, List, Tuple, Union
-from collections import OrderedDict
+from typing import Tuple, Union
 
 import torch
-import math
 import torch.nn as nn
-import torch.nn.functional as F
 
 from ..block import *
 from ..utils import model_init
@@ -13,10 +10,9 @@ from ..utils import model_init
 
 class UNETR(nn.Module):
     """
-    Based on: "Hatamizadeh et al.,<https://arxiv.org/abs/2103.10504>". 
+    Based on: "Hatamizadeh et al.,<https://arxiv.org/abs/2103.10504>".
 
     Args:
-
     in_channels (int): dimension of input channels.
     out_channels (int): dimension of output channels.
     img_size (Tuple[int, int, int]): dimension of input image.
@@ -29,18 +25,19 @@ class UNETR(nn.Module):
     conv_block (bool): bool argument to determine if convolutional block is used.
     res_block (bool): bool argument to determine if residual block is used.
     dropout_rate (float): faction of the input units to drop.
-
     """
     def __init__(self,
-                 in_channel: int,
-                 out_channel: int,
-                 img_size: Tuple[int, int, int],
-                 feature_size: int = 16,
+                 in_channel: int = 1,
+                 out_channel: int = 3,
+                 img_size: Tuple[int, int, int] = (64, 128, 128),
+                 patch_size: Tuple[int, int, int] = (16, 16, 16),
+                 feature_size: int = 32,
                  hidden_size: int = 768,
                  mlp_dim: int = 3072,
                  num_heads: int = 12,
-                 pos_embed: str = "perceptron",
-                 norm_name: Union[Tuple, str] = "instance",
+                 pos_embed: str = 'perceptron',
+                 norm_name: Union[Tuple, str] = 'instance',
+                 is_isotropic: bool = False,
                  conv_block: bool = False,
                  res_block: bool = True,
                  dropout_rate: float = 0.0,
@@ -55,20 +52,26 @@ class UNETR(nn.Module):
             raise AssertionError(
                 "hidden size should be divisible by num_heads.")
 
-        if pos_embed not in ["conv", "perceptron"]:
+        if pos_embed not in ['conv', 'perceptron']:
             raise KeyError(
                 f"Position embedding layer of type {pos_embed} is not supported."
             )
 
+        if (patch_size[0] % 4) * (patch_size[1] % 4) * (patch_size[2] %
+                                                        4) != 0:
+            raise AssertionError("patch size should be divisible by 4.")
+
         self.num_layers = 12
-        self.patch_size = (16, 16, 16)
+        self.patch_size = patch_size if is_isotropic else (
+            patch_size[0] // 4, patch_size[1],
+            patch_size[2])  # for anisotropic data
         self.feat_size = (
             img_size[0] // self.patch_size[0],
             img_size[1] // self.patch_size[1],
             img_size[2] // self.patch_size[2],
         )
 
-        # Bride to PyTC
+        # Bridge to PyTC
         in_channels = in_channel
         out_channels = out_channel
 
@@ -91,43 +94,69 @@ class UNETR(nn.Module):
             spatial_dims=3,
             in_channels=in_channels,
             out_channels=feature_size,
-            kernel_size=3,
+            kernel_size=(1, 3, 3),  #  exclusively use 2D convs at finest scale
             stride=1,
             norm_name=norm_name,
             res_block=res_block,
         )
-        self.encoder2 = UnetrPrUpBlock(
+        encoder2_1 = UnetrPrUpBlock(
             spatial_dims=3,
             in_channels=hidden_size,
             out_channels=feature_size * 2,
-            num_layer=2,
-            kernel_size=3,
+            num_layer=0,
+            kernel_size=(1, 3, 3),  # starts with 3x3x1 conv
             stride=1,
             upsample_kernel_size=2,
             norm_name=norm_name,
             conv_block=conv_block,
             res_block=res_block,
         )
-        self.encoder3 = UnetrPrUpBlock(
+        encoder2_2 = UnetrPrUpBlock(
+            spatial_dims=3,
+            in_channels=feature_size * 2,
+            out_channels=feature_size * 2,
+            num_layer=1,
+            kernel_size=3,  # followed by 3x3x3 convs
+            stride=1,
+            upsample_kernel_size=(1, 2, 2),
+            norm_name=norm_name,
+            conv_block=conv_block,
+            res_block=res_block,
+        )
+        self.encoder2 = nn.Sequential(encoder2_1, encoder2_2)
+        encoder3_1 = UnetrPrUpBlock(
             spatial_dims=3,
             in_channels=hidden_size,
             out_channels=feature_size * 4,
-            num_layer=1,
-            kernel_size=3,
+            num_layer=0,
+            kernel_size=(1, 3, 3),  # starts with 3x3x1 conv
             stride=1,
-            upsample_kernel_size=2,
+            upsample_kernel_size=(1, 2, 2),
             norm_name=norm_name,
             conv_block=conv_block,
             res_block=res_block,
         )
+        encoder3_2 = UnetrPrUpBlock(
+            spatial_dims=3,
+            in_channels=feature_size * 4,
+            out_channels=feature_size * 4,
+            num_layer=0,
+            kernel_size=3,  # followed by 3x3x3 convs
+            stride=1,
+            upsample_kernel_size=(1, 2, 2),
+            norm_name=norm_name,
+            conv_block=conv_block,
+            res_block=res_block,
+        )
+        self.encoder3 = nn.Sequential(encoder3_1, encoder3_2)
         self.encoder4 = UnetrPrUpBlock(
             spatial_dims=3,
             in_channels=hidden_size,
             out_channels=feature_size * 8,
             num_layer=0,
-            kernel_size=3,
+            kernel_size=(1, 3, 3),
             stride=1,
-            upsample_kernel_size=2,
+            upsample_kernel_size=(1, 2, 2),
             norm_name=norm_name,
             conv_block=conv_block,
             res_block=res_block,
@@ -136,8 +165,8 @@ class UNETR(nn.Module):
             spatial_dims=3,
             in_channels=hidden_size,
             out_channels=feature_size * 8,
-            kernel_size=3,
-            upsample_kernel_size=2,
+            kernel_size=(1, 3, 3),
+            upsample_kernel_size=(1, 2, 2),
             norm_name=norm_name,
             res_block=res_block,
         )
@@ -146,7 +175,7 @@ class UNETR(nn.Module):
             in_channels=feature_size * 8,
             out_channels=feature_size * 4,
             kernel_size=3,
-            upsample_kernel_size=2,
+            upsample_kernel_size=(1, 2, 2),
             norm_name=norm_name,
             res_block=res_block,
         )
@@ -163,7 +192,7 @@ class UNETR(nn.Module):
             spatial_dims=3,
             in_channels=feature_size * 2,
             out_channels=feature_size,
-            kernel_size=3,
+            kernel_size=(1, 3, 3),  #  exclusively use 2D convs at finest scale
             upsample_kernel_size=2,
             norm_name=norm_name,
             res_block=res_block,
