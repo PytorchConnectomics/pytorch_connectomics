@@ -244,6 +244,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         """Rejection sampling to filter out samples without required number
         of foreground pixels or valid ratio.
         """
+        sample_count = 0
         while True:
             sample = self._random_sampling(vol_size)
             pos, out_volume, out_label, out_valid = sample
@@ -264,6 +265,15 @@ class VolumeDataset(torch.utils.data.Dataset):
 
             if self._is_valid(out_valid) and self._is_fg(out_label):
                 return pos, out_volume, out_label, out_valid
+
+            sample_count += 1
+            if sample_count > 100:
+                err_msg = (
+                    "Can not find any valid subvolume after sampling the "
+                    "dataset for more than 100 times. Please adjust the "
+                    "valid mask or rejection sampling configurations."
+                )
+                raise RuntimeError(err_msg)
 
     def _random_sampling(self, vol_size):
         """Randomly sample a subvolume from all the volumes.
