@@ -7,8 +7,9 @@ import math
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..block import * 
+from ..block import *
 from ..utils import model_init
+
 
 class UNETR(nn.Module):
     """
@@ -30,23 +31,20 @@ class UNETR(nn.Module):
     dropout_rate (float): faction of the input units to drop.
 
     """
-
-    def __init__(
-        self,
-        in_channel: int,
-        out_channel: int,
-        img_size: Tuple[int, int, int],
-        feature_size: int = 16,
-        hidden_size: int = 768,
-        mlp_dim: int = 3072,
-        num_heads: int = 12,
-        pos_embed: str = "perceptron",
-        norm_name: Union[Tuple, str] = "instance",
-        conv_block: bool = False,
-        res_block: bool = True,
-        dropout_rate: float = 0.0,
-        **kwargs
-    ) -> None:
+    def __init__(self,
+                 in_channel: int,
+                 out_channel: int,
+                 img_size: Tuple[int, int, int],
+                 feature_size: int = 16,
+                 hidden_size: int = 768,
+                 mlp_dim: int = 3072,
+                 num_heads: int = 12,
+                 pos_embed: str = "perceptron",
+                 norm_name: Union[Tuple, str] = "instance",
+                 conv_block: bool = False,
+                 res_block: bool = True,
+                 dropout_rate: float = 0.0,
+                 **kwargs) -> None:
 
         super().__init__()
 
@@ -54,11 +52,14 @@ class UNETR(nn.Module):
             raise AssertionError("dropout_rate should be between 0 and 1.")
 
         if hidden_size % num_heads != 0:
-            raise AssertionError("hidden size should be divisible by num_heads.")
+            raise AssertionError(
+                "hidden size should be divisible by num_heads.")
 
         if pos_embed not in ["conv", "perceptron"]:
-            raise KeyError(f"Position embedding layer of type {pos_embed} is not supported.")
-        
+            raise KeyError(
+                f"Position embedding layer of type {pos_embed} is not supported."
+            )
+
         self.num_layers = 12
         self.patch_size = (16, 16, 16)
         self.feat_size = (
@@ -66,7 +67,7 @@ class UNETR(nn.Module):
             img_size[1] // self.patch_size[1],
             img_size[2] // self.patch_size[2],
         )
-        
+
         # Bride to PyTC
         in_channels = in_channel
         out_channels = out_channel
@@ -167,10 +168,13 @@ class UNETR(nn.Module):
             norm_name=norm_name,
             res_block=res_block,
         )
-        self.out = UnetOutBlock(spatial_dims=3, in_channels=feature_size, out_channels=out_channels)  # type: ignore
+        self.out = UnetOutBlock(spatial_dims=3,
+                                in_channels=feature_size,
+                                out_channels=out_channels)  # type: ignore
 
     def proj_feat(self, x, hidden_size, feat_size):
-        x = x.view(x.size(0), feat_size[0], feat_size[1], feat_size[2], hidden_size)
+        x = x.view(x.size(0), feat_size[0], feat_size[1], feat_size[2],
+                   hidden_size)
         x = x.permute(0, 4, 1, 2, 3).contiguous()
         return x
 
@@ -181,35 +185,41 @@ class UNETR(nn.Module):
             for i in weights["state_dict"]:
                 print(i)
             self.vit.patch_embedding.position_embeddings.copy_(
-                weights["state_dict"]["module.transformer.patch_embedding.position_embeddings_3d"]
-            )
+                weights["state_dict"]
+                ["module.transformer.patch_embedding.position_embeddings_3d"])
             self.vit.patch_embedding.cls_token.copy_(
-                weights["state_dict"]["module.transformer.patch_embedding.cls_token"]
-            )
+                weights["state_dict"]
+                ["module.transformer.patch_embedding.cls_token"])
             self.vit.patch_embedding.patch_embeddings[1].weight.copy_(
-                weights["state_dict"]["module.transformer.patch_embedding.patch_embeddings.1.weight"]
+                weights["state_dict"]
+                ["module.transformer.patch_embedding.patch_embeddings.1.weight"]
             )
             self.vit.patch_embedding.patch_embeddings[1].bias.copy_(
-                weights["state_dict"]["module.transformer.patch_embedding.patch_embeddings.1.bias"]
-            )
+                weights["state_dict"]
+                ["module.transformer.patch_embedding.patch_embeddings.1.bias"])
 
             # copy weights from  encoding blocks (default: num of blocks: 12)
             for bname, block in self.vit.blocks.named_children():
                 print(block)
                 block.loadFrom(weights, n_block=bname)
             # last norm layer of transformer
-            self.vit.norm.weight.copy_(weights["state_dict"]["module.transformer.norm.weight"])
-            self.vit.norm.bias.copy_(weights["state_dict"]["module.transformer.norm.bias"])
+            self.vit.norm.weight.copy_(
+                weights["state_dict"]["module.transformer.norm.weight"])
+            self.vit.norm.bias.copy_(
+                weights["state_dict"]["module.transformer.norm.bias"])
 
     def forward(self, x_in):
         x, hidden_states_out = self.vit(x_in)
         enc1 = self.encoder1(x_in)
         x2 = hidden_states_out[3]
-        enc2 = self.encoder2(self.proj_feat(x2, self.hidden_size, self.feat_size))
+        enc2 = self.encoder2(
+            self.proj_feat(x2, self.hidden_size, self.feat_size))
         x3 = hidden_states_out[6]
-        enc3 = self.encoder3(self.proj_feat(x3, self.hidden_size, self.feat_size))
+        enc3 = self.encoder3(
+            self.proj_feat(x3, self.hidden_size, self.feat_size))
         x4 = hidden_states_out[9]
-        enc4 = self.encoder4(self.proj_feat(x4, self.hidden_size, self.feat_size))
+        enc4 = self.encoder4(
+            self.proj_feat(x4, self.hidden_size, self.feat_size))
         dec4 = self.proj_feat(x, self.hidden_size, self.feat_size)
         dec3 = self.decoder5(dec4, enc4)
         dec2 = self.decoder4(dec3, enc3)
@@ -217,4 +227,3 @@ class UNETR(nn.Module):
         out = self.decoder2(dec1, enc1)
         logits = self.out(out)
         return logits
-

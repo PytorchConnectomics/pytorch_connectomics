@@ -1,4 +1,5 @@
 MODEL:
+  LABEL_EROSION: 1
   ARCHITECTURE: swinunetr
   INPUT_SIZE: [32, 256, 256]  # Must be 2^n, mininum 32 because of hierarchical structure (otherwise use UNETR)
   OUTPUT_SIZE: [32, 256, 256]
@@ -14,12 +15,9 @@ MODEL:
   SPATIAL_DIMS: 3
   DOWNSAMPLE: 'merging'
 DATASET:
-  OUTPUT_PATH: outputs/SNEMI_SwinUNETR
-SOLVER:
-  NAME: AdamW
-  BASE_LR: 0.001
+  OUTPUT_PATH: outputs/SNEMI_SwinUNETR_GANLoss
 INFERENCE:
   INPUT_SIZE: [32, 256, 256]
   OUTPUT_SIZE: [32, 256, 256]
-  OUTPUT_PATH: outputs/SNEMI_SwinUNETR/test
-  OUTPUT_NAME: result_swinunetr.h5
+  OUTPUT_PATH: outputs/SNEMI_SwinUNETR_GANLoss/test
+  OUTPUT_NAME: result_swinunetr_ganloss.h5

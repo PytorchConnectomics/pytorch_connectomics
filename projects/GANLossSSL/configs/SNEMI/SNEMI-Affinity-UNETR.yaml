@@ -1,4 +1,5 @@
 MODEL:
+  LABEL_EROSION: 1
   ARCHITECTURE: unetr
   INPUT_SIZE: [16, 256, 256]  # Must be divisible by patch size (16, 16, 16)
   OUTPUT_SIZE: [16, 256, 256]
@@ -12,12 +13,9 @@ MODEL:
   RES_BLOCK: True
   UNETR_DROPOUT_RATE: 0.0
 DATASET:
-  OUTPUT_PATH: outputs/SNEMI_UNETR
-SOLVER:
-  NAME: AdamW
-  BASE_LR: 0.001
+  OUTPUT_PATH: outputs/SNEMI_UNETR_GANLoss
 INFERENCE:
   INPUT_SIZE: [16, 512, 512]
   OUTPUT_SIZE: [16, 512, 512]
-  OUTPUT_PATH: outputs/SNEMI_UNETR/test
-  OUTPUT_NAME: result_unetr.h5
+  OUTPUT_PATH: outputs/SNEMI_UNETR_GANLoss/test
+  OUTPUT_NAME: result_unetr_ganloss.h5

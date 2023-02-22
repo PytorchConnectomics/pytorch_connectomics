@@ -11,6 +11,7 @@ from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 
+
 class ViT(nn.Module):
     """
     Vision Transformer (ViT), based on: "Dosovitskiy et al.,
@@ -18,7 +19,6 @@ class ViT(nn.Module):
 
     ViT supports Torchscript but only works for Pytorch after 1.8.
     """
-
     def __init__(
         self,
         in_channels: int,
@@ -84,17 +84,19 @@ class ViT(nn.Module):
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,
         )
-        self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
-        )
+        self.blocks = nn.ModuleList([
+            TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate)
+            for i in range(num_layers)
+        ])
         self.norm = nn.LayerNorm(hidden_size)
         if self.classification:
             self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
             if post_activation == "Tanh":
-                self.classification_head = nn.Sequential(nn.Linear(hidden_size, num_classes), nn.Tanh())
+                self.classification_head = nn.Sequential(
+                    nn.Linear(hidden_size, num_classes), nn.Tanh())
             else:
-                self.classification_head = nn.Linear(hidden_size, num_classes)  # type: ignore
-
+                self.classification_head = nn.Linear(
+                    hidden_size, num_classes)  # type: ignore
 
     def forward(self, x):
         x = self.patch_embedding(x)
@@ -128,7 +130,6 @@ class UnetResBlock(nn.Module):
         dropout: dropout probability.
 
     """
-
     def __init__(
         self,
         spatial_dims: int,
@@ -137,7 +138,10 @@ class UnetResBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        act_name: Union[Tuple, str] = ("leakyrelu", {
+            "inplace": True,
+            "negative_slope": 0.01
+        }),
         dropout: Optional[Union[Tuple, str, float]] = None,
     ):
         super().__init__()
@@ -164,8 +168,12 @@ class UnetResBlock(nn.Module):
             conv_only=False,
         )
         self.lrelu = get_act_layer(name=act_name)
-        self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
-        self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm1 = get_norm_layer(name=norm_name,
+                                    spatial_dims=spatial_dims,
+                                    channels=out_channels)
+        self.norm2 = get_norm_layer(name=norm_name,
+                                    spatial_dims=spatial_dims,
+                                    channels=out_channels)
         self.downsample = in_channels != out_channels
         stride_np = np.atleast_1d(stride)
         if not np.all(stride_np == 1):
@@ -182,7 +190,9 @@ class UnetResBlock(nn.Module):
                 norm=None,
                 conv_only=False,
             )
-            self.norm3 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+            self.norm3 = get_norm_layer(name=norm_name,
+                                        spatial_dims=spatial_dims,
+                                        channels=out_channels)
 
     def forward(self, inp):
         residual = inp
@@ -198,7 +208,6 @@ class UnetResBlock(nn.Module):
         out += residual
         out = self.lrelu(out)
         return out
-
 
 
 class UnetBasicBlock(nn.Module):
@@ -218,7 +227,6 @@ class UnetBasicBlock(nn.Module):
         dropout: dropout probability.
 
     """
-
     def __init__(
         self,
         spatial_dims: int,
@@ -227,7 +235,10 @@ class UnetBasicBlock(nn.Module):
         kernel_size: Union[Sequence[int], int],
         stride: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        act_name: Union[Tuple, str] = ("leakyrelu", {
+            "inplace": True,
+            "negative_slope": 0.01
+        }),
         dropout: Optional[Union[Tuple, str, float]] = None,
     ):
         super().__init__()
@@ -254,8 +265,12 @@ class UnetBasicBlock(nn.Module):
             conv_only=False,
         )
         self.lrelu = get_act_layer(name=act_name)
-        self.norm1 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
-        self.norm2 = get_norm_layer(name=norm_name, spatial_dims=spatial_dims, channels=out_channels)
+        self.norm1 = get_norm_layer(name=norm_name,
+                                    spatial_dims=spatial_dims,
+                                    channels=out_channels)
+        self.norm2 = get_norm_layer(name=norm_name,
+                                    spatial_dims=spatial_dims,
+                                    channels=out_channels)
 
     def forward(self, inp):
         out = self.conv1(inp)
@@ -265,7 +280,6 @@ class UnetBasicBlock(nn.Module):
         out = self.norm2(out)
         out = self.lrelu(out)
         return out
-
 
 
 class UnetUpBlock(nn.Module):
@@ -287,7 +301,6 @@ class UnetUpBlock(nn.Module):
         trans_bias: transposed convolution bias.
 
     """
-
     def __init__(
         self,
         spatial_dims: int,
@@ -297,7 +310,10 @@ class UnetUpBlock(nn.Module):
         stride: Union[Sequence[int], int],
         upsample_kernel_size: Union[Sequence[int], int],
         norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        act_name: Union[Tuple, str] = ("leakyrelu", {
+            "inplace": True,
+            "negative_slope": 0.01
+        }),
         dropout: Optional[Union[Tuple, str, float]] = None,
         trans_bias: bool = False,
     ):
@@ -335,11 +351,12 @@ class UnetUpBlock(nn.Module):
         return out
 
 
-
 class UnetOutBlock(nn.Module):
-    def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: Optional[Union[Tuple, str, float]] = None
-    ):
+    def __init__(self,
+                 spatial_dims: int,
+                 in_channels: int,
+                 out_channels: int,
+                 dropout: Optional[Union[Tuple, str, float]] = None):
         super().__init__()
         self.conv = get_conv_layer(
             spatial_dims,
@@ -356,7 +373,6 @@ class UnetOutBlock(nn.Module):
 
     def forward(self, inp):
         return self.conv(inp)
-
 
 
 def get_conv_layer(
@@ -394,39 +410,44 @@ def get_conv_layer(
 
 
 def get_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
+        kernel_size: Union[Sequence[int], int],
+        stride: Union[Sequence[int], int]) -> Union[Tuple[int, ...], int]:
 
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2
     if np.min(padding_np) < 0:
-        raise AssertionError("padding value should not be negative, please change the kernel size and/or stride.")
+        raise AssertionError(
+            "padding value should not be negative, please change the kernel size and/or stride."
+        )
     padding = tuple(int(p) for p in padding_np)
 
     return padding if len(padding) > 1 else padding[0]
 
 
 def get_output_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int], padding: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
+        kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int],
+                                                              int],
+        padding: Union[Sequence[int], int]) -> Union[Tuple[int, ...], int]:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = np.atleast_1d(padding)
 
     out_padding_np = 2 * padding_np + stride_np - kernel_size_np
     if np.min(out_padding_np) < 0:
-        raise AssertionError("out_padding value should not be negative, please change the kernel size and/or stride.")
+        raise AssertionError(
+            "out_padding value should not be negative, please change the kernel size and/or stride."
+        )
     out_padding = tuple(int(p) for p in out_padding_np)
 
     return out_padding if len(out_padding) > 1 else out_padding[0]
+
 
 class UnetrUpBlock(nn.Module):
     """
     An upsampling module that can be used for UNETR: "Hatamizadeh et al.,
     UNETR: Transformers for 3D Medical Image Segmentation <https://arxiv.org/abs/2103.10504>"
     """
-
     def __init__(
         self,
         spatial_dims: int,
@@ -480,7 +501,6 @@ class UnetrUpBlock(nn.Module):
                 norm_name=norm_name,
             )
 
-
     def forward(self, inp, skip):
         # number of channels for skip should equals to out_channels
         out = self.transp_conv(inp)
@@ -488,12 +508,12 @@ class UnetrUpBlock(nn.Module):
         out = self.conv_block(out)
         return out
 
+
 class UnetrPrUpBlock(nn.Module):
     """
     A projection upsampling module that can be used for UNETR: "Hatamizadeh et al.,
     UNETR: Transformers for 3D Medical Image Segmentation <https://arxiv.org/abs/2103.10504>"
     """
-
     def __init__(
         self,
         spatial_dims: int,
@@ -536,71 +556,61 @@ class UnetrPrUpBlock(nn.Module):
         )
         if conv_block:
             if res_block:
-                self.blocks = nn.ModuleList(
-                    [
-                        nn.Sequential(
-                            get_conv_layer(
-                                spatial_dims,
-                                out_channels,
-                                out_channels,
-                                kernel_size=upsample_kernel_size,
-                                stride=upsample_stride,
-                                conv_only=True,
-                                is_transposed=True,
-                            ),
-                            UnetResBlock(
-                                spatial_dims=spatial_dims,
-                                in_channels=out_channels,
-                                out_channels=out_channels,
-                                kernel_size=kernel_size,
-                                stride=stride,
-                                norm_name=norm_name,
-                            ),
-                        )
-                        for i in range(num_layer)
-                    ]
-                )
+                self.blocks = nn.ModuleList([
+                    nn.Sequential(
+                        get_conv_layer(
+                            spatial_dims,
+                            out_channels,
+                            out_channels,
+                            kernel_size=upsample_kernel_size,
+                            stride=upsample_stride,
+                            conv_only=True,
+                            is_transposed=True,
+                        ),
+                        UnetResBlock(
+                            spatial_dims=spatial_dims,
+                            in_channels=out_channels,
+                            out_channels=out_channels,
+                            kernel_size=kernel_size,
+                            stride=stride,
+                            norm_name=norm_name,
+                        ),
+                    ) for i in range(num_layer)
+                ])
             else:
-                self.blocks = nn.ModuleList(
-                    [
-                        nn.Sequential(
-                            get_conv_layer(
-                                spatial_dims,
-                                out_channels,
-                                out_channels,
-                                kernel_size=upsample_kernel_size,
-                                stride=upsample_stride,
-                                conv_only=True,
-                                is_transposed=True,
-                            ),
-                            UnetBasicBlock(
-                                spatial_dims=spatial_dims,
-                                in_channels=out_channels,
-                                out_channels=out_channels,
-                                kernel_size=kernel_size,
-                                stride=stride,
-                                norm_name=norm_name,
-                            ),
-                        )
-                        for i in range(num_layer)
-                    ]
-                )
+                self.blocks = nn.ModuleList([
+                    nn.Sequential(
+                        get_conv_layer(
+                            spatial_dims,
+                            out_channels,
+                            out_channels,
+                            kernel_size=upsample_kernel_size,
+                            stride=upsample_stride,
+                            conv_only=True,
+                            is_transposed=True,
+                        ),
+                        UnetBasicBlock(
+                            spatial_dims=spatial_dims,
+                            in_channels=out_channels,
+                            out_channels=out_channels,
+                            kernel_size=kernel_size,
+                            stride=stride,
+                            norm_name=norm_name,
+                        ),
+                    ) for i in range(num_layer)
+                ])
         else:
-            self.blocks = nn.ModuleList(
-                [
-                    get_conv_layer(
-                        spatial_dims,
-                        out_channels,
-                        out_channels,
-                        kernel_size=upsample_kernel_size,
-                        stride=upsample_stride,
-                        conv_only=True,
-                        is_transposed=True,
-                    )
-                    for i in range(num_layer)
-                ]
-            )
-
+            self.blocks = nn.ModuleList([
+                get_conv_layer(
+                    spatial_dims,
+                    out_channels,
+                    out_channels,
+                    kernel_size=upsample_kernel_size,
+                    stride=upsample_stride,
+                    conv_only=True,
+                    is_transposed=True,
+                ) for i in range(num_layer)
+            ])
 
     def forward(self, x):
         x = self.transp_conv_init(x)
@@ -608,12 +618,12 @@ class UnetrPrUpBlock(nn.Module):
             x = blk(x)
         return x
 
+
 class UnetrBasicBlock(nn.Module):
     """
     A CNN module that can be used for UNETR, based on: "Hatamizadeh et al.,
     UNETR: Transformers for 3D Medical Image Segmentation <https://arxiv.org/abs/2103.10504>"
     """
-
     def __init__(
         self,
         spatial_dims: int,
@@ -657,10 +667,5 @@ class UnetrBasicBlock(nn.Module):
                 norm_name=norm_name,
             )
 
-
     def forward(self, inp):
         return self.layer(inp)
-
-
-
-

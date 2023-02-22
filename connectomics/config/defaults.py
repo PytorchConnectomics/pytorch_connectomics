@@ -114,9 +114,10 @@ _C.MODEL.RETURN_FEATS = None
 # Predict an auxiliary output (only works with 2D DeeplabV3)
 _C.MODEL.AUX_OUT = False
 
+
 ## Configurations for SwinUNETR
 # Dimension of network feature size.
-_C.MODEL.SWIN_UNETR_FEATURE_SIZE = 24
+_C.MODEL.SWIN_UNETR_FEATURE_SIZE = 48
 
 # Number of layers in each stage.
 _C.MODEL.DEPTHS = (2, 2, 2, 2)
@@ -134,7 +135,7 @@ _C.MODEL.SWIN_UNETR_DROPOUT_RATE = 0.0
 _C.MODEL.ATTN_DROP_RATE = 0.0
 
 # Dropout path rate.
-_C.MODEL.DROPOUT_PATH_RATE =  0.0
+_C.MODEL.DROPOUT_PATH_RATE = 0.0
 
 # Normalize output intermediate features in each stage.
 _C.MODEL.NORMALIZE = True
