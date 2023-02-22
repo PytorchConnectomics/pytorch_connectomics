@@ -71,9 +71,9 @@ class VolumeDataset(torch.utils.data.Dataset):
                  reject_diversity: int = 0,
                  reject_p: float = 0.95,
                  # normalization
-                 data_mean=0.5,
-                 data_std=0.5,
-                 data_match_act='none'):
+                 data_mean: float = 0.5,
+                 data_std: float = 0.5,
+                 data_match_act: str = 'none'):
 
         assert mode in ['train', 'val', 'test']
         self.mode = mode
@@ -297,8 +297,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             out_label = out_label.astype(np.float32)
 
         if self.valid_mask is not None:
-            out_valid = crop_volume(self.label[pos[0]],
-                                    self.sample_label_size, pos_l)
+            out_valid = crop_volume(self.valid_mask[pos[0]], self.sample_label_size, pos_l)
             out_valid = (out_valid != 0).astype(np.float32)
 
         return pos, out_volume, out_label, out_valid

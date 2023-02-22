@@ -89,6 +89,9 @@ class Visualizer(object):
                 if wopt != '0':
                     w_name = vis_name + '_' + wopt
                     weight_maps[w_name] = weight[idx][j]
+                else:  # The weight map can be the binary valid mask.
+                    if weight[idx][j].shape[-1] != 1:
+                        weight_maps['valid_mask'] = weight[idx][j]
 
             self.visualize_consecutive(volume, label[idx], output[idx], weight_maps,
                                        iter_total, writer, RGB=RGB, vis_name=vis_name)

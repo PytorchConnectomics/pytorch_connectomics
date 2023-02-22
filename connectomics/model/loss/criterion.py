@@ -141,11 +141,17 @@ class Criterion(object):
                     target=target_t,
                     weight_mask=w_mask)
                 loss = loss + loss_temp
-                loss_tag = self.target_opt[i] + '_' + \
-                    self.loss_opt[i][j] + '_' + str(i)
+
+                loss_tag = "_".join([
+                    self.target_opt[i],
+                    self.loss_opt[i][j],
+                    str(i),
+                    str(j),
+                ]) 
                 if key is not None:
                     loss_tag += '_' + key
-                assert loss_tag not in losses_vis.keys()
+                assert loss_tag not in losses_vis.keys(), \
+                    f"Found duplicate loss name {loss_tag}!"
                 losses_vis[loss_tag] = loss_temp
 
         # Regularizations usually only take predictions as inputs.
