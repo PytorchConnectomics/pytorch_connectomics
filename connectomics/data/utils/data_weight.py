@@ -20,7 +20,7 @@ def seg_to_weight(target, wopts, mask=None, seg=None):
     for wid, wopt in enumerate(wopts):
         if wopt[0] == '1':  # 1: by gt-target ratio
             dilate = (wopt == '1-1')
-            out[wid] = weight_binary_ratio(target.copy(), mask.copy(), dilate)
+            out[wid] = weight_binary_ratio(target.copy(), None if mask is None else mask.copy(), dilate)
         elif wopt[0] == '2':  # 2: unet weight
             assert seg is not None
             _, w0, w1 = wopt.split('-')
