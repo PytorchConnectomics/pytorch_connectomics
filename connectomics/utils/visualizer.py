@@ -174,7 +174,7 @@ class Visualizer(object):
         # output shape: BCDHW or BCHW
         if argmax:
             output = torch.argmax(output, 1)
-        pred = self.semantic_colors[topt][output]
+        pred = self.semantic_colors[topt][output.cpu()]
         if len(pred.size()) == 4:   # 2D Inputs
             pred = pred.permute(0, 3, 1, 2)
         elif len(pred.size()) == 5:  # 3D Inputs
