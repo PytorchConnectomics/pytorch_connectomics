@@ -89,6 +89,9 @@ class Visualizer(object):
                 if wopt != '0':
                     w_name = vis_name + '_' + wopt
                     weight_maps[w_name] = weight[idx][j]
+                else:  # The weight map can be the binary valid mask.
+                    if weight[idx][j].shape[-1] != 1:
+                        weight_maps['valid_mask'] = weight[idx][j]
 
             self.visualize_consecutive(volume, label[idx], output[idx], weight_maps,
                                        iter_total, writer, RGB=RGB, vis_name=vis_name)
@@ -171,7 +174,7 @@ class Visualizer(object):
         # output shape: BCDHW or BCHW
         if argmax:
             output = torch.argmax(output, 1)
-        pred = self.semantic_colors[topt][output]
+        pred = self.semantic_colors[topt][output.cpu()]
         if len(pred.size()) == 4:   # 2D Inputs
             pred = pred.permute(0, 3, 1, 2)
         elif len(pred.size()) == 5:  # 3D Inputs

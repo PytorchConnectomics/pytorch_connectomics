@@ -297,6 +297,7 @@ def get_dataset(cfg,
         "erosion_rates": cfg.MODEL.LABEL_EROSION,
         "dilation_rates": cfg.MODEL.LABEL_DILATION,
         "do_relabel": cfg.DATASET.REDUCE_LABEL,
+        "valid_ratio": cfg.DATASET.VALID_RATIO,
     }
 
     if cfg.DATASET.DO_CHUNK_TITLE == 1:  # build TileDataset

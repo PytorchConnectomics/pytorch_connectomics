@@ -1,6 +1,8 @@
 SYSTEM:
   NUM_GPUS: 4
   NUM_CPUS: 16
+AUGMENTOR:
+  SMOOTH: False
 MODEL:
   ARCHITECTURE: unet_plus_3d
   BLOCK_TYPE: residual_se

@@ -20,11 +20,13 @@ def seg_to_weight(target, wopts, mask=None, seg=None):
     for wid, wopt in enumerate(wopts):
         if wopt[0] == '1':  # 1: by gt-target ratio
             dilate = (wopt == '1-1')
-            out[wid] = weight_binary_ratio(target.copy(), mask, dilate)
+            out[wid] = weight_binary_ratio(target.copy(), None if mask is None else mask.copy(), dilate)
         elif wopt[0] == '2':  # 2: unet weight
             assert seg is not None
             _, w0, w1 = wopt.split('-')
             out[wid] = weight_unet3d(seg, float(w0), float(w1))
+        elif mask is not None:  # valid region only
+            out[wid] = (mask!=0).astype(np.float32)[np.newaxis, :]
         else:  # no weight map
             out[wid] = foo
     return out
@@ -33,10 +35,13 @@ def seg_to_weight(target, wopts, mask=None, seg=None):
 def weight_binary_ratio(label, mask=None, dilate=False):
     if label.max() == label.min():
         # uniform weights for single-label volume
+        if mask is not None:
+            return (mask!=0).astype(np.float32)[np.newaxis, :]
         return np.ones_like(label, np.float32)
 
+    # Generate weight map by balancing the foreground and background.
     min_ratio = 5e-2
-    label = (label != 0).astype(np.float64)  # foreground
+    label = (label!=0).astype(np.float64)  # foreground
     if mask is not None:
         mask = mask.astype(label.dtype)[np.newaxis, :]
         ww = (label*mask).sum() / mask.sum()
@@ -45,7 +50,7 @@ def weight_binary_ratio(label, mask=None, dilate=False):
     ww = np.clip(ww, a_min=min_ratio, a_max=1-min_ratio)
     weight_factor = max(ww, 1-ww)/min(ww, 1-ww)
 
-    if dilate:
+    if dilate:  # Use higher weights for regions close to foreground.
         N = label.ndim
         assert N in [3, 4]
         struct = np.ones([1]*(N-2) + [3, 3])
@@ -62,12 +67,12 @@ def weight_binary_ratio(label, mask=None, dilate=False):
     # factor should be applied to foreground pixels.
 
     if ww > 1-ww:
-        # switch when foreground is the dominate class
+        # Switch when foreground is the dominate class.
         label = 1 - label
     weight = weight_factor*label + (1-label)
 
     if mask is not None:
-        weight = weight*mask
+        weight = weight * mask
 
     return weight.astype(np.float32)
 
