@@ -40,7 +40,18 @@ def build_model(cfg, device, rank=None):
         'return_feats': cfg.MODEL.RETURN_FEATS,
     }
 
-    if model_arch == 'swinunetr':
+    if model_arch == 'unetr':
+        kwargs['img_size'] = cfg.MODEL.INPUT_SIZE
+        kwargs['feature_size'] = cfg.MODEL.UNETR_FEATURE_SIZE
+        kwargs['hidden_size'] = cfg.MODEL.HIDDEN_SIZE
+        kwargs['mlp_dim'] = cfg.MODEL.MLP_DIM
+        kwargs['num_heads'] = cfg.MODEL.UNETR_NUM_HEADS
+        kwargs['pos_embed'] = cfg.MODEL.POS_EMBED
+        kwargs['norm_name'] = cfg.MODEL.NORM_NAME
+        kwargs['conv_block'] = cfg.MODEL.CONV_BLOCK
+        kwargs['res_block'] = cfg.MODEL.RES_BLOCK
+        kwargs['dropout_rate'] = cfg.MODEL.UNETR_DROPOUT_RATE
+    elif model_arch == 'swinunetr':
         kwargs['img_size'] = cfg.MODEL.INPUT_SIZE
         kwargs['depths'] = cfg.MODEL.DEPTHS
         kwargs['num_heads'] = cfg.MODEL.SWIN_UNETR_NUM_HEADS
@@ -53,17 +64,7 @@ def build_model(cfg, device, rank=None):
         kwargs['use_checkpoint'] = cfg.MODEL.USE_CHECKPOINT
         kwargs['spatial_dims'] = cfg.MODEL.SPATIAL_DIMS
         kwargs['downsample'] = cfg.MODEL.DOWNSAMPLE
-    elif model_arch == 'unetr':
-        kwargs['img_size'] = cfg.MODEL.INPUT_SIZE
-        kwargs['feature_size'] = cfg.MODEL.UNETR_FEATURE_SIZE
-        kwargs['hidden_size'] = cfg.MODEL.HIDDEN_SIZE
-        kwargs['mlp_dim'] = cfg.MODEL.MLP_DIM
-        kwargs['num_heads'] = cfg.MODEL.UNETR_NUM_HEADS
-        kwargs['pos_embed'] = cfg.MODEL.POS_EMBED
-        kwargs['norm_name'] = cfg.MODEL.NORM_NAME
-        kwargs['conv_block'] = cfg.MODEL.CONV_BLOCK
-        kwargs['res_block'] = cfg.MODEL.RES_BLOCK
-        kwargs['dropout_rate'] = cfg.MODEL.UNETR_DROPOUT_RATE
+        kwargs['use_v2'] = cfg.MODEL.USE_V2
     elif model_arch == 'fpn_3d':
         kwargs['backbone_type'] = cfg.MODEL.BACKBONE
         kwargs['deploy'] = cfg.MODEL.DEPLOY_MODE

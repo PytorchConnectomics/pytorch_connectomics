@@ -1,85 +1,85 @@
-from __future__ import print_function, division
-from typing import Tuple, Union
+from __future__ import annotations
 
-import torch
+from collections.abc import Sequence
+import numpy as np
+
 import torch.nn as nn
 
-from ..block import *
-from ..utils import model_init
+from monai.networks.blocks.dynunet_block import UnetOutBlock
+from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
+from monai.networks.nets.vit import ViT
+from monai.utils import ensure_tuple_rep
 
 
 class UNETR(nn.Module):
     """
-    Based on: "Hatamizadeh et al.,<https://arxiv.org/abs/2103.10504>".
+    UNETR model, adapted from: Hatamizadeh et al., <https://arxiv.org/abs/2103.10504>.
 
     Args:
-    in_channels (int): dimension of input channels.
-    out_channels (int): dimension of output channels.
-    img_size (Tuple[int, int, int]): dimension of input image.
-    feature_size (int): dimension of network feature size.
-    hidden_size (int): dimension of hidden layer.
-    mlp_dim (int): dimension of feedforward layer.
-    num_heads (int): number of attention heads.
-    pos_embed (str): position embedding layer type.
-    norm_name (Union[Tuple, str]): feature normalization type and arguments.
-    conv_block (bool): bool argument to determine if convolutional block is used.
-    res_block (bool): bool argument to determine if residual block is used.
-    dropout_rate (float): faction of the input units to drop.
+        in_channel (int): dimension of input channels.
+        out_channel (int): dimension of output channels.
+        img_size (Sequence[int] | int): dimension of input image.
+        patch_size (Sequence[int] | int): dimension of patch size.
+        feature_size (int): dimension of network feature size. Defaults to 16.
+        hidden_size (int): dimension of hidden layer. Defaults to 768.
+        mlp_dim (int): dimension of feedforward layer. Defaults to 3072.
+        num_heads (int): number of attention heads. Defaults to 12.
+        pos_embed (str): position embedding layer type. Defaults to ```'conv'```.
+        norm_name (tuple | str): feature normalization type and arguments. Defaults to ```'instance'```.
+        is_isotropic (bool): whether the whole model is isotropic. Default: False
+        conv_block (bool): if convolutional block is used. Defaults to True.
+        res_block (bool): if residual block is used. Defaults to True.
+        dropout_rate (float): fraction of the input units to drop. Defaults to 0.0.
+        spatial_dims (int): number of spatial dims. Defaults to 3.
+        qkv_bias (bool): apply the bias term for the qkv linear layer in self attention block. Defaults to False.
+        save_attn (bool): to make accessible the attention in self attention block. Defaults to False.
     """
-    def __init__(self,
-                 in_channel: int = 1,
-                 out_channel: int = 3,
-                 img_size: Tuple[int, int, int] = (64, 128, 128),
-                 patch_size: Tuple[int, int, int] = (16, 16, 16),
-                 feature_size: int = 32,
-                 hidden_size: int = 768,
-                 mlp_dim: int = 3072,
-                 num_heads: int = 12,
-                 pos_embed: str = 'perceptron',
-                 norm_name: Union[Tuple, str] = 'instance',
-                 is_isotropic: bool = False,
-                 conv_block: bool = False,
-                 res_block: bool = True,
-                 dropout_rate: float = 0.0,
-                 **kwargs) -> None:
+
+    def __init__(
+        self,
+        in_channel: int = 1,
+        out_channel: int = 3,
+        img_size: Sequence[int] | int = (64, 128, 128),
+        patch_size: Sequence[int] | int = (16, 16, 16),
+        feature_size: int = 16,
+        hidden_size: int = 768,
+        mlp_dim: int = 3072,
+        num_heads: int = 12,
+        pos_embed: str = 'conv',
+        norm_name: tuple | str = 'instance',
+        is_isotropic: bool = False,
+        conv_block: bool = True,
+        res_block: bool = True,
+        dropout_rate: float = 0.0,
+        spatial_dims: int = 3,
+        qkv_bias: bool = False,
+        save_attn: bool = False,
+    ) -> None:
 
         super().__init__()
 
-        if not (0 <= dropout_rate <= 1):
-            raise AssertionError("dropout_rate should be between 0 and 1.")
-
-        if hidden_size % num_heads != 0:
-            raise AssertionError(
-                "hidden size should be divisible by num_heads.")
-
-        if pos_embed not in ['conv', 'perceptron']:
-            raise KeyError(
-                f"Position embedding layer of type {pos_embed} is not supported."
-            )
-
-        if (patch_size[0] % 4) * (patch_size[1] % 4) * (patch_size[2] %
-                                                        4) != 0:
-            raise AssertionError("patch size should be divisible by 4.")
+        assert 0 <= dropout_rate <= 1
+        assert hidden_size % num_heads == 0
+        assert pos_embed in ['conv', 'perceptron']
+        assert np.prod(np.asarray(patch_size) % 4) == 0
 
         self.num_layers = 12
-        self.patch_size = patch_size if is_isotropic else (
-            patch_size[0] // 4, patch_size[1],
-            patch_size[2])  # for anisotropic data
+        img_size = ensure_tuple_rep(img_size, spatial_dims)
+        patch_size = ensure_tuple_rep(patch_size, spatial_dims)
+        upsample_kernel_size = 2
+        if not is_isotropic:
+            patch_size = (patch_size[0] // 4, patch_size[1], patch_size[2])
+            upsample_kernel_size = (1, 2, 2)
+        self.patch_size = patch_size
         self.feat_size = (
             img_size[0] // self.patch_size[0],
             img_size[1] // self.patch_size[1],
             img_size[2] // self.patch_size[2],
         )
-
-        # Bridge to PyTC
-        in_channels = in_channel
-        out_channels = out_channel
-
         self.hidden_size = hidden_size
         self.classification = False
-
         self.vit = ViT(
-            in_channels=in_channels,
+            in_channels=in_channel,
             img_size=img_size,
             patch_size=self.patch_size,
             hidden_size=hidden_size,
@@ -89,98 +89,88 @@ class UNETR(nn.Module):
             pos_embed=pos_embed,
             classification=self.classification,
             dropout_rate=dropout_rate,
+            spatial_dims=spatial_dims,
+            qkv_bias=qkv_bias,
+            save_attn=save_attn,
         )
         self.encoder1 = UnetrBasicBlock(
-            spatial_dims=3,
-            in_channels=in_channels,
+            spatial_dims=spatial_dims,
+            in_channels=in_channel,
             out_channels=feature_size,
-            kernel_size=(1, 3, 3),  #  exclusively use 2D convs at finest scale
+            kernel_size=(1, 3, 3),  # exclusively use 2D conv at finest scale
             stride=1,
             norm_name=norm_name,
             res_block=res_block,
         )
         encoder2_1 = UnetrPrUpBlock(
-            spatial_dims=3,
+            spatial_dims=spatial_dims,
             in_channels=hidden_size,
             out_channels=feature_size * 2,
+            num_layer=1,
+            kernel_size=3,
+            stride=1,
+            upsample_kernel_size=upsample_kernel_size,
+            norm_name=norm_name,
+            conv_block=conv_block,
+            res_block=res_block,
+        )
+        encoder2_2 = UnetrPrUpBlock(
+            spatial_dims=spatial_dims,
+            in_channels=feature_size * 2,
+            out_channels=feature_size * 2,
             num_layer=0,
-            kernel_size=(1, 3, 3),  # starts with 3x3x1 conv
+            kernel_size=3,
             stride=1,
             upsample_kernel_size=2,
             norm_name=norm_name,
             conv_block=conv_block,
             res_block=res_block,
         )
-        encoder2_2 = UnetrPrUpBlock(
-            spatial_dims=3,
-            in_channels=feature_size * 2,
-            out_channels=feature_size * 2,
-            num_layer=1,
-            kernel_size=3,  # followed by 3x3x3 convs
-            stride=1,
-            upsample_kernel_size=(1, 2, 2),
-            norm_name=norm_name,
-            conv_block=conv_block,
-            res_block=res_block,
-        )
         self.encoder2 = nn.Sequential(encoder2_1, encoder2_2)
-        encoder3_1 = UnetrPrUpBlock(
-            spatial_dims=3,
+        self.encoder3 = UnetrPrUpBlock(
+            spatial_dims=spatial_dims,
             in_channels=hidden_size,
             out_channels=feature_size * 4,
-            num_layer=0,
-            kernel_size=(1, 3, 3),  # starts with 3x3x1 conv
+            num_layer=1,
+            kernel_size=3,
             stride=1,
-            upsample_kernel_size=(1, 2, 2),
+            upsample_kernel_size=upsample_kernel_size,
             norm_name=norm_name,
             conv_block=conv_block,
             res_block=res_block,
         )
-        encoder3_2 = UnetrPrUpBlock(
-            spatial_dims=3,
-            in_channels=feature_size * 4,
-            out_channels=feature_size * 4,
-            num_layer=0,
-            kernel_size=3,  # followed by 3x3x3 convs
-            stride=1,
-            upsample_kernel_size=(1, 2, 2),
-            norm_name=norm_name,
-            conv_block=conv_block,
-            res_block=res_block,
-        )
-        self.encoder3 = nn.Sequential(encoder3_1, encoder3_2)
         self.encoder4 = UnetrPrUpBlock(
-            spatial_dims=3,
+            spatial_dims=spatial_dims,
             in_channels=hidden_size,
             out_channels=feature_size * 8,
             num_layer=0,
-            kernel_size=(1, 3, 3),
+            kernel_size=3,
             stride=1,
-            upsample_kernel_size=(1, 2, 2),
+            upsample_kernel_size=upsample_kernel_size,
             norm_name=norm_name,
             conv_block=conv_block,
             res_block=res_block,
         )
         self.decoder5 = UnetrUpBlock(
-            spatial_dims=3,
+            spatial_dims=spatial_dims,
             in_channels=hidden_size,
             out_channels=feature_size * 8,
-            kernel_size=(1, 3, 3),
-            upsample_kernel_size=(1, 2, 2),
+            kernel_size=3,
+            upsample_kernel_size=upsample_kernel_size,
             norm_name=norm_name,
             res_block=res_block,
         )
         self.decoder4 = UnetrUpBlock(
-            spatial_dims=3,
+            spatial_dims=spatial_dims,
             in_channels=feature_size * 8,
             out_channels=feature_size * 4,
             kernel_size=3,
-            upsample_kernel_size=(1, 2, 2),
+            upsample_kernel_size=upsample_kernel_size,
             norm_name=norm_name,
             res_block=res_block,
         )
         self.decoder3 = UnetrUpBlock(
-            spatial_dims=3,
+            spatial_dims=spatial_dims,
             in_channels=feature_size * 4,
             out_channels=feature_size * 2,
             kernel_size=3,
@@ -189,70 +179,39 @@ class UNETR(nn.Module):
             res_block=res_block,
         )
         self.decoder2 = UnetrUpBlock(
-            spatial_dims=3,
+            spatial_dims=spatial_dims,
             in_channels=feature_size * 2,
             out_channels=feature_size,
-            kernel_size=(1, 3, 3),  #  exclusively use 2D convs at finest scale
+            kernel_size=(1, 3, 3),  # exclusively use 2D conv at finest scale
             upsample_kernel_size=2,
             norm_name=norm_name,
             res_block=res_block,
         )
-        self.out = UnetOutBlock(spatial_dims=3,
+        self.out = UnetOutBlock(spatial_dims=spatial_dims,
                                 in_channels=feature_size,
-                                out_channels=out_channels)  # type: ignore
+                                out_channels=out_channel)  # type: ignore
+        self.proj_axes = (0, spatial_dims + 1) + tuple(
+            d + 1 for d in range(spatial_dims))
+        self.proj_view_shape = list(self.feat_size) + [self.hidden_size]
 
-    def proj_feat(self, x, hidden_size, feat_size):
-        x = x.view(x.size(0), feat_size[0], feat_size[1], feat_size[2],
-                   hidden_size)
-        x = x.permute(0, 4, 1, 2, 3).contiguous()
+    def proj_feat(self, x):
+        new_view = [x.size(0)] + self.proj_view_shape
+        x = x.view(new_view)
+        x = x.permute(self.proj_axes).contiguous()
         return x
-
-    def load_from(self, weights):
-        with torch.no_grad():
-            res_weight = weights
-            # copy weights from patch embedding
-            for i in weights["state_dict"]:
-                print(i)
-            self.vit.patch_embedding.position_embeddings.copy_(
-                weights["state_dict"]
-                ["module.transformer.patch_embedding.position_embeddings_3d"])
-            self.vit.patch_embedding.cls_token.copy_(
-                weights["state_dict"]
-                ["module.transformer.patch_embedding.cls_token"])
-            self.vit.patch_embedding.patch_embeddings[1].weight.copy_(
-                weights["state_dict"]
-                ["module.transformer.patch_embedding.patch_embeddings.1.weight"]
-            )
-            self.vit.patch_embedding.patch_embeddings[1].bias.copy_(
-                weights["state_dict"]
-                ["module.transformer.patch_embedding.patch_embeddings.1.bias"])
-
-            # copy weights from  encoding blocks (default: num of blocks: 12)
-            for bname, block in self.vit.blocks.named_children():
-                print(block)
-                block.loadFrom(weights, n_block=bname)
-            # last norm layer of transformer
-            self.vit.norm.weight.copy_(
-                weights["state_dict"]["module.transformer.norm.weight"])
-            self.vit.norm.bias.copy_(
-                weights["state_dict"]["module.transformer.norm.bias"])
 
     def forward(self, x_in):
         x, hidden_states_out = self.vit(x_in)
         enc1 = self.encoder1(x_in)
         x2 = hidden_states_out[3]
-        enc2 = self.encoder2(
-            self.proj_feat(x2, self.hidden_size, self.feat_size))
+        enc2 = self.encoder2(self.proj_feat(x2))
         x3 = hidden_states_out[6]
-        enc3 = self.encoder3(
-            self.proj_feat(x3, self.hidden_size, self.feat_size))
+        enc3 = self.encoder3(self.proj_feat(x3))
         x4 = hidden_states_out[9]
-        enc4 = self.encoder4(
-            self.proj_feat(x4, self.hidden_size, self.feat_size))
-        dec4 = self.proj_feat(x, self.hidden_size, self.feat_size)
+        enc4 = self.encoder4(self.proj_feat(x4))
+        dec4 = self.proj_feat(x)
         dec3 = self.decoder5(dec4, enc4)
         dec2 = self.decoder4(dec3, enc3)
         dec1 = self.decoder3(dec2, enc2)
         out = self.decoder2(dec1, enc1)
-        logits = self.out(out)
-        return logits
+        return self.out(out)

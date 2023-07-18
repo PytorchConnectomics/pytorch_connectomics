@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-from typing import Optional, List
+from typing import Optional, List, Union
 
 # Avoid PIL "IOError: image file truncated"
 from PIL import ImageFile
@@ -183,7 +183,7 @@ def vast2Seg(seg):
         return seg[:, :, :, 0].astype(np.uint32)*65536 + seg[:, :, :, 1].astype(np.uint32)*256 + seg[:, :, :, 2].astype(np.uint32)
 
 
-def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz: int,
+def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz: Union[int, List[int]],
                 dt: type = np.uint8, tile_st: List[int] = [0, 0], tile_ratio: float = 1.0,
                 do_im: bool = True, background: int = 128) -> np.ndarray:
     """Construct a volume from image tiles based on the given volume coordinate.
@@ -192,7 +192,7 @@ def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz:
         tiles (List[str]): a list of paths to the image tiles.
         coord (List[int]): the coordinate of the volume to be constructed.
         coord_m (List[int]): the coordinate of the whole dataset with the tiles.
-        tile_sz (int): the height and width of the tiles, which is assumed to be square.
+        tile_sz (Union[int, List[int]]): the height and width of the tiles.
         dt (type): data type of the constructed volume. Default: numpy.uint8
         tile_st (List[int]): start position of the tiles. Default: [0, 0]
         tile_ratio (float): scale factor for resizing the tiles. Default: 1.0
@@ -208,10 +208,12 @@ def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz:
     z1, y1, x1 = min(z1o, z1m), min(y1o, y1m), min(x1o, x1m)
 
     result = background*np.ones((z1-z0, y1-y0, x1-x0), dt)
-    c0 = x0 // tile_sz  # floor
-    c1 = (x1 + tile_sz-1) // tile_sz  # ceil
-    r0 = y0 // tile_sz
-    r1 = (y1 + tile_sz-1) // tile_sz
+    tile_sz_y = tile_sz[0] if isinstance(tile_sz, list) else tile_sz
+    tile_sz_x = tile_sz[1] if isinstance(tile_sz, list) else tile_sz
+    c0 = x0 // tile_sz_x  # floor
+    c1 = (x1 + tile_sz_x-1) // tile_sz_x  # ceil
+    r0 = y0 // tile_sz_y
+    r1 = (y1 + tile_sz_y-1) // tile_sz_y
     for z in range(z0, z1):
         pattern = tiles[z]
         for row in range(r0, r1):
@@ -228,9 +230,9 @@ def tile2volume(tiles: List[str], coord: List[int], coord_m: List[int], tile_sz:
                             patch, [tile_ratio, tile_ratio, 1], order=int(do_im))
 
                     # last tile may not be of the same size
-                    xp0 = column * tile_sz
+                    xp0 = column * tile_sz_x
                     xp1 = xp0 + patch.shape[1]
-                    yp0 = row * tile_sz
+                    yp0 = row * tile_sz_y
                     yp1 = yp0 + patch.shape[0]
                     x0a = max(x0, xp0)
                     x1a = min(x1, xp1)
