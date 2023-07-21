@@ -44,6 +44,8 @@ class SwinUNETR(nn.Module):
         num_heads (Sequence[int]): number of attention heads.
         norm_name (tuple | str): feature normalization type and arguments.
         is_isotropic (bool): whether the whole model is isotropic. Default: False
+        isotropy (Sequence[bool]): specify each Swin stage is isotropic or anisotropic. All elements will
+            be `True` if :attr:`is_isotropic` is `True`. Default: [False, True, True, True]
         drop_rate (float): dropout rate.
         attn_drop_rate (float): attention dropout rate.
         dropout_path_rate (float): drop path rate.
@@ -66,6 +68,7 @@ class SwinUNETR(nn.Module):
         feature_size: int = 24,
         norm_name: tuple | str = 'instance',
         is_isotropic: bool = False,
+        isotropy: Sequence[bool] = (False, True, True, True),
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
@@ -78,11 +81,15 @@ class SwinUNETR(nn.Module):
         super().__init__()
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
-        patch_size = ensure_tuple_rep(2, spatial_dims)
-        window_size = ensure_tuple_rep(7, spatial_dims)
-        if not is_isotropic:
+        if is_isotropic:
+            isotropy = [True] * len(depths)
+            patch_size = ensure_tuple_rep(2, spatial_dims)
+            window_size = ensure_tuple_rep(7, spatial_dims)
+            up_kernel_size = [2] * (len(depths) + 1)
+        else:
             patch_size = (1, 2, 2)
             window_size = (3, 7, 7)
+            up_kernel_size = [*[(1, 2, 2)] * (isotropy.count(False) + 1), *[2] * isotropy.count(True)]
 
         for m, p in zip(img_size, patch_size):
             for i in range(5):
@@ -92,6 +99,7 @@ class SwinUNETR(nn.Module):
         assert 0 <= attn_drop_rate <= 1
         assert 0 <= dropout_path_rate <= 1
         assert feature_size % 12 == 0
+        assert len(isotropy) == len(depths)
 
         self.normalize = normalize
 
@@ -111,7 +119,7 @@ class SwinUNETR(nn.Module):
             use_checkpoint=use_checkpoint,
             spatial_dims=spatial_dims,
             downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
-            is_isotropic=is_isotropic,
+            isotropy=isotropy,
             use_v2=use_v2,
         )
 
@@ -119,7 +127,7 @@ class SwinUNETR(nn.Module):
             spatial_dims=spatial_dims,
             in_channels=in_channel,
             out_channels=feature_size,
-            kernel_size=(1, 3, 3),
+            kernel_size=(1, 3, 3),  # exclusively use 2D conv at finest scale
             stride=1,
             norm_name=norm_name,
             res_block=True,
@@ -180,7 +188,7 @@ class SwinUNETR(nn.Module):
             in_channels=16 * feature_size,
             out_channels=8 * feature_size,
             kernel_size=3,
-            upsample_kernel_size=2,
+            upsample_kernel_size=up_kernel_size[4],
             norm_name=norm_name,
             res_block=True,
         )
@@ -190,7 +198,7 @@ class SwinUNETR(nn.Module):
             in_channels=feature_size * 8,
             out_channels=feature_size * 4,
             kernel_size=3,
-            upsample_kernel_size=2,
+            upsample_kernel_size=up_kernel_size[3],
             norm_name=norm_name,
             res_block=True,
         )
@@ -200,7 +208,7 @@ class SwinUNETR(nn.Module):
             in_channels=feature_size * 4,
             out_channels=feature_size * 2,
             kernel_size=3,
-            upsample_kernel_size=2,
+            upsample_kernel_size=up_kernel_size[2],
             norm_name=norm_name,
             res_block=True,
         )
@@ -209,7 +217,7 @@ class SwinUNETR(nn.Module):
             in_channels=feature_size * 2,
             out_channels=feature_size,
             kernel_size=3,
-            upsample_kernel_size=(1, 2, 2),
+            upsample_kernel_size=up_kernel_size[1],
             norm_name=norm_name,
             res_block=True,
         )
@@ -218,8 +226,8 @@ class SwinUNETR(nn.Module):
             spatial_dims=spatial_dims,
             in_channels=feature_size,
             out_channels=feature_size,
-            kernel_size=(1, 3, 3),
-            upsample_kernel_size=(1, 2, 2),
+            kernel_size=(1, 3, 3),  # exclusively use 2D conv at finest scale
+            upsample_kernel_size=up_kernel_size[0],
             norm_name=norm_name,
             res_block=True,
         )
@@ -916,7 +924,7 @@ class SwinTransformer(nn.Module):
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
         downsample: str = "merging",
-        is_isotropic: bool = False,
+        isotropy: Sequence[bool] = (False, True, True, True),
         use_v2: bool = False,
     ) -> None:
         """
@@ -939,8 +947,9 @@ class SwinTransformer(nn.Module):
             downsample: module used for downsampling, available options are ```'mergingv2'```, ```'merging'``` and a
                 user-specified ```nn.Module``` following the API defined in :py:class:```monai.networks.nets.PatchMerging```.
                 The default is currently ```'merging'``` (the original version defined in v0.9.0).
-            is_isotropic: whether the whole model is isotropic. Default: False
-            use_v2: using swinunetr_v2, which adds a residual convolution block at the beginning of each swin stage.
+            isotropy (Sequence[bool]): specify each Swin stage is isotropic or anisotropic. All elements will
+                be `True` if :attr:`is_isotropic` is `True`. Default: [False, True, True, True]
+            use_v2: use swinunetr_v2, which adds a residual convolution block at the beginning of each swin stage.
         """
 
         super().__init__()
@@ -969,7 +978,6 @@ class SwinTransformer(nn.Module):
             self.layers3c = nn.ModuleList()
             self.layers4c = nn.ModuleList()
         down_sample_mod = look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample
-        isotropy = [True, True, True, True] if is_isotropic else [False, True, True, True]
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
                 dim=int(embed_dim * 2**i_layer),

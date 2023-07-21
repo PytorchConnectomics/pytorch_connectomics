@@ -1,14 +1,14 @@
 MODEL:
   ARCHITECTURE: unetr
-  INPUT_SIZE: [64, 128, 128]  # Must be divisible by patch size (X, 16, 16)
+  INPUT_SIZE: [64, 128, 128]  # Must be divisible by patch size
   OUTPUT_SIZE: [64, 128, 128]
   UNETR_FEATURE_SIZE: 32
   HIDDEN_SIZE: 768
   MLP_DIM: 3072
   UNETR_NUM_HEADS: 12
-  POS_EMBED: 'perceptron'
+  POS_EMBED: 'conv'
   NORM_NAME: 'instance'
-  CONV_BLOCK: False
+  CONV_BLOCK: True
   RES_BLOCK: True
   UNETR_DROPOUT_RATE: 0.0
 DATASET:
@@ -17,9 +17,9 @@ SOLVER:
   NAME: AdamW
   BASE_LR: 0.001
 INFERENCE:
-  INPUT_SIZE: [32, 512, 512]
-  OUTPUT_SIZE: [32, 512, 512]
+  INPUT_SIZE: [32, 256, 256]
+  OUTPUT_SIZE: [32, 256, 256]
   OUTPUT_PATH: outputs/SNEMI_UNETR/test
   OUTPUT_NAME: result_unetr.h5
-  STRIDE: [16, 256, 256]
-  SAMPLES_PER_BATCH: 1
+  STRIDE: [16, 128, 128]
+  SAMPLES_PER_BATCH: 2
