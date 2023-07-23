@@ -115,7 +115,7 @@ _C.MODEL.RETURN_FEATS = None
 _C.MODEL.AUX_OUT = False
 
 
-## Configurations for SwinUNETR
+# Configurations for Swin UNETR
 # Dimension of network feature size.
 _C.MODEL.SWIN_UNETR_FEATURE_SIZE = 48
 
@@ -149,8 +149,11 @@ _C.MODEL.SPATIAL_DIMS = 3
 # Module used for downsampling, available options are `"mergingv2"`, `"merging"` and a user-specified `nn.Module`
 _C.MODEL.DOWNSAMPLE = 'merging'
 
+# Use swinunetr_v2, which adds a residual convolution block at the beggining of each swin stage.
+_C.MODEL.USE_V2 = False
 
-## Configurations for UNETR
+
+# Configurations for UNETR
 # Dimension of network feature size.
 _C.MODEL.UNETR_FEATURE_SIZE = 16
 
@@ -170,7 +173,7 @@ _C.MODEL.POS_EMBED = 'perceptron'
 _C.MODEL.NORM_NAME = 'instance'
 
 # bool argument to determine if convolutional block is used.
-_C.MODEL.CONV_BLOCK = False
+_C.MODEL.CONV_BLOCK = True
 
 # bool argument to determine if residual block is used.
 _C.MODEL.RES_BLOCK = True
