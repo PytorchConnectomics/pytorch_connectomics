@@ -54,6 +54,7 @@ class UNETR(nn.Module):
         spatial_dims: int = 3,
         qkv_bias: bool = False,
         save_attn: bool = False,
+        **kwargs,
     ) -> None:
 
         super().__init__()
