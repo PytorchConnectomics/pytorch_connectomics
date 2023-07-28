@@ -52,6 +52,23 @@ conda install pytorch torchvision cudatoolkit=11.3 -c pytorch
 
 Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
 
+### Potential Issues
+After following the above steps to compile PyTorch, there is a possibility that it might not have been compiled with CUDA enabled. In such cases, it is advisable to perform a quick test before running any code. You can do this by opening a Python prompt and executing the following lines of code
+```python
+import torch
+a = torch.randn(3,3)
+a.to("cuda")
+```
+If there is an issue with the installation of PyTorch being compiled with CUDA, you are likely to encounter the following problem:
+```
+AssertionError: Torch not compiled with CUDA enabled
+```
+This can be fixed by installing the correct PyTorch version (corresponding to your CUDA drivers) using the wheels available on their [website](https://pytorch.org/get-started/previous-versions/). E.g., if your system has CUDA=11.8, the executing the following code in the environment should solve the issue:
+```shell
+pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118
+```
+Once again, you can verify a successful installation of PyTorch by running the test mentioned earlier.
+
 Download and install the package:
 
 ```shell
