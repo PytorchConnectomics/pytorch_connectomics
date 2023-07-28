@@ -77,6 +77,7 @@ class SwinUNETR(nn.Module):
         spatial_dims: int = 3,
         downsample: str = 'merging',
         use_v2: bool = False,
+        **kwargs,
     ) -> None:
         super().__init__()
 
