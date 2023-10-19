@@ -5,23 +5,26 @@ import torch
 import scipy
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-from skimage.morphology import remove_small_holes
+from skimage.morphology import remove_small_holes, skeletonize
 from skimage.measure import label as label_cc  # avoid namespace conflict
+from skimage.filters import gaussian
 
 from .data_misc import get_padsize, array_unpad
 
 __all__ = [
     'edt_semantic',
     'edt_instance',
+    'sdt_instance',
     'decode_quantize',
 ]
 
 
 def edt_semantic(
-        label: np.ndarray,
-        mode: str = '2d',
-        alpha_fore: float = 8.0,
-        alpha_back: float = 50.0):
+    label: np.ndarray,
+    mode: str = '2d',
+    alpha_fore: float = 8.0,
+    alpha_back: float = 50.0
+):
     """Euclidean distance transform (DT or EDT) for binary semantic mask.
     """
     assert mode in ['2d', '3d']
@@ -84,6 +87,35 @@ def edt_instance(label: np.ndarray,
     return vol_distance
 
 
+def sdt_instance(label: np.ndarray,
+                 mode: str = '2d',
+                 quantize: bool = True,
+                 resolution: Tuple[float] = (1.0, 1.0),
+                 padding: bool = True):
+    """Skeleton-based distance transform (SDT) for a stack of label images.
+
+    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware 
+    Distance Transform." International Conference on Medical Image Computing and
+    Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
+    """
+    assert mode == "2d", "Only 2d skeletonization is currently supported."
+
+    vol_distance = []
+    vol_semantic = []
+    for i in range(label.shape[0]):
+        label_img = label[i].copy()
+        distance, semantic = skeleton_aware_distance_transform(label_img, padding=padding)
+        vol_distance.append(distance)
+        vol_semantic.append(semantic)
+
+    vol_distance = np.stack(vol_distance, 0)
+    vol_semantic = np.stack(vol_semantic, 0)
+    if quantize:
+        vol_distance = energy_quantize(vol_distance)
+
+    return vol_distance
+
+
 def distance_transform(label: np.ndarray,
                        bg_value: float = -1.0,
                        relabel: bool = True,
@@ -123,6 +155,98 @@ def distance_transform(label: np.ndarray,
             semantic += temp2.astype(np.uint8)
             boundary_edt = distance_transform_edt(temp2, resolution)
             energy = boundary_edt / (boundary_edt.max() + eps)  # normalize
+            distance = np.maximum(distance, energy * temp2.astype(np.float32))
+
+    if padding:
+        # Unpad the output array to preserve original shape.
+        distance = array_unpad(distance, get_padsize(
+            pad_size, ndim=distance.ndim))
+        semantic = array_unpad(semantic, get_padsize(
+            pad_size, ndim=distance.ndim))
+
+    return distance, semantic
+
+
+def smooth_edge(binary, smooth_sigma: float = 2.0, smooth_threshold: float = 0.5):
+    """Smooth the object contour."""
+    for _ in range(2):
+        binary = gaussian(binary, sigma=smooth_sigma, preserve_range=True)
+        binary = (binary > smooth_threshold).astype(np.uint8)
+
+    return binary
+
+
+def skeleton_aware_distance_transform(
+    label: np.ndarray,
+    bg_value: float = -1.0,
+    relabel: bool = True,
+    padding: bool = False,
+    resolution: Tuple[float] = (1.0, 1.0),
+    alpha: float = 0.8,
+    smooth: bool = True,
+    smooth_skeleton_only: bool = True,
+):
+    """Skeleton-based distance transform (SDT).
+
+    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware 
+    Distance Transform." International Conference on Medical Image Computing and
+    Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
+    """
+    eps = 1e-6
+    pad_size = 2
+
+    if relabel:
+        label = label_cc(label)
+
+    if padding:
+        # The distance_transform_edt function does not treat image border
+        # as background. If image border needs to be considered as background
+        # in distance calculation, set padding to True.
+        label = np.pad(label, pad_size, mode='constant', constant_values=0)
+
+    label_shape = label.shape
+    all_bg_sample = False
+
+    skeleton = np.zeros(label_shape, dtype=np.uint8)
+    distance = np.zeros(label_shape, dtype=np.float32) + bg_value
+    semantic = np.zeros(label_shape, dtype=np.uint8)
+
+    indices = np.unique(label)
+    if indices[0] == 0:
+        if len(indices) > 1:  # exclude background
+            indices = indices[1:]
+        else:  # all-background sample
+            all_bg_sample = True
+
+    if not all_bg_sample:
+        for idx in indices:
+            temp1 = label.copy() == idx
+            temp2 = remove_small_holes(temp1, 16, connectivity=1)
+            binary = temp2.copy()
+
+            if smooth:
+                binary = smooth_edge(binary)
+                if binary.astype(int).sum() <= 32:
+                    # Reverse the smoothing operation if it makes
+                    # the output mask empty (or very small).
+                    binary = temp2.copy()
+                else:
+                    if smooth_skeleton_only:
+                        binary = binary * temp2
+                    else:
+                        temp2 = binary.copy()
+
+            semantic += temp2.astype(np.uint8)
+
+            skeleton_mask = skeletonize(binary)
+            skeleton_mask = (skeleton_mask != 0).astype(np.uint8)
+            skeleton += skeleton_mask
+
+            skeleton_edt = distance_transform_edt(1-skeleton_mask, resolution)
+            boundary_edt = distance_transform_edt(temp2, resolution)
+
+            energy = boundary_edt / (skeleton_edt + boundary_edt + eps) # normalize
+            energy = energy ** alpha
             distance = np.maximum(distance, energy * temp2.astype(np.float32))
 
     if padding:
