@@ -68,7 +68,8 @@ def _get_file_list(name: Union[str, List[str]],
 
     suffix = name.split('.')[-1]
     if suffix == 'txt':  # a text file saving the absolute path
-        filelist = [line.rstrip('\n') for line in open(name)]
+        with open(name) as file:
+            filelist = [line.rstrip('\n') for line in file]
         return filelist
 
     suffix = name.split('/')[-1]
