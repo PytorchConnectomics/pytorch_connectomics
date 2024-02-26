@@ -1,0 +1,52 @@
+# All other configurations are set by default. If you want to add new config options,
+# please modify ../connectomics/config/config.py
+SYSTEM:
+  NUM_GPUS: 4
+  NUM_CPUS: 8
+MODEL:
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [112, 112, 112]
+  OUTPUT_SIZE: [112, 112, 112]
+  IN_PLANES: 1
+  OUT_PLANES: 1
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"]]
+  OUTPUT_ACT: [["none", "sigmoid"]]
+  LOSS_WEIGHT: [[1.0, 1.0]]
+  TARGET_OPT: ["0"]
+  WEIGHT_OPT: [["1", "0"]]
+  NORM_MODE: sync_bn
+DATASET:
+  IMAGE_NAME: img/train_im.tif
+  LABEL_NAME: label/train_label.tif
+  INPUT_PATH: datasets/Lucchi/
+  OUTPUT_PATH: outputs/Lucchi_UNet/
+  PAD_SIZE: [8, 28, 28]
+  DISTRIBUTED: False
+AUGMENTOR:
+  # Since the Lucchi dataset is isotropic (each voxel is cubic), we
+  # apply flip augmentation also to x-z and z-y axes by default.
+  FLIP:
+    ENABLED: True
+    DO_ZTRANS: 1
+  CUTBLUR:
+    DOWNSAMPLE_Z: True
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.04
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
+INFERENCE:
+  INPUT_SIZE: [112, 112, 112]
+  OUTPUT_SIZE: [112, 112, 112]
+  OUTPUT_ACT: ["sigmoid"]
+  IMAGE_NAME: img/test_im.tif
+  OUTPUT_PATH: outputs/Lucchi_UNet/test
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [8, 28, 28]
+  AUG_MODE: mean
+  AUG_NUM: 16
+  STRIDE: [56, 56, 56]
+  SAMPLES_PER_BATCH: 4
