@@ -47,13 +47,22 @@ For description of the data please check `the author page <https://www.epfl.ch/l
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
+If single GPU:
+
+.. code-block:: none
+
+    source activate py3_torch
+    python scripts/main.py -u --config-file configs/Lucchi-Mitochondria.yaml
+
+
+If multiple GPUs for high performance:
 
 .. code-block:: none
 
     source activate py3_torch
     CUDA_VISIBLE_DEVICES=0,1,2,3 python -u -m torch.distributed.run \
     --nproc_per_node=4 --master_port=2345 scripts/main.py --distributed \
-    --config-file configs/Lucchi-Mitochondria.yaml
+    --config-file configs/Lucchi-Mitochondria_multiGPU.yaml
 
 Similar to the `neuron segmentation <neuron.html>`_ tutorial, we use distributed data-parallel training considering its high
 efficiency, and also to enable synchronized batch normalization (SyncBN).
@@ -71,7 +80,7 @@ efficiency, and also to enable synchronized batch normalization (SyncBN).
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python -u scripts/main.py \
     --config-file configs/Lucchi-Mitochondria.yaml --inference \
     --checkpoint outputs/Lucchi_UNet/volume_100000.pth.tar
 
