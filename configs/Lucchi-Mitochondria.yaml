@@ -1,8 +1,8 @@
 # All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/config.py
 SYSTEM:
-  NUM_GPUS: 4
-  NUM_CPUS: 8
+  NUM_GPUS: 1
+  NUM_CPUS: 1
 MODEL:
   ARCHITECTURE: unet_3d
   BLOCK_TYPE: residual_se
