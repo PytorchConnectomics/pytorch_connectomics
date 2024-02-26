@@ -15,7 +15,6 @@ MODEL:
   LOSS_WEIGHT: [[1.0, 1.0]]
   TARGET_OPT: ["0"]
   WEIGHT_OPT: [["1", "0"]]
-  NORM_MODE: sync_bn
 DATASET:
   IMAGE_NAME: img/train_im.tif
   LABEL_NAME: label/train_label.tif
