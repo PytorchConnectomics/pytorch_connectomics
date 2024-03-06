@@ -4,6 +4,7 @@ __all__ = [
     "seg2aff_v0",
     "seg2aff_v1",
     "seg2aff_v2",
+    "seg2aff_pni",
 ]
 
 
@@ -67,6 +68,46 @@ def mknhood3d_aniso(radiusxy: int=1, radiusxy_zminus1: float=1.8):
 
     return np.ascontiguousarray(nhood)
 
+def seg2aff_pni(img, dz=1, dy=1, dx=1, dtype='float32'):
+    # https://github.com/torms3/DataProvider/blob/master/python/transform.py
+    """
+    Transform segmentation to 3D affinity graph.
+
+    Args:
+        img: 3D indexed image, with each index corresponding to each segment.
+
+    Returns:
+        ret: 3D affinity graph (4D tensor), 3 channels for z, y, x direction.
+    """
+    img = check_volume(img)
+    ret = np.zeros((3,) + img.shape, dtype=dtype)
+
+
+    # z-affinity.
+    assert dz and abs(dz) < img.shape[-3]
+    if dz > 0:
+        ret[2,dz:,:,:] = (img[dz:,:,:]==img[:-dz,:,:]) & (img[dz:,:,:]>0)
+    else:
+        dz = abs(dz)
+        ret[2,:-dz,:,:] = (img[dz:,:,:]==img[:-dz,:,:]) & (img[dz:,:,:]>0)
+
+    # y-affinity.
+    assert dy and abs(dy) < img.shape[-2]
+    if dy > 0:
+        ret[1,:,dy:,:] = (img[:,dy:,:]==img[:,:-dy,:]) & (img[:,dy:,:]>0)
+    else:
+        dy = abs(dy)
+        ret[1,:,:-dy,:] = (img[:,dy:,:]==img[:,:-dy,:]) & (img[:,dy:,:]>0)
+
+    # x-affinity.
+    assert dx and abs(dx) < img.shape[-1]
+    if dx > 0:
+        ret[0,:,:,dx:] = (img[:,:,dx:]==img[:,:,:-dx]) & (img[:,:,dx:]>0)
+    else:
+        dx = abs(dx)
+        ret[0,:,:,:-dx] = (img[:,:,dx:]==img[:,:,:-dx]) & (img[:,:,dx:]>0)
+
+    return ret
 
 def seg_to_aff(seg, nhood=mknhood3d(1), pad='replicate'):
     # Constructs an affinity graph from a segmentation

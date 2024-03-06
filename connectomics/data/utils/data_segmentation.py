@@ -221,6 +221,7 @@ def seg2affinity(label, topt):
     aff_func_dict = {
         'v1': seg2aff_v1,
         'v2': seg2aff_v2,
+        'pni': seg2aff_pni,
     }
 
     # valid format: 2-z-y-x-version
