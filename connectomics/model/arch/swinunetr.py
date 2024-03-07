@@ -146,8 +146,8 @@ class SwinUNETR(nn.Module):
 
         self.encoder3 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
-            in_channels=2 * feature_size,
-            out_channels=2 * feature_size,
+            in_channels=feature_size * 2,
+            out_channels=feature_size * 2,
             kernel_size=3,
             stride=1,
             norm_name=norm_name,
@@ -156,8 +156,8 @@ class SwinUNETR(nn.Module):
 
         self.encoder4 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
-            in_channels=4 * feature_size,
-            out_channels=4 * feature_size,
+            in_channels=feature_size * 4,
+            out_channels=feature_size * 4,
             kernel_size=3,
             stride=1,
             norm_name=norm_name,
@@ -166,8 +166,8 @@ class SwinUNETR(nn.Module):
 
         self.encoder5 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
-            in_channels=8 * feature_size,
-            out_channels=8 * feature_size,
+            in_channels=feature_size * 8,
+            out_channels=feature_size * 8,
             kernel_size=3,
             stride=1,
             norm_name=norm_name,
@@ -176,8 +176,8 @@ class SwinUNETR(nn.Module):
 
         self.encoder6 = UnetrBasicBlock(
             spatial_dims=spatial_dims,
-            in_channels=16 * feature_size,
-            out_channels=16 * feature_size,
+            in_channels=feature_size * 16,
+            out_channels=feature_size * 16,
             kernel_size=3,
             stride=1,
             norm_name=norm_name,
@@ -186,8 +186,8 @@ class SwinUNETR(nn.Module):
 
         self.decoder5 = UnetrUpBlock(
             spatial_dims=spatial_dims,
-            in_channels=16 * feature_size,
-            out_channels=8 * feature_size,
+            in_channels=feature_size * 16,
+            out_channels=feature_size * 8,
             kernel_size=3,
             upsample_kernel_size=up_kernel_size[4],
             norm_name=norm_name,
@@ -495,7 +495,7 @@ class WindowAttention(nn.Module):
         else:
             attn = self.softmax(attn)
 
-        attn = self.attn_drop(attn)
+        attn = self.attn_drop(attn).to(v.dtype)
         x = (attn @ v).transpose(1, 2).reshape(b, n, c)
         x = self.proj(x)
         x = self.proj_drop(x)
@@ -1005,7 +1005,7 @@ class SwinTransformer(nn.Module):
                 self.layers4.append(layer)
             if self.use_v2:
                 layerc = UnetrBasicBlock(
-                    spatial_dims=3,
+                    spatial_dims=spatial_dims,
                     in_channels=embed_dim * 2**i_layer,
                     out_channels=embed_dim * 2**i_layer,
                     kernel_size=3,

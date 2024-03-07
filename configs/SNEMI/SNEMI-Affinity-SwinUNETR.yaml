@@ -14,7 +14,7 @@ MODEL:
   USE_CHECKPOINT: False
   SPATIAL_DIMS: 3
   DOWNSAMPLE: 'merging'
-  USE_V2: False
+  USE_V2: True
 DATASET:
   OUTPUT_PATH: outputs/SNEMI_SwinUNETR
 SOLVER:
