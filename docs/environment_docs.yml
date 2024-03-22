@@ -1,4 +1,4 @@
-name: pytc_doc
+name: pytc_docs
 channels:
   - pytorch
   - defaults
@@ -50,6 +50,8 @@ dependencies:
   - mkl_random=1.2.2=py38h1abd341_0
   - ncurses=6.3=h27087fc_1
   - nettle=3.6=he412f7d_0
+  - numpy=1.24.3=py38h14f4228_0
+  - numpy-base=1.24.3=py38h31eccc5_0
   - openh264=2.1.1=h780b84a_0
   - openjpeg=2.4.0=hb52868f_1
   - openssl=3.0.3=h166bdaf_0
@@ -64,6 +66,7 @@ dependencies:
   - pytorch=1.11.0=py3.8_cuda11.3_cudnn8.2.0_0
   - pytorch-mutex=1.0=cuda
   - readline=8.1=h46c0cb4_0
+  - requests=2.31.0=py38h06a4308_1
   - setuptools=62.1.0=py38h578d9bd_0
   - six=1.16.0=pyh6c4a22f_0
   - sqlite=3.38.4=h4ff8645_0
@@ -102,6 +105,7 @@ dependencies:
       - decorator==5.1.1
       - defusedxml==0.7.1
       - docutils==0.16
+      - edt==2.4.0
       - einops==0.7.0
       - exceptiongroup==1.2.0
       - executing==2.0.1
@@ -163,7 +167,6 @@ dependencies:
       - networkx==3.1
       - notebook==7.1.2
       - notebook-shim==0.2.4
-      - numpy==1.24.3
       - oauthlib==3.2.2
       - opencv-python==4.9.0.80
       - opt-einsum==3.3.0
@@ -187,6 +190,7 @@ dependencies:
       - pyparsing==3.1.2
       - python-dateutil==2.9.0.post0
       - python-json-logger==2.0.7
+      - pytorch-sphinx-theme==0.0.19
       - pytz==2024.1
       - pywavelets==1.4.1
       - pyyaml==6.0.1
@@ -194,7 +198,6 @@ dependencies:
       - qtconsole==5.5.1
       - qtpy==2.4.1
       - referencing==0.34.0
-      - requests==2.31.0
       - requests-oauthlib==2.0.0
       - rfc3339-validator==0.1.4
       - rfc3986-validator==0.1.1
@@ -241,4 +244,3 @@ dependencies:
       - wrapt==1.16.0
       - yacs==0.1.8
       - zipp==3.18.1
-prefix: /home/linok/miniforge3/envs/pytc_doc
