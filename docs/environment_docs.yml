@@ -94,7 +94,7 @@ dependencies:
       - bleach==6.1.0
       - cachetools==5.3.3
       - comm==0.2.2
-      - connectomics==0.1
+      - connectomics==0.0.1.dev4
       - contourpy==1.1.1
       - cycler==0.12.1
       - cython==0.29.21
