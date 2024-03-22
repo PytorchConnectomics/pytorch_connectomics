@@ -11,9 +11,20 @@ build:
   tools:
     python: "3.8"
   # alter build commands to support conda environment
-  echo READTHEDOCS_VIRTUALENV_PATH $READTHEDOCS_VIRTUALENV_PATH
-
-  
+    commands:
+      - git clone --depth 1 https://github.com/PytorchConnectomics/pytorch_connectomics.git .
+      - git fetch origin --force --prune --prune-tags --depth 50 refs/heads/master:refs/remotes/origin/master
+      - git checkout --force origin/master
+      - git clean -d -f -f
+      - cat .readthedocs.yaml
+      - asdf global python 3.8.18
+      - conda env create --file docs/environment_docs.yml
+      - conda activate pytc_docs
+      - python -m pip install --upgrade --no-cache-dir pip setuptools
+      - python -m pip install --upgrade --no-cache-dir sphinx readthedocs-sphinx-ext 
+      - python -m pip install --exists-action=w --no-cache-dir -r docs/requirements.txt
+      - cat docs/source/conf.py
+      - python -m sphinx -T -b html -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html   
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
   configuration: docs/source/conf.py
