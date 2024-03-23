@@ -81,6 +81,8 @@
   {%- endblock %}
   {%- block extrahead %} {% endblock %}
 
+  {% include "fonts.html" %}
+
   <!-- at the end of the HEAD -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
 </head>
@@ -354,6 +356,8 @@
       </div>
     </div> -->
   </div>
+
+  {% include "cookie_banner.html" %}
 
   <!-- End Footer -->
 
