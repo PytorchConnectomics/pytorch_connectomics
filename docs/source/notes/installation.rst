@@ -24,8 +24,8 @@ Please follow the steps below for a successful installation:
 .. code-block:: none
 
     conda create -n py3_torch python=3.8
-    source activate py3_torch
-    conda install pytorch torchvision cudatoolkit=11.3 -c pytorch
+    conda activate py3_torch
+    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch
 
 More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with 
 CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is installed:
@@ -47,7 +47,7 @@ CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is insta
 We install the package in editable mode by default so that there is no need to
 re-install it when making changes to the code. 
 
-3 - Ensure CUDA is setup correctly (*optional*)
+3 (*optional*) - Ensure CUDA is setup correctly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Check that PyTorch is installed with CUDA support:
