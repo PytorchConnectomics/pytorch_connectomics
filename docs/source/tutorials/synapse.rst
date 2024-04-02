@@ -49,6 +49,12 @@ Download the dataset from the `challenge page <https://cremi.org/>`_, or the Har
 
     wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
 
+Or execute the following snippet in the root directory:
+
+.. code-block:: none
+
+    mkdir datasets ; cd datasets ; mkdir CREMI ; cd CREMI ; wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip ; unzip cremi.zip ; rm -f cremi.zip ; cd ../..
+
 For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
 .. note::
@@ -65,8 +71,7 @@ conduct training/inference at the same time.
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
-    --nproc_per_node=3 --master_port=1234 scripts/main.py --distributed \
+    python -u torch.distributed.run scripts/main.py \
     --config-base configs/CREMI/CREMI-Base.yaml \
     --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
 
@@ -82,7 +87,7 @@ conduct training/inference at the same time.
 
 .. code-block:: none
 
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+    python -u scripts/main.py \
     --inference --config-base configs/CREMI/CREMI-Base.yaml \
     --config-file configs/CREMI/CREMI-Foreground-UNet.yaml \
     --checkpoint outputs/CREMI_Binary_UNet/volume_100000.pth.tar
