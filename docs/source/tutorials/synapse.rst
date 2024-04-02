@@ -53,7 +53,14 @@ Or execute the following snippet in the root directory:
 
 .. code-block:: none
 
-    mkdir datasets ; cd datasets ; mkdir CREMI ; cd CREMI ; wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip ; unzip cremi.zip ; rm -f cremi.zip ; cd ../..
+    mkdir datasets \
+    ; cd datasets \
+    ; mkdir CREMI \
+    ; cd CREMI \
+    ; wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip \
+    ; unzip cremi.zip \
+    ; rm -f cremi.zip \
+    ; cd ../..
 
 For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
@@ -124,24 +131,29 @@ Download the example dataset for synaptic polarity detection from our server:
 
     wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
 
+Or execute the following snippet in the root directory:
+
+.. code-block:: none
+
+    mkdir datasets \
+    ; cd datasets \
+    ; wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip \
+    ; unzip jwr15_synapse.zip \
+    ; rm -f jwr15_synapse.zip \
+    ; cd ../..
+
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
 
 The training and inference script can take a list of volumes (or a long string of paths that can be separated by `'@'`)
 in either the yaml config file or by command-line arguments.
 
-.. note::
-    By default the path of images and labels are not specified. To
-    run the training scripts, please revise the ``IMAGE_NAME``, ``LABEL_NAME``
-    and ``INPUT_PATH`` options in ``configs/Synaptic-Polarity.yaml``.
-    The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
-
 .. code-block:: none
 
     source activate py3_torch
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
-    --nproc_per_node=4 --master_port=5679 scripts/main.py --distributed \
-    --config-file configs/Synaptic-Polarity.yaml
+    python -u scripts/main.py \
+    --config-base configs/JWR15/synapse/JWR15-Synapse-Base.yaml \
+    --config-file configs/JWR15/synapse/JWR15-Synapse-BCE.yaml
 
 .. tip::
     We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize
