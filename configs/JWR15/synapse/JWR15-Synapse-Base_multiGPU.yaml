@@ -1,6 +1,6 @@
 SYSTEM:
-  NUM_GPUS: 1
-  NUM_CPUS: 1
+  NUM_GPUS: 2
+  NUM_CPUS: 16
 MODEL:
   ARCHITECTURE: unet_plus_3d
   BLOCK_TYPE: residual_se
@@ -19,7 +19,7 @@ DATASET:
   INPUT_PATH: datasets/jwr15_synapse/
   OUTPUT_PATH: outputs/jwr15_synapse/
   PAD_SIZE: [4, 48, 48]
-  DISTRIBUTED: False
+  DISTRIBUTED: True
   REJECT_SAMPLING:
     SIZE_THRES: 2000
     P: 0.95
