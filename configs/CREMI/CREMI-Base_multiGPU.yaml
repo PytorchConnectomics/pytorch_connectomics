@@ -1,8 +1,8 @@
 # All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/defaults.py
 SYSTEM:
-  NUM_GPUS: 1
-  NUM_CPUS: 1
+  NUM_GPUS: 3
+  NUM_CPUS: 12
 MODEL:
   INPUT_SIZE: [17, 257, 257]
   OUTPUT_SIZE: [17, 257, 257]
@@ -18,7 +18,7 @@ DATASET:
   REJECT_SAMPLING:
     SIZE_THRES: 1000
     P: 0.95
-  DISTRIBUTED: False
+  DISTRIBUTED: True
 SOLVER:
   LR_SCHEDULER_NAME: WarmupCosineLR
   BASE_LR: 0.02
