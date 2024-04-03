@@ -78,7 +78,7 @@ conduct training/inference at the same time.
 .. code-block:: none
 
     source activate py3_torch
-    python -u torch.distributed.run scripts/main.py \
+    python -u scripts/main.py \
     --config-base configs/CREMI/CREMI-Base.yaml \
     --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
 
