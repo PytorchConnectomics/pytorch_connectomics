@@ -73,7 +73,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
 
 
 class SplitActivation(object):
-    r"""Apply different activation functions for the outpur tensor.
+    r"""Apply different activation functions for the output tensor.
     """
     # number of channels of different target options
     num_channels_dict = {
@@ -314,6 +314,7 @@ def get_functional_act(activation: str = 'relu'):
         activation (str): one of ``'relu'``, ``'tanh'``, ``'elu'``, ``'sigmoid'``,
             ``'softmax'`` and ``'none'``. Default: ``'sigmoid'``
     """
+    # input can be a list
     assert activation in ["relu", "tanh", "elu", "sigmoid", "softmax", "none"], \
         "Get unknown activation_fn key {}".format(activation)
     activation_dict = {

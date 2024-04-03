@@ -431,13 +431,13 @@ class VolumeDatasetMultiSeg(VolumeDataset):
             n_seg_maps =  out_label.shape[0]
 
             if self.augmentor is not None:
+                target_dict = self.augmentor.additional_targets
                 if out_valid is not None:
                     assert 'valid_mask' in target_dict.keys(), \
                         "Need to specify the 'valid_mask' option in additional_targets " \
                         "of the data augmentor when training with partial annotation."
 
                 data = {'image': out_volume}
-                target_dict = self.augmentor.additional_targets
                 for i in range(n_seg_maps):
                     assert 'label%d' % i in target_dict.keys() # each channel is augmented
                     data['label%d' % i] = out_label[i,:,:,:]
