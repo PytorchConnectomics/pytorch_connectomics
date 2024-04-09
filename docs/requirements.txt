@@ -1,0 +1,4 @@
+sphinx==3.4.3
+sphinxcontrib-katex
+jinja2==3.0.3
+-e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
