@@ -158,6 +158,10 @@ def plot_loss_ratio(loss_dict: dict) -> matplotlib.figure.Figure:
         labels.append(key)
         sizes.append(loss_dict[key].cpu().data.numpy())
 
+    if max(sizes) == 0:
+        # rare case: all losses are 0
+        sizes[-1] = 1e-5
+
     fig, ax = plt.subplots()
     colors = ['#ff6666', '#ffcc99', '#99ff99', '#66b3ff', '#c2c2f0', '#ffb3e6']
     ax.pie(sizes, labels=labels, autopct='%1.1f%%',
