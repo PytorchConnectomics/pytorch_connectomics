@@ -40,6 +40,10 @@ The figure above shows examples of EM images, segmentation and affinity map from
 
     wget http://rhoana.rc.fas.harvard.edu/dataset/snemi.zip
 
+.. tip::
+   As of April 9, 2024, unzipping the above folder will create an ``image`` and ``seg`` folder. It is recommended that these two folders be placed
+   under datasets/SNEMI3D or that ``configs/SNEMI/SNEMI-Base.yaml`` be changed to point to the appropriate dataset paths.
+
 For description of the SNEMI dataset please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
 .. note::
@@ -54,10 +58,18 @@ For description of the SNEMI dataset please check `this page <https://vcg.github
 Provide the **YAML** configuration files to run training:
 
 .. code-block:: none
+   source activate py3_torch
+   python -u scripts/main.py \
+   --config-base configs/SNEMI/SNEMI-Base.yaml \
+   --config-file configs/SNEMI/SNEMI-Foreground-UNet.yaml
+
+Or if using multiple GPUs for higher performance:
+
+.. code-block:: none
 
     CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u -m torch.distributed.run \
     --nproc_per_node=2 --master_port=1234 scripts/main.py --distributed \
-    --config-base configs/SNEMI/SNEMI-Base.yaml \
+    --config-base configs/SNEMI/SNEMI-Base_multiGPU.yaml \
     --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
 
 The configuration files for training can be found in ``configs/SNEMI/``.
@@ -136,7 +148,7 @@ is not needed.
 
     python -u scripts/main.py --config-base configs/SNEMI/SNEMI-Base.yaml \
     --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml --inference \
-    --checkpoint outputs/SNEMI_UNet/checkpoint_100000.pth
+    --checkpoint outputs/SNEMI_UNet/checkpoint_100000.pth.tar
 
 6 - Get segmentation
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -146,9 +158,10 @@ evaluation. First download the ``waterz`` package `here <https://github.com/zudi
 
 .. code-block:: none
 
-    git clone git@github.com:zudi-lin/waterz.git
+    git clone https://github.com/zudi-lin/waterz.git
     cd waterz
     pip install --editable .
+    pip install waterz
 
 Follow the instructions on the repository to install the ``waterz`` package. We will use the ``waterz.waterz`` API to generate segmentation from the affinity maps. The API takes in as arguments.
 
