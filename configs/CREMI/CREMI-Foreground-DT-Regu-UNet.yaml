@@ -1,0 +1,19 @@
+MODEL:
+  OUT_PLANES: 2
+  TARGET_OPT: ["0", "6-2d-4-50"]
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss", "DiceLoss"], ["WeightedMSE"]]
+  LOSS_WEIGHT: [[1.0, 1.0], [4.0]]
+  WEIGHT_OPT: [["1", "0"], ["0"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["tanh"]]
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+  FILTERS: [32, 64, 96, 128, 160]
+  # cross-target consistency regularization
+  REGU_OPT: ["FgDT"]
+  REGU_TARGET: [[0, 1]]
+  REGU_WEIGHT: [0.5]
+DATASET:
+  OUTPUT_PATH: outputs/CREMI_Binary_DT_Regu_UNet
+INFERENCE:
+  OUTPUT_ACT: ["sigmoid", "tanh"]
+  OUTPUT_PATH: outputs/CREMI_Binary_DT_Regu_UNet/test

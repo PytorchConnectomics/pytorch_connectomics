@@ -1,0 +1,14 @@
+MODEL:
+  OUT_PLANES: 1
+  TARGET_OPT: ["0"]
+  LOSS_OPTION: [["WeightedBCEWithLogitsLoss"]]
+  LOSS_WEIGHT: [[1.0]]
+  WEIGHT_OPT: [["1"]]
+  OUTPUT_ACT: [["none"]]
+  ARCHITECTURE: unet_plus_3d
+  BLOCK_TYPE: residual_se
+DATASET:
+  OUTPUT_PATH: outputs/CREMI_Binary_UNet
+INFERENCE:
+  OUTPUT_ACT: ["sigmoid"]
+  OUTPUT_PATH: outputs/CREMI_Binary_UNet/test

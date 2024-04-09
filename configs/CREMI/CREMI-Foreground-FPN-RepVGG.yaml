@@ -1,0 +1,7 @@
+MODEL:
+  ARCHITECTURE: 'fpn_3d'
+  BACKBONE: 'repvgg'
+DATASET:
+  OUTPUT_PATH: 'outputs/CREMI_Binary_FPN_RepVGG'
+INFERENCE:
+  OUTPUT_PATH: 'outputs/CREMI_Binary_FPN_RepVGG/test'
