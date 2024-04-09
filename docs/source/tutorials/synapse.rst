@@ -51,19 +51,6 @@ Download the dataset from the `challenge page <https://cremi.org/>`_, or the Har
 
 Or execute the following snippet in the root directory:
 
-.. code-block:: none
-
-    mkdir datasets \
-    ; cd datasets \
-    ; mkdir CREMI \
-    ; cd CREMI \
-    ; wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip \
-    ; unzip cremi.zip \
-    ; rm -f cremi.zip \
-    ; cd ../..
-
-For description of the data please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
-
 .. note::
     If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
     different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``,
@@ -81,6 +68,17 @@ conduct training/inference at the same time.
     python -u scripts/main.py \
     --config-base configs/CREMI/CREMI-Base.yaml \
     --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
+
+Or if using multiple GPUs for higher performance:
+
+.. code-block:: none
+
+    source activate py3_torch
+    CUDA_VISIBLE_DEVICES=0,1,2,3 python -u -m torch.distributed.run \
+    --nproc_per_node=4 --master_port=2345 scripts/main.py --distributed \
+    --config-base configs/CREMI/CREMI-Base_multiGPU.yaml \
+    --config-file configs/CREMI/CREMI-Foreground-UNet.yaml
+
 
 3 - Visualize the training progress
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -130,17 +128,6 @@ Download the example dataset for synaptic polarity detection from our server:
 .. code-block:: none
 
     wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
-
-Or execute the following snippet in the root directory:
-
-.. code-block:: none
-
-    mkdir datasets \
-    ; cd datasets \
-    ; wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip \
-    ; unzip jwr15_synapse.zip \
-    ; rm -f jwr15_synapse.zip \
-    ; cd ../..
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
