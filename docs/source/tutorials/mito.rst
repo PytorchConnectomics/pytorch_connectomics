@@ -47,7 +47,7 @@ For description of the data please check `the author page <https://www.epfl.ch/l
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
-If single GPU:
+If using a single GPU:
 
 .. code-block:: none
 
@@ -55,7 +55,7 @@ If single GPU:
     python scripts/main.py -u --config-file configs/Lucchi-Mitochondria.yaml
 
 
-If multiple GPUs for high performance:
+If using multiple GPUs for higher performance:
 
 .. code-block:: none
 
