@@ -55,7 +55,7 @@ class TestAugmentor(object):
         self.scale_factors = scale_factors
         self.inference_act = inference_act
 
-        if num_aug is not None or num_aug != 0:
+        if num_aug is not None and num_aug != 0:
             assert num_aug in [4, 8, 16], \
                 "TestAugmentor.num_aug should be either 4, 8 or 16!"
             if self.do_2d: # max num_aug for 2d images
