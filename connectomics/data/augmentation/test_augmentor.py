@@ -209,7 +209,7 @@ class TestAugmentor(object):
         r"""Update the name of the output file to indicate applied test-time augmentations.
         """
         extension = "_"
-        if self.num_aug is None
+        if self.num_aug is None:
             return name
         elif self.num_aug == 4:
             extension += "xy"
