@@ -55,7 +55,7 @@ class TestAugmentor(object):
         self.scale_factors = scale_factors
         self.inference_act = inference_act
         if num_aug == 0:
-            num_aug = None:
+            num_aug = None
 
         if num_aug is not None:
             assert num_aug in [4, 8, 16], \
