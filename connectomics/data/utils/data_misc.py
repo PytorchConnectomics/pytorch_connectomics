@@ -1,6 +1,9 @@
 from __future__ import print_function, division
 from typing import Optional, Tuple, List, Union
 import numpy as np
+from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
+from skimage.color import label2rgb
 
 
 def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
@@ -97,3 +100,22 @@ def numpy_squeeze(*args):
         else:
             squeezed.append(None)
     return squeezed
+
+def show_image(image, image_type='im', num_row=1, cmap='gray', title='Test Title', interpolation=None,):
+    num_imgs = image.shape[0]
+    num_col = (num_imgs + num_row - 1) // num_row 
+    fig = plt.figure(figsize=(20., 3.))
+    fig.suptitle(title, fontsize=15)
+    grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                     nrows_ncols=(num_row, num_col),  # creates 2x2 grid of axes
+                     axes_pad=0.1,  # pad between axes in inch.
+                     )
+    image_list = np.split(image, num_imgs, 0)
+    for ax, im in zip(grid, [np.squeeze(x) for x in image_list]):
+        # Iterating over the grid returns the Axes.
+        if image_type == 'seg':
+            im = label2rgb(im)
+        ax.imshow(im, cmap=cmap, interpolation=interpolation)
+        ax.axis('off')
+
+    plt.show()
