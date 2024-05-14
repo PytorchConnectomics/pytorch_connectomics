@@ -101,7 +101,7 @@ def numpy_squeeze(*args):
             squeezed.append(None)
     return squeezed
 
-def show_image(image, image_type='im', num_row=1, cmap='gray', title='Test Title', interpolation=None,):
+def show_image(image, image_type='im', num_row=1, cmap='gray', title='Test Title', interpolation=None):
     num_imgs = image.shape[0]
     num_col = (num_imgs + num_row - 1) // num_row 
     fig = plt.figure(figsize=(20., 3.))
