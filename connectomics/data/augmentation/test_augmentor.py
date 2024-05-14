@@ -55,7 +55,7 @@ class TestAugmentor(object):
         self.scale_factors = scale_factors
         self.inference_act = inference_act
 
-        if num_aug is not None:
+        if num_aug is not None or num_aug == 0:
             assert num_aug in [4, 8, 16], \
                 "TestAugmentor.num_aug should be either 4, 8 or 16!"
             if self.do_2d: # max num_aug for 2d images
@@ -208,7 +208,7 @@ class TestAugmentor(object):
         r"""Update the name of the output file to indicate applied test-time augmentations.
         """
         extension = "_"
-        if self.num_aug is None:
+        if self.num_aug is None or self.num_aug == 0:
             return name
         elif self.num_aug == 4:
             extension += "xy"
