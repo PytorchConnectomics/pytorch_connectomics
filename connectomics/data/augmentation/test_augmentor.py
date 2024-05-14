@@ -82,16 +82,15 @@ class TestAugmentor(object):
         out = None
         cc = 0
 
-        if self.num_aug == None:
-            opts = itertools.product(
-                (False, ), (False, ), (False, ), (False, ))
-        elif self.num_aug == 4:
+        opts = itertools.product(
+            (False, ), (False, ), (False, ), (False, ))
+        if self.num_aug == 4:
             opts = itertools.product(
                 (False, True), (False, True), (False, ), (False, ))
         elif self.num_aug == 8:
             opts = itertools.product(
                 (False, True), (False, True), (False, ), (False, True))
-        else:
+        elif self.num_aug == 16:
             opts = itertools.product(
                 (False, True), (False, True), (False, True), (False, True))
 
@@ -210,7 +209,7 @@ class TestAugmentor(object):
         r"""Update the name of the output file to indicate applied test-time augmentations.
         """
         extension = "_"
-        if self.num_aug is None:
+        if self.num_aug is None
             return name
         elif self.num_aug == 4:
             extension += "xy"
