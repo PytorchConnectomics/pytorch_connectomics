@@ -54,6 +54,8 @@ class TestAugmentor(object):
         self.do_2d = do_2d
         self.scale_factors = scale_factors
         self.inference_act = inference_act
+        if num_aug == 0:
+            num_aug = None
 
         if num_aug is not None:
             assert num_aug in [4, 8, 16], \
@@ -80,16 +82,15 @@ class TestAugmentor(object):
         out = None
         cc = 0
 
-        if self.num_aug == None:
-            opts = itertools.product(
-                (False, ), (False, ), (False, ), (False, ))
-        elif self.num_aug == 4:
+        opts = itertools.product(
+            (False, ), (False, ), (False, ), (False, ))
+        if self.num_aug == 4:
             opts = itertools.product(
                 (False, True), (False, True), (False, ), (False, ))
         elif self.num_aug == 8:
             opts = itertools.product(
                 (False, True), (False, True), (False, ), (False, True))
-        else:
+        elif self.num_aug == 16:
             opts = itertools.product(
                 (False, True), (False, True), (False, True), (False, True))
 
