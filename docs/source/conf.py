@@ -149,7 +149,7 @@ html_theme = 'pytorch_sphinx_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
+# html_theme_path = [pytorch_sphinx_theme.get_html_theme_path()]
 
 html_theme_options = {
     'collapse_navigation': False,
@@ -187,8 +187,8 @@ html_favicon = '_templates/_static/img/favicon.svg'
 html_static_path = ["_templates/_static/"]
 html_context = {"css_files": ["_static/css/pytc-theme.css",
                               "https://cdn.jsdelivr.net/npm/@docsearch/js@alpha",
+                              "_static/css/readthedocs-doc-embed.css"
                               ]}
-
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
 # directly to the root of the documentation.

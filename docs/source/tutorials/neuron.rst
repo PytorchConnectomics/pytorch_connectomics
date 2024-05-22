@@ -10,10 +10,8 @@ segmentation algorithm (*e.g.*, watershed).
 The evaluation of segmentation results is based on the `Rand Index <https://en.wikipedia.org/wiki/Rand_index>`_
 and `Variation of Information <https://en.wikipedia.org/wiki/Variation_of_information>`_.
 
-.. tip::
-
-    Before running neuron segmentation, please take a look at the `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_
-    to get familiar with the datasets and available utility functions in this package.
+    .. tip:: 
+        Before running neuron segmentation, please take a look at the `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to get familiar with the datasets and available utility functions in this package.
 
 The main script to run the training and inference is ``pytorch_connectomics/scripts/main.py``.
 The pytorch target affinity generation is :class:`connectomics.data.dataset.VolumeDataset`.
@@ -23,8 +21,7 @@ Neighboring affinity learning
 
 The affinity value between two neighboring pixels (voxels) is 1 if they belong to the same instance and 0 if
 they belong to different instances or at least one of them is a background pixel (voxel). An affinity map can
-be regarded as a more informative version of boundary map as it contains the affinity to two directions in 2D inputs and
-three directions (`z`, `y` and `x` axes) in 3D inputs.
+be regarded as a more informative version of boundary map as it contains the affinity to two directions in 2D inputs and three directions (`z`, `y` and `x` axes) in 3D inputs.
 
 .. figure:: ../_static/img/snemi_affinity.png
     :align: center
@@ -40,17 +37,16 @@ The figure above shows examples of EM images, segmentation and affinity map from
 
     wget http://rhoana.rc.fas.harvard.edu/dataset/snemi.zip
 
-.. tip::
-   As of April 9, 2024, unzipping the above folder will create an ``image`` and ``seg`` folder. It is recommended that these two folders be placed
-   under datasets/SNEMI3D or that ``configs/SNEMI/SNEMI-Base.yaml`` be changed to point to the appropriate dataset paths.
+..
+
+   .. tip::
+    As of April 9, 2024, unzipping the above folder will create an ``image`` and ``seg`` folder. It is recommended that these two folders be placed under datasets/SNEMI3D or that ``configs/SNEMI/SNEMI-Base.yaml`` be changed to point to the appropriate dataset paths.
 
 For description of the SNEMI dataset please check `this page <https://vcg.github.io/newbie-wiki/build/html/data/data_em.html>`_.
 
-.. note::
+    .. note::
 
-    Since for a region with dense masks, most affinity values are 1, in practice, we usually widen the instance border (erode the instance mask)
-    to deal with the class imbalance problem and let the model make more conservative predictions to prevent merge error. This is done by
-    setting ``MODEL.LABEL_EROSION = 1``.
+        Since for a region with dense masks, most affinity values are 1, in practice, we usually widen the instance border (erode the instance mask) to deal with the class imbalance problem and let the model make more conservative predictions to prevent merge error. This is done by setting ``MODEL.LABEL_EROSION = 1``.
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
@@ -83,12 +79,9 @@ Please modify the following options according to your system configuration and d
 - ``NUM_GPUS``: number of GPUs
 - ``NUM_CPUS``: number of CPU cores (for data loading)
 
-.. tip::
+    .. tip::
 
-    By default, we use multi-process distributed training with one GPU per process (and multiple CPUs for data loading).
-    The model is wrapped with `DistributedDataParallel <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_ (DDP).
-    For more benefits of DDP, check `this tutorial <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_.
-    Please note that official synchronized batch normalization (SyncBN) in PyTorch is only supported with DDP.
+        By default, we use multi-process distributed training with one GPU per process (and multiple CPUs for data loading). The model is wrapped with `DistributedDataParallel <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_ (DDP). For more benefits of DDP, check `this tutorial <https://pytorch.org/tutorials/intermediate/ddp_tutorial.html>`_. Please note that official synchronized batch normalization (SyncBN) in PyTorch is only supported with DDP.
 
 We also support `data parallel <https://pytorch.org/docs/stable/generated/torch.nn.DataParallel.html>`_ (DP) training.
 If the training command above does not work for your system, please use:

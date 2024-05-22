@@ -24,10 +24,9 @@ the models used in affinity prediction in `neuron segmentation <neuron.html>`_.
 The evaluation of the synapse detection results is based on the F1 score and average distance. See `CREMI metrics <https://cremi.org/metrics/>`_
 for more details.
 
-.. note::
+    .. note::
 
-    We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse
-    the alignment before submitting the test prediction to the CREMI challenge.
+        We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse the alignment before submitting the test prediction to the CREMI challenge.
 
 Script needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. The *YAML* configuration files can be found at ``pytorch_connectomics/configs/``, which
 stores the common settings for model training and inference. Other default configuration options can be found at ``pytorch_connectomics/connectomics/config/``. The pytorch
@@ -51,10 +50,8 @@ Download the dataset from the `challenge page <https://cremi.org/>`_, or the Har
 
 Or execute the following snippet in the root directory:
 
-.. note::
-    If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be
-    different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``,
-    ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml>`_.
+    .. note::
+        If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be different from the default ones. In such case, please change the corresponding entries, including ``IMAGE_NAME``, ``LABEL_NAME`` and ``INPUT_PATH`` in the `CREMI config file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml>`_.
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
@@ -105,10 +102,8 @@ This task is different from the synaptic cleft detection task in two aspects. Fi
 only needs the binary foreground mask for evaluation. Second, the polarity detection task also requires separated pre-synaptic and post-synaptic masks.
 The evaluation metric of the synaptic polarity detection results is an IoU-based F1 score. The sparsity and diversity of synapses make the task challenging.
 
-.. note::
-    We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like
-    connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels
-    are **pre-synaptic region**, **post-synaptic region** and **synaptic region** (union of the first two channels), respectively.
+    .. note::
+        We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels are **pre-synaptic region**, **post-synaptic region** and **synaptic region** (union of the first two channels), respectively.
 
 All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``.
 The pytorch dataset class of synaptic partners is :class:`connectomics.data.dataset.VolumeDataset`.
@@ -141,11 +136,10 @@ in either the yaml config file or by command-line arguments.
     python -u scripts/main.py \
     --config-base configs/JWR15/synapse/JWR15-Synapse-Base.yaml \
     --config-file configs/JWR15/synapse/JWR15-Synapse-BCE.yaml
+..
 
-.. tip::
-    We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize
-    false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the
-    vast volumes.
+   .. tip::
+    We add **higher weights** to the foreground pixels and apply **rejection sampling** to reject samples without synapes during training to heavily penalize false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the vast volumes.
 
 3 - Visualize the training progress
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -164,9 +158,10 @@ in either the yaml config file or by command-line arguments.
     --config-file configs/Synaptic-Polarity.yaml --inference \
     --checkpoint outputs/Synaptic_Polarity_UNet/volume_100000.pth.tar
 
-.. note::
-    The path to images for inference/testing are not specified in the configuration file.
-    Please change the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
+..
+
+   .. note::
+    The path to images for inference/testing are not specified in the configuration file. Please change the ``INFERENCE.IMAGE_NAME`` option in ``configs/Synaptic-Polarity.yaml``.
 
 5 - Post-process
 ^^^^^^^^^^^^^^^^^

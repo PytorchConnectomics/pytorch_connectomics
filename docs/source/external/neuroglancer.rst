@@ -9,9 +9,8 @@ It supports a wide variety of data sources and can display arbitrary (non axis-a
 data and 3-D meshes and line-segment-based models (skeletons). Neuroglancer is a powerful tool for large-scale neuroscience 
 datasets, which can be impractical to visualize with other traditional image viewer applications.
 
-.. note::
-    The tutorial below is only tested with the Google `Chrome <https://www.google.com/chrome/downloads/>`_ web browser. You may 
-    see different behaviors or errors when using other browsers.
+    .. note::
+        The tutorial below is only tested with the Google `Chrome <https://www.google.com/chrome/downloads/>`_ web browser. You may see different behaviors or errors when using other browsers.
 
 Installation and Quick Start
 ------------------------------
@@ -59,10 +58,10 @@ client, and which also can serve local volume data and handles sending and recei
 to the viewer (only while the script is running). Note that anyone with the link can obtain any authentication credentials that 
 the neuroglancer Python module obtains when the viewer is running.
 
-.. note::
-    Users need to start a local neuroglancer server with ``python -i [YOUR_SCRIPT].py`` or use a jupyter notebook. 
-    It cannot be run as a non-interactive python script, *i.e.*, do **not** use ``python [YOUR_SCRIPT].py`` because 
-    the server will shut down immediately after running the code.
+    .. note::
+        Users need to start a local neuroglancer server with ``python -i [YOUR_SCRIPT].py`` or use a jupyter notebook. It cannot be run as a non-interactive python script, *i.e.*, do **not** use ``python [YOUR_SCRIPT].py`` because the server will shut down immediately after running the code.
+
+..
 
 .. code-block:: python
 
@@ -139,11 +138,9 @@ segmentation dataset for demonstration.
 
 Please note that the mask volume needs to be loaded as a ``'segmentation'`` layer.
 
-.. tip::
+    .. tip::
 
-    To show the 3D meshes of all segments, print the segment indices in the Python script (use ``numpy.unique``) and copy it
-    to the segment tab of the corresponding ``'segmentation'`` layer. May need to wait a couple of 
-    minutes before seeing the rendered 3D meshes.
+        To show the 3D meshes of all segments, print the segment indices in the Python script (use ``numpy.unique``) and copy it to the segment tab of the corresponding ``'segmentation'`` layer. May need to wait a couple of minutes before seeing the rendered 3D meshes.
 
 
 4 - Loading public datasets in GUI

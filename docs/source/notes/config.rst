@@ -5,10 +5,8 @@ Configurations
 that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
 that uses YAML, a human-readable data-serialization language, to manage options.
 
-.. note::
-   The system has ``_C.KEY:VALUE``  field, which will use a pre-defined configurations first. Values in the pre-defined config will 
-   be overwritten in sub-configs, if there are any according to the user requirements. We provided several base configs for standard tasks
-   in connectomics research as ``<task>.yaml`` files at `pytorch_connectomics/configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
+    .. note::
+        The system has ``_C.KEY:VALUE``  field, which will use a pre-defined configurations first. Values in the pre-defined config will be overwritten in sub-configs, if there are any according to the user requirements. We provided several base configs for standard tasks in connectomics research as ``<task>.yaml`` files at `pytorch_connectomics/configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
 
 We do not expect all features in the package to be available through configs, which will make it too complicated. If you need 
 to add options that are not available in the current version, please modify the keys-value pairs in ``/connectomics/config/config.py``
