@@ -59,16 +59,15 @@ annotated regions are required. We provide the ``additional_targets`` option to 
               'valid_mask': valid_mask}
     augmented = augmentor(sample)
 
-.. tip::
+   .. tip::
 
-    Each addition target need to be specified with a name (*e.g.*, ``'valid_mask'``) and a target type (``'img'`` or ``'mask'``). Some augmentations are only
-    applied to ``'img'``, and augmentations for both ``'img'`` and ``'mask'`` will use different interpolation modes for them.
+    Each addition target need to be specified with a name (*e.g.*, ``'valid_mask'``) and a target type (``'img'`` or ``'mask'``). Some augmentations are only applied to ``'img'``, and augmentations for both ``'img'`` and ``'mask'`` will use different interpolation modes for them.
 
-.. note::
+..
 
-    The ``'image'`` key in the examples above is to indicate the **name** of the sample, which means other keys can be used
-    to retrive corresponding samples in augmentation. However, the ``'img'`` and ``'mask'`` values indicate the **type** of 
-    a sample, therefore only the two values can be recognized by the augmentor.   
+   .. note::
+
+    The ``'image'`` key in the examples above is to indicate the **name** of the sample, which means other keys can be used to retrive corresponding samples in augmentation. However, the ``'img'`` and ``'mask'`` values indicate the **type** of a sample, therefore only the two values can be recognized by the augmentor.
 
 The ``'label'`` key in ``'mask'`` target type is used by default in the configuration file as most of the tutorial examples belong to the supervised 
 training category. For model training with partially annotated dataset under the supervised setting, we need to add:
@@ -141,11 +140,9 @@ Suppose the input volume is of size (2000,6400,6400) in `(z,y,x)` order, setting
 split the `z` axis by 2 and `x` and `y` axes by 4, so that the process can handle (500,1600,1600) chunks sequentially, which 
 is more manageable. The actual chunk size can be larger due to overlap sampling (only for training) and padding.
 
-.. note::
+    .. note::
 
-    When using padding, the coordinate range of a chunk can have negative numbers, *e.g.*, ``[-4, 104, -64, 864, -64, 864]``, or
-    numbers that are larger than the whole volume size, which is not an error. Those regions are padded so that the size of 
-    sampled chunks stay unchanged.
+        When using padding, the coordinate range of a chunk can have negative numbers, *e.g.*, ``[-4, 104, -64, 864, -64, 864]``, or numbers that are larger than the whole volume size, which is not an error. Those regions are padded so that the size of sampled chunks stay unchanged.
 
 Below is a Python snippet for creating the JSON file for a new dataset of size (2000,6400,6400), which are stored as 
 2000 individual PNG images of size (6400,6400).

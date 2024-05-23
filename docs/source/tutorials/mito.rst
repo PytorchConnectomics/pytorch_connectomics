@@ -19,10 +19,8 @@ This section provides step-by-step guidance for mitochondria segmentation with t
 We consider the task as a **semantic segmentation** task and predict the mitochondria pixels with encoder-decoder ConvNets similar to
 the models used in affinity prediction in `neuron segmentation <neuron.html>`_. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).
 
-.. note::
-    Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset,
-    which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x
-    and z-y planes besides x-y planes are preferred.
+    .. note::
+        Different from other EM connectomics datasets used in the tutorials, the dataset released by Lucchi et al. is an isotropic dataset, which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along z-x and z-y planes besides x-y planes are preferred.
 
 All the scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/``. Need to pass the argument ``--config-file configs/Lucchi-Mitochondria.yaml`` during training and inference to load the required configurations for this task.
 The pytorch dataset class of lucchi data is :class:`connectomics.data.dataset.VolumeDataset`.
@@ -47,7 +45,7 @@ For description of the data please check `the author page <https://www.epfl.ch/l
 
 2 - Run training
 ^^^^^^^^^^^^^^^^^^
-If single GPU:
+If using a single GPU:
 
 .. code-block:: none
 
@@ -55,7 +53,7 @@ If single GPU:
     python scripts/main.py -u --config-file configs/Lucchi-Mitochondria.yaml
 
 
-If multiple GPUs for high performance:
+If using multiple GPUs for higher performance:
 
 .. code-block:: none
 
@@ -127,15 +125,15 @@ The evaluation of the segmentation results is based on the AP-75 (average precis
 Complex mitochondria in the MitoEM dataset:(**a**) mitochondria-on-a-string (MOAS), and (**b**) dense tangle of touching instances.
 Those challenging cases are prevalent but not covered in previous datasets.
 
-.. note::
+    .. note::
 
-    The MitoEM dataset has two sub-datasets **MitoEM-Rat** and **MitoEM-Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat**
-    are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning setting as described in this `paper <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
+        The MitoEM dataset has two sub-datasets **MitoEM-Rat** and **MitoEM-Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning setting as described in this `paper <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
 
-.. tip::
+..
 
-    Since the dataset is very large and can not be directly loaded into memory, we designed the :class:`connectomics.data.dataset.TileDataset` class that only
-    loads part of the whole volume each time by opening involved ``PNG`` or ``TIFF`` images.
+   .. tip::
+
+        Since the dataset is very large and can not be directly loaded into memory, we designed the :class:`connectomics.data.dataset.TileDataset` class that only loads part of the whole volume each time by opening involved ``PNG`` or ``TIFF`` images.
 
 1 - Dataset introduction
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -170,12 +168,6 @@ Configure ``*.yaml`` files for different learning targets:
 
 We show examples for running the training script for the **U3D-BC** model:
 
-.. note::
-    By default the path of images and labels are not specified. To
-    run the training scripts, please revise the ``DATASET.IMAGE_NAME``, ``DATASET.LABEL_NAME``, ``DATASET.OUTPUT_PATH``
-    and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM/MitoEM-R-*.yaml``.
-    The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
-
 .. code-block:: none
 
     CUDA_VISIBLE_DEVICES=0,1,2,3 python -u -m torch.distributed.run \
@@ -183,6 +175,11 @@ We show examples for running the training script for the **U3D-BC** model:
     --config-base configs/MitoEM/MitoEM-R-Base.yaml \
     --config-file configs/MitoEM/MitoEM-R-BC.yaml
 
+..
+
+    .. note::
+
+        By default the path of images and labels are not specified. To run the training scripts, please revise the ``DATASET.IMAGE_NAME``, ``DATASET.LABEL_NAME``, ``DATASET.OUTPUT_PATH`` and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM/MitoEM-R-*.yaml``. The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
 4 - Visualize the training progress
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -205,7 +202,9 @@ Run inference on validation/test image volumes (suppose the model is optimized f
     --config-file configs/MitoEM/MitoEM-R-BC.yaml --inference \
     --checkpoint outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
 
-.. note::
+..
+
+   .. note::
     Please change the ``INFERENCE.IMAGE_NAME`` ``INFERENCE.OUTPUT_PATH`` ``INFERENCE.OUTPUT_NAME``
     options in ``configs/MitoEM-R-*.yaml`` based on your own data path.
 
@@ -243,7 +242,9 @@ and apply the segmentation algorithm:
     # Please allocate enough memory for processing.
     segm = bc_watershed(pred, thres1=0.85, thres2=0.6, thres3=0.8, thres_small=1024)
 
-.. note::
+..
+
+   .. note::
 
     The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different 
     segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.   

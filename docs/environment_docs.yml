@@ -1,8 +1,8 @@
 name: pytc_docs
 channels:
   - pytorch
-  - conda-forge
   - defaults
+  - conda-forge
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
@@ -13,7 +13,7 @@ dependencies:
   - certifi=2021.10.8=py38h578d9bd_2
   - cffi=1.15.0=py38h3931269_0
   - charset-normalizer=2.0.12=pyhd8ed1ab_0
-  - cryptography=36.0.0=py38h9ce1e76_0
+  - cryptography=39.0.1=py38h9ce1e76_2
   - cudatoolkit=11.3.1=h2bc3f7f_2
   - ffmpeg=4.3=hf484d3e_0
   - freetype=2.10.4=h0708190_1
@@ -30,8 +30,8 @@ dependencies:
   - lerc=3.0=h9c3ff4c_0
   - libdeflate=1.10=h7f98852_0
   - libffi=3.4.2=h7f98852_5
-  - libgcc-ng=11.2.0=h1d223b6_16
-  - libgomp=11.2.0=h1d223b6_16
+  - libgcc-ng=13.2.0=h807b86a_5
+  - libgomp=13.2.0=h807b86a_5
   - libiconv=1.16=h516909a_0
   - libnsl=2.0.0=h7f98852_0
   - libpng=1.6.37=h21135ba_2
@@ -50,8 +50,8 @@ dependencies:
   - mkl_random=1.2.2=py38h1abd341_0
   - ncurses=6.3=h27087fc_1
   - nettle=3.6=he412f7d_0
-  - numpy=1.21.5=py38he7a7128_2
-  - numpy-base=1.21.5=py38hf524024_2
+  - numpy=1.24.3=py38h14f4228_0
+  - numpy-base=1.24.3=py38h31eccc5_0
   - openh264=2.1.1=h780b84a_0
   - openjpeg=2.4.0=hb52868f_1
   - openssl=3.0.3=h166bdaf_0
@@ -59,14 +59,14 @@ dependencies:
   - pip=22.0.4=pyhd8ed1ab_0
   - pthread-stubs=0.4=h36c2ea0_1001
   - pycparser=2.21=pyhd8ed1ab_0
-  - pyopenssl=22.0.0=pyhd8ed1ab_0
+  - pyopenssl=23.2.0=pyhd8ed1ab_1
   - pysocks=1.7.1=py38h578d9bd_5
   - python=3.8.13=ha86cf86_0_cpython
-  - python_abi=3.8=2_cp38
+  - python_abi=3.8=4_cp38
   - pytorch=1.11.0=py3.8_cuda11.3_cudnn8.2.0_0
   - pytorch-mutex=1.0=cuda
   - readline=8.1=h46c0cb4_0
-  - requests=2.27.1=pyhd8ed1ab_0
+  - requests=2.31.0=py38h06a4308_1
   - setuptools=62.1.0=py38h578d9bd_0
   - six=1.16.0=pyh6c4a22f_0
   - sqlite=3.38.4=h4ff8645_0
@@ -81,9 +81,166 @@ dependencies:
   - zlib=1.2.11=h166bdaf_1014
   - zstd=1.5.2=ha95c52a_0
   - pip:
-    - sphinx==3.5.4
-    - Jinja2==3.0.*
-    - docutils==0.16
-    - -e git+https://github.com/pytorch/pytorch_sphinx_theme.git#egg=pytorch_sphinx_theme
-    - sphinxcontrib.katex
-    - git+https://github.com/zudi-lin/pytorch_connectomics.git # connectomics
+      - absl-py==2.1.0
+      - alabaster==0.7.13
+      - anyio==4.3.0
+      - argon2-cffi==23.1.0
+      - argon2-cffi-bindings==21.2.0
+      - arrow==1.3.0
+      - asttokens==2.4.1
+      - astunparse==1.6.3
+      - async-lru==2.0.4
+      - attrs==23.2.0
+      - babel==2.14.0
+      - backcall==0.2.0
+      - beautifulsoup4==4.12.3
+      - bleach==6.1.0
+      - cachetools==5.3.3
+      - comm==0.2.2
+      - connectomics==0.0.1.dev4
+      - contourpy==1.1.1
+      - cycler==0.12.1
+      - cython==0.29.21
+      - debugpy==1.8.1
+      - decorator==5.1.1
+      - defusedxml==0.7.1
+      - docutils==0.16
+      - edt==2.4.0
+      - einops==0.7.0
+      - exceptiongroup==1.2.0
+      - executing==2.0.1
+      - fastjsonschema==2.19.1
+      - flatbuffers==24.3.7
+      - fonttools==4.50.0
+      - fqdn==1.5.1
+      - gast==0.4.0
+      - google-auth==2.29.0
+      - google-auth-oauthlib==1.0.0
+      - google-pasta==0.2.0
+      - gputil==1.4.0
+      - grpcio==1.62.1
+      - h11==0.14.0
+      - h5py==3.10.0
+      - httpcore==1.0.4
+      - httpx==0.27.0
+      - imageio==2.34.0
+      - imagesize==1.4.1
+      - importlib-metadata==7.1.0
+      - importlib-resources==6.4.0
+      - ipykernel==6.29.3
+      - ipython==8.12.3
+      - ipywidgets==8.1.2
+      - isoduration==20.11.0
+      - jedi==0.19.1
+      - jinja2==3.0.3
+      - joblib==1.3.2
+      - json5==0.9.24
+      - jsonpointer==2.4
+      - jsonschema==4.21.1
+      - jsonschema-specifications==2023.12.1
+      - jupyter==1.0.0
+      - jupyter-client==8.6.1
+      - jupyter-console==6.6.3
+      - jupyter-core==5.7.2
+      - jupyter-events==0.10.0
+      - jupyter-lsp==2.2.4
+      - jupyter-server==2.13.0
+      - jupyter-server-terminals==0.5.3
+      - jupyterlab==4.1.5
+      - jupyterlab-pygments==0.3.0
+      - jupyterlab-server==2.25.4
+      - jupyterlab-widgets==3.0.10
+      - keras==2.13.1
+      - kiwisolver==1.4.5
+      - lazy-loader==0.3
+      - libclang==18.1.1
+      - markdown==3.6
+      - markupsafe==2.1.5
+      - matplotlib==3.7.5
+      - matplotlib-inline==0.1.6
+      - mistune==3.0.2
+      - monai==1.3.0
+      - nbclient==0.10.0
+      - nbconvert==7.16.3
+      - nbformat==5.10.3
+      - nest-asyncio==1.6.0
+      - networkx==3.1
+      - notebook==7.1.2
+      - notebook-shim==0.2.4
+      - oauthlib==3.2.2
+      - opencv-python==4.9.0.80
+      - opt-einsum==3.3.0
+      - overrides==7.7.0
+      - packaging==24.0
+      - pandocfilters==1.5.1
+      - parso==0.8.3
+      - pexpect==4.9.0
+      - pickleshare==0.7.5
+      - pkgutil-resolve-name==1.3.10
+      - platformdirs==4.2.0
+      - prometheus-client==0.20.0
+      - prompt-toolkit==3.0.43
+      - protobuf==4.25.3
+      - psutil==5.9.8
+      - ptyprocess==0.7.0
+      - pure-eval==0.2.2
+      - pyasn1==0.5.1
+      - pyasn1-modules==0.3.0
+      - pygments==2.17.2
+      - pyparsing==3.1.2
+      - python-dateutil==2.9.0.post0
+      - python-json-logger==2.0.7
+      - pytorch-sphinx-theme==0.0.19
+      - pytz==2024.1
+      - pywavelets==1.4.1
+      - pyyaml==6.0.1
+      - pyzmq==25.1.2
+      - qtconsole==5.5.1
+      - qtpy==2.4.1
+      - referencing==0.34.0
+      - requests-oauthlib==2.0.0
+      - rfc3339-validator==0.1.4
+      - rfc3986-validator==0.1.1
+      - rpds-py==0.18.0
+      - rsa==4.9
+      - scikit-image==0.21.0
+      - scikit-learn==1.3.2
+      - scipy==1.10.1
+      - send2trash==1.8.2
+      - sniffio==1.3.1
+      - snowballstemmer==2.2.0
+      - soupsieve==2.5
+      - sphinx==3.5.4
+      - sphinxcontrib-applehelp==1.0.4
+      - sphinxcontrib-devhelp==1.0.2
+      - sphinxcontrib-htmlhelp==2.0.1
+      - sphinxcontrib-jsmath==1.0.1
+      - sphinxcontrib-katex==0.9.9
+      - sphinxcontrib-qthelp==1.0.3
+      - sphinxcontrib-serializinghtml==1.1.5
+      - stack-data==0.6.3
+      - tensorboard==2.13.0
+      - tensorboard-data-server==0.7.2
+      - tensorflow==2.13.1
+      - tensorflow-estimator==2.13.0
+      - tensorflow-io-gcs-filesystem==0.34.0
+      - termcolor==2.4.0
+      - terminado==0.18.1
+      - threadpoolctl==3.4.0
+      - tifffile==2023.7.10
+      - tinycss2==1.2.1
+      - tomli==2.0.1
+      - tornado==6.4
+      - tqdm==4.66.2
+      - traitlets==5.14.2
+      - types-python-dateutil==2.9.0.20240316
+      - uri-template==1.3.0
+      - wcwidth==0.2.13
+      - webcolors==1.13
+      - webencodings==0.5.1
+      - websocket-client==1.7.0
+      - werkzeug==3.0.1
+      - widgetsnbextension==4.0.10
+      - wrapt==1.16.0
+      - yacs==0.1.8
+      - zipp==3.18.1

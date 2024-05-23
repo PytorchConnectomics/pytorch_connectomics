@@ -10,11 +10,10 @@ Linux Installation
 
 The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS Linux 7.4 (Core) operation system. 
 
-.. tip::
+    .. tip::
 
-    We do not recommend installation as root user on your system python.
-    Please setup an `Anaconda/Miniconda <https://conda.io/docs/user-guide/install/index.html/>`_ environment and add
-    the required packages to the environment.
+        We do not recommend installation as root user on your system python.
+        Please setup an `Anaconda/Miniconda <https://conda.io/docs/user-guide/install/index.html/>`_ environment and add the required packages to the environment.
 
 Please follow the steps below for a successful installation:
 
@@ -24,8 +23,8 @@ Please follow the steps below for a successful installation:
 .. code-block:: none
 
     conda create -n py3_torch python=3.8
-    source activate py3_torch
-    conda install pytorch torchvision cudatoolkit=11.3 -c pytorch
+    conda activate py3_torch
+    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch
 
 More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with 
 CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is installed:
@@ -47,7 +46,7 @@ CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is insta
 We install the package in editable mode by default so that there is no need to
 re-install it when making changes to the code. 
 
-3 - Ensure CUDA is setup correctly (*optional*)
+3 (*optional*) - Ensure CUDA is setup correctly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Check that PyTorch is installed with CUDA support:
@@ -102,20 +101,21 @@ use ``pip`` to directly install it from GitHub:
 
     pip install git+https://github.com/zudi-lin/pytorch_connectomics.git    
 
-.. note::
+..
 
-    If you meet compilation errors, please open an issue and describe the steps to reproduce the errors.
-    It is highly recommended to first play with the Jupyter `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to 
-    make sure that the installation is correct and also have an intial taste of the functions/modules.
+  .. note::
+
+   If you meet compilation errors, please open an issue and describe the steps to reproduce the errors.
+   It is highly recommended to first play with the Jupyter `notebooks <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks>`_ to make sure that the installation is correct and also have an intial taste of the functions/modules.
 
 Windows Installation
 ----------------------
 
 These installation instructions were tested on two different Windows 10 machines, each with 1 GPU device. 
 
-.. note::
+    .. note::
 
-    These instructions were designed to be used on a Windows computer without assuming any previous software was installed, or any command-line familiarity.
+        These instructions were designed to be used on a Windows computer without assuming any previous software was installed, or any command-line familiarity.
 
 Please follow the steps below for a successful installation:
 
@@ -157,6 +157,5 @@ The next few commands create a virtual environment, install pytorch and pytorch_
     conda install -c conda-forge imagecodecs -y
     echo Completely finished with installation. Software is ready to use
     
-.. note::
 
-    The software is now installed. When you want to use the software, you must open the anaconda prompt and type the command ``conda activate py3_torch``.
+The software is now installed. When you want to use the software, you must open the anaconda prompt and type the command ``conda activate py3_torch``.

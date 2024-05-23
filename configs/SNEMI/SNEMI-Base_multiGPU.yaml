@@ -1,8 +1,8 @@
 # All other configurations are set by default. If you want to add new config options,
 # please modify ../connectomics/config/defaults.py
 SYSTEM:
-  NUM_GPUS: 1
-  NUM_CPUS: 1
+  NUM_GPUS: 2
+  NUM_CPUS: 16
 AUGMENTOR:
   SMOOTH: False
 MODEL:
@@ -19,7 +19,7 @@ MODEL:
   FILTERS: [32, 64, 96, 128, 160]
   NORM_MODE: gn
 DATASET:
-  IMAGE_NAME: train-input.tif
+  IMAGE_NAME: train-image.tif
   LABEL_NAME: train-label.tif
   INPUT_PATH: datasets/SNEMI3D/ # or your own dataset path
   OUTPUT_PATH: outputs/SNEMI3D/
