@@ -11,11 +11,10 @@ build:
   tools:
     python: "mambaforge-22.9"
   commands:
-    - cat docs/environment_docs.yml
-    - mamba env create --quiet --name pytc_docs --file docs/environment_docs.yml
-    - conda activate pytc_docs
+    - mamba env create --quiet --name latest --file docs/environment_docs.yml
     - pip install --editable .
-    - cat docs/source/conf.py
+    - git clone https://github.com/pytorch/pytorch_sphinx_theme
+    - pip install -e pytorch_sphinx_theme
     - python -m sphinx -T -b html -d _build/doctrees -D language=en ./docs/source $READTHEDOCS_OUTPUT/html
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
