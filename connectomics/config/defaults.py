@@ -227,6 +227,9 @@ _C.DATASET.DROP_CHANNEL = False
 _C.DATASET.REDUCE_LABEL = True
 
 # Padding size for the input volumes
+# Due to the center crop in the data augmentor, regions close to the volume
+# border will never be sampled. Therefore we pad the input volume. For
+# large-scale dataset there is no need for padding.
 _C.DATASET.PAD_SIZE = [2, 64, 64]
 _C.DATASET.PAD_MODE = 'reflect'  # reflect, constant, symmetric
 
