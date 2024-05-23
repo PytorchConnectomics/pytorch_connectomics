@@ -12,7 +12,8 @@ build:
     python: "mambaforge-22.9"
   commands:
     - cat docs/environment_docs.yml
-    - mamba env create --quiet --name latest --file docs/environment_docs.yml
+    - mamba env create --quiet --name pytc_docs --file docs/environment_docs.yml
+    - mamba activate pytc_docs
     - pip install --editable .
     - cat docs/source/conf.py
     - python -m sphinx -T -b html -d _build/doctrees -D language=en ./docs/source $READTHEDOCS_OUTPUT/html
