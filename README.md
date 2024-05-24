@@ -20,7 +20,7 @@
 
 ## Introduction
 
-The field of *connectomics* aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but the annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics, which is called **PyTorch Connectomics** (PyTC). This repository is mainly maintained by the Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
+The field of *connectomics* aims to reconstruct the wiring diagram of the brain by mapping the neural connections at the level of individual synapses. Recent advances in electronic microscopy (EM) have enabled the collection of a large number of image stacks at nanometer resolution, but annotation requires expertise and is super time-consuming. Here we provide a deep learning framework powered by [PyTorch](https://pytorch.org/) for automatic and semi-automatic semantic and instance segmentation in connectomics, which we call **PyTorch Connectomics** (PyTC). This repository is mainly maintained by the Visual Computing Group ([VCG](https://vcg.seas.harvard.edu)) at Harvard University.
 
 *PyTorch Connectomics is currently under active development!*
 
@@ -31,53 +31,9 @@ The field of *connectomics* aims to reconstruct the wiring diagram of the brain 
 - Scalability for handling large datasets
 - Comprehensive augmentations for volumetric data
 
-If you want new features that are relatively easy to implement (*e.g.*, loss functions, models), please open a feature requirement discussion in issues or implement by yourself and submit a pull request. For other features that requires substantial amount of design and coding, please contact the [author](https://github.com/zudi-lin) directly.
-
-## Environment
-
-The code is developed and tested under the following configurations.
-
-- Hardware: 1-8 Nvidia GPUs with at least 12G GPU memory (change ```SYSTEM.NUM_GPU``` accordingly based on the configuration of your machine)
-- Software: CentOS Linux 7.4 (Core), ***CUDA>=11.1, Python>=3.8, PyTorch>=1.9.0, YACS>=0.1.8***
-
 ## Installation
 
-Create a new conda environment and install PyTorch:
-
-```shell
-conda create -n py3_torch python=3.8
-source activate py3_torch
-conda install pytorch torchvision cudatoolkit=11.3 -c pytorch
-```
-
-Please note that this package is mainly developed on the Harvard [FASRC](https://www.rc.fas.harvard.edu) cluster. More information about GPU computing on the FASRC cluster can be found [here](https://www.rc.fas.harvard.edu/resources/documentation/gpgpu-computing-on-the-cluster/).
-
-### Potential Issues
-After following the above steps to compile PyTorch, there is a possibility that it might not have been compiled with CUDA enabled. In such cases, it is advisable to perform a quick test before running any code. You can do this by opening a Python prompt and executing the following lines of code
-```python
-import torch
-a = torch.randn(3,3)
-a.to("cuda")
-```
-If there is an issue with the installation of PyTorch being compiled with CUDA, you are likely to encounter the following problem:
-```
-AssertionError: Torch not compiled with CUDA enabled
-```
-This can be fixed by installing the correct PyTorch version (corresponding to your CUDA drivers) using the wheels available on their [website](https://pytorch.org/get-started/previous-versions/). E.g., if your system has CUDA=11.8, the executing the following code in the environment should solve the issue:
-```shell
-pip install torch==2.0.0+cu118 torchvision==0.15.1+cu118 torchaudio==2.0.1 --index-url https://download.pytorch.org/whl/cu118
-```
-Once again, you can verify a successful installation of PyTorch by running the test mentioned earlier.
-
-Download and install the package:
-
-```shell
-git clone https://github.com/zudi-lin/pytorch_connectomics.git
-cd pytorch_connectomics
-pip install --editable .
-```
-
-Since the codebase is under active development, the **editable** installation will allow any changes to the original package to reflect directly in the environment. For more information and frequently asked questions about installation, please check the [installation guide](https://connectomics.readthedocs.io/en/latest/notes/installation.html).
+Refer to the [Pytorch Connectomics wiki](https://connectomics.readthedocs.io), specifically the [installation page](https://connectomics.readthedocs.io/en/latest/notes/installation.html), for the most up-to-date instructions on installation on a local machine or high-performance cluster.
 
 ### Docker
 
@@ -88,18 +44,17 @@ Pleas refer to our [PyTC Docker Guidance](docker/README.md) for more information
 
 ## Notes
 
+### Segmentation Models
+
+We provide several encoder-decoder architectures, which are customized 3D UNet and Feature Pyramid Network (FPN) models with various blocks and backbones. Those models can be applied for both semantic segmentation and bottom-up instance segmentation of 3D image stacks. Those models can also be constructed specifically for isotropic and anisotropic datasets. Please check the [documentation](http://connectomics.readthedocs.io/) for more details.
+
 ### Data Augmentation
 
-We provide a data augmentation interface several different kinds of commonly used augmentation method for EM images. The interface is pure-python, and operate on and output only numpy arrays, so it can be easily incorporated into any kinds of python-based deep learning frameworks (e.g., TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](http://connectomics.readthedocs.io/).
+We provide a data augmentation interface for several common augmentation methods for EM images. The interface operates on NumPy arrays, so it can be easily incorporated alongside many Python-based deep learning framework (e.g. TensorFlow). For more details about the design of the data augmentation module, please check the [documentation](http://connectomics.readthedocs.io/), specifically the [```utils``` documentation](https://connectomics.readthedocs.io/en/latest/modules/utils.html).
 
 ### YACS Configuration
 
-We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage the settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/defaults.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/defaults.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
-
-### Segmentation Models
-
-We provide several encoder-decoder architectures, which are customized 3D UNet and Feature Pyramid Network (FPN) models with various blocks and backbones. Those models can be applied for both semantic segmentation and bottom-up instance segmentation of 3D image stacks. Those models can also be constructed specifically for isotropic
-and anisotropic datasets. Please check the [documentation](http://connectomics.readthedocs.io/) for more details.
+We use the *Yet Another Configuration System* ([YACS](https://github.com/rbgirshick/yacs)) library to manage settings and hyperparameters in model training and inference. The configuration files for tutorial examples can be found [here](https://github.com/zudi-lin/pytorch_connectomics/tree/master/configs). All available configuration options can be found at [```connectomics/config/defaults.py```](https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/config/defaults.py). Please note that the default value of several options is ```None```, which is only supported after YACS v0.1.8.
 
 ## Acknowledgement
 
