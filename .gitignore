@@ -133,3 +133,4 @@ outputs/
 tmpwdir/
 *.iml
 .idea/
+docs/pytorch_sphinx_theme
