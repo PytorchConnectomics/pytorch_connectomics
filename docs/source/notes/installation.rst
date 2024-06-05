@@ -8,31 +8,25 @@ features with your system. For Windows users, please check the `Windows Installa
 Linux Installation
 ---------------------
 
-The code is developed and tested on a machine with 8 NVIDIA GPUs with the CentOS Linux 7.4 (Core) operation system. 
-
-    .. tip::
-
-        We do not recommend installation as root user on your system python.
-        Please setup an `Anaconda/Miniconda <https://conda.io/docs/user-guide/install/index.html/>`_ environment and add the required packages to the environment.
+    .. tip:: We do not recommend installation as root user on your system python. Please setup an `Anaconda/Miniconda <https://conda.io/docs/user-guide/install/index.html/>`_ environment and add the required packages to the environment.
 
 Please follow the steps below for a successful installation:
 
 1 - Install PyTorch in a virtual environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: none
+.. code-block:: bash
 
-    conda create -n py3_torch python=3.8
-    conda activate py3_torch
-    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch
+    conda create -n pytc python=3.9
+    conda activate pytc
+    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 mkl=2024.0.0 -c pytorch
 
-More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with 
-CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is installed:
+More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is installed:
 
-.. code-block:: none
+.. code-block:: python
 
     python -c 'import torch; print(torch.__version__)'
-    >>> 1.10.0
+    >>> 1.10.0 # or greater
 
 2 - Install PyTorch Connectomics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
