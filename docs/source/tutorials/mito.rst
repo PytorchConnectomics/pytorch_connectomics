@@ -13,8 +13,7 @@ Semantic Segmentation
 
 This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by `Lucchi et al. (2012) <https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/>`__. We approach the task as a **semantic segmentation** task and predict the mitochondria pixels with encoder-decoder ConvNets similar to the models used for affinity prediction in `neuron segmentation <neuron.html>`_. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).
 
-    .. note::
-        Unlike other EM connectomics datasets used in these tutorials, the dataset released by Lucchi et al. is an isotropic dataset, which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along x-z and y-z planes (alongside the standard practice of applying augmentation along the x-y plane) is applied.
+    .. note:: Unlike other EM connectomics datasets used in these tutorials, the dataset released by Lucchi et al. is an isotropic dataset, which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along x-z and y-z planes (alongside the standard practice of applying augmentation along the x-y plane) is applied.
 
 The scripts needed for this tutorial can be found at ``pytorch_connectomics/scripts/main.py``. The corresponding configuraion file is found at ``configs/Lucchi-Mitochondria.yaml``.
 
@@ -24,6 +23,7 @@ The scripts needed for this tutorial can be found at ``pytorch_connectomics/scri
 
 A benchmark model's qualitative results on the Lucchi dataset, presented without any post-processing
 
+! rm -r sample_data
 1 - Get the data
 ^^^^^^^^^^^^^^^^
 
@@ -110,15 +110,15 @@ This section provides step-by-step guidance for mitochondria segmentation with t
 
 Complex mitochondria in the MitoEM dataset:(**a**) mitochondria-on-a-string (MOAS), and (**b**) dense tangle of touching instances. Those challenging cases are prevalent but not covered in previous datasets.
 
-    .. note::
-
-        The MitoEM dataset has two sub-datasets **MitoEM-Rat** and **MitoEM-Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning setting as described in this `paper <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
+    .. note:: The MitoEM dataset has two sub-datasets **MitoEM-Rat** and **MitoEM-Human** based on the source of the tissues. Three training configuration files on **MitoEM-Rat** are provided in ``pytorch_connectomics/configs/MitoEM/`` for different learning setting as described in this `paper <https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf>`_.
 
 ..
 
-   .. note::
+   .. note:: Since the dataset is very large and can not be directly loaded into memory, we designed the :class:`connectomics.data.dataset.TileDataset` class that only loads part of the whole volume each time by opening involved ``PNG`` or ``TIFF`` images.
 
-        Since the dataset is very large and can not be directly loaded into memory, we designed the :class:`connectomics.data.dataset.TileDataset` class that only loads part of the whole volume each time by opening involved ``PNG`` or ``TIFF`` images.
+..
+
+    .. note:: A notebook for providing a benchmark evaluation is provided for users in the `Github repository <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks/tutorial_benchmarks/mitoem_benchmark.ipynb>`_. Users are able to download this notebook, upload it standalone to Google Drive, and use Colaboratory to produce evaluation results using a pretrained model.
 
 1 - Dataset introduction
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -155,9 +155,7 @@ The lattermost configuration achieves the best overall performance according to 
 
 ..
 
-    .. note::
-
-        By default the path of images and labels are not specified. To run the training scripts, please revise the ``DATASET.IMAGE_NAME``, ``DATASET.LABEL_NAME``, ``DATASET.OUTPUT_PATH`` and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM/MitoEM-R-*.yaml``. The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
+    .. note:: By default the path of images and labels are not specified. To run the training scripts, please revise the ``DATASET.IMAGE_NAME``, ``DATASET.LABEL_NAME``, ``DATASET.OUTPUT_PATH`` and ``DATASET.INPUT_PATH`` options in ``configs/MitoEM/MitoEM-R-*.yaml``. The options can also be given as command-line arguments without changing of the ``yaml`` configuration files.
 
 4 (*optional*) - Visualize the training progress
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -178,13 +176,12 @@ The lattermost configuration achieves the best overall performance according to 
 
 ..
 
-   .. note::
-    If training on personal data, please change the ``INFERENCE.IMAGE_NAME`` ``INFERENCE.OUTPUT_PATH`` ``INFERENCE.OUTPUT_NAME`` options in ``configs/MitoEM-R-*.yaml`` based on your own data path.
+   .. note:: If training on personal data, please change the ``INFERENCE.IMAGE_NAME`` ``INFERENCE.OUTPUT_PATH`` ``INFERENCE.OUTPUT_NAME`` options in ``configs/MitoEM-R-*.yaml`` based on your own data path.
 
 6 - Post-process
 ^^^^^^^^^^^^^^^^
 
-The post-processing step requires merging output volumes and applying watershed segmentation. As mentioned before, the dataset is very large and can hardly be directly loaded into memory for processing. Therefore our code run prediction on smaller chunks sequentially, which produces multiple ``*.h5`` files with the coordinate information. To merge the chunks into a single volume and apply the segmentation algorithm:
+The post-processing step requires merging output volumes and applying watershed segmentation. As mentioned before, the dataset is very large and cannot be directly loaded into memory for processing. Therefore our code run prediction on smaller chunks sequentially, which produces multiple ``*.h5`` files with the coordinate information. To merge the chunks into a single volume and apply the segmentation algorithm:
 
 .. code-block:: python
 
@@ -195,7 +192,7 @@ The post-processing step requires merging output volumes and applying watershed 
 
     output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
     chunks = glob.glob(output_files)
-
+Mitochondria Segmentatio
     vol_shape = (2, 500, 4096, 4096) # MitoEM test set
     pred = np.ones(vol_shape, dtype=np.uint8)
     for x in chunks:
@@ -212,16 +209,14 @@ The post-processing step requires merging output volumes and applying watershed 
 
 ..
 
-   .. note::
-
-    The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.   
+   .. note:: The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.   
 
 The generated segmentation map should be ready for submission to the `MitoEM <https://mitoem.grand-challenge.org/>`_ challenge website for evaluation. Please note that this tutorial only outlines training on **MitoEM-Rat** subset. Results on the **MitoEM-Human** subset, which can be generated using a similar pipeline as above, also need to be provided for online evaluation.
 
 7 (*optional*)- Evaluate on the validation set
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Performance on the MitoEM test data subset can only be evaluated on the Grand Challenge website. Users are encouraged to experiment with the metric code on the validation data subset to optimize performance and understand the Challenge's evaluation process. Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume <https://github.com/ygCoconut/mAP_3Dvolume/tree/grand-challenge>`__ repository. The ground truth ``.h5`` file can be generated from the 2D images using the following script:
+Performance on the MitoEM test data subset can only be evaluated on the Grand Challenge website. Users are encouraged to experiment with the metric code on the validation data subset to optimize performance and understand the Challenge's evaluation process. Evaluation is performed with the ``demo.py`` file provided by the `mAP_3Dvolume <https://github.com/ygCoconut/mAP_3Dvolume/tree/master>`__ repository. The ground truth ``.h5`` file can be generated from the 2D images using the following script:
 
 .. code-block:: python
 
