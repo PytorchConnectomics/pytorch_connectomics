@@ -17,9 +17,9 @@ Please follow the steps below for a successful installation:
 
 .. code-block:: bash
 
-    conda create -n pytc python=3.9
+    conda create -y -n pytc python=3.9
     conda activate pytc
-    conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 mkl=2024.0.0 -c pytorch
+    conda install -y pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit==11.3.1 -c pytorch
 
 More options to install PyTorch can be found `here <https://pytorch.org/get-started/locally/>`_. Our package has been tested with CUDA 10.2 and 11.4. Then please ensure that at least PyTorch **1.10.0** is installed:
 
@@ -31,11 +31,14 @@ More options to install PyTorch can be found `here <https://pytorch.org/get-star
 2 - Install PyTorch Connectomics
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code-block:: none
+.. code-block:: bash
 
     git clone https://github.com/zudi-lin/pytorch_connectomics.git
     cd pytorch_connectomics
     pip install --editable .
+
+    # fix some dependency issues
+    pip install pillow==9.4.0
 
 We install the package in editable mode by default so that there is no need to
 re-install it when making changes to the code. 
