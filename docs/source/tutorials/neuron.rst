@@ -30,6 +30,9 @@ be regarded as a more informative version of boundary map as it contains the aff
 The figure above shows examples of EM images, segmentation and affinity map from the SNEMI3D dataset. Since the
 3D affinity map has 3 channels, we can visualize them as RGB images.
 
+
+    .. tip:: A notebook for visualizing results is provided for users in the `Github repository <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks/tutorial_benchmarks/snemi_benchmark.ipynb>`_. Users are able to download this notebook and produce evaluation results using a pretrained benchmark. Due to incompatiability with Colab and neuroglancer, it is recommended that users utilize a personal computer/HPC with at least 12GB of video RAM.
+
 1 - Get the data
 ^^^^^^^^^^^^^^^^^^
 
@@ -54,6 +57,7 @@ For description of the SNEMI dataset please check `this page <https://vcg.github
 Provide the **YAML** configuration files to run training:
 
 .. code-block:: none
+   
    source activate py3_torch
    python -u scripts/main.py \
    --config-base configs/SNEMI/SNEMI-Base.yaml \
