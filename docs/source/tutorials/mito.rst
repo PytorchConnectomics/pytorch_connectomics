@@ -118,7 +118,7 @@ Complex mitochondria in the MitoEM dataset:(**a**) mitochondria-on-a-string (MOA
 
 ..
 
-    .. note:: A notebook for providing a benchmark evaluation is provided for users in the `Github repository <https://github.com/zudi-lin/pytorch_connectomics/tree/master/notebooks/tutorial_benchmarks/mitoem_benchmark.ipynb>`_. Users are able to download this notebook, upload it standalone to Google Drive, and use Colaboratory to produce evaluation results using a pretrained model.
+    .. note:: A benchmark evaluation with validation data and pretrained weights is provided for users at `this Colab notebook <https://colab.research.google.com/drive/1ll3a0F2VbmmKBTQ_RBqSrEsU3gpTUdam>`_.
 
 1 - Dataset introduction
 ^^^^^^^^^^^^^^^^^^^^^^^^
