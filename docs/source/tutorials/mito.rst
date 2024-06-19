@@ -23,7 +23,6 @@ The scripts needed for this tutorial can be found at ``pytorch_connectomics/scri
 
 A benchmark model's qualitative results on the Lucchi dataset, presented without any post-processing
 
-! rm -r sample_data
 1 - Get the data
 ^^^^^^^^^^^^^^^^
 
@@ -192,7 +191,8 @@ The post-processing step requires merging output volumes and applying watershed 
 
     output_files = 'outputs/MitoEM_R_BC/test/*.h5' # output folder with chunks
     chunks = glob.glob(output_files)
-Mitochondria Segmentatio
+    
+    # Mitochondria Segmentation 
     vol_shape = (2, 500, 4096, 4096) # MitoEM test set
     pred = np.ones(vol_shape, dtype=np.uint8)
     for x in chunks:
