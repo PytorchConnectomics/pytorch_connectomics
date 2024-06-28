@@ -107,7 +107,12 @@ class VolumeDataset(torch.utils.data.Dataset):
 
         # dataset: channels, depths, rows, cols
         # volume size, could be multi-volume input
-        self.volume_size = [np.array(x.shape) for x in self.volume]
+        volume_size = [np.array(x.shape) for x in self.volume]
+        assert len(set(len(x) for x in volume_size)) == 1, "All volumes should have the same number of dimensions"
+        if any([len(x) == 4 for x in volume_size]):
+            assert len(set(x[0] for x in volume_size)) == 1, "All volumes should have the same number of channels"
+        self.volume_size = [x[-3:] for x in volume_size]
+
         self.sample_volume_size = np.array(
             sample_volume_size).astype(int)  # model input size
         if self.label is not None:
