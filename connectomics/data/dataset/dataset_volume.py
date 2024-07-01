@@ -137,6 +137,12 @@ class VolumeDataset(torch.utils.data.Dataset):
         # handle partially labeled volume
         self.valid_mask = valid_mask
         self.valid_ratio = valid_ratio
+        # precompute valid region
+        self.valid_pos = [None] * len(self.valid_mask) 
+        if self.valid_mask is not None:
+            for i, x in enumerate(self.valid_mask):
+                if x is not None:
+                    self.valid_pos[i] = get_valid_pos(x, sample_volume_size, valid_ratio)
 
         if self.mode in ['val', 'test']:  # for validation and test
             self.sample_size_test = [
@@ -231,13 +237,17 @@ class VolumeDataset(torch.utils.data.Dataset):
         # np.random: same seed
         pos = [0, 0, 0, 0]
         # pick a dataset
-        did = self._index_to_dataset(random.randint(0, self.sample_num_a-1))
+        did = self._index_to_dataset(random.randint(0, self.sample_num_a))
         pos[0] = did
         # pick a position
-        tmp_size = count_volume(
-            self.volume_size[did], vol_size, self.sample_stride)
-        tmp_pos = [random.randint(0, tmp_size[x]-1) * self.sample_stride[x]
-                   for x in range(len(tmp_size))]
+        # all regions are valid
+        if self.valid_pos[did] is None:
+            tmp_size = count_volume(
+                self.volume_size[did], vol_size, self.sample_stride)
+            tmp_pos = [random.randint(0, tmp_size[x]) * self.sample_stride[x]
+                       for x in range(len(tmp_size))]
+        else:
+            tmp_pos = self.valid_pos[did][random.randint(0, self.valid_pos[did].shape[0])]
 
         pos[1:] = tmp_pos
         return pos
