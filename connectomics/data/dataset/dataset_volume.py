@@ -143,6 +143,9 @@ class VolumeDataset(torch.utils.data.Dataset):
             for i, x in enumerate(self.valid_mask):
                 if x is not None:
                     self.valid_pos[i] = get_valid_pos(x, sample_volume_size, valid_ratio)
+                    self.sample_num[i] = self.valid_pos[i].shape[0]
+            self.sample_num_a = np.sum(self.sample_num)
+            self.sample_num_c = np.cumsum([0] + list(self.sample_num))
 
         if self.mode in ['val', 'test']:  # for validation and test
             self.sample_size_test = [
