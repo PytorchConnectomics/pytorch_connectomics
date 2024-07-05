@@ -1,6 +1,7 @@
 from typing import Optional, List
 import numpy as np
 import random
+import warnings
 
 import torch
 import torch.utils.data
@@ -68,6 +69,7 @@ class VolumeDataset(torch.utils.data.Dataset):
                  do_relabel: bool = True,
                  # rejection sampling
                  reject_size_thres: int = 0,
+                 reject_num_trial: int = 50,
                  reject_diversity: int = 0,
                  reject_p: float = 0.95,
                  # normalization
@@ -98,6 +100,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         # rejection samping
         self.reject_size_thres = reject_size_thres
         self.reject_diversity = reject_diversity
+        self.reject_num_trial = reject_num_trial
         self.reject_p = reject_p
 
         # normalization
@@ -113,6 +116,17 @@ class VolumeDataset(torch.utils.data.Dataset):
             assert len(set(x[0] for x in volume_size)) == 1, "All volumes should have the same number of channels"
         self.volume_size = [x[-3:] for x in volume_size]
 
+        volume_selection = [(sample_label_size <= x).all() for x in self.volume_size]
+        if not all(volume_selection):
+            print('remove volumes whose sizes are smaller than the model input', volume_selection)
+            self.volume = [x for i,x in enumerate(self.volume) if volume_selection[i]]
+            volume_size = [np.array(x.shape) for x in self.volume]
+            self.volume_size = [x[-3:] for x in volume_size]
+            if self.label is not None:
+                self.label = [x for i,x in enumerate(self.label) if volume_selection[i]]
+            if valid_mask is not None:
+                valid_mask = [x for i,x in enumerate(valid_mask) if volume_selection[i]]
+
         self.sample_volume_size = np.array(
             sample_volume_size).astype(int)  # model input size
         if self.label is not None:
@@ -122,7 +136,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             if self.augmentor is not None:
                 assert np.array_equal(
                     self.augmentor.sample_size, self.sample_label_size)
-        self._assert_valid_shape()
+        #self._assert_valid_shape()
 
         # compute number of samples for each dataset (multi-volume input)
         self.sample_stride = np.array(sample_stride).astype(int)
@@ -138,14 +152,18 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.valid_mask = valid_mask
         self.valid_ratio = valid_ratio
         # precompute valid region
+        # can be memory intensive
         self.valid_pos = [None] * len(self.valid_mask) 
+        """
         if self.valid_mask is not None:
             for i, x in enumerate(self.valid_mask):
                 if x is not None:
                     self.valid_pos[i] = get_valid_pos(x, sample_volume_size, valid_ratio)
                     self.sample_num[i] = self.valid_pos[i].shape[0]
+                    print(i, self.sample_num[i])
             self.sample_num_a = np.sum(self.sample_num)
             self.sample_num_c = np.cumsum([0] + list(self.sample_num))
+        """
 
         if self.mode in ['val', 'test']:  # for validation and test
             self.sample_size_test = [
@@ -240,17 +258,17 @@ class VolumeDataset(torch.utils.data.Dataset):
         # np.random: same seed
         pos = [0, 0, 0, 0]
         # pick a dataset
-        did = self._index_to_dataset(random.randint(0, self.sample_num_a))
+        did = self._index_to_dataset(random.randint(0, self.sample_num_a - 1))
         pos[0] = did
         # pick a position
         # all regions are valid
         if self.valid_pos[did] is None:
             tmp_size = count_volume(
                 self.volume_size[did], vol_size, self.sample_stride)
-            tmp_pos = [random.randint(0, tmp_size[x]) * self.sample_stride[x]
+            tmp_pos = [random.randint(0, tmp_size[x] - 1) * self.sample_stride[x]
                        for x in range(len(tmp_size))]
         else:
-            tmp_pos = self.valid_pos[did][random.randint(0, self.valid_pos[did].shape[0])]
+            tmp_pos = self.valid_pos[did][random.randint(0, self.valid_pos[did].shape[0]) - 1]
 
         pos[1:] = tmp_pos
         return pos
@@ -282,16 +300,21 @@ class VolumeDataset(torch.utils.data.Dataset):
                 out_valid = augmented['valid_mask']
 
             if self._is_valid(out_valid) and self._is_fg(out_label):
+                #print('yes', sample_count)
                 return pos, out_volume, out_label, out_valid
 
             sample_count += 1
-            if sample_count > 100:
+            if sample_count > self.reject_num_trial:
                 err_msg = (
                     "Can not find any valid subvolume after sampling the "
-                    "dataset for more than 100 times. Please adjust the "
+                    f"dataset for more than {self.reject_num_trial} times. Please adjust the "
                     "valid mask or rejection sampling configurations."
                 )
-                raise RuntimeError(err_msg)
+                #raise RuntimeError(err_msg)
+                # return anyway with a useless sample
+                warnings.warn(err_msg)
+                #print('no..')
+                return pos, out_volume, out_label, out_valid
 
     def _random_sampling(self, vol_size):
         """Randomly sample a subvolume from all the volumes.
