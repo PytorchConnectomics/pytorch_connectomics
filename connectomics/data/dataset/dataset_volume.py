@@ -153,7 +153,7 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.valid_ratio = valid_ratio
         # precompute valid region
         # can be memory intensive
-        self.valid_pos = [None] * len(self.valid_mask) 
+        self.valid_pos = [None] * len(self.valid_mask) if self.valid_mask is not None else [None] * len(self.volume) 
         """
         if self.valid_mask is not None:
             for i, x in enumerate(self.valid_mask):
