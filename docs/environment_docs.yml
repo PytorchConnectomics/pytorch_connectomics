@@ -100,7 +100,7 @@ dependencies:
       - connectomics==0.0.1.dev4
       - contourpy==1.1.1
       - cycler==0.12.1
-      - cython==0.29.21
+      - cython==0.29.22
       - debugpy==1.8.1
       - decorator==5.1.1
       - defusedxml==0.7.1
