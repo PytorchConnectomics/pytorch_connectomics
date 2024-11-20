@@ -269,10 +269,14 @@ def polarity2instance(
         thres = int(255.0 * thres)
         temp = (volume > thres) # boolean array
 
-    syn_pre = np.logical_and(temp[0], temp[2])
+    del volume
+    syn_pre = temp[0]
+    syn_pre &= temp[2]    
     syn_pre = remove_small_objects(syn_pre,
                 min_size=thres_small, connectivity=1)
-    syn_post = np.logical_and(temp[1], temp[2])
+    
+    syn_post = temp[1]
+    syn_post &= temp[2]
     syn_post = remove_small_objects(syn_post,
                 min_size=thres_small, connectivity=1)
 
@@ -291,7 +295,9 @@ def polarity2instance(
         # Since non-zero pixels in seg_pos and seg_neg are subsets of temp[2],
         # they are naturally subsets of non-zero pixels in foreground.
         seg_pre = (foreground*2 - 1) * syn_pre.astype(foreground.dtype)
+        del syn_pre
         seg_post = (foreground*2) * syn_post.astype(foreground.dtype)
+        del syn_post
         segm = np.maximum(seg_pre, seg_post)
 
         # Report the number of synapses

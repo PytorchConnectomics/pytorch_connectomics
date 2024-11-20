@@ -138,8 +138,8 @@ class VolumeDataset(torch.utils.data.Dataset):
         self.valid_mask = valid_mask
         self.valid_ratio = valid_ratio
         # precompute valid region
-        self.valid_pos = [None] * len(self.valid_mask) 
         if self.valid_mask is not None:
+            self.valid_pos = [None] * len(self.valid_mask) 
             for i, x in enumerate(self.valid_mask):
                 if x is not None:
                     self.valid_pos[i] = get_valid_pos(x, sample_volume_size, valid_ratio)

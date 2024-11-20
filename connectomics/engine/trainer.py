@@ -284,21 +284,20 @@ class Trainer(TrainerBase):
 
         num_file = len(img_name)
         start_idx = self.cfg.INFERENCE.DO_SINGLY_START_INDEX
+        digits = int(math.log10(num_file))+1
         for i in range(start_idx, num_file):
-            dataset = get_dataset(
-                self.cfg, self.augmentor, self.mode, self.rank,
-                dir_name_init=dir_name, img_name_init=[img_name[i]])
-            self.dataloader = build_dataloader(
-                self.cfg, self.augmentor, self.mode, dataset, self.rank)
-            self.dataloader = iter(self.dataloader)
-
-            digits = int(math.log10(num_file))+1
             self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \
                 '_' + str(i).zfill(digits) + '.h5'
             self.test_filename = self.augmentor.update_name(
                 self.test_filename)
-
-            self.test()
+            if not os.path.exists(self.test_filename):
+                dataset = get_dataset(
+                    self.cfg, self.augmentor, self.mode, self.rank,
+                    dir_name_init=dir_name, img_name_init=[img_name[i]])
+                self.dataloader = build_dataloader(
+                    self.cfg, self.augmentor, self.mode, dataset, self.rank)
+                self.dataloader = iter(self.dataloader)
+                self.test()
 
     # -----------------------------------------------------------------------------
     # Misc functions
