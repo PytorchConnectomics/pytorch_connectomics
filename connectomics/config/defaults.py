@@ -484,6 +484,7 @@ _C.INFERENCE.DO_CHUNK_TITLE = None
 # Do inference one-by-on (load a volume when needed).
 _C.INFERENCE.DO_SINGLY = False
 _C.INFERENCE.DO_SINGLY_START_INDEX = 0
+_C.INFERENCE.DO_SINGLY_STEP = 1
 
 _C.INFERENCE.PAD_SIZE = None
 _C.INFERENCE.UNPAD = True
