@@ -164,7 +164,7 @@ class VolumeDataset(torch.utils.data.Dataset):
             self.sample_num_a = np.sum(self.sample_num)
             self.sample_num_c = np.cumsum([0] + list(self.sample_num))
         """
-
+        
         if self.mode in ['val', 'test']:  # for validation and test
             self.sample_size_test = [
                 np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]

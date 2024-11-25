@@ -274,31 +274,34 @@ class Trainer(TrainerBase):
 
     def test_singly(self):
         dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
-        img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
         assert len(dir_name) == 1 # avoid ambiguity when DO_SINGLY is True
+        img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
+        num_file = len(img_name)
 
-        # save input image names for further reference
+        if os.path.isfile(self.cfg.INFERENCE.OUTPUT_NAME):
+            output_name = _get_file_list(self.cfg.DATASET.OUTPUT_NAME, prefix=self.output_dir)
+        else:
+            # same filename but different location
+            if self.output_dir != dir_name[0]:
+                output_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=self.output_dir)
+            else:
+                output_name = [x+'_result.h5' for x in img_name]
+
+        # save input image names for future reference
         fw = open(os.path.join(self.output_dir, "images.txt"), "w")
         fw.write('\n'.join(img_name))
         fw.close()
 
-        num_file = len(img_name)
-        start_idx = self.cfg.INFERENCE.DO_SINGLY_START_INDEX
-        for i in range(start_idx, num_file):
-            dataset = get_dataset(
-                self.cfg, self.augmentor, self.mode, self.rank,
-                dir_name_init=dir_name, img_name_init=[img_name[i]])
-            self.dataloader = build_dataloader(
-                self.cfg, self.augmentor, self.mode, dataset, self.rank)
-            self.dataloader = iter(self.dataloader)
-
-            digits = int(math.log10(num_file))+1
-            self.test_filename = self.cfg.INFERENCE.OUTPUT_NAME + \
-                '_' + str(i).zfill(digits) + '.h5'
-            self.test_filename = self.augmentor.update_name(
-                self.test_filename)
-
-            self.test()
+        for i in range(self.cfg.INFERENCE.DO_SINGLY_START_INDEX, num_file, self.cfg.INFERENCE.DO_SINGLY_STEP):
+            self.test_filename = output_name[i]
+            if not os.path.exists(self.test_filename):
+                dataset = get_dataset(
+                    self.cfg, self.augmentor, self.mode, self.rank,
+                    dir_name_init=dir_name, img_name_init=[img_name[i]])
+                self.dataloader = build_dataloader(
+                    self.cfg, self.augmentor, self.mode, dataset, self.rank)
+                self.dataloader = iter(self.dataloader)
+                self.test()
 
     # -----------------------------------------------------------------------------
     # Misc functions
