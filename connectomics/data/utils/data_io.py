@@ -11,6 +11,7 @@ import math
 import glob
 import numpy as np
 import imageio
+import pickle
 from scipy.ndimage import zoom
 
 
@@ -110,6 +111,24 @@ def readimgs(filename):
 
     return data
 
+def read_pkl(filename):
+    """
+    The function `read_pkl` reads a pickle file and returns a list of the objects stored in the file.
+
+    :param filename: The filename parameter is a string that represents the name of the file you want to
+    read. It should include the file extension, such as ".pkl" for a pickle file
+    :return: a list of objects that were read from the pickle file.
+    """
+    data = []
+    with open(filename, "rb") as fid:
+        while True:
+            try:
+                data.append(pickle.load(fid))
+            except EOFError:
+                break
+    if len(data) == 1:
+        return data[0]
+    return data
 
 def writeh5(filename, dtarray, dataset='main'):
     fid = h5py.File(filename, 'w')

@@ -5,6 +5,7 @@ import warnings
 import os
 import time
 import math
+import pickle
 import GPUtil
 import numpy as np
 from yacs.config import CfgNode
@@ -19,7 +20,7 @@ from ..utils.monitor import build_monitor
 from ..data.augmentation import build_train_augmentor, TestAugmentor
 from ..data.dataset import build_dataloader, get_dataset
 from ..data.dataset.build import _get_file_list
-from ..data.utils import build_blending_matrix, writeh5
+from ..data.utils import build_blending_matrix, writeh5, read_pkl
 from ..data.utils import get_padsize, array_unpad
 
 
@@ -272,32 +273,53 @@ class Trainer(TrainerBase):
             writeh5(save_path, result, ['vol%d' % (x) for x in range(len(result))])
             print('Prediction saved as: ', save_path)
 
-    def test_singly(self):
-        dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
-        assert len(dir_name) == 1 # avoid ambiguity when DO_SINGLY is True
-        img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
-        num_file = len(img_name)
-
-        if os.path.isfile(self.cfg.INFERENCE.OUTPUT_NAME):
-            output_name = _get_file_list(self.cfg.DATASET.OUTPUT_NAME, prefix=self.output_dir)
+    def test_singly(self):        
+        dir_name = None
+        if self.cfg.INFERENCE.TENSORSTORE_PATH is None:
+            dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
+            assert len(dir_name) == 1 # avoid ambiguity when DO_SINGLY is True
+            img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
         else:
-            # same filename but different location
-            if self.output_dir != dir_name[0]:
-                output_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=self.output_dir)
+            import tensorstore as ts
+            context = ts.Context({'cache_pool': {'total_bytes_limit': 1000000000}})
+            ts_dict = read_pkl(self.cfg.INFERENCE.TENSORSTORE_PATH)
+            ts_data = ts.open(ts_dict, read=True, context=context).result()[ts.d['channel'][0]]
+            # chunk coordinate
+            img_name = np.loadtxt(self.cfg.DATASET.IMAGE_NAME).astype(int)
+                            
+        num_file = len(img_name)
+        
+        if os.path.isfile(os.path.join(self.output_dir, self.cfg.INFERENCE.OUTPUT_NAME)):
+            # load output names 
+            output_name = _get_file_list(self.cfg.INFERENCE.OUTPUT_NAME, prefix=self.output_dir)
+        else:            
+            if dir_name is None or self.output_dir != dir_name[0]:
+                # same filenames but different location
+                if '{' in self.cfg.INFERENCE.OUTPUT_NAME:
+                    # template function
+                    output_name = [None] * num_file
+                    for i in range(num_file):
+                        arr = img_name[i]
+                        output_name[i] = os.path.join(self.output_dir, eval(self.cfg.INFERENCE.OUTPUT_NAME)+'.h5')
+                else: 
+                    output_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=self.output_dir)
             else:
+                # same file location
                 output_name = [x+'_result.h5' for x in img_name]
-
-        # save input image names for future reference
-        fw = open(os.path.join(self.output_dir, "images.txt"), "w")
-        fw.write('\n'.join(img_name))
-        fw.close()
 
         for i in range(self.cfg.INFERENCE.DO_SINGLY_START_INDEX, num_file, self.cfg.INFERENCE.DO_SINGLY_STEP):
             self.test_filename = output_name[i]
             if not os.path.exists(self.test_filename):
-                dataset = get_dataset(
-                    self.cfg, self.augmentor, self.mode, self.rank,
-                    dir_name_init=dir_name, img_name_init=[img_name[i]])
+                if self.cfg.INFERENCE.TENSORSTORE_PATH is None:
+                    # directly load from dir_name_init and img_name_init
+                    dataset = get_dataset(
+                        self.cfg, self.augmentor, self.mode, self.rank,
+                        dir_name_init=dir_name, img_name_init=[img_name[i]])
+                else:
+                    # preload from tensorstore
+                    dataset = get_dataset(
+                        self.cfg, self.augmentor, self.mode, self.rank, 
+                        tensorstore_data=ts_data, tensorstore_coord=[img_name[i]])
                 self.dataloader = build_dataloader(
                     self.cfg, self.augmentor, self.mode, dataset, self.rank)
                 self.dataloader = iter(self.dataloader)

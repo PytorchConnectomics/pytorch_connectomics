@@ -208,6 +208,7 @@ def _get_input(cfg,
 
     for i in range(num_vols):
         if volume is not None:
+
             volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             print(f"volume shape (original): {volume[i].shape}")
             if cfg.DATASET.NORMALIZE_RANGE:
@@ -255,7 +256,9 @@ def get_dataset(cfg,
                 dataset_class=VolumeDataset,
                 dataset_options={},
                 dir_name_init: Optional[list] = None,
-                img_name_init: Optional[list] = None):
+                img_name_init: Optional[list] = None,
+                tensorstore_data = None,
+                tensorstore_coord: Optional[list] = None):
     r"""Prepare dataset for training and inference.
     """
     assert mode in ['train', 'val', 'test']
@@ -337,8 +340,14 @@ def get_dataset(cfg,
                               **shared_kwargs)
 
     else:  # build VolumeDataset or VolumeDatasetMultiSeg
-        volume, label, valid_mask = _get_input(
-            cfg, mode, rank, dir_name_init, img_name_init, min_size=sample_volume_size)
+        if tensorstore_data is None: 
+            volume, label, valid_mask = _get_input(
+                cfg, mode, rank, dir_name_init, img_name_init, min_size=sample_volume_size)
+        else:
+            volume = [tensorstore_data[coord[0]:coord[1],coord[2]:coord[3],coord[4]:coord[5]].read().result().transpose() \
+                        for coord in tensorstore_coord]
+            label = None
+            valid_mask = None
 
         if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
             shared_kwargs['multiseg_split'] = cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT
