@@ -11,6 +11,8 @@ import numpy as np
 from yacs.config import CfgNode
 
 import torch
+torch.backends.cuda.matmul.allow_tf32 = False
+torch.backends.cudnn.allow_tf32 = False
 from torch.cuda.amp import autocast, GradScaler
 
 from .base import TrainerBase
@@ -390,9 +392,12 @@ class Trainer(TrainerBase):
             if not model_dict.keys() == pretrained_dict.keys():
                 warnings.warn("Module keys in model.state_dict() do not exactly "
                               "match the keys in pretrained_dict!")
-                for key in model_dict.keys():
-                    if not key in pretrained_dict:
-                        print(key)
+                key_missing = [key for key in model_dict.keys() if not key in pretrained_dict.keys()]
+                if len(key_missing) != 0:
+                    print('missing keys (%d): '%len(key_missing), key_missing)
+                key_unused = [key for key in pretrained_dict.keys() if not key in model_dict.keys()]
+                if len(key_unused) != 0:
+                    print('unused keys (%d): '%len(key_unused), key_unused)
 
             # 1. filter out unnecessary keys by name
             pretrained_dict = {k: v for k,
