@@ -146,6 +146,7 @@ def _load_label_condition(name, mode: str, image_only_test: bool):
 def _get_input(cfg,
                mode='train',
                rank=None,
+               preload_data=None,
                dir_name_init: Optional[list] = None,
                img_name_init: Optional[list] = None,
                min_size: Optional[tuple] = None,
@@ -162,54 +163,61 @@ def _get_input(cfg,
             assert image[i].shape == mask[i].shape[-3:]
 
     assert mode in ['train', 'val', 'test']
-    dir_path = cfg.DATASET.INPUT_PATH
-    if dir_name_init is not None:
-        dir_name = dir_name_init
-    else:
-        dir_name = _get_file_list(dir_path)
-
+    
+    pad_mode = cfg.DATASET.PAD_MODE
     if mode == 'val':
-        img_name = cfg.DATASET.VAL_IMAGE_NAME
-        label_name = cfg.DATASET.VAL_LABEL_NAME
-        valid_mask_name = cfg.DATASET.VAL_VALID_MASK_NAME
         pad_size = cfg.DATASET.VAL_PAD_SIZE
     else:
-        img_name = cfg.DATASET.IMAGE_NAME
-        label_name = cfg.DATASET.LABEL_NAME
-        valid_mask_name = cfg.DATASET.VALID_MASK_NAME
-        pad_size = cfg.DATASET.PAD_SIZE
-    assert not all([elem == None for elem in [img_name, label_name]]), \
-        "At least one of img_name and label_name should not be None!"
-
+        pad_size = cfg.DATASET.PAD_SIZE 
     volume, label, valid_mask = None, None, None
-    if img_name_init is not None:
-        img_name = img_name_init
 
-    if img_name is not None:
-        img_name = _get_file_list(img_name, prefix=dir_path)
-        img_name = _make_path_list(cfg, dir_name, img_name, rank)
-        volume = [None] * len(img_name)
-        print(rank, len(img_name), list(map(os.path.basename, img_name)))
+    if preload_data is not None:
+        volume = preload_data
+        num_vols = len(preload_data)
+    else:
+        dir_path = cfg.DATASET.INPUT_PATH
+        if dir_name_init is not None:
+            dir_name = dir_name_init
+        else:
+            dir_name = _get_file_list(dir_path)
 
-    if _load_label_condition(label_name, mode, image_only_test):
-        label_name = _get_file_list(label_name, prefix=dir_path)
-        label_name = _make_path_list(cfg, dir_name, label_name, rank)
-        label = [None]*len(label_name)
-        print(rank, len(label_name), list(map(os.path.basename, label_name)))
+        if mode == 'val':
+            img_name = cfg.DATASET.VAL_IMAGE_NAME
+            label_name = cfg.DATASET.VAL_LABEL_NAME
+            valid_mask_name = cfg.DATASET.VAL_VALID_MASK_NAME
+        else:
+            img_name = cfg.DATASET.IMAGE_NAME
+            label_name = cfg.DATASET.LABEL_NAME
+            valid_mask_name = cfg.DATASET.VALID_MASK_NAME
+        assert not all([elem == None for elem in [img_name, label_name]]), \
+            "At least one of img_name and label_name should not be None!"
 
-    if _load_label_condition(valid_mask_name, mode, image_only_test):
-        valid_mask_name = _get_file_list(valid_mask_name, prefix=dir_path)
-        valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
-        valid_mask = [None]*len(valid_mask_name)
+        if img_name_init is not None:
+            img_name = img_name_init
 
-    pad_mode = cfg.DATASET.PAD_MODE
-    read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
-    num_vols = len(img_name) if img_name is not None else len(label_name)
+        if img_name is not None:
+            img_name = _get_file_list(img_name, prefix=dir_path)
+            img_name = _make_path_list(cfg, dir_name, img_name, rank)
+            volume = [None] * len(img_name)
+            print(rank, len(img_name), list(map(os.path.basename, img_name)))
+
+        if _load_label_condition(label_name, mode, image_only_test):
+            label_name = _get_file_list(label_name, prefix=dir_path)
+            label_name = _make_path_list(cfg, dir_name, label_name, rank)
+            label = [None]*len(label_name)
+            print(rank, len(label_name), list(map(os.path.basename, label_name)))
+
+        if _load_label_condition(valid_mask_name, mode, image_only_test):
+            valid_mask_name = _get_file_list(valid_mask_name, prefix=dir_path)
+            valid_mask_name = _make_path_list(cfg, dir_name, valid_mask_name, rank)
+            valid_mask = [None]*len(valid_mask_name)
+        read_fn = readvol if not cfg.DATASET.LOAD_2D else readimg_as_vol
+        num_vols = len(img_name) if img_name is not None else len(label_name)
 
     for i in range(num_vols):
         if volume is not None:
-
-            volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
+            if preload_data is None:
+                volume[i] = read_fn(img_name[i], drop_channel=cfg.DATASET.DROP_CHANNEL)
             print(f"volume shape (original): {volume[i].shape}")
             if cfg.DATASET.NORMALIZE_RANGE:
                 volume[i] = normalize_range(volume[i])
@@ -257,8 +265,7 @@ def get_dataset(cfg,
                 dataset_options={},
                 dir_name_init: Optional[list] = None,
                 img_name_init: Optional[list] = None,
-                tensorstore_data = None,
-                tensorstore_coord: Optional[list] = None):
+                preload_data = None):
     r"""Prepare dataset for training and inference.
     """
     assert mode in ['train', 'val', 'test']
@@ -340,14 +347,12 @@ def get_dataset(cfg,
                               **shared_kwargs)
 
     else:  # build VolumeDataset or VolumeDatasetMultiSeg
-        if tensorstore_data is None: 
+        if preload_data is None: 
             volume, label, valid_mask = _get_input(
                 cfg, mode, rank, dir_name_init, img_name_init, min_size=sample_volume_size)
         else:
-            volume = [tensorstore_data[coord[0]:coord[1],coord[2]:coord[3],coord[4]:coord[5]].read().result().transpose() \
-                        for coord in tensorstore_coord]
-            label = None
-            valid_mask = None
+            volume, label, valid_mask = _get_input(
+                cfg, mode, rank, preload_data=preload_data, min_size=sample_volume_size)
 
         if cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT is not None:
             shared_kwargs['multiseg_split'] = cfg.MODEL.TARGET_OPT_MULTISEG_SPLIT

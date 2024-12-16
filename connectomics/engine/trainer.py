@@ -271,24 +271,26 @@ class Trainer(TrainerBase):
             print('Final prediction shapes are:')
             for k in range(len(result)):
                 print(result[k].shape)
+            if not os.path.exists(self.output_dir):
+                os.makedirs(self.output_dir)
             save_path = os.path.join(self.output_dir, self.test_filename)
             writeh5(save_path, result, ['vol%d' % (x) for x in range(len(result))])
             print('Prediction saved as: ', save_path)
 
     def test_singly(self):        
         dir_name = None
-        if self.cfg.INFERENCE.TENSORSTORE_PATH is None:
-            dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
-            assert len(dir_name) == 1 # avoid ambiguity when DO_SINGLY is True
-            img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
-        else:
+        if self.cfg.INFERENCE.TENSORSTORE_PATH is not None:
             import tensorstore as ts
             context = ts.Context({'cache_pool': {'total_bytes_limit': 1000000000}})
             ts_dict = read_pkl(self.cfg.INFERENCE.TENSORSTORE_PATH)
             ts_data = ts.open(ts_dict, read=True, context=context).result()[ts.d['channel'][0]]
             # chunk coordinate
             img_name = np.loadtxt(self.cfg.DATASET.IMAGE_NAME).astype(int)
-                            
+        else:
+            dir_name = _get_file_list(self.cfg.DATASET.INPUT_PATH)
+            assert len(dir_name) == 1 # avoid ambiguity when DO_SINGLY is True
+            img_name = _get_file_list(self.cfg.DATASET.IMAGE_NAME, prefix=dir_name[0])
+                           
         num_file = len(img_name)
         
         if os.path.isfile(os.path.join(self.output_dir, self.cfg.INFERENCE.OUTPUT_NAME)):
@@ -312,16 +314,21 @@ class Trainer(TrainerBase):
         for i in range(self.cfg.INFERENCE.DO_SINGLY_START_INDEX, num_file, self.cfg.INFERENCE.DO_SINGLY_STEP):
             self.test_filename = output_name[i]
             if not os.path.exists(self.test_filename):
-                if self.cfg.INFERENCE.TENSORSTORE_PATH is None:
+                if dir_name is not None:
                     # directly load from dir_name_init and img_name_init
                     dataset = get_dataset(
                         self.cfg, self.augmentor, self.mode, self.rank,
                         dir_name_init=dir_name, img_name_init=[img_name[i]])
                 else:
+                    if self.cfg.INFERENCE.TENSORSTORE_PATH is not None:
+                        coord = img_name[i]
+                        preload_data = [ts_data[coord[0]:coord[1],coord[2]:coord[3],coord[4]:coord[5]].read().result().transpose()]
+
                     # preload from tensorstore
                     dataset = get_dataset(
                         self.cfg, self.augmentor, self.mode, self.rank, 
-                        tensorstore_data=ts_data, tensorstore_coord=[img_name[i]])
+                        preload_data=preload_data)
+
                 self.dataloader = build_dataloader(
                     self.cfg, self.augmentor, self.mode, dataset, self.rank)
                 self.dataloader = iter(self.dataloader)
