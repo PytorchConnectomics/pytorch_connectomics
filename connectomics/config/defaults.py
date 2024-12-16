@@ -482,7 +482,7 @@ _C.INFERENCE.OUTPUT_NAME = 'result.h5'
 _C.INFERENCE.IS_ABSOLUTE_PATH = None
 _C.INFERENCE.DO_CHUNK_TITLE = None
 
-# Do inference one-by-on (load a volume when needed).
+# Do inference one-by-one (load a volume when needed).
 _C.INFERENCE.DO_SINGLY = False
 _C.INFERENCE.DO_SINGLY_START_INDEX = 0
 _C.INFERENCE.DO_SINGLY_STEP = 1

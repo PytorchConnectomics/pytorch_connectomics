@@ -310,8 +310,11 @@ class Trainer(TrainerBase):
             else:
                 # same file location
                 output_name = [x+'_result.h5' for x in img_name]
-
-        for i in range(self.cfg.INFERENCE.DO_SINGLY_START_INDEX, num_file, self.cfg.INFERENCE.DO_SINGLY_STEP):
+        
+        ran = range(self.cfg.INFERENCE.DO_SINGLY_START_INDEX, num_file, abs(self.cfg.INFERENCE.DO_SINGLY_STEP))
+        if self.cfg.INFERENCE.DO_SINGLY_STEP < 0:
+            ran = ran[::-1]
+        for i in ran:
             self.test_filename = output_name[i]
             if not os.path.exists(self.test_filename):
                 if dir_name is not None:
