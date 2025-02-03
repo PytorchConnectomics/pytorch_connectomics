@@ -351,6 +351,12 @@ def seg_to_targets(
                 out[tid] = np.concatenate((diffgrads,bin_mask), axis=0)
             else:
                 out[tid] = seg2diffgrads(label)
+        elif topt[0] == '8':
+            # "8-{0 if no quantize, 1 if quantize}-{z_res}-{y_res}-{x_res}"
+            _, quantize, z_res, y_res, x_res = topt.split('-')
+            quantize = bool(int(quantize))
+            z_res, y_res, x_res = float(z_res), float(y_res), float(x_res)
+            out[tid] = sdt_instance(label, quantize=quantize, resolution=(z_res, y_res, x_res))
         elif topt[0] == '9':  # generic semantic segmentation
             out[tid] = label.astype(np.int64)
         else:
