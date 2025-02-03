@@ -1,4 +1,4 @@
-# output long-rannge affinity map
+# output long-range affinity map
 MODEL:
   ARCHITECTURE: unet_3d
   BLOCK_TYPE: residual_se
