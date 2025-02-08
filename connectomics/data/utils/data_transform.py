@@ -157,7 +157,8 @@ def distance_transform(label: np.ndarray,
             energy = boundary_edt / (boundary_edt.max() + eps)  # normalize
             distance = np.maximum(distance, energy * temp2.astype(np.float32))
 
-    distance[distance == 0] = bg_value
+    if bg_value != 0:
+        distance[distance == 0] = bg_value
     if padding:
         # Unpad the output array to preserve original shape.
         distance = array_unpad(distance, get_padsize(
@@ -209,7 +210,7 @@ def skeleton_aware_distance_transform(
     all_bg_sample = False
 
     skeleton = np.zeros(label_shape, dtype=np.uint8)
-    distance = np.zeros(label_shape, dtype=np.float32) + bg_value
+    distance = np.zeros(label_shape, dtype=np.float32)
     semantic = np.zeros(label_shape, dtype=np.uint8)
 
     indices = np.unique(label)
@@ -249,6 +250,9 @@ def skeleton_aware_distance_transform(
             energy = boundary_edt / (skeleton_edt + boundary_edt + eps) # normalize
             energy = energy ** alpha
             distance = np.maximum(distance, energy * temp2.astype(np.float32))
+
+    if bg_value != 0:
+        distance[distance==0] = bg_value
 
     if padding:
         # Unpad the output array to preserve original shape.
