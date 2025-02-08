@@ -291,7 +291,7 @@ def seg2inst_edt(label, topt):
     _, mode, padding, quant, z_res, erosion = topt.split('-')
     resolution = (float(z_res), 1.0, 1.0)
     return edt_instance(label.copy(), mode, resolution=resolution,
-                        quantize=bool(int(quant)), padding=bool(int(padding)), erosion=erosion)
+                        quantize=bool(int(quant)), padding=bool(int(padding)), erosion=int(erosion))
 
 
 def seg_to_targets(

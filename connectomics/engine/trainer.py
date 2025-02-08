@@ -250,6 +250,8 @@ class Trainer(TrainerBase):
             if result[vol_id].ndim > weight[vol_id].ndim:
                 weight[vol_id] = np.expand_dims(weight[vol_id], axis=0)
             result[vol_id] /= weight[vol_id]  # in-place to save memory
+            # remoe negative part for quantization
+            result[vol_id][result[vol_id]<0] = 0
             result[vol_id] *= 255
             result[vol_id] = result[vol_id].astype(np.uint8)
 

@@ -5,7 +5,7 @@ import torch
 import scipy
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-from skimage.morphology import remove_small_holes, skeletonize, binary_erosion, disk
+from skimage.morphology import remove_small_holes, skeletonize, binary_erosion, disk, ball
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from skimage.filters import gaussian
 
@@ -61,7 +61,7 @@ def edt_instance(label: np.ndarray,
                  mode: str = '2d',
                  quantize: bool = True,
                  resolution: Tuple[float] = (1.0, 1.0, 1.0),
-                 padding: bool = False),
+                 padding: bool = False,
                  erosion: int = 0):
     assert mode in ['2d', '3d']
     if mode == '3d':
@@ -151,11 +151,14 @@ def distance_transform(label: np.ndarray,
 
     if not all_bg_sample:
         if erosion > 0:
-            erosion_disk = disk(erosion)
+            if label.ndim == 2:
+                footprint = disk(erosion)
+            elif label.ndim == 3:
+                footprint = ball(erosion)
         for idx in indices:
             temp2 = remove_small_holes(label == idx, 16, connectivity=1)
             if erosion > 0:
-                temp2 = binary_erosion(temp2, erosion_disk)
+                temp2 = binary_erosion(temp2, footprint)
 
             semantic += temp2.astype(np.uint8)
             boundary_edt = distance_transform_edt(temp2, resolution)
