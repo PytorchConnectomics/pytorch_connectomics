@@ -1,0 +1,46 @@
+SYSTEM:
+  NUM_GPUS: 1
+  NUM_CPUS: 16
+  # NUM_GPUS: 4
+  # NUM_CPUS: 16
+MODEL:
+  ARCHITECTURE: unet_3d
+  BLOCK_TYPE: residual_se
+  INPUT_SIZE: [33, 97, 97]
+  OUTPUT_SIZE: [33, 97, 97]
+  NORM_MODE: gn
+  IN_PLANES: 1
+  MIXED_PRECESION: False
+  FILTERS: [32, 64, 96, 128, 160]
+DATASET:
+  IMAGE_NAME: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif"]
+  LABEL_NAME: ["1-annotated_mask.tif", "2-annotated_mask.tif"]
+  INPUT_PATH: datasets/barcode_R/ # or your own dataset path
+  OUTPUT_PATH: outputs/barcode_R/
+  PAD_SIZE: [16, 32, 32]
+  DATA_SCALE: [1.0, 1.0, 1.0]
+  REJECT_SAMPLING:
+    SIZE_THRES: 1000
+    P: 1.0
+  DISTRIBUTED: True
+SOLVER:
+  LR_SCHEDULER_NAME: WarmupCosineLR
+  BASE_LR: 0.02
+  ITERATION_STEP: 1
+  ITERATION_SAVE: 5000
+  ITERATION_TOTAL: 100000
+  SAMPLES_PER_BATCH: 2
+MONITOR:
+  ITERATION_NUM: [40, 400]
+INFERENCE:
+  INPUT_SIZE: [33, 257, 257]
+  OUTPUT_SIZE: [33, 257, 257]
+  INPUT_PATH: datasets/barcode_R/
+  IMAGE_NAME: 3-xri_deconvolved.tif
+  OUTPUT_PATH: outputs/barcode_R/test/
+  OUTPUT_NAME: result.h5
+  PAD_SIZE: [16, 32, 32]
+  AUG_MODE: "mean"
+  AUG_NUM: None
+  STRIDE: [26, 128, 128]
+  SAMPLES_PER_BATCH: 4

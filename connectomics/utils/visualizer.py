@@ -73,9 +73,13 @@ class Visualizer(object):
                         :, np.newaxis]
                     label[idx] = temp_label / temp_label.max() + 1e-6
 
+
             if topt[0]=='7': # diffusion gradient
                 output[idx] = dx_to_circ(output[idx])
                 label[idx] = dx_to_circ(label[idx])
+
+            if topt[0] == "8": # skeletonization-aware distance transform
+                label[idx] = label[idx][:, np.newaxis]
 
             RGB = (topt[0] in ['1', '2', '7', '9'])
             vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
