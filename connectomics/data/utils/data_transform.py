@@ -61,7 +61,7 @@ def edt_instance(label: np.ndarray,
                  mode: str = '2d',
                  quantize: bool = True,
                  resolution: Tuple[float] = (1.0, 1.0, 1.0),
-                 padding: bool = False):
+                 padding: bool = False),
                  erosion: int = 0):
     assert mode in ['2d', '3d']
     if mode == '3d':

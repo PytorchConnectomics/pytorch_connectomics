@@ -125,7 +125,7 @@ class SplitActivation(object):
             if topt[0] == '5': # instance_edt
                 if len(topt) == 1:
                     topt = topt + '-2d-0-0-5.0' # 2d w/o padding or quantize
-                _, mode, padding, quant, z_res = topt.split('-')
+                _, mode, padding, quant, z_res, erosion = topt.split('-')
                 if bool(int(quant)): # quantized by 0.1 bin (additional one for bg)
                     self.split_channels.append(11)
                     continue
