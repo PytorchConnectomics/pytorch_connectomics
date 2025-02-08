@@ -286,12 +286,12 @@ def seg2inst_edt(label, topt):
     # Format of the target option: 5-a-b-c-d
     # a: mode, b: padding, c: quantize, d: z_resolution
     if len(topt) == 1:
-        topt = topt + '-2d-0-0-5.0' # 2d w/o padding or quantize (default)
+        topt = topt + '-2d-0-0-5.0-0' # 2d w/o padding or quantize (default)
 
-    _, mode, padding, quant, z_res = topt.split('-')
+    _, mode, padding, quant, z_res, erosion = topt.split('-')
     resolution = (float(z_res), 1.0, 1.0)
     return edt_instance(label.copy(), mode, resolution=resolution,
-                        quantize=bool(int(quant)), padding=bool(int(padding)))
+                        quantize=bool(int(quant)), padding=bool(int(padding)), erosion=erosion)
 
 
 def seg_to_targets(

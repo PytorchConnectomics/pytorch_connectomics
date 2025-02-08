@@ -5,7 +5,7 @@ import torch
 import scipy
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-from skimage.morphology import remove_small_holes, skeletonize
+from skimage.morphology import remove_small_holes, skeletonize, binary_erosion, disk
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from skimage.filters import gaussian
 
@@ -62,11 +62,12 @@ def edt_instance(label: np.ndarray,
                  quantize: bool = True,
                  resolution: Tuple[float] = (1.0, 1.0, 1.0),
                  padding: bool = False):
+                 erosion: int = 0):
     assert mode in ['2d', '3d']
     if mode == '3d':
         # calculate 3d distance transform for instances
         vol_distance, vol_semantic = distance_transform(
-            label, resolution=resolution, padding=padding)
+            label, resolution=resolution, padding=padding, erosion=erosion)
         if quantize:
             vol_distance = energy_quantize(vol_distance)
         return vol_distance
@@ -75,7 +76,7 @@ def edt_instance(label: np.ndarray,
     vol_semantic = []
     for i in range(label.shape[0]):
         label_img = label[i].copy()
-        distance, semantic = distance_transform(label_img, padding=padding)
+        distance, semantic = distance_transform(label_img, padding=padding, erosion=erosion)
         vol_distance.append(distance)
         vol_semantic.append(semantic)
 
@@ -120,7 +121,8 @@ def distance_transform(label: np.ndarray,
                        bg_value: float = -1.0,
                        relabel: bool = True,
                        padding: bool = False,
-                       resolution: Tuple[float] = (1.0, 1.0)):
+                       resolution: Tuple[float] = (1.0, 1.0),
+                       erosion: int = 0):
     """Euclidean distance transform (DT or EDT) for instance masks.
     """
     eps = 1e-6
@@ -148,9 +150,12 @@ def distance_transform(label: np.ndarray,
             all_bg_sample = True
 
     if not all_bg_sample:
+        if erosion > 0:
+            erosion_disk = disk(erosion)
         for idx in indices:
-            temp1 = label.copy() == idx
-            temp2 = remove_small_holes(temp1, 16, connectivity=1)
+            temp2 = remove_small_holes(label == idx, 16, connectivity=1)
+            if erosion > 0:
+                temp2 = binary_erosion(temp2, erosion_disk)
 
             semantic += temp2.astype(np.uint8)
             boundary_edt = distance_transform_edt(temp2, resolution)
@@ -222,8 +227,7 @@ def skeleton_aware_distance_transform(
 
     if not all_bg_sample:
         for idx in indices:
-            temp1 = label.copy() == idx
-            temp2 = remove_small_holes(temp1, 16, connectivity=1)
+            temp2 = remove_small_holes(label == idx, 16, connectivity=1)
             binary = temp2.copy()
 
             if smooth:
