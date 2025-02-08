@@ -137,7 +137,7 @@ def distance_transform(label: np.ndarray,
 
     label_shape = label.shape
     all_bg_sample = False
-    distance = np.zeros(label_shape, dtype=np.float32) + bg_value
+    distance = np.zeros(label_shape, dtype=np.float32)
     semantic = np.zeros(label_shape, dtype=np.uint8)
 
     indices = np.unique(label)
@@ -157,6 +157,7 @@ def distance_transform(label: np.ndarray,
             energy = boundary_edt / (boundary_edt.max() + eps)  # normalize
             distance = np.maximum(distance, energy * temp2.astype(np.float32))
 
+    distance[distance == 0] = bg_value
     if padding:
         # Unpad the output array to preserve original shape.
         distance = array_unpad(distance, get_padsize(
