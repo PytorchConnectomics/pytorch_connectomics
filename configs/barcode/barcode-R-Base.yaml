@@ -12,6 +12,7 @@ MODEL:
   IN_PLANES: 1
   MIXED_PRECESION: False
   FILTERS: [32, 64, 96, 128, 160]
+  LABEL_EROSION: 1
 DATASET:
   IMAGE_NAME: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif"]
   LABEL_NAME: ["1-annotated_mask.tif", "2-annotated_mask.tif"]

@@ -9,9 +9,9 @@ MODEL:
     - - WeightedMSE
   LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [4.0]]
   WEIGHT_OPT: [["1", "0"], ["1", "0"], ["0"]]
-  OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"], ["sigmoid"]]
+  OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"], ["tanh"]]
 INFERENCE:
-  OUTPUT_ACT: ["sigmoid", "sigmoid", "sigmoid"]
+  OUTPUT_ACT: ["sigmoid", "sigmoid", "tanh"]
   OUTPUT_PATH: outputs/barcode_R_BCS/test/
 DATASET:
   OUTPUT_PATH: outputs/barcode_R_BCS/

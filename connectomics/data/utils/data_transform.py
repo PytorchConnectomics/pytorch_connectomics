@@ -198,6 +198,7 @@ def pad_bbox(bbox, shape, pad_size: int):
 
 def skeleton_aware_distance_transform(
     label: np.ndarray,
+    bg_value: float = -1.0,
     relabel: bool = True,
     padding: bool = False,
     resolution: Tuple[float] = (1.0, 1.0, 1.0),
