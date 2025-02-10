@@ -64,8 +64,8 @@ class Visualizer(object):
 
             if topt[0] == '5': # distance transform
                 if len(topt) == 1:
-                    topt = topt + '-2d-0-0-5.0' # default
-                _, mode, padding, quant, z_res = topt.split('-')
+                    topt = topt + '-2d-0-0-5.0-0' # default
+                _, mode, padding, quant, z_res, erosion = topt.split('-')
                 if bool(int(quant)): # only the quantized version needs decoding
                     output[idx] = decode_quantize(
                         output[idx], mode='max').unsqueeze(1)
