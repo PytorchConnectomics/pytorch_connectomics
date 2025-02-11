@@ -6,6 +6,7 @@ from skimage.morphology import binary_dilation, binary_erosion
 from skimage.morphology import erosion, dilation, disk
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from scipy.signal import convolve2d
+from scipy.ndimage import maximum_filter
 
 from .data_affinity import *
 from .data_transform import *
@@ -333,6 +334,7 @@ def seg_to_targets(
                 out[tid] = seg_to_instance_bd(label, bd_sz, do_bg)[
                     None, :].astype(np.float32)
         elif topt[0] == '5':  # distance transform (instance)
+            # 5-3d-1-0-2.0-5
             distance = seg2inst_edt(label, topt)
             out[tid] = distance[np.newaxis, :].astype(np.float32)
         elif topt[0] == '6':  # distance transform (semantic)
@@ -351,6 +353,15 @@ def seg_to_targets(
                 out[tid] = np.concatenate((diffgrads,bin_mask), axis=0)
             else:
                 out[tid] = seg2diffgrads(label)
+        elif topt[0] == '8':  # skeleton prediction
+            # 8-5-3d-1-0-1.0-1
+            index = topt[2:].find('-')
+            # dilate the skeleton
+            dilation = int(topt[2:2+index])
+            if int(dilation) > 0 :
+                label = maximum_filter(label, dilation) 
+                distance = seg2inst_edt(label, topt[2+index+1:])
+                out[tid] = distance[np.newaxis, :].astype(np.float32)
         elif topt[0] == '9':  # generic semantic segmentation
             out[tid] = label.astype(np.int64)
         else:

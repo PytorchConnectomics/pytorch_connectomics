@@ -62,7 +62,10 @@ class Visualizer(object):
                 output[idx] = self.get_semantic_map(output[idx], topt)
                 label[idx] = self.get_semantic_map(label[idx], topt, argmax=False)
 
-            if topt[0] == '5': # distance transform
+            if topt[0] in ['5','8']: # distance transform
+                if topt[0] == '8':
+                    index = topt[2:].find('-')
+                    topt = topt[2+index+1:]
                 if len(topt) == 1:
                     topt = topt + '-2d-0-0-5.0-0' # default
                 _, mode, padding, quant, z_res, erosion = topt.split('-')
