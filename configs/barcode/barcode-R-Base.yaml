@@ -37,7 +37,8 @@ INFERENCE:
   INPUT_SIZE: [33, 257, 257]
   OUTPUT_SIZE: [33, 257, 257]
   INPUT_PATH: datasets/barcode_R/
-  IMAGE_NAME: 3-xri_deconvolved.tif
+  IMAGE_NAME: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif", "3-xri_deconvolved.tif", "4_1-xri_deconvolved.tif", "4_2-xri_deconvolved.tif", "4_3-xri_deconvolved.tif", "5_1-xri_deconvolved.tif", "5_2-xri_deconvolved.tif", "6_1-xri_deconvolved.tif", "6_2-xri_deconvolved.tif"]
+  # IMAGE_NAME: 3-xri_deconvolved.tif
   OUTPUT_PATH: outputs/barcode_R/test/
   OUTPUT_NAME: result.h5
   PAD_SIZE: [16, 32, 32]

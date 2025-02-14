@@ -62,10 +62,13 @@ class Visualizer(object):
                 output[idx] = self.get_semantic_map(output[idx], topt)
                 label[idx] = self.get_semantic_map(label[idx], topt, argmax=False)
 
-            if topt[0] == '5': # distance transform
+            if topt[0] in ['5','8']: # distance transform
+                if topt[0] == '8':
+                    index = topt[2:].find('-')
+                    topt = topt[2+index+1:]
                 if len(topt) == 1:
-                    topt = topt + '-2d-0-0-5.0' # default
-                _, mode, padding, quant, z_res = topt.split('-')
+                    topt = topt + '-2d-0-0-5.0-0' # default
+                _, mode, padding, quant, z_res, erosion = topt.split('-')
                 if bool(int(quant)): # only the quantized version needs decoding
                     output[idx] = decode_quantize(
                         output[idx], mode='max').unsqueeze(1)
@@ -78,7 +81,7 @@ class Visualizer(object):
                 output[idx] = dx_to_circ(output[idx])
                 label[idx] = dx_to_circ(label[idx])
 
-            if topt[0] == "8": # skeletonization-aware distance transform
+            if topt[0] == "a": # skeletonization-aware distance transform
                 label[idx] = label[idx][:, np.newaxis]
 
             RGB = (topt[0] in ['1', '2', '7', '9'])

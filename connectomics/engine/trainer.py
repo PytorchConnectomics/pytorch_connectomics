@@ -235,6 +235,8 @@ class Trainer(TrainerBase):
                     st = (np.array(st) *
                           np.array([1]+output_scale)).astype(int).tolist()
                     out_block = output[idx]
+                    # hack it to make it positive for better weighted average
+                    out_block[out_block < 0] = 0
                     if result[st[0]].ndim - out_block.ndim == 1:  # 2d model
                         out_block = out_block[:, np.newaxis, :]
 

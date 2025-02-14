@@ -1,6 +1,6 @@
 MODEL:
   OUT_PLANES: 3
-  TARGET_OPT: ["0", "4-0-1", "8-0-40-16-16"]
+  TARGET_OPT: ["0", "4-0-1", "a-0-40-16-16"]
   LOSS_OPTION:
     - - WeightedBCEWithLogitsLoss
       - DiceLoss
