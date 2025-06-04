@@ -9,6 +9,7 @@ from skimage.morphology import dilation, binary_dilation
 from skimage.segmentation import watershed
 from skimage.morphology import remove_small_objects
 from skimage.feature import peak_local_max
+import cc3d
 
 from connectomics.data.utils import getSegType, bbox_ND, crop_ND, replace_ND
 
@@ -290,7 +291,9 @@ def polarity2instance(
         # The pre- and post-synaptic masks may not touch each other. Dilating the 
         # union masks to define each synapse instance.
         foreground = binary_dilation(temp[2], np.ones((1,dilate_sz,dilate_sz), bool))
-        foreground = label(foreground)
+        del temp
+
+        foreground = cast2dtype(cc3d.connected_components(foreground, connectivity=6))
 
         # Since non-zero pixels in seg_pos and seg_neg are subsets of temp[2],
         # they are naturally subsets of non-zero pixels in foreground.
@@ -306,6 +309,7 @@ def polarity2instance(
         num_syn = min(num_pre, num_post) # a conservative estimate
         print(f"Stats: found {num_pre} pre- and {num_post} post-synaptic segments.")
         print(f"There are {num_syn} synapses under a conservative estimate.")
+        del seg_pre, seg_post
 
     # resize the segmentation based on specified scale factors
     if not all(x==1.0 for x in scale_factors):
