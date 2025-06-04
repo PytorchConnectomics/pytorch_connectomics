@@ -321,6 +321,9 @@ class Trainer(TrainerBase):
         for i in ran:
             self.test_filename = output_name[i]
             if not os.path.exists(self.test_filename):
+                output_dir = os.path.basename(self.test_filename)
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
                 if dir_name is not None:
                     # directly load from dir_name_init and img_name_init
                     dataset = get_dataset(
