@@ -61,7 +61,7 @@ Provide the **YAML** configuration files to run training:
    source activate py3_torch
    python -u scripts/main.py \
    --config-base configs/SNEMI/SNEMI-Base.yaml \
-   --config-file configs/SNEMI/SNEMI-Foreground-UNet.yaml
+   --config-file configs/SNEMI/SNEMI-Affinity-UNet.yaml
 
 Or if using multiple GPUs for higher performance:
 
