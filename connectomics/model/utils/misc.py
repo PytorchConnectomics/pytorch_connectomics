@@ -85,6 +85,8 @@ class SplitActivation(object):
         '5': 1, # instance edt (11 channels for quantized)
         '6': 1, # semantic edt
         '7': 2, # diffusion gradients (2d)
+        '8': 1, # skeleton dilation
+        'a': 1, # skeleton aware distance transform
         'all': -1 # all remaining channels
     }
 

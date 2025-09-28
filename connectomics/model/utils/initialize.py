@@ -11,9 +11,8 @@ def model_init(model, mode='orthogonal'):
         'selu': selu_init,
         'orthogonal': ortho_init,
     }
-    # Applies fn recursively to every submodule (as returned by .children()) as well 
-    # as self. See https://pytorch.org/docs/stable/generated/torch.nn.Module.html.
-    model.apply(model_init_dict[mode])
+    # no need to do model.apply since each init function already iterates through model.modules()
+    model_init_dict[mode](model)
 
 def xavier_init(model):
     # sxavier initialization
@@ -38,7 +37,7 @@ def selu_init(model):
             nn.init.normal(m.weight, 0, sqrt(1. / fan_in))
         elif isinstance(m, nn.Linear):
             fan_in = m.in_features
-            nn.init.normal(m.weight, 0, sqrt(1. / fan_in))
+            nn.init.normal_(m.weight, 0, sqrt(1. / fan_in))
 
 def ortho_init(model):
     # orthogonal initialization

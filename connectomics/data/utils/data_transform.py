@@ -8,8 +8,10 @@ from scipy.ndimage import distance_transform_edt
 from skimage.morphology import remove_small_holes, skeletonize, binary_erosion, disk, ball
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from skimage.filters import gaussian
+from em_util.io import compute_bbox_all
 
 from .data_misc import get_padsize, array_unpad
+
 
 __all__ = [
     'edt_semantic',
@@ -89,9 +91,9 @@ def edt_instance(label: np.ndarray,
 
 
 def sdt_instance(label: np.ndarray,
-                 mode: str = '2d',
+                 mode: str = '3d',
                  quantize: bool = True,
-                 resolution: Tuple[float] = (1.0, 1.0),
+                 resolution: Tuple[float] = (1.0, 1.0, 1.0),
                  padding: bool = True):
     """Skeleton-based distance transform (SDT) for a stack of label images.
 
@@ -99,18 +101,9 @@ def sdt_instance(label: np.ndarray,
     Distance Transform." International Conference on Medical Image Computing and
     Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
     """
-    assert mode == "2d", "Only 2d skeletonization is currently supported."
+    assert mode == "3d", "Only 3D mode is supported, revert to other branch"
+    vol_distance, vol_semantic = skeleton_aware_distance_transform(label, padding=padding, resolution=resolution)
 
-    vol_distance = []
-    vol_semantic = []
-    for i in range(label.shape[0]):
-        label_img = label[i].copy()
-        distance, semantic = skeleton_aware_distance_transform(label_img, padding=padding)
-        vol_distance.append(distance)
-        vol_semantic.append(semantic)
-
-    vol_distance = np.stack(vol_distance, 0)
-    vol_semantic = np.stack(vol_semantic, 0)
     if quantize:
         vol_distance = energy_quantize(vol_distance)
 
@@ -186,19 +179,36 @@ def smooth_edge(binary, smooth_sigma: float = 2.0, smooth_threshold: float = 0.5
     return binary
 
 
+def pad_bbox(bbox, shape, pad_size: int):
+    bbox[:, 1] = bbox[:, 1] - pad_size
+    bbox[:, 3] = bbox[:, 3] - pad_size
+    bbox[:, 5] = bbox[:, 5] - pad_size
+    bbox[:, 2] = bbox[:, 2] + pad_size
+    bbox[:, 4] = bbox[:, 4] + pad_size
+    bbox[:, 6] = bbox[:, 6] + pad_size
+
+    bbox[:, 1] = np.maximum(bbox[:, 1], 0)
+    bbox[:, 3] = np.maximum(bbox[:, 3], 0)
+    bbox[:, 5] = np.maximum(bbox[:, 5], 0)
+    bbox[:, 2] = np.minimum(bbox[:, 2], shape[0] - 1)
+    bbox[:, 4] = np.minimum(bbox[:, 4], shape[1] - 1)
+    bbox[:, 6] = np.minimum(bbox[:, 6], shape[2] - 1)
+
+    return bbox
+
 def skeleton_aware_distance_transform(
     label: np.ndarray,
     bg_value: float = -1.0,
     relabel: bool = True,
     padding: bool = False,
-    resolution: Tuple[float] = (1.0, 1.0),
+    resolution: Tuple[float] = (1.0, 1.0, 1.0),
     alpha: float = 0.8,
     smooth: bool = True,
     smooth_skeleton_only: bool = True,
 ):
     """Skeleton-based distance transform (SDT).
 
-    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware 
+    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware
     Distance Transform." International Conference on Medical Image Computing and
     Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
     """
@@ -212,7 +222,7 @@ def skeleton_aware_distance_transform(
         # The distance_transform_edt function does not treat image border
         # as background. If image border needs to be considered as background
         # in distance calculation, set padding to True.
-        label = np.pad(label, pad_size, mode='constant', constant_values=0)
+        label = np.pad(label, pad_size, mode="constant", constant_values=0)
 
     label_shape = label.shape
     all_bg_sample = False
@@ -222,15 +232,28 @@ def skeleton_aware_distance_transform(
     semantic = np.zeros(label_shape, dtype=np.uint8)
 
     indices = np.unique(label)
+
+    # [N, 7]: [label, z0, z1, y0, y1, x0, x1]
+    bbox = compute_bbox_all(label, uid = indices)
+    # NOTE: maybe unnecessary, but just in case
+    bbox = pad_bbox(bbox, label_shape, pad_size)
+
     if indices[0] == 0:
         if len(indices) > 1:  # exclude background
             indices = indices[1:]
+            assert bbox[0, 0] == 0, "Missing background bbox"
+            bbox = bbox[1:]
         else:  # all-background sample
             all_bg_sample = True
 
     if not all_bg_sample:
-        for idx in indices:
-            temp2 = remove_small_holes(label == idx, 16, connectivity=1)
+        for i, idx in enumerate(indices):
+            assert bbox[i, 0] == idx, "Mismatched label and bbox"
+            assert np.all(bbox[i, 1:] >= 0), "Negative bbox coordinates"
+            z0, z1, y0, y1, x0, x1 = bbox[i, 1:]
+
+            temp1 = label[z0:z1+1, y0:y1+1, x0:x1+1].copy() == idx
+            temp2 = remove_small_holes(temp1, 16, connectivity=1)
             binary = temp2.copy()
 
             if smooth:
@@ -245,30 +268,31 @@ def skeleton_aware_distance_transform(
                     else:
                         temp2 = binary.copy()
 
-            semantic += temp2.astype(np.uint8)
+            semantic[z0:z1+1, y0:y1+1, x0:x1+1] += temp2.astype(np.uint8)
 
             skeleton_mask = skeletonize(binary)
             skeleton_mask = (skeleton_mask != 0).astype(np.uint8)
-            skeleton += skeleton_mask
+            skeleton[z0:z1+1, y0:y1+1, x0:x1+1] += skeleton_mask
 
-            skeleton_edt = distance_transform_edt(1-skeleton_mask, resolution)
+            skeleton_edt = distance_transform_edt(1 - skeleton_mask, resolution)
             boundary_edt = distance_transform_edt(temp2, resolution)
 
-            energy = boundary_edt / (skeleton_edt + boundary_edt + eps) # normalize
-            energy = energy ** alpha
-            distance = np.maximum(distance, energy * temp2.astype(np.float32))
+            energy = boundary_edt / (skeleton_edt + boundary_edt + eps)  # normalize
+            energy = energy**alpha
+            distance[z0:z1+1, y0:y1+1, x0:x1+1] = np.maximum(
+                distance[z0:z1+1, y0:y1+1, x0:x1+1], energy * temp2.astype(np.float32)
+            )
 
     if bg_value != 0:
         distance[distance==0] = bg_value
 
     if padding:
         # Unpad the output array to preserve original shape.
-        distance = array_unpad(distance, get_padsize(
-            pad_size, ndim=distance.ndim))
-        semantic = array_unpad(semantic, get_padsize(
-            pad_size, ndim=distance.ndim))
+        distance = array_unpad(distance, get_padsize(pad_size, ndim=distance.ndim))
+        semantic = array_unpad(semantic, get_padsize(pad_size, ndim=distance.ndim))
 
     return distance, semantic
+
 
 
 def energy_quantize(energy, levels=10):

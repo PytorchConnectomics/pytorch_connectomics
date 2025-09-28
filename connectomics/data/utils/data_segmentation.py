@@ -362,6 +362,12 @@ def seg_to_targets(
                 label = maximum_filter(label, dilation) 
                 distance = seg2inst_edt(label, topt[2+index+1:])
                 out[tid] = distance[np.newaxis, :].astype(np.float32)
+        elif topt[0] == 'a':
+            # "8-{0 if no quantize, 1 if quantize}-{z_res}-{y_res}-{x_res}"
+            _, quantize, z_res, y_res, x_res = topt.split('-')
+            quantize = bool(int(quantize))
+            z_res, y_res, x_res = float(z_res), float(y_res), float(x_res)
+            out[tid] = sdt_instance(label, quantize=quantize, resolution=(z_res, y_res, x_res))
         elif topt[0] == '9':  # generic semantic segmentation
             out[tid] = label.astype(np.int64)
         else:
