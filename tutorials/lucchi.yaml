@@ -1,0 +1,156 @@
+# Lucchi mitochondria segmentation configuration
+# Electron microscopy (EM) dataset
+
+experiment_name: lucchi_mitochondria
+description: Mitochondria segmentation on Lucchi EM dataset
+
+# System
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+
+# Model
+model:
+  architecture: monai_basic_unet3d
+  input_size: [18, 160, 160]
+  output_size: [18, 160, 160]
+  in_channels: 1
+  out_channels: 1
+  filters: [28, 36, 48, 64, 80]
+  dropout: 0.0
+  norm: instance
+  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_weights: [1.0, 1.0]
+
+# Data
+data:
+  train_image: datasets/Lucchi/img/train_im.tif
+  train_label: datasets/Lucchi/label/train_label.tif
+  val_image: datasets/Lucchi/img/val_im.tif
+  val_label: datasets/Lucchi/label/val_label.tif
+  patch_size: [18, 160, 160]
+  pad_size: [2, 16, 16]
+  batch_size: 4
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  use_cache: true
+  cache_rate: 1.0
+  normalize: true
+  mean: 0.5
+  std: 0.5
+
+# Optimizer
+optimizer:
+  name: AdamW
+  lr: 0.0001
+  weight_decay: 0.0001
+
+# Scheduler
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+  warmup_start_lr: 0.000001
+  min_lr: 0.000001
+  t_max: 100
+
+# Training
+training:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "32"
+  val_check_interval: 500
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  benchmark: true
+
+# Checkpoint
+checkpoint:
+  save_top_k: 3
+  monitor: val/dice
+  mode: max
+  save_last: true
+  every_n_epochs: 1
+  dirpath: outputs/lucchi/checkpoints/
+  filename: epoch={epoch:03d}-val_dice={val/dice:.4f}
+
+# Early stopping
+early_stopping:
+  enabled: true
+  monitor: val/dice
+  patience: 15
+  mode: max
+  min_delta: 0.001
+
+# Augmentation (EM-specific)
+augmentation:
+  enabled: true
+  
+  flip:
+    enabled: true
+    prob: 0.5
+  
+  rotate:
+    enabled: true
+    prob: 0.5
+  
+  elastic:
+    enabled: true
+    prob: 0.3
+    sigma_range: [5.0, 8.0]
+    magnitude_range: [50.0, 150.0]
+  
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.3
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.3
+    shift_intensity_offset: 0.1
+    contrast_prob: 0.3
+    contrast_range: [0.7, 1.4]
+  
+  # EM-specific augmentations
+  misalignment:
+    enabled: true
+    prob: 0.5
+    displacement: 16
+    rotate_ratio: 0.0
+  
+  missing_section:
+    enabled: true
+    prob: 0.3
+    num_sections: 2
+  
+  motion_blur:
+    enabled: true
+    prob: 0.3
+    sections: 2
+    kernel_size: 11
+  
+  cut_noise:
+    enabled: false
+  
+  cut_blur:
+    enabled: true
+    prob: 0.3
+    length_ratio: 0.25
+    down_ratio_range: [2.0, 8.0]
+    downsample_z: false
+  
+  missing_parts:
+    enabled: false
+  
+  mixup:
+    enabled: false
+  
+  copy_paste:
+    enabled: false
+
+# Inference
+inference:
+  output_path: outputs/lucchi/results/
+  stride: [9, 80, 80]
+  overlap: 0.5
+  test_time_augmentation: false

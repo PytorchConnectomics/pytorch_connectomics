@@ -1,0 +1,307 @@
+"""
+Build MONAI transform pipelines from Hydra configuration.
+
+Modern replacement for monai_compose.py that works with the new Hydra config system.
+"""
+
+from __future__ import annotations
+from typing import Dict
+from monai.transforms import (
+    Compose, RandRotate90d, RandFlipd, RandAffined, RandZoomd,
+    RandGaussianNoised, RandShiftIntensityd, Rand3DElasticd,
+    RandGaussianSmoothd, RandAdjustContrastd,
+    ScaleIntensityRanged, ToTensord
+)
+
+from .monai_transforms import (
+    RandMisAlignmentd, RandMissingSectiond, RandMissingPartsd,
+    RandMotionBlurd, RandCutNoised, RandCutBlurd,
+    RandMixupd, RandCopyPasted
+)
+from ...config.hydra_config import Config, AugmentationConfig
+
+
+def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+    """
+    Build training transforms from Hydra config.
+    
+    Args:
+        cfg: Hydra Config object
+        keys: Keys to transform (default: ['image', 'label'])
+        
+    Returns:
+        Composed MONAI transforms
+    """
+    if keys is None:
+        keys = ['image', 'label']
+    
+    transforms = []
+    
+    # Normalization
+    if cfg.data.normalize:
+        transforms.append(
+            ScaleIntensityRanged(
+                keys=['image'],
+                a_min=cfg.data.mean - 2 * cfg.data.std,
+                a_max=cfg.data.mean + 2 * cfg.data.std,
+                b_min=0.0,
+                b_max=1.0,
+                clip=True
+            )
+        )
+    
+    # Add augmentations if enabled
+    if cfg.augmentation.enabled:
+        transforms.extend(_build_augmentations(cfg.augmentation, keys))
+    
+    # Final conversion to tensor
+    transforms.append(ToTensord(keys=keys))
+    
+    return Compose(transforms)
+
+
+def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+    """
+    Build validation transforms from Hydra config.
+    
+    Args:
+        cfg: Hydra Config object
+        keys: Keys to transform (default: ['image', 'label'])
+        
+    Returns:
+        Composed MONAI transforms (no augmentation)
+    """
+    if keys is None:
+        keys = ['image', 'label']
+    
+    transforms = []
+    
+    # Normalization
+    if cfg.data.normalize:
+        transforms.append(
+            ScaleIntensityRanged(
+                keys=['image'],
+                a_min=cfg.data.mean - 2 * cfg.data.std,
+                a_max=cfg.data.mean + 2 * cfg.data.std,
+                b_min=0.0,
+                b_max=1.0,
+                clip=True
+            )
+        )
+    
+    # Final conversion to tensor
+    transforms.append(ToTensord(keys=keys))
+    
+    return Compose(transforms)
+
+
+def build_inference_transforms(cfg: Config) -> Compose:
+    """
+    Build inference transforms from Hydra config.
+    
+    Args:
+        cfg: Hydra Config object
+        
+    Returns:
+        Composed MONAI transforms for inference
+    """
+    keys = ['image']
+    transforms = []
+    
+    # Normalization
+    if cfg.data.normalize:
+        transforms.append(
+            ScaleIntensityRanged(
+                keys=keys,
+                a_min=cfg.data.mean - 2 * cfg.data.std,
+                a_max=cfg.data.mean + 2 * cfg.data.std,
+                b_min=0.0,
+                b_max=1.0,
+                clip=True
+            )
+        )
+    
+    transforms.append(ToTensord(keys=keys))
+    
+    return Compose(transforms)
+
+
+def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
+    """
+    Build augmentation transforms from config.
+    
+    Args:
+        aug_cfg: AugmentationConfig object
+        keys: Keys to augment
+        
+    Returns:
+        List of MONAI transforms
+    """
+    transforms = []
+    
+    # Standard geometric augmentations
+    if aug_cfg.flip.enabled:
+        transforms.append(
+            RandFlipd(
+                keys=keys,
+                prob=aug_cfg.flip.prob,
+                spatial_axis=aug_cfg.flip.spatial_axis
+            )
+        )
+    
+    if aug_cfg.rotate.enabled:
+        transforms.append(
+            RandRotate90d(
+                keys=keys,
+                prob=aug_cfg.rotate.prob,
+                spatial_axes=(0, 1)
+            )
+        )
+    
+    if aug_cfg.elastic.enabled:
+        transforms.append(
+            Rand3DElasticd(
+                keys=keys,
+                prob=aug_cfg.elastic.prob,
+                sigma_range=aug_cfg.elastic.sigma_range,
+                magnitude_range=aug_cfg.elastic.magnitude_range
+            )
+        )
+    
+    # Intensity augmentations (only for images)
+    if aug_cfg.intensity.enabled:
+        if aug_cfg.intensity.gaussian_noise_prob > 0:
+            transforms.append(
+                RandGaussianNoised(
+                    keys=['image'],
+                    prob=aug_cfg.intensity.gaussian_noise_prob,
+                    std=aug_cfg.intensity.gaussian_noise_std
+                )
+            )
+        
+        if aug_cfg.intensity.shift_intensity_prob > 0:
+            transforms.append(
+                RandShiftIntensityd(
+                    keys=['image'],
+                    prob=aug_cfg.intensity.shift_intensity_prob,
+                    offsets=aug_cfg.intensity.shift_intensity_offset
+                )
+            )
+        
+        if aug_cfg.intensity.contrast_prob > 0:
+            transforms.append(
+                RandAdjustContrastd(
+                    keys=['image'],
+                    prob=aug_cfg.intensity.contrast_prob,
+                    gamma=aug_cfg.intensity.contrast_range
+                )
+            )
+    
+    # EM-specific augmentations
+    if aug_cfg.misalignment.enabled:
+        transforms.append(
+            RandMisAlignmentd(
+                keys=keys,
+                prob=aug_cfg.misalignment.prob,
+                displacement=aug_cfg.misalignment.displacement,
+                rotate_ratio=aug_cfg.misalignment.rotate_ratio
+            )
+        )
+    
+    if aug_cfg.missing_section.enabled:
+        transforms.append(
+            RandMissingSectiond(
+                keys=keys,
+                prob=aug_cfg.missing_section.prob,
+                num_sections=aug_cfg.missing_section.num_sections
+            )
+        )
+    
+    if aug_cfg.motion_blur.enabled:
+        transforms.append(
+            RandMotionBlurd(
+                keys=['image'],
+                prob=aug_cfg.motion_blur.prob,
+                sections=aug_cfg.motion_blur.sections,
+                kernel_size=aug_cfg.motion_blur.kernel_size
+            )
+        )
+    
+    if aug_cfg.cut_noise.enabled:
+        transforms.append(
+            RandCutNoised(
+                keys=['image'],
+                prob=aug_cfg.cut_noise.prob,
+                length_ratio=aug_cfg.cut_noise.length_ratio,
+                noise_scale=aug_cfg.cut_noise.noise_scale
+            )
+        )
+    
+    if aug_cfg.cut_blur.enabled:
+        transforms.append(
+            RandCutBlurd(
+                keys=['image'],
+                prob=aug_cfg.cut_blur.prob,
+                length_ratio=aug_cfg.cut_blur.length_ratio,
+                down_ratio_range=aug_cfg.cut_blur.down_ratio_range,
+                downsample_z=aug_cfg.cut_blur.downsample_z
+            )
+        )
+    
+    if aug_cfg.missing_parts.enabled:
+        transforms.append(
+            RandMissingPartsd(
+                keys=keys,
+                prob=aug_cfg.missing_parts.prob,
+                hole_range=aug_cfg.missing_parts.hole_range
+            )
+        )
+    
+    # Advanced augmentations
+    if aug_cfg.mixup.enabled:
+        transforms.append(
+            RandMixupd(
+                keys=['image'],
+                prob=aug_cfg.mixup.prob,
+                alpha_range=aug_cfg.mixup.alpha_range
+            )
+        )
+    
+    if aug_cfg.copy_paste.enabled:
+        transforms.append(
+            RandCopyPasted(
+                keys=['image'],
+                label_key='label',
+                prob=aug_cfg.copy_paste.prob,
+                max_obj_ratio=aug_cfg.copy_paste.max_obj_ratio,
+                rotation_angles=aug_cfg.copy_paste.rotation_angles,
+                border=aug_cfg.copy_paste.border
+            )
+        )
+    
+    return transforms
+
+
+def build_transform_dict(cfg: Config) -> Dict[str, Compose]:
+    """
+    Build dictionary of transforms for train/val/test splits.
+    
+    Args:
+        cfg: Hydra Config object
+        
+    Returns:
+        Dictionary with 'train', 'val', 'test' keys
+    """
+    return {
+        'train': build_train_transforms(cfg),
+        'val': build_val_transforms(cfg),
+        'test': build_val_transforms(cfg)
+    }
+
+
+__all__ = [
+    'build_train_transforms',
+    'build_val_transforms',
+    'build_inference_transforms',
+    'build_transform_dict',
+]

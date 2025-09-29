@@ -1,0 +1,145 @@
+# Default Hydra configuration for PyTorch Connectomics
+# Modern, clean config format using OmegaConf
+
+experiment_name: connectomics_default
+description: Default configuration for connectomics segmentation
+
+# System configuration
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+
+# Model configuration
+model:
+  architecture: monai_basic_unet3d
+  input_size: [128, 128, 128]
+  output_size: [128, 128, 128]
+  in_channels: 1
+  out_channels: 1
+  filters: [32, 64, 128, 256, 512]
+  dropout: 0.0
+  norm: batch
+  activation: relu
+  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_weights: [1.0, 1.0]
+
+# Data configuration
+data:
+  train_image: datasets/train_image.h5
+  train_label: datasets/train_label.h5
+  val_image: datasets/val_image.h5
+  val_label: datasets/val_label.h5
+  patch_size: [128, 128, 128]
+  pad_size: [8, 32, 32]
+  batch_size: 2
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  use_cache: false
+  cache_rate: 1.0
+  normalize: true
+  mean: 0.5
+  std: 0.5
+
+# Optimizer configuration
+optimizer:
+  name: AdamW
+  lr: 0.0001
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+
+# Scheduler configuration
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+  warmup_start_lr: 0.000001
+  min_lr: 0.000001
+
+# Training configuration
+training:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "32"
+  val_check_interval: 1000
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  deterministic: false
+  benchmark: true
+
+# Checkpoint configuration
+checkpoint:
+  save_top_k: 3
+  monitor: val/loss
+  mode: min
+  save_last: true
+  every_n_epochs: 1
+  dirpath: checkpoints/
+  filename: epoch={epoch:03d}-val_loss={val/loss:.4f}
+
+# Early stopping configuration
+early_stopping:
+  enabled: false
+  monitor: val/loss
+  patience: 10
+  mode: min
+
+# Augmentation configuration
+augmentation:
+  enabled: true
+  
+  # Standard augmentations
+  flip:
+    enabled: true
+    prob: 0.5
+  
+  rotate:
+    enabled: true
+    prob: 0.5
+  
+  elastic:
+    enabled: false
+    prob: 0.3
+  
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.2
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.3
+    shift_intensity_offset: 0.1
+    contrast_prob: 0.3
+    contrast_range: [0.7, 1.4]
+  
+  # EM-specific augmentations (disabled by default)
+  misalignment:
+    enabled: false
+  
+  missing_section:
+    enabled: false
+  
+  motion_blur:
+    enabled: false
+  
+  cut_noise:
+    enabled: false
+  
+  cut_blur:
+    enabled: false
+  
+  missing_parts:
+    enabled: false
+  
+  mixup:
+    enabled: false
+  
+  copy_paste:
+    enabled: false
+
+# Inference configuration
+inference:
+  output_path: results/
+  stride: [64, 64, 64]
+  overlap: 0.5
+  test_time_augmentation: false
+  tta_num: 4
