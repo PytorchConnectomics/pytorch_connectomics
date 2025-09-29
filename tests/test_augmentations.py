@@ -2,7 +2,7 @@ import unittest
 import torch
 import numpy as np
 
-from connectomics.data.augmentation import *
+from connectomics.transforms.augment import *
 
 class TestModelBlock(unittest.TestCase):
 

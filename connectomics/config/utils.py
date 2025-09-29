@@ -158,6 +158,9 @@ def convert_cfg_markdown(cfg):
 
     def helper(cfg):
         s_indent = []
+        # Handle the case where cfg is not a CfgNode (e.g., primitive types)
+        if not hasattr(cfg, 'items'):
+            return [str(cfg)]
         for k, v in sorted(cfg.items()):
             seperator = " "
             attr_str = "  \n{}:{}{}  \n".format(str(k), seperator, str(v))

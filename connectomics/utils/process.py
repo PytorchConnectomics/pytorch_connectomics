@@ -11,7 +11,7 @@ from skimage.morphology import remove_small_objects
 from skimage.feature import peak_local_max
 import cc3d
 
-from connectomics.data.utils import getSegType, bbox_ND, crop_ND, replace_ND
+from connectomics.transforms.process import get_seg_type, bbox_ND, crop_ND, replace_ND
 
 
 __all__ = ['binary_connected',
@@ -253,11 +253,11 @@ def polarity2instance(
         exclusive (bool): whether the synaptic masks are exclusive (with softmax) or not. Default: False
 
     Examples::
-        >>> from connectomics.data.utils import readvol, savevol
+        >>> from connectomics.data.io import read_volume, save_volume
         >>> from connectomics.utils.processing import polarity2instance
-        >>> volume = readvol(input_name)
+        >>> volume = read_volume(input_name)
         >>> instances = polarity2instance(volume)
-        >>> savevol(output_name, instances)
+        >>> save_volume(output_name, instances)
     """
     if exclusive:
         idx_arr = np.argmax(volume, axis=0)
@@ -408,7 +408,7 @@ def cast2dtype(segm):
     """Cast the segmentation mask to the best dtype to save storage.
     """
     max_id = np.amax(np.unique(segm))
-    m_type = getSegType(int(max_id))
+    m_type = get_seg_type(int(max_id))
     return segm.astype(m_type)
 
 

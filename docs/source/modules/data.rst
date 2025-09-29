@@ -10,7 +10,7 @@ Datasets
 Augmentations
 ---------------
 
-.. automodule:: connectomics.data.augmentation
+.. automodule:: connectomics.transforms.augment
     :members:
 
 Utility Functions

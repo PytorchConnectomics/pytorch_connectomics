@@ -19,6 +19,7 @@ requirements = [
     'einops>=0.3.0',
     'tqdm>=4.58.0',
     'monai>=0.9.1',
+    'pytorch-lightning>=2.0.0',  # Phase 1 refactoring: Lightning integration
 ]
 
 

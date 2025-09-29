@@ -4,8 +4,8 @@ from typing import Optional, List, Union, Tuple
 import torch
 import torchvision.utils as vutils
 import numpy as np
-from ..data.utils import decode_quantize, dx_to_circ
-from connectomics.model.utils import SplitActivation
+from ..transforms.process import decode_quantize, dx_to_circ
+from connectomics.models.utils import SplitActivation
 
 __all__ = [
     'Visualizer'
