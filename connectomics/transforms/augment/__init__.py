@@ -6,14 +6,16 @@ data augmentation, enabling seamless integration with MONAI Compose pipelines.
 """
 
 # MONAI-native augmentation interface
-from .monai_augmentor import build_augmentor, create_inference_transforms
+from .monai_compose import build_augmentor, create_inference_transforms
 from .monai_transforms import (
     RandMisAlignmentd,
     RandMissingSectiond,
     RandMissingPartsd,
     RandMotionBlurd,
     RandCutNoised,
-    RandCutBlurd
+    RandCutBlurd,
+    RandMixupd,
+    RandCopyPasted,
 )
 
 __all__ = [
@@ -28,4 +30,6 @@ __all__ = [
     'RandMotionBlurd',
     'RandCutNoised',
     'RandCutBlurd',
+    'RandMixupd',
+    'RandCopyPasted',
 ]

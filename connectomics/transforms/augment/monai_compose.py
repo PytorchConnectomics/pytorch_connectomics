@@ -22,7 +22,8 @@ from monai.transforms import (
 # Import our connectomics-specific MONAI custom transforms
 from .monai_transforms import (
     RandMisAlignmentd, RandMissingSectiond, RandMissingPartsd,
-    RandMotionBlurd, RandCutNoised, RandCutBlurd
+    RandMotionBlurd, RandCutNoised, RandCutBlurd,
+    RandMixupd, RandCopyPasted
 )
 
 
@@ -159,6 +160,27 @@ def build_augmentor(cfg: CfgNode) -> Dict[str, Compose]:
                 length_ratio=cfg.AUGMENTOR.CUT_BLUR.get('LENGTH_RATIO', 0.25),
                 down_ratio_range=cfg.AUGMENTOR.CUT_BLUR.get('DOWN_RATIO_RANGE', (2.0, 8.0)),
                 downsample_z=cfg.AUGMENTOR.CUT_BLUR.get('DOWNSAMPLE_Z', False)
+            )
+        )
+
+    if hasattr(cfg.AUGMENTOR, 'MIXUP') and cfg.AUGMENTOR.MIXUP.ENABLED:
+        augmentation_transforms.append(
+            RandMixupd(
+                keys=['image'],  # Typically only apply to images
+                prob=cfg.AUGMENTOR.MIXUP.get('PROB', 0.5),
+                alpha_range=cfg.AUGMENTOR.MIXUP.get('ALPHA_RANGE', (0.7, 0.9))
+            )
+        )
+    
+    if hasattr(cfg.AUGMENTOR, 'COPY_PASTE') and cfg.AUGMENTOR.COPY_PASTE.ENABLED:
+        augmentation_transforms.append(
+            RandCopyPasted(
+                keys=['image'],
+                label_key='label',
+                prob=cfg.AUGMENTOR.COPY_PASTE.get('PROB', 0.5),
+                max_obj_ratio=cfg.AUGMENTOR.COPY_PASTE.get('MAX_OBJ_RATIO', 0.7),
+                rotation_angles=cfg.AUGMENTOR.COPY_PASTE.get('ROTATION_ANGLES', list(range(30, 360, 30))),
+                border=cfg.AUGMENTOR.COPY_PASTE.get('BORDER', 3)
             )
         )
 

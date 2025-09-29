@@ -1,29 +1,54 @@
-from .dataset_base import *
-from .dataset_volume import VolumeDataset, VolumeDatasetRecon
-from .dataset_tile import TileDataset
-from .dataset_cond import VolumeDatasetCond
-from .collate import collate_fn_train, collate_fn_test
-from .build import build_dataloader, get_dataset
+"""
+MONAI-native dataset module for PyTorch Connectomics.
+
+This module provides MONAI-based dataset classes and PyTorch Lightning DataModules
+for connectomics data loading. All legacy dataset classes have been removed.
+"""
+
+# MONAI base datasets
+from .dataset_base import (
+    MonaiConnectomicsDataset,
+    MonaiCachedConnectomicsDataset,
+    MonaiPersistentConnectomicsDataset,
+    create_data_dicts_from_paths,
+    create_connectomics_dataset,
+)
+
+# Volume datasets
+from .dataset_volume import (
+    MonaiVolumeDataset,
+    MonaiCachedVolumeDataset,
+    create_volume_dataset,
+    create_volume_data_dicts,
+)
+
+# Tile datasets
+from .dataset_tile import (
+    MonaiTileDataset,
+    MonaiCachedTileDataset,
+    TileLoaderd,
+    create_tile_dataset,
+    create_tile_data_dicts_from_json,
+)
 
 __all__ = [
-    # From dataset_base
-    'BaseConnectomicsDataset',
-    'ConnectomicsDataModule',
-    'create_volume_datamodule',
-    'create_tile_datamodule', 
-    'create_cloud_datamodule',
-    'create_datamodule_from_config',
-    'WeightedConcatDataset',
-    'DataModule',
-    'create_multi_dataset',
-    'create_datamodule_from_configs',
-    # From other modules
-    'VolumeDataset',
-    'VolumeDatasetRecon',
-    'TileDataset',
-    'VolumeDatasetCond',
-    'collate_fn_train',
-    'collate_fn_test',
-    'get_dataset',
-    'build_dataloader'
+    # Base MONAI datasets
+    'MonaiConnectomicsDataset',
+    'MonaiCachedConnectomicsDataset',
+    'MonaiPersistentConnectomicsDataset',
+    'create_data_dicts_from_paths',
+    'create_connectomics_dataset',
+
+    # Volume datasets
+    'MonaiVolumeDataset',
+    'MonaiCachedVolumeDataset',
+    'create_volume_dataset',
+    'create_volume_data_dicts',
+
+    # Tile datasets
+    'MonaiTileDataset',
+    'MonaiCachedTileDataset',
+    'TileLoaderd',
+    'create_tile_dataset',
+    'create_tile_data_dicts_from_json',
 ]

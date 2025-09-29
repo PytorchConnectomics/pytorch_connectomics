@@ -1,54 +1,56 @@
 """
 Main entry point for I/O utilities.
 
-This module provides easy access to all I/O functions for reading and writing
-medical images and volumes.
+This module provides easy access to all consolidated I/O functions for reading and writing
+connectomics data in various formats.
 
 Usage:
-    from connectomics.data.io_utils import read_volume, write_volume
+    from connectomics.data.io_utils import read_volume, save_volume
 """
 
-# Core I/O functions
-from .io.io import (
+# Core I/O functions from the consolidated io module
+from .io import (
+    # Volume I/O
+    read_hdf5,
+    write_hdf5,
     read_volume,
-    write_volume,
+    save_volume,
     read_image,
-    write_image,
-    get_volume_info,
-)
+    read_images,
+    read_image_as_volume,
 
-# Visualization utilities
-from .io.visualize import (
-    visualize_volume,
-    visualize_slices,
-    save_volume_visualization,
-)
+    # Tile I/O
+    create_tile_metadata,
+    reconstruct_volume_from_tiles,
 
-# Tile utilities
-from .io.tiles import (
-    TileManager,
-    create_tile_dataset,
-    load_tile_config,
+    # Utilities
+    read_pickle_file,
+    vast_to_segmentation,
+    normalize_data_range,
+    convert_to_uint8,
+    split_multichannel_mask,
+    squeeze_arrays,
 )
-
-# Constants
-from .io.const import *
 
 __all__ = [
-    # Core I/O
+    # Volume I/O
+    'read_hdf5',
+    'write_hdf5',
     'read_volume',
-    'write_volume',
+    'save_volume',
     'read_image',
-    'write_image',
-    'get_volume_info',
+    'read_images',
+    'read_image_as_volume',
 
-    # Visualization
-    'visualize_volume',
-    'visualize_slices',
-    'save_volume_visualization',
+    # Tile I/O
+    'create_tile_metadata',
+    'reconstruct_volume_from_tiles',
 
-    # Tiles
-    'TileManager',
-    'create_tile_dataset',
-    'load_tile_config',
+    # Utilities
+    'read_pickle_file',
+    'vast_to_segmentation',
+    'normalize_data_range',
+    'convert_to_uint8',
+    'split_multichannel_mask',
+    'squeeze_arrays',
 ]

@@ -423,6 +423,276 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
         return img
 
 
+class RandMixupd(RandomizableTransform, MapTransform):
+    """
+    Random Mixup augmentation for connectomics data.
+    
+    Conducts linear interpolation between two samples in a batch to improve
+    model robustness and generalization. This is a batch-level augmentation.
+    
+    Note: This transform operates on batched data and mixes samples within the batch.
+    """
+    
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.5,
+        alpha_range: Tuple[float, float] = (0.7, 0.9),
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to apply mixup to (typically 'image')
+            prob: Probability of applying mixup
+            alpha_range: Range for mixing ratio (min, max)
+            allow_missing_keys: Whether to allow missing keys
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.alpha_range = alpha_range
+        
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Note: This expects data to be a dictionary with batched tensors.
+        For batch-level augmentation, use this in a collate_fn or after batching.
+        """
+        d = dict(data)
+        if not self._do_transform:
+            return d
+            
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = self._apply_mixup(d[key])
+        return d
+    
+    def _apply_mixup(self, volume: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+        """Apply mixup to a batched volume."""
+        # Check if batched (first dimension is batch)
+        if volume.ndim < 4:
+            # Not batched, return as is
+            return volume
+            
+        is_numpy = isinstance(volume, np.ndarray)
+        if is_numpy:
+            volume = torch.from_numpy(volume)
+            
+        batch_size = volume.shape[0]
+        if batch_size < 2:
+            # Need at least 2 samples to mix
+            return volume.numpy() if is_numpy else volume
+            
+        # Generate random mixing ratio
+        alpha = self.R.uniform(*self.alpha_range)
+        
+        # Create random permutation for pairing samples
+        indices = torch.randperm(batch_size)
+        
+        # Mix samples
+        mixed = alpha * volume + (1 - alpha) * volume[indices]
+        
+        return mixed.numpy() if is_numpy else mixed
+
+
+class RandCopyPasted(RandomizableTransform, MapTransform):
+    """
+    Random Copy-Paste augmentation for connectomics data.
+    
+    Copies objects from the image (based on segmentation mask), transforms them
+    (rotation/flip), and pastes them back in non-overlapping regions to increase
+    object diversity and improve instance segmentation performance.
+    
+    This augmentation requires both image and label (segmentation mask).
+    """
+    
+    def __init__(
+        self,
+        keys: KeysCollection,
+        label_key: str = 'label',
+        prob: float = 0.5,
+        max_obj_ratio: float = 0.7,
+        rotation_angles: List[int] = list(range(30, 360, 30)),
+        border: int = 3,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to apply copy-paste to (typically 'image')
+            label_key: Key for segmentation labels
+            prob: Probability of applying copy-paste
+            max_obj_ratio: Maximum fractional size of object (skip if too large)
+            rotation_angles: List of rotation angles to try
+            border: Border size for dilation when checking overlap
+            allow_missing_keys: Whether to allow missing keys
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.label_key = label_key
+        self.max_obj_ratio = max_obj_ratio
+        self.rotation_angles = rotation_angles
+        self.border = border
+        self.dil_struct = self._generate_binary_structure()
+        
+    def _generate_binary_structure(self):
+        """Generate 3D binary structure for dilation."""
+        from scipy.ndimage.morphology import generate_binary_structure
+        return generate_binary_structure(3, 3)
+    
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        if not self._do_transform:
+            return d
+            
+        # Check if label exists
+        if self.label_key not in d:
+            return d
+            
+        label = d[self.label_key]
+        
+        # Check object size
+        if isinstance(label, torch.Tensor):
+            obj_ratio = label.float().mean().item()
+        else:
+            obj_ratio = float(label.astype(np.float32).mean())
+            
+        if obj_ratio > self.max_obj_ratio:
+            # Object too large, skip augmentation
+            return d
+            
+        for key in self.key_iterator(d):
+            if key in d and key != self.label_key:
+                d[key], d[self.label_key] = self._apply_copy_paste(
+                    d[key], label
+                )
+        return d
+    
+    def _apply_copy_paste(
+        self, 
+        volume: Union[np.ndarray, torch.Tensor],
+        label: Union[np.ndarray, torch.Tensor]
+    ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
+        """Apply copy-paste augmentation."""
+        is_numpy = isinstance(volume, np.ndarray)
+        
+        # Convert to torch for processing
+        if is_numpy:
+            volume = torch.from_numpy(volume.copy())
+            label = torch.from_numpy(label.copy())
+            
+        # Ensure label is boolean
+        label = label.bool()
+        
+        # Check dimensions
+        if label.ndim != 3 or volume.ndim not in [3, 4]:
+            return volume.numpy() if is_numpy else volume, label.numpy() if is_numpy else label
+            
+        # Create flipped version for pasting
+        label_flipped = label.flip(0)  # Flip along z-axis
+        
+        # Extract object
+        if volume.ndim == 4:
+            neuron_tensor = volume * label.unsqueeze(0)
+        else:
+            neuron_tensor = volume * label
+            
+        # Find best rotation and position
+        neuron_tensor, label_paste = self._find_best_paste(
+            neuron_tensor, label, label_flipped
+        )
+        
+        # Paste into image
+        if volume.ndim == 4:
+            label_paste = label_paste.unsqueeze(0)
+            volume = volume * (~label_paste) + neuron_tensor * label_paste
+        else:
+            volume = volume * (~label_paste) + neuron_tensor * label_paste
+            
+        if is_numpy:
+            return volume.numpy(), label_paste.squeeze().numpy() if label_paste.ndim > 3 else label_paste.numpy()
+        return volume, label_paste.squeeze() if label_paste.ndim > 3 else label_paste
+    
+    def _find_best_paste(
+        self,
+        neuron_tensor: torch.Tensor,
+        label_orig: torch.Tensor,
+        label_flipped: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Find best rotation and position with minimal overlap."""
+        import torchvision.transforms.functional as tf
+        from scipy.ndimage.morphology import binary_dilation
+        
+        labels = torch.stack([label_orig, label_flipped])
+        best_overlap = torch.logical_and(label_flipped, label_orig).int().sum()
+        best_angle = 0
+        best_idx = 1
+        
+        # Try different rotations
+        for angle in self.rotation_angles:
+            rotated = self._rotate_3d(labels, angle)
+            
+            overlap0 = torch.logical_and(rotated[0], label_orig).int().sum()
+            overlap1 = torch.logical_and(rotated[1], label_orig).int().sum()
+            
+            if overlap0 < best_overlap:
+                best_overlap = overlap0
+                best_angle = angle
+                best_idx = 0
+            if overlap1 < best_overlap:
+                best_overlap = overlap1
+                best_angle = angle
+                best_idx = 1
+        
+        # Apply best transformation
+        if best_idx == 1:
+            neuron_tensor = neuron_tensor.flip(0) if neuron_tensor.ndim == 3 else neuron_tensor.flip(1)
+            
+        label_paste = labels[best_idx:best_idx+1]
+        
+        if best_angle != 0:
+            label_paste = self._rotate_3d(label_paste, best_angle)
+            if neuron_tensor.ndim == 4:
+                neuron_tensor = self._rotate_3d(neuron_tensor.unsqueeze(0), best_angle).squeeze(0)
+            else:
+                neuron_tensor = self._rotate_3d(neuron_tensor.unsqueeze(0), best_angle).squeeze(0)
+        
+        label_paste = label_paste.squeeze(0)
+        
+        # Crop overlapping regions
+        gt_dilated = torch.tensor(
+            binary_dilation(label_orig.numpy(), structure=self.dil_struct, iterations=self.border)
+        )
+        overlap_mask = torch.logical_and(label_paste, gt_dilated)
+        label_paste[overlap_mask] = False
+        
+        if neuron_tensor.ndim == 4:
+            neuron_tensor[:, overlap_mask] = 0
+        else:
+            neuron_tensor[overlap_mask] = 0
+            
+        return neuron_tensor, label_paste
+    
+    def _rotate_3d(self, tensor: torch.Tensor, angle: float) -> torch.Tensor:
+        """Rotate 3D volume around z-axis."""
+        import torchvision.transforms.functional as tf
+        
+        # Handle different tensor shapes
+        if tensor.ndim == 4:  # (C, Z, Y, X)
+            c, z, y, x = tensor.shape
+            # Reshape to (1, C*Z, Y, X) for rotation
+            reshaped = tensor.reshape(1, c*z, y, x)
+            rotated = tf.rotate(reshaped, angle)
+            return rotated.reshape(c, z, y, x)
+        elif tensor.ndim == 5:  # (B, C, Z, Y, X)
+            b, c, z, y, x = tensor.shape
+            rotated_list = []
+            for i in range(b):
+                reshaped = tensor[i].reshape(1, c*z, y, x)
+                rot = tf.rotate(reshaped, angle)
+                rotated_list.append(rot.reshape(c, z, y, x))
+            return torch.stack(rotated_list)
+        else:
+            return tensor
+
+
 __all__ = [
     # Connectomics-specific transforms (not available in standard MONAI)
     'RandMisAlignmentd',
@@ -431,4 +701,6 @@ __all__ = [
     'RandMotionBlurd',
     'RandCutNoised',
     'RandCutBlurd',
+    'RandMixupd',
+    'RandCopyPasted',
 ]

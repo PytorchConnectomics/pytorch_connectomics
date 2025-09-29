@@ -1,523 +1,355 @@
-from typing import Optional, List
+"""
+MONAI-native volume dataset for PyTorch Connectomics.
+
+This module provides volume-based dataset classes using MONAI's native dataset
+infrastructure with connectomics-specific sampling and augmentation strategies.
+"""
+
+from __future__ import annotations
+from typing import Dict, List, Any, Optional, Union, Callable, Sequence, Tuple
 import numpy as np
 import random
 import warnings
 
 import torch
-import torch.utils.data
-from ..augmentation import Compose
-from ..utils import *
+from monai.data import Dataset, CacheDataset
+from monai.transforms import Compose, RandSpatialCropd, LoadImaged, EnsureChannelFirstd
+from monai.utils import ensure_tuple_rep
 
-TARGET_OPT_TYPE = List[str]
-WEIGHT_OPT_TYPE = List[List[str]]
-AUGMENTOR_TYPE = Optional[Compose]
+from .dataset_base import MonaiConnectomicsDataset, create_data_dicts_from_paths
+from ..io import read_volume
+from monai.config import KeysCollection
+from monai.transforms import MapTransform
 
 
-class VolumeDataset(torch.utils.data.Dataset):
+class LoadVolumed(MapTransform):
+    """Custom loader for connectomics volume data (HDF5, TIFF, etc.)."""
+    
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+    
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d and isinstance(d[key], str):
+                # Use the connectomics read_volume function
+                volume = read_volume(d[key])
+                # Ensure we have at least 4 dimensions (add channel if needed)
+                if volume.ndim == 3:
+                    volume = np.expand_dims(volume, axis=0)  # Add channel dimension
+                d[key] = volume
+        return d
+
+
+class MonaiVolumeDataset(MonaiConnectomicsDataset):
     """
-    Dataset class for volumetric image datasets. At training time, subvolumes are randomly sampled from all the large
-    input volumes with (optional) rejection sampling to increase the frequency of foreground regions in a batch. At inference
-    time, subvolumes are yielded in a sliding-window manner with overlap to counter border artifacts.
+    MONAI-native dataset for volumetric connectomics data.
+
+    This class extends the base MONAI connectomics dataset with volume-specific
+    functionality including:
+    - Random spatial cropping for training
+    - Sliding window sampling for inference
+    - Rejection sampling based on foreground content
+    - Support for multiple volumes with different sizes
 
     Args:
-        volume (list): list of image volumes.
-        label (list, optional): list of label volumes. Default: None
-        valid_mask (list, optional): list of valid masks. Default: None
-        valid_ratio (float): volume ratio threshold for valid samples. Default: 0.5
-        sample_volume_size (tuple, int): model input size.
-        sample_label_size (tuple, int): model output size.
-        sample_stride (tuple, int): stride size for sampling.
-        augmentor (connectomics.data.augmentation.composition.Compose, optional): data augmentor for training. Default: None
-        target_opt (list): list the model targets generated from segmentation labels.
-        weight_opt (list): list of options for generating pixel-wise weight masks.
-        mode (str): ``'train'``, ``'val'`` or ``'test'``. Default: ``'train'``
-        do_2d (bool): load 2d samples from 3d volumes. Default: False
-        iter_num (int): total number of training iterations (-1 for inference). Default: -1
-        do_relabel (bool): reduce the the mask indicies in a sampled label volume. This option be set to
-            False for semantic segmentation, otherwise the classes can shift. Default: True
-        reject_size_thres (int, optional): threshold to decide if a sampled volumes contains foreground objects. Default: 0
-        reject_diversity (int, optional): threshold to decide if a sampled volumes contains multiple objects. Default: 0
-        reject_p (float, optional): probability of rejecting non-foreground volumes. Default: 0.95
-        data_mean (float): mean of pixels for images normalized to (0,1). Default: 0.5
-        data_std (float): standard deviation of pixels for images normalized to (0,1). Default: 0.5
-        data_match_act (str): the data is normalized to match the range of an activation. Default: ``'none'``
-
-    Note:
-        For relatively small volumes, the total number of possible subvolumes can be smaller than the total number
-        of samples required in training (the product of total iterations and mini-natch size), which raises *StopIteration*.
-        Therefore the dataset length is also decided by the training settings.
+        image_paths (List[str]): List of image volume file paths
+        label_paths (List[str], optional): List of label volume file paths
+        mask_paths (List[str], optional): List of valid mask file paths
+        transforms (Compose, optional): MONAI transforms pipeline
+        sample_size (Tuple[int, int, int]): Size of samples to extract (z, y, x)
+        mode (str): Dataset mode ('train', 'val', 'test'). Default: 'train'
+        iter_num (int): Number of iterations per epoch (-1 for inference). Default: -1
+        valid_ratio (float): Volume ratio threshold for valid samples. Default: 0.5
+        reject_size_thres (int): Threshold for foreground objects. Default: 0
+        reject_diversity (int): Threshold for multiple objects. Default: 0
+        reject_p (float): Probability of rejecting non-foreground volumes. Default: 0.95
+        do_2d (bool): Load 2D samples from 3D volumes. Default: False
+        do_relabel (bool): Reduce mask indices in sampled volumes. Default: True
+        data_mean (float): Mean for normalization. Default: 0.5
+        data_std (float): Standard deviation for normalization. Default: 0.5
     """
 
-    background: int = 0  # background label index
+    def __init__(
+        self,
+        image_paths: List[str],
+        label_paths: Optional[List[str]] = None,
+        mask_paths: Optional[List[str]] = None,
+        transforms: Optional[Compose] = None,
+        sample_size: Tuple[int, int, int] = (32, 256, 256),
+        mode: str = 'train',
+        iter_num: int = -1,
+        valid_ratio: float = 0.5,
+        reject_size_thres: int = 0,
+        reject_diversity: int = 0,
+        reject_p: float = 0.95,
+        do_2d: bool = False,
+        do_relabel: bool = True,
+        data_mean: float = 0.5,
+        data_std: float = 0.5,
+        **kwargs,
+    ):
+        # Create MONAI data dictionaries
+        data_dicts = create_data_dicts_from_paths(
+            image_paths=image_paths,
+            label_paths=label_paths,
+            mask_paths=mask_paths,
+        )
 
-    def __init__(self,
-                 volume: list,
-                 label: Optional[list] = None,
-                 valid_mask: Optional[list] = None,
-                 valid_ratio: float = 0.5,
-                 sample_volume_size: tuple = (8, 64, 64),
-                 sample_label_size: tuple = (8, 64, 64),
-                 sample_stride: tuple = (1, 1, 1),
-                 augmentor: AUGMENTOR_TYPE = None,
-                 target_opt: TARGET_OPT_TYPE = ['1'],
-                 weight_opt: WEIGHT_OPT_TYPE = [['1']],
-                 erosion_rates: Optional[List[int]] = None,
-                 dilation_rates: Optional[List[int]] = None,
-                 mode: str = 'train',
-                 do_2d: bool = False,
-                 iter_num: int = -1,
-                 do_relabel: bool = True,
-                 # rejection sampling
-                 reject_size_thres: int = 0,
-                 reject_num_trial: int = 50,
-                 reject_diversity: int = 0,
-                 reject_p: float = 0.95,
-                 # normalization
-                 data_mean: float = 0.5,
-                 data_std: float = 0.5,
-                 data_match_act: str = 'none'):
+        # Store data dictionaries temporarily for transform creation
+        self._data_dicts = data_dicts
 
-        assert mode in ['train', 'val', 'test']
-        self.mode = mode
-        self.do_2d = do_2d
-        self.do_relabel = do_relabel
+        # Create transforms if not provided
+        if transforms is None:
+            transforms = self._create_default_transforms(
+                sample_size=sample_size,
+                mode=mode,
+                do_2d=do_2d,
+                data_mean=data_mean,
+                data_std=data_std,
+            )
 
-        # data format
-        self.volume = volume
-        self.label = label
-        self.augmentor = augmentor
+        # Initialize base dataset
+        super().__init__(
+            data_dicts=data_dicts,
+            transforms=transforms,
+            sample_size=sample_size,
+            mode=mode,
+            iter_num=iter_num,
+            valid_ratio=valid_ratio,
+            reject_size_thres=reject_size_thres,
+            reject_diversity=reject_diversity,
+            reject_p=reject_p,
+            do_2d=do_2d,
+            do_relabel=do_relabel,
+            **kwargs,
+        )
 
-        # target and weight options
-        self.target_opt = target_opt
-        self.weight_opt = weight_opt
-        # For 'all', users will create their own targets
-        if self.target_opt[-1] == 'all':
-            self.target_opt = self.target_opt[:-1]
-            self.weight_opt = self.weight_opt[:-1]
-        self.erosion_rates = erosion_rates
-        self.dilation_rates = dilation_rates
+        # Clean up temporary reference
+        delattr(self, '_data_dicts')
 
-        # rejection samping
-        self.reject_size_thres = reject_size_thres
-        self.reject_diversity = reject_diversity
-        self.reject_num_trial = reject_num_trial
-        self.reject_p = reject_p
-
-        # normalization
+        # Store volume-specific parameters
         self.data_mean = data_mean
         self.data_std = data_std
-        self.data_match_act = data_match_act
 
-        # dataset: channels, depths, rows, cols
-        # volume size, could be multi-volume input
-        volume_size = [np.array(x.shape) for x in self.volume]
-        assert len(set(len(x) for x in volume_size)) == 1, "All volumes should have the same number of dimensions"
-        if any([len(x) == 4 for x in volume_size]):
-            assert len(set(x[0] for x in volume_size)) == 1, "All volumes should have the same number of channels"
-        self.volume_size = [x[-3:] for x in volume_size]
-
-        volume_selection = [(sample_label_size <= x).all() for x in self.volume_size]
-        if not all(volume_selection):
-            print('remove volumes whose sizes are smaller than the model input', volume_selection)
-            self.volume = [x for i,x in enumerate(self.volume) if volume_selection[i]]
-            volume_size = [np.array(x.shape) for x in self.volume]
-            self.volume_size = [x[-3:] for x in volume_size]
-            if self.label is not None:
-                self.label = [x for i,x in enumerate(self.label) if volume_selection[i]]
-            if valid_mask is not None:
-                valid_mask = [x for i,x in enumerate(valid_mask) if volume_selection[i]]
-
-        self.sample_volume_size = np.array(
-            sample_volume_size).astype(int)  # model input size
-        if self.label is not None:
-            self.sample_label_size = np.array(
-                sample_label_size).astype(int)  # model label size
-            self.label_vol_ratio = self.sample_label_size / self.sample_volume_size
-            if self.augmentor is not None:
-                assert np.array_equal(
-                    self.augmentor.sample_size, self.sample_label_size)
-        #self._assert_valid_shape()
-
-        # compute number of samples for each dataset (multi-volume input)
-        self.sample_stride = np.array(sample_stride).astype(int)
-        self.sample_size = [count_volume(self.volume_size[x], self.sample_volume_size, self.sample_stride)
-                            for x in range(len(self.volume_size))]
-
-        # total number of possible inputs for each volume
-        self.sample_num = np.array([np.prod(x) for x in self.sample_size])
-        self.sample_num_a = np.sum(self.sample_num)
-        self.sample_num_c = np.cumsum([0] + list(self.sample_num))
-
-        # handle partially labeled volume
-        self.valid_mask = valid_mask
-        self.valid_ratio = valid_ratio
-        # precompute valid region
-        # can be memory intensive
-        self.valid_pos = [None] * len(self.valid_mask) if self.valid_mask is not None else [None] * len(self.volume) 
+    def _create_default_transforms(
+        self,
+        sample_size: Tuple[int, int, int],
+        mode: str,
+        do_2d: bool,
+        data_mean: float,
+        data_std: float,
+    ) -> Compose:
         """
-        if self.valid_mask is not None:
-            for i, x in enumerate(self.valid_mask):
-                if x is not None:
-                    self.valid_pos[i] = get_valid_pos(x, sample_volume_size, valid_ratio)
-                    self.sample_num[i] = self.valid_pos[i].shape[0]
-                    print(i, self.sample_num[i])
-            self.sample_num_a = np.sum(self.sample_num)
-            self.sample_num_c = np.cumsum([0] + list(self.sample_num))
+        Create default MONAI transforms pipeline for volume data.
+
+        Args:
+            sample_size: Size of samples to extract
+            mode: Dataset mode ('train', 'val', 'test')
+            do_2d: Whether to extract 2D samples
+            data_mean: Mean for normalization
+            data_std: Standard deviation for normalization
+
+        Returns:
+            MONAI Compose transforms pipeline
         """
-        
-        if self.mode in ['val', 'test']:  # for validation and test
-            self.sample_size_test = [
-                np.array([np.prod(x[1:3]), x[2]]) for x in self.sample_size]
+        keys = ['image']
+        if any('label' in data_dict for data_dict in self._data_dicts):
+            keys.append('label')
+        if any('mask' in data_dict for data_dict in self._data_dicts):
+            keys.append('mask')
 
-        # For relatively small volumes, the total number of samples can be generated is smaller
-        # than the number of samples required for training (i.e., iteration * batch size). Thus
-        # we let the __len__() of the dataset return the larger value among the two during training.
-        self.iter_num = max(
-            iter_num, self.sample_num_a) if self.mode == 'train' else self.sample_num_a
-        print('Total number of samples to be generated: ', self.iter_num)
+        transforms = [
+            # Load images using custom connectomics loader (adds channel dim)
+            LoadVolumed(keys=keys),
+        ]
 
-    def __len__(self):
-        # total number of possible samples
-        return self.iter_num
+        # Add spatial cropping for training
+        if mode == 'train':
+            crop_size = sample_size
+            if do_2d:
+                crop_size = (1, sample_size[1], sample_size[2])
 
-    def __getitem__(self, index):
-        # orig input: keep uint/int format to save cpu memory
-        # output sample: need np.float32
-
-        vol_size = self.sample_volume_size
-        if self.mode == 'train':
-            sample = self._rejection_sampling(vol_size)
-            return self._process_targets(sample)
-
-        elif self.mode == 'val':
-            pos = self._get_pos_test(index)
-            sample = self._crop_with_pos(pos, vol_size)
-            return self._process_targets(sample)
-
-        elif self.mode == 'test':
-            pos = self._get_pos_test(index)
-            out_volume = (crop_volume(
-                self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
-            if self.do_2d:
-                out_volume = np.squeeze(out_volume)
-
-            return pos, self._process_image(out_volume)
-
-    def _process_targets(self, sample):
-        pos, out_volume, out_label, out_valid = sample
-
-        if self.do_2d:
-            out_volume, out_label, out_valid = numpy_squeeze(
-                out_volume, out_label, out_valid)
-
-        out_volume = self._process_image(out_volume)
-        if out_label is None: # unlabeled data, compatible with collate_fn_test
-            return pos, out_volume
-
-        # convert masks to different learning targets
-        out_target = seg_to_targets(
-            out_label, self.target_opt, self.erosion_rates, self.dilation_rates)
-        out_weight = seg_to_weights(
-            out_target, self.weight_opt, out_valid, out_label)
-        return pos, out_volume, out_target, out_weight
-
-    #######################################################
-    # Position Calculator
-    #######################################################
-
-    def _index_to_dataset(self, index):
-        return np.argmax(index < self.sample_num_c) - 1  # which dataset
-
-    def _index_to_location(self, index, sz):
-        # index -> z,y,x
-        # sz: [y*x, x]
-        pos = [0, 0, 0]
-        pos[0] = np.floor(index/sz[0])
-        pz_r = index % sz[0]
-        pos[1] = int(np.floor(pz_r/sz[1]))
-        pos[2] = pz_r % sz[1]
-        return pos
-
-    def _get_pos_test(self, index):
-        pos = [0, 0, 0, 0]
-        did = self._index_to_dataset(index)
-        pos[0] = did
-        index2 = index - self.sample_num_c[did]
-        pos[1:] = self._index_to_location(index2, self.sample_size_test[did])
-        # if out-of-bound, tuck in
-        for i in range(1, 4):
-            if pos[i] != self.sample_size[pos[0]][i-1]-1:
-                pos[i] = int(pos[i] * self.sample_stride[i-1])
-            else:
-                pos[i] = int(self.volume_size[pos[0]][i-1] -
-                             self.sample_volume_size[i-1])
-        return pos
-
-    def _get_pos_train(self, vol_size):
-        # random: multithread
-        # np.random: same seed
-        pos = [0, 0, 0, 0]
-        # pick a dataset
-        did = self._index_to_dataset(random.randint(0, self.sample_num_a - 1))
-        pos[0] = did
-        # pick a position
-        # all regions are valid
-        if self.valid_pos[did] is None:
-            tmp_size = count_volume(
-                self.volume_size[did], vol_size, self.sample_stride)
-            tmp_pos = [random.randint(0, tmp_size[x] - 1) * self.sample_stride[x]
-                       for x in range(len(tmp_size))]
-        else:
-            tmp_pos = self.valid_pos[did][random.randint(0, self.valid_pos[did].shape[0]) - 1]
-
-        pos[1:] = tmp_pos
-        return pos
-
-    #######################################################
-    # Volume Sampler
-    #######################################################
-    def _rejection_sampling(self, vol_size):
-        """Rejection sampling to filter out samples without required number
-        of foreground pixels or valid ratio.
-        """
-        sample_count = 0
-        while True:
-            sample = self._random_sampling(vol_size)
-            pos, out_volume, out_label, out_valid = sample
-            if self.augmentor is not None:
-
-                if out_valid is not None:
-                    assert 'valid_mask' in self.augmentor.additional_targets.keys(), \
-                        "Need to specify the 'valid_mask' option in additional_targets " \
-                        "of the data augmentor when training with partial annotation."
-
-                data = {'image': out_volume,
-                        'label': out_label,
-                        'valid_mask': out_valid}
-
-                augmented = self.augmentor(data)
-                out_volume, out_label = augmented['image'], augmented['label']
-                out_valid = augmented['valid_mask']
-
-            if self._is_valid(out_valid) and self._is_fg(out_label):
-                #print('yes', sample_count)
-                return pos, out_volume, out_label, out_valid
-
-            sample_count += 1
-            if sample_count > self.reject_num_trial:
-                err_msg = (
-                    "Can not find any valid subvolume after sampling the "
-                    f"dataset for more than {self.reject_num_trial} times. Please adjust the "
-                    "valid mask or rejection sampling configurations."
+            transforms.append(
+                RandSpatialCropd(
+                    keys=keys,
+                    roi_size=crop_size,
+                    random_center=True,
+                    random_size=False,
                 )
-                #raise RuntimeError(err_msg)
-                # return anyway with a useless sample
-                warnings.warn(err_msg)
-                #print('no..')
-                return pos, out_volume, out_label, out_valid
+            )
 
-    def _random_sampling(self, vol_size):
-        """Randomly sample a subvolume from all the volumes.
-        """
-        pos = self._get_pos_train(vol_size)
-        return self._crop_with_pos(pos, vol_size)
+        # TODO: Add normalization transforms here if needed
+        # Could use ScaleIntensityd, NormalizeIntensityd, etc.
 
-    def _crop_with_pos(self, pos, vol_size):
-        out_volume = (crop_volume(
-            self.volume[pos[0]], vol_size, pos[1:])/255.0).astype(np.float32)
-
-        # position in the label and valid mask
-        out_label, out_valid = None, None
-        if self.label is not None:
-            pos_l = np.round(pos[1:]*self.label_vol_ratio)
-            out_label = crop_volume(self.label[pos[0]], self.sample_label_size, pos_l)
-            # For warping: cv2.remap requires input to be float32.
-            # Make labels index smaller. Otherwise uint32 and float32 are not
-            # the same for some values.
-            out_label = reduce_label(out_label.copy()) if self.do_relabel else out_label.copy()
-            out_label = out_label.astype(np.float32)
-
-        if self.valid_mask is not None:
-            out_valid = crop_volume(self.valid_mask[pos[0]], self.sample_label_size, pos_l)
-            out_valid = (out_valid != 0).astype(np.float32)
-
-        return pos, out_volume, out_label, out_valid
-
-    def _is_valid(self, out_valid: np.ndarray) -> bool:
-        """Decide whether the sampled region is valid or not using
-        the corresponding valid mask.
-        """
-        if self.valid_mask is None or out_valid is None:
-            return True
-        ratio = float(out_valid.sum()) / np.prod(np.array(out_valid.shape))
-        return ratio > self.valid_ratio
-
-    def _is_fg(self, out_label: np.ndarray) -> bool:
-        """Decide whether the sample belongs to a foreground decided
-        by the rejection sampling criterion.
-        """
-        if self.label is None or out_label is None:
-            return True
-
-        p = self.reject_p
-        size_thres = self.reject_size_thres
-        if size_thres > 0:
-            temp = out_label.copy().astype(int)
-            temp = (temp != self.background).astype(int).sum()
-            if temp < size_thres and random.random() < p:
-                return False
-
-        num_thres = self.reject_diversity
-        if num_thres > 0:
-            temp = out_label.copy().astype(int)
-            num_objects = len(np.unique(temp))
-            if num_objects < num_thres and random.random() < p:
-                return False
-
-        return True
-
-    #######################################################
-    # Utils
-    #######################################################
-    def _process_image(self, x: np.array):
-        x = np.expand_dims(x, 0) # (z,y,x) -> (c,z,y,x)
-        x = normalize_image(x, self.data_mean, self.data_std,
-                            match_act=self.data_match_act)
-        return x
-
-    def _assert_valid_shape(self):
-        assert all(
-            [(self.sample_volume_size <= x).all()
-             for x in self.volume_size]
-        ), "Input size should be smaller than volume size."
-
-        if self.label is not None:
-            assert all(
-                [(self.sample_label_size <= x).all()
-                 for x in self.volume_size]
-            ), "Label size should be smaller than volume size."
+        return Compose(transforms)
 
 
-class VolumeDatasetRecon(VolumeDataset):
-    def _rejection_sampling(self, vol_size):
-        while True:
-            sample = self._random_sampling(vol_size)
-            pos, out_volume, out_label, out_valid = sample
-            if self.augmentor is not None:
-                if out_valid is not None:
-                    assert 'valid_mask' in target_dict.keys(), \
-                        "Need to specify the 'valid_mask' option in additional_targets " \
-                        "of the data augmentor when training with partial annotation."
+class MonaiCachedVolumeDataset(CacheDataset):
+    """
+    Cached version of MONAI volume dataset for improved performance.
 
-                target_dict = self.augmentor.additional_targets
-                assert 'recon_image' in target_dict.keys() and target_dict['recon_image'] == 'img'
-                data = {'image': out_volume,
-                        'label': out_label,
-                        'valid_mask': out_valid,
-                        'recon_image': out_volume.copy()}
+    This dataset caches transformed volumes in memory for faster access
+    during training. Suitable for datasets that fit in available memory.
 
-                augmented = self.augmentor(data)
-                out_volume, out_label = augmented['image'], augmented['label']
-                out_valid = augmented['valid_mask']
-                out_recon = augmented['recon_image']
+    Args:
+        cache_rate (float): Percentage of data to cache. Default: 1.0
+        num_workers (int): Number of workers for caching. Default: 0
+        **kwargs: Arguments passed to dataset creation
+    """
 
-            else: # no augmentation, out_recon is out_volume
-                out_recon = out_volume.copy()
+    def __init__(
+        self,
+        image_paths: List[str],
+        label_paths: Optional[List[str]] = None,
+        mask_paths: Optional[List[str]] = None,
+        transforms: Optional[Compose] = None,
+        cache_rate: float = 1.0,
+        num_workers: int = 0,
+        **kwargs,
+    ):
+        # Get parameters for dataset creation
+        sample_size = kwargs.get('sample_size', (32, 256, 256))
+        mode = kwargs.get('mode', 'train')
+        do_2d = kwargs.get('do_2d', False)
+        data_mean = kwargs.get('data_mean', 0.5)
+        data_std = kwargs.get('data_std', 0.5)
 
-            if self._is_valid(out_valid) and self._is_fg(out_label):
-                return pos, out_volume, out_label, out_valid, out_recon
+        # Create data dictionaries
+        data_dicts = create_data_dicts_from_paths(
+            image_paths=image_paths,
+            label_paths=label_paths,
+            mask_paths=mask_paths,
+        )
 
-    def _process_targets(self, sample):
-        pos, out_volume, out_label, out_valid, out_recon = sample
+        # Create transforms if not provided
+        if transforms is None:
+            keys = ['image']
+            if label_paths:
+                keys.append('label')
+            if mask_paths:
+                keys.append('mask')
 
-        if self.do_2d:
-            out_volume, out_label, out_valid, out_recon = numpy_squeeze(
-                out_volume, out_label, out_valid, out_recon)
+            transforms = [
+                # Use custom connectomics loader (adds channel dim)
+                LoadVolumed(keys=keys),
+            ]
 
-        out_volume = self._process_image(out_volume)
-        out_recon = self._process_image(out_recon)
+            if mode == 'train':
+                crop_size = sample_size
+                if do_2d:
+                    crop_size = (1, sample_size[1], sample_size[2])
 
-        # output list
-        if out_label is None: # unlabeled data
-            return pos, out_volume, out_recon
+                transforms.append(
+                    RandSpatialCropd(
+                        keys=keys,
+                        roi_size=crop_size,
+                        random_center=True,
+                        random_size=False,
+                    )
+                )
 
-        # convert masks to different learning targets
-        out_target = seg_to_targets(
-            out_label, self.target_opt, self.erosion_rates, self.dilation_rates)
-        out_weight = seg_to_weights(
-            out_target, self.weight_opt, out_valid, out_label)
-        return pos, out_volume, out_target, out_weight, out_recon
+            transforms = Compose(transforms)
+
+        # Initialize MONAI CacheDataset
+        CacheDataset.__init__(
+            self,
+            data=data_dicts,
+            transform=transforms,
+            cache_rate=cache_rate,
+            num_workers=num_workers,
+        )
+
+        # Store connectomics parameters
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+        self.sample_size = ensure_tuple_rep(sample_size, 3)
+        self.mode = mode
+        self.iter_num = kwargs.get('iter_num', -1)
+
+        # Calculate dataset length
+        if self.iter_num > 0:
+            self.dataset_length = self.iter_num
+        else:
+            self.dataset_length = len(data_dicts)
+
+    def __len__(self) -> int:
+        return self.dataset_length
 
 
-class VolumeDatasetMultiSeg(VolumeDataset):
-    def __init__(self, multiseg_split: list = [1,2], **kwargs):
-        self.multiseg_split = multiseg_split
-        super().__init__(**kwargs)
+def create_volume_dataset(
+    image_paths: List[str],
+    label_paths: Optional[List[str]] = None,
+    mask_paths: Optional[List[str]] = None,
+    transforms: Optional[Compose] = None,
+    dataset_type: str = 'standard',
+    cache_rate: float = 1.0,
+    **kwargs,
+) -> Union[MonaiVolumeDataset, MonaiCachedVolumeDataset]:
+    """
+    Factory function to create MONAI volume datasets.
 
-        if self.mode == 'test': 
-            return # no need for target_opt and multiseg_split in inference
+    Args:
+        image_paths: List of image volume file paths
+        label_paths: Optional list of label volume file paths
+        mask_paths: Optional list of valid mask file paths
+        transforms: MONAI transforms pipeline
+        dataset_type: Type of dataset ('standard', 'cached')
+        cache_rate: Cache rate for cached datasets
+        **kwargs: Additional arguments for dataset initialization
 
-        assert len(self.target_opt) == sum(multiseg_split)
-        self.multiseg_cumsum = [0] + list(np.cumsum(multiseg_split))
-        self.target_opt_multiseg = []
-        for i in range(len(multiseg_split)):
-            self.target_opt_multiseg.append(
-                self.target_opt[self.multiseg_cumsum[i]:self.multiseg_cumsum[i+1]])
-        print("Multiseg target options: ", self.target_opt_multiseg)
+    Returns:
+        Appropriate MONAI volume dataset instance
+    """
+    if dataset_type == 'cached':
+        return MonaiCachedVolumeDataset(
+            image_paths=image_paths,
+            label_paths=label_paths,
+            mask_paths=mask_paths,
+            transforms=transforms,
+            cache_rate=cache_rate,
+            **kwargs,
+        )
+    else:
+        return MonaiVolumeDataset(
+            image_paths=image_paths,
+            label_paths=label_paths,
+            mask_paths=mask_paths,
+            transforms=transforms,
+            **kwargs,
+        )
 
-    def _rejection_sampling(self, vol_size):
-        while True:
-            sample = self._random_sampling(vol_size)
-            pos, out_volume, out_label, out_valid = sample
-            n_seg_maps =  out_label.shape[0]
 
-            if self.augmentor is not None:
-                target_dict = self.augmentor.additional_targets
-                if out_valid is not None:
-                    assert 'valid_mask' in target_dict.keys(), \
-                        "Need to specify the 'valid_mask' option in additional_targets " \
-                        "of the data augmentor when training with partial annotation."
+def create_volume_data_dicts(
+    image_paths: List[str],
+    label_paths: Optional[List[str]] = None,
+    mask_paths: Optional[List[str]] = None,
+) -> List[Dict[str, str]]:
+    """
+    Create MONAI data dictionaries for volume datasets.
 
-                data = {'image': out_volume}
-                for i in range(n_seg_maps):
-                    assert 'label%d' % i in target_dict.keys() # each channel is augmented
-                    data['label%d' % i] = out_label[i,:,:,:]
+    This is a convenience wrapper around the general create_data_dicts_from_paths
+    function for volume-specific use cases.
 
-                augmented = self.augmentor(data)
-                out_volume = augmented['image']
-                out_label = [augmented['label%d' % i] for i in range(n_seg_maps)]
+    Args:
+        image_paths: List of image volume file paths
+        label_paths: Optional list of label volume file paths
+        mask_paths: Optional list of valid mask file paths
 
-            else: # no augmentation, out_recon is out_volume
-                out_label = [out_label[i,:,:,:] for i in range(n_seg_maps)]
+    Returns:
+        List of MONAI-style data dictionaries
+    """
+    return create_data_dicts_from_paths(
+        image_paths=image_paths,
+        label_paths=label_paths,
+        mask_paths=mask_paths,
+    )
 
-            # the first segmentation map is used for rejection sampling
-            if self._is_valid(out_valid) and self._is_fg(out_label[0]):
-                return pos, out_volume, out_label, out_valid
 
-    def _process_targets(self, sample):
-        pos, out_volume, out_label, out_valid = sample
-
-        if self.do_2d:
-            out_volume, out_valid = numpy_squeeze(out_volume, out_valid)
-            out_label = numpy_squeeze(*out_label)
-
-        out_volume = self._process_image(out_volume)
-
-        if out_label is None: # unlabeled data
-            return pos, out_volume, None, None
-
-        # convert masks to different learning targets
-        out_target = self.multiseg_to_targets(out_label)
-        out_weight = seg_to_weights(
-            out_target, self.weight_opt, out_valid, out_label)
-        return pos, out_volume, out_target, out_weight
-
-    def multiseg_to_targets(self, out_label):
-        assert len(out_label) == len(self.target_opt_multiseg)
-        out_target = []
-        for i in range(len(out_label)):
-            out_target.extend(seg_to_targets(
-                out_label[i], self.target_opt_multiseg[i], 
-                self.erosion_rates, self.dilation_rates))
-        
-        return out_target
+__all__ = [
+    'MonaiVolumeDataset',
+    'MonaiCachedVolumeDataset',
+    'create_volume_dataset',
+    'create_volume_data_dicts',
+]
