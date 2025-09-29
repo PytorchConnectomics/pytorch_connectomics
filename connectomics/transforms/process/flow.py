@@ -2,28 +2,7 @@ import torch
 import scipy
 import numpy as np
 
-def seg2diffgrads(label: np.ndarray) -> np.array:
-    # input: (y, x) for 2D data or (z, y, x) with z>1 for 3D data
-    # output: (2, y, x) for 2D data & (2, z, y, x) for 3D data (channel first)
-    masks = label.squeeze().astype(np.int32)
-
-    if masks.ndim==3:
-        z, y, x = masks.shape
-        mu = np.zeros((2, z, y, x), np.float32)
-        for z in range(z):
-            mu0 = masks2flows(masks[z])[0]
-            mu[:, z] = mu0 
-        flows = mu.astype(np.float32)
-    elif masks.ndim==2:
-        mu, _, _ = masks2flows(masks)
-        flows = mu.astype(np.float32)
-    else:
-        raise ValueError('expecting 2D or 3D labels but received %dD input!' % masks.ndim)
-
-    return flows
-
-
-def masks2flows(masks: np.ndarray):
+def seg2d_to_flows(masks: np.ndarray):
     """Convert masks to flows using diffusion from center pixel. Center of masks is defined to be the 
     closest pixel to the median of all pixels that is inside the mask. Result of diffusion is converted 
     into flows by computing the gradients of the diffusion density map. This function is adapted from

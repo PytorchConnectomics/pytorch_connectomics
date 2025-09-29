@@ -3,7 +3,7 @@ from typing import Optional, Union, List
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 from skimage.morphology import binary_dilation
-from .misc import split_masks
+from ...data.io.utils import split_multichannel_mask as split_masks
 
 
 def seg_to_weights(targets, wopts, mask=None, seg=None):

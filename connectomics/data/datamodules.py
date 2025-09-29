@@ -5,7 +5,7 @@ This module provides easy access to all DataModule classes and factory functions
 """
 
 # Core DataModule infrastructure
-from .dataset import (
+from .dataset.dataset_base import (
     ConnectomicsDataModule,
     DataModule,
     create_volume_datamodule,

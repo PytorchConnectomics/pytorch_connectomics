@@ -59,20 +59,6 @@ def array_unpad(data: np.ndarray,
     ])
     return data[index]
 
-
-def normalize_range(image: np.ndarray, ignore_uint8: bool = True) -> np.ndarray:
-    """Normalize the input image to (0,1) range and cast to numpy.uint8 dtype. 
-    Ignore arrays that are already in numpy.uint8.
-    """
-    if ignore_uint8 and image.dtype == np.uint8:
-        return image
-
-    eps = 1e-6
-    normalized = (image - image.min()) / float(image.max() - image.min() + eps)
-    normalized = (normalized*255).astype(np.uint8)
-    return normalized
-
-
 def normalize_image(image: np.ndarray,
                     mean: float = 0.5,
                     std: float = 0.5,
@@ -87,25 +73,6 @@ def normalize_image(image: np.ndarray,
     image = (image - mean) / std
     return image
 
-
-def split_masks(label):
-    indices = np.unique(label)
-    if len(indices) > 1:
-        if indices[0] == 0:
-            indices = indices[1:]
-        masks = [(label == x).astype(np.uint8) for x in indices]
-        return np.stack(masks, 0)
-
-    return np.ones_like(label).astype(np.uint8)[np.newaxis]
-
-def numpy_squeeze(*args):
-    squeezed = []
-    for x in args:
-        if x is not None:
-            squeezed.append(np.squeeze(x))
-        else:
-            squeezed.append(None)
-    return squeezed
 
 def show_image(image, image_type='im', num_row=1, cmap='gray', title='Test Title', interpolation=None):
     num_imgs = image.shape[0]

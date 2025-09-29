@@ -14,8 +14,11 @@ from monai.transforms import MapTransform
 from monai.utils import ensure_tuple_rep
 
 # Import processing functions with correct names
-from .target import seg2binary, seg2affinity, seg_to_instance_bd
-from .target import seg2inst_edt, seg2polarity, seg_to_small_seg
+from .target import seg_to_binary, seg_to_affinity, seg_to_instance_bd
+from .target import seg_to_instance_edt, seg_to_semantic_edt, seg_to_polarity, seg_to_small_seg
+from .target import seg_erosion_dilation
+from .segment import seg_selection
+from .quantize import energy_quantize, decode_quantize
 from .weight import seg_to_weights
 from .misc import *
 
@@ -36,7 +39,7 @@ class SegToBinaryMaskd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg2binary(d[key], self.target_opt)
+                d[key] = seg_to_binary(d[key], self.target_opt)
         return d
 
 
@@ -56,7 +59,7 @@ class SegToAffinityMapd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg2affinity(d[key], self.target_opt)
+                d[key] = seg_to_affinity(d[key], self.target_opt)
         return d
 
 
@@ -100,7 +103,7 @@ class SegToInstanceEDTd(MapTransform):
                 opts = self.target_opt.copy()
                 while len(opts) < 2:
                     opts.append('200')  # default distance parameter
-                d[key] = seg2inst_edt(d[key], opts)
+                d[key] = seg_to_instance_edt(d[key], opts)
         return d
 
 
@@ -124,7 +127,7 @@ class SegToSemanticEDTd(MapTransform):
                 opts = self.target_opt.copy()
                 while len(opts) < 2:
                     opts.append('200')  # default distance parameter
-                d[key] = seg2inst_edt(d[key], opts)
+                d[key] = seg_to_semantic_edt(d[key], opts)
         return d
 
 
@@ -165,7 +168,7 @@ class SegToSynapticPolarityd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg2polarity(d[key], self.target_opt)
+                d[key] = seg_to_polarity(d[key], self.target_opt)
         return d
 
 
@@ -186,26 +189,6 @@ class SegToSmallObjectd(MapTransform):
         for key in self.key_iterator(d):
             if key in d:
                 d[key] = seg_to_small_seg(d[key], self.target_opt)
-        return d
-
-
-class SegToGenericSemanticed(MapTransform):
-    """Convert segmentation to generic semantic mask using MONAI MapTransform."""
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        target_opt: List[str] = ['1'],
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
-
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            if key in d:
-                d[key] = seg_to_generic_semantic(d[key], self.target_opt)
         return d
 
 
@@ -269,6 +252,98 @@ class SegErosionDilationd(MapTransform):
         return d
 
 
+class EnergyQuantized(MapTransform):
+    """Quantize continuous energy maps using MONAI MapTransform.
+    
+    This transform converts continuous energy values to discrete quantized levels,
+    useful for training neural networks on energy-based targets.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        levels: int = 10,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to be processed from the input dictionary.
+            levels: Number of quantization levels. Default is 10.
+            allow_missing_keys: Whether to ignore missing keys.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.levels = levels
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = energy_quantize(d[key], levels=self.levels)
+        return d
+
+
+class DecodeQuantized(MapTransform):
+    """Decode quantized energy maps back to continuous values using MONAI MapTransform.
+    
+    This transform converts quantized discrete levels back to continuous energy values,
+    typically used for inference or evaluation.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        mode: str = 'max',
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to be processed from the input dictionary.
+            mode: Decoding mode, either 'max' or 'mean'. Default is 'max'.
+            allow_missing_keys: Whether to ignore missing keys.
+        """
+        super().__init__(keys, allow_missing_keys)
+        if mode not in ['max', 'mean']:
+            raise ValueError(f"Mode must be 'max' or 'mean', got {mode}")
+        self.mode = mode
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = decode_quantize(d[key], mode=self.mode)
+        return d
+
+
+class SegSelectiond(MapTransform):
+    """Select specific segmentation indices using MONAI MapTransform.
+    
+    This transform selects only the specified label indices from a segmentation,
+    renumbering them consecutively starting from 1.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        indices: Union[List[int], int],
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to be processed from the input dictionary.
+            indices: List of label indices to select, or single index.
+            allow_missing_keys: Whether to ignore missing keys.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.indices = ensure_tuple_rep(indices, 1) if not isinstance(indices, (list, tuple)) else indices
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = seg_selection(d[key], self.indices)
+        return d
+
+
 __all__ = [
     'SegToBinaryMaskd',
     'SegToAffinityMapd',
@@ -278,8 +353,10 @@ __all__ = [
     'SegToFlowFieldd',
     'SegToSynapticPolarityd',
     'SegToSmallObjectd',
-    'SegToGenericSemanticed',
     'ComputeBinaryRatioWeightd',
     'ComputeUNet3DWeightd',
     'SegErosionDilationd',
+    'EnergyQuantized',
+    'DecodeQuantized',
+    'SegSelectiond',
 ]

@@ -9,7 +9,7 @@ Usage:
 """
 
 # Core dataset infrastructure
-from .dataset import (
+from .dataset.dataset_base import (
     BaseConnectomicsDataset,
     WeightedConcatDataset,
     create_multi_dataset,

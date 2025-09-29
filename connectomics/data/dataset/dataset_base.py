@@ -17,10 +17,10 @@ import torch.utils.data
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
-from ..config import CfgNode
-from ..transforms.augment import build_augmentor
-from ..transforms.process import DataProcessor, create_processor_from_config
-from .io import read_volume
+from ...config import CfgNode
+from ...transforms.augment import build_augmentor
+from ...transforms.process import DataProcessor, create_processor_from_config
+from ..io import read_volume
 
 
 class BaseConnectomicsDataset(torch.utils.data.Dataset, ABC):
