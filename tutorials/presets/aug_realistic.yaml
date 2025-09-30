@@ -1,0 +1,100 @@
+# Realistic EM Augmentation Preset (BANIS-Style)
+# Use case: Replicating BANIS augmentation strategy with better implementations
+# Training speed: Medium
+# Model robustness: Good (realistic EM artifacts)
+
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+
+model:
+  architecture: monai_basic_unet3d
+  in_channels: 1
+  out_channels: 2
+  filters: [32, 64, 128, 256, 512]
+  dropout: 0.1
+
+  loss_functions:
+    - DiceLoss
+    - BCEWithLogitsLoss
+  loss_weights: [1.0, 1.0]
+
+data:
+  # Data paths (modify for your dataset)
+  train_image: "datasets/lucchi/train_image.h5"
+  train_label: "datasets/lucchi/train_label.h5"
+  val_image: "datasets/lucchi/val_image.h5"
+  val_label: "datasets/lucchi/val_label.h5"
+
+  patch_size: [128, 128, 128]
+  batch_size: 2
+  num_workers: 4
+
+  # Realistic EM augmentation (BANIS-style but better)
+  augmentation:
+    use_augmentation: true
+    transforms:
+      # Missing sections (like BANIS DropSliced but better)
+      # PyTC actually removes sections vs BANIS just zeros them
+      - RandMissingSectiond:
+          keys: ["image"]
+          prob: 0.5
+          num_sections: 2
+
+      # Misalignment (like BANIS ShiftSliced but better)
+      # PyTC uses proper geometric transforms vs BANIS circular shifts
+      - RandMisAlignmentd:
+          keys: ["image"]
+          prob: 0.5
+          displacement: 10  # BANIS uses max_shift=10
+          rotate_ratio: 0.0  # Pure translation like BANIS
+
+      # Motion blur (BANIS doesn't have this)
+      - RandMotionBlurd:
+          keys: ["image"]
+          prob: 0.5
+          sections: 2
+          kernel_size: 11
+
+      # Standard intensity augmentation (like BANIS)
+      - RandShiftIntensityd:
+          keys: ["image"]
+          prob: 0.5
+          offsets: 0.1
+
+      - RandScaleIntensityd:
+          keys: ["image"]
+          prob: 0.5
+          factors: 0.1
+
+      # Gaussian noise (like BANIS noise_scale)
+      - RandGaussianNoised:
+          keys: ["image"]
+          prob: 0.5
+          mean: 0.0
+          std: 0.1
+
+optimizer:
+  name: AdamW
+  lr: 1e-4
+  weight_decay: 1e-4
+
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+
+training:
+  max_epochs: 100
+  precision: "16-mixed"
+  gradient_clip_val: 1.0
+
+checkpoint:
+  monitor: "val/loss"
+  mode: "min"
+  save_top_k: 3
+  save_last: true
+
+logging:
+  log_every_n_steps: 50
+  save_dir: "outputs"

@@ -21,6 +21,71 @@ except ImportError:
     from utils import vast_to_segmentation
 
 
+class TileLoaderd:
+    """
+    MONAI-style transform for loading tile-based data.
+
+    This transform reconstructs volumes from tiles based on chunk coordinates
+    and metadata information.
+    """
+
+    def __init__(self, keys: Sequence[str]):
+        self.keys = keys
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Load tile data for specified keys."""
+        result = {}
+
+        for key in self.keys:
+            if key in data:
+                tile_info = data[key]
+                metadata = tile_info['metadata']
+                coords = tile_info['chunk_coords']
+
+                # Reconstruct volume from tiles
+                volume = self._load_tiles_for_chunk(metadata, coords)
+                result[key] = volume
+            else:
+                result[key] = data[key]
+
+        # Copy non-image data
+        for key, value in data.items():
+            if key not in self.keys:
+                result[key] = value
+
+        return result
+
+    def _load_tiles_for_chunk(
+        self,
+        metadata: Dict[str, Any],
+        coords: Tuple[int, int, int, int, int, int],
+    ) -> np.ndarray:
+        """Load and reconstruct volume chunk from tiles."""
+        z_start, z_end, y_start, y_end, x_start, x_end = coords
+
+        # Get tile paths for the depth range
+        tile_paths = metadata['image'][z_start:z_end]
+
+        # Volume coordinates for reconstruction
+        volume_coords = [z_start, z_end, y_start, y_end, x_start, x_end]
+
+        # Tile dataset coordinates (full volume)
+        tile_coords = [0, metadata['depth'], 0, metadata['height'], 0, metadata['width']]
+
+        # Reconstruct volume from tiles
+        volume = reconstruct_volume_from_tiles(
+            tile_paths=tile_paths,
+            volume_coords=volume_coords,
+            tile_coords=tile_coords,
+            tile_size=metadata['tile_size'],
+            data_type=np.dtype(metadata['dtype']),
+            tile_start=metadata.get('tile_st', [0, 0]),
+            tile_ratio=metadata.get('tile_ratio', 1.0),
+        )
+
+        return volume
+
+
 def create_tile_metadata(num_dimensions: int = 1, data_type: str = "uint8",
                         data_path: str = "/path/to/data/",
                         height: int = 10000, width: int = 10000, depth: int = 500,
@@ -179,5 +244,6 @@ def reconstruct_volume_from_tiles(tile_paths: List[str], volume_coords: List[int
 
 
 __all__ = [
-    'create_tile_metadata', 'reconstruct_volume_from_tiles'
+    'create_tile_metadata', 'reconstruct_volume_from_tiles',
+    'TileLoaderd',
 ]

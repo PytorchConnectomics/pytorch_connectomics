@@ -18,6 +18,10 @@ class SystemConfig:
     num_cpus: int = 4
     seed: Optional[int] = None
 
+    # Auto-planning
+    auto_plan: bool = False  # Enable automatic hyperparameter planning based on GPU
+    print_auto_plan: bool = True  # Print auto-planning results
+
 
 @dataclass
 class ModelConfig:
@@ -80,6 +84,10 @@ class DataConfig:
     # Data properties
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     pad_size: List[int] = field(default_factory=lambda: [8, 32, 32])
+
+    # Dataset statistics (for auto-planning)
+    target_spacing: Optional[List[float]] = None  # Target voxel spacing [z, y, x] in mm
+    median_shape: Optional[List[int]] = None  # Median dataset shape [D, H, W] in voxels
     
     # Data loading
     batch_size: int = 2

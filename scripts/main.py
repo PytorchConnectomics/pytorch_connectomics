@@ -130,6 +130,13 @@ def setup_config(args) -> Config:
         print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
         cfg = update_from_cli(cfg, args.overrides)
 
+    # Auto-planning (if enabled)
+    if hasattr(cfg.system, 'auto_plan') and cfg.system.auto_plan:
+        print("🤖 Running automatic configuration planning...")
+        from connectomics.config import auto_plan_config
+        print_results = cfg.system.print_auto_plan if hasattr(cfg.system, 'print_auto_plan') else True
+        cfg = auto_plan_config(cfg, print_results=print_results)
+
     # Validate configuration
     print("✅ Validating configuration...")
     validate_config(cfg)

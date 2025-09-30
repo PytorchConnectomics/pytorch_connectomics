@@ -262,5 +262,4 @@ class MonaiCachedVolumeDataset(CacheDataset):
 __all__ = [
     'MonaiVolumeDataset',
     'MonaiCachedVolumeDataset',
-    'LoadVolumed',
 ]

@@ -1,0 +1,215 @@
+# Lucchi mitochondria segmentation with MedNeXt + Auto-Planning
+# Electron microscopy (EM) dataset
+#
+# This config demonstrates AUTO-PLANNING: hyperparameters like batch_size,
+# patch_size, num_workers, and learning rate are automatically determined
+# based on your GPU capabilities.
+#
+# Auto-planning inspired by nnUNet's experiment planning system.
+
+experiment_name: lucchi_mednext_auto
+description: Mitochondria segmentation with MedNeXt-S using auto-planning
+
+# System - Enable auto-planning
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+  auto_plan: true  # 🤖 ENABLE AUTO-PLANNING
+  print_auto_plan: true  # Print planning results
+
+# Model - MedNeXt-S with deep supervision
+model:
+  architecture: mednext
+  in_channels: 1
+  out_channels: 1
+
+  # MedNeXt configuration
+  mednext_size: S  # S (5.6M params)
+  mednext_kernel_size: 3
+  deep_supervision: true  # Used by auto-planner for memory estimation
+
+  # Loss configuration
+  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_weights: [1.0, 1.0]
+
+# Data
+data:
+  train_image: datasets/Lucchi/img/train_im.tif
+  train_label: datasets/Lucchi/label/train_label.tif
+  val_image: datasets/Lucchi/img/test_im.tif
+  val_label: datasets/Lucchi/label/test_label.tif
+
+  # Dataset properties (for auto-planning)
+  target_spacing: [1.0, 1.0, 1.0]  # 1mm isotropic (MedNeXt preference)
+  median_shape: [165, 768, 1024]  # Median shape of Lucchi dataset
+
+  # These will be AUTO-DETERMINED (can manually override):
+  # patch_size: [auto]  # Determined based on GPU memory and spacing
+  # batch_size: [auto]  # Determined based on GPU memory
+  # num_workers: [auto]  # Determined based on CPU count
+
+  pad_size: [2, 16, 16]
+  pin_memory: true
+  persistent_workers: true
+  use_cache: true
+  cache_rate: 1.0
+  normalize: true
+  mean: 0.5
+  std: 0.5
+
+# Optimizer - learning rate will be AUTO-DETERMINED for MedNeXt
+optimizer:
+  name: AdamW
+  # lr: [auto]  # MedNeXt default: 1e-3 (auto-determined)
+  weight_decay: 0.0001
+
+# Scheduler
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+  warmup_start_lr: 0.0001
+  min_lr: 0.0001
+  t_max: 100
+
+# Training - precision and accumulation will be AUTO-DETERMINED
+training:
+  max_epochs: 100
+  # precision: [auto]  # Mixed precision if GPU supports
+  # accumulate_grad_batches: [auto]  # Used if batch_size=1
+  gradient_clip_val: 1.0
+  val_check_interval: 500
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  benchmark: true
+
+# Checkpoint
+checkpoint:
+  save_top_k: 3
+  monitor: val_loss_total
+  mode: min
+  save_last: true
+  every_n_epochs: 1
+  dirpath: outputs/mednext_lucchi_auto/checkpoints/
+  filename: epoch={epoch:03d}-val_loss={val_loss_total:.4f}
+
+# Early stopping
+early_stopping:
+  enabled: true
+  monitor: val_loss_total
+  patience: 20
+  mode: min
+  min_delta: 0.0001
+
+# Augmentation (EM-specific)
+augmentation:
+  enabled: true
+
+  flip:
+    enabled: true
+    prob: 0.5
+
+  rotate:
+    enabled: true
+    prob: 0.5
+
+  elastic:
+    enabled: true
+    prob: 0.3
+    sigma_range: [5.0, 8.0]
+    magnitude_range: [50.0, 150.0]
+
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.3
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.3
+    shift_intensity_offset: 0.1
+    contrast_prob: 0.3
+    contrast_range: [0.7, 1.4]
+
+  # EM-specific augmentations
+  misalignment:
+    enabled: true
+    prob: 0.5
+    displacement: 16
+    rotate_ratio: 0.0
+
+  missing_section:
+    enabled: true
+    prob: 0.3
+    num_sections: 2
+
+  motion_blur:
+    enabled: true
+    prob: 0.3
+    sections: 2
+    kernel_size: 11
+
+  cut_noise:
+    enabled: false
+
+  cut_blur:
+    enabled: true
+    prob: 0.3
+    length_ratio: 0.25
+    down_ratio_range: [2.0, 8.0]
+    downsample_z: false
+
+  missing_parts:
+    enabled: false
+
+  mixup:
+    enabled: false
+
+  copy_paste:
+    enabled: false
+
+# Inference
+inference:
+  output_path: outputs/mednext_lucchi_auto/results/
+  stride: [9, 80, 80]
+  overlap: 0.5
+  test_time_augmentation: false
+
+# AUTO-PLANNING NOTES:
+# ====================
+#
+# With auto_plan: true, the system will:
+#
+# 1. Query your GPU memory and capabilities
+# 2. Analyze dataset properties (spacing, shape)
+# 3. Estimate memory requirements for the model
+# 4. Determine optimal:
+#    - patch_size (balanced for GPU memory and receptive field)
+#    - batch_size (maximum that fits in GPU)
+#    - num_workers (based on CPU count)
+#    - precision (16-mixed if GPU supports, 32 otherwise)
+#    - learning rate (architecture-specific defaults)
+#    - accumulate_grad_batches (if batch_size=1, use gradient accumulation)
+#
+# MANUAL OVERRIDES:
+# =================
+#
+# You can manually override ANY auto-determined value by uncommenting
+# and setting it explicitly in this config. Manual values take precedence.
+#
+# Examples:
+#   data:
+#     batch_size: 4  # Force batch_size=4 regardless of GPU
+#     patch_size: [64, 64, 64]  # Force smaller patches
+#
+#   training:
+#     precision: "32"  # Force FP32 (no mixed precision)
+#
+#   optimizer:
+#     lr: 0.0005  # Override auto-determined learning rate
+#
+# TIPS:
+# =====
+#
+# - Auto-planning uses ~85% of available GPU memory for safety
+# - For anisotropic data, auto-planner adjusts patch_size accordingly
+# - MedNeXt-specific defaults (lr=1e-3, no scheduler) are used
+# - Print auto-planning results with system.print_auto_plan: true
+# - Disable auto-planning with system.auto_plan: false

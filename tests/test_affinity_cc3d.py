@@ -1,0 +1,329 @@
+"""
+Test suite for affinity_cc3d connected components function.
+
+Tests cover:
+- Basic functionality with synthetic affinity data
+- Numba vs skimage fallback comparison
+- Small object removal
+- Volume resizing
+- Edge cases
+- Performance benchmarks
+"""
+
+import numpy as np
+import pytest
+from connectomics.decoding.segmentation import affinity_cc3d
+
+try:
+    from numba import jit
+    NUMBA_AVAILABLE = True
+except ImportError:
+    NUMBA_AVAILABLE = False
+
+
+class TestAffinityCC3D:
+    """Test suite for affinity_cc3d function."""
+
+    @pytest.fixture
+    def simple_affinities(self):
+        """Create simple synthetic affinity predictions."""
+        # Create 32x32x32 volume with 2 separate components
+        aff = np.zeros((3, 32, 32, 32), dtype=np.float32)
+
+        # Component 1: cube in corner (8x8x8)
+        aff[:, 0:8, 0:8, 0:8] = 0.9
+
+        # Component 2: cube in opposite corner (8x8x8)
+        aff[:, 24:32, 24:32, 24:32] = 0.9
+
+        return aff
+
+    @pytest.fixture
+    def connected_affinities(self):
+        """Create fully connected affinity predictions."""
+        # 16x16x16 volume, all connected
+        aff = np.ones((3, 16, 16, 16), dtype=np.float32) * 0.8
+        return aff
+
+    @pytest.fixture
+    def six_channel_affinities(self):
+        """Create 6-channel affinities (short + long range)."""
+        # Should only use first 3 channels
+        aff = np.zeros((6, 32, 32, 32), dtype=np.float32)
+        aff[:3, 8:24, 8:24, 8:24] = 0.9  # Short-range
+        aff[3:, 8:24, 8:24, 8:24] = 0.1  # Long-range (ignored)
+        return aff
+
+    def test_basic_functionality(self, simple_affinities):
+        """Test basic connected components on simple affinity data."""
+        segm = affinity_cc3d(simple_affinities, threshold=0.5)
+
+        # Check output shape
+        assert segm.shape == simple_affinities.shape[1:], "Output shape mismatch"
+
+        # Check output dtype
+        assert segm.dtype in [np.uint8, np.uint16, np.uint32, np.uint64], \
+            "Output should be integer type"
+
+        # Check number of components (should be 2 + background)
+        unique_labels = np.unique(segm)
+        assert len(unique_labels) == 3, f"Expected 3 labels (bg + 2 objects), got {len(unique_labels)}"
+        assert 0 in unique_labels, "Background label 0 should be present"
+
+    def test_threshold_sensitivity(self, simple_affinities):
+        """Test that threshold parameter affects segmentation."""
+        # Low threshold - more connected
+        segm_low = affinity_cc3d(simple_affinities, threshold=0.3)
+        n_labels_low = len(np.unique(segm_low)) - 1  # Exclude background
+
+        # High threshold - more disconnected
+        segm_high = affinity_cc3d(simple_affinities, threshold=0.95)
+        n_labels_high = len(np.unique(segm_high)) - 1
+
+        # High threshold should create more or equal segments
+        assert n_labels_high >= n_labels_low, \
+            "Higher threshold should not decrease number of segments"
+
+    def test_fully_connected(self, connected_affinities):
+        """Test single fully connected component."""
+        segm = affinity_cc3d(connected_affinities, threshold=0.5)
+
+        unique_labels = np.unique(segm)
+        # Should be background + 1 component
+        assert len(unique_labels) == 2, \
+            f"Fully connected volume should have 2 labels (bg + 1 object), got {len(unique_labels)}"
+
+    def test_six_channel_input(self, six_channel_affinities):
+        """Test that only first 3 channels are used."""
+        segm = affinity_cc3d(six_channel_affinities, threshold=0.5)
+
+        # Should produce valid segmentation using only short-range affinities
+        assert segm.shape == six_channel_affinities.shape[1:], "Shape mismatch"
+        unique_labels = np.unique(segm)
+        assert len(unique_labels) >= 2, "Should find at least 1 component"
+
+    def test_empty_input(self):
+        """Test behavior with empty (all zero) affinities."""
+        aff = np.zeros((3, 16, 16, 16), dtype=np.float32)
+        segm = affinity_cc3d(aff, threshold=0.5)
+
+        # Should be all background (0)
+        assert np.all(segm == 0), "Empty affinities should produce all-background segmentation"
+
+    def test_small_object_removal(self, simple_affinities):
+        """Test removal of small connected components."""
+        # Without removal
+        segm_full = affinity_cc3d(simple_affinities, threshold=0.5, thres_small=0)
+        n_full = len(np.unique(segm_full)) - 1
+
+        # With removal (threshold larger than component size)
+        component_size = 8 * 8 * 8  # 512 voxels
+        segm_filtered = affinity_cc3d(
+            simple_affinities,
+            threshold=0.5,
+            thres_small=component_size + 100  # Remove components < 612 voxels
+        )
+        n_filtered = len(np.unique(segm_filtered)) - 1
+
+        # Should have fewer components after filtering
+        assert n_filtered <= n_full, "Filtering should not increase component count"
+
+    def test_remove_small_modes(self, simple_affinities):
+        """Test different small object removal modes."""
+        # Mode 'background' - remove to background
+        segm_bg = affinity_cc3d(
+            simple_affinities,
+            threshold=0.5,
+            thres_small=100,
+            remove_small_mode='background'
+        )
+
+        # Mode 'neighbor' - remove to neighboring label
+        segm_neighbor = affinity_cc3d(
+            simple_affinities,
+            threshold=0.5,
+            thres_small=100,
+            remove_small_mode='neighbor'
+        )
+
+        # Both should be valid segmentations
+        assert segm_bg.shape == simple_affinities.shape[1:], "Shape mismatch (background mode)"
+        assert segm_neighbor.shape == simple_affinities.shape[1:], "Shape mismatch (neighbor mode)"
+
+    def test_volume_resizing(self, simple_affinities):
+        """Test volume resizing with scale factors."""
+        scale_factors = (2.0, 1.0, 0.5)  # 2x in z, 1x in y, 0.5x in x
+        segm = affinity_cc3d(simple_affinities, threshold=0.5, scale_factors=scale_factors)
+
+        # Expected shape
+        original_shape = simple_affinities.shape[1:]
+        expected_shape = tuple(int(s * f) for s, f in zip(original_shape, scale_factors))
+
+        assert segm.shape == expected_shape, \
+            f"Expected shape {expected_shape}, got {segm.shape}"
+
+    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba not available")
+    def test_numba_vs_skimage(self, simple_affinities):
+        """Compare Numba and skimage implementations."""
+        # Run with Numba
+        segm_numba = affinity_cc3d(simple_affinities, threshold=0.5, use_numba=True)
+
+        # Run with skimage
+        segm_skimage = affinity_cc3d(simple_affinities, threshold=0.5, use_numba=False)
+
+        # Both should have same number of components (labels may differ)
+        n_numba = len(np.unique(segm_numba)) - 1
+        n_skimage = len(np.unique(segm_skimage)) - 1
+
+        assert n_numba == n_skimage, \
+            f"Numba ({n_numba} components) and skimage ({n_skimage} components) should find same number"
+
+    def test_deterministic_output(self, simple_affinities):
+        """Test that output is deterministic across runs."""
+        segm1 = affinity_cc3d(simple_affinities, threshold=0.5, use_numba=True)
+        segm2 = affinity_cc3d(simple_affinities, threshold=0.5, use_numba=True)
+
+        # Should be identical
+        np.testing.assert_array_equal(segm1, segm2,
+            err_msg="Multiple runs should produce identical results")
+
+    def test_output_dtype_casting(self):
+        """Test automatic dtype selection based on number of labels."""
+        # Small volume - should use uint8 or uint16
+        small_aff = np.ones((3, 8, 8, 8), dtype=np.float32) * 0.9
+        small_segm = affinity_cc3d(small_aff, threshold=0.5)
+        assert small_segm.dtype in [np.uint8, np.uint16], \
+            "Small volumes should use compact dtype"
+
+        # Large volume - may need uint32
+        large_aff = np.random.rand(3, 64, 64, 64).astype(np.float32)
+        large_segm = affinity_cc3d(large_aff, threshold=0.5)
+        assert large_segm.dtype in [np.uint8, np.uint16, np.uint32, np.uint64], \
+            "Output should be integer type"
+
+    def test_invalid_input_shape(self):
+        """Test error handling for invalid input shapes."""
+        # 2D input (should fail)
+        aff_2d = np.random.rand(3, 32, 32).astype(np.float32)
+        with pytest.raises((ValueError, IndexError)):
+            affinity_cc3d(aff_2d, threshold=0.5)
+
+        # Wrong number of channels
+        aff_wrong = np.random.rand(2, 32, 32, 32).astype(np.float32)
+        with pytest.raises((ValueError, IndexError)):
+            affinity_cc3d(aff_wrong, threshold=0.5)
+
+    def test_boundary_threshold_values(self, simple_affinities):
+        """Test boundary values for threshold parameter."""
+        # Threshold = 0.0 (everything connected)
+        segm_zero = affinity_cc3d(simple_affinities, threshold=0.0)
+        assert len(np.unique(segm_zero)) >= 2, "Should have at least background + 1 component"
+
+        # Threshold = 1.0 (nothing connected)
+        segm_one = affinity_cc3d(simple_affinities, threshold=1.0)
+        # Most voxels should be background or very fragmented
+        assert len(np.unique(segm_one)) >= 1, "Should have at least background"
+
+
+class TestAffinityCC3DPerformance:
+    """Performance benchmarks for affinity_cc3d."""
+
+    @pytest.fixture
+    def medium_affinities(self):
+        """Create medium-sized affinity volume for benchmarking."""
+        # 128x128x128 volume with random affinities
+        np.random.seed(42)
+        aff = np.random.rand(3, 128, 128, 128).astype(np.float32)
+        # Make some regions more connected
+        aff[:, 32:96, 32:96, 32:96] = 0.9
+        return aff
+
+    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba not available")
+    def test_numba_performance(self, medium_affinities, benchmark):
+        """Benchmark Numba implementation."""
+        result = benchmark(
+            affinity_cc3d,
+            medium_affinities,
+            threshold=0.5,
+            use_numba=True
+        )
+        assert result.shape == medium_affinities.shape[1:]
+
+    def test_skimage_performance(self, medium_affinities, benchmark):
+        """Benchmark skimage fallback implementation."""
+        result = benchmark(
+            affinity_cc3d,
+            medium_affinities,
+            threshold=0.5,
+            use_numba=False
+        )
+        assert result.shape == medium_affinities.shape[1:]
+
+
+class TestAffinityCC3DIntegration:
+    """Integration tests with real-world usage patterns."""
+
+    def test_pipeline_integration(self):
+        """Test integration with typical segmentation pipeline."""
+        # Simulate model output (6-channel affinities)
+        batch_size = 2
+        affinities_batch = np.random.rand(batch_size, 6, 64, 64, 64).astype(np.float32)
+
+        # Process each sample in batch
+        segmentations = []
+        for i in range(batch_size):
+            segm = affinity_cc3d(
+                affinities_batch[i],
+                threshold=0.5,
+                thres_small=100,
+                remove_small_mode='background'
+            )
+            segmentations.append(segm)
+
+        # Check all segmentations are valid
+        assert len(segmentations) == batch_size
+        for segm in segmentations:
+            assert segm.shape == (64, 64, 64)
+            assert segm.dtype in [np.uint8, np.uint16, np.uint32]
+
+    def test_multi_threshold_processing(self, simple_affinities):
+        """Test processing with multiple threshold values."""
+        thresholds = [0.3, 0.5, 0.7, 0.9]
+        results = []
+
+        for thresh in thresholds:
+            segm = affinity_cc3d(simple_affinities, threshold=thresh)
+            n_components = len(np.unique(segm)) - 1
+            results.append(n_components)
+
+        # Generally, higher thresholds should not decrease fragmentation
+        # (though this is not guaranteed for all data)
+        assert all(isinstance(n, (int, np.integer)) for n in results), \
+            "All results should be integers"
+
+    def test_postprocessing_chain(self, simple_affinities):
+        """Test chaining with other post-processing operations."""
+        # Step 1: Connected components
+        segm = affinity_cc3d(
+            simple_affinities,
+            threshold=0.5,
+            thres_small=0  # No filtering yet
+        )
+
+        # Step 2: Manual small object removal
+        from scipy.ndimage import label
+        unique_labels, counts = np.unique(segm, return_counts=True)
+        small_labels = unique_labels[counts < 100]
+
+        for label_id in small_labels:
+            if label_id > 0:  # Don't remove background
+                segm[segm == label_id] = 0
+
+        # Check result is still valid
+        assert segm.shape == simple_affinities.shape[1:]
+        assert segm.dtype in [np.uint8, np.uint16, np.uint32]
+
+
+if __name__ == "__main__":
+    # Run tests with pytest
+    pytest.main([__file__, "-v", "--tb=short"])

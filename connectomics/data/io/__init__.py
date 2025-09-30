@@ -31,10 +31,10 @@ from .utils import (
 __all__ = [
     # Volume I/O
     'read_hdf5', 'write_hdf5', 'read_volume', 'save_volume',
-    'read_image', 'read_images', 'read_image_as_volume',
+    'read_image', 'read_images', 'read_image_as_volume', 'ImageLoaderd',
 
     # Tile I/O
-    'create_tile_metadata', 'reconstruct_volume_from_tiles',
+    'create_tile_metadata', 'reconstruct_volume_from_tiles','TileLoaderd',
 
     # Utilities
     'read_pickle_file', 'vast_to_segmentation', 'normalize_data_range',

@@ -17,6 +17,22 @@ from .hydra_utils import (
     create_experiment_name,
 )
 
+# Auto-configuration system
+from .auto_config import (
+    auto_plan_config,
+    AutoConfigPlanner,
+    AutoPlanResult,
+)
+
+# GPU utilities
+from .gpu_utils import (
+    get_gpu_info,
+    print_gpu_info,
+    suggest_batch_size,
+    estimate_gpu_memory_required,
+    get_optimal_num_workers,
+)
+
 
 __all__ = [
     # Hydra config system
@@ -31,4 +47,14 @@ __all__ = [
     'validate_config',
     'get_config_hash',
     'create_experiment_name',
+    # Auto-configuration
+    'auto_plan_config',
+    'AutoConfigPlanner',
+    'AutoPlanResult',
+    # GPU utilities
+    'get_gpu_info',
+    'print_gpu_info',
+    'suggest_batch_size',
+    'estimate_gpu_memory_required',
+    'get_optimal_num_workers',
 ]

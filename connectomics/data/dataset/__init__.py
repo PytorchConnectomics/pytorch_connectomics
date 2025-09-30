@@ -45,12 +45,10 @@ __all__ = [
     # Volume datasets
     'MonaiVolumeDataset',
     'MonaiCachedVolumeDataset',
-    'LoadVolumed',
 
     # Tile datasets
     'MonaiTileDataset',
     'MonaiCachedTileDataset',
-    'TileLoaderd',
     
     # Factory functions (from build.py)
     'create_data_dicts_from_paths',
