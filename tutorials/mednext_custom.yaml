@@ -1,0 +1,177 @@
+# MedNeXt Custom Architecture Example
+# This config demonstrates full control over MedNeXt architecture parameters
+#
+# For most use cases, use 'mednext' architecture with predefined sizes (S/B/M/L).
+# Use 'mednext_custom' only when you need fine-grained control.
+#
+# Reference: Roy et al., "MedNeXt: Transformer-driven Scaling of ConvNets
+#            for Medical Image Segmentation", MICCAI 2023
+
+experiment_name: mednext_custom_example
+description: Custom MedNeXt architecture with fine-grained control
+
+# System
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+
+# Model - MedNeXt Custom
+model:
+  architecture: mednext_custom
+  in_channels: 1
+  out_channels: 2
+
+  # Core architecture parameters
+  mednext_base_channels: 32          # Base channel count (scales: 32, 64, 128, 256, 512)
+  mednext_kernel_size: 7             # Kernel size (3, 5, or 7)
+  deep_supervision: true             # Enable multi-scale deep supervision
+
+  # Expansion ratio per level (can be int or list of 9 values)
+  # List format: [enc0, enc1, enc2, enc3, bottleneck, dec3, dec2, dec1, dec0]
+  mednext_exp_r: [2, 3, 4, 4, 4, 4, 4, 3, 2]  # Increasing in encoder, decreasing in decoder
+  # Alternative: use single int for all levels
+  # mednext_exp_r: 4
+
+  # Number of MedNeXt blocks per level (must be list of 9 values)
+  # List format: [enc0, enc1, enc2, enc3, bottleneck, dec3, dec2, dec1, dec0]
+  mednext_block_counts: [3, 4, 8, 8, 8, 8, 8, 4, 3]  # More blocks = larger model
+
+  # Residual connections
+  mednext_do_res: true               # Enable residual connections within blocks
+  mednext_do_res_up_down: true       # Enable residual connections in up/down blocks
+
+  # Advanced features
+  mednext_grn: true                  # Global Response Normalization (improves performance)
+  mednext_norm: group                # Normalization: 'group' or 'layer'
+  mednext_dim: 3d                    # Dimension: '2d' or '3d'
+  mednext_checkpoint_style: null     # Gradient checkpointing: null or 'outside_block'
+
+  # Loss configuration
+  loss_functions: [DiceLoss]
+  loss_weights: [1.0]
+
+# Data
+data:
+  train_image: datasets/train_image.h5
+  train_label: datasets/train_label.h5
+  val_image: datasets/val_image.h5
+  val_label: datasets/val_label.h5
+  patch_size: [128, 128, 128]
+  pad_size: [8, 32, 32]
+  batch_size: 2
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  use_cache: false
+  normalize: true
+  mean: 0.5
+  std: 0.5
+
+# Optimizer - MedNeXt paper recommends constant lr=1e-3
+optimizer:
+  name: AdamW
+  lr: 0.001
+  weight_decay: 0.0001
+
+# Scheduler
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+  warmup_start_lr: 0.0001
+  min_lr: 0.0001
+  t_max: 300
+
+# Training
+training:
+  max_epochs: 300
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "16-mixed"
+  val_check_interval: 1000
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  benchmark: true
+
+# Checkpoint
+checkpoint:
+  save_top_k: 3
+  monitor: val_loss_total
+  mode: min
+  save_last: true
+  every_n_epochs: 1
+  dirpath: outputs/mednext_custom/checkpoints/
+  filename: epoch={epoch:03d}-val_loss={val_loss_total:.4f}
+
+# Early stopping
+early_stopping:
+  enabled: true
+  monitor: val_loss_total
+  patience: 30
+  mode: min
+  min_delta: 0.0001
+
+# Augmentation
+augmentation:
+  enabled: true
+  flip:
+    enabled: true
+    prob: 0.5
+  rotate:
+    enabled: true
+    prob: 0.5
+  elastic:
+    enabled: true
+    prob: 0.3
+  intensity:
+    enabled: true
+
+# Inference
+inference:
+  output_path: outputs/mednext_custom/results/
+  stride: [64, 64, 64]
+  overlap: 0.5
+  test_time_augmentation: false
+
+# Architecture Details:
+# =====================
+#
+# Base channels progression (with base_channels=32):
+#   - enc0: 32 channels
+#   - enc1: 64 channels (down 0)
+#   - enc2: 128 channels (down 1)
+#   - enc3: 256 channels (down 2)
+#   - bottleneck: 512 channels (down 3)
+#   - dec3: 256 channels (up 3)
+#   - dec2: 128 channels (up 2)
+#   - dec1: 64 channels (up 1)
+#   - dec0: 32 channels (up 0)
+#
+# Expansion ratio (exp_r):
+#   - Each MedNeXtBlock expands channels by exp_r, then compresses back
+#   - Example: 32 channels with exp_r=4 -> 128 channels internally -> 32 channels out
+#   - Can use different exp_r per level for efficiency/capacity trade-off
+#
+# Block counts:
+#   - More blocks = larger model capacity but slower training
+#   - Typical range: 2-8 blocks per level
+#   - Can use more blocks at deeper levels (e.g., [2,3,4,4,4,4,4,3,2])
+#
+# Global Response Normalization (GRN):
+#   - Improves representational power
+#   - Small computational overhead
+#   - Recommended: true
+#
+# Gradient checkpointing:
+#   - Use 'outside_block' for very large models or limited GPU memory
+#   - Trades compute for memory (slower but uses less VRAM)
+#   - Recommended: null (disabled) unless memory constrained
+#
+# When to use mednext_custom vs mednext:
+#   - Use 'mednext': For standard use cases with predefined sizes (S/B/M/L)
+#   - Use 'mednext_custom': When you need:
+#       * Non-standard channel counts
+#       * Custom block distributions
+#       * Different expansion ratios per level
+#       * Gradient checkpointing
+#       * 2D variant

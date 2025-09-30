@@ -81,82 +81,210 @@ class ConnectomicsModule(pl.LightningModule):
         return self.model(x)
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
-        """Training step."""
+        """Training step with deep supervision support."""
         images = batch['image']
         labels = batch['label']
-        
+
         # Forward pass
         outputs = self(images)
-        
+
+        # Check if model outputs deep supervision
+        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+
         # Compute loss
         total_loss = 0.0
         loss_dict = {}
-        
-        for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-            loss = loss_fn(outputs, labels)
-            weighted_loss = loss * weight
-            total_loss += weighted_loss
-            
-            loss_dict[f'train_loss_{i}'] = loss.item()
-        
-        loss_dict['train_loss_total'] = total_loss.item()
-        
+
+        if is_deep_supervision:
+            # Multi-scale loss with deep supervision
+            # Weights decrease for smaller scales: [1.0, 0.5, 0.25, 0.125, 0.0625]
+            main_output = outputs['output']
+            ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
+
+            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+            all_outputs = [main_output] + ds_outputs
+
+            for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
+                # Match target to output size
+                target = self._match_target_to_output(labels, output)
+
+                # Compute loss for this scale
+                scale_loss = 0.0
+                for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                    loss = loss_fn(output, target)
+                    scale_loss += loss * weight
+
+                total_loss += scale_loss * ds_weight
+                loss_dict[f'train_loss_scale_{scale_idx}'] = scale_loss.item()
+
+            loss_dict['train_loss_total'] = total_loss.item()
+
+        else:
+            # Standard single-scale loss
+            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                loss = loss_fn(outputs, labels)
+                weighted_loss = loss * weight
+                total_loss += weighted_loss
+
+                loss_dict[f'train_loss_{i}'] = loss.item()
+
+            loss_dict['train_loss_total'] = total_loss.item()
+
         # Log losses
         self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        
+
         return total_loss
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
-        """Validation step."""
+        """Validation step with deep supervision support."""
         images = batch['image']
         labels = batch['label']
-        
+
         # Forward pass
         outputs = self(images)
-        
+
+        # Check if model outputs deep supervision
+        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+
         # Compute loss
         total_loss = 0.0
         loss_dict = {}
-        
-        for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-            loss = loss_fn(outputs, labels)
-            weighted_loss = loss * weight
-            total_loss += weighted_loss
-            
-            loss_dict[f'val_loss_{i}'] = loss.item()
-        
-        loss_dict['val_loss_total'] = total_loss.item()
-        
+
+        if is_deep_supervision:
+            # Multi-scale loss with deep supervision
+            main_output = outputs['output']
+            ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
+
+            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+            all_outputs = [main_output] + ds_outputs
+
+            for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
+                # Match target to output size
+                target = self._match_target_to_output(labels, output)
+
+                # Compute loss for this scale
+                scale_loss = 0.0
+                for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                    loss = loss_fn(output, target)
+                    scale_loss += loss * weight
+
+                total_loss += scale_loss * ds_weight
+                loss_dict[f'val_loss_scale_{scale_idx}'] = scale_loss.item()
+
+            loss_dict['val_loss_total'] = total_loss.item()
+
+        else:
+            # Standard single-scale loss
+            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                loss = loss_fn(outputs, labels)
+                weighted_loss = loss * weight
+                total_loss += weighted_loss
+
+                loss_dict[f'val_loss_{i}'] = loss.item()
+
+            loss_dict['val_loss_total'] = total_loss.item()
+
         # Log losses
         self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        
+
         return total_loss
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
-        """Test step."""
+        """Test step with deep supervision support."""
         images = batch['image']
         labels = batch['label']
-        
+
         # Forward pass
         outputs = self(images)
-        
+
+        # Check if model outputs deep supervision
+        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+
         # Compute loss
         total_loss = 0.0
         loss_dict = {}
-        
-        for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-            loss = loss_fn(outputs, labels)
-            weighted_loss = loss * weight
-            total_loss += weighted_loss
-            
-            loss_dict[f'test_loss_{i}'] = loss.item()
-        
-        loss_dict['test_loss_total'] = total_loss.item()
-        
+
+        if is_deep_supervision:
+            # Multi-scale loss with deep supervision
+            main_output = outputs['output']
+            ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
+
+            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+            all_outputs = [main_output] + ds_outputs
+
+            for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
+                # Match target to output size
+                target = self._match_target_to_output(labels, output)
+
+                # Compute loss for this scale
+                scale_loss = 0.0
+                for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                    loss = loss_fn(output, target)
+                    scale_loss += loss * weight
+
+                total_loss += scale_loss * ds_weight
+                loss_dict[f'test_loss_scale_{scale_idx}'] = scale_loss.item()
+
+            loss_dict['test_loss_total'] = total_loss.item()
+
+        else:
+            # Standard single-scale loss
+            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                loss = loss_fn(outputs, labels)
+                weighted_loss = loss * weight
+                total_loss += weighted_loss
+
+                loss_dict[f'test_loss_{i}'] = loss.item()
+
+            loss_dict['test_loss_total'] = total_loss.item()
+
         # Log losses
         self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        
+
         return total_loss
+
+    def _match_target_to_output(
+        self,
+        target: torch.Tensor,
+        output: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Match target size to output size for deep supervision.
+
+        Uses interpolation to downsample labels to match output resolution.
+        For segmentation masks, uses nearest-neighbor interpolation to preserve labels.
+        For continuous targets, uses trilinear interpolation.
+
+        Args:
+            target: Target tensor of shape (B, C, D, H, W)
+            output: Output tensor of shape (B, C, D', H', W')
+
+        Returns:
+            Resized target tensor matching output shape
+        """
+        if target.shape == output.shape:
+            return target
+
+        # Determine interpolation mode based on data type
+        if target.dtype in [torch.long, torch.int, torch.int32, torch.int64]:
+            # Integer labels: use nearest-neighbor
+            mode = 'nearest'
+            target_resized = nn.functional.interpolate(
+                target.float(),
+                size=output.shape[2:],
+                mode=mode,
+            ).long()
+        else:
+            # Continuous values: use trilinear
+            mode = 'trilinear'
+            target_resized = nn.functional.interpolate(
+                target,
+                size=output.shape[2:],
+                mode=mode,
+                align_corners=False,
+            )
+
+        return target_resized
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""

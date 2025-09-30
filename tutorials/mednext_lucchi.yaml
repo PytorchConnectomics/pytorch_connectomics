@@ -1,0 +1,174 @@
+# Lucchi mitochondria segmentation with MedNeXt
+# Electron microscopy (EM) dataset
+#
+# MedNeXt is a ConvNeXt-based architecture for 3D medical image segmentation.
+# This config uses MedNeXt-S (Small) with deep supervision enabled.
+#
+# Reference: Roy et al., "MedNeXt: Transformer-driven Scaling of ConvNets
+#            for Medical Image Segmentation", MICCAI 2023
+
+experiment_name: lucchi_mednext_s
+description: Mitochondria segmentation on Lucchi EM dataset using MedNeXt-S with deep supervision
+
+# System
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+
+# Model - MedNeXt-S with deep supervision
+model:
+  architecture: mednext
+  input_size: [18, 160, 160]
+  output_size: [18, 160, 160]
+  in_channels: 1
+  out_channels: 1
+
+  # MedNeXt configuration
+  mednext_size: S                    # S (5.6M params), B (10.5M), M (17.6M), or L (61.8M)
+  mednext_kernel_size: 3             # Recommended: start with 3, can use UpKern for 5
+  deep_supervision: true             # RECOMMENDED: improves performance significantly
+
+  # Loss configuration (applied at all scales with deep supervision)
+  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_weights: [1.0, 1.0]
+
+# Data
+data:
+  train_image: datasets/Lucchi/img/train_im.tif
+  train_label: datasets/Lucchi/label/train_label.tif
+  val_image: datasets/Lucchi/img/test_im.tif
+  val_label: datasets/Lucchi/label/test_label.tif
+  patch_size: [18, 160, 160]
+  pad_size: [2, 16, 16]
+  batch_size: 4
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  use_cache: true
+  cache_rate: 1.0
+  normalize: true
+  mean: 0.5
+  std: 0.5
+
+# Optimizer - MedNeXt paper recommends AdamW with lr=1e-3
+optimizer:
+  name: AdamW
+  lr: 0.001                          # MedNeXt default: 1e-3 (higher than typical)
+  weight_decay: 0.0001
+
+# Scheduler - MedNeXt paper uses constant LR (no scheduler)
+# We use a mild cosine annealing for stability
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+  warmup_start_lr: 0.0001
+  min_lr: 0.0001                     # Stay relatively high
+  t_max: 100
+
+# Training
+training:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "16-mixed"              # Mixed precision recommended for MedNeXt
+  val_check_interval: 500
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  benchmark: true
+
+# Checkpoint
+checkpoint:
+  save_top_k: 3
+  monitor: val_loss_total            # Monitor total loss (includes all scales)
+  mode: min
+  save_last: true
+  every_n_epochs: 1
+  dirpath: outputs/mednext_lucchi/checkpoints/
+  filename: epoch={epoch:03d}-val_loss={val_loss_total:.4f}
+
+# Early stopping
+early_stopping:
+  enabled: true
+  monitor: val_loss_total
+  patience: 20                       # Slightly higher patience for deep supervision
+  mode: min
+  min_delta: 0.0001
+
+# Augmentation (EM-specific)
+augmentation:
+  enabled: true
+
+  flip:
+    enabled: true
+    prob: 0.5
+
+  rotate:
+    enabled: true
+    prob: 0.5
+
+  elastic:
+    enabled: true
+    prob: 0.3
+    sigma_range: [5.0, 8.0]
+    magnitude_range: [50.0, 150.0]
+
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.3
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.3
+    shift_intensity_offset: 0.1
+    contrast_prob: 0.3
+    contrast_range: [0.7, 1.4]
+
+  # EM-specific augmentations
+  misalignment:
+    enabled: true
+    prob: 0.5
+    displacement: 16
+    rotate_ratio: 0.0
+
+  missing_section:
+    enabled: true
+    prob: 0.3
+    num_sections: 2
+
+  motion_blur:
+    enabled: true
+    prob: 0.3
+    sections: 2
+    kernel_size: 11
+
+  cut_noise:
+    enabled: false
+
+  cut_blur:
+    enabled: true
+    prob: 0.3
+    length_ratio: 0.25
+    down_ratio_range: [2.0, 8.0]
+    downsample_z: false
+
+  missing_parts:
+    enabled: false
+
+  mixup:
+    enabled: false
+
+  copy_paste:
+    enabled: false
+
+# Inference
+inference:
+  output_path: outputs/mednext_lucchi/results/
+  stride: [9, 80, 80]
+  overlap: 0.5
+  test_time_augmentation: false
+
+# Notes:
+# - Deep supervision provides multi-scale predictions that significantly improve performance
+# - MedNeXt prefers 1mm isotropic spacing (unlike nnUNet's median spacing approach)
+# - Start with kernel_size=3, then optionally use UpKern to initialize kernel_size=5
+# - For larger datasets or higher resolution, consider using MedNeXt-B, M, or L
+# - Mixed precision (16-mixed) is recommended for memory efficiency

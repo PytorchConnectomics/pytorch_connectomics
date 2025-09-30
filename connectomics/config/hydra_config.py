@@ -24,25 +24,44 @@ class ModelConfig:
     """Model architecture configuration."""
     # Architecture
     architecture: str = 'monai_basic_unet3d'
-    
+
     # I/O dimensions
     input_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     output_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     in_channels: int = 1
     out_channels: int = 1
-    
+
     # Architecture-specific parameters
     filters: Tuple[int, ...] = (32, 64, 128, 256, 512)
     dropout: float = 0.0
     norm: str = "batch"
     activation: str = "relu"
-    
+
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
     hidden_size: int = 768
     mlp_dim: int = 3072
     num_heads: int = 12
-    
+
+    # MedNeXt-specific parameters
+    # For 'mednext' architecture (predefined sizes)
+    mednext_size: str = "S"  # S, B, M, or L
+
+    # For 'mednext_custom' architecture (full control)
+    mednext_base_channels: int = 32
+    mednext_exp_r: Any = 4  # Expansion ratio: int or list of 9 ints (e.g., [2,3,4,4,4,4,4,3,2])
+    mednext_kernel_size: int = 3  # 3, 5, or 7
+    mednext_do_res: bool = True  # Residual connections in blocks
+    mednext_do_res_up_down: bool = True  # Residual connections in up/down blocks
+    mednext_block_counts: List[int] = field(default_factory=lambda: [2,2,2,2,2,2,2,2,2])
+    mednext_checkpoint_style: Optional[str] = None  # None or 'outside_block'
+    mednext_norm: str = "group"  # 'group' or 'layer'
+    mednext_dim: str = "3d"  # '2d' or '3d'
+    mednext_grn: bool = False  # Global Response Normalization
+
+    # Deep supervision (supported by MedNeXt and some MONAI models)
+    deep_supervision: bool = False
+
     # Loss configuration
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
