@@ -27,8 +27,8 @@ model:
 data:
   train_image: datasets/Lucchi/img/train_im.tif
   train_label: datasets/Lucchi/label/train_label.tif
-  val_image: datasets/Lucchi/img/val_im.tif
-  val_label: datasets/Lucchi/label/val_label.tif
+  val_image: datasets/Lucchi/img/test_im.tif
+  val_label: datasets/Lucchi/label/test_label.tif
   patch_size: [18, 160, 160]
   pad_size: [2, 16, 16]
   batch_size: 4

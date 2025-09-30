@@ -16,24 +16,24 @@ from torch.utils.data import DataLoader
 from monai.transforms import Compose
 from monai.data import decollate_batch
 
-from .dataset.dataset_base import (
+from connectomics.data.dataset.dataset_base import (
     MonaiConnectomicsDataset,
     MonaiCachedConnectomicsDataset,
     MonaiPersistentConnectomicsDataset,
     create_connectomics_dataset,
     create_data_dicts_from_paths,
 )
-from .dataset.dataset_volume import (
+from connectomics.data.dataset.dataset_volume import (
     MonaiVolumeDataset,
     MonaiCachedVolumeDataset,
     create_volume_dataset,
 )
-from .dataset.dataset_tile import (
+from connectomics.data.dataset.dataset_tile import (
     MonaiTileDataset,
     MonaiCachedTileDataset,
     create_tile_dataset,
 )
-from ..transforms.process import (
+from connectomics.data.process import (
     create_binary_segmentation_pipeline,
     create_affinity_segmentation_pipeline,
     create_instance_segmentation_pipeline,

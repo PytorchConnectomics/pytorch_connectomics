@@ -10,8 +10,11 @@ from monai.transforms import (
     Compose, RandRotate90d, RandFlipd, RandAffined, RandZoomd,
     RandGaussianNoised, RandShiftIntensityd, Rand3DElasticd,
     RandGaussianSmoothd, RandAdjustContrastd,
-    LoadImaged, EnsureChannelFirstd, ScaleIntensityRanged, ToTensord
+    ScaleIntensityRanged, ToTensord
 )
+
+# Import custom loader for HDF5/TIFF volumes
+from connectomics.data.dataset.dataset_volume import LoadVolumed
 
 from .monai_transforms import (
     RandMisAlignmentd, RandMissingSectiond, RandMissingPartsd,
@@ -38,8 +41,7 @@ def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     transforms = []
 
     # Load images first
-    transforms.append(LoadImaged(keys=keys))
-    transforms.append(EnsureChannelFirstd(keys=keys))
+    transforms.append(LoadVolumed(keys=keys))
 
     # Normalization
     if cfg.data.normalize:
@@ -81,8 +83,7 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     transforms = []
 
     # Load images first
-    transforms.append(LoadImaged(keys=keys))
-    transforms.append(EnsureChannelFirstd(keys=keys))
+    transforms.append(LoadVolumed(keys=keys))
 
     # Normalization
     if cfg.data.normalize:
