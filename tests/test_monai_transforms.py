@@ -18,7 +18,7 @@ from monai.data import MetaTensor
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import the new MONAI transforms
-from connectomics.transforms.process import (
+from connectomics.data.process import (
     SegToBinaryMaskd,
     SegToAffinityMapd,
     SegToInstanceBoundaryMaskd,

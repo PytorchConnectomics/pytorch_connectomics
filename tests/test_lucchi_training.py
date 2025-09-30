@@ -28,11 +28,11 @@ from connectomics.data.dataset import (
     create_volume_dataset,
     create_data_dicts_from_paths,
 )
-from connectomics.data.datamodules import (
+from connectomics.lightning.lit_data import (
     VolumeDataModule,
     create_volume_datamodule,
 )
-from connectomics.transforms.process import (
+from connectomics.data.process import (
     create_binary_segmentation_pipeline,
     create_affinity_segmentation_pipeline,
 )

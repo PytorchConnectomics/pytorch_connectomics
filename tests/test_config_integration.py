@@ -21,8 +21,8 @@ from connectomics.config.lightning_config import (
     adapt_cfg_for_lightning,
     validate_lightning_config
 )
-from connectomics.engine.lightning_trainer import LightningTrainer
-from connectomics.engine.lightning_module import ConnectomicsModule, ConnectomicsDataModule
+from connectomics.lightning.lit_trainer import LightningTrainer
+from connectomics.lightning.lit_model import ConnectomicsModule, ConnectomicsDataModule
 
 
 def test_config_compatibility():

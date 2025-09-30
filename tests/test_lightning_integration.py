@@ -84,7 +84,7 @@ def test_lightning_module_creation():
     print("\nTesting Lightning module creation...")
 
     try:
-        from connectomics.engine.lightning_module import ConnectomicsModule
+        from connectomics.lightning.lit_model import ConnectomicsModule
 
         cfg = create_test_config()
         module = ConnectomicsModule(cfg)
@@ -106,7 +106,7 @@ def test_lightning_trainer_creation():
     print("\nTesting Lightning trainer creation...")
 
     try:
-        from connectomics.engine.lightning_trainer import LightningTrainer
+        from connectomics.lightning.lit_trainer import LightningTrainer
 
         cfg = create_test_config()
         trainer = LightningTrainer(cfg)
@@ -127,7 +127,7 @@ def test_forward_pass():
     print("\nTesting forward pass...")
 
     try:
-        from connectomics.engine.lightning_module import ConnectomicsModule
+        from connectomics.lightning.lit_model import ConnectomicsModule
 
         cfg = create_test_config()
         module = ConnectomicsModule(cfg)
@@ -164,7 +164,7 @@ def test_training_step():
     print("\nTesting training step...")
 
     try:
-        from connectomics.engine.lightning_module import ConnectomicsModule
+        from connectomics.lightning.lit_model import ConnectomicsModule
 
         cfg = create_test_config()
         module = ConnectomicsModule(cfg)
@@ -197,7 +197,7 @@ def test_optimizer_configuration():
     print("\nTesting optimizer configuration...")
 
     try:
-        from connectomics.engine.lightning_module import ConnectomicsModule
+        from connectomics.lightning.lit_model import ConnectomicsModule
 
         cfg = create_test_config()
         module = ConnectomicsModule(cfg)
@@ -227,7 +227,7 @@ def test_enhanced_data_module():
     print("\nTesting enhanced data module with MONAI...")
 
     try:
-        from connectomics.engine.lightning_module import ConnectomicsDataModule
+        from connectomics.lightning.lit_model import ConnectomicsDataModule
         import h5py
 
         cfg = create_test_config()

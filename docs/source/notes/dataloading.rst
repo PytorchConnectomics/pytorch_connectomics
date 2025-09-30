@@ -9,7 +9,7 @@ data augmentor is ``'image'``. Let's look at an example for using an augmentatio
 
 .. code-block:: python
 
-    from connectomics.transforms.augment import *
+    from connectomics.data.augment import *
     tranforms = [
         Rescale(p=0.8),
         MisAlignment(displacement=16, 
@@ -33,7 +33,7 @@ annotated regions are required. We provide the ``additional_targets`` option to 
 
 .. code-block:: python
 
-    from connectomics.transforms.augment import *
+    from connectomics.data.augment import *
     additional_targets = {'label': 'mask', 
                           'valid_mask': 'mask'}
 

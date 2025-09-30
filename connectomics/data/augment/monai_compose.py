@@ -10,7 +10,7 @@ from monai.transforms import (
     Compose, RandRotate90d, RandFlipd, RandAffined, RandZoomd,
     RandGaussianNoised, RandShiftIntensityd, Rand3DElasticd,
     RandGaussianSmoothd, RandAdjustContrastd,
-    ScaleIntensityRanged, ToTensord
+    LoadImaged, EnsureChannelFirstd, ScaleIntensityRanged, ToTensord
 )
 
 from .monai_transforms import (
@@ -24,19 +24,23 @@ from ...config.hydra_config import Config, AugmentationConfig
 def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     """
     Build training transforms from Hydra config.
-    
+
     Args:
         cfg: Hydra Config object
         keys: Keys to transform (default: ['image', 'label'])
-        
+
     Returns:
         Composed MONAI transforms
     """
     if keys is None:
         keys = ['image', 'label']
-    
+
     transforms = []
-    
+
+    # Load images first
+    transforms.append(LoadImaged(keys=keys))
+    transforms.append(EnsureChannelFirstd(keys=keys))
+
     # Normalization
     if cfg.data.normalize:
         transforms.append(
@@ -49,33 +53,37 @@ def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
                 clip=True
             )
         )
-    
+
     # Add augmentations if enabled
     if cfg.augmentation.enabled:
         transforms.extend(_build_augmentations(cfg.augmentation, keys))
-    
+
     # Final conversion to tensor
     transforms.append(ToTensord(keys=keys))
-    
+
     return Compose(transforms)
 
 
 def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     """
     Build validation transforms from Hydra config.
-    
+
     Args:
         cfg: Hydra Config object
         keys: Keys to transform (default: ['image', 'label'])
-        
+
     Returns:
         Composed MONAI transforms (no augmentation)
     """
     if keys is None:
         keys = ['image', 'label']
-    
+
     transforms = []
-    
+
+    # Load images first
+    transforms.append(LoadImaged(keys=keys))
+    transforms.append(EnsureChannelFirstd(keys=keys))
+
     # Normalization
     if cfg.data.normalize:
         transforms.append(
@@ -88,10 +96,10 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
                 clip=True
             )
         )
-    
+
     # Final conversion to tensor
     transforms.append(ToTensord(keys=keys))
-    
+
     return Compose(transforms)
 
 

@@ -6,7 +6,12 @@ data augmentation, enabling seamless integration with MONAI Compose pipelines.
 """
 
 # MONAI-native augmentation interface
-from .monai_compose import build_augmentor, create_inference_transforms
+from .monai_compose import (
+    build_train_transforms,
+    build_val_transforms,
+    build_inference_transforms,
+    build_transform_dict,
+)
 from .monai_transforms import (
     RandMisAlignmentd,
     RandMissingSectiond,
@@ -20,8 +25,10 @@ from .monai_transforms import (
 
 __all__ = [
     # Factory functions for building augmentation pipelines
-    'build_augmentor',
-    'create_inference_transforms',
+    'build_train_transforms',
+    'build_val_transforms',
+    'build_inference_transforms',
+    'build_transform_dict',
 
     # Connectomics-specific MONAI transforms (not in standard MONAI)
     'RandMisAlignmentd',

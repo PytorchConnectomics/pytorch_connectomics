@@ -11,7 +11,7 @@ from skimage.morphology import remove_small_objects
 from skimage.feature import peak_local_max
 import cc3d
 
-from connectomics.transforms.process import get_seg_type, bbox_ND, crop_ND, replace_ND
+from connectomics.data.process import get_seg_type, bbox_ND, crop_ND, replace_ND
 
 
 __all__ = ['binary_connected',

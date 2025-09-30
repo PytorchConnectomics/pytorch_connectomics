@@ -12,7 +12,7 @@ Successfully replaced the legacy YACS configuration system with a modern Hydra/O
 ### Files Added
 - ✅ `connectomics/config/hydra_config.py` - Modern dataclass configurations
 - ✅ `connectomics/config/hydra_utils.py` - Utility functions for Hydra configs
-- ✅ `connectomics/transforms/augment/hydra_compose.py` - Transform builder for Hydra
+- ✅ `connectomics/data/augment/hydra_compose.py` - Transform builder for Hydra
 - ✅ `configs/hydra/default.yaml` - Default configuration
 - ✅ `configs/hydra/lucchi.yaml` - Lucchi dataset configuration
 - ✅ `configs/hydra/README.md` - Complete documentation

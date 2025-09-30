@@ -1,29 +1,38 @@
 #!/usr/bin/env python3
 """
-Modern PyTorch Connectomics training script with Lightning framework.
+PyTorch Connectomics training script with Hydra configuration and Lightning framework.
 
 This script provides modern deep learning training with:
+- Hydra-based configuration management
 - Automatic distributed training and mixed precision
-- nnUNet model architectures (MedNeXt, UNETR, Swin UNETR)
 - MONAI-based data augmentation
-- Lightning callbacks and logging
+- PyTorch Lightning callbacks and logging
 
 Usage:
-    python scripts/main.py --config-file configs/MedNeXt-Mitochondria.yaml
-    python scripts/main.py --config-file configs/UNETR-Neuron.yaml --mode train
-    python scripts/main.py --config-file configs/MedNeXt-Mitochondria.yaml --mode test --checkpoint path/to/checkpoint.ckpt
+    python scripts/main.py --config tutorials/lucchi.yaml
+    python scripts/main.py --config tutorials/lucchi.yaml --mode test --checkpoint path/to/checkpoint.ckpt
+    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run
+    python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=8 training.max_epochs=200
 """
 
 import argparse
 import os
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import torch
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import (
+    ModelCheckpoint,
+    EarlyStopping,
+    LearningRateMonitor,
+    RichProgressBar,
+)
+from pytorch_lightning.loggers import TensorBoardLogger
 
 # Handle different Lightning versions
 try:
@@ -40,182 +49,444 @@ except ImportError:
             np.random.seed(seed)
             torch.manual_seed(seed)
 
-from connectomics.config import load_cfg
-from connectomics.engine.lightning_trainer import create_trainer
-from connectomics.engine.lightning_module import create_lightning_module
-from connectomics.engine.lightning_datamodule import ConnectomicsDataModule
+# Import Hydra config system
+from connectomics.config import (
+    load_config,
+    save_config,
+    update_from_cli,
+    print_config,
+    validate_config,
+    Config,
+)
+
+# Import data and model utilities
+from connectomics.data.dataset.dataset_base import create_data_dicts_from_paths
+from connectomics.lightning.lit_data import ConnectomicsDataModule
+from connectomics.data.augment.monai_compose import (
+    build_train_transforms,
+    build_val_transforms,
+)
+
+# Import model and training utilities
+from connectomics.models.loss import create_loss_from_config
 
 
 def parse_args():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="PyTorch Connectomics Lightning Training")
+    parser = argparse.ArgumentParser(
+        description="PyTorch Connectomics Training with Hydra Config",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
 
     parser.add_argument(
-        "--config-file",
-        default="",
-        metavar="FILE",
-        help="path to config file",
+        "--config",
+        required=True,
         type=str,
-    )
-    parser.add_argument(
-        "--opts",
-        help="Modify config options using the command-line",
-        default=None,
-        nargs=argparse.REMAINDER,
+        help="Path to Hydra YAML config file",
     )
     parser.add_argument(
         "--mode",
         choices=['train', 'test', 'predict'],
         default='train',
-        help="Mode: train, test, or predict"
+        help="Mode: train, test, or predict (default: train)",
     )
     parser.add_argument(
         "--checkpoint",
         default=None,
-        help="Path to checkpoint for testing/prediction"
+        type=str,
+        help="Path to checkpoint for resuming/testing/prediction",
+    )
+    parser.add_argument(
+        "--fast-dev-run",
+        action="store_true",
+        help="Run 1 batch for quick debugging",
+    )
+    parser.add_argument(
+        "overrides",
+        nargs="*",
+        help="Config overrides in key=value format (e.g., data.batch_size=8)",
     )
 
     return parser.parse_args()
 
 
-def setup_config(args):
-    """Setup configuration from file and command line arguments."""
-    # Convert our args to match the expected format for load_cfg
-    class MockArgs:
-        def __init__(self, config_file, opts, inference=False, distributed=False):
-            self.config_file = config_file
-            self.config_base = None  # Not used in our case
-            self.opts = opts or []
-            self.inference = inference
-            self.distributed = distributed
+def setup_config(args) -> Config:
+    """
+    Setup configuration from YAML file and CLI overrides.
 
-    mock_args = MockArgs(args.config_file, args.opts,
-                        inference=(args.mode != 'train'),
-                        distributed=False)
+    Args:
+        args: Command line arguments
 
-    cfg = load_cfg(mock_args)
+    Returns:
+        Validated Config object
+    """
+    # Load base config from YAML
+    print(f"📄 Loading config: {args.config}")
+    cfg = load_config(args.config)
+
+    # Apply CLI overrides
+    if args.overrides:
+        print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
+        cfg = update_from_cli(cfg, args.overrides)
+
+    # Validate configuration
+    print("✅ Validating configuration...")
+    validate_config(cfg)
 
     # Ensure output directory exists
-    os.makedirs(cfg.DATASET.OUTPUT_PATH, exist_ok=True)
+    output_dir = Path(cfg.checkpoint.dirpath).parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save resolved config
+    config_save_path = output_dir / "checkpoints" / "config.yaml"
+    config_save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_config(cfg, config_save_path)
+    print(f"💾 Config saved to: {config_save_path}")
 
     return cfg
 
 
+def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
+    """
+    Create Lightning DataModule from config.
+
+    Args:
+        cfg: Hydra Config object
+
+    Returns:
+        VolumeDataModule instance
+    """
+    print("Creating datasets...")
+
+    # Build transforms
+    train_transforms = build_train_transforms(cfg)
+    val_transforms = build_val_transforms(cfg)
+
+    print(f"  Train transforms: {len(train_transforms.transforms)} steps")
+    print(f"  Val transforms: {len(val_transforms.transforms)} steps")
+
+    # Create data dictionaries
+    train_data_dicts = create_data_dicts_from_paths(
+        image_paths=[cfg.data.train_image],
+        label_paths=[cfg.data.train_label] if cfg.data.train_label else None,
+    )
+
+    val_data_dicts = None
+    if cfg.data.val_image:
+        val_data_dicts = create_data_dicts_from_paths(
+            image_paths=[cfg.data.val_image],
+            label_paths=[cfg.data.val_label] if cfg.data.val_label else None,
+        )
+
+    print(f"  Train dataset size: {len(train_data_dicts)}")
+    if val_data_dicts:
+        print(f"  Val dataset size: {len(val_data_dicts)}")
+
+    # Create DataModule
+    print("Creating data loaders...")
+    datamodule = ConnectomicsDataModule(
+        train_data_dicts=train_data_dicts,
+        val_data_dicts=val_data_dicts,
+        transforms={
+            'train': train_transforms,
+            'val': val_transforms,
+            'test': val_transforms,
+        },
+        dataset_type='cached' if cfg.data.use_cache else 'standard',
+        batch_size=cfg.data.batch_size,
+        num_workers=cfg.data.num_workers,
+        pin_memory=cfg.data.pin_memory,
+        persistent_workers=cfg.data.persistent_workers,
+        cache_rate=cfg.data.cache_rate if cfg.data.use_cache else 0.0,
+    )
+
+    # Setup datasets
+    datamodule.setup(stage='fit')
+
+    print(f"  Train batches: {len(datamodule.train_dataloader())}")
+    if val_data_dicts:
+        print(f"  Val batches: {len(datamodule.val_dataloader())}")
+
+    return datamodule
+
+
+class ConnectomicsLightningModule(pl.LightningModule):
+    """Lightning module for connectomics segmentation."""
+
+    def __init__(self, cfg: Config):
+        super().__init__()
+        self.cfg = cfg
+        self.save_hyperparameters({"config": str(cfg)})
+
+        # Create model
+        self.model = create_nnunet_model(
+            model_name=cfg.model.architecture,
+            in_channels=cfg.model.in_channels,
+            out_channels=cfg.model.out_channels,
+            features=cfg.model.filters,
+            dropout=cfg.model.dropout,
+        )
+
+        # Create loss function
+        self.criterion = create_loss_from_config(cfg)
+
+    def forward(self, x):
+        return self.model(x)
+
+    def training_step(self, batch, batch_idx):
+        images = batch['image']
+        labels = batch['label']
+
+        outputs = self(images)
+        loss = self.criterion(outputs, labels)
+
+        self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        images = batch['image']
+        labels = batch['label']
+
+        outputs = self(images)
+        loss = self.criterion(outputs, labels)
+
+        # Compute Dice score
+        from monai.metrics import DiceMetric
+        dice_metric = DiceMetric(include_background=False, reduction="mean")
+        dice = dice_metric(outputs.sigmoid() > 0.5, labels)
+
+        self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log('val/dice', dice, on_step=False, on_epoch=True, prog_bar=True)
+
+        return loss
+
+    def configure_optimizers(self):
+        # Create optimizer
+        if self.cfg.optimizer.name.lower() == 'adamw':
+            optimizer = torch.optim.AdamW(
+                self.parameters(),
+                lr=self.cfg.optimizer.lr,
+                weight_decay=self.cfg.optimizer.weight_decay,
+                betas=self.cfg.optimizer.betas,
+            )
+        elif self.cfg.optimizer.name.lower() == 'adam':
+            optimizer = torch.optim.Adam(
+                self.parameters(),
+                lr=self.cfg.optimizer.lr,
+                weight_decay=self.cfg.optimizer.weight_decay,
+                betas=self.cfg.optimizer.betas,
+            )
+        elif self.cfg.optimizer.name.lower() == 'sgd':
+            optimizer = torch.optim.SGD(
+                self.parameters(),
+                lr=self.cfg.optimizer.lr,
+                momentum=self.cfg.optimizer.momentum,
+                weight_decay=self.cfg.optimizer.weight_decay,
+            )
+        else:
+            raise ValueError(f"Unknown optimizer: {self.cfg.optimizer.name}")
+
+        # Create scheduler
+        if self.cfg.scheduler.name.lower() == 'cosineannealinglr':
+            t_max = self.cfg.scheduler.t_max or self.cfg.training.max_epochs
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer,
+                T_max=t_max,
+                eta_min=self.cfg.scheduler.min_lr,
+            )
+        elif self.cfg.scheduler.name.lower() == 'reducelronplateau':
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                mode='min',
+                factor=self.cfg.scheduler.factor,
+                patience=self.cfg.scheduler.patience,
+            )
+        elif self.cfg.scheduler.name.lower() == 'steplr':
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer,
+                step_size=self.cfg.scheduler.step_size,
+                gamma=self.cfg.scheduler.gamma,
+            )
+        else:
+            scheduler = None
+
+        if scheduler:
+            return {
+                'optimizer': optimizer,
+                'lr_scheduler': {
+                    'scheduler': scheduler,
+                    'interval': 'epoch',
+                    'frequency': 1,
+                }
+            }
+        else:
+            return optimizer
+
+
+def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
+    """
+    Create PyTorch Lightning Trainer.
+
+    Args:
+        cfg: Hydra Config object
+        fast_dev_run: Whether to run quick debug mode
+
+    Returns:
+        Configured Trainer instance
+    """
+    print("Creating Lightning trainer...")
+
+    # Setup callbacks
+    callbacks = []
+
+    # Model checkpoint
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=cfg.checkpoint.dirpath,
+        filename=cfg.checkpoint.filename,
+        monitor=cfg.checkpoint.monitor,
+        mode=cfg.checkpoint.mode,
+        save_top_k=cfg.checkpoint.save_top_k,
+        save_last=cfg.checkpoint.save_last,
+        every_n_epochs=cfg.checkpoint.every_n_epochs,
+        verbose=True,
+    )
+    callbacks.append(checkpoint_callback)
+
+    # Early stopping
+    if cfg.early_stopping.enabled:
+        early_stop_callback = EarlyStopping(
+            monitor=cfg.early_stopping.monitor,
+            patience=cfg.early_stopping.patience,
+            mode=cfg.early_stopping.mode,
+            min_delta=cfg.early_stopping.min_delta,
+            verbose=True,
+        )
+        callbacks.append(early_stop_callback)
+
+    # Learning rate monitor
+    callbacks.append(LearningRateMonitor(logging_interval='epoch'))
+
+    # Progress bar
+    callbacks.append(RichProgressBar())
+
+    # Setup logger
+    logger = TensorBoardLogger(
+        save_dir=Path(cfg.checkpoint.dirpath).parent,
+        name='logs',
+        version=cfg.experiment_name,
+    )
+
+    # Create trainer
+    trainer = pl.Trainer(
+        max_epochs=cfg.training.max_epochs,
+        max_steps=cfg.training.max_steps if cfg.training.max_steps else -1,
+        accelerator='gpu' if cfg.system.num_gpus > 0 else 'cpu',
+        devices=cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1,
+        precision=cfg.training.precision,
+        gradient_clip_val=cfg.training.gradient_clip_val,
+        accumulate_grad_batches=cfg.training.accumulate_grad_batches,
+        val_check_interval=cfg.training.val_check_interval,
+        check_val_every_n_epoch=cfg.training.check_val_every_n_epoch,
+        log_every_n_steps=cfg.training.log_every_n_steps,
+        callbacks=callbacks,
+        logger=logger,
+        deterministic=cfg.training.deterministic,
+        benchmark=cfg.training.benchmark,
+        fast_dev_run=fast_dev_run,
+    )
+
+    print(f"  Max epochs: {cfg.training.max_epochs}")
+    print(f"  Devices: {cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1}")
+    print(f"  Precision: {cfg.training.precision}")
+
+    return trainer
+
+
 def main():
     """Main training function."""
+    # Parse arguments
     args = parse_args()
+
+    # Setup config
+    print("\n" + "=" * 60)
+    print("🚀 PyTorch Connectomics Hydra Training")
+    print("=" * 60)
     cfg = setup_config(args)
 
-    # Set seed for reproducibility
-    if hasattr(cfg.SYSTEM, 'RANDOM_SEED'):
-        seed_everything(cfg.SYSTEM.RANDOM_SEED, workers=True)
+    # Set random seed
+    if cfg.system.seed is not None:
+        print(f"🎲 Random seed set to: {cfg.system.seed}")
+        seed_everything(cfg.system.seed, workers=True)
 
-    print("=" * 50)
-    print("PyTorch Connectomics Lightning Training")
-    print("=" * 50)
-    print(f"Mode: {args.mode}")
-    print(f"Config: {args.config_file}")
-    print(f"Output: {cfg.DATASET.OUTPUT_PATH}")
-    print(f"GPUs: {cfg.SYSTEM.NUM_GPUS}")
-    print("=" * 50)
+    # Create datamodule
+    datamodule = create_datamodule(cfg)
 
-    # Create Lightning components
-    lightning_module = create_lightning_module(cfg)
-    datamodule = ConnectomicsDataModule(cfg)
+    # Create model
+    print(f"Creating model: {cfg.model.architecture}")
+    model = ConnectomicsLightningModule(cfg)
 
-    # Setup trainer
-    trainer = create_trainer(cfg)
-    trainer.setup()
+    # Count parameters
+    num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"  Model parameters: {num_params:,}")
 
-    if args.mode == 'train':
-        print("Starting training...")
-        trainer.train()
+    # Create trainer
+    trainer = create_trainer(cfg, fast_dev_run=args.fast_dev_run)
 
-        # Run final test if validation data available
-        if hasattr(datamodule, 'test_dataset') and datamodule.test_dataset is not None:
-            print("Running final test...")
-            trainer.test()
+    print("\n" + "=" * 60)
+    print("🏃 STARTING TRAINING")
+    print("=" * 60)
 
-    elif args.mode == 'test':
-        print("Running test...")
-        if args.checkpoint:
-            results = trainer.test(ckpt_path=args.checkpoint)
-        else:
-            results = trainer.test()
-        print("Test results:", results)
-
-    elif args.mode == 'predict':
-        print("Running prediction...")
-        if args.checkpoint:
-            predictions = trainer.predict(ckpt_path=args.checkpoint)
-        else:
-            predictions = trainer.predict()
-        print(f"Generated {len(predictions)} predictions")
-
-        # Save predictions
-        output_dir = os.path.join(cfg.DATASET.OUTPUT_PATH, 'predictions')
-        os.makedirs(output_dir, exist_ok=True)
-
-        for i, pred in enumerate(predictions):
-            output_file = os.path.join(output_dir, f'prediction_{i:04d}.h5')
-
-            # Convert to numpy if needed
-            if torch.is_tensor(pred):
-                pred = pred.cpu().numpy()
-
-            # Save using connectomics IO
-            from connectomics.data.io import write_h5
-            write_h5(output_file, pred)
-
-        print(f"Predictions saved to: {output_dir}")
-
-    print("Done!")
-
-
-def test_lightning_setup():
-    """Test function to verify Lightning setup works."""
-    print("Testing Lightning setup...")
-
-    # Create minimal config using proper approach
-    from connectomics.config import get_cfg_defaults
-    cfg = get_cfg_defaults()
-    cfg.SYSTEM.NUM_GPUS = 1
-    cfg.SOLVER.SAMPLES_PER_BATCH = 1
-    cfg.MODEL.INPUT_SIZE = [64, 64, 64]
-    cfg.MODEL.OUTPUT_SIZE = [64, 64, 64]
-    cfg.DATASET.OUTPUT_PATH = "/tmp/test_output"
-    cfg.DATASET.INPUT_PATH = "/tmp/test_data"
-    cfg.DATASET.IMAGE_NAME = "test_image.h5"
-    cfg.DATASET.LABEL_NAME = "test_label.h5"
-    cfg.freeze()
-
+    # Train
     try:
-        # Test Lightning module creation
-        module = create_lightning_module(cfg)
-        print("✓ Lightning module created successfully")
+        if args.mode == 'train':
+            trainer.fit(
+                model,
+                datamodule=datamodule,
+                ckpt_path=args.checkpoint,
+            )
+            print("\n✅ Training completed successfully!")
 
-        # Test forward pass
-        dummy_input = torch.randn(1, 1, 64, 64, 64)
-        output = module(dummy_input)
-        print("✓ Forward pass successful")
+        elif args.mode == 'test':
+            print("Running test...")
+            results = trainer.test(
+                model,
+                datamodule=datamodule,
+                ckpt_path=args.checkpoint,
+            )
+            print("Test results:", results)
 
-        # Test datamodule creation
-        datamodule = ConnectomicsDataModule(cfg)
-        print("✓ DataModule created successfully")
+        elif args.mode == 'predict':
+            print("Running prediction...")
+            predictions = trainer.predict(
+                model,
+                datamodule=datamodule,
+                ckpt_path=args.checkpoint,
+            )
 
-        print("✓ All Lightning components working!")
-        return True
+            # Save predictions
+            output_dir = Path(cfg.inference.output_path)
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            for i, pred in enumerate(predictions):
+                output_file = output_dir / f'prediction_{i:04d}.h5'
+
+                # Convert to numpy if needed
+                if torch.is_tensor(pred):
+                    pred = pred.cpu().numpy()
+
+                # Save using connectomics IO
+                from connectomics.data.io import write_h5
+                write_h5(str(output_file), pred)
+
+            print(f"Predictions saved to: {output_dir}")
 
     except Exception as e:
-        print(f"✗ Lightning setup failed: {e}")
+        print(f"\n❌ Training failed: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    # If no arguments provided, run test
-    if len(sys.argv) == 1:
-        test_lightning_setup()
-    else:
-        main()
+    main()

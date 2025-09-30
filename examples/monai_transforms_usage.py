@@ -18,7 +18,7 @@ from monai.data import MetaTensor
 from monai.transforms import Compose
 
 # Import the new MONAI-native transforms
-from connectomics.transforms.process import (
+from connectomics.data.process import (
     # Individual transforms
     SegToBinaryMaskd,
     SegToAffinityMapd,
