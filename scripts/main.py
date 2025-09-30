@@ -60,15 +60,16 @@ from connectomics.config import (
 )
 
 # Import data and model utilities
-from connectomics.data.dataset.dataset_base import create_data_dicts_from_paths
-from connectomics.lightning.lit_data import ConnectomicsDataModule
-from connectomics.data.augment.monai_compose import (
+from connectomics.data.dataset import create_data_dicts_from_paths
+from connectomics.lightning import (
+    ConnectomicsDataModule,
+    ConnectomicsModule,
+    create_trainer as create_lightning_trainer,
+)
+from connectomics.data.augment.build import (
     build_train_transforms,
     build_val_transforms,
 )
-
-# Import model and training utilities
-from connectomics.models.loss import create_loss_from_config
 
 
 def parse_args():
@@ -210,120 +211,6 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
     return datamodule
 
 
-class ConnectomicsLightningModule(pl.LightningModule):
-    """Lightning module for connectomics segmentation."""
-
-    def __init__(self, cfg: Config):
-        super().__init__()
-        self.cfg = cfg
-        self.save_hyperparameters({"config": str(cfg)})
-
-        # Create model
-        self.model = create_nnunet_model(
-            model_name=cfg.model.architecture,
-            in_channels=cfg.model.in_channels,
-            out_channels=cfg.model.out_channels,
-            features=cfg.model.filters,
-            dropout=cfg.model.dropout,
-        )
-
-        # Create loss function
-        self.criterion = create_loss_from_config(cfg)
-
-    def forward(self, x):
-        return self.model(x)
-
-    def training_step(self, batch, batch_idx):
-        images = batch['image']
-        labels = batch['label']
-
-        outputs = self(images)
-        loss = self.criterion(outputs, labels)
-
-        self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=True)
-
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        images = batch['image']
-        labels = batch['label']
-
-        outputs = self(images)
-        loss = self.criterion(outputs, labels)
-
-        # Compute Dice score
-        from monai.metrics import DiceMetric
-        dice_metric = DiceMetric(include_background=False, reduction="mean")
-        dice = dice_metric(outputs.sigmoid() > 0.5, labels)
-
-        self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log('val/dice', dice, on_step=False, on_epoch=True, prog_bar=True)
-
-        return loss
-
-    def configure_optimizers(self):
-        # Create optimizer
-        if self.cfg.optimizer.name.lower() == 'adamw':
-            optimizer = torch.optim.AdamW(
-                self.parameters(),
-                lr=self.cfg.optimizer.lr,
-                weight_decay=self.cfg.optimizer.weight_decay,
-                betas=self.cfg.optimizer.betas,
-            )
-        elif self.cfg.optimizer.name.lower() == 'adam':
-            optimizer = torch.optim.Adam(
-                self.parameters(),
-                lr=self.cfg.optimizer.lr,
-                weight_decay=self.cfg.optimizer.weight_decay,
-                betas=self.cfg.optimizer.betas,
-            )
-        elif self.cfg.optimizer.name.lower() == 'sgd':
-            optimizer = torch.optim.SGD(
-                self.parameters(),
-                lr=self.cfg.optimizer.lr,
-                momentum=self.cfg.optimizer.momentum,
-                weight_decay=self.cfg.optimizer.weight_decay,
-            )
-        else:
-            raise ValueError(f"Unknown optimizer: {self.cfg.optimizer.name}")
-
-        # Create scheduler
-        if self.cfg.scheduler.name.lower() == 'cosineannealinglr':
-            t_max = self.cfg.scheduler.t_max or self.cfg.training.max_epochs
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer,
-                T_max=t_max,
-                eta_min=self.cfg.scheduler.min_lr,
-            )
-        elif self.cfg.scheduler.name.lower() == 'reducelronplateau':
-            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer,
-                mode='min',
-                factor=self.cfg.scheduler.factor,
-                patience=self.cfg.scheduler.patience,
-            )
-        elif self.cfg.scheduler.name.lower() == 'steplr':
-            scheduler = torch.optim.lr_scheduler.StepLR(
-                optimizer,
-                step_size=self.cfg.scheduler.step_size,
-                gamma=self.cfg.scheduler.gamma,
-            )
-        else:
-            scheduler = None
-
-        if scheduler:
-            return {
-                'optimizer': optimizer,
-                'lr_scheduler': {
-                    'scheduler': scheduler,
-                    'interval': 'epoch',
-                    'frequency': 1,
-                }
-            }
-        else:
-            return optimizer
-
-
 def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
     """
     Create PyTorch Lightning Trainer.
@@ -367,8 +254,11 @@ def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
     # Learning rate monitor
     callbacks.append(LearningRateMonitor(logging_interval='epoch'))
 
-    # Progress bar
-    callbacks.append(RichProgressBar())
+    # Progress bar (optional - requires rich package)
+    try:
+        callbacks.append(RichProgressBar())
+    except (ImportError, ModuleNotFoundError):
+        pass  # Use default progress bar
 
     # Setup logger
     logger = TensorBoardLogger(
@@ -378,11 +268,14 @@ def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
     )
 
     # Create trainer
+    # Check if GPU is actually available
+    use_gpu = cfg.system.num_gpus > 0 and torch.cuda.is_available()
+    
     trainer = pl.Trainer(
         max_epochs=cfg.training.max_epochs,
         max_steps=cfg.training.max_steps if cfg.training.max_steps else -1,
-        accelerator='gpu' if cfg.system.num_gpus > 0 else 'cpu',
-        devices=cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1,
+        accelerator='gpu' if use_gpu else 'cpu',
+        devices=cfg.system.num_gpus if use_gpu else 1,
         precision=cfg.training.precision,
         gradient_clip_val=cfg.training.gradient_clip_val,
         accumulate_grad_batches=cfg.training.accumulate_grad_batches,
@@ -424,7 +317,7 @@ def main():
 
     # Create model
     print(f"Creating model: {cfg.model.architecture}")
-    model = ConnectomicsLightningModule(cfg)
+    model = ConnectomicsModule(cfg)
 
     # Count parameters
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

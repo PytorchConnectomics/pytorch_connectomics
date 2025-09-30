@@ -21,7 +21,7 @@ from omegaconf import DictConfig
 
 # Import existing components
 from ..models import build_model
-from ..models.loss import create_loss, create_combined_loss
+from ..models.loss import create_loss
 from ..models.solver import build_optimizer, build_lr_scheduler
 from ..config import Config
 
@@ -69,13 +69,9 @@ class ConnectomicsModule(pl.LightningModule):
         
         losses = nn.ModuleList()
         for loss_name in loss_names:
-            # Use the new MONAI-native loss creation
-            loss = create_loss(
-                loss_name=loss_name,
-                to_onehot_y=False,  # Adjust based on your task
-                sigmoid=True if 'BCE' in loss_name else False,
-                softmax=False,
-            )
+            # Use the new MONAI-native loss creation with minimal kwargs
+            # Let create_loss handle the defaults
+            loss = create_loss(loss_name=loss_name)
             losses.append(loss)
         
         return losses
@@ -164,17 +160,9 @@ class ConnectomicsModule(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""
-        # Build optimizer using the new solver API
-        optimizer = build_optimizer(
-            self.cfg,
-            self.model,
-        )
-        
-        # Build scheduler using the new solver API
-        scheduler = build_lr_scheduler(
-            self.cfg,
-            optimizer,
-        )
+        # Use the unified builder that supports both YACS and Hydra configs
+        optimizer = build_optimizer(self.cfg, self.model)
+        scheduler = build_lr_scheduler(self.cfg, optimizer)
         
         return {
             'optimizer': optimizer,

@@ -8,7 +8,7 @@ Design pattern follows transforms/augment/ for consistency.
 """
 
 # Main factory functions (recommended interface)
-from .monai_losses import (
+from .build import (
     create_loss,
     create_combined_loss,
     create_loss_from_config,
@@ -19,14 +19,14 @@ from .monai_losses import (
 )
 
 # Connectomics-specific losses (for direct use if needed)
-from .connectomics_losses import (
+from .losses import (
     WeightedMSELoss,
     WeightedMAELoss,
     GANLoss,
 )
 
 # Regularization losses
-from .regularization_losses import (
+from .regularization import (
     BinaryRegularization,
     ForegroundDistanceConsistency,
     ContourDistanceConsistency,

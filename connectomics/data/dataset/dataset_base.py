@@ -263,80 +263,8 @@ class MonaiPersistentConnectomicsDataset(PersistentDataset):
         return self.dataset_length
 
 
-def create_data_dicts_from_paths(
-    image_paths: List[str],
-    label_paths: Optional[List[str]] = None,
-    mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    """
-    Create MONAI-style data dictionaries from file paths.
-
-    Args:
-        image_paths: List of image file paths
-        label_paths: Optional list of label file paths
-        mask_paths: Optional list of mask file paths
-
-    Returns:
-        List of dictionaries with 'image', 'label', and/or 'mask' keys
-    """
-    data_dicts = []
-
-    for i, image_path in enumerate(image_paths):
-        data_dict = {'image': image_path}
-
-        if label_paths is not None:
-            data_dict['label'] = label_paths[i]
-
-        if mask_paths is not None:
-            data_dict['mask'] = mask_paths[i]
-
-        data_dicts.append(data_dict)
-
-    return data_dicts
-
-
-def create_connectomics_dataset(
-    data_dicts: Sequence[Dict[str, Any]],
-    transforms: Optional[Compose] = None,
-    dataset_type: str = 'standard',
-    **kwargs,
-) -> Union[MonaiConnectomicsDataset, MonaiCachedConnectomicsDataset, MonaiPersistentConnectomicsDataset]:
-    """
-    Factory function to create appropriate MONAI connectomics dataset.
-
-    Args:
-        data_dicts: List of data dictionaries
-        transforms: MONAI transforms pipeline
-        dataset_type: Type of dataset ('standard', 'cached', 'persistent')
-        **kwargs: Additional arguments for dataset initialization
-
-    Returns:
-        Appropriate MONAI connectomics dataset instance
-    """
-    if dataset_type == 'cached':
-        return MonaiCachedConnectomicsDataset(
-            data_dicts=data_dicts,
-            transforms=transforms,
-            **kwargs,
-        )
-    elif dataset_type == 'persistent':
-        return MonaiPersistentConnectomicsDataset(
-            data_dicts=data_dicts,
-            transforms=transforms,
-            **kwargs,
-        )
-    else:
-        return MonaiConnectomicsDataset(
-            data_dicts=data_dicts,
-            transforms=transforms,
-            **kwargs,
-        )
-
-
 __all__ = [
     'MonaiConnectomicsDataset',
     'MonaiCachedConnectomicsDataset',
     'MonaiPersistentConnectomicsDataset',
-    'create_data_dicts_from_paths',
-    'create_connectomics_dataset',
 ]

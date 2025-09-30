@@ -16,29 +16,10 @@ from monai.data import Dataset, CacheDataset
 from monai.transforms import Compose, RandSpatialCropd, LoadImaged, EnsureChannelFirstd
 from monai.utils import ensure_tuple_rep
 
-from .dataset_base import MonaiConnectomicsDataset, create_data_dicts_from_paths
-from ..io import read_volume
+from .dataset_base import MonaiConnectomicsDataset
 from monai.config import KeysCollection
 from monai.transforms import MapTransform
-
-
-class LoadVolumed(MapTransform):
-    """Custom loader for connectomics volume data (HDF5, TIFF, etc.)."""
-    
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
-    
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            if key in d and isinstance(d[key], str):
-                # Use the connectomics read_volume function
-                volume = read_volume(d[key])
-                # Ensure we have at least 4 dimensions (add channel if needed)
-                if volume.ndim == 3:
-                    volume = np.expand_dims(volume, axis=0)  # Add channel dimension
-                d[key] = volume
-        return d
+from ..io.monai_transforms import LoadVolumed
 
 
 class MonaiVolumeDataset(MonaiConnectomicsDataset):
@@ -278,78 +259,8 @@ class MonaiCachedVolumeDataset(CacheDataset):
         return self.dataset_length
 
 
-def create_volume_dataset(
-    image_paths: List[str],
-    label_paths: Optional[List[str]] = None,
-    mask_paths: Optional[List[str]] = None,
-    transforms: Optional[Compose] = None,
-    dataset_type: str = 'standard',
-    cache_rate: float = 1.0,
-    **kwargs,
-) -> Union[MonaiVolumeDataset, MonaiCachedVolumeDataset]:
-    """
-    Factory function to create MONAI volume datasets.
-
-    Args:
-        image_paths: List of image volume file paths
-        label_paths: Optional list of label volume file paths
-        mask_paths: Optional list of valid mask file paths
-        transforms: MONAI transforms pipeline
-        dataset_type: Type of dataset ('standard', 'cached')
-        cache_rate: Cache rate for cached datasets
-        **kwargs: Additional arguments for dataset initialization
-
-    Returns:
-        Appropriate MONAI volume dataset instance
-    """
-    if dataset_type == 'cached':
-        return MonaiCachedVolumeDataset(
-            image_paths=image_paths,
-            label_paths=label_paths,
-            mask_paths=mask_paths,
-            transforms=transforms,
-            cache_rate=cache_rate,
-            **kwargs,
-        )
-    else:
-        return MonaiVolumeDataset(
-            image_paths=image_paths,
-            label_paths=label_paths,
-            mask_paths=mask_paths,
-            transforms=transforms,
-            **kwargs,
-        )
-
-
-def create_volume_data_dicts(
-    image_paths: List[str],
-    label_paths: Optional[List[str]] = None,
-    mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    """
-    Create MONAI data dictionaries for volume datasets.
-
-    This is a convenience wrapper around the general create_data_dicts_from_paths
-    function for volume-specific use cases.
-
-    Args:
-        image_paths: List of image volume file paths
-        label_paths: Optional list of label volume file paths
-        mask_paths: Optional list of valid mask file paths
-
-    Returns:
-        List of MONAI-style data dictionaries
-    """
-    return create_data_dicts_from_paths(
-        image_paths=image_paths,
-        label_paths=label_paths,
-        mask_paths=mask_paths,
-    )
-
-
 __all__ = [
     'MonaiVolumeDataset',
     'MonaiCachedVolumeDataset',
-    'create_volume_dataset',
-    'create_volume_data_dicts',
+    'LoadVolumed',
 ]

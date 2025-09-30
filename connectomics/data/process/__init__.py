@@ -23,7 +23,7 @@ from .monai_transforms import (
     SegErosionDilationd,
 )
 
-from .monai_compose import (
+from .build import (
     create_binary_segmentation_pipeline,
     create_affinity_segmentation_pipeline,
     create_instance_segmentation_pipeline,

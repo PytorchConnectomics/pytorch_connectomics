@@ -24,14 +24,14 @@ from monai.losses import (
 )
 
 # Import custom connectomics losses
-from .connectomics_losses import (
+from .losses import (
     WeightedMSELoss,
     WeightedMAELoss,
     GANLoss,
 )
 
 # Import regularization losses
-from .regularization_losses import (
+from .regularization import (
     BinaryRegularization,
     ForegroundDistanceConsistency,
     ContourDistanceConsistency,

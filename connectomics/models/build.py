@@ -14,6 +14,8 @@ def build_model(cfg, device=None, rank=None):
     """
     Build model from configuration using MONAI native models.
     
+    Supports both YACS (cfg.MODEL.ARCHITECTURE) and Hydra (cfg.model.architecture) configs.
+    
     Supported architectures:
     - monai_basic_unet3d: MONAI BasicUNet (simple, fast)
     - monai_unet: MONAI UNet with residual units
@@ -21,7 +23,11 @@ def build_model(cfg, device=None, rank=None):
     - monai_swin_unetr: MONAI Swin UNETR
     - mednext: MedNeXt (if available)
     """
-    model_arch = cfg.MODEL.ARCHITECTURE
+    # Support both YACS (cfg.MODEL.ARCHITECTURE) and Hydra (cfg.model.architecture)
+    if hasattr(cfg, 'MODEL'):
+        model_arch = cfg.MODEL.ARCHITECTURE
+    else:
+        model_arch = cfg.model.architecture
     
     # Build model based on architecture
     if model_arch == 'monai_basic_unet3d':
@@ -48,14 +54,35 @@ def _build_basic_unet(cfg):
     """Build MONAI BasicUNet - simple and fast."""
     from monai.networks.nets import BasicUNet
     
+    # Support both YACS and Hydra config
+    if hasattr(cfg, 'MODEL'):
+        in_channels = cfg.MODEL.IN_PLANES
+        out_channels = cfg.MODEL.OUT_PLANES
+        features = cfg.MODEL.FILTERS[:6] if len(cfg.MODEL.FILTERS) >= 6 else (32, 64, 128, 256, 512, 1024)
+        dropout = getattr(cfg.MODEL, 'DROPOUT', 0.0)
+        act = getattr(cfg.MODEL, 'ACTIVATION', 'relu')
+        norm = getattr(cfg.MODEL, 'NORM_MODE', 'batch')
+    else:
+        in_channels = cfg.model.in_channels
+        out_channels = cfg.model.out_channels
+        # BasicUNet requires exactly 6 feature levels
+        base_features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
+        # Extend to 6 levels if needed
+        while len(base_features) < 6:
+            base_features.append(base_features[-1] * 2)
+        features = tuple(base_features[:6])
+        dropout = getattr(cfg.model, 'dropout', 0.0)
+        act = getattr(cfg.model, 'activation', 'relu')
+        norm = getattr(cfg.model, 'norm', 'batch')
+    
     return BasicUNet(
         spatial_dims=3,
-        in_channels=cfg.MODEL.IN_PLANES,
-        out_channels=cfg.MODEL.OUT_PLANES,
-        features=cfg.MODEL.FILTERS[:4] if len(cfg.MODEL.FILTERS) >= 4 else (32, 64, 128, 256),
-        dropout=getattr(cfg.MODEL, 'DROPOUT', 0.0),
-        act=getattr(cfg.MODEL, 'ACTIVATION', 'relu'),
-        norm=getattr(cfg.MODEL, 'NORM_MODE', 'batch'),
+        in_channels=in_channels,
+        out_channels=out_channels,
+        features=features,
+        dropout=dropout,
+        act=act,
+        norm=norm,
     )
 
 
@@ -143,7 +170,11 @@ def make_parallel(model, cfg, device, rank=None, find_unused_parameters=False):
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    parallel_mode = getattr(cfg.SYSTEM, 'PARALLEL', 'NONE')
+    # Support both YACS and Hydra config
+    if hasattr(cfg, 'SYSTEM'):
+        parallel_mode = getattr(cfg.SYSTEM, 'PARALLEL', 'NONE')
+    else:
+        parallel_mode = 'NONE'  # Lightning handles parallelism
     
     if parallel_mode == 'DDP':
         print('Parallelism with DistributedDataParallel.')

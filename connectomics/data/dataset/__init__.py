@@ -10,16 +10,13 @@ from .dataset_base import (
     MonaiConnectomicsDataset,
     MonaiCachedConnectomicsDataset,
     MonaiPersistentConnectomicsDataset,
-    create_data_dicts_from_paths,
-    create_connectomics_dataset,
 )
 
 # Volume datasets
 from .dataset_volume import (
     MonaiVolumeDataset,
     MonaiCachedVolumeDataset,
-    create_volume_dataset,
-    create_volume_data_dicts,
+    LoadVolumed,
 )
 
 # Tile datasets
@@ -27,8 +24,16 @@ from .dataset_tile import (
     MonaiTileDataset,
     MonaiCachedTileDataset,
     TileLoaderd,
-    create_tile_dataset,
+)
+
+# Dataset factory functions (builder pattern)
+from .build import (
+    create_data_dicts_from_paths,
+    create_volume_data_dicts,
     create_tile_data_dicts_from_json,
+    create_connectomics_dataset,
+    create_volume_dataset,
+    create_tile_dataset,
 )
 
 __all__ = [
@@ -36,19 +41,22 @@ __all__ = [
     'MonaiConnectomicsDataset',
     'MonaiCachedConnectomicsDataset',
     'MonaiPersistentConnectomicsDataset',
-    'create_data_dicts_from_paths',
-    'create_connectomics_dataset',
 
     # Volume datasets
     'MonaiVolumeDataset',
     'MonaiCachedVolumeDataset',
-    'create_volume_dataset',
-    'create_volume_data_dicts',
+    'LoadVolumed',
 
     # Tile datasets
     'MonaiTileDataset',
     'MonaiCachedTileDataset',
     'TileLoaderd',
-    'create_tile_dataset',
+    
+    # Factory functions (from build.py)
+    'create_data_dicts_from_paths',
+    'create_volume_data_dicts',
     'create_tile_data_dicts_from_json',
+    'create_connectomics_dataset',
+    'create_volume_dataset',
+    'create_tile_dataset',
 ]

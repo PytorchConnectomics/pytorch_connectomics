@@ -16,7 +16,7 @@ from monai.data import Dataset, CacheDataset
 from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
 from monai.utils import ensure_tuple_rep
 
-from .dataset_base import MonaiConnectomicsDataset, create_data_dicts_from_paths
+from .dataset_base import MonaiConnectomicsDataset
 from ..io import create_tile_metadata, reconstruct_volume_from_tiles
 
 
@@ -411,76 +411,8 @@ class MonaiCachedTileDataset(MonaiTileDataset):
         return self.dataset_length
 
 
-def create_tile_dataset(
-    volume_json: str,
-    label_json: Optional[str] = None,
-    mask_json: Optional[str] = None,
-    transforms: Optional[Compose] = None,
-    dataset_type: str = 'standard',
-    cache_rate: float = 1.0,
-    **kwargs,
-) -> Union[MonaiTileDataset, MonaiCachedTileDataset]:
-    """
-    Factory function to create MONAI tile datasets.
-
-    Args:
-        volume_json: JSON metadata file for input image tiles
-        label_json: Optional JSON metadata file for label tiles
-        mask_json: Optional JSON metadata file for mask tiles
-        transforms: MONAI transforms pipeline
-        dataset_type: Type of dataset ('standard', 'cached')
-        cache_rate: Cache rate for cached datasets
-        **kwargs: Additional arguments for dataset initialization
-
-    Returns:
-        Appropriate MONAI tile dataset instance
-    """
-    if dataset_type == 'cached':
-        return MonaiCachedTileDataset(
-            volume_json=volume_json,
-            label_json=label_json,
-            mask_json=mask_json,
-            transforms=transforms,
-            cache_rate=cache_rate,
-            **kwargs,
-        )
-    else:
-        return MonaiTileDataset(
-            volume_json=volume_json,
-            label_json=label_json,
-            mask_json=mask_json,
-            transforms=transforms,
-            **kwargs,
-        )
-
-
-def create_tile_data_dicts_from_json(
-    volume_json: str,
-    label_json: Optional[str] = None,
-    mask_json: Optional[str] = None,
-    chunk_num: Tuple[int, int, int] = (2, 2, 2),
-) -> List[Dict[str, Any]]:
-    """
-    Create MONAI data dictionaries from tile JSON metadata files.
-
-    Args:
-        volume_json: JSON metadata file for input image tiles
-        label_json: Optional JSON metadata file for label tiles
-        mask_json: Optional JSON metadata file for mask tiles
-        chunk_num: Volume splitting parameters (z, y, x)
-
-    Returns:
-        List of MONAI-style data dictionaries for tile chunks
-    """
-    # This would use the same logic as in MonaiTileDataset._create_chunk_data_dicts
-    # but as a standalone function
-    pass
-
-
 __all__ = [
     'MonaiTileDataset',
     'MonaiCachedTileDataset',
     'TileLoaderd',
-    'create_tile_dataset',
-    'create_tile_data_dicts_from_json',
 ]

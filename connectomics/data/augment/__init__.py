@@ -6,7 +6,7 @@ data augmentation, enabling seamless integration with MONAI Compose pipelines.
 """
 
 # MONAI-native augmentation interface
-from .monai_compose import (
+from .build import (
     build_train_transforms,
     build_val_transforms,
     build_inference_transforms,
