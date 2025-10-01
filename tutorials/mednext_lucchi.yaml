@@ -19,30 +19,38 @@ system:
 # Model - MedNeXt-S with deep supervision
 model:
   architecture: mednext
-  input_size: [18, 160, 160]
-  output_size: [18, 160, 160]
+  input_size: [112, 112, 112]           # Reduced for GPU memory efficiency
+  output_size: [112, 112, 112]
   in_channels: 1
   out_channels: 1
 
   # MedNeXt configuration
   mednext_size: S                    # S (5.6M params), B (10.5M), M (17.6M), or L (61.8M)
   mednext_kernel_size: 3             # Recommended: start with 3, can use UpKern for 5
-  deep_supervision: true             # RECOMMENDED: improves performance significantly
+  deep_supervision: false  # Disable temporarily to test             # RECOMMENDED: improves performance significantly
 
   # Loss configuration (applied at all scales with deep supervision)
-  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_functions: [DiceLoss, FocalLoss]
   loss_weights: [1.0, 1.0]
+  loss_kwargs: 
+    - {include_background: false}  # DiceLoss parameters
+    - {gamma: 2.0, alpha: 0.25}  # FocalLoss parameters
 
-# Data
+# Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:
+  # Single volume - will be automatically split into train/val
   train_image: datasets/Lucchi/img/train_im.tif
   train_label: datasets/Lucchi/label/train_label.tif
-  val_image: datasets/Lucchi/img/test_im.tif
-  val_label: datasets/Lucchi/label/test_label.tif
-  patch_size: [112, 112, 112]
+
+  # Validation files not needed - using automatic split
+  val_image: null
+  val_label: null
+
+  # Patch configuration
+  patch_size: [112, 112, 112]  # Reduced for GPU memory efficiency
   pad_size: [16, 16, 16]
-  batch_size: 8
-  num_workers: 4
+  batch_size: 1             # Reduced for GPU memory
+  num_workers: 1
   pin_memory: true
   persistent_workers: true
   use_cache: true
@@ -50,6 +58,14 @@ data:
   normalize: true
   mean: 0.5
   std: 0.5
+
+  # Automatic Train/Val Split (DeepEM-style volumetric splitting)
+  split_enabled: true                    # Enable automatic splitting
+  split_train_range: [0.0, 0.8]          # Use first 80% for training
+  split_val_range: [0.8, 1.0]            # Use last 20% for validation
+  split_axis: 0                          # Split along Z-axis (depth)
+  split_pad_val: true                    # Pad validation to patch_size if needed
+  split_pad_mode: reflect                # Reflection padding (mirrors edges)
 
 # Optimizer - MedNeXt paper recommends AdamW with lr=1e-3
 optimizer:
@@ -68,11 +84,11 @@ scheduler:
 
 # Training
 training:
-  max_epochs: 100
+  max_epochs: 1000
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"              # Mixed precision recommended for MedNeXt
-  val_check_interval: 500
+  val_check_interval: 1  # Check validation every epoch
   check_val_every_n_epoch: 1
   log_every_n_steps: 50
   benchmark: true
@@ -80,7 +96,7 @@ training:
 # Checkpoint
 checkpoint:
   save_top_k: 3
-  monitor: val_loss_total            # Monitor total loss (includes all scales)
+  monitor: val_loss_total            # Monitor validation loss from split
   mode: min
   save_last: true
   every_n_epochs: 1
@@ -89,7 +105,7 @@ checkpoint:
 
 # Early stopping
 early_stopping:
-  enabled: true
+  enabled: true   # Re-enabled since we have validation from split
   monitor: val_loss_total
   patience: 20                       # Slightly higher patience for deep supervision
   mode: min
@@ -151,18 +167,20 @@ augmentation:
     downsample_z: false
 
   missing_parts:
-    enabled: false
+    enabled: true
 
   mixup:
-    enabled: false
+    enabled: true
 
   copy_paste:
-    enabled: false
+    enabled: true
 
 # Inference
 inference:
+  test_image: datasets/Lucchi/img/test_im.tif
+  test_label: datasets/Lucchi/label/test_label.tif
   output_path: outputs/mednext_lucchi/results/
-  stride: [56, 56, 56]
+  stride: [64, 64, 64]
   overlap: 0.5
   test_time_augmentation: false
 
@@ -172,3 +190,10 @@ inference:
 # - Start with kernel_size=3, then optionally use UpKern to initialize kernel_size=5
 # - For larger datasets or higher resolution, consider using MedNeXt-B, M, or L
 # - Mixed precision (16-mixed) is recommended for memory efficiency
+#
+# Train/Val Split Strategy (DeepEM-inspired):
+# - Training uses first 80% of volume with random crops
+# - Validation uses last 20% of volume
+# - Validation is automatically padded to match patch_size if smaller
+# - This ensures spatial separation between train/val (no data leakage)
+# - No need for separate validation files!

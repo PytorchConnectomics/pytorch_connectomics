@@ -1,0 +1,194 @@
+# Lucchi mitochondria segmentation with MONAI Residual UNet
+# Electron microscopy (EM) dataset
+#
+# This config uses MONAI's UNet with residual units - a robust baseline
+# for 3D medical image segmentation. The residual connections help with
+# gradient flow and improve performance over standard U-Net.
+
+experiment_name: lucchi_monai_unet
+description: Mitochondria segmentation on Lucchi EM dataset using MONAI Residual UNet
+
+# System
+system:
+  num_gpus: 1
+  num_cpus: 2
+  seed: 42
+
+# Model - MONAI UNet with residual units
+model:
+  architecture: monai_unet
+  input_size: [112, 112, 112]
+  output_size: [112, 112, 112]
+  in_channels: 1
+  out_channels: 1
+
+  # UNet architecture configuration
+  filters: [28, 36, 48, 64, 80]    # Feature maps at each level (5 levels)
+  num_res_units: 2                     # Residual units per block
+  kernel_size: 3                       # Convolution kernel size
+  norm: batch                          # Batch normalization
+  dropout: 0.1                         # Dropout for regularization
+
+  # Loss configuration
+  loss_functions: [DiceLoss, FocalLoss]
+  loss_weights: [1.0, 1.0]
+  loss_kwargs:
+    - {include_background: false}      # DiceLoss parameters
+    - {gamma: 2.0, alpha: 0.25}        # FocalLoss parameters
+
+# Data - Using automatic 80/20 train/val split (DeepEM-style)
+data:
+  # Single volume - will be automatically split into train/val
+  train_image: datasets/Lucchi/img/train_im.tif
+  train_label: datasets/Lucchi/label/train_label.tif
+
+    # Patch configuration
+  patch_size: [112, 112, 112]          # Larger patches for better context
+  pad_size: [16, 16, 16]               # Padding for valid convolutions
+  batch_size: 4                        # For 112³ patches
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  use_cache: true                      # Cache dataset for faster loading
+  cache_rate: 1.0                      # Cache 100% of data
+  normalize: true                      # Normalize input images
+  mean: 0.5
+  std: 0.5
+
+# Optimizer - AdamW with moderate learning rate
+optimizer:
+  name: AdamW
+  lr: 0.0001                           # Conservative learning rate for stability
+  weight_decay: 0.0001                 # L2 regularization
+
+# Scheduler - Cosine annealing with warmup
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5                     # Gradual warmup
+  warmup_start_lr: 0.00001
+  min_lr: 0.000001                     # Minimum learning rate
+  t_max: 100                           # Cosine cycle length
+
+# Training
+training:
+  max_epochs: 200
+  gradient_clip_val: 1.0               # Prevent gradient explosion
+  accumulate_grad_batches: 1           # Gradient accumulation (increase for larger effective batch)
+  precision: "16-mixed"                # Mixed precision for memory efficiency
+  val_check_interval: 10              # Validate every epoch
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 50
+  benchmark: true                      # Enable cuDNN benchmarking for speed
+
+# Checkpoint
+checkpoint:
+  save_top_k: 3                        # Keep top 3 checkpoints
+  monitor: val_loss_total              # Monitor validation loss from split
+  mode: min
+  save_last: true
+  every_n_epochs: 1
+  dirpath: outputs/lucchi_monai_unet/checkpoints/
+  filename: epoch={epoch:03d}-val_loss={val_loss_total:.4f}
+
+# Early stopping
+early_stopping:
+  enabled: true                        # Enable early stopping
+  monitor: val_loss_total
+  patience: 20                         # Stop after 20 epochs without improvement
+  mode: min
+  min_delta: 0.0001
+
+# Augmentation (EM-specific)
+augmentation:
+  enabled: true
+
+  flip:
+    enabled: true
+    prob: 0.5
+
+  rotate:
+    enabled: true
+    prob: 0.5
+
+  elastic:
+    enabled: true
+    prob: 0.3
+    sigma_range: [5.0, 8.0]
+    magnitude_range: [50.0, 150.0]
+
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.3
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.3
+    shift_intensity_offset: 0.1
+    contrast_prob: 0.3
+    contrast_range: [0.7, 1.4]
+
+  # EM-specific augmentations
+  misalignment:
+    enabled: true
+    prob: 0.5
+    displacement: 16
+    rotate_ratio: 0.0
+
+  missing_section:
+    enabled: true
+    prob: 0.3
+    num_sections: 2
+
+  motion_blur:
+    enabled: true
+    prob: 0.3
+    sections: 2
+    kernel_size: 11
+
+  cut_noise:
+    enabled: false
+
+  cut_blur:
+    enabled: true
+    prob: 0.3
+    length_ratio: 0.25
+    down_ratio_range: [2.0, 8.0]
+    downsample_z: false
+
+  missing_parts:
+    enabled: true
+
+  mixup:
+    enabled: true
+
+  copy_paste:
+    enabled: true
+
+# Inference
+inference:
+  test_image: datasets/Lucchi/img/test_im.tif
+  test_label: datasets/Lucchi/label/test_label.tif
+  output_path: outputs/lucchi_monai_unet/results/
+  stride: [64, 64, 64]
+  overlap: 0.5
+  test_time_augmentation: false
+
+# Notes:
+# - MONAI Residual UNet is a strong baseline for 3D segmentation
+# - Residual connections improve gradient flow and convergence
+# - This config uses automatic 80/20 train/val split (DeepEM-inspired)
+# - Mixed precision (16-mixed) reduces memory usage without hurting performance
+# - Adjust batch_size based on available GPU memory
+#
+# Train/Val Split Strategy:
+# - Training uses first 80% of volume with random crops
+# - Validation uses last 20% of volume
+# - Validation is automatically padded to match patch_size if smaller
+# - This ensures spatial separation between train/val (no data leakage)
+#
+# To train:
+#   python scripts/main.py --config tutorials/lucchi.yaml
+#
+# To test:
+#   python scripts/main.py --config tutorials/lucchi.yaml --mode test --checkpoint path/to/checkpoint.ckpt
+#
+# Quick debug run (1 batch):
+#   python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run
