@@ -1,0 +1,65 @@
+# SLURM Cluster Configuration Preset
+# Auto-configure cluster resources and partition preferences
+
+cluster:
+  # Auto-detect SLURM partitions and resources
+  auto_detect: true
+
+  # Refresh cache (set to true to force re-detection)
+  force_refresh: false
+
+  # Partition preferences (fallback order)
+  # The first available partition matching requirements will be selected
+  partition_preferences:
+    - gpu          # Prefer GPU partition
+    - general      # Fallback to general partition
+    - default      # Final fallback
+
+  # Minimum resource requirements per node
+  resource_constraints:
+    min_cpus: 4           # Minimum CPUs
+    min_gpus: 1           # Minimum GPUs (0 for CPU-only)
+    min_memory_gb: 16     # Minimum memory in GB
+    gpu_type: null        # Specific GPU type (e.g., "a100", "v100", null for any)
+
+  # Only consider available partitions
+  available_only: true
+
+# System configuration for SLURM jobs
+system:
+  num_gpus: 1       # GPUs to request per job
+  num_cpus: 4       # CPUs to request per job
+  seed: 42
+
+# Training configuration
+training:
+  max_epochs: 100
+  precision: "16-mixed"
+  gradient_clip_val: 1.0
+
+# Checkpoint configuration
+checkpoint:
+  monitor: "val/loss"
+  mode: "min"
+  save_top_k: 3
+  save_last: true
+  dirpath: "outputs/checkpoints"
+  filename: "model-{epoch:03d}-{val_loss:.4f}"
+
+# Logging configuration
+logging:
+  save_dir: "outputs/logs"
+  name: "slurm_job"
+  version: null
+
+# Example usage:
+# 1. Auto-detect cluster resources:
+#    python -m connectomics.config.slurm_utils
+#
+# 2. Use in training:
+#    python scripts/main.py --config tutorials/your_config.yaml --config tutorials/presets/cluster_slurm.yaml
+#
+# 3. Override from CLI:
+#    python scripts/main.py --config tutorials/your_config.yaml \
+#      cluster.partition_preferences=[gpu_a100,gpu_v100] \
+#      cluster.resource_constraints.min_gpus=2
