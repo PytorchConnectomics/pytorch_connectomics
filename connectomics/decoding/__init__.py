@@ -9,11 +9,13 @@ Modules:
     - synapse: Synaptic polarity instance decoding
     - postprocess: General post-processing utilities
     - utils: Shared utility functions
+    - auto_tuning: Hyperparameter optimization for post-processing
 
 Import patterns:
     from connectomics.decoding import binary_watershed, bc_watershed
     from connectomics.decoding import polarity2instance
     from connectomics.decoding import stitch_3d, watershed_split
+    from connectomics.decoding import optimize_threshold, SkeletonMetrics
 """
 
 from .segmentation import (
@@ -22,6 +24,14 @@ from .segmentation import (
     bc_connected,
     bc_watershed,
     bcd_watershed,
+    affinity_cc3d,
+)
+
+from .auto_tuning import (
+    optimize_threshold,
+    optimize_parameters,
+    grid_search_threshold,
+    SkeletonMetrics,
 )
 
 from .synapse import (
@@ -53,10 +63,17 @@ __all__ = [
     'bc_connected',
     'bc_watershed',
     'bcd_watershed',
-    
+    'affinity_cc3d',
+
+    # Auto-tuning
+    'optimize_threshold',
+    'optimize_parameters',
+    'grid_search_threshold',
+    'SkeletonMetrics',
+
     # Synapse decoding
     'polarity2instance',
-    
+
     # Post-processing
     'binarize_and_median',
     'remove_masks',
@@ -65,7 +82,7 @@ __all__ = [
     'watershed_split',
     'stitch_3d',
     'intersection_over_union',
-    
+
     # Utilities
     'cast2dtype',
     'remove_small_instances',
