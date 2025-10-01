@@ -23,7 +23,7 @@ from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
 
 from ..process import create_binary_segmentation_pipeline, create_affinity_segmentation_pipeline
-from ..io_utils import read_volume
+from ..io import read_volume
 
 
 class MonaiConnectomicsDataset(Dataset):

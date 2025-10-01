@@ -39,9 +39,9 @@ data:
   train_label: datasets/Lucchi/label/train_label.tif
   val_image: datasets/Lucchi/img/test_im.tif
   val_label: datasets/Lucchi/label/test_label.tif
-  patch_size: [18, 160, 160]
-  pad_size: [2, 16, 16]
-  batch_size: 4
+  patch_size: [112, 112, 112]
+  pad_size: [16, 16, 16]
+  batch_size: 8
   num_workers: 4
   pin_memory: true
   persistent_workers: true
@@ -162,7 +162,7 @@ augmentation:
 # Inference
 inference:
   output_path: outputs/mednext_lucchi/results/
-  stride: [9, 80, 80]
+  stride: [56, 56, 56]
   overlap: 0.5
   test_time_augmentation: false
 

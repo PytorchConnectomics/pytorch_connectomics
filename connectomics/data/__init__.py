@@ -16,7 +16,7 @@ Recommended imports:
 
 from .dataset.dataset_base import *
 from .dataset import *
-from .io_utils import *
+from .io import *
 
 # Make submodules available
 from . import augment

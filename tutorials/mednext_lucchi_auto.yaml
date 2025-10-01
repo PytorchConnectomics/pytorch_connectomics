@@ -49,7 +49,7 @@ data:
   # batch_size: [auto]  # Determined based on GPU memory
   # num_workers: [auto]  # Determined based on CPU count
 
-  pad_size: [2, 16, 16]
+  pad_size: [16, 16, 16]
   pin_memory: true
   persistent_workers: true
   use_cache: true
@@ -168,7 +168,7 @@ augmentation:
 # Inference
 inference:
   output_path: outputs/mednext_lucchi_auto/results/
-  stride: [9, 80, 80]
+  stride: [64, 64, 64]
   overlap: 0.5
   test_time_augmentation: false
 

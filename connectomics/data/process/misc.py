@@ -12,6 +12,18 @@ except ImportError:
     HAS_MATPLOTLIB = False
 
 
+def get_seg_type(max_id: int) -> type:
+    """Get optimal numpy dtype for segmentation with given max ID."""
+    if max_id < 2**8:
+        return np.uint8
+    elif max_id < 2**16:
+        return np.uint16
+    elif max_id < 2**32:
+        return np.uint32
+    else:
+        return np.uint64
+
+
 def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
     """Convert the padding size for 3D input volumes into numpy.pad compatible format.
 

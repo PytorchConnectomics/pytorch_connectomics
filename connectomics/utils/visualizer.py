@@ -1,198 +1,280 @@
-from __future__ import print_function, division
-from typing import Optional, List, Union, Tuple
+"""
+Visualization utilities for PyTorch Connectomics.
 
+Updated for PyTorch Lightning + Hydra config system.
+Provides TensorBoard visualization of training progress, predictions, and metrics.
+"""
+
+from __future__ import annotations
+from typing import Optional, Dict, Any, List
 import torch
+import torch.nn as nn
 import torchvision.utils as vutils
 import numpy as np
-from ..transforms.process import decode_quantize, dx_to_circ
-from connectomics.models.utils import SplitActivation
 
-__all__ = [
-    'Visualizer'
-]
+try:
+    from torch.utils.tensorboard import SummaryWriter
+    HAS_TENSORBOARD = True
+except ImportError:
+    HAS_TENSORBOARD = False
+
+__all__ = ['Visualizer', 'LightningVisualizer']
 
 
-class Visualizer(object):
-    """TensorboardX visualizer for displaying loss, learning rate and predictions
-    at training time.
+class Visualizer:
+    """
+    TensorBoard visualizer for displaying predictions during training.
+
+    Compatible with both legacy YACS configs and modern Hydra configs.
     """
 
-    def __init__(self, cfg, vis_opt=0, N=16):
+    def __init__(self, cfg=None, max_images: int = 16):
+        """
+        Args:
+            cfg: Config object (Hydra Config or YACS CfgNode)
+            max_images: Maximum number of images to show
+        """
         self.cfg = cfg
-        self.act = SplitActivation.build_from_cfg(cfg, do_cat=False)
-        self.vis_opt = vis_opt
-        self.N = N  # default maximum number of sections to show
-        self.N_ind = None
-
+        self.max_images = max_images
         self.semantic_colors = {}
-        for topt in self.cfg.MODEL.TARGET_OPT:
-            if topt[0] == '9':
-                channels = int(topt.split('-')[1])
-                colors = [torch.rand(3) for _ in range(channels)]
-                colors[0] = torch.zeros(3)  # make background black
-                self.semantic_colors[topt] = torch.stack(colors, dim=0)
-                
-            if topt[0] == '1' and len(topt) != 1: # synaptic cleft (exclusive)
-                _, exclusive = topt.split('-')
-                assert int(exclusive), f"Option {topt} is not expected!"    
-                colors = torch.stack([
-                    torch.tensor([0.0, 0.0, 0.0]),
-                    torch.tensor([1.0, 0.0, 1.0]),
-                    torch.tensor([0.0, 1.0, 1.0])], dim=0)      
-                self.semantic_colors[topt] = colors
 
-    def visualize(self, volume, label, output, weight, iter_total, writer,
-                  suffix: Optional[str] = None, additional_image_groups: Optional[dict] = None):
-        self.visualize_image_groups(writer, iter_total, additional_image_groups)
-        
-        volume = self._denormalize(volume)
-        # split the prediction into chunks along the channel dimension
-        output = self.act(output)
-        assert len(output) == len(label)
+        # Initialize color maps for semantic segmentation
+        self._init_color_maps()
 
-        for idx in range(len(self.cfg.MODEL.TARGET_OPT)):
-            topt = self.cfg.MODEL.TARGET_OPT[idx]
-            if topt[0] == '9': # semantic segmentation
-                output[idx] = self.get_semantic_map(output[idx], topt)
-                label[idx] = self.get_semantic_map(label[idx], topt, argmax=False)
+    def _init_color_maps(self):
+        """Initialize random colors for semantic segmentation visualization."""
+        # Default color map for binary segmentation
+        self.semantic_colors['default'] = torch.tensor([
+            [0.0, 0.0, 0.0],  # Background (black)
+            [1.0, 1.0, 1.0],  # Foreground (white)
+        ])
 
-            if topt[0] == '1' and len(topt) != 1: # synaptic cleft segmentation
-                _, exclusive = topt.split('-')
-                assert int(exclusive), f"Option {topt} is not expected!"
-                output[idx] = self.get_semantic_map(output[idx], topt)
-                label[idx] = self.get_semantic_map(label[idx], topt, argmax=False)
+    def visualize(
+        self,
+        volume: torch.Tensor,
+        label: torch.Tensor,
+        output: torch.Tensor,
+        iteration: int,
+        writer: SummaryWriter,
+        prefix: str = 'train',
+        **kwargs
+    ):
+        """
+        Visualize input, target, and prediction.
 
-            if topt[0] in ['5','8']: # distance transform
-                if topt[0] == '8':
-                    index = topt[2:].find('-')
-                    topt = topt[2+index+1:]
-                if len(topt) == 1:
-                    topt = topt + '-2d-0-0-5.0-0' # default
-                _, mode, padding, quant, z_res, erosion = topt.split('-')
-                if bool(int(quant)): # only the quantized version needs decoding
-                    output[idx] = decode_quantize(
-                        output[idx], mode='max').unsqueeze(1)
-                    temp_label = label[idx].clone().float()[
-                        :, np.newaxis]
-                    label[idx] = temp_label / temp_label.max() + 1e-6
-
-            if topt[0]=='7': # diffusion gradient
-                output[idx] = dx_to_circ(output[idx])
-                label[idx] = dx_to_circ(label[idx])
-
-            RGB = (topt[0] in ['1', '2', '7', '9'])
-            vis_name = self.cfg.MODEL.TARGET_OPT[idx] + '_' + str(idx)
-            if suffix is not None:
-                vis_name = vis_name + '_' + suffix
-            if isinstance(label[idx], (np.ndarray, np.generic)):
-                label[idx] = torch.from_numpy(label[idx])
-
-            weight_maps = {}
-            for j, wopt in enumerate(self.cfg.MODEL.WEIGHT_OPT[idx]):
-                if wopt != '0':
-                    w_name = vis_name + '_' + wopt
-                    weight_maps[w_name] = weight[idx][j]
-                else:  # The weight map can be the binary valid mask.
-                    if weight[idx][j].shape[-1] != 1:
-                        weight_maps['valid_mask'] = weight[idx][j]
-
-            self.visualize_consecutive(volume, label[idx], output[idx], weight_maps,
-                                       iter_total, writer, RGB=RGB, vis_name=vis_name)
-
-    def visualize_image_groups(self, writer, iteration, image_groups: Optional[dict] = None,
-                               is_3d: bool = True) -> None:
-        if image_groups is None:
+        Args:
+            volume: Input image (B, C, D, H, W) or (B, C, H, W)
+            label: Ground truth (B, C, D, H, W) or (B, C, H, W)
+            output: Model prediction (B, C, D, H, W) or (B, C, H, W)
+            iteration: Current iteration/step
+            writer: TensorBoard SummaryWriter
+            prefix: Prefix for logging (train/val/test)
+        """
+        if not HAS_TENSORBOARD:
             return
 
-        for name in image_groups.keys():
-            image_list = image_groups[name]
-            image_list = [self._denormalize(x) for x in image_list]
-            image_list = [self.permute_truncate(x, is_3d=is_3d) for x in image_list]
-            sz = image_list[0].size()
-            canvas = [x.detach().cpu().expand(sz[0], 3, sz[2], sz[3]) for x in image_list]
-            canvas_merge = torch.cat(canvas, 0)
-            canvas_show = vutils.make_grid(
-                canvas_merge, nrow=8, normalize=True, scale_each=True)
+        # Prepare data
+        volume = self._prepare_volume(volume)
+        label = self._prepare_volume(label)
+        output = self._prepare_volume(output)
 
-            writer.add_image('Image_Group_%s' % name, canvas_show, iteration)
+        # Create visualization grid
+        self._visualize_grid(
+            volume, label, output,
+            writer, iteration, prefix
+        )
 
-    def visualize_consecutive(self, volume, label, output, weight_maps, iteration,
-                              writer, RGB=False, vis_name='0_0'):
-        volume, label, output, weight_maps = self.prepare_data(
-            volume, label, output, weight_maps)
-        sz = volume.size()  # z,c,y,x
-        canvas = []
-        volume_visual = volume.detach().cpu().expand(sz[0], 3, sz[2], sz[3])
-        canvas.append(volume_visual)
+    def _prepare_volume(self, vol: torch.Tensor) -> torch.Tensor:
+        """Prepare volume for visualization (handle 3D -> 2D conversion)."""
+        if vol.ndim == 5:  # 3D: (B, C, D, H, W)
+            # Take middle slice
+            mid_slice = vol.shape[2] // 2
+            vol = vol[:, :, mid_slice, :, :]
 
-        def maybe2rgb(temp):
-            if temp.shape[1] == 2: # 2d affinity map has two channels
-                temp = torch.cat([temp, torch.zeros(
-                    sz[0], 1, sz[2], sz[3]).type(temp.dtype)], dim=1)
-            return temp
+        # Ensure (B, C, H, W)
+        return vol[:self.max_images]
 
-        if RGB:
-            output_visual = [maybe2rgb(output.detach().cpu())]
-            label_visual = [maybe2rgb(label.detach().cpu())]
-        else:
-            output_visual = [self.vol_reshape(
-                output[:, i], sz) for i in range(sz[1])]
-            label_visual = [self.vol_reshape(
-                label[:, i], sz) for i in range(sz[1])]
+    def _visualize_grid(
+        self,
+        volume: torch.Tensor,
+        label: torch.Tensor,
+        output: torch.Tensor,
+        writer: SummaryWriter,
+        iteration: int,
+        prefix: str
+    ):
+        """Create and log visualization grid."""
+        # Normalize to [0, 1]
+        volume = self._normalize(volume)
+        label = self._normalize(label)
+        output = torch.sigmoid(output)  # Apply sigmoid for visualization
 
-        weight_visual = []
-        for key in weight_maps.keys():
-            weight_visual.append(maybe2rgb(weight_maps[key]).detach().cpu().expand(
-                                 sz[0], 3, sz[2], sz[3]))
+        # Handle multi-channel predictions
+        if output.shape[1] > 1:
+            # For multi-class, take argmax
+            output = torch.argmax(output, dim=1, keepdim=True).float()
 
-        canvas = canvas + output_visual + label_visual + weight_visual
-        canvas_merge = torch.cat(canvas, 0)
-        canvas_show = vutils.make_grid(
-            canvas_merge, nrow=8, normalize=True, scale_each=True)
+        if label.shape[1] > 1:
+            label = torch.argmax(label, dim=1, keepdim=True).float()
 
-        writer.add_image('Consecutive_%s' % vis_name, canvas_show, iteration)
+        # Expand single channel to RGB
+        if volume.shape[1] == 1:
+            volume = volume.repeat(1, 3, 1, 1)
+        if label.shape[1] == 1:
+            label = label.repeat(1, 3, 1, 1)
+        if output.shape[1] == 1:
+            output = output.repeat(1, 3, 1, 1)
 
-    def prepare_data(self, volume, label, output, weight_maps):
-        ndim = volume.ndim
-        assert ndim in [4, 5]
-        is_3d = (ndim == 5)
+        # Stack: [volume, prediction, ground_truth]
+        grid = torch.cat([volume, output, label], dim=0)
 
-        volume = self.permute_truncate(volume, is_3d)
-        label = self.permute_truncate(label, is_3d)
-        output = self.permute_truncate(output, is_3d)
-        for key in weight_maps.keys():
-            weight_maps[key] = self.permute_truncate(weight_maps[key], is_3d)
+        # Create grid visualization
+        grid_img = vutils.make_grid(
+            grid, nrow=self.max_images, normalize=True, scale_each=True
+        )
 
-        return volume, label, output, weight_maps
+        # Log to tensorboard
+        writer.add_image(f'{prefix}/visualization', grid_img, iteration)
 
-    def permute_truncate(self, data, is_3d=False):
-        if is_3d: # show consecutive slices of a 3d volume
-            data = data[0].permute(1, 0, 2, 3)
-        high = min(data.size()[0], self.N)
-        return data[:high]
+    def _normalize(self, tensor: torch.Tensor) -> torch.Tensor:
+        """Normalize tensor to [0, 1] range."""
+        tensor = tensor.detach().cpu()
+        min_val = tensor.min()
+        max_val = tensor.max()
+        if max_val > min_val:
+            tensor = (tensor - min_val) / (max_val - min_val)
+        return tensor
 
-    def get_semantic_map(self, output, topt, argmax=True):
-        if isinstance(output, (np.ndarray, np.generic)):
-            output = torch.from_numpy(output)
-        # output shape: BCDHW or BCHW
-        if argmax:
-            output = torch.argmax(output, 1)
-        pred = self.semantic_colors[topt][output.cpu()]
-        if len(pred.size()) == 4:   # 2D Inputs
-            pred = pred.permute(0, 3, 1, 2)
-        elif len(pred.size()) == 5:  # 3D Inputs
-            pred = pred.permute(0, 4, 1, 2, 3)
+    def visualize_consecutive_slices(
+        self,
+        volume: torch.Tensor,
+        label: torch.Tensor,
+        output: torch.Tensor,
+        writer: SummaryWriter,
+        iteration: int,
+        prefix: str = 'train',
+        num_slices: int = 8
+    ):
+        """
+        Visualize consecutive slices from 3D volume.
 
-        return pred
+        Args:
+            volume: Input volume (B, C, D, H, W)
+            label: Ground truth (B, C, D, H, W)
+            output: Prediction (B, C, D, H, W)
+            writer: TensorBoard writer
+            iteration: Current iteration
+            prefix: Logging prefix
+            num_slices: Number of consecutive slices to show
+        """
+        if volume.ndim != 5:
+            return  # Not 3D
 
-    def vol_reshape(self, vol, sz):
-        vol = vol.detach().cpu().unsqueeze(1)
-        return vol.expand(sz[0], 3, sz[2], sz[3])
+        # Take first batch item
+        volume = volume[0]  # (C, D, H, W)
+        label = label[0]
+        output = output[0]
 
-    def _denormalize(self, volume):
-        match_act = self.cfg.DATASET.MATCH_ACT
-        if match_act == 'none':
-            volume = (volume * self.cfg.DATASET.STD) + self.cfg.DATASET.MEAN
-        elif match_act == 'tanh':
-            volume = (volume + 1.0) * 0.5
-        return volume
+        # Select middle slices
+        depth = volume.shape[1]
+        start_idx = max(0, depth // 2 - num_slices // 2)
+        end_idx = min(depth, start_idx + num_slices)
+
+        # Extract slices
+        vol_slices = volume[:, start_idx:end_idx, :, :]  # (C, num_slices, H, W)
+        lab_slices = label[:, start_idx:end_idx, :, :]
+        out_slices = output[:, start_idx:end_idx, :, :]
+
+        # Reshape to (num_slices, C, H, W)
+        vol_slices = vol_slices.permute(1, 0, 2, 3)
+        lab_slices = lab_slices.permute(1, 0, 2, 3)
+        out_slices = out_slices.permute(1, 0, 2, 3)
+
+        # Visualize
+        self._visualize_grid(
+            vol_slices, lab_slices, out_slices,
+            writer, iteration, f'{prefix}_slices'
+        )
+
+
+class LightningVisualizer:
+    """
+    Lightning-compatible visualizer.
+
+    Designed to work with PyTorch Lightning callbacks.
+    """
+
+    def __init__(self, cfg, max_images: int = 16):
+        """
+        Args:
+            cfg: Hydra Config object
+            max_images: Maximum number of images to visualize
+        """
+        self.visualizer = Visualizer(cfg, max_images)
+        self.cfg = cfg
+
+    def on_train_batch_end(
+        self,
+        trainer,
+        pl_module,
+        outputs: Dict[str, Any],
+        batch: Dict[str, torch.Tensor],
+        batch_idx: int
+    ):
+        """Called at the end of training batch."""
+        if not self._should_visualize(trainer, batch_idx):
+            return
+
+        if trainer.logger is None:
+            return
+
+        # Get tensorboard writer
+        writer = trainer.logger.experiment
+
+        # Visualize
+        self.visualizer.visualize(
+            volume=batch['image'],
+            label=batch['label'],
+            output=outputs.get('pred', outputs.get('logits')),
+            iteration=trainer.global_step,
+            writer=writer,
+            prefix='train'
+        )
+
+    def on_validation_batch_end(
+        self,
+        trainer,
+        pl_module,
+        outputs: Dict[str, Any],
+        batch: Dict[str, torch.Tensor],
+        batch_idx: int
+    ):
+        """Called at the end of validation batch."""
+        if batch_idx != 0:  # Only visualize first batch
+            return
+
+        if trainer.logger is None:
+            return
+
+        writer = trainer.logger.experiment
+
+        self.visualizer.visualize(
+            volume=batch['image'],
+            label=batch['label'],
+            output=outputs.get('pred', outputs.get('logits')),
+            iteration=trainer.global_step,
+            writer=writer,
+            prefix='val'
+        )
+
+    def _should_visualize(self, trainer, batch_idx: int) -> bool:
+        """Determine if should visualize this batch."""
+        # Visualize every N steps
+        log_every_n_steps = getattr(self.cfg.training, 'vis_every_n_steps', 100)
+        return trainer.global_step % log_every_n_steps == 0 and batch_idx == 0
+
+
+# Legacy compatibility
+def create_visualizer(cfg, **kwargs):
+    """Factory function for creating visualizer (backward compatible)."""
+    return Visualizer(cfg, **kwargs)
