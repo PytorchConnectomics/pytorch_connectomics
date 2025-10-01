@@ -1,11 +1,17 @@
-# I/O Module Refactoring Plan
+# I/O Module Refactoring Plan (Simplified)
 
 ## Executive Summary
 
 This plan reorganizes and refactors the I/O modules in PyTorch Connectomics to eliminate redundancy, improve consistency, and establish a clear, modern API structure.
 
 **Current State**: Redundant implementations across multiple locations
-**Target State**: Clean, modular I/O package with consistent naming and modern Python practices
+**Target State**: Clean, consolidated I/O package with consistent naming and modern Python practices
+
+**Simplification Strategy**:
+- Consolidate all format-specific I/O into single `io.py` file
+- Consolidate all MONAI transforms into single `monai_transforms.py` file
+- No backward compatibility layer (clean break from legacy)
+- Minimal file changes for easier maintenance
 
 ---
 
@@ -45,7 +51,7 @@ connectomics/data/io/
 #### 3. Top-level Convenience: `connectomics/data/io_utils.py`
 **Status**: Thin wrapper for backward compatibility
 **Purpose**: Re-exports functions from `io/` package
-**Should be deprecated**: Yes (after migration period)
+**Action**: Delete this file
 
 ---
 
@@ -54,6 +60,7 @@ connectomics/data/io/
 ### 1. **Duplication**
 - Legacy `data_io.py` has older implementations of same functions
 - `io_utils.py` is just a re-export wrapper
+- Functions spread across multiple files
 
 ### 2. **Naming Inconsistency**
 Legacy names vs modern names:
@@ -69,94 +76,100 @@ Legacy names vs modern names:
 - `create_json` → `create_tile_metadata`
 - `tile2volume` → `reconstruct_volume_from_tiles`
 
-### 3. **Missing Features in Modern Implementation**
-The modern `io/` package is missing some utilities from legacy:
-- Nothing significant (legacy is actually less complete)
+### 3. **File Fragmentation**
+- Format-specific code spread across `volume.py` and `utils.py`
+- MONAI transforms in separate file but `TileLoaderd` in `tiles.py`
 
-### 4. **Import Confusion**
-Users might import from:
-- `connectomics.data.io` (modern, correct)
-- `connectomics.data.io_utils` (convenience wrapper)
-- Legacy path (old repo, shouldn't exist in new lib)
-
-### 5. **MONAI Integration Gaps**
+### 4. **MONAI Integration Gaps**
 - `tiles.py` has incomplete `TileLoaderd` (missing `Sequence` import)
-- `LoadVolumed` in `monai_transforms.py` is good but could be promoted
+- Transforms not all in one place
 
 ---
 
-## Proposed Structure
+## Proposed Structure (Simplified)
 
 ### Target Architecture
 
 ```
 connectomics/data/io/
 ├── __init__.py              # Public API (all imports)
-│
-├── formats/                 # NEW: Format-specific I/O
-│   ├── __init__.py
-│   ├── hdf5.py             # HDF5 operations
-│   ├── image.py            # Image formats (PNG, TIFF)
-│   └── pickle.py           # Pickle utilities
-│
-├── transforms/              # MONAI transforms
-│   ├── __init__.py
-│   ├── volume.py           # LoadVolumed, SaveVolumed
-│   └── tiles.py            # TileLoaderd
-│
-├── tiles.py                 # Tile operations (KEEP)
-├── utils.py                 # Data utilities (KEEP)
-│
-└── legacy.py                # DEPRECATED: Backward compatibility aliases
+├── io.py                    # NEW: All format-specific I/O (HDF5, image, pickle)
+├── monai_transforms.py      # UPDATED: All MONAI transforms (volume + tiles)
+├── tiles.py                 # UPDATED: Tile operations only (no TileLoaderd)
+└── utils.py                 # KEEP: Data utilities
 ```
 
-### Rationale for Changes
+**DELETE**:
+- `connectomics/data/io_utils.py` (top-level wrapper)
+- `connectomics/data/io/volume.py` (merged into `io.py`)
 
-1. **`formats/` subdirectory**: Groups format-specific I/O by file type
-   - Clear separation of concerns
-   - Easier to add new formats (Zarr, N5, etc.)
-   - Better organization for large codebase
+### Rationale for Simplified Design
 
-2. **`transforms/` subdirectory**: All MONAI transforms in one place
-   - Clear distinction between functions and transforms
-   - Easier to find MONAI-compatible loaders
-   - Matches MONAI's organization
+1. **Single `io.py` file**: All format-specific I/O in one place
+   - HDF5, image (PNG/TIFF), pickle operations
+   - Easier to find and maintain
+   - No subdirectory navigation needed
+   - Still well-organized with clear section comments
 
-3. **`legacy.py`**: Backward compatibility
-   - One place for all deprecated aliases
-   - Clear deprecation warnings
-   - Easy to remove in future major version
+2. **Single `monai_transforms.py` file**: All MONAI transforms together
+   - `LoadVolumed`, `SaveVolumed`, `TileLoaderd` in one file
+   - Clear separation: functions vs transforms
+   - Easier to understand MONAI integration
 
-4. **Keep `tiles.py` and `utils.py`**: Already well-organized
-   - These modules are cohesive and well-designed
-   - No need to split further
+3. **Clean `tiles.py`**: Pure tile operations
+   - No MONAI dependencies
+   - Just reconstruction functions
+   - Simpler imports
+
+4. **No legacy.py**: Clean break
+   - Users must update to modern names
+   - No maintenance burden of deprecated code
+   - Clearer codebase
 
 ---
 
 ## Refactoring Tasks
 
-### Phase 1: Create Format-Specific Modules
+### Phase 1: Create Consolidated I/O Module
 
-#### Task 1.1: Create `formats/hdf5.py`
-**Extract from**: `volume.py` lines 45-83
-**Functions**:
-- `read_hdf5(filename, dataset=None)`
-- `write_hdf5(filename, data_array, dataset='main')`
-- `list_datasets(filename)` - NEW: List available datasets in HDF5
+#### Task 1.1: Create `io/io.py`
+**Purpose**: Consolidate all format-specific I/O operations
+**Sections**:
+1. HDF5 operations
+2. Image operations (PNG, TIFF)
+3. Pickle operations
+4. High-level volume I/O
 
-**Improvements**:
-- Add `list_datasets()` utility
-- Add context manager support for batch operations
-- Add compression level parameter to `write_hdf5()`
+**File**: `connectomics/data/io/io.py` (NEW)
 
 ```python
-"""HDF5 I/O operations for connectomics data."""
+"""
+Consolidated I/O operations for all formats.
+
+This module provides I/O functions for:
+- HDF5 files (.h5, .hdf5)
+- Image files (PNG, TIFF)
+- Pickle files (.pkl)
+- High-level volume operations
+"""
 
 from __future__ import annotations
 from typing import Optional, List, Union
+import os
+import glob
+import pickle
 import h5py
 import numpy as np
+import imageio
 
+# Avoid PIL "IOError: image file truncated"
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+
+# =============================================================================
+# HDF5 I/O
+# =============================================================================
 
 def read_hdf5(
     filename: str,
@@ -196,7 +209,7 @@ def write_hdf5(
         data_array: Data to write as numpy array or list of arrays
         dataset: Name of the dataset(s) to create
         compression: Compression algorithm ('gzip', 'lzf', or None)
-        compression_level: Compression level (0-9 for gzip, ignored for lzf)
+        compression_level: Compression level (0-9 for gzip)
     """
     with h5py.File(filename, 'w') as file_handle:
         if isinstance(dataset, list):
@@ -218,7 +231,7 @@ def write_hdf5(
             )
 
 
-def list_datasets(filename: str) -> List[str]:
+def list_hdf5_datasets(filename: str) -> List[str]:
     """List all datasets in an HDF5 file.
 
     Args:
@@ -231,66 +244,9 @@ def list_datasets(filename: str) -> List[str]:
         return list(file_handle.keys())
 
 
-def get_dataset_info(filename: str, dataset: Optional[str] = None) -> dict:
-    """Get information about a dataset in an HDF5 file.
-
-    Args:
-        filename: Path to the HDF5 file
-        dataset: Name of the dataset. If None, uses first dataset
-
-    Returns:
-        Dictionary with shape, dtype, compression info
-    """
-    with h5py.File(filename, 'r') as file_handle:
-        if dataset is None:
-            dataset = list(file_handle)[0]
-
-        ds = file_handle[dataset]
-        return {
-            'name': dataset,
-            'shape': ds.shape,
-            'dtype': ds.dtype,
-            'compression': ds.compression,
-            'compression_opts': ds.compression_opts,
-        }
-
-
-__all__ = [
-    'read_hdf5',
-    'write_hdf5',
-    'list_datasets',
-    'get_dataset_info',
-]
-```
-
-#### Task 1.2: Create `formats/image.py`
-**Extract from**: `volume.py` lines 19-199
-**Functions**:
-- `read_image(filename, add_channel=False)`
-- `read_images(filename_pattern)`
-- `read_image_as_volume(filename, drop_channel=False)`
-- `save_image(filename, data)` - NEW
-- `save_images(directory, data, prefix='')` - NEW
-
-**Improvements**:
-- Add save functions for symmetry
-- Better error messages
-- Support for more formats (WebP, JPEG2000)
-
-```python
-"""Image I/O operations for various formats (PNG, TIFF, etc.)."""
-
-from __future__ import annotations
-from typing import Optional
-import os
-import glob
-import numpy as np
-import imageio
-
-# Avoid PIL "IOError: image file truncated"
-from PIL import ImageFile
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
+# =============================================================================
+# Image I/O
+# =============================================================================
 
 SUPPORTED_IMAGE_FORMATS = ['png', 'tif', 'tiff', 'jpg', 'jpeg']
 
@@ -357,7 +313,7 @@ def read_image_as_volume(filename: str, drop_channel: bool = False) -> np.ndarra
         Image data as numpy array with shape (C, H, W)
 
     Raises:
-        AssertionError: If file format is not supported
+        ValueError: If file format is not supported
     """
     image_suffix = filename[filename.rfind('.') + 1:].lower()
     if image_suffix not in SUPPORTED_IMAGE_FORMATS:
@@ -406,31 +362,11 @@ def save_images(directory: str, data: np.ndarray, prefix: str = '', format: str 
         imageio.imsave(filename, data[i])
 
 
-__all__ = [
-    'read_image',
-    'read_images',
-    'read_image_as_volume',
-    'save_image',
-    'save_images',
-    'SUPPORTED_IMAGE_FORMATS',
-]
-```
+# =============================================================================
+# Pickle I/O
+# =============================================================================
 
-#### Task 1.3: Create `formats/pickle.py`
-**Extract from**: `utils.py` lines 13-33
-**Functions**:
-- `read_pickle_file(filename)`
-- `write_pickle_file(filename, data)` - NEW
-
-```python
-"""Pickle I/O operations."""
-
-from __future__ import annotations
-from typing import Any, List, Union
-import pickle
-
-
-def read_pickle_file(filename: str) -> Union[Any, List[Any]]:
+def read_pickle_file(filename: str) -> Union[object, List[object]]:
     """Read data from a pickle file.
 
     Args:
@@ -453,7 +389,7 @@ def read_pickle_file(filename: str) -> Union[Any, List[Any]]:
     return data
 
 
-def write_pickle_file(filename: str, data: Any) -> None:
+def write_pickle_file(filename: str, data: object) -> None:
     """Write data to a pickle file.
 
     Args:
@@ -464,174 +400,9 @@ def write_pickle_file(filename: str, data: Any) -> None:
         pickle.dump(data, file_handle)
 
 
-__all__ = [
-    'read_pickle_file',
-    'write_pickle_file',
-]
-```
-
----
-
-### Phase 2: Reorganize MONAI Transforms
-
-#### Task 2.1: Create `transforms/volume.py`
-**Move**: `monai_transforms.py` → `transforms/volume.py`
-**Add**: `SaveVolumed` transform for symmetry
-
-```python
-"""MONAI transforms for volume I/O operations."""
-
-from __future__ import annotations
-from typing import Any, Dict
-import numpy as np
-from monai.config import KeysCollection
-from monai.transforms import MapTransform
-
-from ..volume import read_volume, save_volume
-
-
-class LoadVolumed(MapTransform):
-    """MONAI loader for connectomics volume data (HDF5, TIFF, etc.)."""
-
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
-
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            if key in d and isinstance(d[key], str):
-                volume = read_volume(d[key])
-                if volume.ndim == 3:
-                    volume = np.expand_dims(volume, axis=0)
-                d[key] = volume
-        return d
-
-
-class SaveVolumed(MapTransform):
-    """MONAI transform for saving volume data."""
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        output_dir: str,
-        output_format: str = 'h5',
-        allow_missing_keys: bool = False
-    ):
-        super().__init__(keys, allow_missing_keys)
-        self.output_dir = output_dir
-        self.output_format = output_format
-
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        import os
-        os.makedirs(self.output_dir, exist_ok=True)
-
-        d = dict(data)
-        for key in self.key_iterator(d):
-            if key in d and isinstance(d[key], np.ndarray):
-                filename = os.path.join(self.output_dir, f"{key}.{self.output_format}")
-                save_volume(filename, d[key], file_format=self.output_format)
-        return d
-
-
-__all__ = [
-    'LoadVolumed',
-    'SaveVolumed',
-]
-```
-
-#### Task 2.2: Fix `transforms/tiles.py`
-**Move**: Extract `TileLoaderd` from `tiles.py` → `transforms/tiles.py`
-**Fix**: Add missing `Sequence` import and type hints
-
-```python
-"""MONAI transforms for tile-based I/O operations."""
-
-from __future__ import annotations
-from typing import Any, Dict, Tuple, Sequence
-import numpy as np
-from monai.transforms import MapTransform
-
-from ..tiles import reconstruct_volume_from_tiles
-
-
-class TileLoaderd(MapTransform):
-    """MONAI transform for loading tile-based data.
-
-    This transform reconstructs volumes from tiles based on chunk coordinates
-    and metadata information.
-    """
-
-    def __init__(self, keys: Sequence[str], allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
-
-    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Load tile data for specified keys."""
-        d = dict(data)
-
-        for key in self.key_iterator(d):
-            if key in d and isinstance(d[key], dict):
-                tile_info = d[key]
-                if 'metadata' in tile_info and 'chunk_coords' in tile_info:
-                    metadata = tile_info['metadata']
-                    coords = tile_info['chunk_coords']
-                    volume = self._load_tiles_for_chunk(metadata, coords)
-                    d[key] = volume
-
-        return d
-
-    def _load_tiles_for_chunk(
-        self,
-        metadata: Dict[str, Any],
-        coords: Tuple[int, int, int, int, int, int],
-    ) -> np.ndarray:
-        """Load and reconstruct volume chunk from tiles."""
-        z_start, z_end, y_start, y_end, x_start, x_end = coords
-
-        tile_paths = metadata['image'][z_start:z_end]
-        volume_coords = [z_start, z_end, y_start, y_end, x_start, x_end]
-        tile_coords = [
-            0, metadata['depth'],
-            0, metadata['height'],
-            0, metadata['width']
-        ]
-
-        volume = reconstruct_volume_from_tiles(
-            tile_paths=tile_paths,
-            volume_coords=volume_coords,
-            tile_coords=tile_coords,
-            tile_size=metadata['tile_size'],
-            data_type=np.dtype(metadata['dtype']),
-            tile_start=metadata.get('tile_st', [0, 0]),
-            tile_ratio=metadata.get('tile_ratio', 1.0),
-        )
-
-        return volume
-
-
-__all__ = [
-    'TileLoaderd',
-]
-```
-
----
-
-### Phase 3: Update Main Volume Module
-
-#### Task 3.1: Refactor `volume.py`
-**Keep**: High-level functions (`read_volume`, `save_volume`)
-**Delegate**: Format-specific operations to `formats/` modules
-
-```python
-"""High-level volume I/O operations."""
-
-from __future__ import annotations
-from typing import Optional
-import numpy as np
-import imageio
-
-from .formats.hdf5 import read_hdf5, write_hdf5
-from .formats.image import read_images, SUPPORTED_IMAGE_FORMATS
-
+# =============================================================================
+# High-level Volume I/O
+# =============================================================================
 
 def read_volume(
     filename: str,
@@ -702,8 +473,6 @@ def save_volume(
     Raises:
         ValueError: If file format is not supported
     """
-    from .formats.image import save_images
-
     if file_format == 'h5':
         write_hdf5(filename, volume, dataset=dataset)
     elif file_format == 'png':
@@ -716,139 +485,560 @@ def save_volume(
 
 
 __all__ = [
-    'read_volume',
-    'save_volume',
+    # HDF5 I/O
+    'read_hdf5', 'write_hdf5', 'list_hdf5_datasets',
+
+    # Image I/O
+    'read_image', 'read_images', 'read_image_as_volume',
+    'save_image', 'save_images', 'SUPPORTED_IMAGE_FORMATS',
+
+    # Pickle I/O
+    'read_pickle_file', 'write_pickle_file',
+
+    # High-level volume I/O
+    'read_volume', 'save_volume',
 ]
 ```
 
 ---
 
-### Phase 4: Create Legacy Compatibility Layer
+### Phase 2: Consolidate MONAI Transforms
 
-#### Task 4.1: Create `legacy.py`
-**Purpose**: Backward compatibility with old naming
-**Strategy**: Deprecation warnings → removal in v3.0
+#### Task 2.1: Update `monai_transforms.py`
+**Add**: `TileLoaderd` from `tiles.py` and `SaveVolumed` for completeness
+**Fix**: Missing imports and type hints
+
+**File**: `connectomics/data/io/monai_transforms.py` (UPDATED)
 
 ```python
 """
-Deprecated legacy function names for backward compatibility.
+MONAI transforms for connectomics I/O operations.
 
-These functions are deprecated and will be removed in v3.0.
-Please update your code to use the modern equivalents.
+This module provides MONAI-compatible transforms for:
+- Volume loading (HDF5, TIFF, PNG)
+- Volume saving
+- Tile-based loading for large datasets
 """
 
-import warnings
-from typing import Optional, List, Union
+from __future__ import annotations
+from typing import Any, Dict, Tuple, Sequence
 import numpy as np
+from monai.config import KeysCollection
+from monai.transforms import MapTransform
 
-# Import modern functions
-from .formats.hdf5 import read_hdf5 as _read_hdf5, write_hdf5 as _write_hdf5
-from .formats.image import (
-    read_image as _read_image,
-    read_images as _read_images,
-    read_image_as_volume as _read_image_as_volume,
-)
-from .formats.pickle import read_pickle_file as _read_pickle_file
-from .volume import read_volume as _read_volume, save_volume as _save_volume
-from .utils import vast_to_segmentation as _vast_to_segmentation
-from .tiles import (
-    create_tile_metadata as _create_tile_metadata,
-    reconstruct_volume_from_tiles as _reconstruct_volume_from_tiles,
-)
+from .io import read_volume, save_volume
+from .tiles import reconstruct_volume_from_tiles
 
 
-def _deprecation_warning(old_name: str, new_name: str):
-    """Issue a deprecation warning."""
-    warnings.warn(
-        f"'{old_name}' is deprecated and will be removed in v3.0. "
-        f"Use '{new_name}' instead.",
-        DeprecationWarning,
-        stacklevel=3
-    )
+class LoadVolumed(MapTransform):
+    """
+    MONAI loader for connectomics volume data (HDF5, TIFF, etc.).
+
+    This transform uses the connectomics read_volume function to load various
+    file formats and ensures the data has a channel dimension.
+
+    Args:
+        keys: Keys to load from the data dictionary
+        allow_missing_keys: Whether to allow missing keys in the dictionary
+
+    Examples:
+        >>> transform = LoadVolumed(keys=['image', 'label'])
+        >>> data = {'image': 'img.h5', 'label': 'lbl.h5'}
+        >>> result = transform(data)
+        >>> # result['image'] shape: (C, D, H, W)
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Load volume data from file paths."""
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d and isinstance(d[key], str):
+                volume = read_volume(d[key])
+                # Ensure we have at least 4 dimensions (add channel if needed)
+                if volume.ndim == 3:
+                    volume = np.expand_dims(volume, axis=0)
+                d[key] = volume
+        return d
 
 
-# Legacy function aliases with deprecation warnings
-def readh5(filename: str, dataset: Optional[str] = None) -> np.ndarray:
-    """Deprecated: Use read_hdf5() instead."""
-    _deprecation_warning('readh5', 'read_hdf5')
-    return _read_hdf5(filename, dataset)
+class SaveVolumed(MapTransform):
+    """
+    MONAI transform for saving volume data.
+
+    Args:
+        keys: Keys to save from the data dictionary
+        output_dir: Output directory for saved volumes
+        output_format: File format ('h5' or 'png')
+        allow_missing_keys: Whether to allow missing keys
+
+    Examples:
+        >>> transform = SaveVolumed(
+        ...     keys=['prediction'],
+        ...     output_dir='./outputs',
+        ...     output_format='h5'
+        ... )
+        >>> data = {'prediction': np.random.rand(1, 32, 128, 128)}
+        >>> result = transform(data)
+        >>> # Saves to ./outputs/prediction.h5
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        output_dir: str,
+        output_format: str = 'h5',
+        allow_missing_keys: bool = False
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.output_dir = output_dir
+        self.output_format = output_format
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Save volume data to files."""
+        import os
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d and isinstance(d[key], np.ndarray):
+                filename = os.path.join(self.output_dir, f"{key}.{self.output_format}")
+                save_volume(filename, d[key], file_format=self.output_format)
+        return d
 
 
-def writeh5(filename: str, dtarray: np.ndarray, dataset: str = 'main') -> None:
-    """Deprecated: Use write_hdf5() instead."""
-    _deprecation_warning('writeh5', 'write_hdf5')
-    return _write_hdf5(filename, dtarray, dataset)
+class TileLoaderd(MapTransform):
+    """
+    MONAI transform for loading tile-based data.
 
+    This transform reconstructs volumes from tiles based on chunk coordinates
+    and metadata information.
 
-def readvol(filename: str, dataset: Optional[str] = None, drop_channel: bool = False) -> np.ndarray:
-    """Deprecated: Use read_volume() instead."""
-    _deprecation_warning('readvol', 'read_volume')
-    return _read_volume(filename, dataset, drop_channel)
+    Args:
+        keys: Keys to process from the data dictionary
+        allow_missing_keys: Whether to allow missing keys
 
+    Examples:
+        >>> transform = TileLoaderd(keys=['image'])
+        >>> data = {
+        ...     'image': {
+        ...         'metadata': tile_metadata,
+        ...         'chunk_coords': (0, 10, 0, 128, 0, 128)
+        ...     }
+        ... }
+        >>> result = transform(data)
+        >>> # result['image'] is reconstructed volume from tiles
+    """
 
-def savevol(filename: str, vol: np.ndarray, dataset: str = 'main', format: str = 'h5') -> None:
-    """Deprecated: Use save_volume() instead."""
-    _deprecation_warning('savevol', 'save_volume')
-    return _save_volume(filename, vol, dataset, format)
+    def __init__(self, keys: Sequence[str], allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
 
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Load tile data for specified keys."""
+        d = dict(data)
 
-def readim(filename: str, do_channel: bool = False) -> Optional[np.ndarray]:
-    """Deprecated: Use read_image() instead."""
-    _deprecation_warning('readim', 'read_image')
-    return _read_image(filename, add_channel=do_channel)
+        for key in self.key_iterator(d):
+            if key in d and isinstance(d[key], dict):
+                tile_info = d[key]
+                if 'metadata' in tile_info and 'chunk_coords' in tile_info:
+                    metadata = tile_info['metadata']
+                    coords = tile_info['chunk_coords']
+                    volume = self._load_tiles_for_chunk(metadata, coords)
+                    d[key] = volume
 
+        return d
 
-def readimgs(filename: str) -> np.ndarray:
-    """Deprecated: Use read_images() instead."""
-    _deprecation_warning('readimgs', 'read_images')
-    return _read_images(filename)
+    def _load_tiles_for_chunk(
+        self,
+        metadata: Dict[str, Any],
+        coords: Tuple[int, int, int, int, int, int],
+    ) -> np.ndarray:
+        """Load and reconstruct volume chunk from tiles."""
+        z_start, z_end, y_start, y_end, x_start, x_end = coords
 
+        tile_paths = metadata['image'][z_start:z_end]
+        volume_coords = [z_start, z_end, y_start, y_end, x_start, x_end]
+        tile_coords = [
+            0, metadata['depth'],
+            0, metadata['height'],
+            0, metadata['width']
+        ]
 
-def readimg_as_vol(filename: str, drop_channel: bool = False) -> np.ndarray:
-    """Deprecated: Use read_image_as_volume() instead."""
-    _deprecation_warning('readimg_as_vol', 'read_image_as_volume')
-    return _read_image_as_volume(filename, drop_channel)
+        volume = reconstruct_volume_from_tiles(
+            tile_paths=tile_paths,
+            volume_coords=volume_coords,
+            tile_coords=tile_coords,
+            tile_size=metadata['tile_size'],
+            data_type=np.dtype(metadata['dtype']),
+            tile_start=metadata.get('tile_st', [0, 0]),
+            tile_ratio=metadata.get('tile_ratio', 1.0),
+        )
 
-
-def read_pkl(filename: str):
-    """Deprecated: Use read_pickle_file() instead."""
-    _deprecation_warning('read_pkl', 'read_pickle_file')
-    return _read_pickle_file(filename)
-
-
-def vast2Seg(seg: np.ndarray) -> np.ndarray:
-    """Deprecated: Use vast_to_segmentation() instead."""
-    _deprecation_warning('vast2Seg', 'vast_to_segmentation')
-    return _vast_to_segmentation(seg)
-
-
-def create_json(*args, **kwargs):
-    """Deprecated: Use create_tile_metadata() instead."""
-    _deprecation_warning('create_json', 'create_tile_metadata')
-    return _create_tile_metadata(*args, **kwargs)
-
-
-def tile2volume(*args, **kwargs):
-    """Deprecated: Use reconstruct_volume_from_tiles() instead."""
-    _deprecation_warning('tile2volume', 'reconstruct_volume_from_tiles')
-    return _reconstruct_volume_from_tiles(*args, **kwargs)
+        return volume
 
 
 __all__ = [
-    # Legacy names (deprecated)
-    'readh5', 'writeh5', 'readvol', 'savevol',
-    'readim', 'readimgs', 'readimg_as_vol',
-    'read_pkl', 'vast2Seg',
-    'create_json', 'tile2volume',
+    'LoadVolumed',
+    'SaveVolumed',
+    'TileLoaderd',
 ]
 ```
 
 ---
 
-### Phase 5: Update Public API
+### Phase 3: Update Existing Files
 
-#### Task 5.1: Update `io/__init__.py`
-**Purpose**: Clean, organized public API
+#### Task 3.1: Clean up `tiles.py`
+**Remove**: `TileLoaderd` class (moved to `monai_transforms.py`)
+**Keep**: Tile reconstruction functions only
+
+**File**: `connectomics/data/io/tiles.py` (UPDATED)
+
+```python
+"""
+Tile-based I/O operations for large-scale connectomics data.
+
+This module provides functions for working with tiled datasets, including
+volume reconstruction from tiles and metadata creation.
+"""
+
+from __future__ import annotations
+from typing import List, Union
+import math
+import numpy as np
+from scipy.ndimage import zoom
+
+from .io import read_image
+from .utils import vast_to_segmentation
+
+
+def create_tile_metadata(
+    num_dimensions: int = 1,
+    data_type: str = "uint8",
+    data_path: str = "/path/to/data/",
+    height: int = 10000,
+    width: int = 10000,
+    depth: int = 500,
+    num_columns: int = 3,
+    num_rows: int = 3,
+    tile_size: int = 4096,
+    tile_ratio: int = 1,
+    tile_start: List[int] = [0, 0]
+) -> dict:
+    """Create metadata dictionary for large-scale tiled volumes.
+
+    The dictionary is usually saved as a JSON file and can be read by the TileDataset.
+
+    Args:
+        num_dimensions: Number of dimensions in the data. Default: 1
+        data_type: Data type string (e.g., "uint8", "float32"). Default: "uint8"
+        data_path: Path to the data directory. Default: "/path/to/data/"
+        height: Height of the volume in pixels. Default: 10000
+        width: Width of the volume in pixels. Default: 10000
+        depth: Depth of the volume in pixels. Default: 500
+        num_columns: Number of tile columns. Default: 3
+        num_rows: Number of tile rows. Default: 3
+        tile_size: Size of each tile in pixels. Default: 4096
+        tile_ratio: Ratio for tile scaling. Default: 1
+        tile_start: Starting position for tiles [row, column]. Default: [0, 0]
+
+    Returns:
+        Dictionary containing metadata for the tiled volume
+    """
+    metadata = {}
+    metadata["ndim"] = num_dimensions
+    metadata["dtype"] = data_type
+
+    digits = int(math.log10(depth)) + 1
+    metadata["image"] = [
+        data_path + str(i).zfill(digits) + r"/{row}_{column}.png"
+        for i in range(depth)
+    ]
+
+    metadata["height"] = height
+    metadata["width"] = width
+    metadata["depth"] = depth
+
+    metadata["n_columns"] = num_columns
+    metadata["n_rows"] = num_rows
+
+    metadata["tile_size"] = tile_size
+    metadata["tile_ratio"] = tile_ratio
+    metadata["tile_st"] = tile_start
+
+    return metadata
+
+
+def reconstruct_volume_from_tiles(
+    tile_paths: List[str],
+    volume_coords: List[int],
+    tile_coords: List[int],
+    tile_size: Union[int, List[int]],
+    data_type: type = np.uint8,
+    tile_start: List[int] = [0, 0],
+    tile_ratio: float = 1.0,
+    is_image: bool = True,
+    background_value: int = 128
+) -> np.ndarray:
+    """Construct a volume from image tiles based on the given volume coordinate.
+
+    Args:
+        tile_paths: List of paths to the image tiles
+        volume_coords: Coordinate of the volume to be constructed [z0, z1, y0, y1, x0, x1]
+        tile_coords: Coordinate of the whole dataset with the tiles [z0, z1, y0, y1, x0, x1]
+        tile_size: Height and width of the tiles (int or [height, width])
+        data_type: Data type of the constructed volume. Default: np.uint8
+        tile_start: Start position of the tiles [row, column]. Default: [0, 0]
+        tile_ratio: Scale factor for resizing the tiles. Default: 1.0
+        is_image: Whether to construct an image volume (apply linear interpolation for resizing). Default: True
+        background_value: Background value for filling the constructed volume. Default: 128
+
+    Returns:
+        Reconstructed 3D volume as numpy array
+    """
+    z0_output, z1_output, y0_output, y1_output, x0_output, x1_output = volume_coords
+    z0_max, z1_max, y0_max, y1_max, x0_max, x1_max = tile_coords
+
+    # Calculate boundary conditions
+    boundary_diffs = [
+        max(-z0_output, z0_max), max(0, z1_output - z1_max),
+        max(-y0_output, y0_max), max(0, y1_output - y1_max),
+        max(-x0_output, x0_max), max(0, x1_output - x1_max)
+    ]
+
+    z0 = max(z0_output, z0_max)
+    y0 = max(y0_output, y0_max)
+    x0 = max(x0_output, x0_max)
+    z1 = min(z1_output, z1_max)
+    y1 = min(y1_output, y1_max)
+    x1 = min(x1_output, x1_max)
+
+    result = background_value * np.ones((z1 - z0, y1 - y0, x1 - x0), data_type)
+
+    # Handle different tile size formats
+    tile_height = tile_size[0] if isinstance(tile_size, list) else tile_size
+    tile_width = tile_size[1] if isinstance(tile_size, list) else tile_size
+
+    # Calculate tile grid bounds
+    column_start = x0 // tile_width  # floor
+    column_end = (x1 + tile_width - 1) // tile_width  # ceil
+    row_start = y0 // tile_height
+    row_end = (y1 + tile_height - 1) // tile_height
+
+    for z in range(z0, z1):
+        pattern = tile_paths[z]
+        for row in range(row_start, row_end):
+            for column in range(column_start, column_end):
+                if r'{row}_{column}' in pattern:
+                    path = pattern.format(
+                        row=row + tile_start[0],
+                        column=column + tile_start[1]
+                    )
+                else:
+                    path = pattern
+
+                patch = read_image(path, add_channel=True)
+                if patch is not None:
+                    if tile_ratio != 1:  # Apply scaling: image=1, label=0
+                        patch = zoom(
+                            patch, [tile_ratio, tile_ratio, 1],
+                            order=int(is_image)
+                        )
+
+                    # Handle potentially different tile sizes
+                    x_patch_start = column * tile_width
+                    x_patch_end = x_patch_start + patch.shape[1]
+                    y_patch_start = row * tile_height
+                    y_patch_end = y_patch_start + patch.shape[0]
+
+                    # Calculate intersection with target region
+                    x_actual_start = max(x0, x_patch_start)
+                    x_actual_end = min(x1, x_patch_end)
+                    y_actual_start = max(y0, y_patch_start)
+                    y_actual_end = min(y1, y_patch_end)
+
+                    if is_image:  # Image data
+                        result[z - z0,
+                               y_actual_start - y0:y_actual_end - y0,
+                               x_actual_start - x0:x_actual_end - x0] = \
+                            patch[y_actual_start - y_patch_start:y_actual_end - y_patch_start,
+                                  x_actual_start - x_patch_start:x_actual_end - x_patch_start, 0]
+                    else:  # Label data
+                        result[z - z0,
+                               y_actual_start - y0:y_actual_end - y0,
+                               x_actual_start - x0:x_actual_end - x0] = \
+                            vast_to_segmentation(patch[y_actual_start - y_patch_start:y_actual_end - y_patch_start,
+                                                        x_actual_start - x_patch_start:x_actual_end - x_patch_start])
+
+    # Apply padding for chunks touching the border of the large input volume
+    if max(boundary_diffs) > 0:
+        result = np.pad(
+            result,
+            ((boundary_diffs[0], boundary_diffs[1]),
+             (boundary_diffs[2], boundary_diffs[3]),
+             (boundary_diffs[4], boundary_diffs[5])),
+            'reflect'
+        )
+
+    return result
+
+
+__all__ = [
+    'create_tile_metadata',
+    'reconstruct_volume_from_tiles',
+]
+```
+
+#### Task 3.2: Update `utils.py`
+**Remove**: `read_pickle_file` (moved to `io.py`)
+**Keep**: All other utility functions
+
+**File**: `connectomics/data/io/utils.py` (UPDATED)
+
+```python
+"""
+Utility functions for data I/O operations.
+
+This module provides various utility functions for data processing,
+conversion, and manipulation in connectomics workflows.
+"""
+
+from __future__ import annotations
+import numpy as np
+
+
+def vast_to_segmentation(segmentation_data: np.ndarray) -> np.ndarray:
+    """Convert VAST segmentation format to standard format.
+
+    VAST format uses RGB encoding where each pixel's RGB values are combined
+    to create a unique 24-bit segmentation ID.
+
+    Args:
+        segmentation_data: Input segmentation data in VAST format
+
+    Returns:
+        Converted segmentation with proper ID encoding
+    """
+    # Convert to 24 bits
+    if segmentation_data.ndim == 2 or segmentation_data.shape[-1] == 1:
+        return np.squeeze(segmentation_data)
+    elif segmentation_data.ndim == 3:  # Single RGB image
+        return (segmentation_data[:, :, 0].astype(np.uint32) * 65536 +
+                segmentation_data[:, :, 1].astype(np.uint32) * 256 +
+                segmentation_data[:, :, 2].astype(np.uint32))
+    elif segmentation_data.ndim == 4:  # Multiple RGB images
+        return (segmentation_data[:, :, :, 0].astype(np.uint32) * 65536 +
+                segmentation_data[:, :, :, 1].astype(np.uint32) * 256 +
+                segmentation_data[:, :, :, 2].astype(np.uint32))
+
+
+def normalize_data_range(
+    data: np.ndarray,
+    target_min: float = 0.0,
+    target_max: float = 1.0,
+    ignore_uint8: bool = True
+) -> np.ndarray:
+    """Normalize array values to a target range.
+
+    Args:
+        data: Input array to normalize
+        target_min: Minimum value of target range. Default: 0.0
+        target_max: Maximum value of target range. Default: 1.0
+        ignore_uint8: Whether to skip normalization for uint8 arrays. Default: True
+
+    Returns:
+        Normalized array with values in the target range
+    """
+    if ignore_uint8 and data.dtype == np.uint8:
+        return data
+
+    epsilon = 1e-6
+    data_min = data.min()
+    data_max = data.max()
+
+    # Avoid division by zero
+    if data_max - data_min < epsilon:
+        return np.full_like(data, target_min)
+
+    normalized = (data - data_min) / (data_max - data_min + epsilon)
+    normalized = normalized * (target_max - target_min) + target_min
+
+    return normalized
+
+
+def convert_to_uint8(data: np.ndarray, normalize: bool = True) -> np.ndarray:
+    """Convert data to uint8 format.
+
+    Args:
+        data: Input data array
+        normalize: Whether to normalize the data to [0, 255] range first. Default: True
+
+    Returns:
+        Data converted to uint8 format
+    """
+    if normalize:
+        data = normalize_data_range(data, 0.0, 255.0, ignore_uint8=False)
+
+    return data.astype(np.uint8)
+
+
+def split_multichannel_mask(label_data: np.ndarray) -> np.ndarray:
+    """Split multichannel label data into separate masks.
+
+    Args:
+        label_data: Input label data with multiple classes/instances
+
+    Returns:
+        Array with shape (num_classes, ...) where each channel
+        contains a binary mask for one class/instance
+    """
+    unique_indices = np.unique(label_data)
+    if len(unique_indices) > 1:
+        if unique_indices[0] == 0:
+            unique_indices = unique_indices[1:]  # Remove background
+        masks = [(label_data == idx).astype(np.uint8) for idx in unique_indices]
+        return np.stack(masks, 0)
+
+    return np.ones_like(label_data).astype(np.uint8)[np.newaxis]
+
+
+def squeeze_arrays(*arrays):
+    """Squeeze multiple numpy arrays.
+
+    Args:
+        *arrays: Variable number of numpy arrays to squeeze
+
+    Returns:
+        Tuple of squeezed arrays (or None for None inputs)
+    """
+    squeezed = []
+    for array in arrays:
+        if array is not None:
+            squeezed.append(np.squeeze(array))
+        else:
+            squeezed.append(None)
+    return squeezed
+
+
+__all__ = [
+    'vast_to_segmentation',
+    'normalize_data_range',
+    'convert_to_uint8',
+    'split_multichannel_mask',
+    'squeeze_arrays',
+]
+```
+
+---
+
+### Phase 4: Update Public API
+
+#### Task 4.1: Update `io/__init__.py`
+**Purpose**: Clean, organized public API with all imports
+
+**File**: `connectomics/data/io/__init__.py` (UPDATED)
 
 ```python
 """
@@ -858,46 +1048,63 @@ This package provides comprehensive I/O functionality for various data formats
 commonly used in connectomics research.
 
 Organization:
-    formats/    - Format-specific I/O (HDF5, images, pickle)
-    transforms/ - MONAI-compatible data loading transforms
-    tiles.py    - Tile-based operations for large-scale datasets
-    utils.py    - Utility functions for data processing
-    legacy.py   - Deprecated function names (for backward compatibility)
+    io.py              - All format-specific I/O (HDF5, images, pickle, volume)
+    monai_transforms.py - MONAI-compatible data loading transforms
+    tiles.py           - Tile-based operations for large-scale datasets
+    utils.py           - Utility functions for data processing
 """
 
-# High-level volume I/O
-from .volume import read_volume, save_volume
+# Core I/O functions
+from .io import (
+    # HDF5 I/O
+    read_hdf5, write_hdf5, list_hdf5_datasets,
 
-# Format-specific I/O
-from .formats.hdf5 import read_hdf5, write_hdf5, list_datasets, get_dataset_info
-from .formats.image import (
+    # Image I/O
     read_image, read_images, read_image_as_volume,
-    save_image, save_images, SUPPORTED_IMAGE_FORMATS
+    save_image, save_images, SUPPORTED_IMAGE_FORMATS,
+
+    # Pickle I/O
+    read_pickle_file, write_pickle_file,
+
+    # High-level volume I/O
+    read_volume, save_volume,
 )
-from .formats.pickle import read_pickle_file, write_pickle_file
 
 # Tile operations
-from .tiles import create_tile_metadata, reconstruct_volume_from_tiles
+from .tiles import (
+    create_tile_metadata,
+    reconstruct_volume_from_tiles,
+)
 
 # Utilities
 from .utils import (
-    vast_to_segmentation, normalize_data_range, convert_to_uint8,
-    split_multichannel_mask, squeeze_arrays
+    vast_to_segmentation,
+    normalize_data_range,
+    convert_to_uint8,
+    split_multichannel_mask,
+    squeeze_arrays,
 )
 
 # MONAI transforms
-from .transforms.volume import LoadVolumed, SaveVolumed
-from .transforms.tiles import TileLoaderd
+from .monai_transforms import (
+    LoadVolumed,
+    SaveVolumed,
+    TileLoaderd,
+)
 
 __all__ = [
-    # High-level volume I/O
-    'read_volume', 'save_volume',
+    # HDF5 I/O
+    'read_hdf5', 'write_hdf5', 'list_hdf5_datasets',
 
-    # Format-specific I/O
-    'read_hdf5', 'write_hdf5', 'list_datasets', 'get_dataset_info',
+    # Image I/O
     'read_image', 'read_images', 'read_image_as_volume',
     'save_image', 'save_images', 'SUPPORTED_IMAGE_FORMATS',
+
+    # Pickle I/O
     'read_pickle_file', 'write_pickle_file',
+
+    # High-level volume I/O
+    'read_volume', 'save_volume',
 
     # Tile operations
     'create_tile_metadata', 'reconstruct_volume_from_tiles',
@@ -911,277 +1118,89 @@ __all__ = [
 ]
 ```
 
-#### Task 5.2: Deprecate `io_utils.py`
-**Strategy**: Keep file, add deprecation warning, remove in v3.0
-
-```python
-"""
-Deprecated: This module will be removed in v3.0.
-
-Please import directly from connectomics.data.io instead:
-    from connectomics.data.io import read_volume, save_volume, ...
-"""
-
-import warnings
-
-warnings.warn(
-    "connectomics.data.io_utils is deprecated and will be removed in v3.0. "
-    "Import from connectomics.data.io instead.",
-    DeprecationWarning,
-    stacklevel=2
-)
-
-# Re-export everything from io for backward compatibility
-from .io import *  # noqa
-```
-
 ---
 
-### Phase 6: Testing & Documentation
+### Phase 5: Delete Redundant Files
 
-#### Task 6.1: Create Comprehensive Tests
-**File**: `tests/test_io_refactoring.py`
+#### Task 5.1: Delete files
+**Files to delete**:
+1. `connectomics/data/io_utils.py` - Top-level wrapper (no longer needed)
+2. `connectomics/data/io/volume.py` - Merged into `io.py`
 
-```python
-"""Tests for refactored I/O modules."""
-
-import pytest
-import numpy as np
-import tempfile
-import os
-from pathlib import Path
-
-from connectomics.data.io import (
-    # HDF5
-    read_hdf5, write_hdf5, list_datasets, get_dataset_info,
-    # Images
-    read_image, read_images, read_image_as_volume, save_image, save_images,
-    # Volume
-    read_volume, save_volume,
-    # Pickle
-    read_pickle_file, write_pickle_file,
-    # Utilities
-    vast_to_segmentation, normalize_data_range,
-)
-
-
-class TestHDF5IO:
-    """Test HDF5 I/O operations."""
-
-    def test_read_write_hdf5(self, tmp_path):
-        """Test basic HDF5 read/write."""
-        data = np.random.rand(10, 20, 30).astype(np.float32)
-        filepath = tmp_path / "test.h5"
-
-        write_hdf5(str(filepath), data, dataset='test_data')
-        loaded = read_hdf5(str(filepath), dataset='test_data')
-
-        np.testing.assert_array_equal(data, loaded)
-
-    def test_list_datasets(self, tmp_path):
-        """Test listing datasets in HDF5 file."""
-        filepath = tmp_path / "multi.h5"
-        data1 = np.random.rand(5, 5, 5)
-        data2 = np.random.rand(10, 10, 10)
-
-        write_hdf5(str(filepath), [data1, data2], dataset=['data1', 'data2'])
-        datasets = list_datasets(str(filepath))
-
-        assert set(datasets) == {'data1', 'data2'}
-
-
-class TestImageIO:
-    """Test image I/O operations."""
-
-    def test_save_load_image(self, tmp_path):
-        """Test save and load single image."""
-        data = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
-        filepath = tmp_path / "test.png"
-
-        save_image(str(filepath), data)
-        loaded = read_image(str(filepath))
-
-        np.testing.assert_array_equal(data, loaded)
-
-    def test_save_load_images(self, tmp_path):
-        """Test save and load image stack."""
-        data = np.random.randint(0, 256, (10, 100, 100), dtype=np.uint8)
-        directory = tmp_path / "images"
-
-        save_images(str(directory), data, prefix='img_')
-        pattern = str(directory / "img_*.png")
-        loaded = read_images(pattern)
-
-        np.testing.assert_array_equal(data, loaded)
-
-
-class TestVolumeIO:
-    """Test high-level volume I/O."""
-
-    def test_read_save_volume_h5(self, tmp_path):
-        """Test volume I/O with HDF5 format."""
-        data = np.random.rand(20, 100, 100).astype(np.float32)
-        filepath = tmp_path / "volume.h5"
-
-        save_volume(str(filepath), data, file_format='h5')
-        loaded = read_volume(str(filepath))
-
-        np.testing.assert_array_equal(data, loaded)
-
-
-class TestLegacyCompatibility:
-    """Test legacy function names still work."""
-
-    def test_legacy_functions_warn(self):
-        """Test that legacy functions issue deprecation warnings."""
-        from connectomics.data.io import legacy
-
-        with pytest.warns(DeprecationWarning):
-            # This should work but warn
-            pass  # Would test actual legacy functions if needed
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-```
-
-#### Task 6.2: Create Migration Guide
-**File**: `.claude/IO_MIGRATION_GUIDE.md`
-
-```markdown
-# I/O Module Migration Guide
-
-## For Users
-
-### Quick Reference: Old vs New Names
-
-| Old (Deprecated) | New (Modern) | Module |
-|-----------------|--------------|---------|
-| `readh5()` | `read_hdf5()` | `io.formats.hdf5` |
-| `writeh5()` | `write_hdf5()` | `io.formats.hdf5` |
-| `readvol()` | `read_volume()` | `io.volume` |
-| `savevol()` | `save_volume()` | `io.volume` |
-| `readim()` | `read_image()` | `io.formats.image` |
-| `readimgs()` | `read_images()` | `io.formats.image` |
-| `readimg_as_vol()` | `read_image_as_volume()` | `io.formats.image` |
-| `read_pkl()` | `read_pickle_file()` | `io.formats.pickle` |
-| `vast2Seg()` | `vast_to_segmentation()` | `io.utils` |
-| `create_json()` | `create_tile_metadata()` | `io.tiles` |
-| `tile2volume()` | `reconstruct_volume_from_tiles()` | `io.tiles` |
-
-### Import Changes
-
-**Before (deprecated)**:
-```python
-from connectomics.data.io_utils import readvol, savevol
-from connectomics.data.utils.data_io import readh5, writeh5
-```
-
-**After (modern)**:
-```python
-from connectomics.data.io import read_volume, save_volume
-from connectomics.data.io import read_hdf5, write_hdf5
-```
-
-### Breaking Changes
-
-None! All old function names still work with deprecation warnings.
-
-### Timeline
-
-- **v2.0** (current): Legacy names work with warnings
-- **v2.5**: Warnings become more prominent
-- **v3.0**: Legacy names removed
-
-## For Developers
-
-### Project Structure Changes
-
-**Old**:
-```
-data/
-├── io_utils.py              # Thin wrapper
-└── io/
-    ├── volume.py
-    ├── tiles.py
-    ├── utils.py
-    └── monai_transforms.py
-```
-
-**New**:
-```
-data/
-├── io_utils.py              # Deprecated wrapper
-└── io/
-    ├── __init__.py          # Clean public API
-    ├── volume.py            # High-level operations
-    ├── tiles.py             # Tile operations
-    ├── utils.py             # Utilities
-    ├── legacy.py            # Deprecated aliases
-    │
-    ├── formats/             # Format-specific I/O
-    │   ├── hdf5.py
-    │   ├── image.py
-    │   └── pickle.py
-    │
-    └── transforms/          # MONAI transforms
-        ├── volume.py
-        └── tiles.py
-```
+```bash
+# Delete redundant files
+rm connectomics/data/io_utils.py
+rm connectomics/data/io/volume.py
 ```
 
 ---
 
 ## Summary of Changes
 
-### Files to Create (7 new files)
-1. `connectomics/data/io/formats/__init__.py`
-2. `connectomics/data/io/formats/hdf5.py`
-3. `connectomics/data/io/formats/image.py`
-4. `connectomics/data/io/formats/pickle.py`
-5. `connectomics/data/io/transforms/__init__.py`
-6. `connectomics/data/io/transforms/volume.py`
-7. `connectomics/data/io/transforms/tiles.py`
-8. `connectomics/data/io/legacy.py`
+### Files to Create (1 new file)
+1. `connectomics/data/io/io.py` - Consolidated format-specific I/O
 
-### Files to Modify (5 files)
-1. `connectomics/data/io/__init__.py` - Update public API
-2. `connectomics/data/io/volume.py` - Simplify, delegate to formats/
-3. `connectomics/data/io/tiles.py` - Remove TileLoaderd (move to transforms/)
-4. `connectomics/data/io/utils.py` - Remove pickle functions (move to formats/)
-5. `connectomics/data/io_utils.py` - Add deprecation warning
+### Files to Modify (4 files)
+1. `connectomics/data/io/__init__.py` - Update imports
+2. `connectomics/data/io/monai_transforms.py` - Add TileLoaderd, SaveVolumed
+3. `connectomics/data/io/tiles.py` - Remove TileLoaderd class
+4. `connectomics/data/io/utils.py` - Remove read_pickle_file
 
-### Files to Delete (1 file)
-1. `connectomics/data/io/monai_transforms.py` - Superseded by transforms/volume.py
+### Files to Delete (2 files)
+1. `connectomics/data/io_utils.py` - Redundant wrapper
+2. `connectomics/data/io/volume.py` - Merged into io.py
+
+### Final Structure
+
+```
+connectomics/data/io/
+├── __init__.py              # Public API
+├── io.py                    # NEW: All format I/O (HDF5, image, pickle, volume)
+├── monai_transforms.py      # UPDATED: All MONAI transforms
+├── tiles.py                 # UPDATED: Tile operations only
+└── utils.py                 # UPDATED: Data utilities (no pickle)
+```
 
 ### Benefits
 
-1. **✅ Clear Organization**: Format-specific code grouped together
-2. **✅ Better Discoverability**: Obvious where to find HDF5, image, pickle I/O
-3. **✅ MONAI Integration**: All transforms in one place
-4. **✅ Extensibility**: Easy to add new formats (Zarr, N5, etc.)
-5. **✅ Backward Compatibility**: Legacy names still work
+1. **✅ Simpler Structure**: 5 files instead of subdirectories
+2. **✅ Clear Organization**: All format I/O in one place, all transforms in one place
+3. **✅ Easier Maintenance**: Fewer files to manage
+4. **✅ No Legacy Baggage**: Clean break from old naming
+5. **✅ Complete MONAI Integration**: All transforms together
 6. **✅ Type Safety**: Comprehensive type hints throughout
-7. **✅ Documentation**: Every function documented
-8. **✅ Testing**: Comprehensive test coverage
+7. **✅ Well Documented**: Every function documented
 
-### Migration Effort
+### Migration for Users
 
-- **For Users**: Zero effort (backward compatible)
-- **For Developers**: 2-3 days of work
-  - Day 1: Create new structure (formats/, transforms/)
-  - Day 2: Update existing files, create legacy.py
-  - Day 3: Tests and documentation
+**Breaking Changes**:
+- Must use modern function names (no `readh5`, `readvol`, etc.)
+- Must import from `connectomics.data.io` (not `io_utils`)
+
+**Migration**:
+```python
+# Old (will break)
+from connectomics.data.io_utils import readvol, savevol
+from connectomics.data.utils.data_io import readh5
+
+# New (correct)
+from connectomics.data.io import read_volume, save_volume, read_hdf5
+```
+
+### Implementation Effort
+
+- **Time**: 1-2 days
+- **Complexity**: Low (mostly file consolidation)
+- **Testing**: Update imports in existing code
 
 ---
 
 ## Implementation Order
 
-1. **Phase 1** (Day 1): Create formats/ subdirectory
-2. **Phase 2** (Day 1): Create transforms/ subdirectory
-3. **Phase 3** (Day 2): Update volume.py, tiles.py, utils.py
-4. **Phase 4** (Day 2): Create legacy.py
-5. **Phase 5** (Day 2-3): Update __init__.py, deprecate io_utils.py
-6. **Phase 6** (Day 3): Tests and documentation
+1. **Phase 1** (4 hours): Create `io.py` with all format I/O
+2. **Phase 2** (2 hours): Update `monai_transforms.py`
+3. **Phase 3** (2 hours): Update `tiles.py` and `utils.py`
+4. **Phase 4** (1 hour): Update `__init__.py`
+5. **Phase 5** (1 hour): Delete old files, update imports in codebase
 
-**Total Estimated Time**: 3 days
+**Total Estimated Time**: 1-2 days

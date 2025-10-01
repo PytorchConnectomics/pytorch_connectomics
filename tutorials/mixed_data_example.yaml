@@ -1,0 +1,75 @@
+# Example configuration for mixing multiple datasets
+# Use case: Domain adaptation with synthetic + real data
+
+system:
+  num_gpus: 1
+  num_cpus: 4
+  seed: 42
+
+model:
+  architecture: monai_basic_unet3d
+  in_channels: 1
+  out_channels: 2
+  filters: [32, 64, 128, 256, 512]
+  dropout: 0.1
+  loss_functions:
+    - DiceLoss
+    - BCEWithLogitsLoss
+  loss_weights: [1.0, 1.0]
+
+# Dataset mixing configuration
+data:
+  # Use WeightedConcatDataset for mixing datasets
+  use_mixed_datasets: true
+  mixing_strategy: weighted  # Options: weighted, stratified, uniform
+
+  # Dataset 1: Synthetic data
+  dataset1:
+    train_image: "datasets/synthetic/train_image.h5"
+    train_label: "datasets/synthetic/train_label.h5"
+    val_image: "datasets/synthetic/val_image.h5"
+    val_label: "datasets/synthetic/val_label.h5"
+
+  # Dataset 2: Real data
+  dataset2:
+    train_image: "datasets/real/train_image.h5"
+    train_label: "datasets/real/train_label.h5"
+    val_image: "datasets/real/val_image.h5"
+    val_label: "datasets/real/val_label.h5"
+
+  # Mixing weights (only for weighted strategy)
+  # 80% synthetic, 20% real
+  dataset_weights: [0.8, 0.2]
+
+  # Common data settings
+  patch_size: [128, 128, 128]
+  batch_size: 2
+  num_workers: 4
+  persistent_workers: true
+
+  # Samples per epoch (for mixed datasets)
+  samples_per_epoch: 1000
+
+optimizer:
+  name: AdamW
+  lr: 1e-4
+  weight_decay: 1e-4
+
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 5
+
+training:
+  max_epochs: 100
+  precision: "16-mixed"
+  gradient_clip_val: 1.0
+
+checkpoint:
+  monitor: "val/loss"
+  mode: "min"
+  save_top_k: 3
+  save_last: true
+
+logging:
+  log_every_n_steps: 10
+  val_check_interval: 1.0

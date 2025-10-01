@@ -5,32 +5,8 @@ This module provides various utility functions for data processing,
 conversion, and manipulation in connectomics workflows.
 """
 
-from __future__ import print_function, division
+from __future__ import annotations
 import numpy as np
-import pickle
-
-
-def read_pickle_file(filename: str):
-    """Read data from a pickle file.
-
-    Args:
-        filename: Path to the pickle file to read
-
-    Returns:
-        The data stored in the pickle file. If multiple objects are stored,
-        returns a list. If only one object, returns the object directly.
-    """
-    data = []
-    with open(filename, "rb") as file_handle:
-        while True:
-            try:
-                data.append(pickle.load(file_handle))
-            except EOFError:
-                break
-
-    if len(data) == 1:
-        return data[0]
-    return data
 
 
 def vast_to_segmentation(segmentation_data: np.ndarray) -> np.ndarray:
@@ -143,6 +119,9 @@ def squeeze_arrays(*arrays):
 
 
 __all__ = [
-    'read_pickle_file', 'vast_to_segmentation', 'normalize_data_range',
-    'convert_to_uint8', 'split_multichannel_mask', 'squeeze_arrays'
+    'vast_to_segmentation',
+    'normalize_data_range',
+    'convert_to_uint8',
+    'split_multichannel_mask',
+    'squeeze_arrays',
 ]

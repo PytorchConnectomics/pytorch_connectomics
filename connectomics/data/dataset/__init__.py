@@ -16,14 +16,19 @@ from .dataset_base import (
 from .dataset_volume import (
     MonaiVolumeDataset,
     MonaiCachedVolumeDataset,
-    LoadVolumed,
 )
 
 # Tile datasets
 from .dataset_tile import (
     MonaiTileDataset,
     MonaiCachedTileDataset,
-    TileLoaderd,
+)
+
+# Multi-dataset utilities
+from .dataset_multi import (
+    WeightedConcatDataset,
+    StratifiedConcatDataset,
+    UniformConcatDataset,
 )
 
 # Dataset factory functions (builder pattern)
@@ -49,7 +54,12 @@ __all__ = [
     # Tile datasets
     'MonaiTileDataset',
     'MonaiCachedTileDataset',
-    
+
+    # Multi-dataset utilities
+    'WeightedConcatDataset',
+    'StratifiedConcatDataset',
+    'UniformConcatDataset',
+
     # Factory functions (from build.py)
     'create_data_dicts_from_paths',
     'create_volume_data_dicts',

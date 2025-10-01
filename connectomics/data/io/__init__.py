@@ -2,41 +2,74 @@
 I/O utilities for PyTorch Connectomics.
 
 This package provides comprehensive I/O functionality for various data formats
-commonly used in connectomics research. All functions follow PEP 8 naming
-conventions and include comprehensive type hints.
+commonly used in connectomics research.
 
-Modules:
-    volume: Volume-based I/O operations (HDF5, TIFF, PNG)
-    tiles: Tile-based operations for large-scale datasets
-    utils: Utility functions for data processing and conversion
+Organization:
+    io.py              - All format-specific I/O (HDF5, images, pickle, volume)
+    monai_transforms.py - MONAI-compatible data loading transforms
+    tiles.py           - Tile-based operations for large-scale datasets
+    utils.py           - Utility functions for data processing
 """
 
-# Volume I/O
-from .volume import (
-    read_hdf5, write_hdf5, read_volume, save_volume,
-    read_image, read_images, read_image_as_volume
+# Core I/O functions
+from .io import (
+    # HDF5 I/O
+    read_hdf5, write_hdf5, list_hdf5_datasets,
+
+    # Image I/O
+    read_image, read_images, read_image_as_volume,
+    save_image, save_images, SUPPORTED_IMAGE_FORMATS,
+
+    # Pickle I/O
+    read_pickle_file, write_pickle_file,
+
+    # High-level volume I/O
+    read_volume, save_volume,
 )
 
-# Tile I/O
+# Tile operations
 from .tiles import (
-    create_tile_metadata, reconstruct_volume_from_tiles
+    create_tile_metadata,
+    reconstruct_volume_from_tiles,
 )
 
 # Utilities
 from .utils import (
-    read_pickle_file, vast_to_segmentation, normalize_data_range,
-    convert_to_uint8, split_multichannel_mask, squeeze_arrays
+    vast_to_segmentation,
+    normalize_data_range,
+    convert_to_uint8,
+    split_multichannel_mask,
+    squeeze_arrays,
+)
+
+# MONAI transforms
+from .monai_transforms import (
+    LoadVolumed,
+    SaveVolumed,
+    TileLoaderd,
 )
 
 __all__ = [
-    # Volume I/O
-    'read_hdf5', 'write_hdf5', 'read_volume', 'save_volume',
-    'read_image', 'read_images', 'read_image_as_volume', 'ImageLoaderd',
+    # HDF5 I/O
+    'read_hdf5', 'write_hdf5', 'list_hdf5_datasets',
 
-    # Tile I/O
-    'create_tile_metadata', 'reconstruct_volume_from_tiles','TileLoaderd',
+    # Image I/O
+    'read_image', 'read_images', 'read_image_as_volume',
+    'save_image', 'save_images', 'SUPPORTED_IMAGE_FORMATS',
+
+    # Pickle I/O
+    'read_pickle_file', 'write_pickle_file',
+
+    # High-level volume I/O
+    'read_volume', 'save_volume',
+
+    # Tile operations
+    'create_tile_metadata', 'reconstruct_volume_from_tiles',
 
     # Utilities
-    'read_pickle_file', 'vast_to_segmentation', 'normalize_data_range',
-    'convert_to_uint8', 'split_multichannel_mask', 'squeeze_arrays'
+    'vast_to_segmentation', 'normalize_data_range', 'convert_to_uint8',
+    'split_multichannel_mask', 'squeeze_arrays',
+
+    # MONAI transforms
+    'LoadVolumed', 'SaveVolumed', 'TileLoaderd',
 ]
