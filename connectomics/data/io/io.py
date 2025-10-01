@@ -339,6 +339,84 @@ def save_volume(
         )
 
 
+def get_vol_shape(
+    filename: str,
+    dataset: Optional[str] = None
+) -> tuple:
+    """Get volume shape without loading the entire volume into memory.
+
+    This function efficiently retrieves the shape of volumetric data
+    by reading only metadata from the file, not the actual data.
+
+    Args:
+        filename: Path to the volume file
+        dataset: HDF5 dataset name (only used for HDF5 files, None = first dataset)
+
+    Returns:
+        Shape tuple of the volume (e.g., (D, H, W) or (C, D, H, W))
+
+    Raises:
+        ValueError: If file format is not recognized
+        FileNotFoundError: If file does not exist
+
+    Example:
+        >>> shape = get_vol_shape('datasets/train_image.h5')
+        >>> print(shape)  # (165, 768, 1024)
+        >>>
+        >>> shape = get_vol_shape('datasets/train_im.tif')
+        >>> print(shape)  # (165, 768, 1024)
+    """
+    if not os.path.exists(filename):
+        raise FileNotFoundError(f"File not found: {filename}")
+
+    image_suffix = filename[filename.rfind('.') + 1:].lower()
+
+    if image_suffix in ['h5', 'hdf5']:
+        # HDF5: Read shape from metadata (no data loading)
+        with h5py.File(filename, 'r') as f:
+            if dataset is None:
+                dataset = list(f.keys())[0]
+            return f[dataset].shape
+
+    elif 'tif' in image_suffix:
+        # TIFF: Use imageio to get metadata
+        import tifffile
+        with tifffile.TiffFile(filename) as tif:
+            # Get shape from first series
+            if hasattr(tif, 'series'):
+                # Multi-page TIFF
+                shape = tif.series[0].shape
+            else:
+                # Single page TIFF
+                shape = tif.pages[0].shape
+            return shape
+
+    elif 'png' in image_suffix:
+        # PNG stack: Count files and read one image for dimensions
+        file_list = sorted(glob.glob(filename))
+        if len(file_list) == 0:
+            raise ValueError(f"No PNG files found matching pattern: {filename}")
+
+        # Read first image to get spatial dimensions
+        first_image = imageio.imread(file_list[0])
+        num_slices = len(file_list)
+
+        if first_image.ndim == 2:
+            # Grayscale: (D, H, W)
+            return (num_slices, *first_image.shape)
+        elif first_image.ndim == 3:
+            # Color: (D, H, W, C)
+            return (num_slices, *first_image.shape)
+        else:
+            raise ValueError(f"Unsupported PNG dimensions: {first_image.ndim}D")
+
+    else:
+        raise ValueError(
+            f'Unrecognizable file format for {filename}. '
+            f'Expected: h5, hdf5, tif, tiff, or png'
+        )
+
+
 __all__ = [
     # HDF5 I/O
     'read_hdf5', 'write_hdf5', 'list_hdf5_datasets',
@@ -351,5 +429,5 @@ __all__ = [
     'read_pickle_file', 'write_pickle_file',
 
     # High-level volume I/O
-    'read_volume', 'save_volume',
+    'read_volume', 'save_volume', 'get_vol_shape',
 ]

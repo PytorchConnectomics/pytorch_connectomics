@@ -54,6 +54,8 @@ data:
   normalize: true                      # Normalize input images
   mean: 0.5
   std: 0.5
+  normalize_labels: true               # Convert labels to 0-1 range
+  split_enabled: false                  # Enable automatic train/val split
 
 # Optimizer - AdamW with moderate learning rate
 optimizer:
@@ -75,8 +77,10 @@ training:
   gradient_clip_val: 1.0               # Prevent gradient explosion
   accumulate_grad_batches: 1           # Gradient accumulation (increase for larger effective batch)
   precision: "16-mixed"                # Mixed precision for memory efficiency
-  val_check_interval: 10              # Validate every epoch
-  check_val_every_n_epoch: 1
+  
+
+  val_check_interval: 1              # Validate every epoch  
+  check_val_every_n_epoch: 100000
   log_every_n_steps: 50
   benchmark: true                      # Enable cuDNN benchmarking for speed
 

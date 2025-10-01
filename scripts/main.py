@@ -173,18 +173,93 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
     print(f"  Train transforms: {len(train_transforms.transforms)} steps")
     print(f"  Val transforms: {len(val_transforms.transforms)} steps")
 
-    # Create data dictionaries
-    train_data_dicts = create_data_dicts_from_paths(
-        image_paths=[cfg.data.train_image],
-        label_paths=[cfg.data.train_label] if cfg.data.train_label else None,
-    )
-
-    val_data_dicts = None
-    if cfg.data.val_image:
-        val_data_dicts = create_data_dicts_from_paths(
-            image_paths=[cfg.data.val_image],
-            label_paths=[cfg.data.val_label] if cfg.data.val_label else None,
+    # Check if automatic train/val split is enabled
+    if cfg.data.split_enabled and not cfg.data.val_image:
+        print("🔀 Using automatic train/val split (DeepEM-style)")
+        from connectomics.data.utils.split import (
+            split_volume_train_val,
+            apply_volumetric_split,
         )
+
+        # Load full volume
+        import h5py
+        import tifffile
+        from pathlib import Path
+
+        train_path = Path(cfg.data.train_image)
+        if train_path.suffix in ['.h5', '.hdf5']:
+            with h5py.File(train_path, 'r') as f:
+                volume_shape = f[list(f.keys())[0]].shape
+        elif train_path.suffix in ['.tif', '.tiff']:
+            volume = tifffile.imread(train_path)
+            volume_shape = volume.shape
+        else:
+            raise ValueError(f"Unsupported file format: {train_path.suffix}")
+
+        print(f"  Volume shape: {volume_shape}")
+
+        # Calculate split ranges
+        train_ratio = cfg.data.split_train_range[1] - cfg.data.split_train_range[0]
+        split_point = cfg.data.split_train_range[1]
+
+        train_slices, val_slices = split_volume_train_val(
+            volume_shape=volume_shape,
+            train_ratio=train_ratio,
+            axis=cfg.data.split_axis,
+        )
+
+        # Calculate train and val regions
+        axis = cfg.data.split_axis
+        train_start = int(volume_shape[axis] * cfg.data.split_train_range[0])
+        train_end = int(volume_shape[axis] * cfg.data.split_train_range[1])
+        val_start = int(volume_shape[axis] * cfg.data.split_val_range[0])
+        val_end = int(volume_shape[axis] * cfg.data.split_val_range[1])
+
+        print(f"  Split axis: {axis} ({'Z' if axis == 0 else 'Y' if axis == 1 else 'X'})")
+        print(f"  Train region: [{train_start}:{train_end}] ({train_end - train_start} slices)")
+        print(f"  Val region: [{val_start}:{val_end}] ({val_end - val_start} slices)")
+
+        if cfg.data.split_pad_val:
+            target_size = tuple(cfg.data.patch_size)
+            print(f"  Val padding enabled: target size = {target_size}")
+
+        # Create data dictionaries with split info
+        train_data_dicts = create_data_dicts_from_paths(
+            image_paths=[cfg.data.train_image],
+            label_paths=[cfg.data.train_label] if cfg.data.train_label else None,
+        )
+
+        # Add split metadata to train dict
+        train_data_dicts[0]['split_slices'] = train_slices
+        train_data_dicts[0]['split_mode'] = 'train'
+
+        # Create validation data dicts using same volume
+        val_data_dicts = create_data_dicts_from_paths(
+            image_paths=[cfg.data.train_image],
+            label_paths=[cfg.data.train_label] if cfg.data.train_label else None,
+        )
+
+        # Add split metadata to val dict
+        val_data_dicts[0]['split_slices'] = val_slices
+        val_data_dicts[0]['split_mode'] = 'val'
+        val_data_dicts[0]['split_pad'] = cfg.data.split_pad_val
+        val_data_dicts[0]['split_pad_mode'] = cfg.data.split_pad_mode
+        if cfg.data.split_pad_val:
+            val_data_dicts[0]['split_pad_size'] = tuple(cfg.data.patch_size)
+
+    else:
+        # Standard mode: separate train and val files
+        train_data_dicts = create_data_dicts_from_paths(
+            image_paths=[cfg.data.train_image],
+            label_paths=[cfg.data.train_label] if cfg.data.train_label else None,
+        )
+
+        val_data_dicts = None
+        if cfg.data.val_image:
+            val_data_dicts = create_data_dicts_from_paths(
+                image_paths=[cfg.data.val_image],
+                label_paths=[cfg.data.val_label] if cfg.data.val_label else None,
+            )
 
     print(f"  Train dataset size: {len(train_data_dicts)}")
     if val_data_dicts:

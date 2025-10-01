@@ -13,7 +13,7 @@ import warnings
 
 import torch
 from monai.data import Dataset, CacheDataset
-from monai.transforms import Compose, RandSpatialCropd, LoadImaged, EnsureChannelFirstd
+from monai.transforms import Compose, RandSpatialCropd, CenterSpatialCropd, LoadImaged, EnsureChannelFirstd
 from monai.utils import ensure_tuple_rep
 
 from .dataset_base import MonaiConnectomicsDataset
@@ -145,18 +145,28 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
             LoadVolumed(keys=keys),
         ]
 
-        # Add spatial cropping for training
-        if mode == 'train':
-            crop_size = sample_size
-            if do_2d:
-                crop_size = (1, sample_size[1], sample_size[2])
+        # Add spatial cropping for both training and validation
+        # This prevents loading full volumes which cause OOM errors
+        crop_size = sample_size
+        if do_2d:
+            crop_size = (1, sample_size[1], sample_size[2])
 
+        if mode == 'train':
+            # Random cropping for training
             transforms.append(
                 RandSpatialCropd(
                     keys=keys,
                     roi_size=crop_size,
                     random_center=True,
                     random_size=False,
+                )
+            )
+        else:
+            # Center cropping for validation/test to ensure consistent patch size
+            transforms.append(
+                CenterSpatialCropd(
+                    keys=keys,
+                    roi_size=crop_size,
                 )
             )
 
@@ -216,17 +226,27 @@ class MonaiCachedVolumeDataset(CacheDataset):
                 LoadVolumed(keys=keys),
             ]
 
-            if mode == 'train':
-                crop_size = sample_size
-                if do_2d:
-                    crop_size = (1, sample_size[1], sample_size[2])
+            # Add spatial cropping for both training and validation
+            crop_size = sample_size
+            if do_2d:
+                crop_size = (1, sample_size[1], sample_size[2])
 
+            if mode == 'train':
+                # Random cropping for training
                 transforms.append(
                     RandSpatialCropd(
                         keys=keys,
                         roi_size=crop_size,
                         random_center=True,
                         random_size=False,
+                    )
+                )
+            else:
+                # Center cropping for validation/test
+                transforms.append(
+                    CenterSpatialCropd(
+                        keys=keys,
+                        roi_size=crop_size,
                     )
                 )
 

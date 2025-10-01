@@ -81,6 +81,9 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         self.val_data_dicts = val_data_dicts
         self.test_data_dicts = test_data_dicts
 
+        val_has_entries = val_data_dicts is not None and len(val_data_dicts) > 0
+        self.skip_validation = not val_has_entries
+
         # Store transforms
         self.transforms = transforms or {}
 
@@ -101,6 +104,9 @@ class ConnectomicsDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None):
         """Setup datasets for the specified stage."""
+
+        val_has_entries = self.val_data_dicts is not None and len(self.val_data_dicts) > 0
+        self.skip_validation = not val_has_entries
 
         if stage == 'fit' or stage is None:
             # Setup training dataset
@@ -159,9 +165,38 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         """Create training data loader."""
         return self._create_dataloader(self.train_dataset, shuffle=True)
 
-    def val_dataloader(self) -> DataLoader:
+    def val_dataloader(self) -> Union[DataLoader, List[DataLoader]]:
         """Create validation data loader."""
-        return self._create_dataloader(self.val_dataset, shuffle=False)
+
+        if self.skip_validation:
+            return []
+
+        dataloader = self._create_dataloader(self.val_dataset, shuffle=False)
+        if dataloader is None:
+            from torch.utils.data import Dataset
+
+            class DummyDataset(Dataset):
+                def __len__(self):
+                    return 1
+
+                def __getitem__(self, idx):
+                    zero = torch.zeros(1, dtype=torch.float32)
+                    return {
+                        'image': zero,
+                        'label': zero,
+                    }
+
+            return DataLoader(
+                dataset=DummyDataset(),
+                batch_size=1,
+                shuffle=False,
+                num_workers=0,
+                pin_memory=False,
+                persistent_workers=False,
+                collate_fn=self._collate_fn,
+            )
+
+        return dataloader
 
     def test_dataloader(self) -> DataLoader:
         """Create test data loader."""

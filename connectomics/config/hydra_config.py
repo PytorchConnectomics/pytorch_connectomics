@@ -41,6 +41,10 @@ class ModelConfig:
     norm: str = "batch"
     activation: str = "relu"
 
+    # UNet-specific parameters (MONAI UNet)
+    num_res_units: int = 2         # Number of residual units per block
+    kernel_size: int = 3            # Convolution kernel size
+
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
     hidden_size: int = 768
@@ -69,6 +73,7 @@ class ModelConfig:
     # Loss configuration
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
+    loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
 
 
 @dataclass
@@ -80,7 +85,8 @@ class DataConfig:
     val_image: Optional[str] = None
     val_label: Optional[str] = None
     test_image: Optional[str] = None
-    
+    test_label: Optional[str] = None
+
     # Data properties
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     pad_size: List[int] = field(default_factory=lambda: [8, 32, 32])
@@ -88,21 +94,31 @@ class DataConfig:
     # Dataset statistics (for auto-planning)
     target_spacing: Optional[List[float]] = None  # Target voxel spacing [z, y, x] in mm
     median_shape: Optional[List[int]] = None  # Median dataset shape [D, H, W] in voxels
-    
+
+    # Train/Val Split (inspired by DeepEM)
+    # If enabled, splits single volume into train/val regions
+    split_enabled: bool = False  # Enable automatic train/val split
+    split_train_range: List[float] = field(default_factory=lambda: [0.0, 0.8])  # Train: 0-80%
+    split_val_range: List[float] = field(default_factory=lambda: [0.8, 1.0])    # Val: 80-100%
+    split_axis: int = 0  # Axis to split along (0=Z, 1=Y, 2=X)
+    split_pad_val: bool = True  # Pad validation to patch_size if smaller
+    split_pad_mode: str = 'reflect'  # Padding mode: 'reflect', 'replicate', 'constant'
+
     # Data loading
     batch_size: int = 2
     num_workers: int = 4
     pin_memory: bool = True
     persistent_workers: bool = True
-    
+
     # Caching (MONAI)
     use_cache: bool = False
     cache_rate: float = 1.0
-    
+
     # Normalization
     normalize: bool = True
     mean: float = 0.5
     std: float = 0.5
+    normalize_labels: bool = False  # Convert labels to 0-1 range
 
 
 @dataclass
@@ -320,6 +336,8 @@ class AugmentationConfig:
 @dataclass
 class InferenceConfig:
     """Inference configuration."""
+    test_image: Optional[str] = None
+    test_label: Optional[str] = None
     output_path: str = "results/"
     stride: List[int] = field(default_factory=lambda: [64, 64, 64])
     overlap: float = 0.5

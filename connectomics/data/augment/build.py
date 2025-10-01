@@ -6,11 +6,12 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 
 from __future__ import annotations
 from typing import Dict
+import numpy as np
 from monai.transforms import (
     Compose, RandRotate90d, RandFlipd, RandAffined, RandZoomd,
     RandGaussianNoised, RandShiftIntensityd, Rand3DElasticd,
-    RandGaussianSmoothd, RandAdjustContrastd,
-    ScaleIntensityRanged, ToTensord
+    RandGaussianSmoothd, RandAdjustContrastd, RandSpatialCropd,
+    ScaleIntensityRanged, ToTensord, CenterSpatialCropd, SpatialPadd
 )
 
 # Import custom loader for HDF5/TIFF volumes
@@ -19,7 +20,7 @@ from connectomics.data.dataset.dataset_volume import LoadVolumed
 from .monai_transforms import (
     RandMisAlignmentd, RandMissingSectiond, RandMissingPartsd,
     RandMotionBlurd, RandCutNoised, RandCutBlurd,
-    RandMixupd, RandCopyPasted
+    RandMixupd, RandCopyPasted, ConvertToFloatd, NormalizeLabelsd
 )
 from ...config.hydra_config import Config, AugmentationConfig
 
@@ -43,6 +44,31 @@ def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     # Load images first
     transforms.append(LoadVolumed(keys=keys))
 
+    # Apply volumetric split if enabled
+    if cfg.data.split_enabled:
+        from connectomics.data.utils import ApplyVolumetricSplitd
+        transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    # Ensure target patch size is respected
+    patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
+    if patch_size and all(size > 0 for size in patch_size):
+        # Pad smaller volumes so random crops always succeed
+        transforms.append(
+            SpatialPadd(
+                keys=keys,
+                spatial_size=patch_size,
+                constant_values=0.0,
+            )
+        )
+        transforms.append(
+            RandSpatialCropd(
+                keys=keys,
+                roi_size=patch_size,
+                random_center=True,
+                random_size=False,
+            )
+        )
+
     # Normalization
     if cfg.data.normalize:
         transforms.append(
@@ -59,6 +85,17 @@ def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     # Add augmentations if enabled
     if cfg.augmentation.enabled:
         transforms.extend(_build_augmentations(cfg.augmentation, keys))
+
+    # Convert labels to float to avoid Byte tensor issues
+    transforms.append(
+        ConvertToFloatd(keys=['label'], dtype=np.float32)
+    )
+
+    # Normalize labels to 0-1 range if enabled
+    if getattr(cfg.data, 'normalize_labels', False):
+        transforms.append(
+            NormalizeLabelsd(keys=['label'])
+        )
 
     # Final conversion to tensor
     transforms.append(ToTensord(keys=keys))
@@ -85,6 +122,31 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     # Load images first
     transforms.append(LoadVolumed(keys=keys))
 
+    # Apply volumetric split if enabled
+    if cfg.data.split_enabled:
+        from connectomics.data.utils import ApplyVolumetricSplitd
+        transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
+    if patch_size and all(size > 0 for size in patch_size):
+        transforms.append(
+            SpatialPadd(
+                keys=keys,
+                spatial_size=patch_size,
+                constant_values=0.0,
+            )
+        )
+
+    # Add spatial cropping to prevent loading full volumes (OOM fix)
+    # NOTE: If split is enabled with padding, this crop will be applied AFTER padding
+    if patch_size and all(size > 0 for size in patch_size):
+        transforms.append(
+            CenterSpatialCropd(
+                keys=keys,
+                roi_size=patch_size,
+            )
+        )
+
     # Normalization
     if cfg.data.normalize:
         transforms.append(
@@ -96,6 +158,17 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
                 b_max=1.0,
                 clip=True
             )
+        )
+
+    # Convert labels to float to avoid Byte tensor issues
+    transforms.append(
+        ConvertToFloatd(keys=['label'], dtype=np.float32)
+    )
+
+    # Normalize labels to 0-1 range if enabled
+    if getattr(cfg.data, 'normalize_labels', False):
+        transforms.append(
+            NormalizeLabelsd(keys=['label'])
         )
 
     # Final conversion to tensor

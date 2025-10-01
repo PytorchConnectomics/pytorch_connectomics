@@ -24,7 +24,7 @@ from .io import (
     read_pickle_file, write_pickle_file,
 
     # High-level volume I/O
-    read_volume, save_volume,
+    read_volume, save_volume, get_vol_shape,
 )
 
 # Tile operations
@@ -61,7 +61,7 @@ __all__ = [
     'read_pickle_file', 'write_pickle_file',
 
     # High-level volume I/O
-    'read_volume', 'save_volume',
+    'read_volume', 'save_volume', 'get_vol_shape',
 
     # Tile operations
     'create_tile_metadata', 'reconstruct_volume_from_tiles',

@@ -52,9 +52,21 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
                     d[key] = self._apply_misalignment_translation(d[key])
         return d
 
-    def _apply_misalignment_translation(self, img: np.ndarray) -> np.ndarray:
+    def _apply_misalignment_translation(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Apply translation-based misalignment."""
         if img.ndim < 3:
+            return img
+
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            device = img.device
+            img = img.cpu().numpy()
+
+        # Skip if volume is too small (need at least 3 sections in first dim)
+        if img.shape[0] <= 2 or img.shape[1] <= self.displacement or img.shape[2] <= self.displacement:
+            if is_tensor:
+                return torch.from_numpy(img).to(device)
             return img
 
         out_shape = (img.shape[0],
@@ -76,15 +88,34 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
             output[:idx] = img[:idx, y0:y0+out_shape[1], x0:x0+out_shape[2]]
             output[idx:] = img[idx:, y1:y1+out_shape[1], x1:x1+out_shape[2]]
 
+        if is_tensor:
+            output = torch.from_numpy(output).to(device)
+
         return output
 
-    def _apply_misalignment_rotation(self, img: np.ndarray) -> np.ndarray:
+    def _apply_misalignment_rotation(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Apply rotation-based misalignment."""
         if img.ndim < 3:
             return img
 
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            device = img.device
+            img = img.clone().cpu().numpy()
+        else:
+            img = img.copy()
+
+        # Skip if volume is too small (need at least 3 sections in first dim)
+        if img.shape[0] <= 2:
+            if is_tensor:
+                img = torch.from_numpy(img).to(device)
+            return img
+
         height, width = img.shape[-2:]
         if height != width:
+            if is_tensor:
+                img = torch.from_numpy(img).to(device)
             return img  # Skip if not square
 
         # Generate rotation matrix
@@ -106,6 +137,10 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
             for i in range(idx, img.shape[0]):
                 img[i] = cv2.warpAffine(img[i], M, (height, width),
                                        flags=interpolation, borderMode=cv2.BORDER_CONSTANT)
+
+        if is_tensor:
+            img = torch.from_numpy(img).to(device)
+
         return img
 
 
@@ -137,10 +172,13 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
                 d[key] = self._apply_missing_section(d[key])
         return d
 
-    def _apply_missing_section(self, img: np.ndarray) -> np.ndarray:
+    def _apply_missing_section(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Remove random sections from volume."""
         if img.ndim < 3 or img.shape[0] <= 3:
             return img  # Skip 2D or very small volumes
+
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
 
         # Select sections to remove (avoid first and last)
         num_to_remove = min(self.num_sections, img.shape[0] - 2)
@@ -150,7 +188,13 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
             replace=False
         )
 
-        return np.delete(img, indices_to_remove, axis=0)
+        if is_tensor:
+            # Keep sections that are NOT in indices_to_remove
+            keep_mask = torch.ones(img.shape[0], dtype=torch.bool, device=img.device)
+            keep_mask[indices_to_remove] = False
+            return img[keep_mask]
+        else:
+            return np.delete(img, indices_to_remove, axis=0)
 
 
 class RandMissingPartsd(RandomizableTransform, MapTransform):
@@ -181,12 +225,17 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
                 d[key] = self._apply_missing_parts(d[key])
         return d
 
-    def _apply_missing_parts(self, img: np.ndarray) -> np.ndarray:
+    def _apply_missing_parts(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Create missing rectangular regions."""
         if img.ndim < 3:
             return img
 
-        img = img.copy()
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            img = img.clone()
+        else:
+            img = img.copy()
 
         # Select random section
         section_idx = self.R.randint(0, img.shape[0])
@@ -236,12 +285,18 @@ class RandMotionBlurd(RandomizableTransform, MapTransform):
                 d[key] = self._apply_motion_blur(d[key])
         return d
 
-    def _apply_motion_blur(self, img: np.ndarray) -> np.ndarray:
+    def _apply_motion_blur(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Apply motion blur to random sections."""
         if img.ndim < 3:
             return img
 
-        img = img.copy()
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            device = img.device
+            img = img.clone().cpu().numpy()
+        else:
+            img = img.copy()
 
         # Generate motion blur kernel
         kernel = np.zeros((self.kernel_size, self.kernel_size))
@@ -260,9 +315,19 @@ class RandMotionBlurd(RandomizableTransform, MapTransform):
         num_sections = min(num_sections, img.shape[0])
         section_indices = self.R.choice(img.shape[0], size=num_sections, replace=False)
 
-        # Apply blur
+        # Apply blur (cv2 requires numpy and 2D data)
         for idx in section_indices:
-            img[idx] = cv2.filter2D(img[idx], -1, kernel)
+            section = img[idx]
+            # Handle channel dimension if present
+            if section.ndim == 3:  # [C, H, W]
+                # Apply to each channel
+                for c in range(section.shape[0]):
+                    section[c] = cv2.filter2D(section[c], -1, kernel)
+            else:  # [H, W]
+                img[idx] = cv2.filter2D(section, -1, kernel)
+
+        if is_tensor:
+            img = torch.from_numpy(img).to(device)
 
         return img
 
@@ -297,12 +362,18 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 d[key] = self._apply_cut_noise(d[key])
         return d
 
-    def _apply_cut_noise(self, img: np.ndarray) -> np.ndarray:
+    def _apply_cut_noise(self, img: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
         """Add noise to random cuboid region."""
         if img.ndim < 2:
             return img
 
-        img = img.copy()
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            device = img.device
+            img = img.clone().cpu().numpy()
+        else:
+            img = img.copy()
 
         # Generate cuboid dimensions and position
         if img.ndim == 3:
@@ -316,7 +387,7 @@ class RandCutNoised(RandomizableTransform, MapTransform):
         y_start = self.R.randint(0, img.shape[-2] - y_len + 1)
         x_start = self.R.randint(0, img.shape[-1] - x_len + 1)
 
-        # Generate noise
+        # Generate noise (numpy operations)
         if img.ndim == 3:
             noise_shape = (z_len, y_len, x_len)
             noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
@@ -330,6 +401,9 @@ class RandCutNoised(RandomizableTransform, MapTransform):
             noisy_region = np.clip(region + noise, 0, 1)
             img[y_start:y_start+y_len, x_start:x_start+x_len] = noisy_region
 
+        if is_tensor:
+            img = torch.from_numpy(img).to(device)
+
         return img
 
 
@@ -341,14 +415,23 @@ class RandCutNoised(RandomizableTransform, MapTransform):
 class RandCutBlurd(RandomizableTransform, MapTransform):
     """
     Random CutBlur augmentation for connectomics data.
-
+    
     Randomly downsample cuboid regions to force super-resolution learning.
+    Adapted from https://arxiv.org/abs/2004.00448.
+    
+    Args:
+        keys: Keys to apply CutBlur to
+        prob: Probability of applying the augmentation
+        length_ratio: Ratio of cuboid length compared to volume length
+        down_ratio_range: Range for downsample ratio (min, max)
+        downsample_z: Whether to downsample along z-axis
+        allow_missing_keys: Whether to allow missing keys
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        prob: float = 0.1,
+        prob: float = 0.5,
         length_ratio: float = 0.25,
         down_ratio_range: Tuple[float, float] = (2.0, 8.0),
         downsample_z: bool = False,
@@ -365,60 +448,111 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
         if not self._do_transform:
             return d
 
+        # Get random parameters once for all keys
+        if 'image' in d:
+            random_params = self._get_random_params(d['image'])
+        else:
+            # Fallback if no image key
+            random_params = None
+
         for key in self.key_iterator(d):
-            if key in d:
-                d[key] = self._apply_cutblur(d[key])
+            if key in d and random_params is not None:
+                d[key] = self._apply_cutblur(d[key], random_params)
         return d
 
-    def _apply_cutblur(self, img: np.ndarray) -> np.ndarray:
-        """Apply CutBlur transformation."""
-        from skimage.transform import resize
-
-        img = img.copy()
-
-        # Generate cuboid region
-        if img.ndim == 3:
-            z_len = int(self.length_ratio * img.shape[0]) if self.downsample_z else 1
-            y_len = int(self.length_ratio * img.shape[1])
-            x_len = int(self.length_ratio * img.shape[2])
-
-            z_start = self.R.randint(0, img.shape[0] - z_len + 1) if self.downsample_z else self.R.randint(0, img.shape[0])
-            y_start = self.R.randint(0, img.shape[1] - y_len + 1)
-            x_start = self.R.randint(0, img.shape[2] - x_len + 1)
+    def _get_random_params(self, img: Union[np.ndarray, torch.Tensor]) -> Tuple:
+        """Get random parameters for CutBlur transformation."""
+        # Handle tensor conversion for shape checking
+        if isinstance(img, torch.Tensor):
+            shape = img.shape
         else:
-            z_len = z_start = 0
-            y_len = int(self.length_ratio * img.shape[0])
-            x_len = int(self.length_ratio * img.shape[1])
-            y_start = self.R.randint(0, img.shape[0] - y_len + 1)
-            x_start = self.R.randint(0, img.shape[1] - x_len + 1)
+            shape = img.shape
 
-        # Generate downsampling ratio
+        zdim = shape[0] if len(shape) == 3 else 1
+        
+        # Generate random cuboid region
+        if zdim > 1:
+            zl, zh = self._random_region(shape[0])
+        else:
+            zl, zh = None, None
+            
+        yl, yh = self._random_region(shape[1] if len(shape) == 3 else shape[0])
+        xl, xh = self._random_region(shape[2] if len(shape) == 3 else shape[1])
+        
+        # Generate random downsampling ratio
         down_ratio = self.R.uniform(*self.down_ratio_range)
+        
+        return zl, zh, yl, yh, xl, xh, down_ratio
 
-        # Extract and downsample region
-        if img.ndim == 3:
-            if self.downsample_z:
-                region = img[z_start:z_start+z_len, y_start:y_start+y_len, x_start:x_start+x_len]
-                down_shape = (int(z_len/down_ratio), int(y_len/down_ratio), int(x_len/down_ratio))
-            else:
-                region = img[z_start, y_start:y_start+y_len, x_start:x_start+x_len]
-                down_shape = (int(y_len/down_ratio), int(x_len/down_ratio))
+    def _random_region(self, vol_len: int) -> Tuple[int, int]:
+        """Generate random region coordinates."""
+        cuboid_len = int(self.length_ratio * vol_len)
+        if cuboid_len <= 0:
+            cuboid_len = 1
+        low = self.R.randint(0, max(1, vol_len - cuboid_len + 1))
+        high = low + cuboid_len
+        return low, high
+
+    def _apply_cutblur(self, img: Union[np.ndarray, torch.Tensor], random_params: Tuple) -> Union[np.ndarray, torch.Tensor]:
+        """Apply CutBlur transformation with given parameters."""
+        from skimage.transform import resize
+        
+        zl, zh, yl, yh, xl, xh, down_ratio = random_params
+        
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            device = img.device
+            img = img.clone().cpu().numpy()
         else:
-            region = img[y_start:y_start+y_len, x_start:x_start+x_len]
-            down_shape = (int(y_len/down_ratio), int(x_len/down_ratio))
+            img = img.copy()
 
-        # Downsample and upsample
-        region_down = resize(region, down_shape, order=1, preserve_range=True, anti_aliasing=True)
-        region_up = resize(region_down, region.shape, order=1, preserve_range=True, anti_aliasing=False)
-
-        # Put back into image
-        if img.ndim == 3:
+        # Apply CutBlur based on original implementation
+        # Handle 4D data (C, Z, Y, X) or 3D data (Z, Y, X)
+        if img.ndim == 4:
+            # 4D case: (C, Z, Y, X)
+            temp = img[:, zl:zh, yl:yh, xl:xh].copy()
             if self.downsample_z:
-                img[z_start:z_start+z_len, y_start:y_start+y_len, x_start:x_start+x_len] = region_up
+                out_shape = np.array(temp.shape) / np.array([1, down_ratio, down_ratio, down_ratio])
             else:
-                img[z_start, y_start:y_start+y_len, x_start:x_start+x_len] = region_up
+                out_shape = np.array(temp.shape) / np.array([1, 1, down_ratio, down_ratio])
+        elif img.ndim == 3:
+            # 3D case: (Z, Y, X)
+            temp = img[zl:zh, yl:yh, xl:xh].copy()
+            if self.downsample_z:
+                out_shape = np.array(temp.shape) / down_ratio
+            else:
+                out_shape = np.array(temp.shape) / np.array([1, down_ratio, down_ratio])
         else:
-            img[y_start:y_start+y_len, x_start:x_start+x_len] = region_up
+            # 2D case: (Y, X)
+            temp = img[yl:yh, xl:xh].copy()
+            out_shape = np.array(temp.shape) / np.array([down_ratio, down_ratio])
+
+        out_shape = out_shape.astype(int)
+        # Ensure minimum size of 1
+        out_shape = np.maximum(out_shape, 1)
+        
+        # Downsample with linear interpolation and anti-aliasing
+        downsampled = resize(temp, out_shape, order=1, mode='reflect',
+                           clip=True, preserve_range=True, anti_aliasing=True)
+        
+        # Upsample with nearest neighbor (no anti-aliasing to preserve sharp edges)
+        upsampled = resize(downsampled, temp.shape, order=0, mode='reflect',
+                         clip=True, preserve_range=True, anti_aliasing=False)
+
+        # Put back into original image
+        if img.ndim == 4:
+            # 4D case: (C, Z, Y, X)
+            img[:, zl:zh, yl:yh, xl:xh] = upsampled
+        elif img.ndim == 3:
+            # 3D case: (Z, Y, X)
+            img[zl:zh, yl:yh, xl:xh] = upsampled
+        else:
+            # 2D case: (Y, X)
+            img[yl:yh, xl:xh] = upsampled
+
+        if is_tensor:
+            img = torch.from_numpy(img).to(device)
 
         return img
 
@@ -534,7 +668,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
         
     def _generate_binary_structure(self):
         """Generate 3D binary structure for dilation."""
-        from scipy.ndimage.morphology import generate_binary_structure
+        from scipy.ndimage import generate_binary_structure
         return generate_binary_structure(3, 3)
     
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -618,7 +752,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Find best rotation and position with minimal overlap."""
         import torchvision.transforms.functional as tf
-        from scipy.ndimage.morphology import binary_dilation
+        from scipy.ndimage import binary_dilation
         
         labels = torch.stack([label_orig, label_flipped])
         best_overlap = torch.logical_and(label_flipped, label_orig).int().sum()
@@ -693,6 +827,93 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
             return tensor
 
 
+class ConvertToFloatd(MapTransform):
+    """
+    Convert specified keys to float32 to avoid Byte tensor issues.
+    
+    This is needed because PyTorch's interpolate function doesn't support
+    Byte tensors with trilinear mode, but labels are often loaded as uint8.
+    """
+    
+    def __init__(
+        self,
+        keys: KeysCollection,
+        dtype: np.dtype = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to convert
+            dtype: Target data type (default: float32)
+            allow_missing_keys: Whether to allow missing keys
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.dtype = dtype
+    
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert specified keys to target dtype."""
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                if isinstance(d[key], np.ndarray):
+                    d[key] = d[key].astype(self.dtype)
+                elif isinstance(d[key], torch.Tensor):
+                    d[key] = d[key].to(dtype=torch.from_numpy(np.array([], dtype=self.dtype)).dtype)
+        return d
+
+
+class NormalizeLabelsd(MapTransform):
+    """
+    Normalize labels to 0-1 range.
+    
+    This transform scales label values from their original range to [0, 1].
+    Useful for ensuring consistent label ranges across different datasets.
+    """
+    
+    def __init__(
+        self,
+        keys: KeysCollection,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to normalize
+            allow_missing_keys: Whether to allow missing keys
+        """
+        super().__init__(keys, allow_missing_keys)
+    
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize specified keys to 0-1 range."""
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                if isinstance(d[key], np.ndarray):
+                    # Get min and max values
+                    data_min = d[key].min()
+                    data_max = d[key].max()
+                    
+                    # Avoid division by zero
+                    if data_max - data_min > 0:
+                        # Normalize to [0, 1]
+                        d[key] = (d[key] - data_min) / (data_max - data_min)
+                    else:
+                        # If all values are the same, set to 0
+                        d[key] = np.zeros_like(d[key])
+                elif isinstance(d[key], torch.Tensor):
+                    # Get min and max values
+                    data_min = d[key].min().item()
+                    data_max = d[key].max().item()
+                    
+                    # Avoid division by zero
+                    if data_max - data_min > 0:
+                        # Normalize to [0, 1]
+                        d[key] = (d[key] - data_min) / (data_max - data_min)
+                    else:
+                        # If all values are the same, set to 0
+                        d[key] = torch.zeros_like(d[key])
+        return d
+
+
 __all__ = [
     # Connectomics-specific transforms (not available in standard MONAI)
     'RandMisAlignmentd',
@@ -703,4 +924,6 @@ __all__ = [
     'RandCutBlurd',
     'RandMixupd',
     'RandCopyPasted',
+    'ConvertToFloatd',
+    'NormalizeLabelsd',
 ]

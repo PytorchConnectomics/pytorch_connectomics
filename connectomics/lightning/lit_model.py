@@ -266,8 +266,8 @@ class ConnectomicsModule(pl.LightningModule):
             return target
 
         # Determine interpolation mode based on data type
-        if target.dtype in [torch.long, torch.int, torch.int32, torch.int64]:
-            # Integer labels: use nearest-neighbor
+        if target.dtype in [torch.long, torch.int, torch.int32, torch.int64, torch.uint8, torch.ByteTensor]:
+            # Integer labels (including Byte/uint8): use nearest-neighbor
             mode = 'nearest'
             target_resized = nn.functional.interpolate(
                 target.float(),
