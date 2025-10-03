@@ -141,15 +141,9 @@ def setup_config(args) -> Config:
     print("✅ Validating configuration...")
     validate_config(cfg)
 
-    # Ensure output directory exists
+    # Ensure base output directory exists
     output_dir = Path(cfg.checkpoint.dirpath).parent
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Save resolved config
-    config_save_path = output_dir / "checkpoints" / "config.yaml"
-    config_save_path.parent.mkdir(parents=True, exist_ok=True)
-    save_config(cfg, config_save_path)
-    print(f"💾 Config saved to: {config_save_path}")
 
     return cfg
 
@@ -265,26 +259,126 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
     if val_data_dicts:
         print(f"  Val dataset size: {len(val_data_dicts)}")
 
+    # Auto-compute iter_num from volume size if not specified
+    iter_num = cfg.data.iter_num
+    if iter_num == -1:
+        print("📊 Auto-computing iter_num from volume size...")
+        from connectomics.data.utils import compute_total_samples
+        import h5py
+        import tifffile
+        from pathlib import Path
+
+        # Get volume sizes
+        volume_sizes = []
+        for data_dict in train_data_dicts:
+            img_path = Path(data_dict['image'])
+            if img_path.suffix in ['.h5', '.hdf5']:
+                with h5py.File(img_path, 'r') as f:
+                    vol_shape = f[list(f.keys())[0]].shape
+            elif img_path.suffix in ['.tif', '.tiff']:
+                vol = tifffile.imread(img_path)
+                vol_shape = vol.shape
+            else:
+                raise ValueError(f"Unsupported file format: {img_path.suffix}")
+
+            # Handle both (z, y, x) and (c, z, y, x)
+            if len(vol_shape) == 4:
+                vol_shape = vol_shape[1:]  # Skip channel dim
+            volume_sizes.append(vol_shape)
+
+        # Compute total possible samples
+        total_samples, samples_per_vol = compute_total_samples(
+            volume_sizes=volume_sizes,
+            patch_size=tuple(cfg.data.patch_size),
+            stride=tuple(cfg.data.stride),
+        )
+
+        iter_num = total_samples
+        print(f"  Volume sizes: {volume_sizes}")
+        print(f"  Patch size: {cfg.data.patch_size}")
+        print(f"  Stride: {cfg.data.stride}")
+        print(f"  Samples per volume: {samples_per_vol}")
+        print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
+        print(f"  ✅ Batches per epoch: {iter_num // cfg.data.batch_size:,}")
+
     # Create DataModule
     print("Creating data loaders...")
-    datamodule = ConnectomicsDataModule(
-        train_data_dicts=train_data_dicts,
-        val_data_dicts=val_data_dicts,
-        transforms={
-            'train': train_transforms,
-            'val': val_transforms,
-            'test': val_transforms,
-        },
-        dataset_type='cached' if cfg.data.use_cache else 'standard',
-        batch_size=cfg.data.batch_size,
-        num_workers=cfg.data.num_workers,
-        pin_memory=cfg.data.pin_memory,
-        persistent_workers=cfg.data.persistent_workers,
-        cache_rate=cfg.data.cache_rate if cfg.data.use_cache else 0.0,
-    )
 
-    # Setup datasets
-    datamodule.setup(stage='fit')
+    # Use optimized pre-loaded cache when iter_num > 0
+    use_preloaded = cfg.data.use_preloaded_cache and iter_num > 0
+
+    if use_preloaded:
+        print("  ⚡ Using pre-loaded volume cache (loads once, crops in memory)")
+        from connectomics.data.dataset.dataset_volume_cached import CachedVolumeDataset
+
+        # Build transforms without loading/cropping (handled by dataset)
+        augment_only_transforms = build_train_transforms(cfg, skip_loading=True)
+
+        # Create optimized cached datasets
+        train_dataset = CachedVolumeDataset(
+            image_paths=[d['image'] for d in train_data_dicts],
+            label_paths=[d.get('label') for d in train_data_dicts],
+            patch_size=tuple(cfg.data.patch_size),
+            iter_num=iter_num,
+            transforms=augment_only_transforms,
+            mode='train',
+        )
+
+        # Use fewer workers since we're loading from memory
+        num_workers = min(cfg.data.num_workers, 2)
+        print(f"  Using {num_workers} workers (in-memory operations are fast)")
+
+        # Create simple dataloader
+        from torch.utils.data import DataLoader
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=cfg.data.batch_size,
+            shuffle=False,  # Already random
+            num_workers=num_workers,
+            pin_memory=cfg.data.pin_memory,
+            persistent_workers=num_workers > 0,
+        )
+
+        # Create data module wrapper that inherits from LightningDataModule
+        import pytorch_lightning as pl
+
+        class SimpleDataModule(pl.LightningDataModule):
+            def __init__(self, train_loader):
+                super().__init__()
+                self.train_loader = train_loader
+
+            def train_dataloader(self):
+                return self.train_loader
+
+            def val_dataloader(self):
+                return []
+
+            def setup(self, stage=None):
+                pass
+
+        datamodule = SimpleDataModule(train_loader)
+    else:
+        # Standard data module
+        use_cache = cfg.data.use_cache
+        datamodule = ConnectomicsDataModule(
+            train_data_dicts=train_data_dicts,
+            val_data_dicts=val_data_dicts,
+            transforms={
+                'train': train_transforms,
+                'val': val_transforms,
+                'test': val_transforms,
+            },
+            dataset_type='cached' if use_cache else 'standard',
+            batch_size=cfg.data.batch_size,
+            num_workers=cfg.data.num_workers,
+            pin_memory=cfg.data.pin_memory,
+            persistent_workers=cfg.data.persistent_workers,
+            cache_rate=cfg.data.cache_rate if use_cache else 0.0,
+            iter_num=iter_num,
+            sample_size=tuple(cfg.data.patch_size),
+        )
+        # Setup datasets
+        datamodule.setup(stage='fit')
 
     print(f"  Train batches: {len(datamodule.train_dataloader())}")
     if val_data_dicts:
@@ -293,12 +387,13 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
     return datamodule
 
 
-def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
+def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl.Trainer:
     """
     Create PyTorch Lightning Trainer.
 
     Args:
         cfg: Hydra Config object
+        run_dir: Directory for this training run
         fast_dev_run: Whether to run quick debug mode
 
     Returns:
@@ -306,18 +401,22 @@ def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
     """
     print("Creating Lightning trainer...")
 
+    # Setup checkpoint directory
+    checkpoint_dir = run_dir / "checkpoints"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
     # Setup callbacks
     callbacks = []
 
-    # Model checkpoint
+    # Model checkpoint (in run_dir/checkpoints/)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=cfg.checkpoint.dirpath,
+        dirpath=str(checkpoint_dir),
         filename=cfg.checkpoint.filename,
         monitor=cfg.checkpoint.monitor,
         mode=cfg.checkpoint.mode,
         save_top_k=cfg.checkpoint.save_top_k,
         save_last=cfg.checkpoint.save_last,
-        every_n_epochs=cfg.checkpoint.every_n_epochs,
+        every_n_epochs=cfg.checkpoint.save_every_n_epochs,
         verbose=True,
     )
     callbacks.append(checkpoint_callback)
@@ -342,11 +441,11 @@ def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
     except (ImportError, ModuleNotFoundError):
         pass  # Use default progress bar
 
-    # Setup logger
+    # Setup logger (in run_dir/logs/)
     logger = TensorBoardLogger(
-        save_dir=Path(cfg.checkpoint.dirpath).parent,
-        name='logs',
-        version=cfg.experiment_name,
+        save_dir=str(run_dir),
+        name='',  # No name subdirectory
+        version='logs',  # Logs go directly to run_dir/logs/
     )
 
     # Create trainer
@@ -362,7 +461,6 @@ def create_trainer(cfg: Config, fast_dev_run: bool = False) -> pl.Trainer:
         gradient_clip_val=cfg.training.gradient_clip_val,
         accumulate_grad_batches=cfg.training.accumulate_grad_batches,
         val_check_interval=cfg.training.val_check_interval,
-        check_val_every_n_epoch=cfg.training.check_val_every_n_epoch,
         log_every_n_steps=cfg.training.log_every_n_steps,
         callbacks=callbacks,
         logger=logger,
@@ -389,6 +487,22 @@ def main():
     print("=" * 60)
     cfg = setup_config(args)
 
+    # Create run directory with timestamp
+    # Structure: outputs/experiment_name/YYYYMMDD_HHMMSS/{checkpoints,logs,config.yaml}
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    output_base = Path(cfg.checkpoint.dirpath).parent
+    run_dir = output_base / timestamp
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"📁 Run directory: {run_dir}")
+
+    # Save config to run directory
+    config_save_path = run_dir / "config.yaml"
+    save_config(cfg, config_save_path)
+    print(f"💾 Config saved to: {config_save_path}")
+
     # Set random seed
     if cfg.system.seed is not None:
         print(f"🎲 Random seed set to: {cfg.system.seed}")
@@ -405,8 +519,8 @@ def main():
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"  Model parameters: {num_params:,}")
 
-    # Create trainer
-    trainer = create_trainer(cfg, fast_dev_run=args.fast_dev_run)
+    # Create trainer (pass run_dir for checkpoints and logs)
+    trainer = create_trainer(cfg, run_dir=run_dir, fast_dev_run=args.fast_dev_run)
 
     print("\n" + "=" * 60)
     print("🏃 STARTING TRAINING")

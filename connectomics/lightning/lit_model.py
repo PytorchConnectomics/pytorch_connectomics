@@ -66,14 +66,15 @@ class ConnectomicsModule(pl.LightningModule):
     def _build_losses(self, cfg) -> nn.ModuleList:
         """Build loss functions from configuration."""
         loss_names = cfg.model.loss_functions if hasattr(cfg.model, 'loss_functions') else ['DiceLoss']
-        
+        loss_kwargs_list = cfg.model.loss_kwargs if hasattr(cfg.model, 'loss_kwargs') else [{}] * len(loss_names)
+
         losses = nn.ModuleList()
-        for loss_name in loss_names:
-            # Use the new MONAI-native loss creation with minimal kwargs
-            # Let create_loss handle the defaults
-            loss = create_loss(loss_name=loss_name)
+        for i, loss_name in enumerate(loss_names):
+            # Get kwargs for this loss (default to empty dict if not specified)
+            kwargs = loss_kwargs_list[i] if i < len(loss_kwargs_list) else {}
+            loss = create_loss(loss_name=loss_name, **kwargs)
             losses.append(loss)
-        
+
         return losses
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

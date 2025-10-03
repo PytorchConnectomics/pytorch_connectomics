@@ -25,6 +25,7 @@ from monai.losses import (
 
 # Import custom connectomics losses
 from .losses import (
+    CrossEntropyLossWrapper,
     WeightedMSELoss,
     WeightedMAELoss,
     GANLoss,
@@ -80,8 +81,8 @@ def create_loss(
         # PyTorch standard losses (for convenience)
         'BCEWithLogitsLoss': nn.BCEWithLogitsLoss,
         'BCE': nn.BCEWithLogitsLoss,  # Alias
-        'CrossEntropyLoss': nn.CrossEntropyLoss,
-        'CE': nn.CrossEntropyLoss,  # Alias
+        'CrossEntropyLoss': CrossEntropyLossWrapper,  # Use wrapper for shape handling
+        'CE': CrossEntropyLossWrapper,  # Alias
         'MSELoss': nn.MSELoss,
         'MSE': nn.MSELoss,  # Alias
         'L1Loss': nn.L1Loss,

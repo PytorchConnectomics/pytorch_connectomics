@@ -864,10 +864,12 @@ class ConvertToFloatd(MapTransform):
 
 class NormalizeLabelsd(MapTransform):
     """
-    Normalize labels to 0-1 range.
+    Convert labels to binary {0, 1} integers.
     
-    This transform scales label values from their original range to [0, 1].
-    Useful for ensuring consistent label ranges across different datasets.
+    This transform converts label values to binary {0, 1} integers.
+    - 0: background
+    - 1: foreground
+    Useful for binary segmentation tasks with CrossEntropyLoss.
     """
     
     def __init__(
@@ -883,34 +885,16 @@ class NormalizeLabelsd(MapTransform):
         super().__init__(keys, allow_missing_keys)
     
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize specified keys to 0-1 range."""
+        """Convert specified keys to binary {0, 1} integers."""
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
                 if isinstance(d[key], np.ndarray):
-                    # Get min and max values
-                    data_min = d[key].min()
-                    data_max = d[key].max()
-                    
-                    # Avoid division by zero
-                    if data_max - data_min > 0:
-                        # Normalize to [0, 1]
-                        d[key] = (d[key] - data_min) / (data_max - data_min)
-                    else:
-                        # If all values are the same, set to 0
-                        d[key] = np.zeros_like(d[key])
+                    # Convert to binary: 0 for background, 1 for foreground
+                    d[key] = (d[key] > 0).astype(np.int32)
                 elif isinstance(d[key], torch.Tensor):
-                    # Get min and max values
-                    data_min = d[key].min().item()
-                    data_max = d[key].max().item()
-                    
-                    # Avoid division by zero
-                    if data_max - data_min > 0:
-                        # Normalize to [0, 1]
-                        d[key] = (d[key] - data_min) / (data_max - data_min)
-                    else:
-                        # If all values are the same, set to 0
-                        d[key] = torch.zeros_like(d[key])
+                    # Convert to binary: 0 for background, 1 for foreground
+                    d[key] = (d[key] > 0).int()
         return d
 
 

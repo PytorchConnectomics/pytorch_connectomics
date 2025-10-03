@@ -71,7 +71,6 @@ def create_trainer(
         'gradient_clip_val': training_cfg.gradient_clip_val if training_cfg and hasattr(training_cfg, 'gradient_clip_val') else 0.0,
         'accumulate_grad_batches': training_cfg.accumulate_grad_batches if training_cfg and hasattr(training_cfg, 'accumulate_grad_batches') else 1,
         'log_every_n_steps': training_cfg.log_every_n_steps if training_cfg and hasattr(training_cfg, 'log_every_n_steps') else 50,
-        'check_val_every_n_epoch': training_cfg.check_val_every_n_epoch if training_cfg and hasattr(training_cfg, 'check_val_every_n_epoch') else 1,
         'enable_progress_bar': True,
         'enable_model_summary': True,
     }
@@ -96,7 +95,7 @@ def _create_default_callbacks(cfg: Union[Config, DictConfig]) -> List:
             mode=checkpoint_cfg.mode if hasattr(checkpoint_cfg, 'mode') else 'min',
             save_top_k=checkpoint_cfg.save_top_k,
             save_last=checkpoint_cfg.save_last if hasattr(checkpoint_cfg, 'save_last') else True,
-            every_n_epochs=checkpoint_cfg.every_n_epochs if hasattr(checkpoint_cfg, 'every_n_epochs') else 1,
+            every_n_epochs=checkpoint_cfg.save_every_n_epochs if hasattr(checkpoint_cfg, 'save_every_n_epochs') else 1,
         )
         callbacks.append(checkpoint_callback)
     else:

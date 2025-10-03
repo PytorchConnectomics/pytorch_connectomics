@@ -24,3 +24,20 @@ train dataset:
 # Test on Lucchi dataset (provide path to checkpoint)
 test dataset checkpoint:
     python scripts/main.py --config tutorials/mednext_{{dataset}}.yaml --mode test --checkpoint {{checkpoint}}
+
+# ============================================================================
+# Monitoring Commands
+# ============================================================================
+
+# Launch TensorBoard for a specific experiment (e.g., just tensorboard lucchi_monai_unet)
+# Shows all runs (timestamped directories) for comparison
+tensorboard experiment:
+    tensorboard --logdir outputs/{{experiment}} --port 6006
+
+# Launch TensorBoard for all experiments
+tensorboard-all:
+    tensorboard --logdir outputs/ --port 6006
+
+# Launch TensorBoard for a specific run (e.g., just tensorboard-run lucchi_monai_unet 20250203_143052)
+tensorboard-run experiment timestamp:
+    tensorboard --logdir outputs/{{experiment}}/{{timestamp}}/logs --port 6006

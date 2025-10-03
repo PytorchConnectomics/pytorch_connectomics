@@ -11,6 +11,48 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class CrossEntropyLossWrapper(nn.Module):
+    """
+    Wrapper for CrossEntropyLoss that handles shape conversion.
+
+    Expects labels in format [B, 1, D, H, W] and converts to [B, D, H, W]
+    for compatibility with PyTorch's CrossEntropyLoss.
+
+    Args:
+        weight: Class weights
+        ignore_index: Index to ignore
+        reduction: Reduction method
+    """
+
+    def __init__(self, weight=None, ignore_index=-100, reduction='mean'):
+        super().__init__()
+        self.ce_loss = nn.CrossEntropyLoss(
+            weight=weight,
+            ignore_index=ignore_index,
+            reduction=reduction
+        )
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Compute cross-entropy loss with automatic shape handling.
+
+        Args:
+            input: Model output [B, C, D, H, W] (C=2 for binary)
+            target: Ground truth [B, 1, D, H, W] or [B, D, H, W]
+
+        Returns:
+            Loss value
+        """
+        # Squeeze channel dimension if present
+        if target.dim() == 5 and target.shape[1] == 1:
+            target = target.squeeze(1)  # [B, 1, D, H, W] -> [B, D, H, W]
+
+        # Convert to long type for cross-entropy
+        target = target.long()
+
+        return self.ce_loss(input, target)
+
+
 class WeightedMSELoss(nn.Module):
     """
     Weighted mean-squared error loss.

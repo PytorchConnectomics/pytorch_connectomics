@@ -25,13 +25,14 @@ from .monai_transforms import (
 from ...config.hydra_config import Config, AugmentationConfig
 
 
-def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bool = False) -> Compose:
     """
     Build training transforms from Hydra config.
 
     Args:
         cfg: Hydra Config object
         keys: Keys to transform (default: ['image', 'label'])
+        skip_loading: Skip LoadVolumed (for pre-cached datasets)
 
     Returns:
         Composed MONAI transforms
@@ -41,33 +42,35 @@ def build_train_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     transforms = []
 
-    # Load images first
-    transforms.append(LoadVolumed(keys=keys))
+    # Load images first (unless using pre-cached dataset)
+    if not skip_loading:
+        transforms.append(LoadVolumed(keys=keys))
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
         from connectomics.data.utils import ApplyVolumetricSplitd
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
-    # Ensure target patch size is respected
-    patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
-    if patch_size and all(size > 0 for size in patch_size):
-        # Pad smaller volumes so random crops always succeed
-        transforms.append(
-            SpatialPadd(
-                keys=keys,
-                spatial_size=patch_size,
-                constant_values=0.0,
+    # Ensure target patch size is respected (unless using pre-cached dataset)
+    if not skip_loading:
+        patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
+        if patch_size and all(size > 0 for size in patch_size):
+            # Pad smaller volumes so random crops always succeed
+            transforms.append(
+                SpatialPadd(
+                    keys=keys,
+                    spatial_size=patch_size,
+                    constant_values=0.0,
+                )
             )
-        )
-        transforms.append(
-            RandSpatialCropd(
-                keys=keys,
-                roi_size=patch_size,
-                random_center=True,
-                random_size=False,
+            transforms.append(
+                RandSpatialCropd(
+                    keys=keys,
+                    roi_size=patch_size,
+                    random_center=True,
+                    random_size=False,
+                )
             )
-        )
 
     # Normalization
     if cfg.data.normalize:
