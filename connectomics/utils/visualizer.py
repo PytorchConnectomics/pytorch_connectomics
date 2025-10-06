@@ -107,30 +107,47 @@ class Visualizer:
         # Normalize to [0, 1]
         volume = self._normalize(volume)
         label = self._normalize(label)
-        output = torch.sigmoid(output)  # Apply sigmoid for visualization
 
-        # Handle multi-channel predictions
+        # Apply activation for visualization
         if output.shape[1] > 1:
-            # For multi-class, take argmax
-            output = torch.argmax(output, dim=1, keepdim=True).float()
+            # For multi-class, use softmax then take argmax for visualization
+            output_viz = torch.softmax(output, dim=1)
+            output_viz = torch.argmax(output_viz, dim=1, keepdim=True).float()
+            output_viz = self._normalize(output_viz)
+        else:
+            # For binary, apply sigmoid
+            output_viz = torch.sigmoid(output)
 
+        # Handle ground truth
         if label.shape[1] > 1:
             label = torch.argmax(label, dim=1, keepdim=True).float()
+            label = self._normalize(label)
 
-        # Expand single channel to RGB
+        # Expand single channel to RGB for better visualization
         if volume.shape[1] == 1:
             volume = volume.repeat(1, 3, 1, 1)
         if label.shape[1] == 1:
-            label = label.repeat(1, 3, 1, 1)
-        if output.shape[1] == 1:
-            output = output.repeat(1, 3, 1, 1)
+            # Colorize ground truth (green channel)
+            label = torch.cat([
+                torch.zeros_like(label),
+                label,
+                torch.zeros_like(label)
+            ], dim=1)
+        if output_viz.shape[1] == 1:
+            # Colorize prediction (red channel)
+            output_viz = torch.cat([
+                output_viz,
+                torch.zeros_like(output_viz),
+                torch.zeros_like(output_viz)
+            ], dim=1)
 
-        # Stack: [volume, prediction, ground_truth]
-        grid = torch.cat([volume, output, label], dim=0)
+        # Stack: [input, prediction (red), ground_truth (green)]
+        # This makes it easy to see: red=FP, green=FN, yellow=TP
+        grid = torch.cat([volume, output_viz, label], dim=0)
 
         # Create grid visualization
         grid_img = vutils.make_grid(
-            grid, nrow=self.max_images, normalize=True, scale_each=True
+            grid, nrow=min(8, self.max_images), normalize=True, scale_each=True
         )
 
         # Log to tensorboard

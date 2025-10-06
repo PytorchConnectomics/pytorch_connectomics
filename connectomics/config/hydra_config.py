@@ -338,6 +338,14 @@ class AugmentationConfig:
 
 
 @dataclass
+class VisualizationConfig:
+    """Visualization configuration for TensorBoard."""
+    enabled: bool = True
+    max_images: int = 4
+    num_slices: int = 8
+
+
+@dataclass
 class InferenceConfig:
     """Inference configuration."""
     test_image: Optional[str] = None
@@ -352,7 +360,7 @@ class InferenceConfig:
 @dataclass
 class Config:
     """Main configuration for PyTorch Connectomics."""
-    
+
     # Core components
     system: SystemConfig = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
@@ -363,8 +371,9 @@ class Config:
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
     augmentation: AugmentationConfig = field(default_factory=AugmentationConfig)
+    visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
-    
+
     # Metadata
     experiment_name: str = "connectomics_experiment"
     description: str = ""

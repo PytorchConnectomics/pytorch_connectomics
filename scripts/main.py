@@ -34,6 +34,9 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import TensorBoardLogger
 
+# Import visualization callback
+from connectomics.lightning.callbacks import VisualizationCallback
+
 # Handle different Lightning versions
 try:
     from pytorch_lightning.utilities.seed import seed_everything
@@ -435,6 +438,18 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl
     # Learning rate monitor
     callbacks.append(LearningRateMonitor(logging_interval='epoch'))
 
+    # Visualization callback (end-of-epoch only)
+    if hasattr(cfg, 'visualization') and getattr(cfg.visualization, 'enabled', False):
+        vis_callback = VisualizationCallback(
+            cfg=cfg,
+            max_images=getattr(cfg.visualization, 'max_images', 4),
+            num_slices=getattr(cfg.visualization, 'num_slices', 8),
+        )
+        callbacks.append(vis_callback)
+        print(f"  Visualization: Enabled (end of each epoch)")
+    else:
+        print(f"  Visualization: Disabled")
+
     # Progress bar (optional - requires rich package)
     try:
         callbacks.append(RichProgressBar())
@@ -452,6 +467,12 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl
     # Check if GPU is actually available
     use_gpu = cfg.system.num_gpus > 0 and torch.cuda.is_available()
     
+    # Check if anomaly detection is enabled (useful for debugging NaN)
+    detect_anomaly = getattr(cfg.training, 'detect_anomaly', False)
+    if detect_anomaly:
+        print("  ⚠️  PyTorch anomaly detection ENABLED (training will be slower)")
+        print("      This helps pinpoint the exact operation causing NaN in backward pass")
+
     trainer = pl.Trainer(
         max_epochs=cfg.training.max_epochs,
         max_steps=cfg.training.max_steps if cfg.training.max_steps else -1,
@@ -467,6 +488,7 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl
         deterministic=cfg.training.deterministic,
         benchmark=cfg.training.benchmark,
         fast_dev_run=fast_dev_run,
+        detect_anomaly=detect_anomaly,
     )
 
     print(f"  Max epochs: {cfg.training.max_epochs}")

@@ -23,6 +23,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from omegaconf import DictConfig
 
 from ..config import Config
+from .callbacks import NaNDetectionCallback
 
 
 def create_trainer(
@@ -84,7 +85,31 @@ def create_trainer(
 def _create_default_callbacks(cfg: Union[Config, DictConfig]) -> List:
     """Create default callbacks from configuration."""
     callbacks = []
-    
+
+    # NaN detection callback (enabled by default for debugging)
+    nan_detection_cfg = cfg.nan_detection if hasattr(cfg, 'nan_detection') else None
+    if nan_detection_cfg is not None:
+        # User explicitly configured NaN detection
+        if hasattr(nan_detection_cfg, 'enabled') and nan_detection_cfg.enabled:
+            nan_callback = NaNDetectionCallback(
+                check_grads=getattr(nan_detection_cfg, 'check_grads', True),
+                check_inputs=getattr(nan_detection_cfg, 'check_inputs', True),
+                debug_on_nan=getattr(nan_detection_cfg, 'debug_on_nan', True),
+                terminate_on_nan=getattr(nan_detection_cfg, 'terminate_on_nan', False),
+                print_diagnostics=getattr(nan_detection_cfg, 'print_diagnostics', True),
+            )
+            callbacks.append(nan_callback)
+    else:
+        # Default: enable NaN detection with debugging
+        nan_callback = NaNDetectionCallback(
+            check_grads=True,
+            check_inputs=True,
+            debug_on_nan=True,
+            terminate_on_nan=False,
+            print_diagnostics=True,
+        )
+        callbacks.append(nan_callback)
+
     # Model checkpoint callback
     checkpoint_cfg = cfg.checkpoint if hasattr(cfg, 'checkpoint') else None
     if checkpoint_cfg and hasattr(checkpoint_cfg, 'save_top_k'):

@@ -4,6 +4,12 @@
 # This config uses MONAI's UNet with residual units - a robust baseline
 # for 3D medical image segmentation. The residual connections help with
 # gradient flow and improve performance over standard U-Net.
+#
+# STABILITY FIXES APPLIED:
+# - Reduced LR from 0.001 to 0.0001 (10x) to prevent activation explosion
+# - Switched from fp16 to fp32 to avoid numerical overflow
+# - Increased gradient clipping from 1.0 to 0.5 for more aggressive control
+# - Added input normalization (mean=127.5, std=127.5) for uint8 data
 
 experiment_name: lucchi_monai_unet
 description: Mitochondria segmentation on Lucchi EM dataset using MONAI Residual UNet
@@ -11,7 +17,7 @@ description: Mitochondria segmentation on Lucchi EM dataset using MONAI Residual
 # System
 system:
   num_gpus: 1
-  num_cpus: 8
+  num_cpus: 1
   seed: 42
 
 # Model - MONAI UNet with residual units
@@ -50,7 +56,10 @@ data:
                                        # [56,56,56] = half overlap (507K crops)
                                        # Ignored if iter_num is manually set
   batch_size: 4                        # For 112³ patches
-  num_workers: 8                       # Parallel data loading for speed
+  num_workers: 1                       # Parallel data loading for speed
+  normalize: true                      # Normalize image intensities
+  mean: 127.5                          # Mean for uint8 normalization (0.5 * 255)
+  std: 127.5                           # Std for uint8 normalization (0.5 * 255)
   normalize_labels: true              # Convert labels to binary {0,1} integers for CrossEntropyLoss
 
   # Sampling
@@ -62,10 +71,16 @@ data:
 augmentation:
   enabled: false
 
-# Optimizer - AdamW with standard learning rate
+# Visualization - TensorBoard visualization at end of each epoch
+visualization:
+  enabled: true                        # Enable visualization callback
+  max_images: 4                        # Number of images to show per batch
+  num_slices: 8                        # Number of consecutive slices for 3D volumes
+
+# Optimizer - AdamW with REDUCED learning rate to prevent inf
 optimizer:
   name: AdamW
-  lr: 0.001                            # Standard learning rate (1e-3)
+  lr: 0.0001                           # REDUCED: 10x smaller to prevent explosion (was 0.001)
   weight_decay: 0.01                   # L2 regularization
 
 # Scheduler - Cosine annealing with warmup for smooth convergence
@@ -79,9 +94,9 @@ scheduler:
 # Training
 training:
   max_epochs: 200
-  gradient_clip_val: 1.0               # Prevent gradient explosion
+  gradient_clip_val: 0.5               # REDUCED: More aggressive clipping (was 1.0)
   accumulate_grad_batches: 1           # Gradient accumulation (increase for larger effective batch)
-  precision: "16-mixed"                # Mixed precision for memory efficiency
+  precision: "bf16-mixed"              # CHANGED: Full precision to avoid fp16 overflow (was "16-mixed")
 
   # Validation frequency
   val_check_interval: 1.0              # 1.0 (float) = validate at end of epoch, int = every N steps

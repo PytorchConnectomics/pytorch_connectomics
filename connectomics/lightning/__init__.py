@@ -33,5 +33,6 @@ __all__ = [
 
     # Callbacks
     'VisualizationCallback',
+    'NaNDetectionCallback',
     'create_callbacks',
 ]
