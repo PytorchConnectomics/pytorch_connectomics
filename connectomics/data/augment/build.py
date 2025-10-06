@@ -20,7 +20,8 @@ from connectomics.data.dataset.dataset_volume import LoadVolumed
 from .monai_transforms import (
     RandMisAlignmentd, RandMissingSectiond, RandMissingPartsd,
     RandMotionBlurd, RandCutNoised, RandCutBlurd,
-    RandMixupd, RandCopyPasted, ConvertToFloatd, NormalizeLabelsd
+    RandMixupd, RandCopyPasted, ConvertToFloatd, NormalizeLabelsd,
+    SmartNormalizeIntensityd
 )
 from ...config.hydra_config import Config, AugmentationConfig
 
@@ -72,16 +73,14 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
                 )
             )
 
-    # Normalization
-    if cfg.data.normalize:
+    # Normalization - use smart normalization
+    if cfg.data.normalize != "none":
         transforms.append(
-            ScaleIntensityRanged(
+            SmartNormalizeIntensityd(
                 keys=['image'],
-                a_min=cfg.data.mean - 2 * cfg.data.std,
-                a_max=cfg.data.mean + 2 * cfg.data.std,
-                b_min=0.0,
-                b_max=1.0,
-                clip=True
+                mode=cfg.data.normalize,
+                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
+                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
             )
         )
 
@@ -150,16 +149,14 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
             )
         )
 
-    # Normalization
-    if cfg.data.normalize:
+    # Normalization - use smart normalization
+    if cfg.data.normalize != "none":
         transforms.append(
-            ScaleIntensityRanged(
+            SmartNormalizeIntensityd(
                 keys=['image'],
-                a_min=cfg.data.mean - 2 * cfg.data.std,
-                a_max=cfg.data.mean + 2 * cfg.data.std,
-                b_min=0.0,
-                b_max=1.0,
-                clip=True
+                mode=cfg.data.normalize,
+                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
+                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
             )
         )
 
@@ -193,19 +190,18 @@ def build_inference_transforms(cfg: Config) -> Compose:
     keys = ['image']
     transforms = []
     
-    # Normalization
+    # Normalization - use smart normalization
     if cfg.data.normalize:
         transforms.append(
-            ScaleIntensityRanged(
+            SmartNormalizeIntensityd(
                 keys=keys,
-                a_min=cfg.data.mean - 2 * cfg.data.std,
-                a_max=cfg.data.mean + 2 * cfg.data.std,
-                b_min=0.0,
-                b_max=1.0,
-                clip=True
+                mean=cfg.data.mean,
+                std=cfg.data.std,
+                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
+                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
             )
         )
-    
+
     transforms.append(ToTensord(keys=keys))
     
     return Compose(transforms)

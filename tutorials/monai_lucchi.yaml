@@ -57,10 +57,12 @@ data:
                                        # Ignored if iter_num is manually set
   batch_size: 32                        # For 112³ patches
   num_workers: 8                       # Parallel data loading for speed
-  normalize: true                      # Normalize image intensities
-  mean: 127.5                          # Mean for uint8 normalization (0.5 * 255)
-  std: 127.5                           # Std for uint8 normalization (0.5 * 255)
-  normalize_labels: true              # Convert labels to binary {0,1} integers for CrossEntropyLoss
+
+  # Normalization
+  normalize: "0-1"                     # "none", "normal" (z-score), or "0-1" (min-max)
+  clip_percentile_low: 0.0             # Lower clip percentile (0.0=no clip, 0.05=5th percentile)
+  clip_percentile_high: 1.0            # Upper clip percentile (1.0=no clip, 0.95=95th percentile)
+  normalize_labels: true               # Convert labels to binary {0,1} integers for CrossEntropyLoss
 
   # Sampling
   iter_num: 1280                        # Manual: 500 random crops per epoch (125 batches)
@@ -74,8 +76,8 @@ augmentation:
 # Visualization - TensorBoard visualization
 visualization:
   enabled: true                        # Enable visualization callback
-  max_images: 4                        # Number of images to show per batch
-  num_slices: 8                        # Number of consecutive slices to visualize from 3D volumes
+  max_images: 8                        # Number of images to show per batch
+  num_slices: 2                        # Number of consecutive slices to visualize from 3D volumes
   log_every_n_steps: -1                # Log every N steps. -1 = only at epoch end (default)
 
 # Optimizer - AdamW with REDUCED learning rate to prevent inf

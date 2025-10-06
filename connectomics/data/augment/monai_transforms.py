@@ -865,13 +865,13 @@ class ConvertToFloatd(MapTransform):
 class NormalizeLabelsd(MapTransform):
     """
     Convert labels to binary {0, 1} integers.
-    
+
     This transform converts label values to binary {0, 1} integers.
     - 0: background
     - 1: foreground
     Useful for binary segmentation tasks with CrossEntropyLoss.
     """
-    
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -883,7 +883,7 @@ class NormalizeLabelsd(MapTransform):
             allow_missing_keys: Whether to allow missing keys
         """
         super().__init__(keys, allow_missing_keys)
-    
+
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Convert specified keys to binary {0, 1} integers."""
         d = dict(data)
@@ -898,6 +898,94 @@ class NormalizeLabelsd(MapTransform):
         return d
 
 
+class SmartNormalizeIntensityd(MapTransform):
+    """
+    Smart intensity normalization with multiple modes and percentile clipping.
+
+    Normalization modes:
+    - "none": No normalization
+    - "normal": Z-score normalization (x - mean) / std
+    - "0-1": Min-max scaling to [0, 1] (default)
+
+    Percentile clipping is applied BEFORE normalization when low > 0.0 or high < 1.0.
+
+    Args:
+        keys: Keys to normalize
+        mode: Normalization mode ("none", "normal", "0-1")
+        clip_percentile_low: Lower percentile (0.0 = no clip, 0.05 = 5th percentile)
+        clip_percentile_high: Upper percentile (1.0 = no clip, 0.95 = 95th percentile)
+        allow_missing_keys: Whether to allow missing keys
+
+    Examples:
+        # Min-max to [0, 1] (default, no clipping)
+        SmartNormalizeIntensityd(keys=['image'], mode="0-1")
+
+        # Z-score normalization
+        SmartNormalizeIntensityd(keys=['image'], mode="normal")
+
+        # Min-max with percentile clipping (clip 5%-95%)
+        SmartNormalizeIntensityd(keys=['image'], mode="0-1",
+                                 clip_percentile_low=0.05, clip_percentile_high=0.95)
+
+        # No normalization
+        SmartNormalizeIntensityd(keys=['image'], mode="none")
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        mode: str = "0-1",
+        clip_percentile_low: float = 0.0,
+        clip_percentile_high: float = 1.0,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        if mode not in ["none", "normal", "0-1"]:
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'none', 'normal', or '0-1'")
+        self.mode = mode
+        self.clip_percentile_low = clip_percentile_low
+        self.clip_percentile_high = clip_percentile_high
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize specified keys."""
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = self._normalize(d[key])
+        return d
+
+    def _normalize(self, volume: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
+        """Apply normalization to volume."""
+        is_numpy = isinstance(volume, np.ndarray)
+        if not is_numpy:
+            volume = volume.numpy()
+
+        # Step 1: Percentile clipping (if enabled by non-default values)
+        if self.clip_percentile_low > 0.0 or self.clip_percentile_high < 1.0:
+            low_val = np.percentile(volume, self.clip_percentile_low * 100)
+            high_val = np.percentile(volume, self.clip_percentile_high * 100)
+            volume = np.clip(volume, low_val, high_val)
+
+        # Step 2: Normalization based on mode
+        if self.mode == "none":
+            # No normalization
+            pass
+        elif self.mode == "normal":
+            # Z-score normalization
+            data_mean = volume.mean()
+            data_std = volume.std()
+            if data_std > 1e-8:
+                volume = (volume - data_mean) / data_std
+        elif self.mode == "0-1":
+            # Min-max to [0, 1]
+            min_val = volume.min()
+            max_val = volume.max()
+            if max_val > min_val:
+                volume = (volume - min_val) / (max_val - min_val)
+
+        return volume if is_numpy else torch.from_numpy(volume)
+
+
 __all__ = [
     # Connectomics-specific transforms (not available in standard MONAI)
     'RandMisAlignmentd',
@@ -910,4 +998,5 @@ __all__ = [
     'RandCopyPasted',
     'ConvertToFloatd',
     'NormalizeLabelsd',
+    'SmartNormalizeIntensityd',
 ]

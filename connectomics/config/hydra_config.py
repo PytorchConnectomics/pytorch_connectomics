@@ -116,9 +116,9 @@ class DataConfig:
     cache_rate: float = 1.0
 
     # Normalization
-    normalize: bool = True
-    mean: float = 0.5
-    std: float = 0.5
+    normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
+    clip_percentile_low: float = 0.0   # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
+    clip_percentile_high: float = 1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
     normalize_labels: bool = True  # Convert labels to 0-1 range (default: True)
 
     # Sampling (for volumetric datasets)
