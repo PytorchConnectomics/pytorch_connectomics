@@ -16,8 +16,8 @@ description: Mitochondria segmentation on Lucchi EM dataset using MONAI Residual
 
 # System
 system:
-  num_gpus: 1
-  num_cpus: 1
+  num_gpus: 4
+  num_cpus: 8
   seed: 42
 
 # Model - MONAI UNet with residual units
@@ -29,7 +29,7 @@ model:
   out_channels: 2                      # FIXED: 2 channels for binary segmentation (bg + fg)
 
   # UNet architecture configuration
-  filters: [32, 64, 128, 256, 512]     # Standard UNet channel progression
+  filters: [16, 32, 64, 128, 256]      # Standard UNet channel progression
   num_res_units: 2                     # Residual units per block
   kernel_size: 3                       # Convolution kernel size
   norm: batch                          # Batch normalization
@@ -55,27 +55,28 @@ data:
                                        # [1,1,1] = all crops (32M for Lucchi, too many!)
                                        # [56,56,56] = half overlap (507K crops)
                                        # Ignored if iter_num is manually set
-  batch_size: 4                        # For 112³ patches
-  num_workers: 1                       # Parallel data loading for speed
+  batch_size: 32                        # For 112³ patches
+  num_workers: 8                       # Parallel data loading for speed
   normalize: true                      # Normalize image intensities
   mean: 127.5                          # Mean for uint8 normalization (0.5 * 255)
   std: 127.5                           # Std for uint8 normalization (0.5 * 255)
   normalize_labels: true              # Convert labels to binary {0,1} integers for CrossEntropyLoss
 
   # Sampling
-  iter_num: 500                        # Manual: 500 random crops per epoch (125 batches)
+  iter_num: 1280                        # Manual: 500 random crops per epoch (125 batches)
                                        # -1 = auto-compute from volume size using stride
   use_preloaded_cache: true            # Load volumes into memory once for FAST data loading!
   split_enabled: false
 # Augmentation
 augmentation:
-  enabled: false
+  enabled: true
 
-# Visualization - TensorBoard visualization at end of each epoch
+# Visualization - TensorBoard visualization
 visualization:
   enabled: true                        # Enable visualization callback
   max_images: 4                        # Number of images to show per batch
-  num_slices: 8                        # Number of consecutive slices for 3D volumes
+  num_slices: 8                        # Number of consecutive slices to visualize from 3D volumes
+  log_every_n_steps: -1                # Log every N steps. -1 = only at epoch end (default)
 
 # Optimizer - AdamW with REDUCED learning rate to prevent inf
 optimizer:
@@ -93,7 +94,7 @@ scheduler:
 
 # Training
 training:
-  max_epochs: 200
+  max_epochs: 1000
   gradient_clip_val: 0.5               # REDUCED: More aggressive clipping (was 1.0)
   accumulate_grad_batches: 1           # Gradient accumulation (increase for larger effective batch)
   precision: "bf16-mixed"              # CHANGED: Full precision to avoid fp16 overflow (was "16-mixed")

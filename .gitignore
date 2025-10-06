@@ -134,3 +134,4 @@ tmpwdir/
 *.iml
 .idea/
 docs/pytorch_sphinx_theme
+slurm_outputs/

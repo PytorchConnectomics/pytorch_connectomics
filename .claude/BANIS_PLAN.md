@@ -1309,10 +1309,10 @@ validation:
 | 8: Weighted Datasets | 1 week | MEDIUM | 📋 PLANNED |
 | 9: Skeleton Metrics | 1 week | MEDIUM | 📋 PLANNED |
 | 10: Auto-Config | 1 week | HIGH | 📋 PLANNED |
-| 11: Slurm | 1 week | LOW | 📋 OPTIONAL |
+| 11: Slurm | 1 week | LOW | ✅ COMPLETED |
 | 12: Testing & Docs | 1 week | HIGH | 📋 PLANNED |
 
-**Total: 12 weeks** (5 completed, 7 remaining)
+**Total: 12 weeks** (6 completed, 6 remaining)
 
 **Core features (HIGH priority): 8 weeks total** (5 completed, 3 remaining)
 

@@ -31,17 +31,20 @@ class VisualizationCallback(Callback):
         self,
         cfg,
         max_images: int = 8,
-        num_slices: int = 8
+        num_slices: int = 8,
+        log_every_n_steps: int = -1
     ):
         """
         Args:
             cfg: Hydra config object
             max_images: Maximum number of images to visualize per batch
             num_slices: Number of consecutive slices to show for 3D volumes
+            log_every_n_steps: Log visualization every N steps. -1 = only at epoch end
         """
         super().__init__()
         self.visualizer = Visualizer(cfg, max_images=max_images)
         self.num_slices = num_slices
+        self.log_every_n_steps = log_every_n_steps
         self.cfg = cfg
 
         # Store batch for end-of-epoch visualization
@@ -56,13 +59,52 @@ class VisualizationCallback(Callback):
         batch: Dict[str, torch.Tensor],
         batch_idx: int
     ):
-        """Store first batch for epoch-end visualization."""
-        # Store first batch of each epoch for visualization
+        """Visualize during training based on log_every_n_steps."""
+        # Always store first batch for epoch-end visualization
         if batch_idx == 0:
             self._last_train_batch = {
                 'image': batch['image'].detach(),
                 'label': batch['label'].detach()
             }
+
+        # If log_every_n_steps is set (not -1), visualize at intervals
+        if self.log_every_n_steps > 0 and trainer.global_step % self.log_every_n_steps == 0:
+            if trainer.logger is None:
+                return
+
+            try:
+                writer = trainer.logger.experiment
+
+                # Generate predictions
+                with torch.no_grad():
+                    pl_module.eval()
+                    pred = pl_module(batch['image'])
+                    pl_module.train()
+
+                # Visualize - use global step for per-step logging
+                if batch['image'].ndim == 5 and self.num_slices > 1:
+                    # Use consecutive slices for 3D volumes
+                    self.visualizer.visualize_consecutive_slices(
+                        volume=batch['image'],
+                        label=batch['label'],
+                        output=pred,
+                        writer=writer,
+                        iteration=trainer.global_step,
+                        prefix='train_step',
+                        num_slices=self.num_slices
+                    )
+                else:
+                    # Use single slice for 2D or when num_slices=1
+                    self.visualizer.visualize(
+                        volume=batch['image'],
+                        label=batch['label'],
+                        output=pred,
+                        iteration=trainer.global_step,
+                        writer=writer,
+                        prefix='train_step'
+                    )
+            except Exception as e:
+                print(f"Step visualization failed: {e}")
 
     def on_validation_batch_end(
         self,
@@ -96,14 +138,27 @@ class VisualizationCallback(Callback):
                 pl_module.train()
 
             # Visualize - use epoch number as step for slider
-            self.visualizer.visualize(
-                volume=self._last_train_batch['image'],
-                label=self._last_train_batch['label'],
-                output=pred,
-                iteration=trainer.current_epoch,  # Use epoch as step for slider
-                writer=writer,
-                prefix='train'  # Single tab name (no epoch prefix)
-            )
+            if self._last_train_batch['image'].ndim == 5 and self.num_slices > 1:
+                # Use consecutive slices for 3D volumes
+                self.visualizer.visualize_consecutive_slices(
+                    volume=self._last_train_batch['image'],
+                    label=self._last_train_batch['label'],
+                    output=pred,
+                    writer=writer,
+                    iteration=trainer.current_epoch,  # Use epoch as step for slider
+                    prefix='train',
+                    num_slices=self.num_slices
+                )
+            else:
+                # Use single slice for 2D or when num_slices=1
+                self.visualizer.visualize(
+                    volume=self._last_train_batch['image'],
+                    label=self._last_train_batch['label'],
+                    output=pred,
+                    iteration=trainer.current_epoch,  # Use epoch as step for slider
+                    writer=writer,
+                    prefix='train'  # Single tab name (no epoch prefix)
+                )
 
             print(f"✓ Saved visualization for epoch {trainer.current_epoch}")
         except Exception as e:
@@ -122,14 +177,27 @@ class VisualizationCallback(Callback):
                 pred = pl_module(self._last_val_batch['image'])
 
             # Visualize - use epoch number as step for slider
-            self.visualizer.visualize(
-                volume=self._last_val_batch['image'],
-                label=self._last_val_batch['label'],
-                output=pred,
-                iteration=trainer.current_epoch,  # Use epoch as step for slider
-                writer=writer,
-                prefix='val'  # Single tab name (no epoch prefix)
-            )
+            if self._last_val_batch['image'].ndim == 5 and self.num_slices > 1:
+                # Use consecutive slices for 3D volumes
+                self.visualizer.visualize_consecutive_slices(
+                    volume=self._last_val_batch['image'],
+                    label=self._last_val_batch['label'],
+                    output=pred,
+                    writer=writer,
+                    iteration=trainer.current_epoch,  # Use epoch as step for slider
+                    prefix='val',
+                    num_slices=self.num_slices
+                )
+            else:
+                # Use single slice for 2D or when num_slices=1
+                self.visualizer.visualize(
+                    volume=self._last_val_batch['image'],
+                    label=self._last_val_batch['label'],
+                    output=pred,
+                    iteration=trainer.current_epoch,  # Use epoch as step for slider
+                    writer=writer,
+                    prefix='val'  # Single tab name (no epoch prefix)
+                )
         except Exception as e:
             print(f"Validation epoch-end visualization failed: {e}")
 
@@ -368,7 +436,8 @@ def create_callbacks(cfg) -> list:
         vis_callback = VisualizationCallback(
             cfg,
             max_images=getattr(cfg.visualization, 'max_images', 8),
-            log_every_n_steps=getattr(cfg.visualization, 'log_every_n_steps', 100)
+            num_slices=getattr(cfg.visualization, 'num_slices', 8),
+            log_every_n_steps=getattr(cfg.visualization, 'log_every_n_steps', -1)
         )
         callbacks.append(vis_callback)
     else:

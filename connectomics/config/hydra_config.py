@@ -343,6 +343,7 @@ class VisualizationConfig:
     enabled: bool = True
     max_images: int = 4
     num_slices: int = 8
+    log_every_n_steps: int = -1  # -1 = only at epoch end, >0 = every N steps
 
 
 @dataclass
