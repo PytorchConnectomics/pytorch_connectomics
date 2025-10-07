@@ -86,7 +86,68 @@ def compute_total_samples(
     return total_samples, samples_per_volume
 
 
+def calculate_inference_grid(
+    volume_shape: Tuple[int, int, int],
+    patch_size: Tuple[int, int, int],
+    stride: Tuple[int, int, int]
+) -> Tuple[np.ndarray, Tuple[int, int, int]]:
+    """
+    Calculate grid of patch positions for sliding-window inference.
+
+    This function generates all patch positions needed to cover a volume
+    with overlapping patches, using the specified stride.
+
+    Args:
+        volume_shape: Shape of the input volume (D, H, W)
+        patch_size: Size of each patch (D, H, W)
+        stride: Stride between patch centers (D, H, W)
+
+    Returns:
+        positions: Array of shape (N, 3) containing (z, y, x) start positions
+        grid_shape: Tuple (num_z, num_y, num_x) indicating grid dimensions
+
+    Examples:
+        >>> volume_shape = (256, 256, 256)
+        >>> patch_size = (128, 128, 128)
+        >>> stride = (64, 64, 64)
+        >>> positions, grid = calculate_inference_grid(volume_shape, patch_size, stride)
+        >>> print(f"Grid shape: {grid}")
+        >>> # Grid shape: (3, 3, 3)
+        >>> print(f"Total patches: {len(positions)}")
+        >>> # Total patches: 27
+
+    Note:
+        The last patch in each dimension is "tucked in" to ensure it fits
+        within the volume boundaries, matching the legacy v1 behavior.
+    """
+    volume_shape = np.array(volume_shape)
+    patch_size = np.array(patch_size)
+    stride = np.array(stride)
+
+    # Calculate grid dimensions
+    grid_shape = count_volume(volume_shape, patch_size, stride)
+    grid_shape = tuple(grid_shape)
+
+    positions = []
+
+    # Generate all grid positions
+    for z_idx in range(grid_shape[0]):
+        for y_idx in range(grid_shape[1]):
+            for x_idx in range(grid_shape[2]):
+                # Calculate position with boundary handling
+                # Normal case: multiply by stride
+                # Boundary case: tuck in to ensure patch fits
+                z = z_idx * stride[0] if z_idx < grid_shape[0] - 1 else volume_shape[0] - patch_size[0]
+                y = y_idx * stride[1] if y_idx < grid_shape[1] - 1 else volume_shape[1] - patch_size[1]
+                x = x_idx * stride[2] if x_idx < grid_shape[2] - 1 else volume_shape[2] - patch_size[2]
+
+                positions.append([z, y, x])
+
+    return np.array(positions, dtype=np.int32), grid_shape
+
+
 __all__ = [
     'count_volume',
     'compute_total_samples',
+    'calculate_inference_grid',
 ]

@@ -9,9 +9,10 @@ from skimage.segmentation import relabel_sequential
 matching_criteria = dict()
 
 __all__ = [
-    'get_binary_jaccard',
+    'jaccard',
     'adapted_rand',
-    'instance_matching'
+    'instance_matching',
+    'cremi_distance'
 ]
 
 
@@ -378,7 +379,7 @@ def confusion_matrix(pred, gt, thres=0.5):
     return (TP, FP, TN, FN)
 
 
-def get_binary_jaccard(pred, gt, thres=[0.5]):
+def jaccard(pred, gt, thres=[0.5]):
     """Evaluate the binary prediction at multiple thresholds using the Jaccard 
     Index, which is also known as Intersection over Union (IoU). If the prediction
     is already binarized, different thresholds will result the same result.

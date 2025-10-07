@@ -67,13 +67,57 @@ class ModelConfig:
     mednext_dim: str = "3d"  # '2d' or '3d'
     mednext_grn: bool = False  # Global Response Normalization
 
-    # Deep supervision (supported by MedNeXt and some MONAI models)
+    # RSUNet-specific parameters
+    rsunet_norm: str = "batch"  # 'batch', 'group', 'instance', or 'none'
+    rsunet_activation: str = "relu"  # 'relu', 'leakyrelu', 'prelu', or 'elu'
+    rsunet_num_groups: int = 8  # Number of groups for GroupNorm
+    rsunet_down_factors: Optional[List[List[int]]] = None  # E.g., [[1,2,2], [1,2,2], [1,2,2]]
+    rsunet_depth_2d: int = 0  # Number of shallow layers using 2D convolutions
+    rsunet_kernel_2d: List[int] = field(default_factory=lambda: [1, 3, 3])  # Kernel for 2D layers
+    rsunet_act_negative_slope: float = 0.01  # For LeakyReLU
+    rsunet_act_init: float = 0.25  # For PReLU
+
+    # Deep supervision (supported by MedNeXt, RSUNet, and some MONAI models)
     deep_supervision: bool = False
 
     # Loss configuration
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
     loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
+
+
+# Label transformation configurations
+@dataclass
+class AffinityConfig:
+    """Affinity map generation configuration. Enabled when offsets is non-empty."""
+    offsets: List[str] = field(default_factory=list)  # Offsets in "z-y-x" format (empty = disabled)
+
+
+@dataclass
+class SkeletonDistanceConfig:
+    """Skeleton-aware distance transform configuration."""
+    enabled: bool = False
+    resolution: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
+    alpha: float = 0.8
+    smooth: bool = True
+    bg_value: float = -1.0
+
+
+@dataclass
+class LabelTransformConfig:
+    """Multi-channel label transformation configuration."""
+    normalize: bool = True  # Convert labels to 0-1 range
+    erosion: int = 0  # Border erosion kernel half-size (0 = disabled, uses seg_widen_border)
+    affinity: AffinityConfig = field(default_factory=AffinityConfig)
+    skeleton_distance: SkeletonDistanceConfig = field(default_factory=SkeletonDistanceConfig)
+
+
+@dataclass
+class ImageTransformConfig:
+    """Image transformation configuration."""
+    normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
+    clip_percentile_low: float = 0.0   # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
+    clip_percentile_high: float = 1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
 
 
 @dataclass
@@ -115,15 +159,21 @@ class DataConfig:
     use_cache: bool = False
     cache_rate: float = 1.0
 
-    # Normalization
+    # Normalization (backward compatibility - prefer image_transform.normalize)
     normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
-    clip_percentile_low: float = 0.0   # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
-    clip_percentile_high: float = 1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
-    normalize_labels: bool = True  # Convert labels to 0-1 range (default: True)
+    clip_percentile_low: float = 0.0   # Lower percentile for clipping
+    clip_percentile_high: float = 1.0  # Upper percentile for clipping
+    normalize_labels: bool = True  # Convert labels to 0-1 range
+
+    # Image transformation
+    image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
 
     # Sampling (for volumetric datasets)
     iter_num: int = 500  # Number of random crops per epoch (default: 500)
     use_preloaded_cache: bool = True  # Preload volumes into memory for fast random cropping (default: True)
+
+    # Multi-channel label transformation (for affinity maps, distance transforms, etc.)
+    label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 
 
 @dataclass
@@ -144,14 +194,17 @@ class SchedulerConfig:
     warmup_epochs: int = 10
     warmup_start_lr: float = 0.0001
     min_lr: float = 0.00001
-    
+
     # CosineAnnealing-specific
     t_max: Optional[int] = None
-    
+
     # ReduceLROnPlateau-specific
+    mode: str = "min"  # 'min' or 'max'
     patience: int = 10
     factor: float = 0.5
-    
+    threshold: float = 0.0001
+    cooldown: int = 0
+
     # StepLR-specific
     step_size: int = 30
     gamma: float = 0.1
@@ -357,6 +410,20 @@ class InferenceConfig:
     test_time_augmentation: bool = False
     tta_num: int = 4
 
+    # Blending configuration for patch-based inference
+    blending: str = "gaussian"  # 'gaussian' or 'bump' - blending mode for overlapping patches
+    do_eval: bool = True        # Use eval mode (vs train mode for BatchNorm)
+    output_scale: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])  # Output scaling factor
+
+    # Test metrics configuration (optional)
+    metrics: Optional[List[str]] = None  # e.g., ['jaccard', 'dice', 'accuracy']
+
+    # Inference-specific overrides (override system/data settings during inference)
+    num_gpus: int = -1          # Override system.num_gpus if >= 0
+    num_cpus: int = -1          # Override system.num_cpus if >= 0
+    batch_size: int = -1        # Override data.batch_size if >= 0
+    num_workers: int = -1       # Override data.num_workers if >= 0
+
 
 @dataclass
 class Config:
@@ -379,6 +446,12 @@ class Config:
     experiment_name: str = "connectomics_experiment"
     description: str = ""
     tags: List[str] = field(default_factory=list)
+
+    # Top-level overrides (override system and data fields if >= 0)
+    num_gpus: int = -1          # Override system.num_gpus if >= 0
+    num_cpus: int = -1          # Override system.num_cpus if >= 0
+    batch_size: int = -1        # Override data.batch_size if >= 0
+    num_workers: int = -1       # Override data.num_workers if >= 0
 
 
 __all__ = ['Config']

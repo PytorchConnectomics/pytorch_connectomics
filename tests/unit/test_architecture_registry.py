@@ -11,7 +11,7 @@ Tests:
 import pytest
 import torch
 import torch.nn as nn
-from connectomics.models.architectures import (
+from connectomics.models.arch import (
     register_architecture,
     get_architecture_builder,
     list_architectures,

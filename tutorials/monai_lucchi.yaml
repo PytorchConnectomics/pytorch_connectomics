@@ -4,12 +4,6 @@
 # This config uses MONAI's UNet with residual units - a robust baseline
 # for 3D medical image segmentation. The residual connections help with
 # gradient flow and improve performance over standard U-Net.
-#
-# STABILITY FIXES APPLIED:
-# - Reduced LR from 0.001 to 0.0001 (10x) to prevent activation explosion
-# - Switched from fp16 to fp32 to avoid numerical overflow
-# - Increased gradient clipping from 1.0 to 0.5 for more aggressive control
-# - Added input normalization (mean=127.5, std=127.5) for uint8 data
 
 experiment_name: lucchi_monai_unet
 description: Mitochondria segmentation on Lucchi EM dataset using MONAI Residual UNet
@@ -26,7 +20,7 @@ model:
   input_size: [112, 112, 112]
   output_size: [112, 112, 112]
   in_channels: 1
-  out_channels: 2                      # FIXED: 2 channels for binary segmentation (bg + fg)
+  out_channels: 2                      # 2 channels for binary segmentation (bg + fg)
 
   # UNet architecture configuration
   filters: [16, 32, 64, 128, 256]      # Standard UNet channel progression
@@ -36,11 +30,11 @@ model:
   dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration
-  loss_functions: [DiceLoss, CrossEntropyLoss]  # Dice + CE for better convergence
+  loss_functions: [DiceLoss, CrossEntropyLoss]
   loss_weights: [1.0, 1.0]
   loss_kwargs:
-    - {include_background: false, softmax: true, to_onehot_y: true}  # DiceLoss: convert labels to one-hot
-    - {}                                                               # CrossEntropyLoss: default (expects class indices)
+    - {include_background: false, softmax: true, to_onehot_y: true}  # DiceLoss
+    - {}                                                               # CrossEntropyLoss
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:
@@ -52,78 +46,93 @@ data:
   patch_size: [112, 112, 112]          # Larger patches for better context
   pad_size: [16, 16, 16]               # Padding for valid convolutions
   stride: [16, 16, 16]                 # Sampling stride (z, y, x) for auto iter_num
-                                       # [1,1,1] = all crops (32M for Lucchi, too many!)
-                                       # [56,56,56] = half overlap (507K crops)
-                                       # Ignored if iter_num is manually set
-  batch_size: 32                        # For 112³ patches
-  num_workers: 8                       # Parallel data loading for speed
 
-  # Normalization
-  normalize: "0-1"                     # "none", "normal" (z-score), or "0-1" (min-max)
-  clip_percentile_low: 0.0             # Lower clip percentile (0.0=no clip, 0.05=5th percentile)
-  clip_percentile_high: 1.0            # Upper clip percentile (1.0=no clip, 0.95=95th percentile)
-  normalize_labels: true               # Convert labels to binary {0,1} integers for CrossEntropyLoss
+  # Data loading
+  batch_size: 32
+  num_workers: 8
+
+  # Image normalization
+  image_transform:
+    normalize: "0-1"                   # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.0           # No clipping
+    clip_percentile_high: 1.0
+
+  # Label transformation (for binary segmentation)
+  label_transform:
+    normalize: true                    # Convert labels to binary {0,1}
 
   # Sampling
-  iter_num: 1280                        # Manual: 500 random crops per epoch (125 batches)
-                                       # -1 = auto-compute from volume size using stride
-  use_preloaded_cache: true            # Load volumes into memory once for FAST data loading!
+  iter_num: 1280                       # 1280 random crops per epoch
+  use_preloaded_cache: true            # Load volumes into memory for fast training
   split_enabled: false
+
 # Augmentation
 augmentation:
   enabled: true
 
 # Visualization - TensorBoard visualization
 visualization:
-  enabled: true                        # Enable visualization callback
-  max_images: 8                        # Number of images to show per batch
-  num_slices: 2                        # Number of consecutive slices to visualize from 3D volumes
-  log_every_n_steps: -1                # Log every N steps. -1 = only at epoch end (default)
+  enabled: true
+  max_images: 8
+  num_slices: 2
+  log_every_n_steps: -1                # Log at epoch end
 
-# Optimizer - AdamW with REDUCED learning rate to prevent inf
+# Optimizer - AdamW with reduced LR for stability
 optimizer:
   name: AdamW
-  lr: 0.0001                           # REDUCED: 10x smaller to prevent explosion (was 0.001)
-  weight_decay: 0.01                   # L2 regularization
+  lr: 0.0001
+  weight_decay: 0.01
 
-# Scheduler - Cosine annealing with warmup for smooth convergence
+# Scheduler - Cosine annealing with warmup
 scheduler:
   name: CosineAnnealingLR
-  warmup_epochs: 10                    # Longer warmup for stability
-  warmup_start_lr: 0.0001              # Start from 1e-4
-  min_lr: 0.00001                      # End at 1e-5
-  t_max: 190                           # Cosine decay over remaining epochs (200-10)
+  warmup_epochs: 10
+  warmup_start_lr: 0.0001
+  min_lr: 0.00001
+  t_max: 990                           # 1000 - 10 = 990 epochs
 
 # Training
 training:
   max_epochs: 1000
-  gradient_clip_val: 0.5               # REDUCED: More aggressive clipping (was 1.0)
-  accumulate_grad_batches: 1           # Gradient accumulation (increase for larger effective batch)
-  precision: "bf16-mixed"              # CHANGED: Full precision to avoid fp16 overflow (was "16-mixed")
+  gradient_clip_val: 0.5
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"              # BFloat16 mixed precision
 
   # Validation frequency
-  val_check_interval: 1.0              # 1.0 (float) = validate at end of epoch, int = every N steps
-  log_every_n_steps: 10                # Log metrics every 10 steps
-  benchmark: true                      # Enable cuDNN benchmarking for speed
+  val_check_interval: 1.0
+  log_every_n_steps: 10
+  benchmark: true
 
 # Checkpoint
 checkpoint:
-  monitor: train_loss_total_epoch      # Monitor training loss (no validation with preloaded cache)
+  monitor: train_loss_total_epoch
   dirpath: outputs/lucchi_monai_unet/checkpoints/
   filename: epoch={epoch:03d}-loss={train_loss_total_epoch:.4f}
 
 # Early stopping
 early_stopping:
   monitor: train_loss_total_epoch
-  patience: 20                         # Stop after 20 epochs without improvement
+  patience: 200
   mode: min
   min_delta: 0.0001
-
 
 # Inference
 inference:
   test_image: datasets/Lucchi/img/test_im.tif
   test_label: datasets/Lucchi/label/test_label.tif
   output_path: outputs/lucchi_monai_unet/results/
-  stride: [64, 64, 64]
+  metrics: [jaccard]
+
+  # Blending configuration for patch-based inference
+  blending: gaussian                    # 'gaussian' or 'bump'
+  do_eval: true                        # Use eval mode for BatchNorm
+  output_scale: [1.0, 1.0, 1.0]        # Output scaling factor
+
+  # Inference-specific overrides
+  num_gpus: 1
+  num_cpus: 1
+  batch_size: 4                        # Smaller batch for inference
+  num_workers: 1
+
+  stride: [56, 56, 56]                 # Stride for overlapping patches (50% overlap)
   overlap: 0.5

@@ -232,23 +232,93 @@ class ComputeUNet3DWeightd(MapTransform):
         return d
 
 
-class SegErosionDilationd(MapTransform):
-    """Apply erosion/dilation to segmentation using MONAI MapTransform."""
+class SegErosiond(MapTransform):
+    """Apply morphological erosion to segmentation using MONAI MapTransform."""
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1', '1'],
+        kernel_size: int = 1,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.kernel_size = kernel_size
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        from skimage.morphology import erosion, disk
+        import numpy as np
+
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_erosion_dilation(d[key], self.target_opt)
+                seg = d[key]
+                # Create structuring element
+                struct_elem = disk(self.kernel_size, dtype=bool)
+                if seg.ndim == 3:
+                    struct_elem = struct_elem[np.newaxis, :, :]
+
+                result = seg.copy()
+                for z in range(seg.shape[0]):
+                    result[z] = erosion(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
+                d[key] = result
+        return d
+
+
+class SegDilationd(MapTransform):
+    """Apply morphological dilation to segmentation using MONAI MapTransform."""
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        kernel_size: int = 1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.kernel_size = kernel_size
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        from skimage.morphology import dilation, disk
+        import numpy as np
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                seg = d[key]
+                # Create structuring element
+                struct_elem = disk(self.kernel_size, dtype=bool)
+                if seg.ndim == 3:
+                    struct_elem = struct_elem[np.newaxis, :, :]
+
+                result = seg.copy()
+                for z in range(seg.shape[0]):
+                    result[z] = dilation(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
+                d[key] = result
+        return d
+
+
+class SegErosionInstanced(MapTransform):
+    """Erode instance segmentation borders (Kisuk Lee's preprocessing for SNEMI3D).
+
+    Marks voxels at boundaries between different segments as background.
+    This is different from standard morphological erosion.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        tsz_h: int = 1,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.tsz_h = tsz_h
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        from ..segment import seg_erosion_instance
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = seg_erosion_instance(d[key].squeeze(), self.tsz_h)
         return d
 
 
@@ -355,7 +425,9 @@ __all__ = [
     'SegToSmallObjectd',
     'ComputeBinaryRatioWeightd',
     'ComputeUNet3DWeightd',
-    'SegErosionDilationd',
+    'SegErosiond',
+    'SegDilationd',
+    'SegErosionInstanced',
     'EnergyQuantized',
     'DecodeQuantized',
     'SegSelectiond',

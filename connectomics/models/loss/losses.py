@@ -6,6 +6,7 @@ Only includes losses that are truly unique to connectomics use cases.
 """
 
 from __future__ import annotations
+from typing import Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -95,6 +96,62 @@ class WeightedMSELoss(nn.Module):
             return mse.sum()
         else:
             return mse
+
+
+class WeightedBCEWithLogitsLoss(nn.Module):
+    """
+    Wrapper for BCEWithLogitsLoss with support for pos_weight (class rebalancing).
+
+    Useful for handling class imbalance in binary segmentation, especially
+    for affinity prediction in connectomics where foreground is often sparse.
+
+    Args:
+        pos_weight: Weight for positive class (tensor or float)
+                   Set to neg_samples/pos_samples for balanced loss
+                   If None, no rebalancing is applied
+        reduction: Reduction method ('mean', 'sum', 'none')
+
+    Examples:
+        # Auto-calculate from data
+        pos_weight = (target == 0).sum() / (target == 1).sum()
+        loss_fn = WeightedBCEWithLogitsLoss(pos_weight=pos_weight)
+
+        # Manual weight (e.g., 10x weight for positive class)
+        loss_fn = WeightedBCEWithLogitsLoss(pos_weight=10.0)
+    """
+
+    def __init__(
+        self,
+        pos_weight: Union[float, torch.Tensor, None] = None,
+        reduction: str = 'mean'
+    ):
+        super().__init__()
+        self.reduction = reduction
+
+        # Convert float to tensor if needed
+        if pos_weight is not None and isinstance(pos_weight, (int, float)):
+            self.register_buffer('pos_weight', torch.tensor([pos_weight]))
+        elif pos_weight is not None:
+            self.register_buffer('pos_weight', pos_weight)
+        else:
+            self.pos_weight = None
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Compute weighted BCE with logits loss.
+
+        Args:
+            input: Model output (logits) [B, C, ...]
+            target: Ground truth [B, C, ...]
+
+        Returns:
+            Loss value
+        """
+        return F.binary_cross_entropy_with_logits(
+            input, target,
+            pos_weight=self.pos_weight,
+            reduction=self.reduction
+        )
 
 
 class WeightedMAELoss(nn.Module):

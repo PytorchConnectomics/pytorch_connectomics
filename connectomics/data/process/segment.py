@@ -5,7 +5,7 @@ Segmentation processing functions for PyTorch Connectomics.
 from __future__ import print_function, division
 from typing import Optional, Union, List
 import numpy as np
-from skimage.morphology import binary_dilation, dilation
+from skimage.morphology import binary_dilation, dilation, erosion
 import cc3d
 
 RATES_TYPE = Optional[Union[List[int], int]]
@@ -24,7 +24,7 @@ def im_to_col(volume, kernel_size, stride=1):
     return np.take(volume, start_idx.ravel()[:, None] + offset_idx.ravel())
 
 
-def seg_widen_border(seg, tsz_h=1):
+def seg_erosion_instance(seg, tsz_h=1):
     # Kisuk Lee's thesis (A.1.4):
     # "we preprocessed the ground truth seg such that any voxel centered on a 3 × 3 × 1 window containing
     # more than one positive segment ID (zero is reserved for background) is marked as background."
@@ -110,7 +110,7 @@ def seg_erosion(label: np.ndarray,
     label_erosion = erosion_rates
     if isinstance(label_erosion, list):
         label_erosion = label_erosion[index]
-    return seg_widen_border(label, label_erosion)
+    return erosion(label, label_erosion)
 
 
 def seg_dilation(label: np.ndarray,
@@ -134,4 +134,4 @@ def seg_selection(label, indices):
     relabel[indices] = np.arange(1, len(indices) + 1)
     return relabel[label]
 
-__all__ = ['im_to_col', 'seg_widen_border', 'seg_markInvalid', 'seg_erosion', 'seg_dilation', 'seg_selection']
+__all__ = ['im_to_col', 'seg_erosion_instance', 'seg_markInvalid', 'seg_erosion', 'seg_dilation', 'seg_selection']

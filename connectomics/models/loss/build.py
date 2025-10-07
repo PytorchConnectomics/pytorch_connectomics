@@ -26,6 +26,7 @@ from monai.losses import (
 # Import custom connectomics losses
 from .losses import (
     CrossEntropyLossWrapper,
+    WeightedBCEWithLogitsLoss,
     WeightedMSELoss,
     WeightedMAELoss,
     GANLoss,
@@ -89,6 +90,8 @@ def create_loss(
         'L1': nn.L1Loss,  # Alias
 
         # Custom connectomics losses
+        'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
+        'WeightedBCE': WeightedBCEWithLogitsLoss,  # Alias
         'WeightedMSELoss': WeightedMSELoss,
         'WeightedMSE': WeightedMSELoss,  # Alias
         'WeightedMAELoss': WeightedMAELoss,

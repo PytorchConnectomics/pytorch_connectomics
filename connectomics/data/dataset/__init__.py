@@ -18,6 +18,11 @@ from .dataset_volume import (
     MonaiCachedVolumeDataset,
 )
 
+# Inference datasets
+from .dataset_inference import (
+    InferenceVolumeDataset,
+)
+
 # Tile datasets
 from .dataset_tile import (
     MonaiTileDataset,
@@ -50,6 +55,9 @@ __all__ = [
     # Volume datasets
     'MonaiVolumeDataset',
     'MonaiCachedVolumeDataset',
+
+    # Inference datasets
+    'InferenceVolumeDataset',
 
     # Tile datasets
     'MonaiTileDataset',

@@ -1,0 +1,255 @@
+# RSUNet configuration for SNEMI3D (aug3-long variant)
+#
+# Faithfully reproduces Kisuk Lee's award-winning SNEMI3D model:
+# - Architecture: Residual Symmetric 3D U-Net
+# - Parameters: ~1.5M (original Caffe model)
+# - Training: 500K-700K iterations (~5 days on 1x Titan X Pascal)
+# - Key features: Anisotropic convolutions, 2D/3D hybrid, long-range affinities
+#
+# Reference: Lee et al. (2017) "Superhuman Accuracy on SNEMI3D"
+# Original framework: Caffe
+# This config: PyTorch Lightning + RSUNet
+
+experiment_name: rsunet_snemi_aug3_long
+description: SNEMI3D neuron segmentation with RSUNet (long-range affinities, EM augmentations)
+
+# System configuration
+system:
+  num_gpus: 1                          # Original: 1x NVIDIA Titan X Pascal
+  num_cpus: 1
+  seed: 42
+
+# Model - RSUNet with SNEMI3D specifications
+model:
+  architecture: rsunet
+  in_channels: 1
+  out_channels: 12                     # 12 affinity maps (8 long-range + 4 z-direction)
+
+  # Feature widths: 36 → 48 → 64 → 80 per scale
+  filters: [36, 48, 64, 80]
+
+  # RSUNet-specific parameters
+  rsunet_norm: batch                   # Batch normalization (as in original)
+  rsunet_activation: elu               # ELU activation (as in original)
+  rsunet_num_groups: 8
+
+  # Anisotropic downsampling - NO downsampling in Z
+  # Original: max-pool (2×2×1) and transposed conv (2×2×1)
+  rsunet_down_factors:
+    - [1, 2, 2]  # Level 1: preserve Z resolution
+    - [1, 2, 2]  # Level 2
+    - [1, 2, 2]  # Level 3
+
+  # 2D/3D hybrid convolutions
+  # Original: 3×3×1 at finest scale, then 3×3×3 at coarser scales
+  rsunet_depth_2d: 1                   # First layer uses 2D convolutions
+  rsunet_kernel_2d: [1, 3, 3]          # 2D kernel: 3×3×1
+
+  # Deep supervision disabled (original doesn't use it)
+  deep_supervision: false
+
+  # Loss functions
+  # Original: Binomial cross-entropy with class rebalancing
+  loss_functions:
+    - WeightedBCEWithLogitsLoss
+  loss_weights: [1.0]
+  loss_kwargs:
+    - pos_weight: 10.0           # Class rebalancing (adjust based on dataset statistics)
+
+  # Note: Long-range affinity maps (8 of 12 outputs) used only during training
+  # Inference uses only nearest-neighbor affinities (4 outputs)
+
+# Data configuration
+data:
+  # SNEMI3D dataset paths (update with actual paths)
+  train_image: "datasets/SNEMI/train-input.tif"
+  train_label: "datasets/SNEMI/train-labels.tif"
+
+  # Training patch size: 160 × 160 × 18 voxels (original spec)
+  patch_size: [18, 160, 160]           # (Z, Y, X) - anisotropic
+  pad_size: [0, 0, 0]                  # No padding (same convolutions)
+
+  # Data loading
+  batch_size: 1                        # Original: 1 patch per batch
+  num_workers: 1
+
+  # Image normalization
+  image_transform:
+    normalize: "0-1"                   # Min-max normalization
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+
+  # Sampling
+  iter_num: 700000                     # 700K iterations (upper bound)
+  use_preloaded_cache: true
+
+  # Multi-channel label transformation
+  # Transforms instance segmentation labels into multiple output channels
+  label_transform:
+    normalize: true             # Convert labels to 0-1 range
+    erosion: 1                  # Border erosion (seg_widen_border with 3×3×1 kernel)
+                                # Marks boundary voxels as background (Kisuk Lee's preprocessing)
+
+    # Affinity map generation (for long-range connectivity)
+    # Offsets in (z, y, x) format - SNEMI3D specification
+    affinity:
+      offsets:
+        # Short-range affinities
+        - "0-0-1"       # x-direction, distance 1
+        - "0-1-0"       # y-direction, distance 1
+        - "1-0-0"       # z-direction, distance 1
+        - "2-0-0"       # z-direction, distance 2
+        - "3-0-0"       # z-direction, distance 3
+        - "4-0-0"       # z-direction, distance 4
+        # Long-range affinities (exponential spacing: 3, 9, 27)
+        - "0-0-3"       # x-direction, distance 3
+        - "0-0-9"       # x-direction, distance 9
+        - "0-0-27"      # x-direction, distance 27
+        - "0-3-0"       # y-direction, distance 3
+        - "0-9-0"       # y-direction, distance 9
+        - "0-27-0"      # y-direction, distance 27
+      # Total: 12 affinity channels (6 short + 6 long)
+
+# Optimizer - Adam with original hyperparameters
+# Original: α=0.01, β₁=0.9, β₂=0.999, ε=0.01
+optimizer:
+  name: Adam                           # Adam (not AdamW)
+  lr: 0.01                             # α = 0.01 (original)
+  betas: [0.9, 0.999]                  # β₁=0.9, β₂=0.999
+  eps: 0.01                            # ε = 0.01 (original, unusually high)
+  weight_decay: 0.0                    # No weight decay in original
+
+# Learning rate scheduler
+# Original: halve α when validation loss plateaus, ≤4 times
+scheduler:
+  name: ReduceLROnPlateau
+  mode: min
+  factor: 0.5                          # Halve learning rate
+  patience: 10000                      # Check every N iterations
+  min_lr: 0.0000625                    # 0.01 / (2^4) = min LR after 4 halvings
+  threshold: 0.0001
+  cooldown: 0
+
+# Training
+training:
+  max_epochs: 1000                     # ~700K iterations = many epochs
+  precision: "32"                      # Float32 (Caffe default)
+  gradient_clip_val: 0.0               # No gradient clipping in original
+  accumulate_grad_batches: 1
+
+  # Check validation every N train batches
+  val_check_interval: 1000             # Validate every 1000 iterations
+
+# Checkpointing
+checkpoint:
+  monitor: "val/loss"
+  mode: "min"
+  save_last: true
+  save_every_n_epochs: 10              # Save frequently (long training)
+  dirpath: outputs/rsunet_snemi_aug3_long/checkpoints/
+  filename: epoch={epoch:03d}-step={step:07d}-val_loss={val/loss:.4f}
+
+# Early stopping (disabled - train for full duration)
+early_stopping:
+  enabled: false
+
+# Augmentation - "aug3" variant with novel EM augmentations
+augmentation:
+  enabled: true
+
+  # Standard augmentations
+  flip:
+    enabled: true
+    prob: 0.5
+    spatial_axis: [0, 1, 2]            # Flip x/y/z
+
+  rotate:
+    enabled: true
+    prob: 0.5
+    max_angle: 90.0                    # 90° rotations
+
+  elastic:
+    enabled: true
+    prob: 0.7
+    sigma_range: [4.0, 8.0]
+    magnitude_range: [8.0, 16.0]
+
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.3
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.7
+    shift_intensity_offset: 0.2
+    contrast_prob: 0.7
+    contrast_range: [0.5, 1.5]
+
+  # EM-specific augmentations
+  misalignment:
+    enabled: true
+    prob: 0.5
+    displacement: 17                   # 0-17 pixels (original spec)
+    rotate_ratio: 0.5                  # Mix of slip-type and translation-type
+
+  missing_section:
+    enabled: true
+    prob: 0.3
+    num_sections: 5                    # Max 5 slices (dataclass expects int, not list)
+
+  motion_blur:
+    enabled: true
+    prob: 0.3
+    sections: 2                        # Number of sections to blur (int, not list)
+    kernel_size: 11                    # Kernel size (int, not list)
+
+  cut_noise:
+    enabled: false
+
+  cut_blur:
+    enabled: false
+
+  missing_parts:
+    enabled: false
+
+# Visualization
+visualization:
+  enabled: true
+  max_images: 2                        # Small batch size
+  num_slices: 8
+  log_every_n_steps: 1000              # Every 1000 iterations
+
+# Notes on reproducing the original model:
+#
+# 1. Long-range affinities:
+#    - Output 12 affinity maps:
+#      * x/y directions: distances 1, 3, 9, 27 voxels (4 maps each = 8 total)
+#      * z direction: distances 1, 2, 3, 4 voxels (4 maps)
+#    - Long-range maps (8 of 12) used ONLY during training
+#    - Inference uses only nearest-neighbor (4 maps)
+#
+#    To implement: modify loss to weight long-range vs short-range differently
+#    or use separate output heads for training vs inference
+#
+# 2. Class rebalancing:
+#    - Original uses weighted BCE to handle class imbalance
+#    - PyTC: use pos_weight parameter in BCEWithLogitsLoss
+#    - Calculate from training data: pos_weight = neg_samples / pos_samples
+#
+# 3. Initialization:
+#    - Original: He et al. (2015) method
+#    - PyTC RSUNet: already uses Kaiming (He) initialization
+#
+# 4. Residual modules:
+#    - Original: 3 conv layers per module
+#    - RSUNet: Pre→Res→Post pattern (also 3 conv layers)
+#    - Match: ✓
+#
+# 5. Training duration:
+#    - Original: ~5 days on 1x Titan X Pascal
+#    - Modern GPUs (V100/A100): ~2-3 days expected
+#    - 500K-700K iterations with batch_size=1
+#
+# 6. Dataset:
+#    - SNEMI3D: 1024×1024×100 training volume
+#    - Random crops: 160×160×18
+#    - Validation: separate volume
+#    - Test: held-out volume (submit to leaderboard)

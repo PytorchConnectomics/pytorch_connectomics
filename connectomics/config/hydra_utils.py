@@ -15,26 +15,38 @@ from .hydra_config import Config
 def load_config(config_path: Union[str, Path]) -> Config:
     """
     Load configuration from YAML file.
-    
+
     Args:
         config_path: Path to YAML configuration file
-        
+
     Returns:
         Config object with defaults merged
     """
     config_path = Path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
-    
+
     # Load YAML
     yaml_conf = OmegaConf.load(config_path)
-    
+
     # Merge with structured config defaults
     default_conf = OmegaConf.structured(Config)
     merged = OmegaConf.merge(default_conf, yaml_conf)
-    
+
     # Convert to dataclass instance
-    return OmegaConf.to_object(merged)
+    cfg = OmegaConf.to_object(merged)
+
+    # Apply top-level overrides if specified (>= 0)
+    if cfg.num_gpus >= 0:
+        cfg.system.num_gpus = cfg.num_gpus
+    if cfg.num_cpus >= 0:
+        cfg.system.num_cpus = cfg.num_cpus
+    if cfg.batch_size >= 0:
+        cfg.data.batch_size = cfg.batch_size
+    if cfg.num_workers >= 0:
+        cfg.data.num_workers = cfg.num_workers
+
+    return cfg
 
 
 def save_config(cfg: Config, save_path: Union[str, Path]) -> None:

@@ -7,6 +7,7 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 from __future__ import annotations
 from typing import Dict
 import numpy as np
+import torch
 from monai.transforms import (
     Compose, RandRotate90d, RandFlipd, RandAffined, RandZoomd,
     RandGaussianNoised, RandShiftIntensityd, Rand3DElasticd,
@@ -20,10 +21,10 @@ from connectomics.data.dataset.dataset_volume import LoadVolumed
 from .monai_transforms import (
     RandMisAlignmentd, RandMissingSectiond, RandMissingPartsd,
     RandMotionBlurd, RandCutNoised, RandCutBlurd,
-    RandMixupd, RandCopyPasted, ConvertToFloatd, NormalizeLabelsd,
+    RandMixupd, RandCopyPasted, NormalizeLabelsd,
     SmartNormalizeIntensityd
 )
-from ...config.hydra_config import Config, AugmentationConfig
+from ...config.hydra_config import Config, AugmentationConfig, LabelTransformConfig
 
 
 def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bool = False) -> Compose:
@@ -88,19 +89,28 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
     if cfg.augmentation.enabled:
         transforms.extend(_build_augmentations(cfg.augmentation, keys))
 
-    # Convert labels to float to avoid Byte tensor issues
-    transforms.append(
-        ConvertToFloatd(keys=['label'], dtype=np.float32)
-    )
-
     # Normalize labels to 0-1 range if enabled
     if getattr(cfg.data, 'normalize_labels', False):
         transforms.append(
             NormalizeLabelsd(keys=['label'])
         )
 
-    # Final conversion to tensor
-    transforms.append(ToTensord(keys=keys))
+    # Label transformations (affinity, distance transform, etc.)
+    if hasattr(cfg.data, 'label_transform'):
+        from ..process.build import create_multi_task_pipeline
+        from ..process.monai_transforms import SegErosionInstanced
+        label_cfg = cfg.data.label_transform
+
+        # Apply instance erosion first if specified
+        if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
+            transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
+
+        # Build multi-task pipeline directly from label_transform config
+        multi_task_pipeline = create_multi_task_pipeline(label_cfg)
+        transforms.extend(multi_task_pipeline.transforms)
+
+    # Final conversion to tensor with float32 dtype
+    transforms.append(ToTensord(keys=keys, dtype=torch.float32))
 
     return Compose(transforms)
 
@@ -160,19 +170,28 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
             )
         )
 
-    # Convert labels to float to avoid Byte tensor issues
-    transforms.append(
-        ConvertToFloatd(keys=['label'], dtype=np.float32)
-    )
-
     # Normalize labels to 0-1 range if enabled
     if getattr(cfg.data, 'normalize_labels', False):
         transforms.append(
             NormalizeLabelsd(keys=['label'])
         )
 
-    # Final conversion to tensor
-    transforms.append(ToTensord(keys=keys))
+    # Label transformations (affinity, distance transform, etc.)
+    if hasattr(cfg.data, 'label_transform'):
+        from ..process.build import create_multi_task_pipeline
+        from ..process.monai_transforms import SegErosionInstanced
+        label_cfg = cfg.data.label_transform
+
+        # Apply instance erosion first if specified
+        if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
+            transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
+
+        # Build multi-task pipeline directly from label_transform config
+        multi_task_pipeline = create_multi_task_pipeline(label_cfg)
+        transforms.extend(multi_task_pipeline.transforms)
+
+    # Final conversion to tensor with float32 dtype
+    transforms.append(ToTensord(keys=keys, dtype=torch.float32))
 
     return Compose(transforms)
 
@@ -202,8 +221,9 @@ def build_inference_transforms(cfg: Config) -> Compose:
             )
         )
 
-    transforms.append(ToTensord(keys=keys))
-    
+    # Convert to tensor with float32 dtype
+    transforms.append(ToTensord(keys=keys, dtype=torch.float32))
+
     return Compose(transforms)
 
 

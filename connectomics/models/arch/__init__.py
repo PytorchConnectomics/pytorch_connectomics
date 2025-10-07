@@ -8,7 +8,7 @@ Provides:
 - Future: MedNeXt model wrappers
 
 Usage:
-    from connectomics.models.architectures import (
+    from connectomics.models.arch import (
         register_architecture,
         list_architectures,
         ConnectomicsModel,
@@ -50,6 +50,10 @@ try:
 except ImportError:
     _MEDNEXT_AVAILABLE = False
 
+# Import RSUNet models (always available - pure PyTorch)
+from . import rsunet
+_RSUNET_AVAILABLE = True
+
 # Check what's available
 def get_available_architectures() -> dict:
     """
@@ -67,6 +71,7 @@ def get_available_architectures() -> dict:
         'all': all_archs,
         'monai': [a for a in all_archs if a.startswith('monai_')] if _MONAI_AVAILABLE else [],
         'mednext': [a for a in all_archs if a.startswith('mednext')] if _MEDNEXT_AVAILABLE else [],
+        'rsunet': [a for a in all_archs if a.startswith('rsunet')] if _RSUNET_AVAILABLE else [],
     }
 
     return info
@@ -93,6 +98,11 @@ def print_available_architectures():
             print(f"  - {arch}")
     else:
         print("\nMedNeXt Models: Not available (see MEDNEXT.md for setup)")
+
+    if info['rsunet']:
+        print(f"\nRSUNet Models ({len(info['rsunet'])}):")
+        for arch in info['rsunet']:
+            print(f"  - {arch}")
 
     print(f"\nTotal: {len(info['all'])} architectures")
     print("="*60 + "\n")

@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from typing import Optional
 
-from .architectures import (
+from .arch import (
     get_architecture_builder,
     list_architectures,
     print_available_architectures,
@@ -48,7 +48,7 @@ def build_model(cfg, device=None, rank=None):
         model = build_model(cfg)
 
     To see all available architectures:
-        from connectomics.models.architectures import print_available_architectures
+        from connectomics.models.arch import print_available_architectures
         print_available_architectures()
     """
     # Get architecture name

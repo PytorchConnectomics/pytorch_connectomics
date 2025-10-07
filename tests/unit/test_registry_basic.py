@@ -6,7 +6,7 @@ import sys
 import torch
 from omegaconf import OmegaConf
 
-from connectomics.models.architectures import (
+from connectomics.models.arch import (
     register_architecture,
     list_architectures,
     is_architecture_available,

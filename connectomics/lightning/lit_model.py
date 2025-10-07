@@ -19,6 +19,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 import numpy as np
 from omegaconf import DictConfig
+import torchmetrics
 
 # Import existing components
 from ..models import build_model
@@ -73,6 +74,11 @@ class ConnectomicsModule(pl.LightningModule):
         # Hook manager for intermediate layer debugging
         self._hook_manager: Optional[NaNDetectionHookManager] = None
 
+        # Test metrics (initialized lazily during test mode if specified in config)
+        self.test_jaccard = None
+        self.test_dice = None
+        self.test_accuracy = None
+
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""
         return build_model(cfg)
@@ -90,6 +96,89 @@ class ConnectomicsModule(pl.LightningModule):
             losses.append(loss)
 
         return losses
+
+    def _setup_test_metrics(self):
+        """Initialize test metrics based on inference config."""
+        if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'metrics'):
+            return
+
+        metrics = self.cfg.inference.metrics
+        if metrics is None:
+            return
+
+        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+
+        # Create only the specified metrics
+        if 'jaccard' in metrics:
+            self.test_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
+        if 'dice' in metrics:
+            self.test_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
+        if 'accuracy' in metrics:
+            self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
+
+    def _setup_inference_blending(self):
+        """Initialize blending matrices and result buffers for inference."""
+        if not hasattr(self.cfg, 'inference'):
+            return
+
+        # Import blending utilities
+        from connectomics.data.process.blend import build_blending_matrix
+
+        # Get output size from config
+        output_size = tuple(self.cfg.model.output_size) if hasattr(self.cfg.model, 'output_size') else tuple(self.cfg.data.patch_size)
+
+        # Build blending matrix
+        blending_mode = getattr(self.cfg.inference, 'blending', 'gaussian')
+        self.blending_matrix = build_blending_matrix(output_size, mode=blending_mode)
+        print(f"  Inference blending: {blending_mode} (patch size: {output_size})")
+
+        # Initialize result buffers (created dynamically per volume)
+        self.inference_results = {}  # vol_id -> accumulated predictions
+        self.inference_weights = {}  # vol_id -> accumulated weights
+        self.volume_shapes = {}      # vol_id -> volume shape
+
+    def _accumulate_prediction(self, output: torch.Tensor, pos: torch.Tensor, vol_id: int):
+        """
+        Accumulate a single prediction with blending weights.
+
+        Args:
+            output: Model output of shape (C, D, H, W)
+            pos: Position tensor [z, y, x]
+            vol_id: Volume ID
+        """
+        # Convert to numpy
+        pred = output.detach().cpu().numpy()
+        z, y, x = int(pos[0]), int(pos[1]), int(pos[2])
+
+        # Get shape
+        num_channels = pred.shape[0]
+        d, h, w = pred.shape[1:]
+
+        # Initialize buffers for this volume if needed
+        if vol_id not in self.inference_results:
+            # Estimate volume shape from first patch position and size
+            # This is a simplified approach - ideally get from dataset
+            vol_shape = (max(z + d, 256), max(y + h, 256), max(x + w, 256))
+            self.volume_shapes[vol_id] = vol_shape
+
+            self.inference_results[vol_id] = np.zeros(
+                [num_channels] + list(vol_shape),
+                dtype=np.float32
+            )
+            self.inference_weights[vol_id] = np.zeros(
+                vol_shape,
+                dtype=np.float32
+            )
+            print(f"  Initialized inference buffers for volume {vol_id}: {vol_shape}")
+
+        # Accumulate with blending
+        self.inference_results[vol_id][
+            :, z:z+d, y:y+h, x:x+w
+        ] += pred * self.blending_matrix[np.newaxis, :]
+
+        self.inference_weights[vol_id][
+            z:z+d, y:y+h, x:x+w
+        ] += self.blending_matrix
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the model."""
@@ -250,10 +339,15 @@ class ConnectomicsModule(pl.LightningModule):
 
         return total_loss
 
+    def on_test_start(self):
+        """Called at the beginning of testing to initialize metrics and blending."""
+        self._setup_test_metrics()
+        self._setup_inference_blending()
+
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
-        """Test step with deep supervision support."""
+        """Test step with deep supervision support and metrics computation."""
         images = batch['image']
-        labels = batch['label']
+        labels = batch.get('label', None)
 
         # Forward pass
         outputs = self(images)
@@ -261,13 +355,31 @@ class ConnectomicsModule(pl.LightningModule):
         # Check if model outputs deep supervision
         is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
 
-        # Compute loss
+        # Get the main output for metrics
+        if is_deep_supervision:
+            main_output = outputs['output']
+        else:
+            main_output = outputs
+
+        # Accumulate predictions for blending if position metadata available
+        if 'pos' in batch and hasattr(self, 'blending_matrix'):
+            positions = batch['pos']  # (B, 4) - [vol_id, z, y, x]
+            batch_size = main_output.shape[0]
+            for i in range(batch_size):
+                vol_id = int(positions[i, 0])
+                pos = positions[i, 1:]  # [z, y, x]
+                self._accumulate_prediction(main_output[i], pos, vol_id)
+
+        # Compute loss only if labels are available
+        if labels is None:
+            # No labels - inference only mode
+            return None
+
         total_loss = 0.0
         loss_dict = {}
 
         if is_deep_supervision:
             # Multi-scale loss with deep supervision
-            main_output = outputs['output']
             ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
 
             ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
@@ -299,10 +411,76 @@ class ConnectomicsModule(pl.LightningModule):
 
             loss_dict['test_loss_total'] = total_loss.item()
 
+        # Compute metrics on main output (only if metrics are configured)
+        if self.test_jaccard is not None or self.test_dice is not None or self.test_accuracy is not None:
+            # Convert logits to predictions
+            preds = torch.argmax(main_output, dim=1)  # (B, D, H, W)
+            targets = labels.squeeze(1).long()  # (B, D, H, W)
+
+            # Update and log metrics (only if initialized)
+            if self.test_jaccard is not None:
+                self.test_jaccard(preds, targets)
+                self.log('test_jaccard', self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True)
+            if self.test_dice is not None:
+                self.test_dice(preds, targets)
+                self.log('test_dice', self.test_dice, on_step=False, on_epoch=True, prog_bar=True)
+            if self.test_accuracy is not None:
+                self.test_accuracy(preds, targets)
+                self.log('test_accuracy', self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True)
+
         # Log losses
         self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         return total_loss
+
+    def on_test_epoch_end(self):
+        """Normalize and save blended inference results."""
+        if not hasattr(self, 'inference_results') or len(self.inference_results) == 0:
+            return
+
+        print("\n" + "=" * 60)
+        print("Finalizing inference results with blending")
+        print("=" * 60)
+
+        # Import saving utilities
+        from connectomics.data.io import write_hdf5
+        from pathlib import Path
+
+        # Normalize and save each volume
+        for vol_id in sorted(self.inference_results.keys()):
+            print(f"\nProcessing volume {vol_id}...")
+
+            # Normalize by accumulated weights
+            weights = self.inference_weights[vol_id][np.newaxis, :]  # (1, D, H, W)
+            result = self.inference_results[vol_id] / (weights + 1e-8)
+
+            # Convert to uint8 (0-255 range)
+            result = np.clip(result * 255, 0, 255).astype(np.uint8)
+
+            print(f"  Result shape: {result.shape}")
+            print(f"  Result dtype: {result.dtype}")
+            print(f"  Result range: [{result.min()}, {result.max()}]")
+
+            # Save result
+            if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'output_path'):
+                output_dir = Path(self.cfg.inference.output_path)
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                output_filename = f"vol{vol_id}_prediction.h5"
+                output_path = output_dir / output_filename
+
+                # Save as HDF5
+                write_hdf5(str(output_path), result, dataset=f'vol{vol_id}')
+                print(f"  Saved to: {output_path}")
+
+        print("\n" + "=" * 60)
+        print(f"Inference complete! Saved {len(self.inference_results)} volume(s)")
+        print("=" * 60 + "\n")
+
+        # Cleanup to free memory
+        del self.inference_results
+        del self.inference_weights
+        del self.blending_matrix
 
     def _match_target_to_output(
         self,

@@ -101,6 +101,26 @@ def parse_args():
         help="Path to checkpoint for resuming/testing/prediction",
     )
     parser.add_argument(
+        "--reset-optimizer",
+        action="store_true",
+        help="Reset optimizer state when loading checkpoint (useful for changing learning rate)",
+    )
+    parser.add_argument(
+        "--reset-scheduler",
+        action="store_true",
+        help="Reset scheduler state when loading checkpoint",
+    )
+    parser.add_argument(
+        "--reset-epoch",
+        action="store_true",
+        help="Reset epoch counter when loading checkpoint (start from epoch 0)",
+    )
+    parser.add_argument(
+        "--reset-early-stopping",
+        action="store_true",
+        help="Reset early stopping patience counter when loading checkpoint",
+    )
+    parser.add_argument(
         "--fast-dev-run",
         action="store_true",
         help="Run 1 batch for quick debugging",
@@ -133,6 +153,21 @@ def setup_config(args) -> Config:
         print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
         cfg = update_from_cli(cfg, args.overrides)
 
+    # Apply inference-specific overrides if in test/predict mode
+    if args.mode in ['test', 'predict']:
+        if cfg.inference.num_gpus >= 0:
+            print(f"🔧 Inference override: num_gpus={cfg.inference.num_gpus}")
+            cfg.system.num_gpus = cfg.inference.num_gpus
+        if cfg.inference.num_cpus >= 0:
+            print(f"🔧 Inference override: num_cpus={cfg.inference.num_cpus}")
+            cfg.system.num_cpus = cfg.inference.num_cpus
+        if cfg.inference.batch_size >= 0:
+            print(f"🔧 Inference override: batch_size={cfg.inference.batch_size}")
+            cfg.data.batch_size = cfg.inference.batch_size
+        if cfg.inference.num_workers >= 0:
+            print(f"🔧 Inference override: num_workers={cfg.inference.num_workers}")
+            cfg.data.num_workers = cfg.inference.num_workers
+
     # Auto-planning (if enabled)
     if hasattr(cfg.system, 'auto_plan') and cfg.system.auto_plan:
         print("🤖 Running automatic configuration planning...")
@@ -151,7 +186,7 @@ def setup_config(args) -> Config:
     return cfg
 
 
-def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
+def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModule:
     """
     Create Lightning DataModule from config.
 
@@ -258,9 +293,31 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
                 label_paths=[cfg.data.val_label] if cfg.data.val_label else None,
             )
 
-    print(f"  Train dataset size: {len(train_data_dicts)}")
-    if val_data_dicts:
-        print(f"  Val dataset size: {len(val_data_dicts)}")
+    # Create test data dicts if in test/predict mode
+    test_data_dicts = None
+    print(f"  DEBUG: mode = '{mode}'")
+    print(f"  DEBUG: mode in ['test', 'predict'] = {mode in ['test', 'predict']}")
+    if mode in ['test', 'predict']:
+        print(f"  DEBUG: hasattr(cfg, 'inference') = {hasattr(cfg, 'inference')}")
+        if hasattr(cfg, 'inference'):
+            print(f"  DEBUG: cfg.inference.test_image = '{cfg.inference.test_image}'")
+        if not hasattr(cfg, 'inference') or not cfg.inference.test_image:
+            raise ValueError(
+                f"Test mode requires inference.test_image to be set in config.\n"
+                f"Current config has: inference.test_image = {cfg.inference.test_image if hasattr(cfg, 'inference') else 'N/A'}"
+            )
+        print(f"  🧪 Creating test dataset from: {cfg.inference.test_image}")
+        test_data_dicts = create_data_dicts_from_paths(
+            image_paths=[cfg.inference.test_image],
+            label_paths=[cfg.inference.test_label] if cfg.inference.test_label else None,
+        )
+        print(f"  DEBUG: test_data_dicts created = {test_data_dicts}")
+        print(f"  Test dataset size: {len(test_data_dicts)}")
+
+    if mode == 'train':
+        print(f"  Train dataset size: {len(train_data_dicts)}")
+        if val_data_dicts:
+            print(f"  Val dataset size: {len(val_data_dicts)}")
 
     # Auto-compute iter_num from volume size if not specified
     iter_num = cfg.data.iter_num
@@ -307,8 +364,8 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
     # Create DataModule
     print("Creating data loaders...")
 
-    # Use optimized pre-loaded cache when iter_num > 0
-    use_preloaded = cfg.data.use_preloaded_cache and iter_num > 0
+    # Use optimized pre-loaded cache when iter_num > 0 (only for training mode)
+    use_preloaded = cfg.data.use_preloaded_cache and iter_num > 0 and mode == 'train'
 
     if use_preloaded:
         print("  ⚡ Using pre-loaded volume cache (loads once, crops in memory)")
@@ -356,6 +413,10 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
             def val_dataloader(self):
                 return []
 
+            def test_dataloader(self):
+                # For test mode, return empty list (user should use standard datamodule)
+                return []
+
             def setup(self, stage=None):
                 pass
 
@@ -366,6 +427,7 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
             val_data_dicts=val_data_dicts,
+            test_data_dicts=test_data_dicts,
             transforms={
                 'train': train_transforms,
                 'val': val_transforms,
@@ -380,17 +442,71 @@ def create_datamodule(cfg: Config) -> ConnectomicsDataModule:
             iter_num=iter_num,
             sample_size=tuple(cfg.data.patch_size),
         )
-        # Setup datasets
-        datamodule.setup(stage='fit')
+        # Setup datasets based on mode
+        if mode == 'train':
+            datamodule.setup(stage='fit')
+        elif mode in ['test', 'predict']:
+            datamodule.setup(stage='test')
 
-    print(f"  Train batches: {len(datamodule.train_dataloader())}")
-    if val_data_dicts:
-        print(f"  Val batches: {len(datamodule.val_dataloader())}")
+    # Print dataset info based on mode
+    if mode == 'train':
+        print(f"  Train batches: {len(datamodule.train_dataloader())}")
+        if val_data_dicts:
+            print(f"  Val batches: {len(datamodule.val_dataloader())}")
+    elif mode in ['test', 'predict']:
+        print(f"  Test batches: {len(datamodule.test_dataloader())}")
 
     return datamodule
 
 
-def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl.Trainer:
+def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> Optional[float]:
+    """
+    Extract best score from checkpoint filename.
+
+    Args:
+        ckpt_path: Path to checkpoint file
+        monitor_metric: Metric name to extract (e.g., 'train_loss_total_epoch', 'val/loss')
+
+    Returns:
+        Extracted score or None if not found
+    """
+    import re
+    from pathlib import Path
+
+    if not ckpt_path:
+        return None
+
+    filename = Path(ckpt_path).stem  # Get filename without extension
+
+    # Replace '/' with underscore for metric name (e.g., 'val/loss' -> 'val_loss')
+    metric_pattern = monitor_metric.replace('/', '_')
+
+    # Try multiple patterns to extract the metric value:
+    # 1. Full metric name: "train_loss_total_epoch=0.1234"
+    # 2. Abbreviated in filename: "loss=0.1234" (when metric is "train_loss_total_epoch")
+    # 3. Other common abbreviations
+
+    patterns = [
+        rf'{metric_pattern}=([0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)',  # Full name
+    ]
+
+    # Add abbreviated patterns by extracting the last part after '_' or '/'
+    if '_' in monitor_metric or '/' in monitor_metric:
+        short_name = monitor_metric.split('_')[-1].split('/')[-1]
+        patterns.append(rf'{short_name}=([0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)')
+
+    for pattern in patterns:
+        match = re.search(pattern, filename)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                continue
+
+    return None
+
+
+def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False, ckpt_path: Optional[str] = None) -> pl.Trainer:
     """
     Create PyTorch Lightning Trainer.
 
@@ -398,6 +514,7 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl
         cfg: Hydra Config object
         run_dir: Directory for this training run
         fast_dev_run: Whether to run quick debug mode
+        ckpt_path: Path to checkpoint for resuming (used to extract best_score)
 
     Returns:
         Configured Trainer instance
@@ -426,13 +543,26 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False) -> pl
 
     # Early stopping
     if cfg.early_stopping.enabled:
+        # Extract best_score from checkpoint filename if resuming
+        best_score = None
+        if ckpt_path:
+            best_score = extract_best_score_from_checkpoint(ckpt_path, cfg.early_stopping.monitor)
+            if best_score is not None:
+                print(f"  Early stopping: Extracted best_score={best_score:.6f} from checkpoint")
+
         early_stop_callback = EarlyStopping(
             monitor=cfg.early_stopping.monitor,
             patience=cfg.early_stopping.patience,
             mode=cfg.early_stopping.mode,
             min_delta=cfg.early_stopping.min_delta,
             verbose=True,
+            check_on_train_epoch_end=True,  # Fix for resume bug - check at end of train epoch
         )
+
+        # Manually set best_score if extracted from checkpoint
+        if best_score is not None:
+            early_stop_callback.best_score = torch.tensor(best_score)
+
         callbacks.append(early_stop_callback)
 
     # Learning rate monitor
@@ -531,7 +661,7 @@ def main():
         seed_everything(cfg.system.seed, workers=True)
 
     # Create datamodule
-    datamodule = create_datamodule(cfg)
+    datamodule = create_datamodule(cfg, mode=args.mode)
 
     # Create model
     print(f"Creating model: {cfg.model.architecture}")
@@ -541,12 +671,59 @@ def main():
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"  Model parameters: {num_params:,}")
 
-    # Create trainer (pass run_dir for checkpoints and logs)
-    trainer = create_trainer(cfg, run_dir=run_dir, fast_dev_run=args.fast_dev_run)
+    # Create trainer (pass run_dir for checkpoints and logs, and checkpoint path for resume)
+    trainer = create_trainer(cfg, run_dir=run_dir, fast_dev_run=args.fast_dev_run, ckpt_path=args.checkpoint)
 
     print("\n" + "=" * 60)
     print("🏃 STARTING TRAINING")
     print("=" * 60)
+
+    # Handle checkpoint state resets if requested
+    ckpt_path = args.checkpoint
+    if args.checkpoint and args.mode == 'train' and (args.reset_optimizer or args.reset_scheduler or args.reset_epoch or args.reset_early_stopping):
+        print(f"\n🔄 Modifying checkpoint state:")
+        if args.reset_optimizer:
+            print("   - Resetting optimizer state")
+        if args.reset_scheduler:
+            print("   - Resetting scheduler state")
+        if args.reset_epoch:
+            print("   - Resetting epoch counter")
+        if args.reset_early_stopping:
+            print("   - Resetting early stopping patience counter")
+
+        # Load checkpoint
+        checkpoint = torch.load(args.checkpoint, map_location='cpu')
+
+        # Reset optimizer state
+        if args.reset_optimizer and 'optimizer_states' in checkpoint:
+            del checkpoint['optimizer_states']
+
+        # Reset scheduler state
+        if args.reset_scheduler and 'lr_schedulers' in checkpoint:
+            del checkpoint['lr_schedulers']
+
+        # Reset epoch counter
+        if args.reset_epoch:
+            if 'epoch' in checkpoint:
+                checkpoint['epoch'] = 0
+            if 'global_step' in checkpoint:
+                checkpoint['global_step'] = 0
+
+        # Reset early stopping state
+        if args.reset_early_stopping and 'callbacks' in checkpoint:
+            # EarlyStopping callback state is stored in callbacks dict
+            for callback_state in checkpoint['callbacks'].values():
+                if 'wait_count' in callback_state:
+                    callback_state['wait_count'] = 0
+                if 'best_score' in callback_state:
+                    # Reset to None or worst possible value
+                    callback_state['best_score'] = None
+
+        # Save modified checkpoint to temporary file
+        temp_ckpt_path = run_dir / "temp_modified_checkpoint.ckpt"
+        torch.save(checkpoint, temp_ckpt_path)
+        ckpt_path = str(temp_ckpt_path)
+        print(f"   ✅ Modified checkpoint saved to: {temp_ckpt_path}")
 
     # Train
     try:
@@ -554,18 +731,48 @@ def main():
             trainer.fit(
                 model,
                 datamodule=datamodule,
-                ckpt_path=args.checkpoint,
+                ckpt_path=ckpt_path,
             )
             print("\n✅ Training completed successfully!")
 
         elif args.mode == 'test':
-            print("Running test...")
+            print("\n" + "=" * 60)
+            print("🧪 RUNNING TEST")
+            print("=" * 60)
+
+            # Debug test dataset
+            print(f"DEBUG: datamodule.test_dataset = {datamodule.test_dataset}")
+            print(f"DEBUG: datamodule.test_data_dicts = {datamodule.test_data_dicts}")
+
+            # Check if test dataset exists
+            test_loader = datamodule.test_dataloader()
+            print(f"DEBUG: test_loader = {test_loader}")
+            print(f"DEBUG: test_loader is None = {test_loader is None}")
+            if test_loader is not None:
+                print(f"DEBUG: len(test_loader) = {len(test_loader)}")
+
+            if test_loader is None or len(test_loader) == 0:
+                print("⚠️  No test dataset found!")
+                print("   Make sure inference.test_image is set in config")
+                return
+
+            print(f"Test batches: {len(test_loader)}")
+
             results = trainer.test(
                 model,
                 datamodule=datamodule,
                 ckpt_path=args.checkpoint,
             )
-            print("Test results:", results)
+
+            print("\n" + "=" * 60)
+            print("📊 TEST RESULTS")
+            print("=" * 60)
+            if results:
+                for key, value in results[0].items():
+                    print(f"  {key}: {value:.6f}")
+            else:
+                print("  No metrics returned (check logs above for test metrics)")
+            print("=" * 60)
 
         elif args.mode == 'predict':
             print("Running prediction...")
@@ -579,8 +786,13 @@ def main():
             output_dir = Path(cfg.inference.output_path)
             output_dir.mkdir(parents=True, exist_ok=True)
 
+            # Extract checkpoint name for output filename
+            ckpt_name = "default"
+            if args.checkpoint:
+                ckpt_name = Path(args.checkpoint).stem  # e.g., "epoch=099-step=0012345" from "epoch=099-step=0012345.ckpt"
+
             for i, pred in enumerate(predictions):
-                output_file = output_dir / f'prediction_{i:04d}.h5'
+                output_file = output_dir / f'prediction_{ckpt_name}_{i:04d}.h5'
 
                 # Convert to numpy if needed
                 if torch.is_tensor(pred):
