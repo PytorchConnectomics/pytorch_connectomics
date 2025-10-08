@@ -2,7 +2,12 @@
 MONAI-native dataset module for PyTorch Connectomics.
 
 This module provides MONAI-based dataset classes and PyTorch Lightning DataModules
-for connectomics data loading. All legacy dataset classes have been removed.
+for connectomics data loading.
+
+Inference Strategy:
+    For sliding-window inference, use MONAI's SlidingWindowInferer in the Lightning
+    module. Test datasets should return full volumes (no cropping). See
+    .claude/INFERENCE_DESIGN.md for details.
 """
 
 # MONAI base datasets
@@ -16,11 +21,6 @@ from .dataset_base import (
 from .dataset_volume import (
     MonaiVolumeDataset,
     MonaiCachedVolumeDataset,
-)
-
-# Inference datasets
-from .dataset_inference import (
-    InferenceVolumeDataset,
 )
 
 # Tile datasets
@@ -55,9 +55,6 @@ __all__ = [
     # Volume datasets
     'MonaiVolumeDataset',
     'MonaiCachedVolumeDataset',
-
-    # Inference datasets
-    'InferenceVolumeDataset',
 
     # Tile datasets
     'MonaiTileDataset',

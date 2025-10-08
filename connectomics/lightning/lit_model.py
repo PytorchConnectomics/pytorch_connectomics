@@ -12,14 +12,15 @@ from __future__ import annotations
 from typing import Dict, List, Any, Optional, Union, Tuple
 import warnings
 import pdb
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-import numpy as np
 from omegaconf import DictConfig
 import torchmetrics
+from monai.inferers import SlidingWindowInferer
 
 # Import existing components
 from ..models import build_model
@@ -78,6 +79,7 @@ class ConnectomicsModule(pl.LightningModule):
         self.test_jaccard = None
         self.test_dice = None
         self.test_accuracy = None
+        self.sliding_inferer: Optional[SlidingWindowInferer] = None
 
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""
@@ -116,69 +118,252 @@ class ConnectomicsModule(pl.LightningModule):
         if 'accuracy' in metrics:
             self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
 
-    def _setup_inference_blending(self):
-        """Initialize blending matrices and result buffers for inference."""
+    def _setup_sliding_window_inferer(self):
+        """Initialize MONAI's SlidingWindowInferer based on config."""
+        self.sliding_inferer = None
+
         if not hasattr(self.cfg, 'inference'):
             return
 
-        # Import blending utilities
-        from connectomics.data.process.blend import build_blending_matrix
+        roi_size = self._resolve_inferer_roi_size()
+        if roi_size is None:
+            warnings.warn(
+                "Sliding-window inference disabled: unable to determine ROI size. "
+                "Set inference.window_size or model.output_size in the config.",
+                UserWarning,
+            )
+            return
 
-        # Get output size from config
-        output_size = tuple(self.cfg.model.output_size) if hasattr(self.cfg.model, 'output_size') else tuple(self.cfg.data.patch_size)
+        overlap = self._resolve_inferer_overlap(roi_size)
+        sw_batch_size = max(1, int(getattr(self.cfg.inference, 'sw_batch_size', 1)))
+        mode = getattr(self.cfg.inference, 'blending', 'gaussian')
+        padding_mode = getattr(self.cfg.inference, 'padding_mode', 'constant')
 
-        # Build blending matrix
-        blending_mode = getattr(self.cfg.inference, 'blending', 'gaussian')
-        self.blending_matrix = build_blending_matrix(output_size, mode=blending_mode)
-        print(f"  Inference blending: {blending_mode} (patch size: {output_size})")
+        self.sliding_inferer = SlidingWindowInferer(
+            roi_size=roi_size,
+            sw_batch_size=sw_batch_size,
+            overlap=overlap,
+            mode=mode,
+            padding_mode=padding_mode,
+            progress=True,
+        )
 
-        # Initialize result buffers (created dynamically per volume)
-        self.inference_results = {}  # vol_id -> accumulated predictions
-        self.inference_weights = {}  # vol_id -> accumulated weights
-        self.volume_shapes = {}      # vol_id -> volume shape
+        print(
+            "  Sliding-window inference configured: "
+            f"roi_size={roi_size}, overlap={overlap}, sw_batch={sw_batch_size}, "
+            f"mode={mode}, padding={padding_mode}"
+        )
 
-    def _accumulate_prediction(self, output: torch.Tensor, pos: torch.Tensor, vol_id: int):
+    def _resolve_inferer_roi_size(self) -> Optional[Tuple[int, ...]]:
+        """Determine the ROI size for sliding-window inference."""
+        if hasattr(self.cfg, 'inference'):
+            window_size = getattr(self.cfg.inference, 'window_size', None)
+            if window_size:
+                return tuple(int(v) for v in window_size)
+
+        if hasattr(self.cfg, 'model') and hasattr(self.cfg.model, 'output_size'):
+            output_size = getattr(self.cfg.model, 'output_size', None)
+            if output_size:
+                return tuple(int(v) for v in output_size)
+
+        if hasattr(self.cfg, 'data') and hasattr(self.cfg.data, 'patch_size'):
+            patch_size = getattr(self.cfg.data, 'patch_size', None)
+            if patch_size:
+                return tuple(int(v) for v in patch_size)
+
+        return None
+
+    def _resolve_inferer_overlap(self, roi_size: Tuple[int, ...]) -> Union[float, Tuple[float, ...]]:
+        """Resolve overlap parameter using inference config."""
+        if not hasattr(self.cfg, 'inference'):
+            return 0.5
+
+        overlap = getattr(self.cfg.inference, 'overlap', None)
+        if overlap is not None:
+            if isinstance(overlap, (list, tuple)):
+                return tuple(float(max(0.0, min(o, 0.99))) for o in overlap)
+            return float(max(0.0, min(overlap, 0.99)))
+
+        stride = getattr(self.cfg.inference, 'stride', None)
+        if stride:
+            values: List[float] = []
+            for size, step in zip(roi_size, stride):
+                if size <= 0:
+                    values.append(0.0)
+                    continue
+                ratio = 1.0 - float(step) / float(size)
+                values.append(float(max(0.0, min(ratio, 0.99))))
+            if len(set(values)) == 1:
+                return values[0]
+            return tuple(values)
+
+        return 0.5
+
+    def _extract_main_output(self, outputs: Union[torch.Tensor, Dict[str, torch.Tensor]]) -> torch.Tensor:
+        """Extract the primary segmentation logits from model outputs."""
+        if isinstance(outputs, dict):
+            if 'output' not in outputs:
+                raise KeyError("Expected key 'output' in model outputs for deep supervision.")
+            return outputs['output']
+        return outputs
+
+    def _sliding_window_predict(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Wrapper used by MONAI inferer to obtain primary model predictions."""
+        outputs = self.forward(inputs)
+        return self._extract_main_output(outputs)
+
+    def _apply_postprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
-        Accumulate a single prediction with blending weights.
+        Apply postprocessing to predictions: activation and channel selection.
 
         Args:
-            output: Model output of shape (C, D, H, W)
-            pos: Position tensor [z, y, x]
-            vol_id: Volume ID
+            tensor: Raw predictions (B, C, D, H, W)
+
+        Returns:
+            Postprocessed tensor with activation and/or channel selection applied
         """
-        # Convert to numpy
-        pred = output.detach().cpu().numpy()
-        z, y, x = int(pos[0]), int(pos[1]), int(pos[2])
+        if not hasattr(self.cfg, 'inference'):
+            return tensor
 
-        # Get shape
-        num_channels = pred.shape[0]
-        d, h, w = pred.shape[1:]
-
-        # Initialize buffers for this volume if needed
-        if vol_id not in self.inference_results:
-            # Estimate volume shape from first patch position and size
-            # This is a simplified approach - ideally get from dataset
-            vol_shape = (max(z + d, 256), max(y + h, 256), max(x + w, 256))
-            self.volume_shapes[vol_id] = vol_shape
-
-            self.inference_results[vol_id] = np.zeros(
-                [num_channels] + list(vol_shape),
-                dtype=np.float32
+        # Apply activation function
+        output_act = getattr(self.cfg.inference, 'output_act', None)
+        if output_act == 'softmax':
+            tensor = torch.softmax(tensor, dim=1)
+        elif output_act == 'sigmoid':
+            tensor = torch.sigmoid(tensor)
+        elif output_act is not None and output_act.lower() != 'none':
+            warnings.warn(
+                f"Unknown activation function '{output_act}'. Supported: 'softmax', 'sigmoid', None",
+                UserWarning,
             )
-            self.inference_weights[vol_id] = np.zeros(
-                vol_shape,
-                dtype=np.float32
+
+        # Apply channel selection
+        output_channel = getattr(self.cfg.inference, 'output_channel', None)
+        if output_channel is not None:
+            if isinstance(output_channel, int):
+                if output_channel == -1:
+                    # -1 means all channels
+                    pass
+                else:
+                    # Single channel selection
+                    tensor = tensor[:, output_channel:output_channel+1, ...]
+            elif isinstance(output_channel, (list, tuple)):
+                # Multiple channel selection
+                tensor = tensor[:, list(output_channel), ...]
+
+        return tensor
+
+    def _apply_output_scale(self, tensor: torch.Tensor) -> torch.Tensor:
+        """Apply optional per-channel scaling before saving."""
+        if not hasattr(self.cfg, 'inference'):
+            return tensor
+
+        scale = getattr(self.cfg.inference, 'output_scale', None)
+        if not scale:
+            return tensor
+
+        scale_tensor = torch.tensor(scale, dtype=tensor.dtype, device=tensor.device)
+        if scale_tensor.numel() == 1:
+            return tensor * scale_tensor.view(1, 1, 1, 1, 1)
+
+        if scale_tensor.numel() == tensor.shape[1]:
+            return tensor * scale_tensor.view(1, -1, 1, 1, 1)
+
+        warnings.warn(
+            "inference.output_scale length does not match output channels; skipping scaling.",
+            UserWarning,
+        )
+        return tensor
+
+    def _apply_output_dtype(self, tensor: torch.Tensor) -> torch.Tensor:
+        """Apply output dtype conversion."""
+        if not hasattr(self.cfg, 'inference'):
+            return tensor
+
+        output_dtype = getattr(self.cfg.inference, 'output_dtype', None)
+        if not output_dtype or output_dtype == 'float32':
+            return tensor
+
+        # Map string dtype to numpy dtype
+        dtype_map = {
+            'uint8': torch.uint8,
+            'int8': torch.int8,
+            'int16': torch.int16,
+            'int32': torch.int32,
+            'int64': torch.int64,
+            'float16': torch.float16,
+            'float32': torch.float32,
+            'float64': torch.float64,
+        }
+
+        if output_dtype not in dtype_map:
+            warnings.warn(
+                f"Unknown output_dtype '{output_dtype}'. Supported: {list(dtype_map.keys())}. "
+                f"Keeping float32.",
+                UserWarning,
             )
-            print(f"  Initialized inference buffers for volume {vol_id}: {vol_shape}")
+            return tensor
 
-        # Accumulate with blending
-        self.inference_results[vol_id][
-            :, z:z+d, y:y+h, x:x+w
-        ] += pred * self.blending_matrix[np.newaxis, :]
+        target_dtype = dtype_map[output_dtype]
 
-        self.inference_weights[vol_id][
-            z:z+d, y:y+h, x:x+w
-        ] += self.blending_matrix
+        # Clamp to valid range before conversion for integer types
+        if output_dtype == 'uint8':
+            tensor = torch.clamp(tensor, 0, 255)
+        elif output_dtype == 'int8':
+            tensor = torch.clamp(tensor, -128, 127)
+        elif output_dtype == 'int16':
+            tensor = torch.clamp(tensor, -32768, 32767)
+
+        return tensor.to(target_dtype)
+
+    def _write_outputs(self, logits: torch.Tensor, batch: Dict[str, Any]) -> None:
+        """Persist predictions to disk using MONAI metadata when available."""
+        if not hasattr(self.cfg, 'inference'):
+            return
+
+        output_dir_value = getattr(self.cfg.inference, 'output_path', None)
+        if not output_dir_value:
+            return
+
+        output_dir = Path(output_dir_value)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        meta = batch.get('image_meta_dict')
+        filenames: List[Optional[str]] = []
+
+        if isinstance(meta, dict):
+            meta_filenames = meta.get('filename_or_obj')
+            if isinstance(meta_filenames, (list, tuple)):
+                filenames = list(meta_filenames)
+            elif meta_filenames is not None:
+                filenames = [meta_filenames]
+        elif isinstance(meta, list):
+            for meta_item in meta:
+                if isinstance(meta_item, dict):
+                    filenames.append(meta_item.get('filename_or_obj'))
+
+        batch_size = int(logits.shape[0])
+        resolved_names: List[str] = []
+        for idx in range(batch_size):
+            if idx < len(filenames) and filenames[idx]:
+                resolved_names.append(Path(str(filenames[idx])).stem)
+            else:
+                resolved_names.append(f"volume_{self.global_step}_{idx}")
+
+        # Apply postprocessing (activation + channel selection)
+        tensor = self._apply_postprocessing(logits.detach().cpu().float())
+        # Apply scaling
+        tensor = self._apply_output_scale(tensor)
+        # Apply dtype conversion
+        tensor = self._apply_output_dtype(tensor)
+        data = tensor.numpy()
+
+        from connectomics.data.io import write_hdf5
+
+        for idx, name in enumerate(resolved_names):
+            prediction = data[idx]
+            destination = output_dir / f"{name}_prediction.h5"
+            write_hdf5(str(destination), prediction, dataset="prediction")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the model."""
@@ -340,39 +525,41 @@ class ConnectomicsModule(pl.LightningModule):
         return total_loss
 
     def on_test_start(self):
-        """Called at the beginning of testing to initialize metrics and blending."""
+        """Called at the beginning of testing to initialize metrics and inferer."""
         self._setup_test_metrics()
-        self._setup_inference_blending()
+        self._setup_sliding_window_inferer()
+
+        # Explicitly set eval mode if configured (Lightning does this by default, but be explicit)
+        if hasattr(self.cfg, 'inference') and getattr(self.cfg.inference, 'do_eval', True):
+            self.eval()
+        else:
+            # Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)
+            self.train()
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
-        """Test step with deep supervision support and metrics computation."""
+        """Test step with optional sliding-window inference and metrics computation."""
         images = batch['image']
-        labels = batch.get('label', None)
+        labels = batch.get('label')        
 
-        # Forward pass
-        outputs = self(images)
+        use_sliding_inferer = self.sliding_inferer is not None
 
-        # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
-
-        # Get the main output for metrics
-        if is_deep_supervision:
-            main_output = outputs['output']
+        if use_sliding_inferer:
+            main_output = self.sliding_inferer(
+                inputs=images,
+                network=self._sliding_window_predict,
+            )
+            outputs = main_output
+            is_deep_supervision = False
         else:
-            main_output = outputs
+            outputs = self(images)
+            is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+            main_output = self._extract_main_output(outputs)
 
-        # Accumulate predictions for blending if position metadata available
-        if 'pos' in batch and hasattr(self, 'blending_matrix'):
-            positions = batch['pos']  # (B, 4) - [vol_id, z, y, x]
-            batch_size = main_output.shape[0]
-            for i in range(batch_size):
-                vol_id = int(positions[i, 0])
-                pos = positions[i, 1:]  # [z, y, x]
-                self._accumulate_prediction(main_output[i], pos, vol_id)
+        # Persist predictions if requested
+        self._write_outputs(main_output, batch)
 
         # Compute loss only if labels are available
         if labels is None:
-            # No labels - inference only mode
             return None
 
         total_loss = 0.0
@@ -432,55 +619,6 @@ class ConnectomicsModule(pl.LightningModule):
         self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         return total_loss
-
-    def on_test_epoch_end(self):
-        """Normalize and save blended inference results."""
-        if not hasattr(self, 'inference_results') or len(self.inference_results) == 0:
-            return
-
-        print("\n" + "=" * 60)
-        print("Finalizing inference results with blending")
-        print("=" * 60)
-
-        # Import saving utilities
-        from connectomics.data.io import write_hdf5
-        from pathlib import Path
-
-        # Normalize and save each volume
-        for vol_id in sorted(self.inference_results.keys()):
-            print(f"\nProcessing volume {vol_id}...")
-
-            # Normalize by accumulated weights
-            weights = self.inference_weights[vol_id][np.newaxis, :]  # (1, D, H, W)
-            result = self.inference_results[vol_id] / (weights + 1e-8)
-
-            # Convert to uint8 (0-255 range)
-            result = np.clip(result * 255, 0, 255).astype(np.uint8)
-
-            print(f"  Result shape: {result.shape}")
-            print(f"  Result dtype: {result.dtype}")
-            print(f"  Result range: [{result.min()}, {result.max()}]")
-
-            # Save result
-            if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'output_path'):
-                output_dir = Path(self.cfg.inference.output_path)
-                output_dir.mkdir(parents=True, exist_ok=True)
-
-                output_filename = f"vol{vol_id}_prediction.h5"
-                output_path = output_dir / output_filename
-
-                # Save as HDF5
-                write_hdf5(str(output_path), result, dataset=f'vol{vol_id}')
-                print(f"  Saved to: {output_path}")
-
-        print("\n" + "=" * 60)
-        print(f"Inference complete! Saved {len(self.inference_results)} volume(s)")
-        print("=" * 60 + "\n")
-
-        # Cleanup to free memory
-        del self.inference_results
-        del self.inference_weights
-        del self.blending_matrix
 
     def _match_target_to_output(
         self,

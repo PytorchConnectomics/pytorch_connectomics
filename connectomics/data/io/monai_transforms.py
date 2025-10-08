@@ -43,11 +43,21 @@ class LoadVolumed(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d and isinstance(d[key], str):
-                volume = read_volume(d[key])
+                source_path = d[key]
+                volume = read_volume(source_path)
                 # Ensure we have at least 4 dimensions (add channel if needed)
                 if volume.ndim == 3:
                     volume = np.expand_dims(volume, axis=0)
                 d[key] = volume
+                meta_key = f"{key}_meta_dict"
+                meta_dict = dict(d.get(meta_key, {}))
+                meta_dict.update({
+                    'filename_or_obj': source_path,
+                    'original_shape': tuple(volume.shape),
+                    'spatial_shape': tuple(volume.shape[1:]),
+                    'channels_first': True,
+                })
+                d[meta_key] = meta_dict
         return d
 
 

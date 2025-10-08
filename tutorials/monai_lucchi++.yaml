@@ -1,0 +1,159 @@
+# Lucchi mitochondria segmentation with MONAI Residual UNet
+# Electron microscopy (EM) dataset
+#
+# This config uses MONAI's UNet with residual units - a robust baseline
+# for 3D medical image segmentation. The residual connections help with
+# gradient flow and improve performance over standard U-Net.
+
+experiment_name: lucchi++_monai_unet
+description: Mitochondria segmentation on Lucchi++ EM dataset using MONAI Residual UNet
+
+# System
+system:
+  num_gpus: 4
+  num_cpus: 8
+  seed: 42
+
+# Model - MONAI UNet with residual units
+model:
+  architecture: monai_unet
+  input_size: [112, 112, 112]
+  output_size: [112, 112, 112]
+  in_channels: 1
+  out_channels: 2                      # 2 channels for binary segmentation (bg + fg), where DICE works best
+
+  # UNet architecture configuration
+  filters: [28, 36, 48, 64, 80]      # Standard UNet channel progression
+  num_res_units: 2                     # Residual units per block
+  kernel_size: 3                       # Convolution kernel size
+  norm: batch                          # Batch normalization
+  dropout: 0.1                         # Dropout for regularization
+
+  # Loss configuration - Dice for overlap, CE for pixel-wise accuracy
+  loss_functions: [DiceLoss, CrossEntropyLoss]
+  loss_weights: [1.0, 0.5]             # Prioritize Dice (overlap) over CE
+  loss_kwargs:
+    - {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with smoothing
+    - {label_smoothing: 0.1}             # CrossEntropyLoss with label smoothing for regularization
+
+# Data - Using automatic 80/20 train/val split (DeepEM-style)
+data:
+  # Single volume - will be automatically split into train/val
+  train_image: datasets/Lucchi++/train_im.h5
+  train_label: datasets/Lucchi++/train_mito.h5
+
+  # Voxel resolution (physical dimensions in nm: z, y, x)
+  train_resolution: [5, 5, 5]        # Lucchi EM: 5nm isotropic resolution
+
+  # Patch configuration
+  patch_size: [112, 112, 112]          # Larger patches for better context
+  pad_size: [8, 8, 8]                 # Padding for valid convolutions
+
+  # Data loading
+  batch_size: 32
+  num_workers: 8
+
+  # Image normalization
+  image_transform:
+    normalize: "0-1"                   # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.0           # No clipping
+    clip_percentile_high: 1.0
+
+  # Sampling
+  iter_num: 1280                       # 1280 random crops per epoch
+  use_preloaded_cache: true            # Load volumes into memory for fast training
+  split_enabled: false
+
+# Augmentation
+augmentation:
+  enabled: true
+
+# Visualization - TensorBoard visualization
+visualization:
+  enabled: true
+  max_images: 8
+  num_slices: 2
+  log_every_n_steps: -1                # Log at epoch end
+
+# Optimizer - AdamW with optimized hyperparameters
+optimizer:
+  name: AdamW
+  lr: 0.001                            # Higher initial LR (will use warmup)
+  weight_decay: 0.01                   # L2 regularization
+  betas: [0.9, 0.999]                  # Standard Adam betas (momentum terms)
+  eps: 1.0e-8                          # Numerical stability
+
+# Scheduler - Cosine annealing with warmup for smooth convergence
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 50                    # Longer warmup for stability with higher LR
+  warmup_start_lr: 1.0e-6              # Start very small to avoid early instability
+  min_lr: 1.0e-6                       # Minimum LR (same as warmup start for symmetry)
+  t_max: 950                           # 1000 - 50 = 950 epochs for cosine decay
+
+# Training
+training:
+  max_epochs: 1000
+  gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"              # BFloat16 mixed precision
+
+  # Validation frequency
+  val_check_interval: 1.0
+  log_every_n_steps: 10
+  benchmark: true
+
+# Checkpoint
+checkpoint:
+  monitor: train_loss_total_epoch
+  dirpath: outputs/lucchi++_monai_unet/checkpoints/
+  filename: epoch={epoch:03d}-loss={train_loss_total_epoch:.4f}
+
+# Early stopping - More patient for better convergence
+early_stopping:
+  enabled: true
+  monitor: train_loss_total_epoch
+  patience: 300                    # Increased patience (was 200)
+  mode: min
+  min_delta: 1.0e-5                # Smaller threshold for finer convergence
+  check_finite: true               # Stop if monitored metric becomes NaN/inf
+  stopping_threshold: 0.01         # Stop if loss gets this low (excellent convergence)
+  divergence_threshold: 2.0        # Stop if loss exceeds this (training collapse)
+
+# Inference - MONAI SlidingWindowInferer
+inference:
+  test_image: datasets/Lucchi++/test_im.h5
+  test_label: datasets/Lucchi++/test_mito.h5
+  #test_image: datasets/Lucchi++/train_im.h5
+  #test_label: datasets/Lucchi++/train_mito.h5
+  test_resolution: [5, 5, 5]
+  output_path: outputs/lucchi_monai_unet/results/
+
+  # MONAI SlidingWindowInferer parameters
+  window_size: [112, 112, 112]         # Patch size extracted from volume
+  sw_batch_size: 32                     # Number of patches processed simultaneously (NOT same as batch_size)
+  overlap: 0.5                         # 50% overlap between patches
+  blending: gaussian                   # Gaussian weighting for smooth blending
+  padding_mode: constant               # Zero-padding at volume boundaries
+
+  # Postprocessing configuration
+  output_act: softmax                  # Apply softmax activation ('softmax', 'sigmoid', or null for raw logits)
+  output_channel: [1]                  # Save only channel 1 (foreground); use -1 or null for all channels
+  output_scale: 255                  # Scale predictions to [0, 255] for saving
+  output_dtype: uint8                  # Save as uint8
+
+  # Evaluation
+  do_eval: true                        # Use eval mode for BatchNorm
+  metrics: [jaccard]             # Metrics to compute
+
+  # Inference-specific overrides (override system/data settings)
+  # Use -1 to keep training values, or set specific values to override
+  num_gpus: 1                          # Override to use single GPU for inference
+  num_cpus: 1                         # Keep training value
+  batch_size: 1                        # Always 1 for inference (one volume at a time)
+  num_workers: 4                       # Override for inference dataloader
+
+  # NOTE: batch_size=1 for inference
+  #   During training: batch_size controls how many random patches to load
+  #   During inference: batch_size=1 means process one full volume at a time
+  #   sw_batch_size (above) controls how many patches are processed per GPU forward pass

@@ -63,3 +63,26 @@ slurm partition num_cpu num_gpu cmd:
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:
     python scripts/slurm_launcher.py --config {{config}}
+# ============================================================================
+# Visualization Commands
+# ============================================================================
+
+# Visualize volumes with Neuroglancer from config (e.g., just visualize tutorials/monai_lucchi.yaml test )
+visualize config mode *ARGS='':
+    python -i scripts/visualize_neuroglancer.py --config {{config}} --mode {{mode}} {{ARGS}}
+
+# Visualize specific image and label files (e.g., just visualize-files datasets/img.tif datasets/label.h5)
+visualize-files image label *ARGS='':
+    python -i scripts/visualize_neuroglancer.py --image {{image}} --label {{label}} {{ARGS}}
+
+# Visualize multiple volumes with custom names (e.g., just visualize-volumes image:path/img.tif label:path/lbl.h5)
+visualize-volumes +volumes:
+    python -i scripts/visualize_neuroglancer.py --volumes {{volumes}}
+
+# Visualize on custom port (e.g., just visualize-port 8080 tutorials/monai_lucchi.yaml)
+visualize-port port config *ARGS='':
+    python -i scripts/visualize_neuroglancer.py --config {{config}} --port {{port}} {{ARGS}}
+
+# Visualize with remote access (use 0.0.0.0 for public IP, e.g., just visualize-remote 8080 tutorials/monai_lucchi.yaml)
+visualize-remote port config *ARGS='':
+    python -i scripts/visualize_neuroglancer.py --config {{config}} --ip 0.0.0.0 --port {{port}} {{ARGS}}

@@ -23,14 +23,16 @@ class CrossEntropyLossWrapper(nn.Module):
         weight: Class weights
         ignore_index: Index to ignore
         reduction: Reduction method
+        label_smoothing: Label smoothing factor (0.0 = no smoothing, 0.1 = 10% smoothing)
     """
 
-    def __init__(self, weight=None, ignore_index=-100, reduction='mean'):
+    def __init__(self, weight=None, ignore_index=-100, reduction='mean', label_smoothing=0.0):
         super().__init__()
         self.ce_loss = nn.CrossEntropyLoss(
             weight=weight,
             ignore_index=ignore_index,
-            reduction=reduction
+            reduction=reduction,
+            label_smoothing=label_smoothing
         )
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:

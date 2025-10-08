@@ -72,6 +72,7 @@ from connectomics.lightning import (
 from connectomics.data.augment.build import (
     build_train_transforms,
     build_val_transforms,
+    build_test_transforms,
 )
 
 
@@ -201,9 +202,12 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
     # Build transforms
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
+    test_transforms = build_test_transforms(cfg) if mode in ['test', 'predict'] else val_transforms
 
     print(f"  Train transforms: {len(train_transforms.transforms)} steps")
     print(f"  Val transforms: {len(val_transforms.transforms)} steps")
+    if mode in ['test', 'predict']:
+        print(f"  Test transforms: {len(test_transforms.transforms)} steps (no cropping for sliding window)")
 
     # Check if automatic train/val split is enabled
     if cfg.data.split_enabled and not cfg.data.val_image:
@@ -364,6 +368,12 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
     # Create DataModule
     print("Creating data loaders...")
 
+    # For test/predict mode, disable iter_num (process full volumes once)
+    if mode in ['test', 'predict']:
+        iter_num_for_dataset = -1  # Process full volumes without random sampling
+    else:
+        iter_num_for_dataset = iter_num
+
     # Use optimized pre-loaded cache when iter_num > 0 (only for training mode)
     use_preloaded = cfg.data.use_preloaded_cache and iter_num > 0 and mode == 'train'
 
@@ -431,7 +441,7 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
             transforms={
                 'train': train_transforms,
                 'val': val_transforms,
-                'test': val_transforms,
+                'test': test_transforms,
             },
             dataset_type='cached' if use_cache else 'standard',
             batch_size=cfg.data.batch_size,
@@ -439,7 +449,7 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
             pin_memory=cfg.data.pin_memory,
             persistent_workers=cfg.data.persistent_workers,
             cache_rate=cfg.data.cache_rate if use_cache else 0.0,
-            iter_num=iter_num,
+            iter_num=iter_num_for_dataset,
             sample_size=tuple(cfg.data.patch_size),
         )
         # Setup datasets based on mode
@@ -556,7 +566,11 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False, ckpt_
             mode=cfg.early_stopping.mode,
             min_delta=cfg.early_stopping.min_delta,
             verbose=True,
-            check_on_train_epoch_end=True,  # Fix for resume bug - check at end of train epoch
+            check_on_train_epoch_end=True,  # Check at end of train epoch (not validation)
+            check_finite=cfg.early_stopping.check_finite,  # Stop on NaN/inf
+            stopping_threshold=cfg.early_stopping.stopping_threshold,
+            divergence_threshold=cfg.early_stopping.divergence_threshold,
+            strict=False,  # Don't crash if metric not available (wait for it)
         )
 
         # Manually set best_score if extracted from checkpoint

@@ -196,6 +196,82 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     return Compose(transforms)
 
 
+def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+    """
+    Build test/inference transforms from Hydra config.
+
+    Similar to validation transforms but WITHOUT cropping to enable
+    sliding window inference on full volumes.
+
+    Args:
+        cfg: Hydra Config object
+        keys: Keys to transform (default: ['image', 'label'])
+
+    Returns:
+        Composed MONAI transforms (no augmentation, no cropping)
+    """
+    if keys is None:
+        keys = ['image', 'label']
+
+    transforms = []
+
+    # Load images first
+    transforms.append(LoadVolumed(keys=keys))
+
+    # Apply volumetric split if enabled (though typically not used for test)
+    if cfg.data.split_enabled:
+        from connectomics.data.utils import ApplyVolumetricSplitd
+        transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
+    if patch_size and all(size > 0 for size in patch_size):
+        transforms.append(
+            SpatialPadd(
+                keys=keys,
+                spatial_size=patch_size,
+                constant_values=0.0,
+            )
+        )
+
+    # NOTE: No CenterSpatialCropd here - we want full volumes for sliding window inference!
+
+    # Normalization - use smart normalization
+    if cfg.data.normalize != "none":
+        transforms.append(
+            SmartNormalizeIntensityd(
+                keys=['image'],
+                mode=cfg.data.normalize,
+                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
+                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
+            )
+        )
+
+    # Normalize labels to 0-1 range if enabled
+    if getattr(cfg.data, 'normalize_labels', False):
+        transforms.append(
+            NormalizeLabelsd(keys=['label'])
+        )
+
+    # Label transformations (affinity, distance transform, etc.)
+    if hasattr(cfg.data, 'label_transform'):
+        from ..process.build import create_multi_task_pipeline
+        from ..process.monai_transforms import SegErosionInstanced
+        label_cfg = cfg.data.label_transform
+
+        # Apply instance erosion first if specified
+        if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
+            transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
+
+        # Build multi-task pipeline directly from label_transform config
+        multi_task_pipeline = create_multi_task_pipeline(label_cfg)
+        transforms.extend(multi_task_pipeline.transforms)
+
+    # Final conversion to tensor with float32 dtype
+    transforms.append(ToTensord(keys=keys, dtype=torch.float32))
+
+    return Compose(transforms)
+
+
 def build_inference_transforms(cfg: Config) -> Compose:
     """
     Build inference transforms from Hydra config.
@@ -403,6 +479,7 @@ def build_transform_dict(cfg: Config) -> Dict[str, Compose]:
 __all__ = [
     'build_train_transforms',
     'build_val_transforms',
+    'build_test_transforms',
     'build_inference_transforms',
     'build_transform_dict',
 ]

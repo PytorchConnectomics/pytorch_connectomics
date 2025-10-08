@@ -161,14 +161,15 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
                     random_size=False,
                 )
             )
-        else:
-            # Center cropping for validation/test to ensure consistent patch size
+        elif mode == 'val':
+            # Center cropping for validation to ensure consistent patch size
             transforms.append(
                 CenterSpatialCropd(
                     keys=keys,
                     roi_size=crop_size,
                 )
             )
+        # For test mode, return full volumes to enable sliding-window inference
 
         # TODO: Add normalization transforms here if needed
         # Could use ScaleIntensityd, NormalizeIntensityd, etc.
@@ -241,14 +242,15 @@ class MonaiCachedVolumeDataset(CacheDataset):
                         random_size=False,
                     )
                 )
-            else:
-                # Center cropping for validation/test
+            elif mode == 'val':
+                # Center cropping for validation
                 transforms.append(
                     CenterSpatialCropd(
                         keys=keys,
                         roi_size=crop_size,
                     )
                 )
+            # For test mode, return full volumes to enable sliding-window inference
 
             transforms = Compose(transforms)
 

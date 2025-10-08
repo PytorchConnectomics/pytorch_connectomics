@@ -136,6 +136,10 @@ class DataConfig:
     pad_size: List[int] = field(default_factory=lambda: [8, 32, 32])
     stride: List[int] = field(default_factory=lambda: [1, 1, 1])  # Sampling stride (z, y, x)
 
+    # Voxel resolution (physical dimensions in nm)
+    train_resolution: Optional[List[float]] = None  # Training data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    test_resolution: Optional[List[float]] = None   # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+
     # Dataset statistics (for auto-planning)
     target_spacing: Optional[List[float]] = None  # Target voxel spacing [z, y, x] in mm
     median_shape: Optional[List[int]] = None  # Median dataset shape [D, H, W] in voxels
@@ -253,8 +257,11 @@ class EarlyStoppingConfig:
     enabled: bool = True
     monitor: str = "val/loss"
     patience: int = 10
-    mode: str = "min"
+    mode: str = "min"  # 'min' or 'max'
     min_delta: float = 0.0
+    check_finite: bool = True  # Stop training if monitored metric becomes NaN or inf
+    stopping_threshold: Optional[float] = None  # Stop if metric reaches this value
+    divergence_threshold: Optional[float] = None  # Stop if metric diverges beyond this value
 
 
 # Augmentation configurations
@@ -404,21 +411,33 @@ class InferenceConfig:
     """Inference configuration."""
     test_image: Optional[str] = None
     test_label: Optional[str] = None
+    test_resolution: Optional[List[float]] = None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
     output_path: str = "results/"
+    window_size: Optional[List[int]] = None
+    sw_batch_size: int = 1
     stride: List[int] = field(default_factory=lambda: [64, 64, 64])
     overlap: float = 0.5
     test_time_augmentation: bool = False
     tta_num: int = 4
 
     # Blending configuration for patch-based inference
-    blending: str = "gaussian"  # 'gaussian' or 'bump' - blending mode for overlapping patches
+    blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
     do_eval: bool = True        # Use eval mode (vs train mode for BatchNorm)
-    output_scale: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])  # Output scaling factor
+    padding_mode: str = "constant"  # Padding mode at volume boundaries
+
+    # Output configuration
+    output_scale: float = 255.0  # Scale predictions for saving (e.g., 255.0 for uint8)
+    output_dtype: str = "uint8"  # Output data type: 'uint8', 'uint16', 'float32'
+
+    # Postprocessing configuration
+    output_act: Optional[str] = None  # Activation function: 'softmax', 'sigmoid', None (raw logits)
+    output_channel: Any = None  # Channel selection: -1 (all), [1] (channel 1), [0,1] (channels 0&1), None (all) - supports int or list
 
     # Test metrics configuration (optional)
-    metrics: Optional[List[str]] = None  # e.g., ['jaccard', 'dice', 'accuracy']
+    metrics: Optional[List[str]] = None  # e.g., ['dice', 'jaccard', 'accuracy']
 
     # Inference-specific overrides (override system/data settings during inference)
+    # Use -1 to keep training values, or >= 0 to override
     num_gpus: int = -1          # Override system.num_gpus if >= 0
     num_cpus: int = -1          # Override system.num_cpus if >= 0
     batch_size: int = -1        # Override data.batch_size if >= 0
