@@ -86,7 +86,6 @@ data:
   # Multi-channel label transformation
   # Transforms instance segmentation labels into multiple output channels
   label_transform:
-    normalize: true             # Convert labels to 0-1 range
     erosion: 1                  # Border erosion (seg_widen_border with 3×3×1 kernel)
                                 # Marks boundary voxels as background (Kisuk Lee's preprocessing)
 

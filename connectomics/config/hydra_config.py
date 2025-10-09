@@ -249,6 +249,7 @@ class CheckpointConfig:
     save_every_n_epochs: int = 10
     dirpath: str = "checkpoints/"
     filename: str = "epoch={epoch:03d}-val_loss={val/loss:.4f}"
+    use_timestamp: bool = True  # Create timestamped subdirectories (YYYYMMDD_HHMMSS)
 
 
 @dataclass
@@ -418,10 +419,14 @@ class InferenceConfig:
     stride: List[int] = field(default_factory=lambda: [64, 64, 64])
     overlap: float = 0.5
     test_time_augmentation: bool = False
-    tta_num: int = 4
+    tta_flip_axes: Any = "all"  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
+    tta_ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
+    tta_act: Optional[str] = None  # Activation before TTA ensemble: 'softmax', 'sigmoid', None
+    tta_channel: Any = None  # Channel selection before TTA ensemble: null (all), [1] (foreground), -1 (all)
 
     # Blending configuration for patch-based inference
     blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
+    sigma_scale: float = 0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
     do_eval: bool = True        # Use eval mode (vs train mode for BatchNorm)
     padding_mode: str = "constant"  # Padding mode at volume boundaries
 

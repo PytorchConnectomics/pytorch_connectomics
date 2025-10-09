@@ -62,7 +62,6 @@ data:
   # Sampling
   iter_num: 1280                       # 1280 random crops per epoch
   use_preloaded_cache: true            # Load volumes into memory for fast training
-  split_enabled: false
 
 # Augmentation
 augmentation:
@@ -108,6 +107,7 @@ checkpoint:
   monitor: train_loss_total_epoch
   dirpath: outputs/lucchi++_monai_unet/checkpoints/
   filename: epoch={epoch:03d}-loss={train_loss_total_epoch:.4f}
+  use_timestamp: false              # Disable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
 # Early stopping - More patient for better convergence
 early_stopping:
@@ -127,19 +127,32 @@ inference:
   #test_image: datasets/Lucchi++/train_im.h5
   #test_label: datasets/Lucchi++/train_mito.h5
   test_resolution: [5, 5, 5]
-  output_path: outputs/lucchi_monai_unet/results/
+  output_path: outputs/lucchi++_monai_unet/results/
 
   # MONAI SlidingWindowInferer parameters
   window_size: [112, 112, 112]         # Patch size extracted from volume
   sw_batch_size: 32                     # Number of patches processed simultaneously (NOT same as batch_size)
   overlap: 0.5                         # 50% overlap between patches
   blending: gaussian                   # Gaussian weighting for smooth blending
-  padding_mode: constant               # Zero-padding at volume boundaries
+  sigma_scale: 0.25                   # Gaussian sigma scale (larger = smoother blending, default: 0.125)
+  padding_mode: reflect                # Reflection-padding at volume boundaries
 
-  # Postprocessing configuration
-  output_act: softmax                  # Apply softmax activation ('softmax', 'sigmoid', or null for raw logits)
-  output_channel: [1]                  # Save only channel 1 (foreground); use -1 or null for all channels
-  output_scale: 255                  # Scale predictions to [0, 255] for saving
+  # Test-Time Augmentation (TTA)
+  test_time_augmentation: true        # Enable TTA for improved predictions
+  tta_flip_axes: all                   # Flip strategy: "all" (8 flips, 8x slower), null (no aug, 1x), or custom list
+  #tta_flip_axes: [[1]]                   # Flip Z-axis only (MUST use [1] for depth in BCDHW, NOT [0]!)
+  # Example custom TTA: [[1], [2], [3]] for single-axis flips only (Z, Y, X) - 4x inference
+  # Example custom TTA: [[1, 2], [1, 3], [2, 3]] for two-axis flips only - 4x inference
+  tta_act: softmax                     # Activation BEFORE ensemble: 'softmax' (probability-space), 'sigmoid', null (logit-space)
+  tta_channel: [1]                    # Channel selection BEFORE ensemble: null (all channels), [1] (foreground only), -1 (all)
+  tta_ensemble_mode: mean              # Ensemble strategy: 'mean' (average), 'min' (conservative), 'max' (aggressive)
+  # NOTE: If tta_channel selects specific channels, loss computation will be skipped (loss needs all class channels)
+
+  
+  # Postprocessing configuration (applied AFTER TTA if enabled)
+  #output_act: softmax                  # Activation BEFORE ensemble: 'softmax' (probability-space), 'sigmoid', null (logit-space)
+  #output_channel: [1]                  # Channel selection BEFORE ensemble: null (all channels), [1] (foreground only), -1 (all)
+  output_scale: 255                    # Scale predictions to [0, 255] for saving
   output_dtype: uint8                  # Save as uint8
 
   # Evaluation
@@ -150,7 +163,6 @@ inference:
   # Use -1 to keep training values, or set specific values to override
   num_gpus: 1                          # Override to use single GPU for inference
   num_cpus: 1                         # Keep training value
-  batch_size: 1                        # Always 1 for inference (one volume at a time)
   num_workers: 4                       # Override for inference dataloader
 
   # NOTE: batch_size=1 for inference

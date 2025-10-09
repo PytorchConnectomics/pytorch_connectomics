@@ -653,15 +653,20 @@ def main():
     print("=" * 60)
     cfg = setup_config(args)
 
-    # Create run directory with timestamp
+    # Create run directory (optionally with timestamp)
     # Structure: outputs/experiment_name/YYYYMMDD_HHMMSS/{checkpoints,logs,config.yaml}
-    from datetime import datetime
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
+    # Or without timestamp: outputs/experiment_name/{checkpoints,logs,config.yaml}
     output_base = Path(cfg.checkpoint.dirpath).parent
-    run_dir = output_base / timestamp
-    run_dir.mkdir(parents=True, exist_ok=True)
 
+    use_timestamp = getattr(cfg.checkpoint, 'use_timestamp', True)
+    if use_timestamp:
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = output_base / timestamp
+    else:
+        run_dir = output_base
+
+    run_dir.mkdir(parents=True, exist_ok=True)
     print(f"📁 Run directory: {run_dir}")
 
     # Save config to run directory

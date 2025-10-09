@@ -21,6 +21,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig
 import torchmetrics
 from monai.inferers import SlidingWindowInferer
+from monai.transforms import Flip
 
 # Import existing components
 from ..models import build_model
@@ -137,6 +138,7 @@ class ConnectomicsModule(pl.LightningModule):
         overlap = self._resolve_inferer_overlap(roi_size)
         sw_batch_size = max(1, int(getattr(self.cfg.inference, 'sw_batch_size', 1)))
         mode = getattr(self.cfg.inference, 'blending', 'gaussian')
+        sigma_scale = float(getattr(self.cfg.inference, 'sigma_scale', 0.125))
         padding_mode = getattr(self.cfg.inference, 'padding_mode', 'constant')
 
         self.sliding_inferer = SlidingWindowInferer(
@@ -144,6 +146,7 @@ class ConnectomicsModule(pl.LightningModule):
             sw_batch_size=sw_batch_size,
             overlap=overlap,
             mode=mode,
+            sigma_scale=sigma_scale,
             padding_mode=padding_mode,
             progress=True,
         )
@@ -151,7 +154,7 @@ class ConnectomicsModule(pl.LightningModule):
         print(
             "  Sliding-window inference configured: "
             f"roi_size={roi_size}, overlap={overlap}, sw_batch={sw_batch_size}, "
-            f"mode={mode}, padding={padding_mode}"
+            f"mode={mode}, sigma_scale={sigma_scale}, padding={padding_mode}"
         )
 
     def _resolve_inferer_roi_size(self) -> Optional[Tuple[int, ...]]:
@@ -211,6 +214,168 @@ class ConnectomicsModule(pl.LightningModule):
         """Wrapper used by MONAI inferer to obtain primary model predictions."""
         outputs = self.forward(inputs)
         return self._extract_main_output(outputs)
+
+    def _apply_tta_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
+        """
+        Apply activation and channel selection before TTA ensemble.
+
+        Args:
+            tensor: Raw predictions (B, C, D, H, W)
+
+        Returns:
+            Preprocessed tensor for TTA ensembling
+        """
+        if not hasattr(self.cfg, 'inference'):
+            return tensor
+
+        # Get TTA-specific activation or fall back to output_act
+        tta_act = getattr(self.cfg.inference, 'tta_act', None)
+        if tta_act is None:
+            tta_act = getattr(self.cfg.inference, 'output_act', None)
+
+        # Apply activation function
+        if tta_act == 'softmax':
+            tensor = torch.softmax(tensor, dim=1)
+        elif tta_act == 'sigmoid':
+            tensor = torch.sigmoid(tensor)
+        elif tta_act is not None and tta_act.lower() != 'none':
+            warnings.warn(
+                f"Unknown TTA activation function '{tta_act}'. Supported: 'softmax', 'sigmoid', None",
+                UserWarning,
+            )
+
+        # Get TTA-specific channel selection or fall back to output_channel
+        tta_channel = getattr(self.cfg.inference, 'tta_channel', None)
+        if tta_channel is None:
+            tta_channel = getattr(self.cfg.inference, 'output_channel', None)
+
+        # Apply channel selection
+        if tta_channel is not None:
+            if isinstance(tta_channel, int):
+                if tta_channel == -1:
+                    # -1 means all channels
+                    pass
+                else:
+                    # Single channel selection
+                    tensor = tensor[:, tta_channel:tta_channel+1, ...]
+            elif isinstance(tta_channel, (list, tuple)):
+                # Multiple channel selection
+                tensor = tensor[:, list(tta_channel), ...]
+
+        return tensor
+
+    def _predict_with_tta(self, images: torch.Tensor) -> torch.Tensor:
+        """
+        Perform test-time augmentation using flips and ensemble predictions.
+
+        Args:
+            images: Input volume (B, C, D, H, W) or (B, D, H, W) or (D, H, W)
+
+        Returns:
+            Averaged predictions from all TTA variants
+        """
+        # Normalize input to 5D tensor (B, C, D, H, W)
+        if images.ndim == 3:
+            # (D, H, W) -> (1, 1, D, H, W)
+            images = images.unsqueeze(0).unsqueeze(0)
+            warnings.warn(
+                f"Input shape {images.shape} (D, H, W) automatically expanded to (1, 1, D, H, W)",
+                UserWarning,
+            )
+        elif images.ndim == 4:
+            # (B, D, H, W) -> (B, 1, D, H, W)
+            images = images.unsqueeze(1)
+            warnings.warn(
+                f"Input shape (B, D, H, W) automatically expanded to (B, 1, D, H, W)",
+                UserWarning,
+            )
+        elif images.ndim != 5:
+            raise ValueError(
+                f"TTA requires 3D, 4D, or 5D input tensor. Got {images.ndim}D tensor with shape {images.shape}. "
+                f"Expected shapes: (D, H, W), (B, D, H, W), or (B, C, D, H, W)"
+            )
+
+        # Get TTA configuration
+        tta_flip_axes_config = getattr(self.cfg.inference, 'tta_flip_axes', 'all')
+
+        # Handle different tta_flip_axes configurations
+        if tta_flip_axes_config is None:
+            # null: No augmentation, skip TTA preprocessing and return raw prediction
+            if self.sliding_inferer is not None:
+                return self.sliding_inferer(inputs=images, network=self._sliding_window_predict)
+            else:
+                return self._sliding_window_predict(images)
+
+        elif tta_flip_axes_config == 'all' or tta_flip_axes_config == []:
+            # "all" or []: All 8 flips (all combinations of Z, Y, X)
+            # IMPORTANT: MONAI Flip spatial_axis behavior for (B, C, D, H, W) tensors:
+            #   spatial_axis=[0] flips C (channel) - WRONG for TTA!
+            #   spatial_axis=[1] flips D (depth/Z) - CORRECT
+            #   spatial_axis=[2] flips H (height/Y) - CORRECT
+            #   spatial_axis=[3] flips W (width/X) - CORRECT
+            # Must use [1, 2, 3] for [D, H, W] flips, NOT [0, 1, 2]!
+            tta_flip_axes = [
+                [],           # No flip
+                [1],          # Flip Z (depth)
+                [2],          # Flip Y (height)
+                [3],          # Flip X (width)
+                [1, 2],       # Flip Z+Y
+                [1, 3],       # Flip Z+X
+                [2, 3],       # Flip Y+X
+                [1, 2, 3],    # Flip Z+Y+X
+            ]
+        elif isinstance(tta_flip_axes_config, (list, tuple)):
+            # Custom list: Add no-flip baseline + user-specified flips
+            tta_flip_axes = [[]] + list(tta_flip_axes_config)
+        else:
+            raise ValueError(
+                f"Invalid tta_flip_axes: {tta_flip_axes_config}. "
+                f"Expected 'all' (8 flips), null (no aug), or list of flip axes."
+            )
+
+        # Apply TTA with flips, preprocessing, and ensembling
+        predictions = []
+
+        for flip_axes in tta_flip_axes:
+            # Apply flip augmentation
+            if flip_axes:
+                x_aug = Flip(spatial_axis=flip_axes)(images)
+            else:
+                x_aug = images
+
+            # Inference with sliding window
+            if self.sliding_inferer is not None:
+                pred = self.sliding_inferer(
+                    inputs=x_aug,
+                    network=self._sliding_window_predict,
+                )
+            else:
+                pred = self._sliding_window_predict(x_aug)
+
+            # Invert flip for prediction
+            if flip_axes:
+                pred = Flip(spatial_axis=flip_axes)(pred)
+
+            # Apply TTA preprocessing (activation + channel selection) if configured
+            # Note: This is applied BEFORE ensembling for probability-space averaging
+            pred_processed = self._apply_tta_preprocessing(pred)
+
+            predictions.append(pred_processed)
+
+        # Ensemble predictions based on configured mode
+        ensemble_mode = getattr(self.cfg.inference, 'tta_ensemble_mode', 'mean')
+        stacked_preds = torch.stack(predictions, dim=0)
+
+        if ensemble_mode == 'mean':
+            ensemble_result = stacked_preds.mean(dim=0)
+        elif ensemble_mode == 'min':
+            ensemble_result = stacked_preds.min(dim=0)[0]  # min returns (values, indices)
+        elif ensemble_mode == 'max':
+            ensemble_result = stacked_preds.max(dim=0)[0]  # max returns (values, indices)
+        else:
+            raise ValueError(f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'.")
+
+        return ensemble_result
 
     def _apply_postprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -539,11 +704,20 @@ class ConnectomicsModule(pl.LightningModule):
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Test step with optional sliding-window inference and metrics computation."""
         images = batch['image']
-        labels = batch.get('label')        
+        labels = batch.get('label')
 
+        # Check if TTA is enabled and actually doing augmentation
+        tta_enabled = hasattr(self.cfg, 'inference') and getattr(self.cfg.inference, 'test_time_augmentation', False)
+        tta_flip_axes = getattr(self.cfg.inference, 'tta_flip_axes', 'all') if hasattr(self.cfg, 'inference') else 'all'
+        use_tta = tta_enabled and tta_flip_axes is not None  # Only use TTA if flip_axes is not null
         use_sliding_inferer = self.sliding_inferer is not None
 
-        if use_sliding_inferer:
+        if use_tta:
+            # Use test-time augmentation
+            main_output = self._predict_with_tta(images)
+            outputs = main_output
+            is_deep_supervision = False
+        elif use_sliding_inferer:
             main_output = self.sliding_inferer(
                 inputs=images,
                 network=self._sliding_window_predict,
@@ -558,50 +732,71 @@ class ConnectomicsModule(pl.LightningModule):
         # Persist predictions if requested
         self._write_outputs(main_output, batch)
 
-        # Compute loss only if labels are available
+        # Determine if we should skip loss computation
+        skip_loss = False
         if labels is None:
-            return None
+            skip_loss = True
+        elif use_tta:
+            # Skip loss computation if TTA preprocessing changed the output shape
+            # (e.g., channel selection makes it incompatible with loss functions)
+            tta_channel = getattr(self.cfg.inference, 'tta_channel', None)
+            if tta_channel is None:
+                tta_channel = getattr(self.cfg.inference, 'output_channel', None)
+
+            # If channel selection was applied, skip loss computation but keep metrics
+            if tta_channel is not None and tta_channel != -1:
+                skip_loss = True
+                print("⚠️  Skipping loss computation (TTA channel selection enabled). Metrics will still be computed.")
 
         total_loss = 0.0
         loss_dict = {}
 
-        if is_deep_supervision:
-            # Multi-scale loss with deep supervision
-            ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
+        # Compute loss only if not skipped
+        if not skip_loss:
+            if is_deep_supervision:
+                # Multi-scale loss with deep supervision
+                ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
 
-            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
-            all_outputs = [main_output] + ds_outputs
+                ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+                all_outputs = [main_output] + ds_outputs
 
-            for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
-                # Match target to output size
-                target = self._match_target_to_output(labels, output)
+                for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
+                    # Match target to output size
+                    target = self._match_target_to_output(labels, output)
 
-                # Compute loss for this scale
-                scale_loss = 0.0
-                for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                    loss = loss_fn(output, target)
-                    scale_loss += loss * weight
+                    # Compute loss for this scale
+                    scale_loss = 0.0
+                    for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                        loss = loss_fn(output, target)
+                        scale_loss += loss * weight
 
-                total_loss += scale_loss * ds_weight
-                loss_dict[f'test_loss_scale_{scale_idx}'] = scale_loss.item()
+                    total_loss += scale_loss * ds_weight
+                    loss_dict[f'test_loss_scale_{scale_idx}'] = scale_loss.item()
 
-            loss_dict['test_loss_total'] = total_loss.item()
+                loss_dict['test_loss_total'] = total_loss.item()
 
-        else:
-            # Standard single-scale loss
-            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                loss = loss_fn(outputs, labels)
-                weighted_loss = loss * weight
-                total_loss += weighted_loss
+            else:
+                # Standard single-scale loss
+                for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                    loss = loss_fn(outputs, labels)
+                    weighted_loss = loss * weight
+                    total_loss += weighted_loss
 
-                loss_dict[f'test_loss_{i}'] = loss.item()
+                    loss_dict[f'test_loss_{i}'] = loss.item()
 
-            loss_dict['test_loss_total'] = total_loss.item()
+                loss_dict['test_loss_total'] = total_loss.item()
 
-        # Compute metrics on main output (only if metrics are configured)
-        if self.test_jaccard is not None or self.test_dice is not None or self.test_accuracy is not None:
-            # Convert logits to predictions
-            preds = torch.argmax(main_output, dim=1)  # (B, D, H, W)
+        # Compute metrics on main output (only if metrics are configured and labels available)
+        # Metrics can be computed even if loss is skipped (e.g., with TTA channel selection)
+        if labels is not None and (self.test_jaccard is not None or self.test_dice is not None or self.test_accuracy is not None):
+            # Convert logits/probabilities to predictions
+            # Check if main_output has multiple channels (need argmax) or single channel (already predicted)
+            if main_output.shape[1] > 1:
+                preds = torch.argmax(main_output, dim=1)  # (B, D, H, W)
+            else:
+                # Single channel output (already predicted class or probability)
+                preds = (main_output.squeeze(1) > 0.5).long()  # (B, D, H, W)
+
             targets = labels.squeeze(1).long()  # (B, D, H, W)
 
             # Update and log metrics (only if initialized)
@@ -615,10 +810,12 @@ class ConnectomicsModule(pl.LightningModule):
                 self.test_accuracy(preds, targets)
                 self.log('test_accuracy', self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True)
 
-        # Log losses
-        self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        # Log losses (only if loss was computed)
+        if not skip_loss and loss_dict:
+            self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        return total_loss
+        # Return loss if computed, otherwise None
+        return total_loss if not skip_loss else None
 
     def _match_target_to_output(
         self,
