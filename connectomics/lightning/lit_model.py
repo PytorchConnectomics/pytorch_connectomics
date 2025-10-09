@@ -300,11 +300,14 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Handle different tta_flip_axes configurations
         if tta_flip_axes_config is None:
-            # null: No augmentation, skip TTA preprocessing and return raw prediction
+            # null: No augmentation, but still apply tta_act and tta_channel (no ensemble)
             if self.sliding_inferer is not None:
-                return self.sliding_inferer(inputs=images, network=self._sliding_window_predict)
+                pred = self.sliding_inferer(inputs=images, network=self._sliding_window_predict)
             else:
-                return self._sliding_window_predict(images)
+                pred = self._sliding_window_predict(images)
+            
+            # Apply TTA preprocessing (activation + channel selection) even without augmentation
+            return self._apply_tta_preprocessing(pred)
 
         elif tta_flip_axes_config == 'all' or tta_flip_axes_config == []:
             # "all" or []: All 8 flips (all combinations of Z, Y, X)
@@ -530,6 +533,69 @@ class ConnectomicsModule(pl.LightningModule):
             destination = output_dir / f"{name}_prediction.h5"
             write_hdf5(str(destination), prediction, dataset="prediction")
 
+    def _compute_multitask_loss(self, outputs: torch.Tensor, labels: torch.Tensor) -> tuple:
+        """
+        Compute losses for multi-task learning where different output channels
+        correspond to different targets with specific losses.
+        
+        Args:
+            outputs: Model outputs (B, C, D, H, W) where C contains all task channels
+            labels: Ground truth labels (B, C, D, H, W) where C contains all target channels
+            
+        Returns:
+            Tuple of (total_loss, loss_dict)
+        """
+        total_loss = 0.0
+        loss_dict = {}
+        
+        # Parse multi-task configuration
+        # Format: [[start_ch, end_ch, "task_name", [loss_indices]], ...]
+        for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
+            start_ch, end_ch, task_name, loss_indices = task_config
+            
+            # Extract channels for this task
+            task_output = outputs[:, start_ch:end_ch, ...]
+            task_label = labels[:, start_ch:end_ch, ...]
+            
+            # Apply specified losses for this task
+            task_loss = 0.0
+            for loss_idx in loss_indices:
+                loss_fn = self.loss_functions[loss_idx]
+                weight = self.loss_weights[loss_idx]
+                
+                loss = loss_fn(task_output, task_label)
+                
+                # Check for NaN/Inf
+                if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                    print(f"\n{'='*80}")
+                    print(f"⚠️  NaN/Inf detected in multi-task loss!")
+                    print(f"{'='*80}")
+                    print(f"Task: {task_name} (channels {start_ch}:{end_ch})")
+                    print(f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})")
+                    print(f"Loss value: {loss.item()}")
+                    print(f"Output shape: {task_output.shape}, range: [{task_output.min():.4f}, {task_output.max():.4f}]")
+                    print(f"Label shape: {task_label.shape}, range: [{task_label.min():.4f}, {task_label.max():.4f}]")
+                    print(f"Output contains NaN: {torch.isnan(task_output).any()}")
+                    print(f"Label contains NaN: {torch.isnan(task_label).any()}")
+                    if self.debug_on_nan:
+                        print(f"\nEntering debugger...")
+                        import pdb
+                        pdb.set_trace()
+                    raise ValueError(f"NaN/Inf in loss for task '{task_name}' with loss index {loss_idx}")
+                
+                weighted_loss = loss * weight
+                task_loss += weighted_loss
+                
+                # Log individual loss
+                loss_dict[f'train_loss_{task_name}_loss{loss_idx}'] = loss.item()
+            
+            # Log task total
+            loss_dict[f'train_loss_{task_name}_total'] = task_loss.item()
+            total_loss += task_loss
+        
+        loss_dict['train_loss_total'] = total_loss.item()
+        return total_loss, loss_dict
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the model."""
         output = self.model(x)
@@ -602,33 +668,38 @@ class ConnectomicsModule(pl.LightningModule):
             loss_dict['train_loss_total'] = total_loss.item()
 
         else:
-            # Standard single-scale loss
-            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                loss = loss_fn(outputs, labels)
+            # Check if multi-task learning is configured
+            if hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None:
+                # Multi-task learning: apply specific losses to specific channels
+                total_loss, loss_dict = self._compute_multitask_loss(outputs, labels)
+            else:
+                # Standard single-scale loss: apply all losses to all outputs
+                for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                    loss = loss_fn(outputs, labels)
 
-                # Check for NaN/Inf immediately after computing loss
-                if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
-                    print(f"\n{'='*80}")
-                    print(f"⚠️  NaN/Inf detected in loss computation!")
-                    print(f"{'='*80}")
-                    print(f"Loss function: {loss_fn.__class__.__name__}")
-                    print(f"Loss value: {loss.item()}")
-                    print(f"Loss index: {i}, Weight: {weight}")
-                    print(f"Output shape: {outputs.shape}, range: [{outputs.min():.4f}, {outputs.max():.4f}]")
-                    print(f"Label shape: {labels.shape}, range: [{labels.min():.4f}, {labels.max():.4f}]")
-                    print(f"Output contains NaN: {torch.isnan(outputs).any()}")
-                    print(f"Label contains NaN: {torch.isnan(labels).any()}")
-                    if self.debug_on_nan:
-                        print(f"\nEntering debugger...")
-                        pdb.set_trace()
-                    raise ValueError(f"NaN/Inf in loss at index {i}")
+                    # Check for NaN/Inf immediately after computing loss
+                    if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                        print(f"\n{'='*80}")
+                        print(f"⚠️  NaN/Inf detected in loss computation!")
+                        print(f"{'='*80}")
+                        print(f"Loss function: {loss_fn.__class__.__name__}")
+                        print(f"Loss value: {loss.item()}")
+                        print(f"Loss index: {i}, Weight: {weight}")
+                        print(f"Output shape: {outputs.shape}, range: [{outputs.min():.4f}, {outputs.max():.4f}]")
+                        print(f"Label shape: {labels.shape}, range: [{labels.min():.4f}, {labels.max():.4f}]")
+                        print(f"Output contains NaN: {torch.isnan(outputs).any()}")
+                        print(f"Label contains NaN: {torch.isnan(labels).any()}")
+                        if self.debug_on_nan:
+                            print(f"\nEntering debugger...")
+                            pdb.set_trace()
+                        raise ValueError(f"NaN/Inf in loss at index {i}")
 
-                weighted_loss = loss * weight
-                total_loss += weighted_loss
+                    weighted_loss = loss * weight
+                    total_loss += weighted_loss
 
-                loss_dict[f'train_loss_{i}'] = loss.item()
+                    loss_dict[f'train_loss_{i}'] = loss.item()
 
-            loss_dict['train_loss_total'] = total_loss.item()
+                loss_dict['train_loss_total'] = total_loss.item()
 
         # Log losses
         self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True)

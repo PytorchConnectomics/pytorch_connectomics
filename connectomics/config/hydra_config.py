@@ -42,8 +42,11 @@ class ModelConfig:
     activation: str = "relu"
 
     # UNet-specific parameters (MONAI UNet)
+    spatial_dims: int = 3           # Spatial dimensions: 2 for 2D, 3 for 3D
     num_res_units: int = 2         # Number of residual units per block
     kernel_size: int = 3            # Convolution kernel size
+    strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
+    act: str = "relu"               # Activation function: 'relu', 'prelu', 'elu', etc.
 
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
@@ -84,6 +87,12 @@ class ModelConfig:
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
     loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
+    
+    # Multi-task learning configuration
+    # Defines which output channels correspond to which targets
+    # Format: list of (start_ch, end_ch, target_name, loss_indices)
+    # Example: [[0, 1, "binary", [0]], [1, 2, "boundary", [1]], [2, 3, "edt", [2]]]
+    multi_task_config: Optional[List[List[Any]]] = None  # None = single task (apply all losses to all channels)
 
 
 # Label transformation configurations
@@ -123,13 +132,28 @@ class ImageTransformConfig:
 @dataclass
 class DataConfig:
     """Dataset and data loading configuration."""
-    # Paths
+    # Dataset type
+    dataset_type: Optional[str] = None  # Type of dataset: None (volume), 'filename', 'tile', etc.
+    
+    # Paths - Volume-based datasets
     train_image: str = "datasets/train_image.h5"
     train_label: str = "datasets/train_label.h5"
     val_image: Optional[str] = None
     val_label: Optional[str] = None
     test_image: Optional[str] = None
     test_label: Optional[str] = None
+    
+    # Paths - JSON/filename-based datasets
+    train_json: Optional[str] = None  # JSON file with image/label file lists
+    val_json: Optional[str] = None
+    test_json: Optional[str] = None
+    train_images_key: str = "images"  # Key in JSON for image files
+    train_labels_key: str = "masks"   # Key in JSON for label files
+    val_images_key: str = "images"
+    val_labels_key: str = "masks"
+    test_images_key: str = "images"
+    test_labels_key: str = "masks"
+    train_val_split: Optional[float] = None  # Auto split ratio (e.g., 0.9 = 90% train, 10% val)
 
     # Data properties
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
@@ -421,8 +445,8 @@ class InferenceConfig:
     test_time_augmentation: bool = False
     tta_flip_axes: Any = "all"  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
     tta_ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
-    tta_act: Optional[str] = None  # Activation before TTA ensemble: 'softmax', 'sigmoid', None
-    tta_channel: Any = None  # Channel selection before TTA ensemble: null (all), [1] (foreground), -1 (all)
+    tta_act: Optional[str] = None  # Activation: 'softmax', 'sigmoid', None (applied even with null flip_axes)
+    tta_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
 
     # Blending configuration for patch-based inference
     blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches

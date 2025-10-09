@@ -105,13 +105,23 @@ def create_instance_segmentation_pipeline(cfg: Any) -> Compose:
     input_key = getattr(cfg, 'input_key', 'label')
     boundary_output_key = getattr(cfg, 'boundary_output_key', 'boundary')
     edt_output_key = getattr(cfg, 'edt_output_key', 'edt')
+    use_binary = getattr(cfg, 'use_binary', True)
+    binary_output_key = getattr(cfg, 'binary_output_key', 'binary')
     use_boundary = getattr(cfg, 'use_boundary', True)
     use_edt = getattr(cfg, 'use_edt', True)
+    segment_id = getattr(cfg, 'segment_id', [])
     boundary_thickness = getattr(cfg, 'boundary_thickness', 1)
     edt_distance_param = getattr(cfg, 'edt_distance_param', 200.0)
 
     transforms = []
 
+    if use_binary:
+        transforms.append(
+            SegToBinaryMaskd(
+                keys=[binary_output_key],
+                segment_id=segment_id
+            )
+        )
     if use_boundary:
         transforms.append(
             SegToInstanceBoundaryMaskd(

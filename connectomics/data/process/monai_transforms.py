@@ -24,22 +24,30 @@ from .misc import *
 
 
 class SegToBinaryMaskd(MapTransform):
-    """Convert segmentation to binary mask using MONAI MapTransform."""
+    """Convert segmentation to binary mask using MONAI MapTransform.
+    
+    Args:
+        keys: Keys to transform
+        segment_id: List of segment IDs to include as foreground.
+                   Empty list [] means all non-zero labels (default).
+                   E.g., [1, 2, 3] to select specific segments.
+        allow_missing_keys: Whether to allow missing keys
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['0'],
+        segment_id: List[int] = [],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.segment_id = segment_id
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_binary(d[key], self.target_opt)
+                d[key] = seg_to_binary(d[key], self.segment_id)
         return d
 
 
@@ -49,85 +57,112 @@ class SegToAffinityMapd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1-1-0', '1-0-0', '0-1-0', '0-0-1'],
+        offsets: List[str] = ['1-1-0', '1-0-0', '0-1-0', '0-0-1'],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.offsets = offsets
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_affinity(d[key], self.target_opt)
+                d[key] = seg_to_affinity(d[key], self.offsets)
         return d
 
 
 class SegToInstanceBoundaryMaskd(MapTransform):
-    """Convert segmentation to instance boundary mask using MONAI MapTransform."""
+    """Convert segmentation to instance boundary mask using MONAI MapTransform.
+    
+    Args:
+        keys: Keys to transform
+        tsz_h: Size of the dilation struct (default: 1)
+        do_bg: Generate contour between instances and background (default: True)
+        do_convolve: Convolve with edge filters (default: True)
+        allow_missing_keys: Whether to allow missing keys
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1'],
+        tsz_h: int = 1,
+        do_bg: bool = True,
+        do_convolve: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.tsz_h = tsz_h
+        self.do_bg = do_bg
+        self.do_convolve = do_convolve
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_bd(d[key], self.target_opt)
+                d[key] = seg_to_instance_bd(d[key], self.tsz_h, self.do_bg, self.do_convolve)
         return d
 
 
 class SegToInstanceEDTd(MapTransform):
-    """Convert segmentation to instance EDT using MONAI MapTransform."""
+    """Convert segmentation to instance EDT using MONAI MapTransform.
+    
+    Args:
+        keys: Keys to transform
+        mode: EDT computation mode: '2d' or '3d' (default: '2d')
+        quantize: Whether to quantize the EDT values (default: False)
+        allow_missing_keys: Whether to allow missing keys
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1', '200'],
+        mode: str = '2d',
+        quantize: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.mode = mode
+        self.quantize = quantize
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                # Ensure we have at least 2 parameters, pad with defaults if needed
-                opts = self.target_opt.copy()
-                while len(opts) < 2:
-                    opts.append('200')  # default distance parameter
-                d[key] = seg_to_instance_edt(d[key], opts)
+                d[key] = seg_to_instance_edt(d[key], mode=self.mode, quantize=self.quantize)
         return d
 
 
 class SegToSemanticEDTd(MapTransform):
-    """Convert segmentation to semantic EDT using MONAI MapTransform."""
+    """Convert segmentation to semantic EDT using MONAI MapTransform.
+    
+    Args:
+        keys: Keys to transform
+        mode: EDT computation mode: '2d' or '3d' (default: '2d')
+        alpha_fore: Foreground distance weight (default: 8.0)
+        alpha_back: Background distance weight (default: 50.0)
+        allow_missing_keys: Whether to allow missing keys
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1', '200'],
+        mode: str = '2d',
+        alpha_fore: float = 8.0,
+        alpha_back: float = 50.0,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.mode = mode
+        self.alpha_fore = alpha_fore
+        self.alpha_back = alpha_back
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                # Ensure we have at least 2 parameters, pad with defaults if needed
-                opts = self.target_opt.copy()
-                while len(opts) < 2:
-                    opts.append('200')  # default distance parameter
-                d[key] = seg_to_semantic_edt(d[key], opts)
+                d[key] = seg_to_semantic_edt(d[key], mode=self.mode, 
+                                             alpha_fore=self.alpha_fore, 
+                                             alpha_back=self.alpha_back)
         return d
 
 
@@ -153,42 +188,55 @@ class SegToFlowFieldd(MapTransform):
 
 
 class SegToSynapticPolarityd(MapTransform):
-    """Convert segmentation to synaptic polarity using MONAI MapTransform."""
+    """Convert segmentation to synaptic polarity using MONAI MapTransform.
+    
+    Args:
+        keys: Keys to transform
+        exclusive: If False, returns 3-channel non-exclusive masks (for BCE loss).
+                  If True, returns single-channel exclusive classes (for CE loss).
+        allow_missing_keys: Whether to allow missing keys
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1'],
+        exclusive: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.exclusive = exclusive
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_polarity(d[key], self.target_opt)
+                d[key] = seg_to_polarity(d[key], exclusive=self.exclusive)
         return d
 
 
 class SegToSmallObjectd(MapTransform):
-    """Convert segmentation to small object mask using MONAI MapTransform."""
+    """Convert segmentation to small object mask using MONAI MapTransform.
+    
+    Args:
+        keys: Keys to transform
+        threshold: Maximum voxel count for objects to be considered small (default: 100)
+        allow_missing_keys: Whether to allow missing keys
+    """
 
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1', '100'],
+        threshold: int = 100,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.target_opt = target_opt
+        self.threshold = threshold
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_small_seg(d[key], self.target_opt)
+                d[key] = seg_to_small_seg(d[key], threshold=self.threshold)
         return d
 
 
@@ -313,7 +361,7 @@ class SegErosionInstanced(MapTransform):
         self.tsz_h = tsz_h
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        from ..segment import seg_erosion_instance
+        from .segment import seg_erosion_instance
 
         d = dict(data)
         for key in self.key_iterator(d):

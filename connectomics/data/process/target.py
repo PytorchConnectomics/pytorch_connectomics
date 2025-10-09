@@ -13,6 +13,7 @@ from .blend import *
 from .distance import *
 from .flow import seg2d_to_flows
 from .distance import edt_instance, edt_semantic
+from .segment import im_to_col
 
 RATES_TYPE = Optional[Union[List[int], int]]
 
@@ -51,7 +52,6 @@ def seg_to_flows(label: np.ndarray) -> np.array:
 
 
 def seg_to_instance_bd(seg: np.ndarray,
-                       target_opt=None,
                        tsz_h: int = 1,
                        do_bg: bool = True,
                        do_convolve: bool = True) -> np.ndarray:
@@ -72,12 +72,6 @@ def seg_to_instance_bd(seg: np.ndarray,
         then using the `im2col` function. However, calculating the contour between only non-background
         instances is not supported under the convolution mode.
     """
-    # Handle target_opt parameter if provided (for MONAI compatibility)
-    if target_opt is not None:
-        if isinstance(target_opt, list):
-            if len(target_opt) > 1:
-                tsz_h = int(target_opt[1])
-
     if do_bg == False:
         do_convolve = False
     sz = seg.shape
@@ -112,26 +106,27 @@ def seg_to_instance_bd(seg: np.ndarray,
     return bd
 
 
-def seg_to_binary(label, topt):
-    if isinstance(topt, list):
-        # Modern interface: topt is a list like ['0', '1', '2', '3']
-        if len(topt) == 1:
-            return label > 0
-
-        fg_mask = np.zeros_like(label).astype(bool)
-        for fg_idx in topt[1:]:  # Skip first element which is type '0'
-            fg_mask = np.logical_or(fg_mask, label == int(fg_idx))
-        return fg_mask
-    else:
-        # Legacy interface: topt is a string like '0-1-2-3'
-        if len(topt) == 1:
-            return label > 0
-
-        fg_mask = np.zeros_like(label).astype(bool)
-        _, *fg_indices = topt.split('-')
-        for fg in fg_indices:
-            fg_mask = np.logical_or(fg_mask, label == int(fg))
-        return fg_mask
+def seg_to_binary(label, segment_id=[]):
+    """
+    Convert segmentation to binary mask.
+    
+    Args:
+        label: Segmentation array
+        segment_id: List of segment IDs to include as foreground.
+                   If empty list [], returns all non-zero labels.
+                   
+    Returns:
+        Binary mask where specified segments are foreground
+    """
+    # If empty list, return all non-zero labels
+    if not segment_id:
+        return label > 0
+    
+    # Create foreground mask for specified segment IDs
+    fg_mask = np.zeros_like(label).astype(bool)
+    for seg_id in segment_id:
+        fg_mask = np.logical_or(fg_mask, label == int(seg_id))
+    return fg_mask
 
 
 def seg_to_affinity(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
@@ -141,22 +136,33 @@ def seg_to_affinity(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
     Args:
         seg: The segmentation to compute affinities from. Shape: (z, y, x).
         target_opt: List of strings defining affinity offsets.
-            First element should be '1' for affinity type.
-            Remaining elements define offsets like '1-0-0', '0-1-0', etc.
+            Can be either:
+            - Legacy format: ['1', '0-0-1', '0-1-0', ...] (first element is type indicator)
+            - Modern format: ['0-0-1', '0-1-0', ...] (direct offset list)
 
     Returns:
         The affinities. Shape: (num_offsets, z, y, x).
     """
-    if len(target_opt) < 2:
+    if len(target_opt) == 0:
         # Default short-range affinities
         offsets = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     else:
-        # Parse offsets from target_opt (skip first element which is type '1')
+        # Detect format: check if first element is a type indicator or an offset
+        start_idx = 0
+        if len(target_opt) > 0 and '-' not in target_opt[0]:
+            # Legacy format: first element is type indicator (e.g., '1')
+            start_idx = 1
+        
+        # Parse offsets from target_opt
         offsets = []
-        for opt_str in target_opt[1:]:
+        for opt_str in target_opt[start_idx:]:
             if '-' in opt_str:
                 offset = [int(x) for x in opt_str.split('-')]
                 offsets.append(offset)
+        
+        # Fallback to default if no valid offsets found
+        if len(offsets) == 0:
+            offsets = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 
     num_offsets = len(offsets)
     affinities = np.zeros((num_offsets, *seg.shape), dtype=np.float32)
@@ -195,15 +201,24 @@ def seg_to_affinity(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
     return affinities
 
 
-def seg_to_polarity(label: np.ndarray, topt: str) -> np.ndarray:
+def seg_to_polarity(label: np.ndarray, exclusive: bool = False) -> np.ndarray:
     """Convert the label to synaptic polarity target.
+    
+    Args:
+        label: Segmentation array where odd labels are pre-synaptic, even are post-synaptic
+        exclusive: If False, returns 3-channel non-exclusive masks (for BCE loss).
+                  If True, returns single-channel exclusive classes (for CE loss).
+    
+    Returns:
+        Polarity masks: 3 channels (pre, post, all) if exclusive=False,
+                       or 1 channel (0=bg, 1=pre, 2=post) if exclusive=True
     """
     pos = np.logical_and((label % 2) == 1, label > 0)
     neg = np.logical_and((label % 2) == 0, label > 0)
 
-    if len(topt) == 1:
+    if not exclusive:
         # Convert segmentation to 3-channel synaptic polarity masks.
-        # The three channels are not exclusive. There are learned by 
+        # The three channels are not exclusive. They are learned by 
         # binary cross-entropy (BCE) losses after per-pixel sigmoid.
         tmp = [None]*3
         tmp[0], tmp[1], tmp[2] = pos, neg, (label > 0)
@@ -211,8 +226,6 @@ def seg_to_polarity(label: np.ndarray, topt: str) -> np.ndarray:
 
     # Learn the exclusive semantic (synaptic polarity) masks
     # using the cross-entropy (CE) loss for three classes.
-    _, exclusive = topt.split('-')
-    assert int(exclusive), f"Option {topt} is not expected!"
     return np.maximum(pos.astype(np.int64), 2*neg.astype(np.int64))
 
 
@@ -239,21 +252,16 @@ def seg_to_synapse_instance(label: np.array):
     return fastremap.refit(instance_label)
 
 
-def seg_to_small_seg(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
+def seg_to_small_seg(seg: np.ndarray, threshold: int = 100) -> np.ndarray:
     """Convert segmentation to small object mask.
 
     Args:
         seg: Input segmentation array
-        target_opt: List containing options, first element should be type, second is threshold
+        threshold: Maximum voxel count for objects to be considered small (default: 100)
 
     Returns:
-        Small object mask
+        Small object mask (1.0 for small objects, 0.0 otherwise)
     """
-    if len(target_opt) >= 2:
-        threshold = int(target_opt[1])
-    else:
-        threshold = 100
-
     # Use connected components to find small objects
     labeled_seg = cc3d.connected_components(seg)
     unique_labels, counts = np.unique(labeled_seg, return_counts=True)
@@ -269,82 +277,75 @@ def seg_to_small_seg(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
 
 
 
-def seg_to_generic_semantic(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
+def seg_to_generic_semantic(seg: np.ndarray, class_ids: List[int] = []) -> np.ndarray:
     """Convert segmentation to generic semantic mask.
 
     Args:
         seg: Input segmentation array
-        target_opt: List containing semantic class options
+        class_ids: List of class IDs to map to semantic classes.
+                  If empty, returns binary (foreground vs background).
+                  Otherwise, maps each class_id to semantic class 1, 2, 3, ...
 
     Returns:
         Generic semantic mask
     """
-    if len(target_opt) == 1:
+    if not class_ids:
         # Simple binary semantic: foreground vs background
         return (seg > 0).astype(np.float32)
 
-    # Multi-class semantic based on target_opt
+    # Multi-class semantic based on class_ids
     result = np.zeros_like(seg, dtype=np.float32)
-    for i, class_id in enumerate(target_opt[1:], 1):
-        class_id = int(class_id)
+    for i, class_id in enumerate(class_ids, 1):
         result[seg == class_id] = i
 
     return result
 
 
-def seg_to_instance_edt(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
+def seg_to_instance_edt(seg: np.ndarray, mode: str = '2d', quantize: bool = False) -> np.ndarray:
     """Convert segmentation to instance EDT.
 
     Args:
         seg: Input segmentation array
-        target_opt: List containing options, first element should be type, second is distance param
+        mode: EDT computation mode: '2d' or '3d' (default: '2d')
+        quantize: Whether to quantize the EDT values (default: False)
 
     Returns:
         Instance EDT array
     """
-    # Use the standard edt_instance function directly
-    return edt_instance(seg, mode='2d', quantize=True)
+    return edt_instance(seg, mode=mode, quantize=quantize)
 
 
-def seg_to_semantic_edt(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
+def seg_to_semantic_edt(seg: np.ndarray, 
+                        mode: str = '2d',
+                        alpha_fore: float = 8.0, 
+                        alpha_back: float = 50.0) -> np.ndarray:
     """Convert segmentation to semantic EDT.
 
     Args:
         seg: Input segmentation array
-        target_opt: List containing options, first element should be type, second is distance param
+        mode: EDT computation mode: '2d' or '3d' (default: '2d')
+        alpha_fore: Foreground distance weight (default: 8.0)
+        alpha_back: Background distance weight (default: 50.0)
 
     Returns:
         Semantic EDT array
     """
-    if len(target_opt) >= 2:
-        distance_param = float(target_opt[1])
-        alpha_fore = distance_param / 25.0
-        alpha_back = distance_param / 4.0
-    else:
-        alpha_fore = 8.0
-        alpha_back = 50.0
-
-    return edt_semantic(seg, mode='2d', alpha_fore=alpha_fore, alpha_back=alpha_back)
+    return edt_semantic(seg, mode=mode, alpha_fore=alpha_fore, alpha_back=alpha_back)
 
 
-def seg_erosion_dilation(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
+def seg_erosion_dilation(seg: np.ndarray, 
+                         operation: str = 'erosion',
+                         kernel_size: int = 1) -> np.ndarray:
     """Apply erosion and/or dilation to segmentation.
 
     Args:
         seg: Input segmentation array
-        target_opt: List with erosion/dilation parameters
-                   [0] - operation type (1=erosion, 2=dilation, 3=both)
-                   [1] - kernel size (default: 1)
+        operation: Operation type: 'erosion', 'dilation', or 'both' (default: 'erosion')
+        kernel_size: Kernel size for morphological operation (default: 1)
 
     Returns:
         Processed segmentation
     """
-    if len(target_opt) == 0:
-        return seg
-
-    operation = int(target_opt[0]) if len(target_opt) > 0 else 1
-    kernel_size = int(target_opt[1]) if len(target_opt) > 1 else 1
-
     # Create structuring element
     struct_elem = disk(kernel_size, dtype=bool)
     if seg.ndim == 3:
@@ -352,18 +353,20 @@ def seg_erosion_dilation(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
 
     result = seg.copy()
 
-    if operation == 1:  # erosion
+    if operation == 'erosion':
         for z in range(seg.shape[0]):
             result[z] = erosion(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
-    elif operation == 2:  # dilation
+    elif operation == 'dilation':
         for z in range(seg.shape[0]):
             result[z] = dilation(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
-    elif operation == 3:  # both (erosion then dilation)
+    elif operation == 'both':
         # First erosion
         for z in range(seg.shape[0]):
             result[z] = erosion(seg[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
         # Then dilation
         for z in range(seg.shape[0]):
             result[z] = dilation(result[z], struct_elem[0] if seg.ndim == 3 else struct_elem)
+    else:
+        raise ValueError(f"Unknown operation: {operation}. Use 'erosion', 'dilation', or 'both'")
 
     return result

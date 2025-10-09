@@ -331,7 +331,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             RandRotate90d(
                 keys=keys,
                 prob=aug_cfg.rotate.prob,
-                spatial_axes=(0, 1)
+                spatial_axes=(1, 2)  # Rotate in Y-X plane to preserve anisotropic Z
             )
         )
     
