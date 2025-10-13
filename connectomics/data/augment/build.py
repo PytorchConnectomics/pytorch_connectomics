@@ -33,14 +33,18 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
 
     Args:
         cfg: Hydra Config object
-        keys: Keys to transform (default: ['image', 'label'])
+        keys: Keys to transform (default: ['image', 'label'] or ['image', 'label', 'mask'] if masks are used)
         skip_loading: Skip LoadVolumed (for pre-cached datasets)
 
     Returns:
         Composed MONAI transforms
     """
     if keys is None:
+        # Auto-detect keys based on config
         keys = ['image', 'label']
+        # Add mask to keys if it's specified in the config
+        if hasattr(cfg.data, 'train_mask') and cfg.data.train_mask is not None:
+            keys.append('mask')
 
     transforms = []
 
@@ -125,13 +129,18 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     Args:
         cfg: Hydra Config object
-        keys: Keys to transform (default: ['image', 'label'])
+        keys: Keys to transform (default: ['image', 'label'] or ['image', 'label', 'mask'] if masks are used)
 
     Returns:
         Composed MONAI transforms (no augmentation)
     """
     if keys is None:
+        # Auto-detect keys based on config
         keys = ['image', 'label']
+        # Add mask to keys if it's specified in the config (check both train and val masks)
+        if (hasattr(cfg.data, 'val_mask') and cfg.data.val_mask is not None) or \
+           (hasattr(cfg.data, 'train_mask') and cfg.data.train_mask is not None):
+            keys.append('mask')
 
     transforms = []
 
@@ -209,13 +218,18 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     Args:
         cfg: Hydra Config object
-        keys: Keys to transform (default: ['image', 'label'])
+        keys: Keys to transform (default: ['image', 'label'] or ['image', 'label', 'mask'] if masks are used)
 
     Returns:
         Composed MONAI transforms (no augmentation, no cropping)
     """
     if keys is None:
+        # Auto-detect keys based on config
         keys = ['image', 'label']
+        # Add mask to keys if it's specified in the config (check test mask)
+        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and \
+           hasattr(cfg.inference.data, 'test_mask') and cfg.inference.data.test_mask is not None:
+            keys.append('mask')
 
     transforms = []
 

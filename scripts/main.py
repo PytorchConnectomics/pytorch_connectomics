@@ -224,6 +224,9 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
     """
     print("Creating datasets...")
 
+    # Check dataset type early
+    dataset_type = getattr(cfg.data, 'dataset_type', None)
+
     # Build transforms
     train_transforms = build_train_transforms(cfg)
     val_transforms = build_val_transforms(cfg)
@@ -309,35 +312,64 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
             val_data_dicts[0]['split_pad_size'] = tuple(cfg.data.patch_size)
 
     else:
-        # Standard mode: separate train and val files (supports glob patterns)
-        train_image_paths = expand_file_paths(cfg.data.train_image)
-        train_label_paths = expand_file_paths(cfg.data.train_label) if cfg.data.train_label else None
-
-        print(f"  Training volumes: {len(train_image_paths)} files")
-        if len(train_image_paths) <= 5:
-            for path in train_image_paths:
-                print(f"    - {path}")
+        # Check dataset type to determine how to load data
+        if dataset_type == 'filename':
+            # Filename-based dataset: uses JSON file lists
+            print(f"  Using filename-based dataset")
+            print(f"  Train JSON: {cfg.data.train_json}")
+            print(f"  Image key: {cfg.data.train_image_key}")
+            print(f"  Label key: {cfg.data.train_label_key}")
+            
+            # For filename dataset, we'll create data dicts later in the DataModule
+            # Here we just need placeholder dicts
+            train_data_dicts = [{'dataset_type': 'filename'}]
+            val_data_dicts = None  # Handled by train_val_split in DataModule
+            
         else:
-            print(f"    - {train_image_paths[0]}")
-            print(f"    - ... ({len(train_image_paths) - 2} more files)")
-            print(f"    - {train_image_paths[-1]}")
+            # Standard mode: separate train and val files (supports glob patterns)
+            if cfg.data.train_image is None:
+                raise ValueError(
+                    "For volume-based datasets, data.train_image must be specified.\n"
+                    "Either set data.train_image or use data.dataset_type='filename' with data.train_json"
+                )
+            
+            train_image_paths = expand_file_paths(cfg.data.train_image)
+            train_label_paths = expand_file_paths(cfg.data.train_label) if cfg.data.train_label else None
+            train_mask_paths = expand_file_paths(cfg.data.train_mask) if cfg.data.train_mask else None
 
-        train_data_dicts = create_data_dicts_from_paths(
-            image_paths=train_image_paths,
-            label_paths=train_label_paths,
-        )
+            print(f"  Training volumes: {len(train_image_paths)} files")
+            if len(train_image_paths) <= 5:
+                for path in train_image_paths:
+                    print(f"    - {path}")
+            else:
+                print(f"    - {train_image_paths[0]}")
+                print(f"    - ... ({len(train_image_paths) - 2} more files)")
+                print(f"    - {train_image_paths[-1]}")
+            
+            if train_mask_paths:
+                print(f"  Training masks: {len(train_mask_paths)} files")
 
-        val_data_dicts = None
-        if cfg.data.val_image:
-            val_image_paths = expand_file_paths(cfg.data.val_image)
-            val_label_paths = expand_file_paths(cfg.data.val_label) if cfg.data.val_label else None
-
-            print(f"  Validation volumes: {len(val_image_paths)} files")
-
-            val_data_dicts = create_data_dicts_from_paths(
-                image_paths=val_image_paths,
-                label_paths=val_label_paths,
+            train_data_dicts = create_data_dicts_from_paths(
+                image_paths=train_image_paths,
+                label_paths=train_label_paths,
+                mask_paths=train_mask_paths,
             )
+
+            val_data_dicts = None
+            if cfg.data.val_image:
+                val_image_paths = expand_file_paths(cfg.data.val_image)
+                val_label_paths = expand_file_paths(cfg.data.val_label) if cfg.data.val_label else None
+                val_mask_paths = expand_file_paths(cfg.data.val_mask) if cfg.data.val_mask else None
+
+                print(f"  Validation volumes: {len(val_image_paths)} files")
+                if val_mask_paths:
+                    print(f"  Validation masks: {len(val_mask_paths)} files")
+
+                val_data_dicts = create_data_dicts_from_paths(
+                    image_paths=val_image_paths,
+                    label_paths=val_label_paths,
+                    mask_paths=val_mask_paths,
+                )
 
     # Create test data dicts if in test/predict mode
     test_data_dicts = None
@@ -353,9 +385,11 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
                 f"Current config has: inference.data.test_image = {cfg.inference.data.test_image if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') else 'N/A'}"
             )
         print(f"  🧪 Creating test dataset from: {cfg.inference.data.test_image}")
+        test_mask_paths = [cfg.inference.data.test_mask] if hasattr(cfg.inference.data, 'test_mask') and cfg.inference.data.test_mask else None
         test_data_dicts = create_data_dicts_from_paths(
             image_paths=[cfg.inference.data.test_image],
             label_paths=[cfg.inference.data.test_label] if cfg.inference.data.test_label else None,
+            mask_paths=test_mask_paths,
         )
         print(f"  DEBUG: test_data_dicts created = {test_data_dicts}")
         print(f"  Test dataset size: {len(test_data_dicts)}")
@@ -367,7 +401,8 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
 
     # Auto-compute iter_num from volume size if not specified
     iter_num = cfg.data.iter_num_per_epoch
-    if iter_num == -1:
+    if iter_num == -1 and dataset_type != 'filename':
+        # For filename datasets, iter_num is determined by the number of files
         print("📊 Auto-computing iter_num from volume size...")
         from connectomics.data.utils import compute_total_samples
         import h5py
@@ -406,6 +441,9 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
         print(f"  Samples per volume: {samples_per_vol}")
         print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
         print(f"  ✅ Batches per epoch: {iter_num // cfg.system.training.batch_size:,}")
+    elif iter_num == -1 and dataset_type == 'filename':
+        # For filename datasets, iter_num will be determined by dataset length
+        print("  Filename dataset: iter_num will be determined by number of files in JSON")
 
     # Create DataModule
     print("Creating data loaders...")
@@ -416,8 +454,8 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
     else:
         iter_num_for_dataset = iter_num
 
-    # Use optimized pre-loaded cache when iter_num > 0 (only for training mode)
-    use_preloaded = cfg.data.use_preloaded_cache and iter_num > 0 and mode == 'train'
+    # Use optimized pre-loaded cache when iter_num > 0 (only for training mode and volume datasets)
+    use_preloaded = cfg.data.use_preloaded_cache and iter_num > 0 and mode == 'train' and dataset_type != 'filename'
 
     if use_preloaded:
         print("  ⚡ Using pre-loaded volume cache (loads once, crops in memory)")
@@ -473,6 +511,75 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
                 pass
 
         datamodule = SimpleDataModule(train_loader)
+    elif dataset_type == 'filename':
+        # Filename-based dataset using JSON file lists
+        print("  Creating filename-based datamodule...")
+        from connectomics.data.dataset.dataset_filename import create_filename_datasets
+        import pytorch_lightning as pl
+        from torch.utils.data import DataLoader
+        
+        # Create train and val datasets from JSON
+        train_dataset, val_dataset = create_filename_datasets(
+            json_path=cfg.data.train_json,
+            train_transforms=train_transforms,
+            val_transforms=val_transforms,
+            train_val_split=cfg.data.train_val_split if hasattr(cfg.data, 'train_val_split') else 0.9,
+            random_seed=cfg.system.seed if hasattr(cfg.system, 'seed') else 42,
+            images_key=cfg.data.train_image_key,
+            labels_key=cfg.data.train_label_key,
+            use_labels=True,
+        )
+        
+        print(f"  Train dataset size: {len(train_dataset)}")
+        print(f"  Val dataset size: {len(val_dataset)}")
+        
+        # Create simple datamodule wrapper
+        class FilenameDataModule(pl.LightningDataModule):
+            def __init__(self, train_ds, val_ds, batch_size, num_workers, pin_memory, persistent_workers):
+                super().__init__()
+                self.train_ds = train_ds
+                self.val_ds = val_ds
+                self.batch_size = batch_size
+                self.num_workers = num_workers
+                self.pin_memory = pin_memory
+                self.persistent_workers = persistent_workers
+            
+            def train_dataloader(self):
+                return DataLoader(
+                    self.train_ds,
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    num_workers=self.num_workers,
+                    pin_memory=self.pin_memory,
+                    persistent_workers=self.persistent_workers and self.num_workers > 0,
+                )
+            
+            def val_dataloader(self):
+                if self.val_ds is None or len(self.val_ds) == 0:
+                    return []
+                return DataLoader(
+                    self.val_ds,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                    num_workers=self.num_workers,
+                    pin_memory=self.pin_memory,
+                    persistent_workers=self.persistent_workers and self.num_workers > 0,
+                )
+            
+            def test_dataloader(self):
+                return []
+            
+            def setup(self, stage=None):
+                pass
+        
+        datamodule = FilenameDataModule(
+            train_ds=train_dataset,
+            val_ds=val_dataset,
+            batch_size=cfg.system.training.batch_size,
+            num_workers=cfg.system.training.num_workers,
+            pin_memory=cfg.data.pin_memory,
+            persistent_workers=cfg.data.persistent_workers,
+        )
     else:
         # Standard data module
         use_cache = cfg.data.use_cache

@@ -450,8 +450,10 @@ class TileDataModule(ConnectomicsDataModule):
 def create_volume_datamodule(
     train_image_paths: List[str],
     train_label_paths: Optional[List[str]] = None,
-    val_image_paths: Optional[List[str]] = None,
+    train_mask_paths: Optional[List[str]] = None,
+    val_image_paths: Optional[List[str]] = None,    
     val_label_paths: Optional[List[str]] = None,
+    val_mask_paths: Optional[List[str]] = None, 
     sample_size: Tuple[int, int, int] = (32, 256, 256),
     batch_size: int = 1,
     num_workers: int = 0,
@@ -465,8 +467,10 @@ def create_volume_datamodule(
     Args:
         train_image_paths: Training image file paths
         train_label_paths: Optional training label file paths
-        val_image_paths: Optional validation image file paths
+        train_mask_paths: Optional training mask file paths
+        val_image_paths: Optional validation image file paths        
         val_label_paths: Optional validation label file paths
+        val_mask_paths: Optional validation mask file paths
         sample_size: Size of samples to extract (z, y, x)
         batch_size: Batch size for data loaders
         num_workers: Number of workers for data loading
@@ -516,8 +520,10 @@ def create_volume_datamodule(
     return VolumeDataModule(
         train_image_paths=train_image_paths,
         train_label_paths=train_label_paths,
-        val_image_paths=val_image_paths,
+        train_mask_paths=train_mask_paths,
+        val_image_paths=val_image_paths,    
         val_label_paths=val_label_paths,
+        val_mask_paths=val_mask_paths,
         sample_size=sample_size,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -530,8 +536,10 @@ def create_volume_datamodule(
 def create_tile_datamodule(
     train_volume_json: str,
     train_label_json: Optional[str] = None,
+    train_mask_json: Optional[str] = None,
     val_volume_json: Optional[str] = None,
     val_label_json: Optional[str] = None,
+    val_mask_json: Optional[str] = None,    
     chunk_num: Tuple[int, int, int] = (2, 2, 2),
     batch_size: int = 1,
     num_workers: int = 0,
@@ -596,8 +604,10 @@ def create_tile_datamodule(
     return TileDataModule(
         train_volume_json=train_volume_json,
         train_label_json=train_label_json,
+        train_mask_json=train_mask_json,
         val_volume_json=val_volume_json,
         val_label_json=val_label_json,
+        val_mask_json=val_mask_json,
         chunk_num=chunk_num,
         batch_size=batch_size,
         num_workers=num_workers,
@@ -626,8 +636,10 @@ def create_datamodule_from_config(config: Dict[str, Any]) -> Union[VolumeDataMod
         return TileDataModule(
             train_volume_json=dataset_config.get('train_volume_json'),
             train_label_json=dataset_config.get('train_label_json'),
+            train_mask_json=dataset_config.get('train_mask_json'),
             val_volume_json=dataset_config.get('val_volume_json'),
             val_label_json=dataset_config.get('val_label_json'),
+            val_mask_json=dataset_config.get('val_mask_json'),
             chunk_num=dataset_config.get('chunk_num', (2, 2, 2)),
             batch_size=config.get('SOLVER', {}).get('batch_size', 1),
             num_workers=config.get('SYSTEM', {}).get('num_workers', 0),
@@ -638,8 +650,10 @@ def create_datamodule_from_config(config: Dict[str, Any]) -> Union[VolumeDataMod
         return VolumeDataModule(
             train_image_paths=dataset_config.get('train_image_paths', []),
             train_label_paths=dataset_config.get('train_label_paths'),
+            train_mask_paths=dataset_config.get('train_mask_paths'),
             val_image_paths=dataset_config.get('val_image_paths'),
             val_label_paths=dataset_config.get('val_label_paths'),
+            val_mask_paths=dataset_config.get('val_mask_paths'),
             sample_size=dataset_config.get('sample_size', (32, 256, 256)),
             batch_size=config.get('SOLVER', {}).get('batch_size', 1),
             num_workers=config.get('SYSTEM', {}).get('num_workers', 0),

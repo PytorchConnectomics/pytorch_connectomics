@@ -172,12 +172,15 @@ class DataConfig:
     dataset_type: Optional[str] = None  # Type of dataset: None (volume), 'filename', 'tile', etc.
     
     # Paths - Volume-based datasets
-    train_image: str = "datasets/train_image.h5"
-    train_label: str = "datasets/train_label.h5"
+    train_image: Optional[str] = None
+    train_label: Optional[str] = None
+    train_mask: Optional[str] = None   # Valid region mask for training
     val_image: Optional[str] = None
     val_label: Optional[str] = None
+    val_mask: Optional[str] = None     # Valid region mask for validation
     test_image: Optional[str] = None
     test_label: Optional[str] = None
+    test_mask: Optional[str] = None    # Valid region mask for testing
     
     # Paths - JSON/filename-based datasets
     train_json: Optional[str] = None  # JSON file with image/label file lists

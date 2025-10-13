@@ -108,6 +108,7 @@ class VisualizationCallback(Callback):
                 self.visualizer.visualize_consecutive_slices(
                     volume=self._last_train_batch['image'],
                     label=self._last_train_batch['label'],
+                    mask=self._last_train_batch.get('mask', None),  # Include mask if present
                     output=pred,
                     writer=writer,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
@@ -119,6 +120,7 @@ class VisualizationCallback(Callback):
                 self.visualizer.visualize(
                     volume=self._last_train_batch['image'],
                     label=self._last_train_batch['label'],
+                    mask=self._last_train_batch.get('mask', None),  # Include mask if present
                     output=pred,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
                     writer=writer,
@@ -151,6 +153,7 @@ class VisualizationCallback(Callback):
                 self.visualizer.visualize_consecutive_slices(
                     volume=self._last_val_batch['image'],
                     label=self._last_val_batch['label'],
+                    mask=self._last_val_batch.get('mask', None),  # Include mask if present
                     output=pred,
                     writer=writer,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
@@ -162,6 +165,7 @@ class VisualizationCallback(Callback):
                 self.visualizer.visualize(
                     volume=self._last_val_batch['image'],
                     label=self._last_val_batch['label'],
+                    mask=self._last_val_batch.get('mask', None),  # Include mask if present
                     output=pred,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
                     writer=writer,

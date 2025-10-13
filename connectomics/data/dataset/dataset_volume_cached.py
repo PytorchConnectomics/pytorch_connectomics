@@ -50,6 +50,7 @@ class CachedVolumeDataset(Dataset):
     Args:
         image_paths: List of image volume paths
         label_paths: List of label volume paths
+        mask_paths: List of mask volume paths
         patch_size: Size of random crops (z, y, x)
         iter_num: Number of iterations per epoch
         transforms: MONAI transforms (applied after cropping)
@@ -60,6 +61,7 @@ class CachedVolumeDataset(Dataset):
         self,
         image_paths: List[str],
         label_paths: Optional[List[str]] = None,
+        mask_paths: Optional[List[str]] = None,
         patch_size: Tuple[int, int, int] = (112, 112, 112),
         iter_num: int = 500,
         transforms: Optional[Compose] = None,
@@ -67,6 +69,7 @@ class CachedVolumeDataset(Dataset):
     ):
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
+        self.mask_paths = mask_paths if mask_paths else [None] * len(image_paths)
         self.patch_size = ensure_tuple_rep(patch_size, 3)
         self.iter_num = iter_num if iter_num > 0 else len(image_paths)
         self.transforms = transforms
@@ -76,8 +79,9 @@ class CachedVolumeDataset(Dataset):
         print(f"  Loading {len(image_paths)} volumes into memory...")
         self.cached_images = []
         self.cached_labels = []
+        self.cached_masks = []
 
-        for i, (img_path, lbl_path) in enumerate(zip(image_paths, self.label_paths)):
+        for i, (img_path, lbl_path, mask_path) in enumerate(zip(image_paths, self.label_paths, self.mask_paths)):
             # Load image
             img = read_volume(img_path)
             if img.ndim == 3:
@@ -92,6 +96,15 @@ class CachedVolumeDataset(Dataset):
                 self.cached_labels.append(lbl)
             else:
                 self.cached_labels.append(None)
+
+            # Load mask if available
+            if mask_path:
+                mask = read_volume(mask_path)
+                if mask.ndim == 3:
+                    mask = mask[None, ...]
+                self.cached_masks.append(mask)
+            else:
+                self.cached_masks.append(None)
 
             print(f"    Volume {i+1}/{len(image_paths)}: {img.shape}")
 
@@ -151,6 +164,7 @@ class CachedVolumeDataset(Dataset):
         # Get cached volumes
         image = self.cached_images[vol_idx]
         label = self.cached_labels[vol_idx]
+        mask = self.cached_masks[vol_idx]
 
         # Get crop position
         if self.mode == 'train':
@@ -165,10 +179,16 @@ class CachedVolumeDataset(Dataset):
         else:
             label_crop = np.zeros_like(image_crop)
 
+        if mask is not None:
+            mask_crop = crop_volume(mask, self.patch_size, pos)
+        else:
+            mask_crop = np.zeros_like(image_crop)
+
         # Create data dict
         data = {
             'image': image_crop,
             'label': label_crop,
+            'mask': mask_crop,
         }
 
         # Apply additional transforms if provided (augmentation, normalization, etc.)

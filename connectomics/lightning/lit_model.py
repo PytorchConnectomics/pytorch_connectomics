@@ -796,14 +796,25 @@ class ConnectomicsModule(pl.LightningModule):
                     else:
                         main_output = outputs
                     
+                    # Check if this is multi-task learning
+                    is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
+                    
                     # Convert logits/probabilities to predictions
-                    if main_output.shape[1] > 1:
+                    if is_multi_task:
+                        # Multi-task learning: use first channel (usually binary segmentation)
+                        # Extract first channel for both output and target
+                        binary_output = main_output[:, 0:1, ...]  # (B, 1, H, W)
+                        binary_target = labels[:, 0:1, ...]  # (B, 1, H, W)
+                        preds = (binary_output.squeeze(1) > 0.5).long()  # (B, H, W)
+                        targets = binary_target.squeeze(1).long()  # (B, H, W)
+                    elif main_output.shape[1] > 1:
+                        # Multi-class segmentation: use argmax
                         preds = torch.argmax(main_output, dim=1)  # (B, D, H, W)
+                        targets = labels.squeeze(1).long()  # (B, D, H, W)
                     else:
                         # Single channel output (already predicted class or probability)
                         preds = (main_output.squeeze(1) > 0.5).long()  # (B, D, H, W)
-
-                    targets = labels.squeeze(1).long()  # (B, D, H, W)
+                        targets = labels.squeeze(1).long()  # (B, D, H, W)
 
                     # Compute and log metrics
                     if 'jaccard' in metrics:
