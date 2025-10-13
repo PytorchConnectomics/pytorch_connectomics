@@ -107,8 +107,8 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> Compose:
             - name: binary                    # Produces 1 channel
             - name: instance_boundary         # Produces 1 channel
               kwargs:
-                tsz_h: 1
-                do_bg: false
+                thickness: 1
+                do_bg_edges: false
             - name: instance_edt              # Produces 1 channel
               kwargs:
                 mode: "2d"

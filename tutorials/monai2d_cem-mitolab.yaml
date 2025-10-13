@@ -86,8 +86,8 @@ data:
       - name: instance_boundary
         kwargs:
           thickness: 1
-          do_bg: false
-          do_convolve: false
+          do_bg_edges: false
+          mode: "2d"
       - name: instance_edt
         kwargs:
           mode: "2d"
@@ -97,50 +97,6 @@ data:
 augmentation:
   enabled: true
   
-  # Standard 2D augmentations
-  flip:
-    enabled: true
-    prob: 0.5
-    spatial_axis: [0, 1]               # Flip Y and X (2D only)
-  
-  rotate:
-    enabled: true
-    prob: 0.5
-    angle_range: [-180, 180]           # Full rotation range for 2D
-    mode: bilinear
-  
-  scale:
-    enabled: true
-    prob: 0.5
-    scale_range: [0.8, 1.2]            # 20% scale variation
-  
-  elastic:
-    enabled: true
-    prob: 0.3
-    sigma_range: [4.0, 8.0]
-    magnitude_range: [8.0, 16.0]
-  
-  # Intensity augmentations for EM data
-  intensity:
-    enabled: true
-    gaussian_noise_prob: 0.3
-    gaussian_noise_std: 0.05
-    shift_intensity_prob: 0.5
-    shift_intensity_offset: 0.1
-    contrast_prob: 0.5
-    contrast_range: [0.8, 1.2]
-  
-  # EM-specific augmentations (2D versions)
-  cut_noise:
-    enabled: true
-    prob: 0.2
-    length_ratio: 0.4
-  
-  cut_blur:
-    enabled: true
-    prob: 0.2
-    length_ratio: 0.4
-
 # Visualization - TensorBoard visualization
 visualization:
   enabled: true

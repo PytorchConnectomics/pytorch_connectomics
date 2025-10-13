@@ -194,6 +194,7 @@ class DataConfig:
     # Data properties
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     pad_size: List[int] = field(default_factory=lambda: [8, 32, 32])
+    pad_mode: str = 'reflect'  # Padding mode: 'reflect', 'replicate', 'constant', 'edge'
     stride: List[int] = field(default_factory=lambda: [1, 1, 1])  # Sampling stride (z, y, x)
 
     # Voxel resolution (physical dimensions in nm)

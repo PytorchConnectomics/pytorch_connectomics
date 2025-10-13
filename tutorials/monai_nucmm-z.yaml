@@ -18,27 +18,28 @@ description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residua
 # System
 system:
   training:
-    num_gpus: 1
-    num_cpus: 1
-    num_workers: 1
-    batch_size: 4
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8                     # More workers for parallel data loading (6x speedup)
+    batch_size: 32                      # Larger batch for smaller patches
   inference:
     num_gpus: 1
-    num_cpus: 1
-    num_workers: 1
+    num_cpus: 4
+    num_workers: 4
     batch_size: 4
   seed: 42
 
 # Model - MONAI UNet with residual units for multi-task learning
 model:
   architecture: monai_unet
-  input_size: [32, 96, 96]
-  output_size: [32, 96, 96]
+  input_size: [64, 64, 64]             # 64x64x64 input patches
+  output_size: [64, 64, 64]            # 64x64x64 output patches
   in_channels: 1
   out_channels: 3                      # 3 channels: binary, contour, distance
 
-  # UNet architecture configuration
-  filters: [32, 64, 96, 128, 160]     # NucMM-specific channel progression
+  # UNet architecture configuration (optimized for 64^3)
+  filters: [32, 64, 128, 256]          # 4 levels for 64^3 (64->32->16->8->4)
+  strides: [2, 2, 2]                   # 3 downsampling levels
   num_res_units: 2                     # Residual units per block
   kernel_size: 3                       # Convolution kernel size
   norm: batch
@@ -50,7 +51,7 @@ model:
   loss_kwargs:
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
     - {}                                 # BCEWithLogitsLoss for binary
-    - {}                                 # WeightedMSE for distance
+    - {tanh: true}                       # WeightedMSE for distance (with tanh activation)
 
   # Multi-task configuration
   # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
@@ -59,20 +60,21 @@ model:
     - [1, 2, "boundary", [0, 1]]       # Boundary channel: Dice + BCE  
     - [2, 3, "edt", [2]]               # Distance channel: MSE
 
-# Data - NucMM Zebrafish dataset
+# Data - NucMM Zebrafish dataset (multiple volumes)
 data:
-  # Volume configuration
-  train_image: datasets/NucMM-Z/Image/train/img_0000_0576_0768.h5
-  train_label: datasets/NucMM-Z/Label/train/seg_0000_0576_0768.h5
-  val_image: datasets/NucMM-Z/Image/val/img_0000_0640_0832.h5.h5
-  val_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0832.h5.h5  
+  # Volume configuration - supports multiple files via glob pattern or list
+  train_image: "datasets/NucMM-Z/Image/train/img_*.h5"     # 27 training volumes
+  train_label: "datasets/NucMM-Z/Label/train/seg_*.h5"     # 27 training labels
   train_resolution: [1.0, 1.0, 1.0]   # NucMM: 1.0 isotropic resolution
-  use_preloaded_cache: true            # Load volumes into memory for fast training
+  use_preloaded_cache: true           # Pre-load all volumes into memory (MAJOR speedup)
+  cache_rate: 1.0                     # Cache all volumes in RAM
+  persistent_workers: true            # Keep workers alive between epochs (avoid restart overhead)
 
   # Patch configuration
-  patch_size: [32, 96, 96]             # NucMM-specific patch size
-  pad_size: [16, 32, 32]               # Padding for valid convolutions
-  iter_num_per_epoch: 128           # Large number of iterations per epoch
+  patch_size: [64, 64, 64]             # 64x64x64 training patches
+  pad_size: [16, 16, 16]               # Reflection padding for context
+  pad_mode: reflect                    # Reflection padding at boundaries
+  iter_num_per_epoch: 1280              # More iterations for smaller patches
   
   # Image normalization
   image_transform:
@@ -87,11 +89,11 @@ data:
       - name: instance_boundary     # Channel 1: contour map
         kwargs:
           thickness: 1
-          do_bg: false
-          do_convolve: false
-      - name: instance_edt          # Channel 2: distance transform
+          do_bg_edges: true
+          mode: "3d"
+      - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
         kwargs:
-          mode: "2d"
+          mode: "3d"              # 2D EDT with per-instance bounding box optimization
           quantize: false
 
   # Augmentation
@@ -100,14 +102,14 @@ data:
 
 # Optimizer - AdamW with NucMM-specific hyperparameters
 optimization:
-  max_epochs: 1000
+  max_epochs: 100
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
   
   optimizer:
     name: AdamW
-    lr: 0.02                           # Higher LR for NucMM (from original config)
+    lr: 0.001                          # Lower LR for smaller patches (64^3)
     weight_decay: 0.01
     betas: [0.9, 0.999]
     eps: 1.0e-8
@@ -115,10 +117,10 @@ optimization:
   # Scheduler - Cosine annealing with warmup
   scheduler:
     name: CosineAnnealingLR
-    warmup_epochs: 10
-    warmup_start_lr: 1.0e-4
+    warmup_epochs: 5                   # Shorter warmup for 64^3
+    warmup_start_lr: 1.0e-5
     min_lr: 1.0e-6
-    t_max: 950
+    t_max: 95
 
 monitor:
   # Loss monitoring and validation frequency  
@@ -134,8 +136,8 @@ monitor:
     # visualization
     images:
       enabled: true
-      max_images: 8
-      num_slices: 2
+      max_images: 2
+      num_slices: 4
       log_every_n_epochs: 1
       channel_mode: all                 # Show all 3 channels for multi-task
       selected_channels: null
@@ -158,7 +160,7 @@ monitor:
     min_delta: 1.0e-5
     check_finite: true
     threshold: 0.01
-    divergence_threshold: 2.0
+    divergence_threshold: 100.0
 
 # Inference - MONAI SlidingWindowInferer for NucMM
 inference:
@@ -170,8 +172,8 @@ inference:
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [33, 257, 257]        # NucMM inference window size
-    sw_batch_size: 4                   # Number of patches processed simultaneously
+    window_size: [64, 64, 64]          # Match training patch size
+    sw_batch_size: 8                   # More patches for smaller window
     overlap: 0.5                       # 50% overlap between patches
     blending: gaussian                 # Gaussian weighting for smooth blending
     sigma_scale: 0.25

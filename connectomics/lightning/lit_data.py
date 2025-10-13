@@ -503,7 +503,7 @@ def create_volume_datamodule(
                 keys=['label'],
                 targets=[
                     {'name': 'binary'},
-                    {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1, 'do_bg': False, 'do_convolve': False}},
+                    {'name': 'instance_boundary', 'kwargs': {'thickness': 1, 'do_bg_edges': False}},
                     {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
                 ],
             )
@@ -583,7 +583,7 @@ def create_tile_datamodule(
                 keys=['label'],
                 targets=[
                     {'name': 'binary'},
-                    {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1, 'do_bg': False, 'do_convolve': False}},
+                    {'name': 'instance_boundary', 'kwargs': {'thickness': 1, 'do_bg_edges': False}},
                     {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
                 ],
             )

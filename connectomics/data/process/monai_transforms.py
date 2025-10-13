@@ -74,12 +74,12 @@ class SegToAffinityMapd(MapTransform):
 
 class SegToInstanceBoundaryMaskd(MapTransform):
     """Convert segmentation to instance boundary mask using MONAI MapTransform.
-    
+
     Args:
         keys: Keys to transform
         thickness: Thickness of the boundary (half-size of dilation struct) (default: 1)
-        do_bg: Generate contour between instances and background (default: True)
-        do_convolve: Convolve with edge filters (default: True)
+        do_bg_edges: Generate contour between instances and background (default: True)
+        mode: '2d' for slice-by-slice or '3d' for full 3D boundary detection (default: '3d')
         allow_missing_keys: Whether to allow missing keys
     """
 
@@ -87,20 +87,20 @@ class SegToInstanceBoundaryMaskd(MapTransform):
         self,
         keys: KeysCollection,
         thickness: int = 1,
-        do_bg: bool = True,
-        do_convolve: bool = True,
+        do_bg_edges: bool = True,
+        mode: str = '3d',
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.thickness = thickness
-        self.do_bg = do_bg
-        self.do_convolve = do_convolve
+        self.do_bg_edges = do_bg_edges
+        self.mode = mode
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_bd(d[key], self.thickness, self.do_bg, self.do_convolve)
+                d[key] = seg_to_instance_bd(d[key], self.thickness, self.do_bg_edges, self.mode)
         return d
 
 
@@ -504,7 +504,7 @@ class MultiTaskLabelTransformd(MapTransform):
     _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "binary": {},
         "affinity": {"offsets": ['1-1-0', '1-0-0', '0-1-0', '0-0-1']},
-        "instance_boundary": {"thickness": 1, "do_bg": False, "do_convolve": False},
+        "instance_boundary": {"thickness": 1, "do_bg_edges": False, "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},
         "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0},
         "polarity": {"exclusive": False},

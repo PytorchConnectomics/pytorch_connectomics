@@ -6,6 +6,20 @@ import itertools
 import numpy as np
 from scipy.ndimage import find_objects
 
+__all__ = [
+    'bbox_ND',
+    'bbox_relax',
+    'adjust_bbox',
+    'index2bbox',
+    'crop_ND',
+    'replace_ND',
+    'crop_pad_data',
+    'rand_window',
+    'compute_bbox_all',
+    'compute_bbox_all_2d',
+    'compute_bbox_all_3d',
+]
+
 
 def bbox_ND(img: np.ndarray, relax: int = 0) -> tuple:
     """Calculate the bounding box of an object in a N-dimensional numpy array. 
@@ -172,3 +186,166 @@ def rand_window(w0, w1, sz, rand_shift: int = 0):
             low = w0 + diff//2 
     high = low + sz    
     return low, high
+
+
+def compute_bbox_all(seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """
+    Compute the bounding boxes of segments in a segmentation map.
+
+    Args:
+        seg (numpy.ndarray): The input segmentation map (2D or 3D).
+        do_count (bool, optional): Whether to compute the segment counts. Defaults to False.
+        uid (numpy.ndarray, optional): The segment IDs to compute the bounding boxes for. Defaults to None.
+
+    Returns:
+        numpy.ndarray: An array containing the bounding boxes of the segments.
+
+    Raises:
+        ValueError: If the input volume is not 2D or 3D.
+
+    Notes:
+        - The function computes the bounding boxes of segments in a segmentation map.
+        - The bounding boxes represent the minimum and maximum coordinates of each segment in the map.
+        - The function can compute the segment counts if `do_count` is set to True.
+        - The bounding boxes are returned as an array.
+    """    
+    if seg.ndim == 2:
+        return compute_bbox_all_2d(seg, do_count, uid)
+    elif seg.ndim == 3:
+        return compute_bbox_all_3d(seg, do_count, uid)
+    else:
+        raise ValueError("Input volume should be either 2D or 3D")
+
+
+def compute_bbox_all_2d(seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """
+    Compute the bounding boxes of 2D instance segmentation.
+
+    Args:
+        seg (numpy.ndarray): The 2D instance segmentation.
+        do_count (bool, optional): Whether to compute the count of each instance. Defaults to False.
+        uid (numpy.ndarray, optional): The unique identifier for each instance. Defaults to None.
+
+    Returns:
+        numpy.ndarray: The computed bounding boxes of the instances.
+
+    Notes:
+        - The input segmentation should have dimensions HxW, where H is the height and W is the width.
+        - Each row in the output represents an instance and contains the following information:
+            - seg id: The ID of the instance.
+            - bounding box: The coordinates of the bounding box in the format [ymin, ymax, xmin, xmax].
+            - count (optional): The count of pixels belonging to the instance.
+        - If the `uid` argument is not provided, the unique identifiers are automatically determined from the segmentation.
+        - Instances with no pixels are excluded from the output.
+    """        
+    sz = seg.shape
+    assert len(sz) == 2
+    if uid is None:
+        uid = np.unique(seg)
+        uid = uid[uid > 0]
+    if len(uid) == 0:
+        return None
+    # memory efficient
+    uid_max = int(uid.max())
+    sid_dict = dict(zip(uid, range(len(uid))))
+    out = np.zeros((len(uid), 5 + do_count), dtype=int)
+
+    out[:, 0] = uid
+    out[:, 1] = sz[0]
+    out[:, 3] = sz[1]
+    # for each row
+    rids = np.where((seg > 0).sum(axis=1) > 0)[0]
+    for rid in rids:
+        sid = np.unique(seg[rid])
+        sid = sid[(sid > 0) * (sid <= uid_max)]
+        sid_ind = [sid_dict[x] for x in sid]
+        out[sid_ind, 1] = np.minimum(out[sid_ind, 1], rid)
+        out[sid_ind, 2] = np.maximum(out[sid_ind, 2], rid)
+    cids = np.where((seg > 0).sum(axis=0) > 0)[0]
+    for cid in cids:
+        sid = np.unique(seg[:, cid])
+        sid = sid[(sid > 0) * (sid <= uid_max)]
+        sid_ind = [sid_dict[x] for x in sid]
+        out[sid_ind, 3] = np.minimum(out[sid_ind, 3], cid)
+        out[sid_ind, 4] = np.maximum(out[sid_ind, 4], cid)
+
+    if do_count:
+        seg_ui, seg_uc = np.unique(seg, return_counts=True)
+        for i, j in zip(seg_ui, seg_uc):
+            if i in sid_dict:
+                out[sid_dict[i], -1] = j
+    return out
+
+
+def compute_bbox_all_3d(seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+    """
+    Compute the bounding boxes of 3D instance segmentation.
+
+    Args:
+        seg (numpy.ndarray): The 3D instance segmentation.
+        do_count (bool, optional): Whether to compute the count of each instance. Defaults to False.
+        uid (numpy.ndarray, optional): The unique identifier for each instance. Defaults to None.
+
+    Returns:
+        numpy.ndarray: The computed bounding boxes of the instances.
+
+    Notes:
+        - Each row in the output represents an instance and contains the following information:
+            - seg id: The ID of the instance.
+            - bounding box: The coordinates of the bounding box in the format [zmin, zmax, ymin, ymax, xmin, xmax].
+            - count (optional): The count of voxels belonging to the instance.
+        - The output only includes instances with valid bounding boxes.
+    """
+
+    sz = seg.shape
+    assert len(sz) == 3, "Input segment should have 3 dimensions"
+    if uid is None:
+        uid = np.unique(seg)
+        uid = uid[uid > 0]
+    if len(uid) == 0:
+        return None
+    uid_max = int(uid.max())
+
+    sid_dict = dict(zip(uid, range(len(uid))))
+    out = np.zeros((len(uid), 7 + do_count), dtype=int)
+    out[:, 0] = uid
+    out[:, 1] = sz[0]
+    out[:, 2] = -1
+    out[:, 3] = sz[1]
+    out[:, 4] = -1
+    out[:, 5] = sz[2]
+    out[:, 6] = -1
+
+    # for each slice
+    zids = np.where((seg > 0).sum(axis=1).sum(axis=1) > 0)[0]
+    for zid in zids:
+        sid = np.unique(seg[zid])
+        sid = sid[(sid > 0) * (sid <= uid_max)]
+        sid_ind = [sid_dict[x] for x in sid]
+        out[sid_ind, 1] = np.minimum(out[sid_ind, 1], zid)
+        out[sid_ind, 2] = np.maximum(out[sid_ind, 2], zid)
+
+    # for each row
+    rids = np.where((seg > 0).sum(axis=0).sum(axis=1) > 0)[0]
+    for rid in rids:
+        sid = np.unique(seg[:, rid])
+        sid = sid[(sid > 0) * (sid <= uid_max)]
+        sid_ind = [sid_dict[x] for x in sid]
+        out[sid_ind, 3] = np.minimum(out[sid_ind, 3], rid)
+        out[sid_ind, 4] = np.maximum(out[sid_ind, 4], rid)
+
+    # for each col
+    cids = np.where((seg > 0).sum(axis=0).sum(axis=0) > 0)[0]
+    for cid in cids:
+        sid = np.unique(seg[:, :, cid])
+        sid = sid[(sid > 0) * (sid <= uid_max)]
+        sid_ind = [sid_dict[x] for x in sid]
+        out[sid_ind, 5] = np.minimum(out[sid_ind, 5], cid)
+        out[sid_ind, 6] = np.maximum(out[sid_ind, 6], cid)
+
+    if do_count:
+        seg_ui, seg_uc = np.unique(seg, return_counts=True)
+        for i, j in zip(seg_ui, seg_uc):
+            if i in sid_dict:
+                out[sid_dict[i], -1] = j
+    return out

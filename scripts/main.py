@@ -19,7 +19,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -187,6 +187,31 @@ def setup_config(args) -> Config:
     return cfg
 
 
+def expand_file_paths(path_or_pattern: str) -> List[str]:
+    """
+    Expand glob patterns to list of file paths.
+
+    Args:
+        path_or_pattern: Single file path or glob pattern (e.g., "img_*.h5")
+
+    Returns:
+        List of expanded file paths, sorted alphabetically
+    """
+    from glob import glob
+    from pathlib import Path
+
+    # Check if pattern contains wildcards
+    if '*' in path_or_pattern or '?' in path_or_pattern:
+        # Expand glob pattern
+        paths = sorted(glob(path_or_pattern))
+        if not paths:
+            raise FileNotFoundError(f"No files found matching pattern: {path_or_pattern}")
+        return paths
+    else:
+        # Single file path
+        return [path_or_pattern]
+
+
 def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModule:
     """
     Create Lightning DataModule from config.
@@ -284,17 +309,34 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
             val_data_dicts[0]['split_pad_size'] = tuple(cfg.data.patch_size)
 
     else:
-        # Standard mode: separate train and val files
+        # Standard mode: separate train and val files (supports glob patterns)
+        train_image_paths = expand_file_paths(cfg.data.train_image)
+        train_label_paths = expand_file_paths(cfg.data.train_label) if cfg.data.train_label else None
+
+        print(f"  Training volumes: {len(train_image_paths)} files")
+        if len(train_image_paths) <= 5:
+            for path in train_image_paths:
+                print(f"    - {path}")
+        else:
+            print(f"    - {train_image_paths[0]}")
+            print(f"    - ... ({len(train_image_paths) - 2} more files)")
+            print(f"    - {train_image_paths[-1]}")
+
         train_data_dicts = create_data_dicts_from_paths(
-            image_paths=[cfg.data.train_image],
-            label_paths=[cfg.data.train_label] if cfg.data.train_label else None,
+            image_paths=train_image_paths,
+            label_paths=train_label_paths,
         )
 
         val_data_dicts = None
         if cfg.data.val_image:
+            val_image_paths = expand_file_paths(cfg.data.val_image)
+            val_label_paths = expand_file_paths(cfg.data.val_label) if cfg.data.val_label else None
+
+            print(f"  Validation volumes: {len(val_image_paths)} files")
+
             val_data_dicts = create_data_dicts_from_paths(
-                image_paths=[cfg.data.val_image],
-                label_paths=[cfg.data.val_label] if cfg.data.val_label else None,
+                image_paths=val_image_paths,
+                label_paths=val_label_paths,
             )
 
     # Create test data dicts if in test/predict mode

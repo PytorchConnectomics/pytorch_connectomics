@@ -61,14 +61,18 @@ class WeightedMSELoss(nn.Module):
     Weighted mean-squared error loss.
 
     Useful for regression tasks with spatial importance weighting.
+    Supports optional tanh activation for distance transform predictions.
 
     Args:
         reduction: Reduction method ('mean', 'sum', 'none')
+        tanh: If True, apply tanh activation to predictions before computing loss.
+              Useful for distance transform targets in range [-1, 1].
     """
 
-    def __init__(self, reduction: str = 'mean'):
+    def __init__(self, reduction: str = 'mean', tanh: bool = False):
         super().__init__()
         self.reduction = reduction
+        self.tanh = tanh
 
     def forward(
         self,
@@ -80,13 +84,17 @@ class WeightedMSELoss(nn.Module):
         Compute weighted MSE loss.
 
         Args:
-            pred: Predictions
+            pred: Predictions (logits if tanh=True, otherwise predictions)
             target: Ground truth
             weight: Optional spatial weights
 
         Returns:
             Loss value
         """
+        # Apply tanh activation if enabled
+        if self.tanh:
+            pred = torch.tanh(pred)
+        
         mse = (pred - target) ** 2
 
         if weight is not None:
@@ -161,14 +169,18 @@ class WeightedMAELoss(nn.Module):
     Weighted mean absolute error loss.
 
     Useful for regression tasks with spatial importance weighting.
+    Supports optional tanh activation for distance transform predictions.
 
     Args:
         reduction: Reduction method ('mean', 'sum', 'none')
+        tanh: If True, apply tanh activation to predictions before computing loss.
+              Useful for distance transform targets in range [-1, 1].
     """
 
-    def __init__(self, reduction: str = 'mean'):
+    def __init__(self, reduction: str = 'mean', tanh: bool = False):
         super().__init__()
         self.reduction = reduction
+        self.tanh = tanh
 
     def forward(
         self,
@@ -180,13 +192,17 @@ class WeightedMAELoss(nn.Module):
         Compute weighted MAE loss.
 
         Args:
-            pred: Predictions
+            pred: Predictions (logits if tanh=True, otherwise predictions)
             target: Ground truth
             weight: Optional spatial weights
 
         Returns:
             Loss value
         """
+        # Apply tanh activation if enabled
+        if self.tanh:
+            pred = torch.tanh(pred)
+        
         mae = torch.abs(pred - target)
 
         if weight is not None:
