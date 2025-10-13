@@ -2,22 +2,26 @@
 """
 MONAI-style Transform Usage Examples for PyTorch Connectomics
 
-This script demonstrates how to use the new MONAI-native transforms for
-various connectomics processing tasks. The refactored system provides:
+This script demonstrates how to use the MONAI-native transforms for
+various connectomics processing tasks. The system provides:
 
 1. Native MONAI transforms following MONAI conventions
 2. MONAI Compose pipelines for easy chaining
-3. Factory functions for common workflows
-4. Backward compatibility with existing configs
+3. Unified label transform pipeline for all use cases
+4. Multi-task learning support by default
 
 Author: PyTorch Connectomics Team
+
+NOTE: This example file is outdated and kept for reference.
+      See tutorials/monai_nucmm-z.yaml for current best practices.
 """
 
 import numpy as np
+from types import SimpleNamespace
 from monai.data import MetaTensor
 from monai.transforms import Compose
 
-# Import the new MONAI-native transforms
+# Import the MONAI-native transforms
 from connectomics.data.process import (
     # Individual transforms
     SegToBinaryMaskd,
@@ -26,17 +30,10 @@ from connectomics.data.process import (
     SegToInstanceEDTd,
     SegToFlowFieldd,
     ComputeBinaryRatioWeightd,
+    MultiTaskLabelTransformd,
 
-    # Factory functions for common workflows
-    create_binary_segmentation_pipeline,
-    create_affinity_segmentation_pipeline,
-    create_instance_segmentation_pipeline,
-    create_multi_task_pipeline,
-    create_full_processing_pipeline,
-
-    # Custom composition functions
-    create_target_transforms,
-    create_weight_transforms,
+    # Unified pipeline builder (primary entry point)
+    create_label_transform_pipeline,
 )
 
 
@@ -126,39 +123,16 @@ def example_individual_transforms():
 
 
 def example_compose_pipelines():
-    """Demonstrate MONAI Compose pipelines."""
-    print("\n🔗 Example 2: MONAI Compose Pipelines")
+    """Demonstrate MONAI Compose pipelines.
+
+    NOTE: This example is deprecated. Use example_factory_pipelines() which shows
+    the current create_label_transform_pipeline API.
+    """
+    print("\n🔗 Example 2: MONAI Compose Pipelines (DEPRECATED)")
     print("=" * 50)
-
-    data = create_sample_data()
-
-    # Create custom target pipeline
-    print("\n1️⃣ Custom Target Pipeline:")
-    target_pipeline = create_target_transforms(
-        target_opts=['binary_mask', 'affinity_map', 'boundary_mask'],
-        input_key='label'
-    )
-
-    result = target_pipeline(data)
-    generated_targets = [k for k in result.keys() if 'label_' in k and k != 'label']
-    print(f"   Generated {len(generated_targets)} targets:")
-    for target in generated_targets:
-        print(f"     - {target}: {result[target].shape}")
-
-    # Custom weight pipeline
-    print("\n2️⃣ Custom Weight Pipeline:")
-    target_keys = ['label_binary_mask', 'label_affinity', 'label_boundary']
-    weight_pipeline = create_weight_transforms(
-        weight_opts=[['binary_ratio'], ['binary_ratio'], ['binary_ratio']],
-        target_keys=target_keys,
-        valid_mask_key='valid_mask'
-    )
-
-    result = weight_pipeline(result)
-    generated_weights = [k for k in result.keys() if '_weight' in k]
-    print(f"   Generated {len(generated_weights)} weight maps:")
-    for weight in generated_weights:
-        print(f"     - {weight}: {result[weight].shape}")
+    print("\n⚠️  This example is deprecated. See example_factory_pipelines() for current API.")
+    print("   Use create_label_transform_pipeline with 'targets' format instead.")
+    return
 
 
 def example_factory_functions():
@@ -170,83 +144,70 @@ def example_factory_functions():
 
     # Binary segmentation workflow
     print("\n1️⃣ Binary Segmentation Workflow:")
-    binary_pipeline = create_binary_segmentation_pipeline(
-        input_key='label',
-        use_weights=True,
-        weight_type='binary_ratio'
+    binary_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[{'name': 'binary'}],
     )
-
+    binary_pipeline = create_label_transform_pipeline(binary_cfg)
     result = binary_pipeline(data)
-    binary_keys = [k for k in result.keys() if 'binary' in k]
-    print(f"   Generated outputs: {binary_keys}")
+    print(f"   Generated output: label with shape {result['label'].shape}")
 
     # Affinity segmentation workflow
     print("\n2️⃣ Affinity Segmentation Workflow:")
-    affinity_pipeline = create_affinity_segmentation_pipeline(
-        input_key='label',
-        use_weights=True
+    affinity_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[{
+            'name': 'affinity',
+            'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
+        }],
     )
-
+    affinity_pipeline = create_label_transform_pipeline(affinity_cfg)
     result = affinity_pipeline(data)
-    affinity_keys = [k for k in result.keys() if 'affinity' in k]
-    print(f"   Generated outputs: {affinity_keys}")
+    print(f"   Generated output: label with shape {result['label'].shape}")
 
     # Instance segmentation workflow
-    print("\n3️⃣ Instance Segmentation Workflow:")
-    instance_pipeline = create_instance_segmentation_pipeline(
-        input_key='label',
-        use_weights=True
+    print("\n3️⃣ Instance Segmentation Workflow (Multi-Task):")
+    instance_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[
+            {'name': 'binary'},
+            {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1, 'do_bg': False, 'do_convolve': False}},
+            {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+        ],
     )
-
+    instance_pipeline = create_label_transform_pipeline(instance_cfg)
     result = instance_pipeline(data)
-    instance_keys = [k for k in result.keys() if k not in ['image', 'label', 'valid_mask']]
-    print(f"   Generated outputs: {instance_keys}")
+    print(f"   Generated multi-task output: label with shape {result['label'].shape}")
 
-    # Multi-task workflow
-    print("\n4️⃣ Multi-Task Learning Workflow:")
-    multitask_pipeline = create_multi_task_pipeline(
-        target_tasks=['binary_mask', 'affinity_map', 'distance_instance'],
-        input_key='label',
-        use_weights=True
+    # Multi-task workflow with multiple targets
+    print("\n4️⃣ Advanced Multi-Task Learning Workflow:")
+    multitask_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[
+            {'name': 'binary'},
+            {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1}},
+            {'name': 'instance_edt', 'kwargs': {'mode': '2d'}},
+            {'name': 'affinity', 'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']}},
+        ],
+        stack_outputs=True,
     )
-
+    multitask_pipeline = create_label_transform_pipeline(multitask_cfg)
     result = multitask_pipeline(data)
-    multitask_keys = [k for k in result.keys() if k not in ['image', 'label', 'valid_mask']]
-    print(f"   Generated {len(multitask_keys)} outputs for multi-task learning:")
-    for key in sorted(multitask_keys):
-        print(f"     - {key}: {result[key].shape}")
+    print(f"   Generated stacked output with {result['label'].shape[0]} channels")
+    print(f"   Channel breakdown: 1 (binary) + 1 (boundary) + 1 (edt) + 3 (affinity) = 6 channels")
 
 
 def example_full_pipeline():
-    """Demonstrate full processing pipeline with all features."""
-    print("\n🚀 Example 4: Full Processing Pipeline")
+    """Demonstrate full processing pipeline with all features.
+
+    NOTE: This example is deprecated. Use create_label_transform_pipeline with
+    the targets format instead. See example_compose_pipelines() for current usage.
+    """
+    print("\n🚀 Example 4: Full Processing Pipeline (DEPRECATED)")
     print("=" * 50)
-
-    data = create_sample_data()
-
-    # Create comprehensive pipeline
-    print("\n🔧 Creating comprehensive processing pipeline...")
-    full_pipeline = create_full_processing_pipeline(
-        target_opts=[
-            'binary_mask',           # Binary segmentation
-            'affinity_map',          # Affinity-based segmentation
-            'distance_instance',     # Instance distance transform
-            'boundary_mask',         # Instance boundaries
-            'flow_field'             # Flow fields (cellpose-style)
-        ],
-        weight_opts=[
-            ['binary_ratio'],        # Binary ratio weights for binary mask
-            ['binary_ratio'],        # Binary ratio weights for affinity
-            ['binary_ratio'],        # Binary ratio weights for distance
-            ['binary_ratio'],        # Binary ratio weights for boundary
-            ['uniform']              # No weighting for flow fields
-        ],
-        input_key='label',
-        valid_mask_key='valid_mask'
-    )
-
-    print("\n⚡ Processing data through full pipeline...")
-    result = full_pipeline(data)
+    print("\n⚠️  This example is deprecated. See example_compose_pipelines() for current API.")
+    print("   Use create_label_transform_pipeline with 'targets' format instead.")
+    return
 
     # Analyze results
     all_outputs = [k for k in result.keys() if k not in ['image', 'label', 'valid_mask']]

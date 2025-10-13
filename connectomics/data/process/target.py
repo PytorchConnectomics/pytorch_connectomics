@@ -52,14 +52,14 @@ def seg_to_flows(label: np.ndarray) -> np.array:
 
 
 def seg_to_instance_bd(seg: np.ndarray,
-                       tsz_h: int = 1,
+                       thickness: int = 1,
                        do_bg: bool = True,
                        do_convolve: bool = True) -> np.ndarray:
     """Generate instance contour map from segmentation masks.
 
     Args:
         seg (np.ndarray): segmentation map (3D array is required).
-        tsz_h (int, optional): size of the dilation struct. Defaults: 1
+        thickness (int, optional): thickness of the boundary (half-size of dilation struct). Defaults: 1
         do_bg (bool, optional): generate contour between instances and background. Defaults: True
         do_convolve (bool, optional): convolve with edge filters. Defaults: True
 
@@ -76,7 +76,7 @@ def seg_to_instance_bd(seg: np.ndarray,
         do_convolve = False
     sz = seg.shape
     bd = np.zeros(sz, np.uint8)
-    tsz = tsz_h*2+1
+    tsz = thickness*2+1
 
     if do_convolve:
         sobel = [1, 0, -1]
@@ -94,7 +94,7 @@ def seg_to_instance_bd(seg: np.ndarray,
     mm = seg.max()
     for z in range(sz[0]):
         patch = im_to_col(
-            np.pad(seg[z], ((tsz_h, tsz_h), (tsz_h, tsz_h)), 'reflect'), [tsz, tsz])
+            np.pad(seg[z], ((thickness, thickness), (thickness, thickness)), 'reflect'), [tsz, tsz])
         p0 = patch.max(axis=1)
         if do_bg:  # at least one non-zero seg
             p1 = patch.min(axis=1)
@@ -312,7 +312,13 @@ def seg_to_instance_edt(seg: np.ndarray, mode: str = '2d', quantize: bool = Fals
     Returns:
         Instance EDT array
     """
-    return edt_instance(seg, mode=mode, quantize=quantize)
+    # Set appropriate resolution based on mode
+    if mode == '2d':
+        resolution = (1.0, 1.0)  # 2D resolution
+    else:
+        resolution = (1.0, 1.0, 1.0)  # 3D resolution
+    
+    return edt_instance(seg, mode=mode, quantize=quantize, resolution=resolution)
 
 
 def seg_to_semantic_edt(seg: np.ndarray, 

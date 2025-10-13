@@ -11,7 +11,7 @@ This package provides:
 Recommended imports:
     from connectomics.data.dataset import MonaiVolumeDataset
     from connectomics.data.augment import RandMisAlignmentd, build_train_transforms
-    from connectomics.data.process import SegToBinaryMaskd, create_binary_segmentation_pipeline
+    from connectomics.data.process import MultiTaskLabelTransformd, create_label_transform_pipeline
 """
 
 from .dataset.dataset_base import *

@@ -1,0 +1,231 @@
+# CEM-MitoLab mitochondria segmentation with 2D MONAI Residual UNet
+# Large-scale EM dataset with pre-tiled images
+#
+# This config uses MONAI's 2D UNet with residual units for the MitoLab dataset,
+# which contains 21,871 pre-tiled image/mask pairs from various EM sources.
+# Uses filename-based loading instead of volume cropping.
+
+experiment_name: cem-mitolab_monai_unet2d
+description: Mitochondria segmentation on CEM-MitoLab dataset using MONAI 2D Residual UNet
+
+# System
+system:
+  num_gpus: 1
+  num_cpus: 8
+  seed: 42
+
+# Model - MONAI 2D UNet with residual units
+model:
+  architecture: monai_basic_unet  # Will configure for 2D
+  in_channels: 1
+  out_channels: 3                      
+
+  # 2D UNet architecture configuration
+  spatial_dims: 2                      # 2D convolutions
+  filters: [32, 64, 128, 256, 512]     # Standard 2D UNet channel progression
+  strides: [2, 2, 2, 2]                # Downsampling factors (4 levels)
+  num_res_units: 2                     # Residual units per block
+  kernel_size: 3                       # Convolution kernel size
+  norm: batch                          # Batch normalization
+  dropout: 0.1                         # Dropout for regularization
+  act: prelu                           # PReLU activation
+
+  # Loss configuration for multi-task learning (3 output channels)
+  # Task 1 (channel 0): Binary mask - use DiceLoss + BCE
+  # Task 2 (channel 1): Boundary mask - use BCE  
+  # Task 3 (channel 2): EDT - use MSELoss
+  loss_functions: [DiceLoss, BCEWithLogitsLoss, MSELoss]
+  loss_weights: [1.0, 0.5, 1.0]
+  loss_kwargs:
+    - {include_background: false, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
+    - {}                               # BCEWithLogitsLoss for binary & boundary
+    - {}                               # MSELoss for EDT
+  
+  # Multi-task configuration: [start_ch, end_ch, "task_name", [loss_indices]]
+  # Each task specifies which output channels and which losses to use
+  multi_task_config:
+    - [0, 1, "binary", [0, 1]]         # Channel 0: binary mask -> DiceLoss + BCE
+    - [1, 2, "boundary", [1]]          # Channel 1: boundary mask -> BCE only
+    - [2, 3, "edt", [2]]               # Channel 2: EDT -> MSE only
+# Data - Using JSON filename-based dataset
+data:
+  # Use filename-based dataset with JSON file lists
+  dataset_type: filename               # Use MonaiFilenameDataset
+  
+  # JSON file with image/mask file lists
+  train_json: datasets/cem-mitolab/files.json
+  train_images_key: images             # Key for image filenames in JSON
+  train_labels_key: masks              # Key for mask filenames in JSON
+  train_val_split: 0.9                 # 90% train, 10% validation
+  
+  # Voxel resolution (physical dimensions in nm: y, x for 2D)
+  train_resolution: [5, 5]             # EM data: typically 5nm isotropic
+  
+  # Patch configuration (2D images are already tiles, no cropping needed)
+  # MitoLab images vary in size but are typically 224x224 or similar
+  patch_size: [224, 224]               # 2D patch size (H, W)
+  pad_size: [0, 0]                     # No padding needed (images are pre-tiled)
+  iter_num: -1                         # Use all samples per epoch
+  use_preloaded_cache: false           # Images loaded on-demand
+
+  # Augmentation
+  augmentation_enabled: true
+
+  # Data loading
+  batch_size: 64                       # Larger batch for 2D (21,871 samples total)
+  num_workers: 8
+  
+  # Image normalization
+  image_transform:
+    normalize: "0-1"                   # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+  label_transform:
+    targets:
+      - name: binary
+      - name: instance_boundary
+        kwargs:
+          thickness: 1
+          do_bg: false
+          do_convolve: false
+      - name: instance_edt
+        kwargs:
+          mode: "2d"
+          quantize: false
+
+# Augmentation - 2D augmentations
+augmentation:
+  enabled: true
+  
+  # Standard 2D augmentations
+  flip:
+    enabled: true
+    prob: 0.5
+    spatial_axis: [0, 1]               # Flip Y and X (2D only)
+  
+  rotate:
+    enabled: true
+    prob: 0.5
+    angle_range: [-180, 180]           # Full rotation range for 2D
+    mode: bilinear
+  
+  scale:
+    enabled: true
+    prob: 0.5
+    scale_range: [0.8, 1.2]            # 20% scale variation
+  
+  elastic:
+    enabled: true
+    prob: 0.3
+    sigma_range: [4.0, 8.0]
+    magnitude_range: [8.0, 16.0]
+  
+  # Intensity augmentations for EM data
+  intensity:
+    enabled: true
+    gaussian_noise_prob: 0.3
+    gaussian_noise_std: 0.05
+    shift_intensity_prob: 0.5
+    shift_intensity_offset: 0.1
+    contrast_prob: 0.5
+    contrast_range: [0.8, 1.2]
+  
+  # EM-specific augmentations (2D versions)
+  cut_noise:
+    enabled: true
+    prob: 0.2
+    length_ratio: 0.4
+  
+  cut_blur:
+    enabled: true
+    prob: 0.2
+    length_ratio: 0.4
+
+# Visualization - TensorBoard visualization
+visualization:
+  enabled: true
+  max_images: 16                       # More samples for diverse dataset
+  log_every_n_epochs: 1                # Log every N epochs (default: 1)
+
+# Optimizer - AdamW with optimized hyperparameters
+optimizer:
+  name: AdamW
+  lr: 0.001                            # Standard learning rate
+  weight_decay: 0.01                   # L2 regularization
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+
+# Scheduler - Cosine annealing with warmup
+scheduler:
+  name: CosineAnnealingLR
+  warmup_epochs: 10                    # Shorter warmup for large dataset
+  warmup_start_lr: 1.0e-6
+  min_lr: 1.0e-6
+  t_max: 90                            # 100 - 10 = 90 epochs for cosine decay
+
+# Training
+training:
+  max_epochs: 100                      # Fewer epochs needed with 21k samples
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"              # BFloat16 mixed precision
+
+  # Validation frequency
+  val_check_interval: 1.0              # Validate every epoch
+  log_every_n_steps: 50
+  benchmark: true
+
+  # Checkpointing
+  checkpoint_monitor: val/loss
+  checkpoint_mode: min
+  checkpoint_save_top_k: 3
+  checkpoint_save_last: true
+  checkpoint_dirpath: outputs/cem-mitolab_monai_unet2d/checkpoints/
+  checkpoint_filename: epoch={epoch:03d}-val_loss={val/loss:.4f}
+  checkpoint_use_timestamp: true
+
+  # Early stopping
+  early_stopping_enabled: true
+  early_stopping_monitor: val/loss
+  early_stopping_patience: 20          # Less patience for large dataset
+  early_stopping_mode: min
+  early_stopping_min_delta: 1.0e-4
+  early_stopping_check_finite: true
+  early_stopping_threshold: 0.05
+  early_stopping_divergence_threshold: 2.0
+
+# Inference - For testing on held-out images
+inference:
+  # Test on validation split or separate test set
+  test_json: datasets/cem-mitolab/test.json  # If available
+  test_images_key: images
+  test_labels_key: masks
+  test_resolution: [5, 5]
+  output_path: outputs/cem-mitolab_monai_unet2d/results/
+  
+  # No sliding window needed - images are already tiles
+  # Direct inference on full images
+  
+  # Output configuration
+  output_act: softmax                  # Softmax for probabilities
+  output_channel: [1]                  # Foreground channel only
+  output_scale: 255                    # Scale to [0, 255]
+  output_dtype: uint8
+  
+  # Evaluation
+  do_eval: true
+  metrics: [dice, jaccard, precision, recall]
+  
+  # Inference-specific overrides
+  num_gpus: 1
+  num_cpus: 4
+  num_workers: 4
+  batch_size: 32                       # Process multiple images at once
+
+# Notes:
+# - MitoLab dataset contains diverse EM data from multiple sources
+# - Images are pre-tiled at various sizes (typically 224x224 or similar)
+# - Dataset is loaded via JSON file lists using MonaiFilenameDataset
+# - No volume cropping needed - images are already segmented tiles
+# - Train on 90% of 21,871 images (~19,684 train, ~2,187 val)
+# - 2D model is faster and works well for pre-tiled data

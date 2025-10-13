@@ -393,7 +393,7 @@ class TestAutoPlanConfig:
         assert cfg.data.batch_size > 0
         assert cfg.data.num_workers > 0
         assert len(cfg.data.patch_size) == 3
-        assert cfg.training.precision in ['32', '16-mixed', 'bf16-mixed']
+        assert cfg.optimization.precision in ['32', '16-mixed', 'bf16-mixed']
 
     def test_auto_plan_config_disabled(self):
         """Test that planning respects disabled flag."""
@@ -417,13 +417,13 @@ class TestAutoPlanConfig:
         cfg = OmegaConf.structured(Config())
         cfg.system.auto_plan = True
         cfg.data.batch_size = 16  # Manual override
-        cfg.optimizer.lr = 2e-3  # Manual override
+        cfg.optimization.optimizer.lr = 2e-3  # Manual override
 
         cfg = auto_plan_config(cfg, print_results=False)
 
         # Manual values should be preserved
         assert cfg.data.batch_size == 16
-        assert cfg.optimizer.lr == 2e-3
+        assert cfg.optimization.optimizer.lr == 2e-3
 
 
 class TestAutoPlanResult:
@@ -488,8 +488,8 @@ class TestIntegration:
         assert cfg.data.batch_size > 0
         assert cfg.data.num_workers > 0
         assert cfg.data.patch_size is not None
-        assert cfg.training.precision is not None
-        assert cfg.optimizer.lr > 0
+        assert cfg.optimization.precision is not None
+        assert cfg.optimization.optimizer.lr > 0
 
     def test_planning_with_dataset_properties(self):
         """Test planning with dataset properties specified."""
@@ -520,5 +520,5 @@ class TestIntegration:
         cfg = auto_plan_config(cfg, print_results=False)
 
         # With GPU, should enable mixed precision
-        assert cfg.training.precision in ['16-mixed', 'bf16-mixed']
+        assert cfg.optimization.precision in ['16-mixed', 'bf16-mixed']
         assert cfg.data.batch_size > 1

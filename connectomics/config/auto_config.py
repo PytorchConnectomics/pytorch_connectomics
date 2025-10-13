@@ -453,5 +453,5 @@ if __name__ == '__main__':
     print("\nFinal Config Values:")
     print(f"  batch_size: {cfg.data.batch_size}")
     print(f"  patch_size: {cfg.data.patch_size}")
-    print(f"  precision: {cfg.training.precision}")
-    print(f"  lr: {cfg.optimizer.lr}")
+    print(f"  precision: {cfg.optimization.precision}")
+    print(f"  lr: {cfg.optimization.optimizer.lr}")

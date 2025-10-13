@@ -7,15 +7,33 @@ that integrate seamlessly with PyTorch Lightning.
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any, Union
 # Note: MISSING can be imported from omegaconf if needed for required fields
+
+
+@dataclass
+class SystemTrainingConfig:
+    """System configuration for training."""
+    num_gpus: int = 1
+    num_cpus: int = 4
+    num_workers: int = 8
+    batch_size: int = 4
+
+
+@dataclass
+class SystemInferenceConfig:
+    """System configuration for inference."""
+    num_gpus: int = 1
+    num_cpus: int = 1
+    num_workers: int = 1
+    batch_size: int = 1
 
 
 @dataclass
 class SystemConfig:
     """System configuration for hardware and parallelization."""
-    num_gpus: int = 1
-    num_cpus: int = 4
+    training: SystemTrainingConfig = field(default_factory=SystemTrainingConfig)
+    inference: SystemInferenceConfig = field(default_factory=SystemInferenceConfig)
     seed: Optional[int] = None
 
     # Auto-planning
@@ -39,6 +57,7 @@ class ModelConfig:
     filters: Tuple[int, ...] = (32, 64, 128, 256, 512)
     dropout: float = 0.0
     norm: str = "batch"
+    num_groups: int = 8  # Number of groups for GroupNorm
     activation: str = "relu"
 
     # UNet-specific parameters (MONAI UNet)
@@ -113,12 +132,29 @@ class SkeletonDistanceConfig:
 
 
 @dataclass
+class LabelTargetConfig:
+    """Configuration block describing an individual label target."""
+    name: Optional[str] = None
+    kwargs: Dict[str, Any] = field(default_factory=dict)
+    output_key: Optional[str] = None
+
+
+@dataclass
 class LabelTransformConfig:
     """Multi-channel label transformation configuration."""
     normalize: bool = True  # Convert labels to 0-1 range
     erosion: int = 0  # Border erosion kernel half-size (0 = disabled, uses seg_widen_border)
     affinity: AffinityConfig = field(default_factory=AffinityConfig)
     skeleton_distance: SkeletonDistanceConfig = field(default_factory=SkeletonDistanceConfig)
+    keys: List[str] = field(default_factory=lambda: ["label"])
+    stack_outputs: bool = True
+    retain_original: bool = False
+    output_dtype: Optional[str] = "float32"
+    output_key_format: str = "{key}_{task}"
+    allow_missing_keys: bool = False
+    segment_id: Optional[List[int]] = None
+    boundary_thickness: int = 1
+    targets: List[Any] = field(default_factory=list)
 
 
 @dataclass
@@ -147,12 +183,12 @@ class DataConfig:
     train_json: Optional[str] = None  # JSON file with image/label file lists
     val_json: Optional[str] = None
     test_json: Optional[str] = None
-    train_images_key: str = "images"  # Key in JSON for image files
-    train_labels_key: str = "masks"   # Key in JSON for label files
-    val_images_key: str = "images"
-    val_labels_key: str = "masks"
-    test_images_key: str = "images"
-    test_labels_key: str = "masks"
+    train_image_key: str = "images"  # Key in JSON for image files
+    train_label_key: str = "masks"   # Key in JSON for label files
+    val_image_key: str = "images"
+    val_label_key: str = "masks"
+    test_image_key: str = "images"
+    test_label_key: str = "masks"
     train_val_split: Optional[float] = None  # Auto split ratio (e.g., 0.9 = 90% train, 10% val)
 
     # Data properties
@@ -177,9 +213,7 @@ class DataConfig:
     split_pad_val: bool = True  # Pad validation to patch_size if smaller
     split_pad_mode: str = 'reflect'  # Padding mode: 'reflect', 'replicate', 'constant'
 
-    # Data loading
-    batch_size: int = 4
-    num_workers: int = 8
+    # Data loading (batch_size and num_workers moved to system.training/system.inference)
     pin_memory: bool = True
     persistent_workers: bool = True
 
@@ -187,21 +221,18 @@ class DataConfig:
     use_cache: bool = False
     cache_rate: float = 1.0
 
-    # Normalization (backward compatibility - prefer image_transform.normalize)
-    normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
-    clip_percentile_low: float = 0.0   # Lower percentile for clipping
-    clip_percentile_high: float = 1.0  # Upper percentile for clipping
-    normalize_labels: bool = True  # Convert labels to 0-1 range
-
     # Image transformation
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
 
     # Sampling (for volumetric datasets)
-    iter_num: int = 500  # Number of random crops per epoch (default: 500)
+    iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
     use_preloaded_cache: bool = True  # Preload volumes into memory for fast random cropping (default: True)
 
     # Multi-channel label transformation (for affinity maps, distance transforms, etc.)
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
+
+    # Augmentation configuration (nested under data in YAML)
+    augmentation: Optional['AugmentationConfig'] = None  # Set to None for simple enabled flag, or full config for detailed control
 
 
 @dataclass
@@ -232,6 +263,7 @@ class SchedulerConfig:
     factor: float = 0.5
     threshold: float = 0.0001
     cooldown: int = 0
+    monitor: str = "val_loss_total"  # Metric to monitor for ReduceLROnPlateau
 
     # StepLR-specific
     step_size: int = 30
@@ -239,54 +271,90 @@ class SchedulerConfig:
 
 
 @dataclass
-class TrainingConfig:
-    """Training configuration."""
+class OptimizationConfig:
+    """Optimization configuration (optimizer + scheduler + training params)."""
     max_epochs: int = 100
     max_steps: Optional[int] = None
-    
-    # Gradient control
     gradient_clip_val: float = 1.0
     accumulate_grad_batches: int = 1
-    
-    # Precision
     precision: str = "32"  # "32", "16", "bf16", "16-mixed", "bf16-mixed"
-    
-    # Validation
-    val_check_interval: Union[int, float] = 1.0  # Float (1.0) = every epoch, int = every N steps
-    
-    # Logging
-    log_every_n_steps: int = 50
-    
+
     # Performance
     deterministic: bool = False
     benchmark: bool = True
-    detect_anomaly: bool = False
+
+    # Validation and logging
+    val_check_interval: Union[int, float] = 1.0
+    log_every_n_steps: int = 50
+
+    optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
+    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
 
 
 @dataclass
 class CheckpointConfig:
     """Model checkpointing configuration."""
-    save_top_k: int = 1
-    monitor: str = "val/loss"
+    monitor: str = "train_loss_total_epoch"
     mode: str = "min"
+    save_top_k: int = 1
     save_last: bool = True
     save_every_n_epochs: int = 10
     dirpath: str = "checkpoints/"
-    filename: str = "epoch={epoch:03d}-val_loss={val/loss:.4f}"
+    checkpoint_filename: Optional[str] = None  # Auto-generated from monitor if None
     use_timestamp: bool = True  # Create timestamped subdirectories (YYYYMMDD_HHMMSS)
 
 
 @dataclass
 class EarlyStoppingConfig:
     """Early stopping configuration."""
-    enabled: bool = True
-    monitor: str = "val/loss"
-    patience: int = 10
+    enabled: bool = False
+    monitor: str = "train_loss_total_epoch"
+    patience: int = 100
     mode: str = "min"  # 'min' or 'max'
-    min_delta: float = 0.0
+    min_delta: float = 1e-5
     check_finite: bool = True  # Stop training if monitored metric becomes NaN or inf
-    stopping_threshold: Optional[float] = None  # Stop if metric reaches this value
+    threshold: Optional[float] = None  # Stop if metric reaches this value
     divergence_threshold: Optional[float] = None  # Stop if metric diverges beyond this value
+
+
+@dataclass
+class ScalarLoggingConfig:
+    """Scalar logging configuration."""
+    loss: List[str] = field(default_factory=lambda: ["train_loss_total_epoch"])
+    loss_every_n_steps: int = 10
+    val_check_interval: Union[int, float] = 1.0
+    benchmark: bool = True
+
+
+@dataclass
+class ImageLoggingConfig:
+    """Image visualization configuration."""
+    enabled: bool = True
+    max_images: int = 4
+    num_slices: int = 8
+    log_every_n_epochs: int = 1  # Log visualization every N epochs
+    
+    # Channel visualization options
+    channel_mode: str = 'argmax'  # 'argmax', 'all', or 'selected'
+    selected_channels: Optional[List[int]] = None  # Only used when channel_mode='selected'
+
+
+@dataclass
+class LoggingConfig:
+    """Logging configuration (scalar + images)."""
+    scalar: ScalarLoggingConfig = field(default_factory=ScalarLoggingConfig)
+    images: ImageLoggingConfig = field(default_factory=ImageLoggingConfig)
+
+
+@dataclass
+class MonitorConfig:
+    """Monitoring configuration (logging, checkpointing, early stopping)."""
+    detect_anomaly: bool = False
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
+    early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
+
+
 
 
 # Augmentation configurations
@@ -423,83 +491,81 @@ class AugmentationConfig:
 
 
 @dataclass
-class VisualizationConfig:
-    """Visualization configuration for TensorBoard."""
-    enabled: bool = True
-    max_images: int = 4
-    num_slices: int = 8
-    log_every_n_steps: int = -1  # -1 = only at epoch end, >0 = every N steps
+class InferenceDataConfig:
+    """Inference data configuration."""
+    test_image: Optional[str] = None  # Singular form for compatibility
+    test_label: Optional[str] = None  # Singular form for compatibility
+    test_resolution: Optional[List[float]] = None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    output_path: str = "results/"
+
+
+@dataclass
+class SlidingWindowConfig:
+    """MONAI SlidingWindowInferer configuration."""
+    window_size: Optional[List[int]] = None
+    sw_batch_size: Optional[int] = None  # If None, will use system.inference.batch_size
+    overlap: float = 0.5
+    blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
+    sigma_scale: float = 0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
+    padding_mode: str = "constant"  # Padding mode at volume boundaries
+
+
+@dataclass
+class TestTimeAugmentationConfig:
+    """Test-time augmentation configuration."""
+    enabled: bool = False
+    flip_axes: Any = None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
+    act: Optional[str] = None  # Activation: 'softmax', 'sigmoid', None (applied even with null flip_axes)
+    select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
+    ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
+
+
+@dataclass
+class PostprocessingConfig:
+    """Postprocessing configuration."""
+    output_scale: float = 255.0  # Scale predictions for saving (e.g., 255.0 for uint8)
+    output_dtype: str = "uint8"  # Output data type: 'uint8', 'uint16', 'float32'
+
+
+@dataclass
+class EvaluationConfig:
+    """Evaluation configuration."""
+    enabled: bool = True  # Use eval mode (vs train mode for BatchNorm)
+    metrics: Optional[List[str]] = None  # e.g., ['dice', 'jaccard', 'accuracy']
 
 
 @dataclass
 class InferenceConfig:
     """Inference configuration."""
-    test_image: Optional[str] = None
-    test_label: Optional[str] = None
-    test_resolution: Optional[List[float]] = None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
-    output_path: str = "results/"
-    window_size: Optional[List[int]] = None
-    sw_batch_size: int = 1
-    stride: List[int] = field(default_factory=lambda: [64, 64, 64])
-    overlap: float = 0.5
-    test_time_augmentation: bool = False
-    tta_flip_axes: Any = "all"  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
-    tta_ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
-    tta_act: Optional[str] = None  # Activation: 'softmax', 'sigmoid', None (applied even with null flip_axes)
-    tta_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
+    data: InferenceDataConfig = field(default_factory=InferenceDataConfig)
+    sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
+    test_time_augmentation: TestTimeAugmentationConfig = field(default_factory=TestTimeAugmentationConfig)
+    postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
-    # Blending configuration for patch-based inference
-    blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
-    sigma_scale: float = 0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
-    do_eval: bool = True        # Use eval mode (vs train mode for BatchNorm)
-    padding_mode: str = "constant"  # Padding mode at volume boundaries
-
-    # Output configuration
-    output_scale: float = 255.0  # Scale predictions for saving (e.g., 255.0 for uint8)
-    output_dtype: str = "uint8"  # Output data type: 'uint8', 'uint16', 'float32'
-
-    # Postprocessing configuration
-    output_act: Optional[str] = None  # Activation function: 'softmax', 'sigmoid', None (raw logits)
-    output_channel: Any = None  # Channel selection: -1 (all), [1] (channel 1), [0,1] (channels 0&1), None (all) - supports int or list
-
-    # Test metrics configuration (optional)
-    metrics: Optional[List[str]] = None  # e.g., ['dice', 'jaccard', 'accuracy']
-
-    # Inference-specific overrides (override system/data settings during inference)
+    # Inference-specific overrides (override system settings during inference)
     # Use -1 to keep training values, or >= 0 to override
-    num_gpus: int = -1          # Override system.num_gpus if >= 0
-    num_cpus: int = -1          # Override system.num_cpus if >= 0
-    batch_size: int = -1        # Override data.batch_size if >= 0
-    num_workers: int = -1       # Override data.num_workers if >= 0
+    num_gpus: int = -1          # Override system.training.num_gpus if >= 0
+    num_cpus: int = -1          # Override system.training.num_cpus if >= 0
+    batch_size: int = -1        # Override system.training.batch_size if >= 0 (typically 1 for inference)
+    num_workers: int = -1       # Override system.training.num_workers if >= 0
 
 
 @dataclass
 class Config:
     """Main configuration for PyTorch Connectomics."""
 
+    # Metadata
+    experiment_name: str = "connectomics_experiment"
+    description: str = ""
+
     # Core components
     system: SystemConfig = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     data: DataConfig = field(default_factory=DataConfig)
-    optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
-    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
-    training: TrainingConfig = field(default_factory=TrainingConfig)
-    checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
-    early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
-    augmentation: AugmentationConfig = field(default_factory=AugmentationConfig)
-    visualization: VisualizationConfig = field(default_factory=VisualizationConfig)
+    optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
+    monitor: MonitorConfig = field(default_factory=MonitorConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
-
-    # Metadata
-    experiment_name: str = "connectomics_experiment"
-    description: str = ""
-    tags: List[str] = field(default_factory=list)
-
-    # Top-level overrides (override system and data fields if >= 0)
-    num_gpus: int = -1          # Override system.num_gpus if >= 0
-    num_cpus: int = -1          # Override system.num_cpus if >= 0
-    batch_size: int = -1        # Override data.batch_size if >= 0
-    num_workers: int = -1       # Override data.num_workers if >= 0
 
 
 __all__ = ['Config']

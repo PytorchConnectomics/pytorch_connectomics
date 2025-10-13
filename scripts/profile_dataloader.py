@@ -24,7 +24,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     print(f"Config: {config_path}")
     print(f"Batch size: {cfg.data.batch_size}")
     print(f"Num workers: {cfg.data.num_workers}")
-    print(f"Iter num: {cfg.data.iter_num}")
+    print(f"Iter num per epoch: {cfg.data.iter_num_per_epoch}")
     print()
 
     # Create datamodule

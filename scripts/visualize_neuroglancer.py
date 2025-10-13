@@ -144,9 +144,9 @@ def load_volumes_from_config(config_path: str, mode: str = 'train') -> Dict[str,
         print(f"Using train resolution from config: {train_resolution} nm (z, y, x)")
 
     test_resolution = None
-    # Check inference.test_resolution first, then fall back to data.test_resolution
-    if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'test_resolution') and cfg.inference.test_resolution:
-        test_resolution = tuple(cfg.inference.test_resolution)
+    # Check inference.data.test_resolution first, then fall back to data.test_resolution
+    if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and hasattr(cfg.inference.data, 'test_resolution') and cfg.inference.data.test_resolution:
+        test_resolution = tuple(cfg.inference.data.test_resolution)
         print(f"Using test resolution from inference config: {test_resolution} nm (z, y, x)")
     elif hasattr(cfg.data, 'test_resolution') and cfg.data.test_resolution:
         test_resolution = tuple(cfg.data.test_resolution)
@@ -164,13 +164,13 @@ def load_volumes_from_config(config_path: str, mode: str = 'train') -> Dict[str,
 
     # Test data
     if mode in ['test', 'both']:
-        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'test_image') and cfg.inference.test_image:
-            print(f"Loading test image: {cfg.inference.test_image}")
-            volumes['test_image'] = (read_volume(cfg.inference.test_image), 'image', test_resolution, None)
+        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and hasattr(cfg.inference.data, 'test_image') and cfg.inference.data.test_image:
+            print(f"Loading test image: {cfg.inference.data.test_image}")
+            volumes['test_image'] = (read_volume(cfg.inference.data.test_image), 'image', test_resolution, None)
 
-        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'test_label') and cfg.inference.test_label:
-            print(f"Loading test label: {cfg.inference.test_label}")
-            volumes['test_label'] = (read_volume(cfg.inference.test_label), 'segmentation', test_resolution, None)
+        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and hasattr(cfg.inference.data, 'test_label') and cfg.inference.data.test_label:
+            print(f"Loading test label: {cfg.inference.data.test_label}")
+            volumes['test_label'] = (read_volume(cfg.inference.data.test_label), 'segmentation', test_resolution, None)
 
     if not volumes:
         print(f"WARNING: No volumes found in config for mode='{mode}'")

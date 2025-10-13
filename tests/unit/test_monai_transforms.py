@@ -28,9 +28,8 @@ from connectomics.data.process import (
     SegToSynapticPolarityd,
     SegToSmallObjectd,
     ComputeBinaryRatioWeightd,
-    create_binary_segmentation_pipeline,
-    create_affinity_segmentation_pipeline,
-    create_instance_segmentation_pipeline,
+    MultiTaskLabelTransformd,
+    create_label_transform_pipeline,
 )
 
 
@@ -131,51 +130,48 @@ def test_compose_pipelines():
 
     data = create_test_data()
 
-    # Test target generation pipeline
-    print("\n1. Testing target generation pipeline...")
-    target_pipeline = create_target_transforms(
-        target_opts=['binary_mask', 'affinity_map', 'boundary_mask'],
-        input_key='label'
+    # Test label transform pipeline with binary target
+    print("\n2. Testing label transform pipeline (binary)...")
+    from types import SimpleNamespace
+    binary_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[{'name': 'binary'}],
     )
-
-    result = target_pipeline(data)
-    expected_keys = ['label_binary_mask', 'label_affinity', 'label_boundary']
-
-    for key in expected_keys:
-        assert key in result, f"Target {key} not generated"
-        print(f"   Generated target: {key} with shape {result[key].shape}")
-
-    # Test binary segmentation pipeline
-    print("\n2. Testing binary segmentation pipeline...")
-    binary_pipeline = create_binary_segmentation_pipeline(input_key='label', use_weights=True)
+    binary_pipeline = create_label_transform_pipeline(binary_cfg)
     result = binary_pipeline(data)
+    assert 'label' in result, "Binary mask not generated"
+    print(f"   Binary mask shape: {result['label'].shape}")
 
-    assert 'label_binary_mask' in result, "Binary mask not generated"
-    assert 'label_binary_mask_weight' in result, "Binary mask weight not generated"
-    print(f"   Binary mask shape: {result['label_binary_mask'].shape}")
-    print(f"   Binary mask weight shape: {result['label_binary_mask_weight'].shape}")
-
-    # Test affinity segmentation pipeline
-    print("\n3. Testing affinity segmentation pipeline...")
-    affinity_pipeline = create_affinity_segmentation_pipeline(input_key='label', use_weights=True)
+    # Test label transform pipeline with affinity target
+    print("\n3. Testing label transform pipeline (affinity)...")
+    affinity_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[{
+            'name': 'affinity',
+            'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
+        }],
+    )
+    affinity_pipeline = create_label_transform_pipeline(affinity_cfg)
     result = affinity_pipeline(data)
+    assert 'label' in result, "Affinity map not generated"
+    print(f"   Affinity map shape: {result['label'].shape}")
 
-    assert 'label_affinity' in result, "Affinity map not generated"
-    assert 'label_affinity_weight' in result, "Affinity weight not generated"
-    print(f"   Affinity map shape: {result['label_affinity'].shape}")
-    print(f"   Affinity weight shape: {result['label_affinity_weight'].shape}")
-
-    # Test instance segmentation pipeline
-    print("\n4. Testing instance segmentation pipeline...")
-    instance_pipeline = create_instance_segmentation_pipeline(input_key='label', use_weights=True)
+    # Test label transform pipeline with multi-task instance segmentation
+    print("\n4. Testing label transform pipeline (instance multi-task)...")
+    instance_cfg = SimpleNamespace(
+        keys=['label'],
+        targets=[
+            {'name': 'binary'},
+            {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1, 'do_bg': False, 'do_convolve': False}},
+            {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+        ],
+    )
+    instance_pipeline = create_label_transform_pipeline(instance_cfg)
     result = instance_pipeline(data)
+    assert 'label' in result, "Multi-task output not generated"
+    print(f"   Multi-task output shape: {result['label'].shape}")  # Should be [3, D, H, W]
 
-    assert 'label_distance' in result, "Distance transform not generated"
-    assert 'label_boundary' in result, "Boundary mask not generated"
-    print(f"   Distance transform shape: {result['label_distance'].shape}")
-    print(f"   Boundary mask shape: {result['label_boundary'].shape}")
-
-    print("✅ All Compose pipelines passed!")
+    print("✅ All label transform pipelines passed!")
 
 
 def test_weight_computation():
@@ -205,32 +201,15 @@ def test_weight_computation():
 
 
 def test_full_pipeline():
-    """Test complete processing pipeline."""
-    print("\n=== Testing Full Processing Pipeline ===")
+    """Test complete processing pipeline.
 
-    data = create_test_data()
-
-    # Create a complex multi-task pipeline
-    pipeline = create_full_processing_pipeline(
-        target_opts=['binary_mask', 'affinity_map', 'distance_instance'],
-        weight_opts=[['binary_ratio'], ['binary_ratio'], ['binary_ratio']],
-        input_key='label',
-        valid_mask_key='valid_mask'
-    )
-
-    result = pipeline(data)
-
-    # Check that all expected outputs are present
-    expected_targets = ['label_binary_mask', 'label_affinity', 'label_distance']
-    expected_weights = ['label_binary_mask_weight', 'label_affinity_weight', 'label_distance_weight']
-
-    for target in expected_targets:
-        assert target in result, f"Target {target} not generated"
-        print(f"   Generated target: {target} with shape {result[target].shape}")
-
-    for weight in expected_weights:
-        assert weight in result, f"Weight {weight} not generated"
-        print(f"   Generated weight: {weight} with shape {result[weight].shape}")
+    NOTE: This test is deprecated. The create_full_processing_pipeline function
+    no longer exists. Use create_label_transform_pipeline instead.
+    """
+    print("\n=== Testing Full Processing Pipeline (DEPRECATED - SKIPPED) ===")
+    print("   ⚠️  This test is deprecated. Use test_compose_pipelines() instead.")
+    # Test skipped - function no longer exists
+    return
 
     print("✅ Full pipeline passed!")
 

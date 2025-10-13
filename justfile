@@ -17,15 +17,15 @@ setup-slurm:
 # Training Commands
 # ============================================================================
 
-# Train on Lucchi dataset (use '+' to pass extra args: just train monai lucchi -- data.batch_size=8)
+# Train on Lucchi dataset (use '+' to pass extra args: just train monai lucchi++ -- data.batch_size=8, --fast-dev-run)
 train model dataset *ARGS='':
     python scripts/main.py --config tutorials/{{model}}_{{dataset}}.yaml {{ARGS}}
 
-# Continue training from checkpoint (use '+' for extra args: just resume monai lucchi ckpt.pt -- --reset-optimizer)
+# Continue training from checkpoint (use '+' for extra args: just resume monai lucchi++ ckpt.pt -- --reset-optimizer)
 resume model dataset checkpoint *ARGS='':
     python scripts/main.py --config tutorials/{{model}}_{{dataset}}.yaml --checkpoint {{checkpoint}} {{ARGS}}
 
-# Test on Lucchi dataset (provide path to checkpoint)
+# Test on Lucchi++ dataset (provide path to checkpoint)
 test model dataset checkpoint *ARGS='':
     python scripts/main.py --config tutorials/{{model}}_{{dataset}}.yaml --mode test --checkpoint {{checkpoint}} {{ARGS}}
 

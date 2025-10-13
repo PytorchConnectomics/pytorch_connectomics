@@ -75,18 +75,22 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
             )
 
     # Normalization - use smart normalization
-    if cfg.data.normalize != "none":
+    if cfg.data.image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=['image'],
-                mode=cfg.data.normalize,
-                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
-                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
+                mode=cfg.data.image_transform.normalize,
+                clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
+                clip_percentile_high=cfg.data.image_transform.clip_percentile_high
             )
         )
 
     # Add augmentations if enabled
-    if cfg.augmentation.enabled:
+    # Support both new data.augmentation_enabled and old augmentation.enabled
+    augmentation_enabled = getattr(cfg.data, 'augmentation_enabled',
+                                   getattr(cfg.augmentation, 'enabled', False) if hasattr(cfg, 'augmentation') and cfg.augmentation else False)
+
+    if augmentation_enabled and hasattr(cfg, 'augmentation') and cfg.augmentation is not None:
         transforms.extend(_build_augmentations(cfg.augmentation, keys))
 
     # Normalize labels to 0-1 range if enabled
@@ -97,7 +101,7 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
 
     # Label transformations (affinity, distance transform, etc.)
     if hasattr(cfg.data, 'label_transform'):
-        from ..process.build import create_multi_task_pipeline
+        from ..process.build import create_label_transform_pipeline
         from ..process.monai_transforms import SegErosionInstanced
         label_cfg = cfg.data.label_transform
 
@@ -105,9 +109,9 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
         if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
             transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
 
-        # Build multi-task pipeline directly from label_transform config
-        multi_task_pipeline = create_multi_task_pipeline(label_cfg)
-        transforms.extend(multi_task_pipeline.transforms)
+        # Build label transform pipeline directly from label_transform config
+        label_pipeline = create_label_transform_pipeline(label_cfg)
+        transforms.extend(label_pipeline.transforms)
 
     # Final conversion to tensor with float32 dtype
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))
@@ -160,13 +164,13 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
         )
 
     # Normalization - use smart normalization
-    if cfg.data.normalize != "none":
+    if cfg.data.image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=['image'],
-                mode=cfg.data.normalize,
-                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
-                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
+                mode=cfg.data.image_transform.normalize,
+                clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
+                clip_percentile_high=cfg.data.image_transform.clip_percentile_high
             )
         )
 
@@ -178,7 +182,7 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     # Label transformations (affinity, distance transform, etc.)
     if hasattr(cfg.data, 'label_transform'):
-        from ..process.build import create_multi_task_pipeline
+        from ..process.build import create_label_transform_pipeline
         from ..process.monai_transforms import SegErosionInstanced
         label_cfg = cfg.data.label_transform
 
@@ -186,9 +190,9 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
         if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
             transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
 
-        # Build multi-task pipeline directly from label_transform config
-        multi_task_pipeline = create_multi_task_pipeline(label_cfg)
-        transforms.extend(multi_task_pipeline.transforms)
+        # Build label transform pipeline directly from label_transform config
+        label_pipeline = create_label_transform_pipeline(label_cfg)
+        transforms.extend(label_pipeline.transforms)
 
     # Final conversion to tensor with float32 dtype
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))
@@ -236,13 +240,13 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     # NOTE: No CenterSpatialCropd here - we want full volumes for sliding window inference!
 
     # Normalization - use smart normalization
-    if cfg.data.normalize != "none":
+    if cfg.data.image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=['image'],
-                mode=cfg.data.normalize,
-                clip_percentile_low=getattr(cfg.data, 'clip_percentile_low', 0.0),
-                clip_percentile_high=getattr(cfg.data, 'clip_percentile_high', 1.0)
+                mode=cfg.data.image_transform.normalize,
+                clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
+                clip_percentile_high=cfg.data.image_transform.clip_percentile_high
             )
         )
 
@@ -254,7 +258,7 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     # Label transformations (affinity, distance transform, etc.)
     if hasattr(cfg.data, 'label_transform'):
-        from ..process.build import create_multi_task_pipeline
+        from ..process.build import create_label_transform_pipeline
         from ..process.monai_transforms import SegErosionInstanced
         label_cfg = cfg.data.label_transform
 
@@ -262,9 +266,9 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
         if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
             transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
 
-        # Build multi-task pipeline directly from label_transform config
-        multi_task_pipeline = create_multi_task_pipeline(label_cfg)
-        transforms.extend(multi_task_pipeline.transforms)
+        # Build label transform pipeline directly from label_transform config
+        label_pipeline = create_label_transform_pipeline(label_cfg)
+        transforms.extend(label_pipeline.transforms)
 
     # Final conversion to tensor with float32 dtype
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))

@@ -36,16 +36,6 @@ def load_config(config_path: Union[str, Path]) -> Config:
     # Convert to dataclass instance
     cfg = OmegaConf.to_object(merged)
 
-    # Apply top-level overrides if specified (>= 0)
-    if cfg.num_gpus >= 0:
-        cfg.system.num_gpus = cfg.num_gpus
-    if cfg.num_cpus >= 0:
-        cfg.system.num_cpus = cfg.num_cpus
-    if cfg.batch_size >= 0:
-        cfg.data.batch_size = cfg.batch_size
-    if cfg.num_workers >= 0:
-        cfg.data.num_workers = cfg.num_workers
-
     return cfg
 
 
@@ -175,27 +165,29 @@ def validate_config(cfg: Config) -> None:
     if len(cfg.model.input_size) != 3:
         raise ValueError("model.input_size must be 3D")
     
+    # System validation
+    if cfg.system.training.batch_size <= 0:
+        raise ValueError("system.training.batch_size must be positive")
+    if cfg.system.training.num_workers < 0:
+        raise ValueError("system.training.num_workers must be non-negative")
+
     # Data validation
-    if cfg.data.batch_size <= 0:
-        raise ValueError("data.batch_size must be positive")
-    if cfg.data.num_workers < 0:
-        raise ValueError("data.num_workers must be non-negative")
     if len(cfg.data.patch_size) != 3:
         raise ValueError("data.patch_size must be 3D")
-    
+
     # Optimizer validation
-    if cfg.optimizer.lr <= 0:
-        raise ValueError("optimizer.lr must be positive")
-    if cfg.optimizer.weight_decay < 0:
-        raise ValueError("optimizer.weight_decay must be non-negative")
-    
+    if cfg.optimization.optimizer.lr <= 0:
+        raise ValueError("optimization.optimizer.lr must be positive")
+    if cfg.optimization.optimizer.weight_decay < 0:
+        raise ValueError("optimization.optimizer.weight_decay must be non-negative")
+
     # Training validation
-    if cfg.training.max_epochs <= 0 and cfg.training.max_steps is None:
-        raise ValueError("Either training.max_epochs or training.max_steps must be set")
-    if cfg.training.gradient_clip_val < 0:
-        raise ValueError("training.gradient_clip_val must be non-negative")
-    if cfg.training.accumulate_grad_batches <= 0:
-        raise ValueError("training.accumulate_grad_batches must be positive")
+    if cfg.optimization.max_epochs <= 0:
+        raise ValueError("optimization.max_epochs must be positive")
+    if cfg.optimization.gradient_clip_val < 0:
+        raise ValueError("optimization.gradient_clip_val must be non-negative")
+    if cfg.optimization.accumulate_grad_batches <= 0:
+        raise ValueError("optimization.accumulate_grad_batches must be positive")
     
     # Loss validation
     if len(cfg.model.loss_functions) != len(cfg.model.loss_weights):
@@ -225,17 +217,17 @@ def get_config_hash(cfg: Config) -> str:
 def create_experiment_name(cfg: Config) -> str:
     """
     Create a descriptive experiment name from config.
-    
+
     Args:
         cfg: Config object
-        
+
     Returns:
         Experiment name string
     """
     parts = [
         cfg.model.architecture,
-        f"bs{cfg.data.batch_size}",
-        f"lr{cfg.optimizer.lr:.0e}",
+        f"bs{cfg.system.training.batch_size}",
+        f"lr{cfg.optimization.optimizer.lr:.0e}",
         get_config_hash(cfg)
     ]
     return "_".join(parts)

@@ -32,19 +32,19 @@ class VisualizationCallback(Callback):
         cfg,
         max_images: int = 8,
         num_slices: int = 8,
-        log_every_n_steps: int = -1
+        log_every_n_epochs: int = 1
     ):
         """
         Args:
             cfg: Hydra config object
             max_images: Maximum number of images to visualize per batch
             num_slices: Number of consecutive slices to show for 3D volumes
-            log_every_n_steps: Log visualization every N steps. -1 = only at epoch end
+            log_every_n_epochs: Log visualization every N epochs (default: 1)
         """
         super().__init__()
         self.visualizer = Visualizer(cfg, max_images=max_images)
         self.num_slices = num_slices
-        self.log_every_n_steps = log_every_n_steps
+        self.log_every_n_epochs = log_every_n_epochs
         self.cfg = cfg
 
         # Store batch for end-of-epoch visualization
@@ -59,52 +59,13 @@ class VisualizationCallback(Callback):
         batch: Dict[str, torch.Tensor],
         batch_idx: int
     ):
-        """Visualize during training based on log_every_n_steps."""
+        """Store first batch for epoch-end visualization."""
         # Always store first batch for epoch-end visualization
         if batch_idx == 0:
             self._last_train_batch = {
                 'image': batch['image'].detach(),
                 'label': batch['label'].detach()
             }
-
-        # If log_every_n_steps is set (not -1), visualize at intervals
-        if self.log_every_n_steps > 0 and trainer.global_step % self.log_every_n_steps == 0:
-            if trainer.logger is None:
-                return
-
-            try:
-                writer = trainer.logger.experiment
-
-                # Generate predictions
-                with torch.no_grad():
-                    pl_module.eval()
-                    pred = pl_module(batch['image'])
-                    pl_module.train()
-
-                # Visualize - use global step for per-step logging
-                if batch['image'].ndim == 5 and self.num_slices > 1:
-                    # Use consecutive slices for 3D volumes
-                    self.visualizer.visualize_consecutive_slices(
-                        volume=batch['image'],
-                        label=batch['label'],
-                        output=pred,
-                        writer=writer,
-                        iteration=trainer.global_step,
-                        prefix='train_step',
-                        num_slices=self.num_slices
-                    )
-                else:
-                    # Use single slice for 2D or when num_slices=1
-                    self.visualizer.visualize(
-                        volume=batch['image'],
-                        label=batch['label'],
-                        output=pred,
-                        iteration=trainer.global_step,
-                        writer=writer,
-                        prefix='train_step'
-                    )
-            except Exception as e:
-                print(f"Step visualization failed: {e}")
 
     def on_validation_batch_end(
         self,
@@ -124,8 +85,12 @@ class VisualizationCallback(Callback):
             }
 
     def on_train_epoch_end(self, trainer, pl_module):
-        """Visualize at end of training epoch."""
+        """Visualize at end of training epoch based on log_every_n_epochs."""
         if self._last_train_batch is None or trainer.logger is None:
+            return
+
+        # Check if we should log this epoch
+        if trainer.current_epoch % self.log_every_n_epochs != 0:
             return
 
         try:
@@ -165,8 +130,12 @@ class VisualizationCallback(Callback):
             print(f"Epoch-end visualization failed: {e}")
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        """Visualize at end of validation epoch."""
+        """Visualize at end of validation epoch based on log_every_n_epochs."""
         if self._last_val_batch is None or trainer.logger is None:
+            return
+
+        # Check if we should log this epoch
+        if trainer.current_epoch % self.log_every_n_epochs != 0:
             return
 
         try:
@@ -437,7 +406,7 @@ def create_callbacks(cfg) -> list:
             cfg,
             max_images=getattr(cfg.visualization, 'max_images', 8),
             num_slices=getattr(cfg.visualization, 'num_slices', 8),
-            log_every_n_steps=getattr(cfg.visualization, 'log_every_n_steps', -1)
+            log_every_n_epochs=getattr(cfg.visualization, 'log_every_n_epochs', 1)
         )
         callbacks.append(vis_callback)
     else:
@@ -446,25 +415,61 @@ def create_callbacks(cfg) -> list:
         callbacks.append(vis_callback)
 
     # Model checkpoint callback
-    if hasattr(cfg, 'checkpoint'):
+    # Support both new unified config (training.checkpoint_*) and old separate config (checkpoint.*)
+    if hasattr(cfg, 'checkpoint') and cfg.checkpoint is not None:
+        # Old config style (backward compatibility)
+        monitor = getattr(cfg.checkpoint, 'monitor', 'val/loss')
+        default_filename = f'epoch={{epoch:03d}}-{monitor}={{{monitor}:.4f}}'
+        filename = getattr(cfg.checkpoint, 'filename', default_filename)
+
         checkpoint_callback = ModelCheckpoint(
-            monitor=getattr(cfg.checkpoint, 'monitor', 'val/loss'),
+            monitor=monitor,
             mode=getattr(cfg.checkpoint, 'mode', 'min'),
             save_top_k=getattr(cfg.checkpoint, 'save_top_k', 3),
             save_last=getattr(cfg.checkpoint, 'save_last', True),
             dirpath=getattr(cfg.checkpoint, 'dirpath', 'checkpoints'),
-            filename=getattr(cfg.checkpoint, 'filename', 'model-{epoch:02d}-{val_loss:.4f}'),
+            filename=filename,
+            verbose=True
+        )
+        callbacks.append(checkpoint_callback)
+    elif hasattr(cfg, 'monitor') and hasattr(cfg.monitor, 'checkpoint'):
+        # New unified config style (monitor.checkpoint.*)
+        monitor = getattr(cfg.monitor.checkpoint, 'monitor', 'val/loss')
+        filename = getattr(cfg.monitor.checkpoint, 'filename', None)
+        if filename is None:
+            # Auto-generate filename from monitor metric
+            filename = f'epoch={{epoch:03d}}-{monitor}={{{monitor}:.4f}}'
+
+        checkpoint_callback = ModelCheckpoint(
+            monitor=monitor,
+            mode=getattr(cfg.monitor.checkpoint, 'mode', 'min'),
+            save_top_k=getattr(cfg.monitor.checkpoint, 'save_top_k', 3),
+            save_last=getattr(cfg.monitor.checkpoint, 'save_last', True),
+            dirpath=getattr(cfg.monitor.checkpoint, 'dirpath', 'checkpoints'),
+            filename=filename,
             verbose=True
         )
         callbacks.append(checkpoint_callback)
 
     # Early stopping callback
-    if hasattr(cfg, 'early_stopping') and cfg.early_stopping.enabled:
+    # Support both new unified config (training.early_stopping_*) and old separate config (early_stopping.*)
+    if hasattr(cfg, 'early_stopping') and cfg.early_stopping is not None and cfg.early_stopping.enabled:
+        # Old config style (backward compatibility)
         early_stop_callback = EarlyStopping(
             monitor=getattr(cfg.early_stopping, 'monitor', 'val/loss'),
             patience=getattr(cfg.early_stopping, 'patience', 10),
             mode=getattr(cfg.early_stopping, 'mode', 'min'),
             min_delta=getattr(cfg.early_stopping, 'min_delta', 0.0),
+            verbose=True
+        )
+        callbacks.append(early_stop_callback)
+    elif hasattr(cfg, 'monitor') and hasattr(cfg.monitor, 'early_stopping') and getattr(cfg.monitor.early_stopping, 'enabled', False):
+        # New unified config style (monitor.early_stopping.*)
+        early_stop_callback = EarlyStopping(
+            monitor=getattr(cfg.monitor.early_stopping, 'monitor', 'val/loss'),
+            patience=getattr(cfg.monitor.early_stopping, 'patience', 10),
+            mode=getattr(cfg.monitor.early_stopping, 'mode', 'min'),
+            min_delta=getattr(cfg.monitor.early_stopping, 'min_delta', 0.0),
             verbose=True
         )
         callbacks.append(early_stop_callback)

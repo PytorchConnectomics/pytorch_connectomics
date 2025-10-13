@@ -32,10 +32,7 @@ from connectomics.lightning.lit_data import (
     VolumeDataModule,
     create_volume_datamodule,
 )
-from connectomics.data.process import (
-    create_binary_segmentation_pipeline,
-    create_affinity_segmentation_pipeline,
-)
+from connectomics.data.process import create_label_transform_pipeline
 
 
 def create_dummy_lucchi_data(base_path):

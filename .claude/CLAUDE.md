@@ -28,6 +28,9 @@ pip install -e .
 
 ### Running Training/Inference
 ```bash
+# enable environment
+source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
+
 # Lightning-based training (NEW - Primary)
 python scripts/main.py --config tutorials/lucchi.yaml
 

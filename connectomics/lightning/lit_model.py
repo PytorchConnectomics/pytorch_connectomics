@@ -102,10 +102,14 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _setup_test_metrics(self):
         """Initialize test metrics based on inference config."""
-        if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'metrics'):
+        if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'evaluation'):
             return
 
-        metrics = self.cfg.inference.metrics
+        # Check if evaluation is enabled
+        if not getattr(self.cfg.inference.evaluation, 'enabled', False):
+            return
+
+        metrics = getattr(self.cfg.inference.evaluation, 'metrics', None)
         if metrics is None:
             return
 
@@ -113,11 +117,26 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Create only the specified metrics
         if 'jaccard' in metrics:
-            self.test_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
+            if num_classes == 1:
+                # Binary segmentation - use binary metrics
+                self.test_jaccard = torchmetrics.JaccardIndex(task='binary').to(self.device)
+            else:
+                # Multi-class segmentation
+                self.test_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
         if 'dice' in metrics:
-            self.test_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
+            if num_classes == 1:
+                # Binary segmentation - use binary metrics
+                self.test_dice = torchmetrics.Dice(task='binary').to(self.device)
+            else:
+                # Multi-class segmentation
+                self.test_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
         if 'accuracy' in metrics:
-            self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
+            if num_classes == 1:
+                # Binary segmentation - use binary metrics
+                self.test_accuracy = torchmetrics.Accuracy(task='binary').to(self.device)
+            else:
+                # Multi-class segmentation
+                self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
 
     def _setup_sliding_window_inferer(self):
         """Initialize MONAI's SlidingWindowInferer based on config."""
@@ -136,10 +155,13 @@ class ConnectomicsModule(pl.LightningModule):
             return
 
         overlap = self._resolve_inferer_overlap(roi_size)
-        sw_batch_size = max(1, int(getattr(self.cfg.inference, 'sw_batch_size', 1)))
-        mode = getattr(self.cfg.inference, 'blending', 'gaussian')
-        sigma_scale = float(getattr(self.cfg.inference, 'sigma_scale', 0.125))
-        padding_mode = getattr(self.cfg.inference, 'padding_mode', 'constant')
+        # Use system.inference.batch_size as default, fall back to sliding_window.sw_batch_size if specified
+        system_batch_size = getattr(self.cfg.system.inference, 'batch_size', 1)
+        config_sw_batch_size = getattr(self.cfg.inference.sliding_window, 'sw_batch_size', None)
+        sw_batch_size = max(1, int(config_sw_batch_size if config_sw_batch_size is not None else system_batch_size))
+        mode = getattr(self.cfg.inference.sliding_window, 'blending', 'gaussian')
+        sigma_scale = float(getattr(self.cfg.inference.sliding_window, 'sigma_scale', 0.125))
+        padding_mode = getattr(self.cfg.inference.sliding_window, 'padding_mode', 'constant')
 
         self.sliding_inferer = SlidingWindowInferer(
             roi_size=roi_size,
@@ -159,8 +181,8 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _resolve_inferer_roi_size(self) -> Optional[Tuple[int, ...]]:
         """Determine the ROI size for sliding-window inference."""
-        if hasattr(self.cfg, 'inference'):
-            window_size = getattr(self.cfg.inference, 'window_size', None)
+        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'sliding_window'):
+            window_size = getattr(self.cfg.inference.sliding_window, 'window_size', None)
             if window_size:
                 return tuple(int(v) for v in window_size)
 
@@ -178,10 +200,10 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _resolve_inferer_overlap(self, roi_size: Tuple[int, ...]) -> Union[float, Tuple[float, ...]]:
         """Resolve overlap parameter using inference config."""
-        if not hasattr(self.cfg, 'inference'):
+        if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'sliding_window'):
             return 0.5
 
-        overlap = getattr(self.cfg.inference, 'overlap', None)
+        overlap = getattr(self.cfg.inference.sliding_window, 'overlap', None)
         if overlap is not None:
             if isinstance(overlap, (list, tuple)):
                 return tuple(float(max(0.0, min(o, 0.99))) for o in overlap)
@@ -229,7 +251,7 @@ class ConnectomicsModule(pl.LightningModule):
             return tensor
 
         # Get TTA-specific activation or fall back to output_act
-        tta_act = getattr(self.cfg.inference, 'tta_act', None)
+        tta_act = getattr(self.cfg.inference.test_time_augmentation, 'act', None)
         if tta_act is None:
             tta_act = getattr(self.cfg.inference, 'output_act', None)
 
@@ -245,7 +267,7 @@ class ConnectomicsModule(pl.LightningModule):
             )
 
         # Get TTA-specific channel selection or fall back to output_channel
-        tta_channel = getattr(self.cfg.inference, 'tta_channel', None)
+        tta_channel = getattr(self.cfg.inference.test_time_augmentation, 'select_channel', None)
         if tta_channel is None:
             tta_channel = getattr(self.cfg.inference, 'output_channel', None)
 
@@ -296,7 +318,7 @@ class ConnectomicsModule(pl.LightningModule):
             )
 
         # Get TTA configuration
-        tta_flip_axes_config = getattr(self.cfg.inference, 'tta_flip_axes', 'all')
+        tta_flip_axes_config = getattr(self.cfg.inference.test_time_augmentation, 'flip_axes', 'all')
 
         # Handle different tta_flip_axes configurations
         if tta_flip_axes_config is None:
@@ -366,7 +388,7 @@ class ConnectomicsModule(pl.LightningModule):
             predictions.append(pred_processed)
 
         # Ensemble predictions based on configured mode
-        ensemble_mode = getattr(self.cfg.inference, 'tta_ensemble_mode', 'mean')
+        ensemble_mode = getattr(self.cfg.inference.test_time_augmentation, 'ensemble_mode', 'mean')
         stacked_preds = torch.stack(predictions, dim=0)
 
         if ensemble_mode == 'mean':
@@ -426,7 +448,10 @@ class ConnectomicsModule(pl.LightningModule):
         if not hasattr(self.cfg, 'inference'):
             return tensor
 
-        scale = getattr(self.cfg.inference, 'output_scale', None)
+        # Access output_scale from nested postprocessing config
+        scale = None
+        if hasattr(self.cfg.inference, 'postprocessing'):
+            scale = getattr(self.cfg.inference.postprocessing, 'output_scale', None)
         if not scale:
             return tensor
 
@@ -448,7 +473,10 @@ class ConnectomicsModule(pl.LightningModule):
         if not hasattr(self.cfg, 'inference'):
             return tensor
 
-        output_dtype = getattr(self.cfg.inference, 'output_dtype', None)
+        # Access output_dtype from nested postprocessing config
+        output_dtype = None
+        if hasattr(self.cfg.inference, 'postprocessing'):
+            output_dtype = getattr(self.cfg.inference.postprocessing, 'output_dtype', None)
         if not output_dtype or output_dtype == 'float32':
             return tensor
 
@@ -489,7 +517,10 @@ class ConnectomicsModule(pl.LightningModule):
         if not hasattr(self.cfg, 'inference'):
             return
 
-        output_dir_value = getattr(self.cfg.inference, 'output_path', None)
+        # Access output_path from nested data config
+        output_dir_value = None
+        if hasattr(self.cfg.inference, 'data') and hasattr(self.cfg.inference.data, 'output_path'):
+            output_dir_value = self.cfg.inference.data.output_path
         if not output_dir_value:
             return
 
@@ -613,8 +644,7 @@ class ConnectomicsModule(pl.LightningModule):
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
         images = batch['image']
-        labels = batch['label']
-
+        labels = batch['label']        
         # Forward pass
         outputs = self(images)
 
@@ -701,8 +731,8 @@ class ConnectomicsModule(pl.LightningModule):
 
                 loss_dict['train_loss_total'] = total_loss.item()
 
-        # Log losses
-        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        # Log losses (sync across GPUs for distributed training)
+        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         return total_loss
 
@@ -755,8 +785,65 @@ class ConnectomicsModule(pl.LightningModule):
 
             loss_dict['val_loss_total'] = total_loss.item()
 
-        # Log losses
-        self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        # Compute evaluation metrics if enabled
+        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
+            if getattr(self.cfg.inference.evaluation, 'enabled', False):
+                metrics = getattr(self.cfg.inference.evaluation, 'metrics', None)
+                if metrics is not None:
+                    # Get the main output for metric computation
+                    if is_deep_supervision:
+                        main_output = outputs['output']
+                    else:
+                        main_output = outputs
+                    
+                    # Convert logits/probabilities to predictions
+                    if main_output.shape[1] > 1:
+                        preds = torch.argmax(main_output, dim=1)  # (B, D, H, W)
+                    else:
+                        # Single channel output (already predicted class or probability)
+                        preds = (main_output.squeeze(1) > 0.5).long()  # (B, D, H, W)
+
+                    targets = labels.squeeze(1).long()  # (B, D, H, W)
+
+                    # Compute and log metrics
+                    if 'jaccard' in metrics:
+                        if not hasattr(self, 'val_jaccard'):
+                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                            if num_classes == 1:
+                                # Binary segmentation - use binary metrics
+                                self.val_jaccard = torchmetrics.JaccardIndex(task='binary').to(self.device)
+                            else:
+                                # Multi-class segmentation
+                                self.val_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
+                        self.val_jaccard(preds, targets)
+                        self.log('val_jaccard', self.val_jaccard, on_step=False, on_epoch=True, prog_bar=True)
+                    
+                    if 'dice' in metrics:
+                        if not hasattr(self, 'val_dice'):
+                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                            if num_classes == 1:
+                                # Binary segmentation - use binary metrics
+                                self.val_dice = torchmetrics.Dice(task='binary').to(self.device)
+                            else:
+                                # Multi-class segmentation
+                                self.val_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
+                        self.val_dice(preds, targets)
+                        self.log('val_dice', self.val_dice, on_step=False, on_epoch=True, prog_bar=True)
+                    
+                    if 'accuracy' in metrics:
+                        if not hasattr(self, 'val_accuracy'):
+                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                            if num_classes == 1:
+                                # Binary segmentation - use binary metrics
+                                self.val_accuracy = torchmetrics.Accuracy(task='binary').to(self.device)
+                            else:
+                                # Multi-class segmentation
+                                self.val_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
+                        self.val_accuracy(preds, targets)
+                        self.log('val_accuracy', self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
+
+        # Log losses (sync across GPUs for distributed training)
+        self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         return total_loss
 
@@ -778,13 +865,13 @@ class ConnectomicsModule(pl.LightningModule):
         labels = batch.get('label')
 
         # Check if TTA is enabled and actually doing augmentation
-        tta_enabled = hasattr(self.cfg, 'inference') and getattr(self.cfg.inference, 'test_time_augmentation', False)
-        tta_flip_axes = getattr(self.cfg.inference, 'tta_flip_axes', 'all') if hasattr(self.cfg, 'inference') else 'all'
+        tta_enabled = hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation') and getattr(self.cfg.inference.test_time_augmentation, 'enabled', False)
+        tta_flip_axes = getattr(self.cfg.inference.test_time_augmentation, 'flip_axes', 'all') if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation') else 'all'
         use_tta = tta_enabled and tta_flip_axes is not None  # Only use TTA if flip_axes is not null
         use_sliding_inferer = self.sliding_inferer is not None
 
         if use_tta:
-            # Use test-time augmentation
+            # Use test-time augmentation (includes activation + channel selection)
             main_output = self._predict_with_tta(images)
             outputs = main_output
             is_deep_supervision = False
@@ -793,12 +880,19 @@ class ConnectomicsModule(pl.LightningModule):
                 inputs=images,
                 network=self._sliding_window_predict,
             )
+            # Apply TTA preprocessing (activation + channel selection) even without augmentation
+            # This allows using act/select_channel from test_time_augmentation config
+            if tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
+                main_output = self._apply_tta_preprocessing(main_output)
             outputs = main_output
             is_deep_supervision = False
         else:
             outputs = self(images)
             is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
             main_output = self._extract_main_output(outputs)
+            # Apply TTA preprocessing (activation + channel selection) even without augmentation
+            if tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
+                main_output = self._apply_tta_preprocessing(main_output)
 
         # Persist predictions if requested
         self._write_outputs(main_output, batch)
@@ -807,10 +901,11 @@ class ConnectomicsModule(pl.LightningModule):
         skip_loss = False
         if labels is None:
             skip_loss = True
-        elif use_tta:
+        elif tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
             # Skip loss computation if TTA preprocessing changed the output shape
             # (e.g., channel selection makes it incompatible with loss functions)
-            tta_channel = getattr(self.cfg.inference, 'tta_channel', None)
+            # This applies even when flip_axes is null (no augmentation)
+            tta_channel = getattr(self.cfg.inference.test_time_augmentation, 'select_channel', None)
             if tta_channel is None:
                 tta_channel = getattr(self.cfg.inference, 'output_channel', None)
 
@@ -881,9 +976,9 @@ class ConnectomicsModule(pl.LightningModule):
                 self.test_accuracy(preds, targets)
                 self.log('test_accuracy', self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True)
 
-        # Log losses (only if loss was computed)
+        # Log losses (only if loss was computed, sync across GPUs for distributed training)
         if not skip_loss and loss_dict:
-            self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         # Return loss if computed, otherwise None
         return total_loss if not skip_loss else None
@@ -933,15 +1028,31 @@ class ConnectomicsModule(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""
-        # Use the unified builder that supports both YACS and Hydra configs
+        # Use the unified builder for Hydra configs
         optimizer = build_optimizer(self.cfg, self.model)
         scheduler = build_lr_scheduler(self.cfg, optimizer)
+        
+        # Determine monitor metric - check config first, then use fallbacks
+        monitor_metric = 'train_loss_total_epoch'  # Default fallback
+        
+        if hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler'):
+            monitor_metric = getattr(self.cfg.optimization.scheduler, 'monitor', monitor_metric)
+        elif hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler') and hasattr(self.cfg.optimization.scheduler, 'monitor'):
+            monitor_metric = self.cfg.optimization.scheduler.monitor
+        
+        # For ReduceLROnPlateau, use train loss if val loss not available
+        if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            if monitor_metric == 'val_loss_total' and not hasattr(self, '_val_metrics_available'):
+                # Check if validation is configured
+                val_check_interval = getattr(self.cfg, 'val_check_interval', 1.0)
+                if val_check_interval <= 0:
+                    monitor_metric = 'train_loss_total_epoch'
         
         return {
             'optimizer': optimizer,
             'lr_scheduler': {
                 'scheduler': scheduler,
-                'monitor': 'val_loss_total',
+                'monitor': monitor_metric,
                 'interval': 'epoch',
                 'frequency': 1,
             }

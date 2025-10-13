@@ -6,7 +6,8 @@ functions previously handled by the custom DataProcessor system.
 """
 
 from __future__ import annotations
-from typing import Dict, Any, List, Optional, Union, Tuple
+from copy import deepcopy
+from typing import Callable, Dict, Any, List, Optional, Sequence, Union, Tuple
 import numpy as np
 import torch
 from monai.config import KeysCollection
@@ -76,7 +77,7 @@ class SegToInstanceBoundaryMaskd(MapTransform):
     
     Args:
         keys: Keys to transform
-        tsz_h: Size of the dilation struct (default: 1)
+        thickness: Thickness of the boundary (half-size of dilation struct) (default: 1)
         do_bg: Generate contour between instances and background (default: True)
         do_convolve: Convolve with edge filters (default: True)
         allow_missing_keys: Whether to allow missing keys
@@ -85,13 +86,13 @@ class SegToInstanceBoundaryMaskd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        tsz_h: int = 1,
+        thickness: int = 1,
         do_bg: bool = True,
         do_convolve: bool = True,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.tsz_h = tsz_h
+        self.thickness = thickness
         self.do_bg = do_bg
         self.do_convolve = do_convolve
 
@@ -99,7 +100,7 @@ class SegToInstanceBoundaryMaskd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_bd(d[key], self.tsz_h, self.do_bg, self.do_convolve)
+                d[key] = seg_to_instance_bd(d[key], self.thickness, self.do_bg, self.do_convolve)
         return d
 
 
@@ -462,6 +463,197 @@ class SegSelectiond(MapTransform):
         return d
 
 
+class MultiTaskLabelTransformd(MapTransform):
+    """Generate multiple supervision targets from a single instance segmentation.
+
+    The transform evaluates a sequence of configured target generators without
+    making intermediate copies of the label. Each target can either contribute a
+    channel to a stacked tensor (default) or write to its own key.
+
+    Output Format:
+        - Input: label with shape [D, H, W] or [1, D, H, W]
+        - Output (stacked): [C, D, H, W] where C = sum of channels from all tasks
+        - Output (non-stacked): Multiple keys, each with shape [C_i, D, H, W]
+        - Single task: [1, D, H, W] (always has channel dimension)
+
+    Example:
+        Single task (binary):
+            Input: [32, 256, 256]
+            Output: [1, 32, 256, 256]
+
+        Multi-task (binary + boundary + edt):
+            Input: [32, 256, 256]
+            Output: [3, 32, 256, 256]
+
+        Multi-task (binary + affinity[3] + edt):
+            Input: [32, 256, 256]
+            Output: [5, 32, 256, 256]  # 1 + 3 + 1 channels
+    """
+
+    _TASK_REGISTRY: Dict[str, Callable[..., np.ndarray]] = {
+        "binary": seg_to_binary,
+        "affinity": seg_to_affinity,
+        "instance_boundary": seg_to_instance_bd,
+        "instance_edt": seg_to_instance_edt,
+        "semantic_edt": seg_to_semantic_edt,
+        "polarity": seg_to_polarity,
+        "small_object": seg_to_small_seg,
+        "energy_quantize": energy_quantize,
+        "decode_quantize": decode_quantize,
+    }
+    _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
+        "binary": {},
+        "affinity": {"offsets": ['1-1-0', '1-0-0', '0-1-0', '0-0-1']},
+        "instance_boundary": {"thickness": 1, "do_bg": False, "do_convolve": False},
+        "instance_edt": {"mode": "2d", "quantize": False},
+        "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0},
+        "polarity": {"exclusive": False},
+        "small_object": {"threshold": 100},
+        "energy_quantize": {"levels": 10},
+        "decode_quantize": {"mode": "max"},
+    }
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        tasks: Sequence[Union[str, Dict[str, Any]]],
+        *,
+        stack_outputs: bool = True,
+        output_dtype: Optional[torch.dtype] = torch.float32,
+        retain_original: bool = False,
+        output_key_format: str = "{key}_{task}",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to be processed from the input dictionary.
+            tasks: Sequence describing the targets to generate. Each entry can be
+                either a string referencing :attr:`_TASK_REGISTRY` or a dict with
+                ``{"name": ..., "kwargs": {...}, "output_key": ...}``.
+            stack_outputs: If True, concatenate targets along a new channel axis
+                and write them back to the input ``key``.
+            output_dtype: Optional dtype applied to generated targets.
+            retain_original: If True, keep the original label tensor alongside the
+                generated outputs.
+            output_key_format: Format string used when ``stack_outputs`` is False
+                and a task does not supply ``output_key``. Receives ``key`` and
+                ``task`` keyword arguments.
+            allow_missing_keys: Whether missing keys are allowed.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.stack_outputs = stack_outputs
+        self.output_dtype = output_dtype
+        self.retain_original = retain_original
+        self.output_key_format = output_key_format
+
+        self.task_specs = self._init_tasks(tasks)
+
+    def _init_tasks(
+        self,
+        tasks: Sequence[Union[str, Dict[str, Any]]],
+    ) -> List[Dict[str, Any]]:
+        """Normalize task configuration into callable specs."""
+        specs: List[Dict[str, Any]] = []
+        for task in tasks:
+            if isinstance(task, str):
+                name = task
+                kwargs = {}
+                output_key = None
+            elif isinstance(task, dict):
+                name = task.get("name") or task.get("task") or task.get("type")
+                if name is None:
+                    raise ValueError(f"Task entry {task} missing 'name'/'task'/'type'.")
+                kwargs = dict(task.get("kwargs", {}))
+                output_key = task.get("output_key")
+            else:
+                raise TypeError(f"Unsupported task specification: {task!r}")
+
+            if name not in self._TASK_REGISTRY:
+                available = ", ".join(sorted(self._TASK_REGISTRY))
+                raise KeyError(f"Unknown task '{name}'. Available: {available}")
+
+            fn = self._TASK_REGISTRY[name]
+            defaults = deepcopy(self._TASK_DEFAULTS.get(name, {}))
+            kwargs = {**defaults, **kwargs}
+            specs.append(
+                {
+                    "name": name,
+                    "fn": fn,
+                    "kwargs": kwargs,
+                    "output_key": output_key,
+                }
+            )
+        if not specs:
+            raise ValueError("At least one task must be specified for MultiTaskLabelTransformd.")
+        return specs
+
+    def _prepare_label(self, label: Any) -> Tuple[np.ndarray, bool]:
+        """Convert label to numpy without duplicating data where possible.
+        
+        MONAI transforms expect channel-first format [C, D, H, W], not batch-first [B, C, D, H, W].
+        We should not remove the channel dimension.
+        """
+        if isinstance(label, torch.Tensor):
+            label_cpu = label.detach().cpu()
+            label_np = label_cpu.numpy()
+            return label_np, False
+        if isinstance(label, np.ndarray):
+            return label, False
+        return np.asarray(label), False
+
+    def _to_tensor(self, array: np.ndarray, *, add_batch_dim: bool) -> torch.Tensor:
+        tensor = torch.as_tensor(array)
+        if self.output_dtype is not None:
+            tensor = tensor.to(self.output_dtype)
+        if add_batch_dim:
+            tensor = tensor.unsqueeze(0)
+        return tensor
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key not in d:
+                continue
+
+            label = d[key]
+            label_np, had_batch_dim = self._prepare_label(label)
+            
+            # Remove channel dimension if it's 1 (target functions expect [D, H, W] not [1, D, H, W])
+            if label_np.ndim == 4 and label_np.shape[0] == 1:
+                label_np = label_np[0]
+
+            outputs: List[np.ndarray] = []
+            for spec in self.task_specs:
+                result = spec["fn"](label_np, **spec["kwargs"])
+                if result is None:
+                    raise RuntimeError(f"Task '{spec['name']}' returned None.")
+                result_arr = np.asarray(result, dtype=np.float32)  # Convert to float32 (handles bool->float)
+
+                # Ensure each output has a channel dimension [C, D, H, W]
+                # If output is [D, H, W], expand to [1, D, H, W]
+                if result_arr.ndim == 3:
+                    result_arr = result_arr[np.newaxis, ...]  # Add channel dimension
+
+                outputs.append(result_arr)
+
+            if self.stack_outputs:
+                # Concatenate outputs along channel dimension (axis=0 for [C, D, H, W] format)
+                stacked = np.concatenate(outputs, axis=0)
+                if self.retain_original:
+                    original_key = self.output_key_format.format(key=key, task="original")
+                    d[original_key] = label
+                d[key] = self._to_tensor(stacked, add_batch_dim=False)
+            else:
+                if not self.retain_original:
+                    d.pop(key, None)
+                else:
+                    d[key] = label
+                for spec, result in zip(self.task_specs, outputs):
+                    out_key = spec["output_key"] or self.output_key_format.format(key=key, task=spec["name"])
+                    d[out_key] = self._to_tensor(result, add_batch_dim=False)
+        return d
+
+
 __all__ = [
     'SegToBinaryMaskd',
     'SegToAffinityMapd',
@@ -479,4 +671,5 @@ __all__ = [
     'EnergyQuantized',
     'DecodeQuantized',
     'SegSelectiond',
+    'MultiTaskLabelTransformd',
 ]

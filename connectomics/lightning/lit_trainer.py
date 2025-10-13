@@ -59,7 +59,7 @@ def create_trainer(
         logger = _create_default_logger(cfg)
     
     # Get training configuration
-    training_cfg = cfg.training if hasattr(cfg, 'training') else None
+    training_cfg = cfg.optimization if hasattr(cfg, 'optimization') else None
     
     # Build trainer arguments
     trainer_args = {

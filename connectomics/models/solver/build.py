@@ -1,7 +1,7 @@
 """
 Optimizer and learning rate scheduler builder.
 
-Supports both YACS (legacy) and Hydra/OmegaConf (modern) configurations.
+Supports Hydra/OmegaConf configurations.
 Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 """
 
@@ -11,114 +11,29 @@ from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnea
 
 from .lr_scheduler import WarmupCosineLR, WarmupMultiStepLR
 
-try:
-    from yacs.config import CfgNode
-    YACS_AVAILABLE = True
-except ImportError:
-    CfgNode = None
-    YACS_AVAILABLE = False
-
-try:
-    from omegaconf import DictConfig
-    OMEGACONF_AVAILABLE = True
-except ImportError:
-    DictConfig = None
-    OMEGACONF_AVAILABLE = False
-
 
 __all__ = ['build_optimizer', 'build_lr_scheduler']
 
 
 def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
     """
-    Build an optimizer from configuration.
-    
-    Supports both YACS (cfg.SOLVER.*) and Hydra (cfg.optimizer.*) configs.
+    Build an optimizer from Hydra configuration.
     
     Args:
-        cfg: Configuration object (CfgNode or Hydra Config)
+        cfg: Hydra configuration object
         model: PyTorch model
         
     Returns:
         Configured optimizer
         
     Examples:
-        >>> # Hydra config
-        >>> optimizer = build_optimizer(cfg, model)
-        >>> # YACS config
         >>> optimizer = build_optimizer(cfg, model)
     """
-    # Check if this is YACS or Hydra config
-    is_yacs = YACS_AVAILABLE and isinstance(cfg, CfgNode) if CfgNode else hasattr(cfg, 'SOLVER')
-    
-    if is_yacs:
-        return _build_optimizer_yacs(cfg, model)
-    else:
-        return _build_optimizer_hydra(cfg, model)
-
-
-def _build_optimizer_yacs(cfg: CfgNode, model: torch.nn.Module) -> torch.optim.Optimizer:
-    """Build optimizer from YACS config."""
-    norm_module_types = (
-        torch.nn.BatchNorm1d,
-        torch.nn.BatchNorm2d,
-        torch.nn.BatchNorm3d,
-        torch.nn.SyncBatchNorm,
-        torch.nn.GroupNorm,
-        torch.nn.InstanceNorm1d,
-        torch.nn.InstanceNorm2d,
-        torch.nn.InstanceNorm3d,
-        torch.nn.LayerNorm,
-        torch.nn.LocalResponseNorm,
-    )
-    
-    params: List[Dict[str, Any]] = []
-    memo: Set[torch.nn.parameter.Parameter] = set()
-    
-    for module in model.modules():
-        for key, value in module.named_parameters(recurse=False):
-            if not value.requires_grad:
-                continue
-            # Avoid duplicating parameters
-            if value in memo:
-                continue
-            memo.add(value)
-            
-            lr = cfg.SOLVER.BASE_LR
-            weight_decay = cfg.SOLVER.WEIGHT_DECAY
-            
-            if isinstance(module, norm_module_types):
-                weight_decay = cfg.SOLVER.WEIGHT_DECAY_NORM
-            elif key == "bias":
-                lr = cfg.SOLVER.BASE_LR * cfg.SOLVER.BIAS_LR_FACTOR
-                weight_decay = cfg.SOLVER.WEIGHT_DECAY_BIAS
-            
-            params.append({
-                "params": [value],
-                "lr": lr,
-                "weight_decay": weight_decay
-            })
-    
-    name = cfg.SOLVER.NAME
-    assert name in ["SGD", "Adam", "AdamW"]
-    
-    if name == "SGD":
-        optimizer = torch.optim.SGD(
-            params, cfg.SOLVER.BASE_LR, momentum=cfg.SOLVER.MOMENTUM
-        )
-    else:
-        optimizer = getattr(torch.optim, name)(
-            params, cfg.SOLVER.BASE_LR, betas=cfg.SOLVER.BETAS
-        )
-    
-    print(f'Optimizer: {optimizer.__class__.__name__}')
-    return optimizer
-
-
-def _build_optimizer_hydra(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
-    """Build optimizer from Hydra config."""
     # Get optimizer config
-    opt_cfg = cfg.optimizer if hasattr(cfg, 'optimizer') else cfg
+    if hasattr(cfg, 'optimization') and hasattr(cfg.optimization, 'optimizer'):
+        opt_cfg = cfg.optimization.optimizer
+    else:
+        raise ValueError("Config must have 'optimization.optimizer' section")
     
     # Extract parameters
     optimizer_name = opt_cfg.name.lower() if hasattr(opt_cfg, 'name') else 'adamw'
@@ -215,12 +130,10 @@ def build_lr_scheduler(
     optimizer: torch.optim.Optimizer
 ) -> torch.optim.lr_scheduler._LRScheduler:
     """
-    Build a learning rate scheduler from configuration.
-    
-    Supports both YACS (cfg.SOLVER.*) and Hydra (cfg.scheduler.*) configs.
+    Build a learning rate scheduler from Hydra configuration.
     
     Args:
-        cfg: Configuration object (CfgNode or Hydra Config)
+        cfg: Hydra configuration object
         optimizer: PyTorch optimizer
         
     Returns:
@@ -229,54 +142,7 @@ def build_lr_scheduler(
     Examples:
         >>> scheduler = build_lr_scheduler(cfg, optimizer)
     """
-    # Check if this is YACS or Hydra config
-    is_yacs = YACS_AVAILABLE and isinstance(cfg, CfgNode) if CfgNode else hasattr(cfg, 'SOLVER')
-    
-    if is_yacs:
-        return _build_lr_scheduler_yacs(cfg, optimizer)
-    else:
-        return _build_lr_scheduler_hydra(cfg, optimizer)
-
-
-def _build_lr_scheduler_yacs(
-    cfg: CfgNode,
-    optimizer: torch.optim.Optimizer
-) -> torch.optim.lr_scheduler._LRScheduler:
-    """Build LR scheduler from YACS config."""
-    name = cfg.SOLVER.LR_SCHEDULER_NAME
-    
-    if name == "WarmupMultiStepLR":
-        return WarmupMultiStepLR(
-            optimizer,
-            cfg.SOLVER.STEPS,
-            cfg.SOLVER.GAMMA,
-            warmup_factor=cfg.SOLVER.WARMUP_FACTOR,
-            warmup_iters=cfg.SOLVER.WARMUP_ITERS,
-            warmup_method=cfg.SOLVER.WARMUP_METHOD,
-        )
-    elif name == "WarmupCosineLR":
-        return WarmupCosineLR(
-            optimizer,
-            cfg.SOLVER.MAX_ITER,
-            warmup_factor=cfg.SOLVER.WARMUP_FACTOR,
-            warmup_iters=cfg.SOLVER.WARMUP_ITERS,
-            warmup_method=cfg.SOLVER.WARMUP_METHOD,
-        )
-    elif name == "MultiStepLR":
-        return MultiStepLR(
-            optimizer,
-            milestones=cfg.SOLVER.STEPS,
-            gamma=cfg.SOLVER.GAMMA,
-        )
-    elif name == "ReduceLROnPlateau":
-        return ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=cfg.SOLVER.GAMMA,
-            patience=10,
-        )
-    else:
-        raise ValueError(f"Unknown LR scheduler: {name}")
+    return _build_lr_scheduler_hydra(cfg, optimizer)
 
 
 def _build_lr_scheduler_hydra(
@@ -285,15 +151,18 @@ def _build_lr_scheduler_hydra(
 ) -> torch.optim.lr_scheduler._LRScheduler:
     """Build LR scheduler from Hydra config."""
     # Get scheduler config
-    sched_cfg = cfg.scheduler if hasattr(cfg, 'scheduler') else cfg
+    if hasattr(cfg, 'optimization') and hasattr(cfg.optimization, 'scheduler'):
+        sched_cfg = cfg.optimization.scheduler
+    else:
+        raise ValueError("Config must have 'optimization.scheduler' section")
     
     # Extract scheduler name
     scheduler_name = sched_cfg.name.lower() if hasattr(sched_cfg, 'name') else 'cosineannealinglr'
     
     if scheduler_name == 'cosineannealinglr':
         # Get max epochs from training config or default
-        if hasattr(cfg, 'training'):
-            t_max = cfg.training.max_epochs
+        if hasattr(cfg, 'optimization') and hasattr(cfg.optimization, 'max_epochs'):
+            t_max = cfg.optimization.max_epochs
         elif hasattr(sched_cfg, 't_max'):
             t_max = sched_cfg.t_max
         else:
@@ -343,8 +212,8 @@ def _build_lr_scheduler_hydra(
     
     elif scheduler_name == 'warmupcosine' or scheduler_name == 'warmupcosinelr':
         # Get max iterations
-        if hasattr(cfg, 'training'):
-            max_iter = cfg.training.max_epochs
+        if hasattr(cfg, 'optimization') and hasattr(cfg.optimization, 'max_epochs'):
+            max_iter = cfg.optimization.max_epochs
         elif hasattr(sched_cfg, 'max_iter'):
             max_iter = sched_cfg.max_iter
         else:
@@ -363,7 +232,10 @@ def _build_lr_scheduler_hydra(
     
     else:
         # Default to CosineAnnealingLR
-        t_max = cfg.training.max_epochs if hasattr(cfg, 'training') else 100
+        if hasattr(cfg, 'optimization') and hasattr(cfg.optimization, 'max_epochs'):
+            t_max = cfg.optimization.max_epochs
+        else:
+            t_max = 100
         scheduler = CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-6)
     
     print(f'LR Scheduler: {scheduler.__class__.__name__}')

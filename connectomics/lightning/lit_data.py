@@ -29,11 +29,7 @@ from connectomics.data.dataset import (
     create_volume_dataset,
     create_tile_dataset,
 )
-from connectomics.data.process import (
-    create_binary_segmentation_pipeline,
-    create_affinity_segmentation_pipeline,
-    create_instance_segmentation_pipeline,
-)
+from connectomics.data.process import create_label_transform_pipeline
 
 
 class ConnectomicsDataModule(pl.LightningDataModule):
@@ -486,22 +482,32 @@ def create_volume_datamodule(
     transforms = {}
 
     if train_label_paths:
+        from types import SimpleNamespace
         if task_type == 'binary':
-            transforms['train'] = create_binary_segmentation_pipeline(
-                input_key='label',
-                output_key='target',
+            cfg = SimpleNamespace(
+                keys=['label'],
+                targets=[{'name': 'binary'}],
             )
+            transforms['train'] = create_label_transform_pipeline(cfg)
         elif task_type == 'affinity':
-            transforms['train'] = create_affinity_segmentation_pipeline(
-                input_key='label',
-                output_key='target',
-                offsets=[[1,0,0], [0,1,0], [0,0,1]],
+            cfg = SimpleNamespace(
+                keys=['label'],
+                targets=[{
+                    'name': 'affinity',
+                    'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
+                }],
             )
+            transforms['train'] = create_label_transform_pipeline(cfg)
         elif task_type == 'instance':
-            transforms['train'] = create_instance_segmentation_pipeline(
-                boundary_output_key='boundary',
-                edt_output_key='edt',
+            cfg = SimpleNamespace(
+                keys=['label'],
+                targets=[
+                    {'name': 'binary'},
+                    {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1, 'do_bg': False, 'do_convolve': False}},
+                    {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+                ],
             )
+            transforms['train'] = create_label_transform_pipeline(cfg)
 
     # Use same transforms for validation if available
     if val_image_paths and transforms.get('train'):
@@ -556,22 +562,32 @@ def create_tile_datamodule(
     transforms = {}
 
     if train_label_json:
+        from types import SimpleNamespace
         if task_type == 'binary':
-            transforms['train'] = create_binary_segmentation_pipeline(
-                input_key='label',
-                output_key='target',
+            cfg = SimpleNamespace(
+                keys=['label'],
+                targets=[{'name': 'binary'}],
             )
+            transforms['train'] = create_label_transform_pipeline(cfg)
         elif task_type == 'affinity':
-            transforms['train'] = create_affinity_segmentation_pipeline(
-                input_key='label',
-                output_key='target',
-                offsets=[[1,0,0], [0,1,0], [0,0,1]],
+            cfg = SimpleNamespace(
+                keys=['label'],
+                targets=[{
+                    'name': 'affinity',
+                    'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
+                }],
             )
+            transforms['train'] = create_label_transform_pipeline(cfg)
         elif task_type == 'instance':
-            transforms['train'] = create_instance_segmentation_pipeline(
-                boundary_output_key='boundary',
-                edt_output_key='edt',
+            cfg = SimpleNamespace(
+                keys=['label'],
+                targets=[
+                    {'name': 'binary'},
+                    {'name': 'instance_boundary', 'kwargs': {'tsz_h': 1, 'do_bg': False, 'do_convolve': False}},
+                    {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+                ],
             )
+            transforms['train'] = create_label_transform_pipeline(cfg)
 
     # Use same transforms for validation if available
     if val_volume_json and transforms.get('train'):

@@ -22,7 +22,6 @@ from monai.data import Dataset, CacheDataset, PersistentDataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
 
-from ..process import create_binary_segmentation_pipeline, create_affinity_segmentation_pipeline
 from ..io import read_volume
 
 

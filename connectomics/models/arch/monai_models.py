@@ -123,6 +123,15 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     channels = features[:5]  # Limit to 5 levels
     strides = [2] * (len(channels) - 1)  # 2x downsampling at each level
 
+    # Handle normalization type and parameters
+    norm_type = getattr(cfg.model, 'norm', 'batch')
+    if norm_type == 'group':
+        # For GroupNorm, we need to specify num_groups
+        num_groups = getattr(cfg.model, 'num_groups', 8)
+        norm = ("group", {"num_groups": num_groups})
+    else:
+        norm = norm_type
+
     model = UNet(
         spatial_dims=3,
         in_channels=cfg.model.in_channels,
@@ -131,7 +140,7 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         strides=strides,
         num_res_units=getattr(cfg.model, 'num_res_units', 2),
         kernel_size=getattr(cfg.model, 'kernel_size', 3),
-        norm=getattr(cfg.model, 'norm', 'batch'),
+        norm=norm,
         dropout=getattr(cfg.model, 'dropout', 0.0),
     )
 

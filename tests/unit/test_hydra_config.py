@@ -30,8 +30,8 @@ def test_default_config_creation():
     
     assert cfg.model.architecture == 'monai_basic_unet3d'
     assert cfg.data.batch_size == 2
-    assert cfg.optimizer.name == 'AdamW'
-    assert cfg.training.max_epochs == 100
+    assert cfg.optimization.optimizer.name == 'AdamW'
+    assert cfg.optimization.max_epochs == 100
     print("✅ Default config creation works")
 
 
@@ -89,7 +89,7 @@ def test_config_cli_updates():
     
     assert updated_cfg.data.batch_size == 8
     assert updated_cfg.model.architecture == 'unetr'
-    assert updated_cfg.optimizer.lr == 0.001
+    assert updated_cfg.optimization.optimizer.lr == 0.001
     print("✅ CLI updates work")
 
 
@@ -155,7 +155,7 @@ def test_experiment_name_generation():
     cfg = Config()
     cfg.model.architecture = "unet3d"
     cfg.data.batch_size = 4
-    cfg.optimizer.lr = 0.001
+    cfg.optimization.optimizer.lr = 0.001
     
     name = create_experiment_name(cfg)
     

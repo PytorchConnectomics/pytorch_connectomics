@@ -158,16 +158,16 @@ def setup_config(args) -> Config:
     if args.mode in ['test', 'predict']:
         if cfg.inference.num_gpus >= 0:
             print(f"🔧 Inference override: num_gpus={cfg.inference.num_gpus}")
-            cfg.system.num_gpus = cfg.inference.num_gpus
+            cfg.system.training.num_gpus = cfg.inference.num_gpus
         if cfg.inference.num_cpus >= 0:
             print(f"🔧 Inference override: num_cpus={cfg.inference.num_cpus}")
-            cfg.system.num_cpus = cfg.inference.num_cpus
+            cfg.system.training.num_cpus = cfg.inference.num_cpus
         if cfg.inference.batch_size >= 0:
             print(f"🔧 Inference override: batch_size={cfg.inference.batch_size}")
-            cfg.data.batch_size = cfg.inference.batch_size
+            cfg.system.inference.batch_size = cfg.inference.batch_size
         if cfg.inference.num_workers >= 0:
             print(f"🔧 Inference override: num_workers={cfg.inference.num_workers}")
-            cfg.data.num_workers = cfg.inference.num_workers
+            cfg.system.inference.num_workers = cfg.inference.num_workers
 
     # Auto-planning (if enabled)
     if hasattr(cfg.system, 'auto_plan') and cfg.system.auto_plan:
@@ -181,7 +181,7 @@ def setup_config(args) -> Config:
     validate_config(cfg)
 
     # Ensure base output directory exists
-    output_dir = Path(cfg.checkpoint.dirpath).parent
+    output_dir = Path(cfg.monitor.checkpoint.dirpath).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
     return cfg
@@ -303,17 +303,17 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
     print(f"  DEBUG: mode in ['test', 'predict'] = {mode in ['test', 'predict']}")
     if mode in ['test', 'predict']:
         print(f"  DEBUG: hasattr(cfg, 'inference') = {hasattr(cfg, 'inference')}")
-        if hasattr(cfg, 'inference'):
-            print(f"  DEBUG: cfg.inference.test_image = '{cfg.inference.test_image}'")
-        if not hasattr(cfg, 'inference') or not cfg.inference.test_image:
+        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data'):
+            print(f"  DEBUG: cfg.inference.data.test_image = '{cfg.inference.data.test_image}'")
+        if not hasattr(cfg, 'inference') or not hasattr(cfg.inference, 'data') or not cfg.inference.data.test_image:
             raise ValueError(
-                f"Test mode requires inference.test_image to be set in config.\n"
-                f"Current config has: inference.test_image = {cfg.inference.test_image if hasattr(cfg, 'inference') else 'N/A'}"
+                f"Test mode requires inference.data.test_image to be set in config.\n"
+                f"Current config has: inference.data.test_image = {cfg.inference.data.test_image if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') else 'N/A'}"
             )
-        print(f"  🧪 Creating test dataset from: {cfg.inference.test_image}")
+        print(f"  🧪 Creating test dataset from: {cfg.inference.data.test_image}")
         test_data_dicts = create_data_dicts_from_paths(
-            image_paths=[cfg.inference.test_image],
-            label_paths=[cfg.inference.test_label] if cfg.inference.test_label else None,
+            image_paths=[cfg.inference.data.test_image],
+            label_paths=[cfg.inference.data.test_label] if cfg.inference.data.test_label else None,
         )
         print(f"  DEBUG: test_data_dicts created = {test_data_dicts}")
         print(f"  Test dataset size: {len(test_data_dicts)}")
@@ -324,7 +324,7 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
             print(f"  Val dataset size: {len(val_data_dicts)}")
 
     # Auto-compute iter_num from volume size if not specified
-    iter_num = cfg.data.iter_num
+    iter_num = cfg.data.iter_num_per_epoch
     if iter_num == -1:
         print("📊 Auto-computing iter_num from volume size...")
         from connectomics.data.utils import compute_total_samples
@@ -363,7 +363,7 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
         print(f"  Stride: {cfg.data.stride}")
         print(f"  Samples per volume: {samples_per_vol}")
         print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
-        print(f"  ✅ Batches per epoch: {iter_num // cfg.data.batch_size:,}")
+        print(f"  ✅ Batches per epoch: {iter_num // cfg.system.training.batch_size:,}")
 
     # Create DataModule
     print("Creating data loaders...")
@@ -395,14 +395,14 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
         )
 
         # Use fewer workers since we're loading from memory
-        num_workers = min(cfg.data.num_workers, 2)
+        num_workers = min(cfg.system.training.num_workers, 2)
         print(f"  Using {num_workers} workers (in-memory operations are fast)")
 
         # Create simple dataloader
         from torch.utils.data import DataLoader
         train_loader = DataLoader(
             train_dataset,
-            batch_size=cfg.data.batch_size,
+            batch_size=cfg.system.training.batch_size,
             shuffle=False,  # Already random
             num_workers=num_workers,
             pin_memory=cfg.data.pin_memory,
@@ -444,8 +444,8 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
                 'test': test_transforms,
             },
             dataset_type='cached' if use_cache else 'standard',
-            batch_size=cfg.data.batch_size,
-            num_workers=cfg.data.num_workers,
+            batch_size=cfg.system.training.batch_size,
+            num_workers=cfg.system.training.num_workers,
             pin_memory=cfg.data.pin_memory,
             persistent_workers=cfg.data.persistent_workers,
             cache_rate=cfg.data.cache_rate if use_cache else 0.0,
@@ -516,7 +516,7 @@ def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> O
     return None
 
 
-def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False, ckpt_path: Optional[str] = None) -> pl.Trainer:
+def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False, ckpt_path: Optional[str] = None, mode: str = 'train') -> pl.Trainer:
     """
     Create PyTorch Lightning Trainer.
 
@@ -525,74 +525,78 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False, ckpt_
         run_dir: Directory for this training run
         fast_dev_run: Whether to run quick debug mode
         ckpt_path: Path to checkpoint for resuming (used to extract best_score)
+        mode: 'train' or 'test' - determines which system config to use
 
     Returns:
         Configured Trainer instance
     """
-    print("Creating Lightning trainer...")
+    print(f"Creating Lightning trainer (mode={mode})...")
 
-    # Setup checkpoint directory
-    checkpoint_dir = run_dir / "checkpoints"
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-
-    # Setup callbacks
+    # Setup callbacks (only for training mode)
     callbacks = []
 
-    # Model checkpoint (in run_dir/checkpoints/)
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=str(checkpoint_dir),
-        filename=cfg.checkpoint.filename,
-        monitor=cfg.checkpoint.monitor,
-        mode=cfg.checkpoint.mode,
-        save_top_k=cfg.checkpoint.save_top_k,
-        save_last=cfg.checkpoint.save_last,
-        every_n_epochs=cfg.checkpoint.save_every_n_epochs,
-        verbose=True,
-    )
-    callbacks.append(checkpoint_callback)
+    if mode == 'train':
+        # Setup checkpoint directory
+        checkpoint_dir = run_dir / "checkpoints"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    # Early stopping
-    if cfg.early_stopping.enabled:
-        # Extract best_score from checkpoint filename if resuming
-        best_score = None
-        if ckpt_path:
-            best_score = extract_best_score_from_checkpoint(ckpt_path, cfg.early_stopping.monitor)
-            if best_score is not None:
-                print(f"  Early stopping: Extracted best_score={best_score:.6f} from checkpoint")
-
-        early_stop_callback = EarlyStopping(
-            monitor=cfg.early_stopping.monitor,
-            patience=cfg.early_stopping.patience,
-            mode=cfg.early_stopping.mode,
-            min_delta=cfg.early_stopping.min_delta,
+        # Model checkpoint (in run_dir/checkpoints/)
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=str(checkpoint_dir),
+            filename=cfg.monitor.checkpoint.checkpoint_filename,
+            monitor=cfg.monitor.checkpoint.monitor,
+            mode=cfg.monitor.checkpoint.mode,
+            save_top_k=cfg.monitor.checkpoint.save_top_k,
+            save_last=cfg.monitor.checkpoint.save_last,
+            every_n_epochs=cfg.monitor.checkpoint.save_every_n_epochs,
             verbose=True,
-            check_on_train_epoch_end=True,  # Check at end of train epoch (not validation)
-            check_finite=cfg.early_stopping.check_finite,  # Stop on NaN/inf
-            stopping_threshold=cfg.early_stopping.stopping_threshold,
-            divergence_threshold=cfg.early_stopping.divergence_threshold,
-            strict=False,  # Don't crash if metric not available (wait for it)
+            save_on_train_epoch_end=True,  # Save based on training metrics
         )
+        callbacks.append(checkpoint_callback)
 
-        # Manually set best_score if extracted from checkpoint
-        if best_score is not None:
-            early_stop_callback.best_score = torch.tensor(best_score)
+        # Early stopping (training only)
+        if cfg.monitor.early_stopping.enabled:
+            # Extract best_score from checkpoint filename if resuming
+            best_score = None
+            if ckpt_path:
+                best_score = extract_best_score_from_checkpoint(ckpt_path, cfg.monitor.early_stopping.monitor)
+                if best_score is not None:
+                    print(f"  Early stopping: Extracted best_score={best_score:.6f} from checkpoint")
 
-        callbacks.append(early_stop_callback)
+            early_stop_callback = EarlyStopping(
+                monitor=cfg.monitor.early_stopping.monitor,
+                patience=cfg.monitor.early_stopping.patience,
+                mode=cfg.monitor.early_stopping.mode,
+                min_delta=cfg.monitor.early_stopping.min_delta,
+                verbose=True,
+                check_on_train_epoch_end=True,  # Check at end of train epoch (not validation)
+                check_finite=cfg.monitor.early_stopping.check_finite,  # Stop on NaN/inf
+                stopping_threshold=cfg.monitor.early_stopping.threshold,
+                divergence_threshold=cfg.monitor.early_stopping.divergence_threshold,
+                strict=False,  # Don't crash if metric not available (wait for it)
+            )
 
-    # Learning rate monitor
-    callbacks.append(LearningRateMonitor(logging_interval='epoch'))
+            # Manually set best_score if extracted from checkpoint
+            if best_score is not None:
+                early_stop_callback.best_score = torch.tensor(best_score)
 
-    # Visualization callback (end-of-epoch only)
-    if hasattr(cfg, 'visualization') and getattr(cfg.visualization, 'enabled', False):
-        vis_callback = VisualizationCallback(
-            cfg=cfg,
-            max_images=getattr(cfg.visualization, 'max_images', 4),
-            num_slices=getattr(cfg.visualization, 'num_slices', 8),
-        )
-        callbacks.append(vis_callback)
-        print(f"  Visualization: Enabled (end of each epoch)")
-    else:
-        print(f"  Visualization: Disabled")
+            callbacks.append(early_stop_callback)
+
+        # Learning rate monitor (training only)
+        callbacks.append(LearningRateMonitor(logging_interval='epoch'))
+
+        # Visualization callback (training only, end-of-epoch only)
+        if cfg.monitor.logging.images.enabled:
+            vis_callback = VisualizationCallback(
+                cfg=cfg,
+                max_images=cfg.monitor.logging.images.max_images,
+                num_slices=cfg.monitor.logging.images.num_slices,
+                log_every_n_epochs=cfg.monitor.logging.images.log_every_n_epochs,
+            )
+            callbacks.append(vis_callback)
+            print(f"  Visualization: Enabled (every {cfg.monitor.logging.images.log_every_n_epochs} epoch(s))")
+        else:
+            print(f"  Visualization: Disabled")
 
     # Progress bar (optional - requires rich package)
     try:
@@ -600,44 +604,49 @@ def create_trainer(cfg: Config, run_dir: Path, fast_dev_run: bool = False, ckpt_
     except (ImportError, ModuleNotFoundError):
         pass  # Use default progress bar
 
-    # Setup logger (in run_dir/logs/)
-    logger = TensorBoardLogger(
-        save_dir=str(run_dir),
-        name='',  # No name subdirectory
-        version='logs',  # Logs go directly to run_dir/logs/
-    )
+    # Setup logger (training only - in run_dir/logs/)
+    logger = None
+    if mode == 'train':
+        logger = TensorBoardLogger(
+            save_dir=str(run_dir),
+            name='',  # No name subdirectory
+            version='logs',  # Logs go directly to run_dir/logs/
+        )
 
     # Create trainer
+    # Select system config based on mode
+    system_cfg = cfg.system.training if mode == 'train' else cfg.system.inference
+
     # Check if GPU is actually available
-    use_gpu = cfg.system.num_gpus > 0 and torch.cuda.is_available()
+    use_gpu = system_cfg.num_gpus > 0 and torch.cuda.is_available()
     
     # Check if anomaly detection is enabled (useful for debugging NaN)
-    detect_anomaly = getattr(cfg.training, 'detect_anomaly', False)
+    detect_anomaly = getattr(cfg.monitor, 'detect_anomaly', False)
     if detect_anomaly:
         print("  ⚠️  PyTorch anomaly detection ENABLED (training will be slower)")
         print("      This helps pinpoint the exact operation causing NaN in backward pass")
 
     trainer = pl.Trainer(
-        max_epochs=cfg.training.max_epochs,
-        max_steps=cfg.training.max_steps if cfg.training.max_steps else -1,
+        max_epochs=cfg.optimization.max_epochs,
+        max_steps=getattr(cfg.optimization, 'max_steps', None) or -1,
         accelerator='gpu' if use_gpu else 'cpu',
-        devices=cfg.system.num_gpus if use_gpu else 1,
-        precision=cfg.training.precision,
-        gradient_clip_val=cfg.training.gradient_clip_val,
-        accumulate_grad_batches=cfg.training.accumulate_grad_batches,
-        val_check_interval=cfg.training.val_check_interval,
-        log_every_n_steps=cfg.training.log_every_n_steps,
+        devices=system_cfg.num_gpus if use_gpu else 1,
+        precision=cfg.optimization.precision,
+        gradient_clip_val=cfg.optimization.gradient_clip_val,
+        accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
+        val_check_interval=cfg.optimization.val_check_interval,
+        log_every_n_steps=cfg.optimization.log_every_n_steps,
         callbacks=callbacks,
         logger=logger,
-        deterministic=cfg.training.deterministic,
-        benchmark=cfg.training.benchmark,
+        deterministic=cfg.optimization.deterministic,
+        benchmark=cfg.optimization.benchmark,
         fast_dev_run=fast_dev_run,
         detect_anomaly=detect_anomaly,
     )
 
-    print(f"  Max epochs: {cfg.training.max_epochs}")
-    print(f"  Devices: {cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1}")
-    print(f"  Precision: {cfg.training.precision}")
+    print(f"  Max epochs: {cfg.optimization.max_epochs}")
+    print(f"  Devices: {system_cfg.num_gpus if system_cfg.num_gpus > 0 else 1} ({mode} mode)")
+    print(f"  Precision: {cfg.optimization.precision}")
 
     return trainer
 
@@ -653,26 +662,31 @@ def main():
     print("=" * 60)
     cfg = setup_config(args)
 
-    # Create run directory (optionally with timestamp)
+    # Create run directory only for training mode
     # Structure: outputs/experiment_name/YYYYMMDD_HHMMSS/{checkpoints,logs,config.yaml}
     # Or without timestamp: outputs/experiment_name/{checkpoints,logs,config.yaml}
-    output_base = Path(cfg.checkpoint.dirpath).parent
+    if args.mode == 'train':
+        output_base = Path(cfg.monitor.checkpoint.dirpath).parent
 
-    use_timestamp = getattr(cfg.checkpoint, 'use_timestamp', True)
-    if use_timestamp:
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_dir = output_base / timestamp
+        use_timestamp = getattr(cfg.monitor.checkpoint, 'use_timestamp', True)
+        if use_timestamp:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            run_dir = output_base / timestamp
+        else:
+            run_dir = output_base
+
+        run_dir.mkdir(parents=True, exist_ok=True)
+        print(f"📁 Run directory: {run_dir}")
+
+        # Save config to run directory
+        config_save_path = run_dir / "config.yaml"
+        save_config(cfg, config_save_path)
+        print(f"💾 Config saved to: {config_save_path}")
     else:
-        run_dir = output_base
-
-    run_dir.mkdir(parents=True, exist_ok=True)
-    print(f"📁 Run directory: {run_dir}")
-
-    # Save config to run directory
-    config_save_path = run_dir / "config.yaml"
-    save_config(cfg, config_save_path)
-    print(f"💾 Config saved to: {config_save_path}")
+        # For test/predict mode, use a dummy run_dir (won't be created)
+        run_dir = Path(cfg.monitor.checkpoint.dirpath).parent / "test_run"
+        print(f"📝 Running in {args.mode} mode (no output directory created)")
 
     # Set random seed
     if cfg.system.seed is not None:
@@ -691,7 +705,7 @@ def main():
     print(f"  Model parameters: {num_params:,}")
 
     # Create trainer (pass run_dir for checkpoints and logs, and checkpoint path for resume)
-    trainer = create_trainer(cfg, run_dir=run_dir, fast_dev_run=args.fast_dev_run, ckpt_path=args.checkpoint)
+    trainer = create_trainer(cfg, run_dir=run_dir, fast_dev_run=args.fast_dev_run, ckpt_path=args.checkpoint, mode=args.mode)
 
     print("\n" + "=" * 60)
     print("🏃 STARTING TRAINING")
@@ -802,7 +816,7 @@ def main():
             )
 
             # Save predictions
-            output_dir = Path(cfg.inference.output_path)
+            output_dir = Path(cfg.inference.data.output_path)
             output_dir.mkdir(parents=True, exist_ok=True)
 
             # Extract checkpoint name for output filename
