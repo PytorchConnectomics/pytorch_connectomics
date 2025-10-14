@@ -15,8 +15,7 @@ import matplotlib
 from matplotlib import pyplot as plt
 from yacs.config import CfgNode
 
-from .visualizer import Visualizer
-from connectomics.config.utils import convert_cfg_markdown
+from connectomics.utils.visualizer import Visualizer
 
 
 def build_monitor(cfg):

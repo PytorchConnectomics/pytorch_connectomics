@@ -499,6 +499,7 @@ class InferenceDataConfig:
     """Inference data configuration."""
     test_image: Optional[str] = None  # Singular form for compatibility
     test_label: Optional[str] = None  # Singular form for compatibility
+    test_mask: Optional[str] = None  # Optional mask for inference
     test_resolution: Optional[List[float]] = None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
     output_path: str = "results/"
 
@@ -519,9 +520,18 @@ class TestTimeAugmentationConfig:
     """Test-time augmentation configuration."""
     enabled: bool = False
     flip_axes: Any = None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
-    act: Optional[str] = None  # Activation: 'softmax', 'sigmoid', None (applied even with null flip_axes)
+    act: Optional[str] = None  # Single activation for all channels: 'softmax', 'sigmoid', 'tanh', None (deprecated, use channel_activations)
+    channel_activations: Optional[List[Any]] = None  # Per-channel activations: [[0, 'sigmoid'], [1, 'sigmoid'], [2, 'tanh']]
     select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
+    apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
+
+
+@dataclass
+class DecodeModeConfig:
+    """Configuration for a single decode mode/function."""
+    name: str = "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, etc.
+    kwargs: Dict[str, Any] = field(default_factory=dict)  # Keyword arguments for the decode function
 
 
 @dataclass
@@ -544,6 +554,7 @@ class InferenceConfig:
     data: InferenceDataConfig = field(default_factory=InferenceDataConfig)
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     test_time_augmentation: TestTimeAugmentationConfig = field(default_factory=TestTimeAugmentationConfig)
+    decoding: Optional[List[DecodeModeConfig]] = None  # List of decode modes to apply sequentially
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 

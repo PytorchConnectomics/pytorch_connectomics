@@ -14,6 +14,7 @@ import warnings
 import pdb
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -80,6 +81,8 @@ class ConnectomicsModule(pl.LightningModule):
         self.test_jaccard = None
         self.test_dice = None
         self.test_accuracy = None
+        self.test_adapted_rand = None  # Adapted Rand error (instance segmentation metric)
+        self.test_adapted_rand_results = []  # Store per-batch results for averaging
         self.sliding_inferer: Optional[SlidingWindowInferer] = None
 
     def _build_model(self, cfg) -> nn.Module:
@@ -137,6 +140,11 @@ class ConnectomicsModule(pl.LightningModule):
             else:
                 # Multi-class segmentation
                 self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
+        if 'adapted_rand' in metrics:
+            # Adapted Rand error for instance segmentation
+            # This is a custom metric that needs manual computation
+            self.test_adapted_rand = True  # Flag to enable adapted_rand computation
+            self.test_adapted_rand_results = []  # Store per-batch results
 
     def _setup_sliding_window_inferer(self):
         """Initialize MONAI's SlidingWindowInferer based on config."""
@@ -240,6 +248,9 @@ class ConnectomicsModule(pl.LightningModule):
     def _apply_tta_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
         Apply activation and channel selection before TTA ensemble.
+        
+        Supports per-channel activations via channel_activations config:
+        channel_activations: [[0, 'sigmoid'], [1, 'sigmoid'], [2, None]]
 
         Args:
             tensor: Raw predictions (B, C, D, H, W)
@@ -250,21 +261,56 @@ class ConnectomicsModule(pl.LightningModule):
         if not hasattr(self.cfg, 'inference'):
             return tensor
 
-        # Get TTA-specific activation or fall back to output_act
-        tta_act = getattr(self.cfg.inference.test_time_augmentation, 'act', None)
-        if tta_act is None:
-            tta_act = getattr(self.cfg.inference, 'output_act', None)
+        # Check for per-channel activations first (new approach)
+        channel_activations = getattr(self.cfg.inference.test_time_augmentation, 'channel_activations', None)
+        
+        if channel_activations is not None:
+            # Apply different activations to different channels
+            activated_channels = []
+            for channel_idx, act in channel_activations:
+                channel_tensor = tensor[:, channel_idx:channel_idx+1, ...]
+                
+                if act == 'sigmoid':
+                    channel_tensor = torch.sigmoid(channel_tensor)
+                elif act == 'tanh':
+                    channel_tensor = torch.tanh(channel_tensor)
+                elif act == 'softmax':
+                    # Softmax doesn't make sense for single channel, skip
+                    warnings.warn(
+                        f"Softmax activation for single channel {channel_idx} is not supported. Skipping.",
+                        UserWarning,
+                    )
+                elif act is None or (isinstance(act, str) and act.lower() == 'none'):
+                    # No activation (keep as is)
+                    pass
+                else:
+                    warnings.warn(
+                        f"Unknown activation '{act}' for channel {channel_idx}. Supported: 'sigmoid', 'tanh', None",
+                        UserWarning,
+                    )
+                
+                activated_channels.append(channel_tensor)
+            
+            # Concatenate all channels back together
+            tensor = torch.cat(activated_channels, dim=1)
+        else:
+            # Fall back to single activation for all channels (old approach)
+            tta_act = getattr(self.cfg.inference.test_time_augmentation, 'act', None)
+            if tta_act is None:
+                tta_act = getattr(self.cfg.inference, 'output_act', None)
 
-        # Apply activation function
-        if tta_act == 'softmax':
-            tensor = torch.softmax(tensor, dim=1)
-        elif tta_act == 'sigmoid':
-            tensor = torch.sigmoid(tensor)
-        elif tta_act is not None and tta_act.lower() != 'none':
-            warnings.warn(
-                f"Unknown TTA activation function '{tta_act}'. Supported: 'softmax', 'sigmoid', None",
-                UserWarning,
-            )
+            # Apply activation function
+            if tta_act == 'softmax':
+                tensor = torch.softmax(tensor, dim=1)
+            elif tta_act == 'sigmoid':
+                tensor = torch.sigmoid(tensor)
+            elif tta_act == 'tanh':
+                tensor = torch.tanh(tensor)
+            elif tta_act is not None and tta_act.lower() != 'none':
+                warnings.warn(
+                    f"Unknown TTA activation function '{tta_act}'. Supported: 'softmax', 'sigmoid', 'tanh', None",
+                    UserWarning,
+                )
 
         # Get TTA-specific channel selection or fall back to output_channel
         tta_channel = getattr(self.cfg.inference.test_time_augmentation, 'select_channel', None)
@@ -286,15 +332,16 @@ class ConnectomicsModule(pl.LightningModule):
 
         return tensor
 
-    def _predict_with_tta(self, images: torch.Tensor) -> torch.Tensor:
+    def _predict_with_tta(self, images: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Perform test-time augmentation using flips and ensemble predictions.
 
         Args:
             images: Input volume (B, C, D, H, W) or (B, D, H, W) or (D, H, W)
+            mask: Optional mask to multiply with predictions after ensemble (B, C, D, H, W) or (B, 1, D, H, W)
 
         Returns:
-            Averaged predictions from all TTA variants
+            Averaged predictions from all TTA variants, optionally masked
         """
         # Normalize input to 5D tensor (B, C, D, H, W)
         if images.ndim == 3:
@@ -399,6 +446,27 @@ class ConnectomicsModule(pl.LightningModule):
             ensemble_result = stacked_preds.max(dim=0)[0]  # max returns (values, indices)
         else:
             raise ValueError(f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'.")
+
+        # Apply mask after ensemble if requested
+        apply_mask = getattr(self.cfg.inference.test_time_augmentation, 'apply_mask', False)
+        if apply_mask and mask is not None:
+            # Ensure mask has the same shape as ensemble_result
+            # mask can be (B, C, D, H, W) with C matching channels, or (B, 1, D, H, W) to broadcast
+            if mask.shape != ensemble_result.shape:
+                # If mask is (B, 1, D, H, W), it will broadcast across channels
+                if mask.shape[1] == 1 and mask.shape[0] == ensemble_result.shape[0]:
+                    # Broadcast across all channels
+                    pass
+                elif mask.shape[1] != ensemble_result.shape[1]:
+                    warnings.warn(
+                        f"Mask shape {mask.shape} does not match ensemble result shape {ensemble_result.shape}. "
+                        f"Expected mask with C={ensemble_result.shape[1]} or C=1 channels. Skipping mask application.",
+                        UserWarning,
+                    )
+                    return ensemble_result
+
+            # Multiply each channel by corresponding mask channel (or broadcast if mask has 1 channel)
+            ensemble_result = ensemble_result * mask
 
         return ensemble_result
 
@@ -512,6 +580,90 @@ class ConnectomicsModule(pl.LightningModule):
 
         return tensor.to(target_dtype)
 
+    def _apply_decode_mode(self, data: np.ndarray) -> np.ndarray:
+        """
+        Apply decode mode transformations to convert probability maps to instance segmentation.
+
+        Args:
+            data: Numpy array of predictions (B, C, D, H, W) or (C, D, H, W)
+
+        Returns:
+            Decoded segmentation mask(s)
+        """
+        if not hasattr(self.cfg, 'inference'):
+            return data
+
+        # Access decoding config directly from inference
+        decode_modes = getattr(self.cfg.inference, 'decoding', None)
+
+        if not decode_modes:
+            return data
+
+        # Import decoding functions
+        from connectomics.decoding import (
+            decode_binary_cc,
+            decode_binary_watershed,
+            decode_binary_contour_cc,
+            decode_binary_contour_watershed,
+            decode_binary_contour_distance_watershed,
+            decode_affinity_cc,
+        )
+
+        # Map function names to actual functions
+        decode_fn_map = {
+            'decode_binary_cc': decode_binary_cc,
+            'decode_binary_watershed': decode_binary_watershed,
+            'decode_binary_contour_cc': decode_binary_contour_cc,
+            'decode_binary_contour_watershed': decode_binary_contour_watershed,
+            'decode_binary_contour_distance_watershed': decode_binary_contour_distance_watershed,
+            'decode_affinity_cc': decode_affinity_cc,
+        }
+
+        # Process each sample in batch
+        batch_size = data.shape[0] if data.ndim == 5 else 1
+        if data.ndim == 4:
+            data = data[np.newaxis, ...]  # Add batch dimension
+
+        results = []
+        for batch_idx in range(batch_size):
+            sample = data[batch_idx]  # (C, D, H, W)
+
+            # Apply each decode mode sequentially
+            for decode_cfg in decode_modes:
+                fn_name = decode_cfg.name if hasattr(decode_cfg, 'name') else decode_cfg.get('name')
+                kwargs = decode_cfg.kwargs if hasattr(decode_cfg, 'kwargs') else decode_cfg.get('kwargs', {})
+
+                if fn_name not in decode_fn_map:
+                    warnings.warn(
+                        f"Unknown decode function '{fn_name}'. Available: {list(decode_fn_map.keys())}. "
+                        f"Skipping this decode mode.",
+                        UserWarning,
+                    )
+                    continue
+
+                decode_fn = decode_fn_map[fn_name]
+
+                try:
+                    # Apply decoding function
+                    sample = decode_fn(sample, **kwargs)
+                    # Ensure output has channel dimension for potential chaining
+                    if sample.ndim == 3:
+                        sample = sample[np.newaxis, ...]  # (1, D, H, W)
+                except Exception as e:
+                    warnings.warn(
+                        f"Error applying decode function '{fn_name}': {e}. "
+                        f"Skipping this decode mode.",
+                        UserWarning,
+                    )
+                    continue
+
+            results.append(sample)
+
+        # Stack results back into batch
+        decoded = np.stack(results, axis=0) if len(results) > 1 else results[0]
+
+        return decoded
+
     def _write_outputs(self, logits: torch.Tensor, batch: Dict[str, Any]) -> None:
         """Persist predictions to disk using MONAI metadata when available."""
         if not hasattr(self.cfg, 'inference'):
@@ -557,12 +709,46 @@ class ConnectomicsModule(pl.LightningModule):
         tensor = self._apply_output_dtype(tensor)
         data = tensor.numpy()
 
+        # Apply decode mode (instance segmentation decoding)
+        data = self._apply_decode_mode(data)
+
         from connectomics.data.io import write_hdf5
 
         for idx, name in enumerate(resolved_names):
             prediction = data[idx]
             destination = output_dir / f"{name}_prediction.h5"
             write_hdf5(str(destination), prediction, dataset="prediction")
+
+        # Compute adapted_rand if enabled and ground truth is available
+        if self.test_adapted_rand and 'label' in batch:
+            from connectomics.engine.metrics import adapted_rand
+
+            labels = batch['label']            
+            labels_np = labels.detach().cpu().numpy()
+
+            # Compare decoded predictions with ground truth
+            for idx in range(batch_size):
+                pred = data[idx]
+                # Remove channel dimension if present
+                if pred.ndim == 4:
+                    pred = pred[0]  # Take first channel
+                gt = labels_np[idx].astype(np.uint32)
+                if gt.ndim == 4:
+                    gt = gt[0]  # Remove channel dimension
+
+                try:
+                    are, prec, rec = adapted_rand(pred, gt, all_stats=True)
+                    self.test_adapted_rand_results.append({
+                        'are': are,
+                        'precision': prec,
+                        'recall': rec,
+                        'filename': resolved_names[idx]
+                    })
+                except Exception as e:
+                    warnings.warn(
+                        f"Error computing adapted_rand for {resolved_names[idx]}: {e}",
+                        UserWarning
+                    )
 
     def _compute_multitask_loss(self, outputs: torch.Tensor, labels: torch.Tensor) -> tuple:
         """
@@ -870,10 +1056,47 @@ class ConnectomicsModule(pl.LightningModule):
             # Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)
             self.train()
 
+    def on_test_end(self):
+        """Called at the end of testing to compute and log final metrics."""
+        # Compute average adapted_rand if results were collected
+        if self.test_adapted_rand and len(self.test_adapted_rand_results) > 0:
+            # Compute average metrics
+            avg_are = np.mean([r['are'] for r in self.test_adapted_rand_results])
+            avg_prec = np.mean([r['precision'] for r in self.test_adapted_rand_results])
+            avg_rec = np.mean([r['recall'] for r in self.test_adapted_rand_results])
+
+            # Log to console
+            print(f"\n{'='*60}")
+            print(f"Adapted Rand Error (ARE) Results:")
+            print(f"{'='*60}")
+            print(f"Average ARE:       {avg_are:.6f}")
+            print(f"Average Precision: {avg_prec:.6f}")
+            print(f"Average Recall:    {avg_rec:.6f}")
+            print(f"Number of samples: {len(self.test_adapted_rand_results)}")
+            print(f"{'='*60}\n")
+
+            # Log individual results
+            print("Per-sample results:")
+            for r in self.test_adapted_rand_results:
+                print(f"  {r['filename']}: ARE={r['are']:.6f}, Prec={r['precision']:.6f}, Rec={r['recall']:.6f}")
+            print()
+
+            # Log to tensorboard/wandb directly (can't use self.log in on_test_end)
+            if self.logger is not None:
+                try:
+                    # For TensorBoardLogger
+                    if hasattr(self.logger, 'experiment'):
+                        self.logger.experiment.add_scalar('test_adapted_rand_mean', avg_are, self.global_step)
+                        self.logger.experiment.add_scalar('test_adapted_rand_precision', avg_prec, self.global_step)
+                        self.logger.experiment.add_scalar('test_adapted_rand_recall', avg_rec, self.global_step)
+                except Exception as e:
+                    warnings.warn(f"Could not log metrics to logger: {e}", UserWarning)
+
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Test step with optional sliding-window inference and metrics computation."""
         images = batch['image']
         labels = batch.get('label')
+        mask = batch.get('mask')  # Get test mask if available
 
         # Check if TTA is enabled and actually doing augmentation
         tta_enabled = hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation') and getattr(self.cfg.inference.test_time_augmentation, 'enabled', False)
@@ -883,7 +1106,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         if use_tta:
             # Use test-time augmentation (includes activation + channel selection)
-            main_output = self._predict_with_tta(images)
+            main_output = self._predict_with_tta(images, mask=mask)
             outputs = main_output
             is_deep_supervision = False
         elif use_sliding_inferer:
@@ -895,6 +1118,12 @@ class ConnectomicsModule(pl.LightningModule):
             # This allows using act/select_channel from test_time_augmentation config
             if tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
                 main_output = self._apply_tta_preprocessing(main_output)
+
+                # Apply mask if requested (even without TTA augmentation)
+                apply_mask = getattr(self.cfg.inference.test_time_augmentation, 'apply_mask', False)
+                if apply_mask and mask is not None:
+                    main_output = main_output * mask
+
             outputs = main_output
             is_deep_supervision = False
         else:
@@ -905,6 +1134,11 @@ class ConnectomicsModule(pl.LightningModule):
             if tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
                 main_output = self._apply_tta_preprocessing(main_output)
 
+                # Apply mask if requested (even without TTA augmentation)
+                apply_mask = getattr(self.cfg.inference.test_time_augmentation, 'apply_mask', False)
+                if apply_mask and mask is not None:
+                    main_output = main_output * mask
+
         # Persist predictions if requested
         self._write_outputs(main_output, batch)
 
@@ -912,6 +1146,12 @@ class ConnectomicsModule(pl.LightningModule):
         skip_loss = False
         if labels is None:
             skip_loss = True
+        elif hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
+            # Skip loss when any evaluation metric is enabled (labels are not transformed)
+            evaluation_enabled = getattr(self.cfg.inference.evaluation, 'enabled', False)
+            metrics = getattr(self.cfg.inference.evaluation, 'metrics', [])
+            if evaluation_enabled and metrics:
+                skip_loss = True
         elif tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
             # Skip loss computation if TTA preprocessing changed the output shape
             # (e.g., channel selection makes it incompatible with loss functions)

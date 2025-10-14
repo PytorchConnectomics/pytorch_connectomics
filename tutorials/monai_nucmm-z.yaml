@@ -102,7 +102,7 @@ data:
 
 # Optimizer - AdamW with NucMM-specific hyperparameters
 optimization:
-  max_epochs: 100
+  max_epochs: 1000
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
@@ -120,7 +120,7 @@ optimization:
     warmup_epochs: 5                   # Shorter warmup for 64^3
     warmup_start_lr: 1.0e-5
     min_lr: 1.0e-6
-    t_max: 95
+    t_max: 995
 
 monitor:
   # Loss monitoring and validation frequency  

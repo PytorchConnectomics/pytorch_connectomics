@@ -121,6 +121,7 @@ def _create_default_callbacks(cfg: Union[Config, DictConfig]) -> List:
             save_top_k=checkpoint_cfg.save_top_k,
             save_last=checkpoint_cfg.save_last if hasattr(checkpoint_cfg, 'save_last') else True,
             every_n_epochs=checkpoint_cfg.save_every_n_epochs if hasattr(checkpoint_cfg, 'save_every_n_epochs') else 1,
+            sync_dist=True,  # CRITICAL: Synchronize metric across all GPUs
         )
         callbacks.append(checkpoint_callback)
     else:
@@ -132,16 +133,18 @@ def _create_default_callbacks(cfg: Union[Config, DictConfig]) -> List:
             mode='min',
             save_top_k=3,
             save_last=True,
+            sync_dist=True,  # CRITICAL: Synchronize metric across all GPUs
         ))
     
     # Early stopping callback
     early_stopping_cfg = cfg.early_stopping if hasattr(cfg, 'early_stopping') else None
-    if early_stopping_cfg and hasattr(early_stopping_cfg, 'patience'):
+    if early_stopping_cfg and hasattr(early_stopping_cfg, 'enabled') and early_stopping_cfg.enabled:
         early_stopping_callback = EarlyStopping(
             monitor=early_stopping_cfg.monitor if hasattr(early_stopping_cfg, 'monitor') else 'val_loss_total',
-            patience=early_stopping_cfg.patience,
+            patience=early_stopping_cfg.patience if hasattr(early_stopping_cfg, 'patience') else 10,
             mode=early_stopping_cfg.mode if hasattr(early_stopping_cfg, 'mode') else 'min',
             min_delta=early_stopping_cfg.min_delta if hasattr(early_stopping_cfg, 'min_delta') else 0.0,
+            check_finite=early_stopping_cfg.check_finite if hasattr(early_stopping_cfg, 'check_finite') else True,
         )
         callbacks.append(early_stopping_callback)
     

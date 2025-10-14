@@ -12,19 +12,19 @@ Modules:
     - auto_tuning: Hyperparameter optimization for post-processing
 
 Import patterns:
-    from connectomics.decoding import binary_watershed, bc_watershed
+    from connectomics.decoding import decode_binary_watershed, decode_binary_contour_watershed
     from connectomics.decoding import polarity2instance
     from connectomics.decoding import stitch_3d, watershed_split
     from connectomics.decoding import optimize_threshold, SkeletonMetrics
 """
 
 from .segmentation import (
-    binary_connected,
-    binary_watershed,
-    bc_connected,
-    bc_watershed,
-    bcd_watershed,
-    affinity_cc3d,
+    decode_binary_cc,
+    decode_binary_watershed,
+    decode_binary_contour_cc,
+    decode_binary_contour_watershed,
+    decode_binary_contour_distance_watershed,
+    decode_affinity_cc,
 )
 
 from .auto_tuning import (
@@ -58,12 +58,12 @@ from .utils import (
 
 __all__ = [
     # Segmentation decoding
-    'binary_connected',
-    'binary_watershed',
-    'bc_connected',
-    'bc_watershed',
-    'bcd_watershed',
-    'affinity_cc3d',
+    'decode_binary_cc',
+    'decode_binary_watershed',
+    'decode_binary_contour_cc',
+    'decode_binary_contour_watershed',
+    'decode_binary_contour_distance_watershed',
+    'decode_affinity_cc',
 
     # Auto-tuning
     'optimize_threshold',

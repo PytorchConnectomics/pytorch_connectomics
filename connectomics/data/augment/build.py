@@ -270,8 +270,18 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
             NormalizeLabelsd(keys=['label'])
         )
 
+    # Check if any evaluation metric is enabled (requires original instance labels)
+    skip_label_transform = False
+    if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'evaluation'):
+        evaluation_enabled = getattr(cfg.inference.evaluation, 'enabled', False)
+        metrics = getattr(cfg.inference.evaluation, 'metrics', [])
+        if evaluation_enabled and metrics:
+            skip_label_transform = True
+            print(f"  ⚠️  Skipping label transforms for metric evaluation (keeping original labels for {metrics})")
+
     # Label transformations (affinity, distance transform, etc.)
-    if hasattr(cfg.data, 'label_transform'):
+    # Skip if evaluation metrics are enabled (need original labels for metric computation)
+    if hasattr(cfg.data, 'label_transform') and not skip_label_transform:
         from ..process.build import create_label_transform_pipeline
         from ..process.monai_transforms import SegErosionInstanced
         label_cfg = cfg.data.label_transform

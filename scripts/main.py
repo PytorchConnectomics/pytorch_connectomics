@@ -9,10 +9,20 @@ This script provides modern deep learning training with:
 - PyTorch Lightning callbacks and logging
 
 Usage:
+    # Basic training
     python scripts/main.py --config tutorials/lucchi.yaml
+
+    # Testing mode
     python scripts/main.py --config tutorials/lucchi.yaml --mode test --checkpoint path/to/checkpoint.ckpt
+
+    # Fast dev run (1 batch for debugging)
     python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run
-    python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=8 training.max_epochs=200
+
+    # Override config parameters
+    python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=8 optimization.max_epochs=200
+
+    # Resume training with different max_epochs
+    python scripts/main.py --config tutorials/lucchi.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
 """
 
 import argparse
@@ -122,6 +132,12 @@ def parse_args():
         help="Reset early stopping patience counter when loading checkpoint",
     )
     parser.add_argument(
+        "--reset-max-epochs",
+        type=int,
+        default=None,
+        help="Override max_epochs from config (useful when resuming training with different epoch count)",
+    )
+    parser.add_argument(
         "--fast-dev-run",
         action="store_true",
         help="Run 1 batch for quick debugging",
@@ -153,6 +169,11 @@ def setup_config(args) -> Config:
     if args.overrides:
         print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
         cfg = update_from_cli(cfg, args.overrides)
+
+    # Override max_epochs if --reset-max-epochs is specified
+    if args.reset_max_epochs is not None:
+        print(f"⚙️  Overriding max_epochs: {cfg.optimization.max_epochs} → {args.reset_max_epochs}")
+        cfg.optimization.max_epochs = args.reset_max_epochs
 
     # Apply inference-specific overrides if in test/predict mode
     if args.mode in ['test', 'predict']:
@@ -385,10 +406,27 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
                 f"Current config has: inference.data.test_image = {cfg.inference.data.test_image if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') else 'N/A'}"
             )
         print(f"  🧪 Creating test dataset from: {cfg.inference.data.test_image}")
-        test_mask_paths = [cfg.inference.data.test_mask] if hasattr(cfg.inference.data, 'test_mask') and cfg.inference.data.test_mask else None
+        
+        # Expand glob patterns for test data (same as train data)
+        test_image_paths = expand_file_paths(cfg.inference.data.test_image)
+        test_label_paths = expand_file_paths(cfg.inference.data.test_label) if cfg.inference.data.test_label else None
+        test_mask_paths = expand_file_paths(cfg.inference.data.test_mask) if hasattr(cfg.inference.data, 'test_mask') and cfg.inference.data.test_mask else None
+        
+        print(f"  Test volumes: {len(test_image_paths)} files")
+        if len(test_image_paths) <= 5:
+            for path in test_image_paths:
+                print(f"    - {path}")
+        else:
+            print(f"    - {test_image_paths[0]}")
+            print(f"    - ... ({len(test_image_paths) - 2} more files)")
+            print(f"    - {test_image_paths[-1]}")
+        
+        if test_mask_paths:
+            print(f"  Test masks: {len(test_mask_paths)} files")
+        
         test_data_dicts = create_data_dicts_from_paths(
-            image_paths=[cfg.inference.data.test_image],
-            label_paths=[cfg.inference.data.test_label] if cfg.inference.data.test_label else None,
+            image_paths=test_image_paths,
+            label_paths=test_label_paths,
             mask_paths=test_mask_paths,
         )
         print(f"  DEBUG: test_data_dicts created = {test_data_dicts}")
@@ -872,6 +910,8 @@ def main():
             print("   - Resetting epoch counter")
         if args.reset_early_stopping:
             print("   - Resetting early stopping patience counter")
+        if args.reset_max_epochs is not None:
+            print(f"   - Overriding max_epochs to: {args.reset_max_epochs}")
 
         # Load checkpoint
         checkpoint = torch.load(args.checkpoint, map_location='cpu')

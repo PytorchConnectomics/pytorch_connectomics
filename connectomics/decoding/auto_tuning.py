@@ -50,7 +50,7 @@ class SkeletonMetrics:
 
     Example:
         >>> metrics = SkeletonMetrics("skeleton.pkl")
-        >>> segmentation = affinity_cc3d(affinities, threshold=0.5)
+        >>> segmentation = decode_affinity_cc(affinities, threshold=0.5)
         >>> results = metrics.compute(segmentation)
         >>> print(f"NERL: {results['nerl']:.3f}")
         >>> print(f"VOI: {results['voi_sum']:.3f}")
@@ -196,7 +196,7 @@ def grid_search_threshold(
             thresholds: 1/(1+exp(-x)) for x in [-1, -0.8, ..., 2.2]
         metric: Metric to optimize ("nerl" or "voi_sum")
         verbose: Print progress
-        segmentation_fn: Custom segmentation function. If None, uses affinity_cc3d
+        segmentation_fn: Custom segmentation function. If None, uses decode_affinity_cc
         **seg_kwargs: Additional arguments for segmentation function
 
     Returns:
@@ -216,12 +216,12 @@ def grid_search_threshold(
 
     See Also:
         - :func:`optimize_threshold`: Optuna-based optimization (more efficient)
-        - :func:`affinity_cc3d`: Default segmentation function
+        - :func:`decode_affinity_cc`: Default segmentation function
     """
-    from .segmentation import affinity_cc3d
+    from .segmentation import decode_affinity_cc
 
     if segmentation_fn is None:
-        segmentation_fn = affinity_cc3d
+        segmentation_fn = decode_affinity_cc
 
     if thresholds is None:
         # Default: sigmoid-spaced thresholds
@@ -303,7 +303,7 @@ def optimize_threshold(
         metric: Metric to optimize ("nerl" or "voi_sum")
         threshold_range: (min, max) threshold range to search
         verbose: Show Optuna progress
-        segmentation_fn: Custom segmentation function. If None, uses affinity_cc3d
+        segmentation_fn: Custom segmentation function. If None, uses decode_affinity_cc
         study_name: Name for Optuna study (for logging)
         **seg_kwargs: Additional arguments for segmentation function
 
@@ -339,10 +339,10 @@ def optimize_threshold(
             "Optuna not found. Install with: pip install optuna>=3.0.0"
         )
 
-    from .segmentation import affinity_cc3d
+    from .segmentation import decode_affinity_cc
 
     if segmentation_fn is None:
-        segmentation_fn = affinity_cc3d
+        segmentation_fn = decode_affinity_cc
 
     metrics_calc = SkeletonMetrics(skeleton_path)
 
@@ -429,7 +429,7 @@ def optimize_parameters(
         n_trials: Number of optimization trials
         metric: Metric to optimize ("nerl" or "voi_sum")
         verbose: Show Optuna progress
-        segmentation_fn: Custom segmentation function. If None, uses affinity_cc3d
+        segmentation_fn: Custom segmentation function. If None, uses decode_affinity_cc
         study_name: Name for Optuna study
 
     Returns:
@@ -460,10 +460,10 @@ def optimize_parameters(
             "Optuna not found. Install with: pip install optuna>=3.0.0"
         )
 
-    from .segmentation import affinity_cc3d
+    from .segmentation import decode_affinity_cc
 
     if segmentation_fn is None:
-        segmentation_fn = affinity_cc3d
+        segmentation_fn = decode_affinity_cc
 
     metrics_calc = SkeletonMetrics(skeleton_path)
 

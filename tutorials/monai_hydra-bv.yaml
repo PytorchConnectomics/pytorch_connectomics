@@ -28,9 +28,9 @@ system:
     batch_size: 32                      # Larger batch for smaller patches
   inference:
     num_gpus: 1
-    num_cpus: 4
-    num_workers: 4
-    batch_size: 4
+    num_cpus: 1
+    num_workers: 1
+    batch_size: 1
   seed: 42
 
 # Model - MONAI UNet with residual units for multi-task learning
@@ -112,7 +112,7 @@ data:
 
 # Optimizer - AdamW with NucMM-specific hyperparameters
 optimization:
-  max_epochs: 100
+  max_epochs: 10000
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
@@ -130,7 +130,7 @@ optimization:
     warmup_epochs: 5                   # Shorter warmup for 64^3
     warmup_start_lr: 1.0e-5
     min_lr: 1.0e-6
-    t_max: 95
+    t_max: 9995
 
 monitor:
   # Loss monitoring and validation frequency  
@@ -155,7 +155,7 @@ monitor:
   # Checkpointing
   checkpoint:
     mode: min
-    save_top_k: 1
+    save_top_k: 3
     save_last: true
     save_every_n_epochs: 10
     dirpath: outputs/hydra_bv_monai_unet/checkpoints/
@@ -177,13 +177,13 @@ inference:
   data:
     test_image: datasets/hydra-bv/vol*_im.h5
     test_label: datasets/hydra-bv/vol*_vesicle_ins.h5
+    test_mask: datasets/hydra-bv/vol*_mask.h5
     test_resolution: [30, 8, 8]
     output_path: outputs/hydra_bv_monai_unet/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [64, 64, 64]          # Match training patch size
-    sw_batch_size: 8                   # More patches for smaller window
+    window_size: [24, 96, 96]          # Match training patch size    
     overlap: 0.5                       # 50% overlap between patches
     blending: gaussian                 # Gaussian weighting for smooth blending
     sigma_scale: 0.25
@@ -192,17 +192,29 @@ inference:
   # Test-Time Augmentation (TTA)
   test_time_augmentation:
     enabled: true
-    flip_axes: null                    # No augmentation for NucMM
-    act: sigmoid                       # Primary activation (binary segmentation)
-    select_channel: null               # Use all channels
+    flip_axes: null                     # Use all 8 flip augmentations
+    # Per-channel activations (aligned with multi_task_config)
+    # Format: [[channel_idx, activation], ...]
+    channel_activations:
+      - [0, sigmoid]                   # Channel 0: binary segmentation (sigmoid)
+      - [1, sigmoid]                   # Channel 1: boundary (sigmoid)
+      - [2, tanh]                      # Channel 2: EDT distance (no activation)
+    select_channel: all               # Use all channels
     ensemble_mode: mean
+    apply_mask: true                   # Multiply predictions by test_mask after ensemble
 
-  # Postprocessing configuration
-  postprocessing:
-    output_scale: 255
-    output_dtype: uint8
+  # Decoding configuration (instance segmentation postprocessing)
+  decoding:
+    - name: decode_binary_contour_distance_watershed
+      kwargs:
+        seed_threshold: 0.9
+        contour_threshold: 0.8
+        foreground_threshold: 0.85
+        min_instance_size: 16
+        min_seed_size: 8
+        prediction_scale: 1    
 
   # Evaluation
   evaluation:
     enabled: true
-    metrics: [jaccard, dice]           # Multiple metrics for nucleus segmentation
+    metrics: [adapted_rand]
