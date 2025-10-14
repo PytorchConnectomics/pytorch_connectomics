@@ -251,11 +251,9 @@ def decode_binary_contour_watershed(
 
 def decode_binary_contour_distance_watershed(
     predictions: np.ndarray,
-    seed_threshold: float = 0.9,
-    contour_threshold: float = 0.8,
-    foreground_threshold: float = 0.85,
-    distance_seed_threshold: float = 0.5,
-    distance_foreground_threshold: float = 0.0,
+    binary_threshold: Tuple[float, float] = (0.9, 0.85),
+    contour_threshold: Tuple[float, float] = (0.8, 1.1),    
+    distance_threshold: Tuple[float, float] = (0.5, 0),    
     min_instance_size: int = 128,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
     remove_small_mode: str = 'background',
@@ -272,12 +270,13 @@ def decode_binary_contour_distance_watershed(
         function that converts the input image into ``np.float64`` data type for processing. Therefore please make sure enough memory is allocated when handling large arrays.
 
     Args:
-        predictions (numpy.ndarray): foreground and contour probability of shape :math:`(C, Z, Y, X)`.
-        seed_threshold (float): threshold for identifying seed points. Default: 0.9
-        contour_threshold (float): threshold for instance contours. Default: 0.8
-        foreground_threshold (float): threshold for foreground mask. Default: 0.85
-        distance_seed_threshold (float): threshold of signed distance for locating seeds. Default: 0.5
-        distance_foreground_threshold (float): threshold of signed distance for foreground. Default: 0.0
+        predictions (numpy.ndarray): foreground, contour, and distance probability of shape :math:`(3, Z, Y, X)`.
+        binary_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for binary mask. 
+            The first value is used for seed generation, the second for foreground mask. Default: (0.9, 0.85)
+        contour_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for instance contours. 
+            The first value is used for seed generation, the second for foreground mask. Default: (0.8, 1.1)
+        distance_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for signed distance. 
+            The first value is used for seed generation, the second for foreground mask. Default: (0.5, -0.5)
         min_instance_size (int): minimum size threshold for instances to keep. Default: 128
         scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
         remove_small_mode (str): ``'background'``, ``'neighbor'`` or ``'none'``. Default: ``'background'``
@@ -290,30 +289,35 @@ def decode_binary_contour_distance_watershed(
         numpy.ndarray or tuple: Instance segmentation mask, or (mask, seed) if return_seed=True.
     """
     assert predictions.shape[0] == 3
-    semantic, boundary, distance = predictions[0], predictions[1], predictions[2]
+    binary, contour, distance = predictions[0], predictions[1], predictions[2]
+    
     if prediction_scale == 255:
-        distance = (distance / 255.0) * 2.0 - 1.0
-        seed_threshold = seed_threshold * prediction_scale
+        distance = (distance / prediction_scale) * 2.0 - 1.0
+        binary_threshold = binary_threshold * prediction_scale
         contour_threshold = contour_threshold * prediction_scale
-        foreground_threshold = foreground_threshold * prediction_scale
-
-    foreground = (semantic > foreground_threshold) * (distance > distance_foreground_threshold)
+        distance_threshold = distance_threshold * prediction_scale
 
     if precomputed_seed is not None:
         seed = precomputed_seed
     else:  # compute the instance seeds
-        seed_map = (semantic > seed_threshold) * (boundary < contour_threshold) * (distance > distance_seed_threshold)
+        seed_map = (binary > binary_threshold[0]) \
+                   * (contour < contour_threshold[0]) \
+                   * (distance > distance_threshold[0])
         seed = cc3d.connected_components(seed_map)
         seed = remove_small_objects(seed, min_seed_size)
 
-    segmentation = watershed(-semantic.astype(np.float64), seed, mask=foreground)
+    foreground = (binary > binary_threshold[1]) \
+                * (contour < contour_threshold[1]) \
+                * (distance > distance_threshold[1])
+
+    segmentation = watershed(-distance.astype(np.float64), seed, mask=foreground)
     segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
 
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
-            int(semantic.shape[0] * scale_factors[0]),
-            int(semantic.shape[1] * scale_factors[1]),
-            int(semantic.shape[2] * scale_factors[2])
+            int(binary.shape[0] * scale_factors[0]),
+            int(binary.shape[1] * scale_factors[1]),
+            int(binary.shape[2] * scale_factors[2])
         )
         segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
 

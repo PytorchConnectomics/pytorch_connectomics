@@ -337,10 +337,26 @@ class ImageLoggingConfig:
     max_images: int = 4
     num_slices: int = 8
     log_every_n_epochs: int = 1  # Log visualization every N epochs
-    
+
     # Channel visualization options
     channel_mode: str = 'argmax'  # 'argmax', 'all', or 'selected'
     selected_channels: Optional[List[int]] = None  # Only used when channel_mode='selected'
+
+
+@dataclass
+class PredictionSavingConfig:
+    """Configuration for saving intermediate predictions during training/validation."""
+    enabled: bool = False  # Enable saving predictions
+    save_during_training: bool = False  # Save predictions during training
+    save_during_validation: bool = True  # Save predictions during validation
+    save_every_n_epochs: int = 10  # Save predictions every N epochs
+    save_every_n_steps: Optional[int] = None  # Save predictions every N steps (overrides epochs if set)
+    output_dir: str = "outputs/predictions"  # Directory to save predictions
+    max_samples: int = 4  # Maximum number of samples to save per epoch/step
+    save_labels: bool = True  # Also save ground truth labels
+    save_inputs: bool = False  # Also save input images
+    apply_activation: bool = True  # Apply sigmoid/softmax before saving
+    apply_decoding: bool = False  # Apply instance segmentation decoding before saving
 
 
 @dataclass
@@ -348,6 +364,7 @@ class LoggingConfig:
     """Logging configuration (scalar + images)."""
     scalar: ScalarLoggingConfig = field(default_factory=ScalarLoggingConfig)
     images: ImageLoggingConfig = field(default_factory=ImageLoggingConfig)
+    predictions: PredictionSavingConfig = field(default_factory=PredictionSavingConfig)
 
 
 @dataclass
@@ -525,12 +542,28 @@ class TestTimeAugmentationConfig:
     select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
+    save_predictions: bool = False  # Save intermediate TTA predictions (before decoding) to disk
+
+
+@dataclass
+class DecodeBinaryContourDistanceWatershedConfig:
+    """Configuration for decode_binary_contour_distance_watershed function."""
+    binary_threshold: Tuple[float, float] = (0.9, 0.85)  # (seed_threshold, foreground_threshold) for binary mask
+    contour_threshold: Tuple[float, float] = (0.8, 1.1)  # (seed_threshold, foreground_threshold) for instance contours
+    distance_threshold: Tuple[float, float] = (0.5, -0.5)  # (seed_threshold, foreground_threshold) for signed distance
+    min_instance_size: int = 128  # Minimum size threshold for instances to keep
+    scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0)  # Scale factors for resizing in (Z, Y, X) order
+    remove_small_mode: str = 'background'  # 'background', 'neighbor', or 'none'
+    min_seed_size: int = 32  # Minimum size of seed objects
+    return_seed: bool = False  # Whether to return the seed map
+    precomputed_seed: Optional[Any] = None  # Precomputed seed map (numpy array)
+    prediction_scale: int = 255  # Scale of input predictions (255 for uint8 range, 1 for float)
 
 
 @dataclass
 class DecodeModeConfig:
     """Configuration for a single decode mode/function."""
-    name: str = "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, etc.
+    name: str = "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
     kwargs: Dict[str, Any] = field(default_factory=dict)  # Keyword arguments for the decode function
 
 
@@ -583,4 +616,4 @@ class Config:
     inference: InferenceConfig = field(default_factory=InferenceConfig)
 
 
-__all__ = ['Config']
+__all__ = ['Config', 'DecodeBinaryContourDistanceWatershedConfig']

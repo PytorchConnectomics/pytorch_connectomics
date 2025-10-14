@@ -85,6 +85,9 @@ class ConnectomicsModule(pl.LightningModule):
         self.test_adapted_rand_results = []  # Store per-batch results for averaging
         self.sliding_inferer: Optional[SlidingWindowInferer] = None
 
+        # Prediction saving state
+        self._prediction_save_counter = 0  # Track number of samples saved
+
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""
         return build_model(cfg)
@@ -364,8 +367,11 @@ class ConnectomicsModule(pl.LightningModule):
                 f"Expected shapes: (D, H, W), (B, D, H, W), or (B, C, D, H, W)"
             )
 
-        # Get TTA configuration
-        tta_flip_axes_config = getattr(self.cfg.inference.test_time_augmentation, 'flip_axes', 'all')
+        # Get TTA configuration (default to no augmentation if not configured)
+        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation'):
+            tta_flip_axes_config = getattr(self.cfg.inference.test_time_augmentation, 'flip_axes', None)
+        else:
+            tta_flip_axes_config = None  # No config = no augmentation, just forward pass
 
         # Handle different tta_flip_axes configurations
         if tta_flip_axes_config is None:
@@ -376,77 +382,77 @@ class ConnectomicsModule(pl.LightningModule):
                 pred = self._sliding_window_predict(images)
             
             # Apply TTA preprocessing (activation + channel selection) even without augmentation
-            return self._apply_tta_preprocessing(pred)
-
-        elif tta_flip_axes_config == 'all' or tta_flip_axes_config == []:
-            # "all" or []: All 8 flips (all combinations of Z, Y, X)
-            # IMPORTANT: MONAI Flip spatial_axis behavior for (B, C, D, H, W) tensors:
-            #   spatial_axis=[0] flips C (channel) - WRONG for TTA!
-            #   spatial_axis=[1] flips D (depth/Z) - CORRECT
-            #   spatial_axis=[2] flips H (height/Y) - CORRECT
-            #   spatial_axis=[3] flips W (width/X) - CORRECT
-            # Must use [1, 2, 3] for [D, H, W] flips, NOT [0, 1, 2]!
-            tta_flip_axes = [
-                [],           # No flip
-                [1],          # Flip Z (depth)
-                [2],          # Flip Y (height)
-                [3],          # Flip X (width)
-                [1, 2],       # Flip Z+Y
-                [1, 3],       # Flip Z+X
-                [2, 3],       # Flip Y+X
-                [1, 2, 3],    # Flip Z+Y+X
-            ]
-        elif isinstance(tta_flip_axes_config, (list, tuple)):
-            # Custom list: Add no-flip baseline + user-specified flips
-            tta_flip_axes = [[]] + list(tta_flip_axes_config)
+            ensemble_result = self._apply_tta_preprocessing(pred)
         else:
-            raise ValueError(
-                f"Invalid tta_flip_axes: {tta_flip_axes_config}. "
-                f"Expected 'all' (8 flips), null (no aug), or list of flip axes."
-            )
-
-        # Apply TTA with flips, preprocessing, and ensembling
-        predictions = []
-
-        for flip_axes in tta_flip_axes:
-            # Apply flip augmentation
-            if flip_axes:
-                x_aug = Flip(spatial_axis=flip_axes)(images)
+            if tta_flip_axes_config == 'all' or tta_flip_axes_config == []:
+                # "all" or []: All 8 flips (all combinations of Z, Y, X)
+                # IMPORTANT: MONAI Flip spatial_axis behavior for (B, C, D, H, W) tensors:
+                #   spatial_axis=[0] flips C (channel) - WRONG for TTA!
+                #   spatial_axis=[1] flips D (depth/Z) - CORRECT
+                #   spatial_axis=[2] flips H (height/Y) - CORRECT
+                #   spatial_axis=[3] flips W (width/X) - CORRECT
+                # Must use [1, 2, 3] for [D, H, W] flips, NOT [0, 1, 2]!
+                tta_flip_axes = [
+                    [],           # No flip
+                    [1],          # Flip Z (depth)
+                    [2],          # Flip Y (height)
+                    [3],          # Flip X (width)
+                    [1, 2],       # Flip Z+Y
+                    [1, 3],       # Flip Z+X
+                    [2, 3],       # Flip Y+X
+                    [1, 2, 3],    # Flip Z+Y+X
+                ]
+            elif isinstance(tta_flip_axes_config, (list, tuple)):
+                # Custom list: Add no-flip baseline + user-specified flips
+                tta_flip_axes = [[]] + list(tta_flip_axes_config)
             else:
-                x_aug = images
-
-            # Inference with sliding window
-            if self.sliding_inferer is not None:
-                pred = self.sliding_inferer(
-                    inputs=x_aug,
-                    network=self._sliding_window_predict,
+                raise ValueError(
+                    f"Invalid tta_flip_axes: {tta_flip_axes_config}. "
+                    f"Expected 'all' (8 flips), null (no aug), or list of flip axes."
                 )
+
+            # Apply TTA with flips, preprocessing, and ensembling
+            predictions = []
+
+            for flip_axes in tta_flip_axes:
+                # Apply flip augmentation
+                if flip_axes:
+                    x_aug = Flip(spatial_axis=flip_axes)(images)
+                else:
+                    x_aug = images
+
+                # Inference with sliding window
+                if self.sliding_inferer is not None:
+                    pred = self.sliding_inferer(
+                        inputs=x_aug,
+                        network=self._sliding_window_predict,
+                    )
+                else:
+                    pred = self._sliding_window_predict(x_aug)
+
+                # Invert flip for prediction
+                if flip_axes:
+                    pred = Flip(spatial_axis=flip_axes)(pred)
+
+                # Apply TTA preprocessing (activation + channel selection) if configured
+                # Note: This is applied BEFORE ensembling for probability-space averaging
+                pred_processed = self._apply_tta_preprocessing(pred)
+
+                predictions.append(pred_processed)
+
+            # Ensemble predictions based on configured mode
+            ensemble_mode = getattr(self.cfg.inference.test_time_augmentation, 'ensemble_mode', 'mean')
+            stacked_preds = torch.stack(predictions, dim=0)
+
+            if ensemble_mode == 'mean':
+                ensemble_result = stacked_preds.mean(dim=0)
+            elif ensemble_mode == 'min':
+                ensemble_result = stacked_preds.min(dim=0)[0]  # min returns (values, indices)
+            elif ensemble_mode == 'max':
+                ensemble_result = stacked_preds.max(dim=0)[0]  # max returns (values, indices)
             else:
-                pred = self._sliding_window_predict(x_aug)
-
-            # Invert flip for prediction
-            if flip_axes:
-                pred = Flip(spatial_axis=flip_axes)(pred)
-
-            # Apply TTA preprocessing (activation + channel selection) if configured
-            # Note: This is applied BEFORE ensembling for probability-space averaging
-            pred_processed = self._apply_tta_preprocessing(pred)
-
-            predictions.append(pred_processed)
-
-        # Ensemble predictions based on configured mode
-        ensemble_mode = getattr(self.cfg.inference.test_time_augmentation, 'ensemble_mode', 'mean')
-        stacked_preds = torch.stack(predictions, dim=0)
-
-        if ensemble_mode == 'mean':
-            ensemble_result = stacked_preds.mean(dim=0)
-        elif ensemble_mode == 'min':
-            ensemble_result = stacked_preds.min(dim=0)[0]  # min returns (values, indices)
-        elif ensemble_mode == 'max':
-            ensemble_result = stacked_preds.max(dim=0)[0]  # max returns (values, indices)
-        else:
-            raise ValueError(f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'.")
-
+                raise ValueError(f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'.")
+        
         # Apply mask after ensemble if requested
         apply_mask = getattr(self.cfg.inference.test_time_augmentation, 'apply_mask', False)
         if apply_mask and mask is not None:
@@ -632,6 +638,12 @@ class ConnectomicsModule(pl.LightningModule):
             for decode_cfg in decode_modes:
                 fn_name = decode_cfg.name if hasattr(decode_cfg, 'name') else decode_cfg.get('name')
                 kwargs = decode_cfg.kwargs if hasattr(decode_cfg, 'kwargs') else decode_cfg.get('kwargs', {})
+                
+                # Ensure kwargs is a mutable dict (convert from OmegaConf if needed)
+                if hasattr(kwargs, 'items'):
+                    kwargs = dict(kwargs)
+                else:
+                    kwargs = {}
 
                 if fn_name not in decode_fn_map:
                     warnings.warn(
@@ -642,6 +654,27 @@ class ConnectomicsModule(pl.LightningModule):
                     continue
 
                 decode_fn = decode_fn_map[fn_name]
+
+                # Backward compatibility: convert old parameter format to new tuple format
+                # for decode_binary_contour_distance_watershed
+                if fn_name == 'decode_binary_contour_distance_watershed':
+                    if 'seed_threshold' in kwargs or 'foreground_threshold' in kwargs:
+                        warnings.warn(
+                            "Detected legacy parameters (seed_threshold, contour_threshold, foreground_threshold) "
+                            "for decode_binary_contour_distance_watershed. Converting to new tuple format "
+                            "(binary_threshold, contour_threshold, distance_threshold). "
+                            "Please update your config files to use the new format.",
+                            DeprecationWarning,
+                        )
+                        # Convert old parameters to new tuple format
+                        seed_thresh = kwargs.pop('seed_threshold', 0.9)
+                        contour_thresh = kwargs.pop('contour_threshold', 0.8)
+                        foreground_thresh = kwargs.pop('foreground_threshold', 0.85)
+                        
+                        # Map old parameters to new tuple format
+                        kwargs['binary_threshold'] = (seed_thresh, foreground_thresh)
+                        kwargs['contour_threshold'] = (contour_thresh, 1.1)
+                        kwargs['distance_threshold'] = (0.5, -0.5)
 
                 try:
                     # Apply decoding function
@@ -664,20 +697,23 @@ class ConnectomicsModule(pl.LightningModule):
 
         return decoded
 
-    def _write_outputs(self, logits: torch.Tensor, batch: Dict[str, Any]) -> None:
-        """Persist predictions to disk using MONAI metadata when available."""
-        if not hasattr(self.cfg, 'inference'):
-            return
+    def _resolve_output_filenames(self, batch: Dict[str, Any]) -> List[str]:
+        """
+        Extract and resolve filenames from batch metadata.
 
-        # Access output_path from nested data config
-        output_dir_value = None
-        if hasattr(self.cfg.inference, 'data') and hasattr(self.cfg.inference.data, 'output_path'):
-            output_dir_value = self.cfg.inference.data.output_path
-        if not output_dir_value:
-            return
+        Args:
+            batch: Batch dictionary containing metadata and images
 
-        output_dir = Path(output_dir_value)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        Returns:
+            List of resolved filenames (without extension)
+        """
+        # Determine batch size from images
+        images = batch.get('image')
+        if images is not None:
+            batch_size = images.shape[0]
+        else:
+            # Fallback: try to infer from metadata
+            batch_size = 1
 
         meta = batch.get('image_meta_dict')
         filenames: List[Optional[str]] = []
@@ -692,8 +728,9 @@ class ConnectomicsModule(pl.LightningModule):
             for meta_item in meta:
                 if isinstance(meta_item, dict):
                     filenames.append(meta_item.get('filename_or_obj'))
+            # Update batch_size from metadata if we have a list
+            batch_size = max(batch_size, len(filenames))
 
-        batch_size = int(logits.shape[0])
         resolved_names: List[str] = []
         for idx in range(batch_size):
             if idx < len(filenames) and filenames[idx]:
@@ -701,54 +738,88 @@ class ConnectomicsModule(pl.LightningModule):
             else:
                 resolved_names.append(f"volume_{self.global_step}_{idx}")
 
-        # Apply postprocessing (activation + channel selection)
-        tensor = self._apply_postprocessing(logits.detach().cpu().float())
-        # Apply scaling
-        tensor = self._apply_output_scale(tensor)
-        # Apply dtype conversion
-        tensor = self._apply_output_dtype(tensor)
-        data = tensor.numpy()
+        return resolved_names
 
-        # Apply decode mode (instance segmentation decoding)
-        data = self._apply_decode_mode(data)
+    def _write_outputs(
+        self,
+        predictions: np.ndarray,
+        filenames: List[str],
+        suffix: str = "prediction"
+    ) -> None:
+        """
+        Persist predictions to disk.
+
+        Args:
+            predictions: Numpy array of predictions to save (B, C, D, H, W) or (B, D, H, W)
+            filenames: List of filenames (without extension) for each sample in batch
+            suffix: Suffix for output filename (default: "prediction")
+        """
+        if not hasattr(self.cfg, 'inference'):
+            return
+
+        # Access output_path from nested data config
+        output_dir_value = None
+        if hasattr(self.cfg.inference, 'data') and hasattr(self.cfg.inference.data, 'output_path'):
+            output_dir_value = self.cfg.inference.data.output_path
+        if not output_dir_value:
+            return
+
+        output_dir = Path(output_dir_value)
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         from connectomics.data.io import write_hdf5
 
-        for idx, name in enumerate(resolved_names):
-            prediction = data[idx]
-            destination = output_dir / f"{name}_prediction.h5"
+        # Save predictions
+        for idx, name in enumerate(filenames):
+            prediction = predictions[idx]
+            destination = output_dir / f"{name}_{suffix}.h5"
             write_hdf5(str(destination), prediction, dataset="prediction")
+            print(f"  Saved {suffix}: {destination}")
 
-        # Compute adapted_rand if enabled and ground truth is available
-        if self.test_adapted_rand and 'label' in batch:
-            from connectomics.engine.metrics import adapted_rand
+    def _compute_adapted_rand(
+        self,
+        predictions: np.ndarray,
+        labels: np.ndarray,
+        filenames: List[str]
+    ) -> None:
+        """
+        Compute Adapted Rand Error for instance segmentation evaluation.
 
-            labels = batch['label']            
-            labels_np = labels.detach().cpu().numpy()
+        Args:
+            predictions: Decoded instance segmentation predictions (B, C, D, H, W) or (B, D, H, W)
+            labels: Ground truth labels (B, C, D, H, W) or (B, D, H, W)
+            filenames: List of filenames for each sample in batch
+        """
+        if not self.test_adapted_rand:
+            return
 
-            # Compare decoded predictions with ground truth
-            for idx in range(batch_size):
-                pred = data[idx]
-                # Remove channel dimension if present
-                if pred.ndim == 4:
-                    pred = pred[0]  # Take first channel
-                gt = labels_np[idx].astype(np.uint32)
-                if gt.ndim == 4:
-                    gt = gt[0]  # Remove channel dimension
+        from connectomics.engine.metrics import adapted_rand
 
-                try:
-                    are, prec, rec = adapted_rand(pred, gt, all_stats=True)
-                    self.test_adapted_rand_results.append({
-                        'are': are,
-                        'precision': prec,
-                        'recall': rec,
-                        'filename': resolved_names[idx]
-                    })
-                except Exception as e:
-                    warnings.warn(
-                        f"Error computing adapted_rand for {resolved_names[idx]}: {e}",
-                        UserWarning
-                    )
+        batch_size = predictions.shape[0]
+
+        # Compare decoded predictions with ground truth
+        for idx in range(batch_size):
+            pred = predictions[idx]
+            # Remove channel dimension if present
+            if pred.ndim == 4:
+                pred = pred[0]  # Take first channel
+            gt = labels[idx].astype(np.uint32)
+            if gt.ndim == 4:
+                gt = gt[0]  # Remove channel dimension
+
+            try:
+                are, prec, rec = adapted_rand(pred, gt, all_stats=True)
+                self.test_adapted_rand_results.append({
+                    'are': are,
+                    'precision': prec,
+                    'recall': rec,
+                    'filename': filenames[idx]
+                })
+            except Exception as e:
+                warnings.warn(
+                    f"Error computing adapted_rand for {filenames[idx]}: {e}",
+                    UserWarning
+                )
 
     def _compute_multitask_loss(self, outputs: torch.Tensor, labels: torch.Tensor) -> tuple:
         """
@@ -1098,49 +1169,36 @@ class ConnectomicsModule(pl.LightningModule):
         labels = batch.get('label')
         mask = batch.get('mask')  # Get test mask if available
 
-        # Check if TTA is enabled and actually doing augmentation
-        tta_enabled = hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation') and getattr(self.cfg.inference.test_time_augmentation, 'enabled', False)
-        tta_flip_axes = getattr(self.cfg.inference.test_time_augmentation, 'flip_axes', 'all') if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation') else 'all'
-        use_tta = tta_enabled and tta_flip_axes is not None  # Only use TTA if flip_axes is not null
-        use_sliding_inferer = self.sliding_inferer is not None
+        # Always use TTA (handles no-transform case) + sliding window
+        # TTA preprocessing (activation, masking) is applied regardless of flip augmentation
+        # Note: TTA always returns a simple tensor, not a dict (deep supervision not supported in test mode)
+        predictions = self._predict_with_tta(images, mask=mask)
 
-        if use_tta:
-            # Use test-time augmentation (includes activation + channel selection)
-            main_output = self._predict_with_tta(images, mask=mask)
-            outputs = main_output
-            is_deep_supervision = False
-        elif use_sliding_inferer:
-            main_output = self.sliding_inferer(
-                inputs=images,
-                network=self._sliding_window_predict,
-            )
-            # Apply TTA preprocessing (activation + channel selection) even without augmentation
-            # This allows using act/select_channel from test_time_augmentation config
-            if tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
-                main_output = self._apply_tta_preprocessing(main_output)
+        # Convert predictions to numpy for saving/decoding
+        predictions_np = predictions.detach().cpu().float().numpy()
 
-                # Apply mask if requested (even without TTA augmentation)
-                apply_mask = getattr(self.cfg.inference.test_time_augmentation, 'apply_mask', False)
-                if apply_mask and mask is not None:
-                    main_output = main_output * mask
+        # Resolve filenames once for all saving operations
+        filenames = self._resolve_output_filenames(batch)
 
-            outputs = main_output
-            is_deep_supervision = False
-        else:
-            outputs = self(images)
-            is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
-            main_output = self._extract_main_output(outputs)
-            # Apply TTA preprocessing (activation + channel selection) even without augmentation
-            if tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
-                main_output = self._apply_tta_preprocessing(main_output)
+        # Check if we should save intermediate predictions (before decoding)
+        save_intermediate = False
+        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation'):
+            save_intermediate = getattr(self.cfg.inference.test_time_augmentation, 'save_predictions', False)
 
-                # Apply mask if requested (even without TTA augmentation)
-                apply_mask = getattr(self.cfg.inference.test_time_augmentation, 'apply_mask', False)
-                if apply_mask and mask is not None:
-                    main_output = main_output * mask
+        # Save intermediate TTA predictions (before decoding) if requested
+        if save_intermediate:
+            self._write_outputs(predictions_np, filenames, suffix="tta_prediction")
 
-        # Persist predictions if requested
-        self._write_outputs(main_output, batch)
+        # Apply decode mode (instance segmentation decoding)
+        decoded_predictions = self._apply_decode_mode(predictions_np)
+
+        # Save final decoded predictions
+        self._write_outputs(decoded_predictions, filenames, suffix="prediction")
+
+        # Compute adapted_rand if enabled and labels available
+        if labels is not None:
+            labels_np = labels.detach().cpu().numpy()
+            self._compute_adapted_rand(decoded_predictions, labels_np, filenames)
 
         # Determine if we should skip loss computation
         skip_loss = False
@@ -1152,10 +1210,9 @@ class ConnectomicsModule(pl.LightningModule):
             metrics = getattr(self.cfg.inference.evaluation, 'metrics', [])
             if evaluation_enabled and metrics:
                 skip_loss = True
-        elif tta_enabled and hasattr(self.cfg.inference, 'test_time_augmentation'):
+        elif hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation'):
             # Skip loss computation if TTA preprocessing changed the output shape
             # (e.g., channel selection makes it incompatible with loss functions)
-            # This applies even when flip_axes is null (no augmentation)
             tta_channel = getattr(self.cfg.inference.test_time_augmentation, 'select_channel', None)
             if tta_channel is None:
                 tta_channel = getattr(self.cfg.inference, 'output_channel', None)
@@ -1169,54 +1226,31 @@ class ConnectomicsModule(pl.LightningModule):
         loss_dict = {}
 
         # Compute loss only if not skipped
+        # Note: Loss computation in test mode is typically skipped when evaluation metrics are enabled
+        # or when TTA channel selection changes output shape
         if not skip_loss:
-            if is_deep_supervision:
-                # Multi-scale loss with deep supervision
-                ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
+            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                loss = loss_fn(predictions, labels)
+                weighted_loss = loss * weight
+                total_loss += weighted_loss
+                loss_dict[f'test_loss_{i}'] = loss.item()
 
-                ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
-                all_outputs = [main_output] + ds_outputs
+            loss_dict['test_loss_total'] = total_loss.item()
 
-                for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
-                    # Match target to output size
-                    target = self._match_target_to_output(labels, output)
-
-                    # Compute loss for this scale
-                    scale_loss = 0.0
-                    for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                        loss = loss_fn(output, target)
-                        scale_loss += loss * weight
-
-                    total_loss += scale_loss * ds_weight
-                    loss_dict[f'test_loss_scale_{scale_idx}'] = scale_loss.item()
-
-                loss_dict['test_loss_total'] = total_loss.item()
-
-            else:
-                # Standard single-scale loss
-                for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                    loss = loss_fn(outputs, labels)
-                    weighted_loss = loss * weight
-                    total_loss += weighted_loss
-
-                    loss_dict[f'test_loss_{i}'] = loss.item()
-
-                loss_dict['test_loss_total'] = total_loss.item()
-
-        # Compute metrics on main output (only if metrics are configured and labels available)
+        # Compute metrics (only if metrics are configured and labels available)
         # Metrics can be computed even if loss is skipped (e.g., with TTA channel selection)
         if labels is not None and (self.test_jaccard is not None or self.test_dice is not None or self.test_accuracy is not None):
             # Convert logits/probabilities to predictions
-            # Check if main_output has multiple channels (need argmax) or single channel (already predicted)
-            if main_output.shape[1] > 1:
-                preds = torch.argmax(main_output, dim=1)  # (B, D, H, W)
+            # Check if predictions has multiple channels (need argmax) or single channel
+            if predictions.shape[1] > 1:
+                preds = torch.argmax(predictions, dim=1)  # (B, D, H, W)
             else:
                 # Single channel output (already predicted class or probability)
-                preds = (main_output.squeeze(1) > 0.5).long()  # (B, D, H, W)
+                preds = (predictions.squeeze(1) > 0.5).long()  # (B, D, H, W)
 
             targets = labels.squeeze(1).long()  # (B, D, H, W)
 
-            # Update and log metrics (only if initialized)
+            # Update and log metrics
             if self.test_jaccard is not None:
                 self.test_jaccard(preds, targets)
                 self.log('test_jaccard', self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True)

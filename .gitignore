@@ -134,4 +134,5 @@ tmpwdir/
 *.iml
 .idea/
 docs/pytorch_sphinx_theme
+lightning_logs/
 slurm_outputs/

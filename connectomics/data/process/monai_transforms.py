@@ -21,6 +21,7 @@ from .target import seg_erosion_dilation
 from .segment import seg_selection
 from .quantize import energy_quantize, decode_quantize
 from .weight import seg_to_weights
+from .distance import skeleton_aware_distance_transform
 from .misc import *
 
 
@@ -106,7 +107,7 @@ class SegToInstanceBoundaryMaskd(MapTransform):
 
 class SegToInstanceEDTd(MapTransform):
     """Convert segmentation to instance EDT using MONAI MapTransform.
-    
+
     Args:
         keys: Keys to transform
         mode: EDT computation mode: '2d' or '3d' (default: '2d')
@@ -130,6 +131,93 @@ class SegToInstanceEDTd(MapTransform):
         for key in self.key_iterator(d):
             if key in d:
                 d[key] = seg_to_instance_edt(d[key], mode=self.mode, quantize=self.quantize)
+        return d
+
+
+class SegToSkeletonAwareEDTd(MapTransform):
+    """Convert segmentation to skeleton-aware distance transform using MONAI MapTransform.
+
+    This transform implements the skeleton-based distance transform from:
+    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware
+    Distance Transform." MICCAI 2023.
+
+    The skeleton-aware EDT computes a normalized distance that combines:
+    - Distance from skeleton (guides reconstruction toward medial axis)
+    - Distance from boundary (standard EDT behavior)
+    This preserves thin structures and improves topology in instance segmentation.
+
+    Args:
+        keys: Keys to transform
+        bg_value: Background value to assign to non-object pixels (default: -1.0)
+        relabel: Whether to relabel connected components (default: True)
+        padding: Whether to pad the array before computing distance (default: False)
+        resolution: Pixel/voxel resolution for anisotropic data (default: (1.0, 1.0))
+        alpha: Exponent controlling skeleton influence strength (default: 0.8)
+                Higher values increase skeleton influence
+        smooth: Whether to apply Gaussian smoothing to object boundaries (default: True)
+        smooth_skeleton_only: If True, only smooth the skeleton mask; if False, smooth
+                              the entire object mask (default: True)
+        allow_missing_keys: Whether to allow missing keys
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        bg_value: float = -1.0,
+        relabel: bool = True,
+        padding: bool = False,
+        resolution: Tuple[float, float] = (1.0, 1.0),
+        alpha: float = 0.8,
+        smooth: bool = True,
+        smooth_skeleton_only: bool = True,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.bg_value = bg_value
+        self.relabel = relabel
+        self.padding = padding
+        self.resolution = resolution
+        self.alpha = alpha
+        self.smooth = smooth
+        self.smooth_skeleton_only = smooth_skeleton_only
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                label = d[key]
+                # Handle different input dimensions
+                # skeleton_aware_distance_transform expects 2D or 3D input
+                # If input is 4D with channel dim, remove it
+                if isinstance(label, np.ndarray):
+                    label_np = label
+                else:
+                    label_np = np.array(label)
+
+                # Remove channel dimension if present (e.g., [1, D, H, W] -> [D, H, W])
+                if label_np.ndim == 4 and label_np.shape[0] == 1:
+                    label_np = label_np[0]
+
+                # Ensure resolution matches input dimensionality
+                resolution = self.resolution
+                if label_np.ndim == 3 and len(resolution) == 2:
+                    # Extend 2D resolution to 3D by prepending anisotropic z-resolution
+                    resolution = (1.0,) + tuple(resolution)
+                elif label_np.ndim == 2 and len(resolution) == 3:
+                    # Use only last 2 dimensions for 2D case
+                    resolution = tuple(resolution[-2:])
+
+                result = skeleton_aware_distance_transform(
+                    label_np,
+                    bg_value=self.bg_value,
+                    relabel=self.relabel,
+                    padding=self.padding,
+                    resolution=resolution,
+                    alpha=self.alpha,
+                    smooth=self.smooth,
+                    smooth_skeleton_only=self.smooth_skeleton_only,
+                )
+                d[key] = result
         return d
 
 
@@ -495,6 +583,7 @@ class MultiTaskLabelTransformd(MapTransform):
         "affinity": seg_to_affinity,
         "instance_boundary": seg_to_instance_bd,
         "instance_edt": seg_to_instance_edt,
+        "skeleton_aware_edt": skeleton_aware_distance_transform,
         "semantic_edt": seg_to_semantic_edt,
         "polarity": seg_to_polarity,
         "small_object": seg_to_small_seg,
@@ -506,6 +595,9 @@ class MultiTaskLabelTransformd(MapTransform):
         "affinity": {"offsets": ['1-1-0', '1-0-0', '0-1-0', '0-0-1']},
         "instance_boundary": {"thickness": 1, "do_bg_edges": False, "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},
+        "skeleton_aware_edt": {"bg_value": -1.0, "relabel": True, "padding": False,
+                               "resolution": (1.0, 1.0, 1.0), "alpha": 0.8,
+                               "smooth": True, "smooth_skeleton_only": True},
         "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0},
         "polarity": {"exclusive": False},
         "small_object": {"threshold": 100},
@@ -659,6 +751,7 @@ __all__ = [
     'SegToAffinityMapd',
     'SegToInstanceBoundaryMaskd',
     'SegToInstanceEDTd',
+    'SegToSkeletonAwareEDTd',
     'SegToSemanticEDTd',
     'SegToFlowFieldd',
     'SegToSynapticPolarityd',
