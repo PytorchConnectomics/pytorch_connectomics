@@ -769,9 +769,25 @@ class ConnectomicsModule(pl.LightningModule):
 
         from connectomics.data.io import write_hdf5
 
+        # Get output transpose from postprocessing config
+        output_transpose = []
+        if hasattr(self.cfg.inference, 'postprocessing'):
+            output_transpose = getattr(self.cfg.inference.postprocessing, 'output_transpose', [])
+
         # Save predictions
         for idx, name in enumerate(filenames):
             prediction = predictions[idx]
+
+            # Apply output transpose if specified
+            if output_transpose:
+                if prediction.ndim == 3:
+                    # 3D volume (D, H, W): transpose spatial dimensions
+                    prediction = np.transpose(prediction, output_transpose)
+                elif prediction.ndim == 4:
+                    # 4D volume (C, D, H, W): keep channel first, transpose spatial dims
+                    spatial_transpose = [i + 1 for i in output_transpose]
+                    prediction = np.transpose(prediction, [0] + spatial_transpose)
+
             destination = output_dir / f"{name}_{suffix}.h5"
             write_hdf5(str(destination), prediction, dataset="prediction")
             print(f"  Saved {suffix}: {destination}")

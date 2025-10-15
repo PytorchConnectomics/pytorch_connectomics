@@ -621,6 +621,10 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
     else:
         # Standard data module
         use_cache = cfg.data.use_cache
+
+        # Note: transpose_axes is now handled in the transform builders (build_train/val/test_transforms)
+        # which embed the transpose in LoadVolumed, so no need to pass it here
+
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
             val_data_dicts=val_data_dicts,

@@ -369,7 +369,13 @@ def main():
         sys.exit(1)
 
     # Validate that at least one input source is provided
-    if not any([args.config, args.image, args.label, args.volumes]):
+    # Empty strings count as no input
+    has_config = bool(args.config)
+    has_image = bool(args.image and args.image.strip())
+    has_label = bool(args.label and args.label.strip())
+    has_volumes = bool(args.volumes)
+
+    if not any([has_config, has_image, has_label, has_volumes]):
         print("ERROR: At least one input source is required:")
         print("  --config CONFIG      Load from config file")
         print("  --image IMG          Load image volume")
@@ -389,11 +395,11 @@ def main():
         cfg = load_config(args.config)  # Store config for interactive access
         volumes.update(load_volumes_from_config(args.config, args.mode))
 
-    # Add image/label (if provided)
-    if args.image:
+    # Add image/label (if provided and not empty strings)
+    if args.image and args.image.strip():
         print(f"Loading image: {args.image}")
         volumes['image'] = (read_volume(args.image), 'image', None, None)
-    if args.label:
+    if args.label and args.label.strip():
         print(f"Loading label: {args.label}")
         volumes['label'] = (read_volume(args.label), 'segmentation', None, None)
 

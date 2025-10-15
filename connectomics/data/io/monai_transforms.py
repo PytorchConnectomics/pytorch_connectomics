@@ -26,6 +26,8 @@ class LoadVolumed(MapTransform):
 
     Args:
         keys: Keys to load from the data dictionary
+        transpose_axes: Axis permutation for transposing loaded volumes (e.g., [2,1,0] for xyz->zyx).
+                       Empty list or None means no transpose. Applied BEFORE adding channel dimension.
         allow_missing_keys: Whether to allow missing keys in the dictionary
 
     Examples:
@@ -33,10 +35,22 @@ class LoadVolumed(MapTransform):
         >>> data = {'image': 'img.h5', 'label': 'lbl.h5'}
         >>> result = transform(data)
         >>> # result['image'] shape: (C, D, H, W)
+
+        >>> # With transpose (e.g., xyz to zyx)
+        >>> transform = LoadVolumed(keys=['image'], transpose_axes=[2,1,0])
+        >>> data = {'image': 'img.h5'}  # xyz order
+        >>> result = transform(data)
+        >>> # result['image'] is now in zyx order
     """
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        transpose_axes: Sequence[int] | None = None,
+        allow_missing_keys: bool = False
+    ):
         super().__init__(keys, allow_missing_keys)
+        self.transpose_axes = list(transpose_axes) if transpose_axes else []
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Load volume data from file paths."""
@@ -45,6 +59,18 @@ class LoadVolumed(MapTransform):
             if key in d and isinstance(d[key], str):
                 source_path = d[key]
                 volume = read_volume(source_path)
+
+                # Apply transpose if specified (before adding channel dimension)
+                if self.transpose_axes:
+                    if volume.ndim == 3:
+                        # 3D volume: transpose spatial dimensions
+                        volume = np.transpose(volume, self.transpose_axes)
+                    elif volume.ndim == 4:
+                        # 4D volume (C, D, H, W): transpose only spatial dimensions
+                        # Keep channel dimension first, transpose spatial dims
+                        spatial_transpose = [i + 1 for i in self.transpose_axes]
+                        volume = np.transpose(volume, [0] + spatial_transpose)
+
                 # Ensure we have at least 4 dimensions (add channel if needed)
                 if volume.ndim == 3:
                     volume = np.expand_dims(volume, axis=0)
@@ -56,6 +82,7 @@ class LoadVolumed(MapTransform):
                     'original_shape': tuple(volume.shape),
                     'spatial_shape': tuple(volume.shape[1:]),
                     'channels_first': True,
+                    'transpose_axes': self.transpose_axes if self.transpose_axes else None,
                 })
                 d[meta_key] = meta_dict
         return d

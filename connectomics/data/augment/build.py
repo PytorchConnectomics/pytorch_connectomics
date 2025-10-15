@@ -50,7 +50,9 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
 
     # Load images first (unless using pre-cached dataset)
     if not skip_loading:
-        transforms.append(LoadVolumed(keys=keys))
+        # Get transpose axes for training data
+        train_transpose = cfg.data.train_transpose if cfg.data.train_transpose else []
+        transforms.append(LoadVolumed(keys=keys, transpose_axes=train_transpose if train_transpose else None))
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
@@ -145,7 +147,9 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     transforms = []
 
     # Load images first
-    transforms.append(LoadVolumed(keys=keys))
+    # Get transpose axes for validation data
+    val_transpose = cfg.data.val_transpose if cfg.data.val_transpose else []
+    transforms.append(LoadVolumed(keys=keys, transpose_axes=val_transpose if val_transpose else None))
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
@@ -225,7 +229,11 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     """
     if keys is None:
         # Auto-detect keys based on config
-        keys = ['image', 'label']
+        keys = ['image']
+        # Only add label if test_label is specified in the config
+        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and \
+           hasattr(cfg.inference.data, 'test_label') and cfg.inference.data.test_label is not None:
+            keys.append('label')
         # Add mask to keys if it's specified in the config (check test mask)
         if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and \
            hasattr(cfg.inference.data, 'test_mask') and cfg.inference.data.test_mask is not None:
@@ -234,7 +242,14 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     transforms = []
 
     # Load images first
-    transforms.append(LoadVolumed(keys=keys))
+    # Get transpose axes for test data (check both data.test_transpose and inference.data.test_transpose)
+    test_transpose = []
+    if cfg.data.test_transpose:
+        test_transpose = cfg.data.test_transpose
+    if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and \
+       hasattr(cfg.inference.data, 'test_transpose') and cfg.inference.data.test_transpose:
+        test_transpose = cfg.inference.data.test_transpose  # inference takes precedence
+    transforms.append(LoadVolumed(keys=keys, transpose_axes=test_transpose if test_transpose else None))
 
     # Apply volumetric split if enabled (though typically not used for test)
     if cfg.data.split_enabled:
@@ -264,35 +279,37 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
             )
         )
 
-    # Normalize labels to 0-1 range if enabled
-    if getattr(cfg.data, 'normalize_labels', False):
-        transforms.append(
-            NormalizeLabelsd(keys=['label'])
-        )
+    # Only apply label transforms if 'label' is in keys
+    if 'label' in keys:
+        # Normalize labels to 0-1 range if enabled
+        if getattr(cfg.data, 'normalize_labels', False):
+            transforms.append(
+                NormalizeLabelsd(keys=['label'])
+            )
 
-    # Check if any evaluation metric is enabled (requires original instance labels)
-    skip_label_transform = False
-    if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'evaluation'):
-        evaluation_enabled = getattr(cfg.inference.evaluation, 'enabled', False)
-        metrics = getattr(cfg.inference.evaluation, 'metrics', [])
-        if evaluation_enabled and metrics:
-            skip_label_transform = True
-            print(f"  ⚠️  Skipping label transforms for metric evaluation (keeping original labels for {metrics})")
+        # Check if any evaluation metric is enabled (requires original instance labels)
+        skip_label_transform = False
+        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'evaluation'):
+            evaluation_enabled = getattr(cfg.inference.evaluation, 'enabled', False)
+            metrics = getattr(cfg.inference.evaluation, 'metrics', [])
+            if evaluation_enabled and metrics:
+                skip_label_transform = True
+                print(f"  ⚠️  Skipping label transforms for metric evaluation (keeping original labels for {metrics})")
 
-    # Label transformations (affinity, distance transform, etc.)
-    # Skip if evaluation metrics are enabled (need original labels for metric computation)
-    if hasattr(cfg.data, 'label_transform') and not skip_label_transform:
-        from ..process.build import create_label_transform_pipeline
-        from ..process.monai_transforms import SegErosionInstanced
-        label_cfg = cfg.data.label_transform
+        # Label transformations (affinity, distance transform, etc.)
+        # Skip if evaluation metrics are enabled (need original labels for metric computation)
+        if hasattr(cfg.data, 'label_transform') and not skip_label_transform:
+            from ..process.build import create_label_transform_pipeline
+            from ..process.monai_transforms import SegErosionInstanced
+            label_cfg = cfg.data.label_transform
 
-        # Apply instance erosion first if specified
-        if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
-            transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
+            # Apply instance erosion first if specified
+            if hasattr(label_cfg, 'erosion') and label_cfg.erosion > 0:
+                transforms.append(SegErosionInstanced(keys=['label'], tsz_h=label_cfg.erosion))
 
-        # Build label transform pipeline directly from label_transform config
-        label_pipeline = create_label_transform_pipeline(label_cfg)
-        transforms.extend(label_pipeline.transforms)
+            # Build label transform pipeline directly from label_transform config
+            label_pipeline = create_label_transform_pipeline(label_cfg)
+            transforms.extend(label_pipeline.transforms)
 
     # Final conversion to tensor with float32 dtype
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))

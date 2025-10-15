@@ -68,6 +68,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
         do_relabel: bool = True,
         data_mean: float = 0.5,
         data_std: float = 0.5,
+        transpose_axes: Optional[List[int]] = None,
         **kwargs,
     ):
         # Create MONAI data dictionaries
@@ -79,6 +80,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
 
         # Store data dictionaries temporarily for transform creation
         self._data_dicts = data_dicts
+        self._transpose_axes = transpose_axes
 
         # Create transforms if not provided
         if transforms is None:
@@ -88,6 +90,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
                 do_2d=do_2d,
                 data_mean=data_mean,
                 data_std=data_std,
+                transpose_axes=transpose_axes,
             )
 
         # Initialize base dataset
@@ -106,8 +109,9 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
             **kwargs,
         )
 
-        # Clean up temporary reference
+        # Clean up temporary references
         delattr(self, '_data_dicts')
+        delattr(self, '_transpose_axes')
 
         # Store volume-specific parameters
         self.data_mean = data_mean
@@ -120,6 +124,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
         do_2d: bool,
         data_mean: float,
         data_std: float,
+        transpose_axes: Optional[List[int]] = None,
     ) -> Compose:
         """
         Create default MONAI transforms pipeline for volume data.
@@ -130,6 +135,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
             do_2d: Whether to extract 2D samples
             data_mean: Mean for normalization
             data_std: Standard deviation for normalization
+            transpose_axes: Axis permutation for transposing loaded volumes
 
         Returns:
             MONAI Compose transforms pipeline
@@ -142,7 +148,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
 
         transforms = [
             # Load images using custom connectomics loader (adds channel dim)
-            LoadVolumed(keys=keys),
+            LoadVolumed(keys=keys, transpose_axes=transpose_axes),
         ]
 
         # Add spatial cropping for both training and validation
@@ -206,6 +212,7 @@ class MonaiCachedVolumeDataset(CacheDataset):
         do_2d = kwargs.get('do_2d', False)
         data_mean = kwargs.get('data_mean', 0.5)
         data_std = kwargs.get('data_std', 0.5)
+        transpose_axes = kwargs.get('transpose_axes', None)
 
         # Create data dictionaries
         data_dicts = create_data_dicts_from_paths(
@@ -224,7 +231,7 @@ class MonaiCachedVolumeDataset(CacheDataset):
 
             transforms = [
                 # Use custom connectomics loader (adds channel dim)
-                LoadVolumed(keys=keys),
+                LoadVolumed(keys=keys, transpose_axes=transpose_axes),
             ]
 
             # Add spatial cropping for both training and validation

@@ -72,8 +72,13 @@ visualize config mode port='9999' *ARGS='':
     python -i scripts/visualize_neuroglancer.py --config {{config}} --mode {{mode}} --port {{port}} {{ARGS}}
 
 # Visualize specific image and label files (e.g., just visualize-files datasets/img.tif datasets/label.h5)
-visualize-files image label *ARGS='':
-    python -i scripts/visualize_neuroglancer.py --image {{image}} --label {{label}} {{ARGS}}
+# If image and label are not provided (empty), no volumes will be loaded
+visualize-files image='' label='' port='9999' *ARGS='':
+    #!/usr/bin/env bash
+    args="--port {{port}}"
+    [[ -n "{{image}}" ]] && args="$args --image {{image}}"
+    [[ -n "{{label}}" ]] && args="$args --label {{label}}"
+    python -i scripts/visualize_neuroglancer.py $args {{ARGS}}
 
 # Visualize multiple volumes with custom names (e.g., just visualize-volumes image:path/img.tif label:path/lbl.h5)
 visualize-volumes +volumes:

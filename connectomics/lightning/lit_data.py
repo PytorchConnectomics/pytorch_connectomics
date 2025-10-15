@@ -68,6 +68,9 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         persistent_workers: bool = False,
         cache_rate: float = 1.0,
         cache_dir: str = './cache',
+        train_transpose_axes: Optional[List[int]] = None,
+        val_transpose_axes: Optional[List[int]] = None,
+        test_transpose_axes: Optional[List[int]] = None,
         **dataset_kwargs,
     ):
         super().__init__()
@@ -92,6 +95,11 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         self.cache_rate = cache_rate
         self.cache_dir = cache_dir
         self.dataset_kwargs = dataset_kwargs
+
+        # Store mode-specific transpose axes
+        self.train_transpose_axes = train_transpose_axes
+        self.val_transpose_axes = val_transpose_axes
+        self.test_transpose_axes = test_transpose_axes
 
         # Datasets will be created in setup()
         self.train_dataset = None
@@ -145,6 +153,9 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             'mode': mode,
             **self.dataset_kwargs,
         }
+
+        # Note: transpose_axes should be embedded in the transforms (via LoadVolumed)
+        # and NOT passed as a dataset parameter. The transform builders handle this.
 
         # Add type-specific arguments
         if self.dataset_type == 'cached':

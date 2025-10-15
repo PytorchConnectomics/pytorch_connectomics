@@ -204,6 +204,11 @@ class DataConfig:
     train_resolution: Optional[List[float]] = None  # Training data resolution [z, y, x] in nm (e.g., [30, 6, 6])
     test_resolution: Optional[List[float]] = None   # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
 
+    # Axis transposition (empty list = no transpose)
+    train_transpose: List[int] = field(default_factory=list)  # Axis permutation for training data (e.g., [2,1,0] for xyz->zyx)
+    val_transpose: List[int] = field(default_factory=list)    # Axis permutation for validation data
+    test_transpose: List[int] = field(default_factory=list)   # Axis permutation for test data (deprecated, use inference.data.test_transpose)
+
     # Dataset statistics (for auto-planning)
     target_spacing: Optional[List[float]] = None  # Target voxel spacing [z, y, x] in mm
     median_shape: Optional[List[int]] = None  # Median dataset shape [D, H, W] in voxels
@@ -518,6 +523,7 @@ class InferenceDataConfig:
     test_label: Optional[str] = None  # Singular form for compatibility
     test_mask: Optional[str] = None  # Optional mask for inference
     test_resolution: Optional[List[float]] = None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    test_transpose: List[int] = field(default_factory=list)  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
     output_path: str = "results/"
 
 
@@ -572,6 +578,7 @@ class PostprocessingConfig:
     """Postprocessing configuration."""
     output_scale: float = 255.0  # Scale predictions for saving (e.g., 255.0 for uint8)
     output_dtype: str = "uint8"  # Output data type: 'uint8', 'uint16', 'float32'
+    output_transpose: List[int] = field(default_factory=list)  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
 
 
 @dataclass

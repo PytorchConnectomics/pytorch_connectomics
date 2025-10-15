@@ -175,11 +175,10 @@ monitor:
 # Inference - MONAI SlidingWindowInferer for NucMM
 inference:
   data:
-    test_image: datasets/hydra-bv/vol*_im.h5
-    test_label: datasets/hydra-bv/vol*_vesicle_ins.h5
-    test_mask: datasets/hydra-bv/vol*_mask.h5    
+    test_image: datasets/bouton-bv/Bouton_000.tiff    
+    test_transpose: [2,1,0] # xyz to zyx
     test_resolution: [30, 8, 8]
-    output_path: outputs/hydra_bv_monai_unet/results/
+    output_path: outputs/bouton_bv_monai_unet/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
@@ -201,7 +200,7 @@ inference:
       - [2, tanh]                      # Channel 2: EDT distance (no activation)
     select_channel: all               # Use all channels
     ensemble_mode: mean
-    apply_mask: true                   # Multiply predictions by test_mask after ensemble
+    apply_mask: false                   # Multiply predictions by test_mask after ensemble
     save_predictions: true             # Save intermediate predictions (before decoding)
 
   # Decoding configuration (instance segmentation postprocessing)
@@ -215,7 +214,10 @@ inference:
         min_seed_size: 8
         prediction_scale: 1    
 
+  postprocessing:
+    output_transpose: [2,1,0]
+
   # Evaluation
   evaluation:
-    enabled: true
+    enabled: false
     metrics: [adapted_rand]
