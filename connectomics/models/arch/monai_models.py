@@ -51,7 +51,7 @@ def _check_monai_available():
 @register_architecture('monai_basic_unet3d')
 def build_basic_unet(cfg) -> ConnectomicsModel:
     """
-    Build MONAI BasicUNet - simple and fast 3D U-Net.
+    Build MONAI BasicUNet - simple and fast U-Net (2D or 3D).
 
     A straightforward U-Net implementation with configurable features.
     Good for quick experiments and baseline models.
@@ -59,6 +59,8 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
     Config parameters:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (default: 1)
+        - model.spatial_dims: Spatial dimensions, 2 or 3 (default: auto-inferred from input_size)
+        - model.input_size: Input patch size [H, W] for 2D or [D, H, W] for 3D
         - model.filters: Feature map sizes for each level (default: [32, 64, 128, 256, 512])
         - model.dropout: Dropout rate (default: 0.0)
         - model.activation: Activation function (default: 'relu')
@@ -75,6 +77,16 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
     in_channels = cfg.model.in_channels
     out_channels = cfg.model.out_channels
 
+    # Auto-infer spatial_dims from input_size length
+    if hasattr(cfg.model, 'input_size') and cfg.model.input_size:
+        spatial_dims = len(cfg.model.input_size)
+    else:
+        raise ValueError(
+            "model.input_size must be specified in config. "
+            "Use [H, W] for 2D or [D, H, W] for 3D. "
+            "spatial_dims will be automatically inferred from input_size length."
+        )
+
     # BasicUNet requires exactly 6 feature levels
     base_features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
     while len(base_features) < 6:
@@ -82,7 +94,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
     features = tuple(base_features[:6])
 
     model = BasicUNet(
-        spatial_dims=3,
+        spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=out_channels,
         features=features,
@@ -97,7 +109,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
 @register_architecture('monai_unet')
 def build_monai_unet(cfg) -> ConnectomicsModel:
     """
-    Build MONAI UNet with residual units.
+    Build MONAI UNet with residual units (2D or 3D).
 
     A more advanced U-Net with residual connections in each block.
     Better performance than BasicUNet but slightly slower.
@@ -105,6 +117,8 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     Config parameters:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (default: 1)
+        - model.spatial_dims: Spatial dimensions, 2 or 3 (default: auto-inferred from input_size)
+        - model.input_size: Input patch size [H, W] for 2D or [D, H, W] for 3D
         - model.filters: Feature map sizes for each level (default: [32, 64, 128, 256, 512])
         - model.num_res_units: Number of residual units per block (default: 2)
         - model.kernel_size: Kernel size for convolutions (default: 3)
@@ -119,6 +133,15 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     """
     _check_monai_available()
 
+    # Auto-infer spatial_dims from input_size length
+    if hasattr(cfg.model, 'input_size') and cfg.model.input_size:
+        spatial_dims = len(cfg.model.input_size)
+    else:
+        raise ValueError(
+            "model.input_size must be specified in config. "
+            "Use [H, W] for 2D or [D, H, W] for 3D. "
+            "spatial_dims will be automatically inferred from input_size length."
+        )
     features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
     channels = features[:5]  # Limit to 5 levels
     strides = [2] * (len(channels) - 1)  # 2x downsampling at each level
@@ -133,7 +156,7 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         norm = norm_type
 
     model = UNet(
-        spatial_dims=3,
+        spatial_dims=spatial_dims,
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         channels=channels,

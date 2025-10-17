@@ -61,7 +61,7 @@ class ModelConfig:
     activation: str = "relu"
 
     # UNet-specific parameters (MONAI UNet)
-    spatial_dims: int = 3           # Spatial dimensions: 2 for 2D, 3 for 3D
+    spatial_dims: int = 3           # Spatial dimensions: 2 for 2D, 3 for 3D (auto-inferred from input_size length, not used directly)
     num_res_units: int = 2         # Number of residual units per block
     kernel_size: int = 3            # Convolution kernel size
     strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
@@ -163,6 +163,7 @@ class ImageTransformConfig:
     normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
     clip_percentile_low: float = 0.0   # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
     clip_percentile_high: float = 1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
+    resize: Optional[List[float]] = None  # Resize factors [H_scale, W_scale] for 2D or [D_scale, H_scale, W_scale] for 3D. None = no resize. Uses bilinear interpolation for images.
 
 
 @dataclass

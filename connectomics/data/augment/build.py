@@ -12,7 +12,8 @@ from monai.transforms import (
     Compose, RandRotate90d, RandFlipd, RandAffined, RandZoomd,
     RandGaussianNoised, RandShiftIntensityd, Rand3DElasticd,
     RandGaussianSmoothd, RandAdjustContrastd, RandSpatialCropd,
-    ScaleIntensityRanged, ToTensord, CenterSpatialCropd, SpatialPadd
+    ScaleIntensityRanged, ToTensord, CenterSpatialCropd, SpatialPadd,
+    Resized
 )
 
 # Import custom loader for HDF5/TIFF volumes
@@ -58,6 +59,34 @@ def build_train_transforms(cfg: Config, keys: list[str] = None, skip_loading: bo
     if cfg.data.split_enabled:
         from connectomics.data.utils import ApplyVolumetricSplitd
         transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    # Apply resize if configured (before cropping)
+    # NOTE: Resize uses scale factors, but target size must be computed based on input
+    # This is handled by a custom transform that computes target size dynamically
+    if hasattr(cfg.data.image_transform, 'resize') and cfg.data.image_transform.resize is not None:
+        resize_factors = cfg.data.image_transform.resize
+        if resize_factors:
+            from .monai_transforms import ResizeByFactord
+            # Use bilinear for images, nearest for labels/masks
+            transforms.append(
+                ResizeByFactord(
+                    keys=['image'],
+                    scale_factors=resize_factors,  # Scale factors for each spatial dimension
+                    mode='bilinear',               # Bilinear interpolation for images
+                    align_corners=True
+                )
+            )
+            # Resize labels and masks with nearest-neighbor to preserve integer values
+            label_mask_keys = [k for k in keys if k in ['label', 'mask']]
+            if label_mask_keys:
+                transforms.append(
+                    ResizeByFactord(
+                        keys=label_mask_keys,
+                        scale_factors=resize_factors,
+                        mode='nearest',                 # Nearest neighbor for labels/masks
+                        align_corners=None              # Not used for nearest mode
+                    )
+                )
 
     # Ensure target patch size is respected (unless using pre-cached dataset)
     if not skip_loading:
@@ -155,6 +184,31 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     if cfg.data.split_enabled:
         from connectomics.data.utils import ApplyVolumetricSplitd
         transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    # Apply resize if configured (before cropping)
+    if hasattr(cfg.data.image_transform, 'resize') and cfg.data.image_transform.resize is not None:
+        resize_factors = cfg.data.image_transform.resize
+        if resize_factors:
+            # Use bilinear for images, nearest for labels/masks
+            transforms.append(
+                Resized(
+                    keys=['image'],
+                    scale=resize_factors,
+                    mode='bilinear',
+                    align_corners=True
+                )
+            )
+            # Resize labels and masks with nearest-neighbor
+            label_mask_keys = [k for k in keys if k in ['label', 'mask']]
+            if label_mask_keys:
+                transforms.append(
+                    Resized(
+                        keys=label_mask_keys,
+                        scale=resize_factors,
+                        mode='nearest',
+                        align_corners=None
+                    )
+                )
 
     patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
     if patch_size and all(size > 0 for size in patch_size):
@@ -255,6 +309,31 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     if cfg.data.split_enabled:
         from connectomics.data.utils import ApplyVolumetricSplitd
         transforms.append(ApplyVolumetricSplitd(keys=keys))
+
+    # Apply resize if configured (before padding)
+    if hasattr(cfg.data.image_transform, 'resize') and cfg.data.image_transform.resize is not None:
+        resize_factors = cfg.data.image_transform.resize
+        if resize_factors:
+            # Use bilinear for images, nearest for labels/masks
+            transforms.append(
+                Resized(
+                    keys=['image'],
+                    scale=resize_factors,
+                    mode='bilinear',
+                    align_corners=True
+                )
+            )
+            # Resize labels and masks with nearest-neighbor
+            label_mask_keys = [k for k in keys if k in ['label', 'mask']]
+            if label_mask_keys:
+                transforms.append(
+                    Resized(
+                        keys=label_mask_keys,
+                        scale=resize_factors,
+                        mode='nearest',
+                        align_corners=None
+                    )
+                )
 
     patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, 'patch_size') else None
     if patch_size and all(size > 0 for size in patch_size):

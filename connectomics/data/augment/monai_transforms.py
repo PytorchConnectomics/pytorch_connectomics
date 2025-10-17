@@ -999,4 +999,61 @@ __all__ = [
     'ConvertToFloatd',
     'NormalizeLabelsd',
     'SmartNormalizeIntensityd',
+    'ResizeByFactord',
 ]
+
+
+class ResizeByFactord(MapTransform):
+    """
+    Resize images by scale factors using MONAI's Resized transform.
+
+    This transform computes the target spatial size based on input size and scale factors,
+    then uses MONAI's Resized for the actual resizing operation.
+
+    Args:
+        keys: Keys to transform
+        scale_factors: Scale factors for each spatial dimension (e.g., [0.25, 0.25] for 2D, [0.5, 0.5, 0.5] for 3D)
+        mode: Interpolation mode ('bilinear', 'nearest', 'area', etc.)
+        align_corners: Whether to align corners (True for bilinear, None for nearest)
+        allow_missing_keys: Whether to allow missing keys
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        scale_factors: List[float],
+        mode: str = 'bilinear',
+        align_corners: Optional[bool] = None,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.scale_factors = scale_factors
+        self.mode = mode
+        self.align_corners = align_corners
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        from monai.transforms import Resized
+
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                # Get input spatial shape (excluding channel dimension)
+                input_array = d[key]
+                if isinstance(input_array, torch.Tensor):
+                    spatial_shape = input_array.shape[1:]  # (C, H, W) -> (H, W) or (C, D, H, W) -> (D, H, W)
+                else:
+                    spatial_shape = input_array.shape[1:]  # Same for numpy
+
+                # Compute target size
+                target_size = [int(s * f) for s, f in zip(spatial_shape, self.scale_factors)]
+
+                # Apply resize using MONAI's Resized
+                resizer = Resized(
+                    keys=[key],
+                    spatial_size=target_size,
+                    mode=self.mode,
+                    align_corners=self.align_corners
+                )
+                d = resizer(d)
+
+        return d
