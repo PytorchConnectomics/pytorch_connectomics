@@ -586,6 +586,74 @@ class ConnectomicsModule(pl.LightningModule):
 
         return tensor.to(target_dtype)
 
+    def _apply_postprocessing(self, data: np.ndarray) -> np.ndarray:
+        """
+        Apply postprocessing transformations (scaling and dtype conversion) to predictions.
+
+        This method applies:
+        1. Scaling (output_scale): Multiply predictions by scale factor
+        2. Dtype conversion (output_dtype): Convert to target dtype with clamping
+
+        Args:
+            data: Numpy array of predictions (B, C, D, H, W) or (B, D, H, W)
+
+        Returns:
+            Postprocessed predictions with applied scaling and dtype conversion
+        """
+        if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'postprocessing'):
+            return data
+
+        postprocessing = self.cfg.inference.postprocessing
+
+        # Apply scaling if configured
+        output_scale = getattr(postprocessing, 'output_scale', None)
+        if output_scale is not None:
+            data = data * output_scale
+
+        # Apply dtype conversion if configured
+        output_dtype = getattr(postprocessing, 'output_dtype', None)
+        if output_dtype is not None and output_dtype != 'float32':
+            # Map string dtype to numpy dtype
+            dtype_map = {
+                'uint8': np.uint8,
+                'int8': np.int8,
+                'uint16': np.uint16,
+                'int16': np.int16,
+                'uint32': np.uint32,
+                'int32': np.int32,
+                'float16': np.float16,
+                'float32': np.float32,
+                'float64': np.float64,
+            }
+
+            if output_dtype not in dtype_map:
+                warnings.warn(
+                    f"Unknown output_dtype '{output_dtype}'. Supported: {list(dtype_map.keys())}. "
+                    f"Keeping current dtype.",
+                    UserWarning,
+                )
+                return data
+
+            target_dtype = dtype_map[output_dtype]
+
+            # Clamp to valid range before conversion for integer types
+            if output_dtype == 'uint8':
+                data = np.clip(data, 0, 255)
+            elif output_dtype == 'int8':
+                data = np.clip(data, -128, 127)
+            elif output_dtype == 'uint16':
+                data = np.clip(data, 0, 65535)
+            elif output_dtype == 'int16':
+                data = np.clip(data, -32768, 32767)
+            elif output_dtype == 'uint32':
+                data = np.clip(data, 0, 4294967295)
+            elif output_dtype == 'int32':
+                data = np.clip(data, -2147483648, 2147483647)
+
+            data = data.astype(target_dtype)
+
+        return data
+
     def _apply_decode_mode(self, data: np.ndarray) -> np.ndarray:
         """
         Apply decode mode transformations to convert probability maps to instance segmentation.
@@ -1208,8 +1276,11 @@ class ConnectomicsModule(pl.LightningModule):
         # Apply decode mode (instance segmentation decoding)
         decoded_predictions = self._apply_decode_mode(predictions_np)
 
-        # Save final decoded predictions
-        self._write_outputs(decoded_predictions, filenames, suffix="prediction")
+        # Apply postprocessing (scaling and dtype conversion) if configured
+        postprocessed_predictions = self._apply_postprocessing(decoded_predictions)
+
+        # Save final decoded and postprocessed predictions
+        self._write_outputs(postprocessed_predictions, filenames, suffix="prediction")
 
         # Compute adapted_rand if enabled and labels available
         if labels is not None:

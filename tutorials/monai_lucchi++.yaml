@@ -58,7 +58,7 @@ data:
   iter_num_per_epoch: 1280             # 1280 random crops per epoch
   
   # Image normalization
-  image_transform:
+  image_transform:    
     normalize: "0-1"                   # Min-max normalization to [0, 1]
     clip_percentile_low: 0.0           # No clipping
     clip_percentile_high: 1.0

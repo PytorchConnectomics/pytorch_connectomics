@@ -548,7 +548,7 @@ class TestTimeAugmentationConfig:
     select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
-    save_predictions: bool = False  # Save intermediate TTA predictions (before decoding) to disk
+    save_predictions: bool = False  # Save intermediate TTA predictions (before decoding) to disk (default: False)
 
 
 @dataclass
@@ -576,8 +576,8 @@ class DecodeModeConfig:
 @dataclass
 class PostprocessingConfig:
     """Postprocessing configuration."""
-    output_scale: float = 255.0  # Scale predictions for saving (e.g., 255.0 for uint8)
-    output_dtype: str = "uint8"  # Output data type: 'uint8', 'uint16', 'float32'
+    output_scale: Optional[float] = None  # Scale predictions for saving (e.g., 255.0 for uint8). None = no scaling
+    output_dtype: Optional[str] = None  # Output data type: 'uint8', 'uint16', 'float32'. None = no conversion (keep as-is)
     output_transpose: List[int] = field(default_factory=list)  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
 
 
