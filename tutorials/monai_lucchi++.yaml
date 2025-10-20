@@ -116,7 +116,6 @@ monitor:
     save_top_k: 1
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/lucchi++_monai_unet/checkpoints/
     # checkpoint_filename: auto-generated from monitor metric (epoch={epoch:03d}-{monitor}={value:.4f})
     use_timestamp: true       # Enable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
@@ -139,7 +138,6 @@ inference:
     #test_image: datasets/Lucchi++/train_im.h5
     #test_label: datasets/Lucchi++/train_mito.h5
     test_resolution: [5, 5, 5]
-    output_path: outputs/lucchi++_monai_unet/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:

@@ -67,9 +67,16 @@ sweep config:
 # Visualization Commands
 # ============================================================================
 
-# Visualize volumes with Neuroglancer from config (e.g., just visualize tutorials/monai_lucchi.yaml test )
-visualize config mode port='9999' *ARGS='':
-    python -i scripts/visualize_neuroglancer.py --config {{config}} --mode {{mode}} --port {{port}} {{ARGS}}
+# Visualize volumes with Neuroglancer from config (e.g., just visualize tutorials/monai_lucchi.yaml test --volumes prediction:path.h5)
+# Port defaults to 9999. Override with: just visualize config mode --port 8080 --volumes ...
+visualize config mode *ARGS='':
+    #!/usr/bin/env bash
+    args="--config {{config}} --mode {{mode}}"
+    # Check if --port is in ARGS, otherwise add default
+    if [[ ! "{{ARGS}}" =~ --port ]]; then
+        args="$args --port 9999"
+    fi
+    python -i scripts/visualize_neuroglancer.py $args {{ARGS}}
 
 # Visualize specific image and label files (e.g., just visualize-files datasets/img.tif datasets/label.h5)
 # If image and label are not provided (empty), no volumes will be loaded

@@ -60,18 +60,22 @@ Examples:
     --image datasets/Lucchi/img/train_im.tif \\
     --label datasets/Lucchi/label/train_label.tif
 
-  # Multiple volumes with custom names
+  # Multiple volumes with custom names (type inferred from name)
   python -i scripts/visualize_neuroglancer.py \\
     --volumes image:datasets/img.tif label:datasets/label.h5 prediction:outputs/pred.h5
 
-  # Volumes with custom resolution and offset (format: name:path:resolution:offset)
+  # Volumes with explicit type (format: name:type:path)
   python -i scripts/visualize_neuroglancer.py \\
-    --volumes prediction:outputs/pred.h5:30-6-6:0-0-0
+    --volumes output:image:outputs/pred.h5 ground_truth:seg:datasets/label.h5
+
+  # Volumes with resolution and offset (format: name:type:path:resolution:offset)
+  python -i scripts/visualize_neuroglancer.py \\
+    --volumes prediction:image:outputs/pred.h5:5-5-5:0-0-0
 
   # Mix config with additional volumes
   python -i scripts/visualize_neuroglancer.py \\
     --config tutorials/monai_lucchi.yaml --mode test \\
-    --volumes prediction:outputs/lucchi_monai_unet/results/test_im_prediction.h5
+    --volumes prediction:image:outputs/lucchi_monai_unet/results/test_im_prediction.h5:5-5-5
 
   # Custom server settings
   python -i scripts/visualize_neuroglancer.py \\
@@ -97,8 +101,10 @@ Interactive mode (with -i flag):
         '--volumes',
         type=str,
         nargs='+',
-        help='Volume paths in format "name:path[:resolution[:offset]]" where resolution is "z-y-x" in nm '
-             'and offset is "z-y-x" in voxels (e.g., pred:path/pred.h5:30-6-6:0-0-0)'
+        help='Volume paths in format "name:type:path[:resolution[:offset]]" where type is "image" or "seg", '
+             'resolution is "z-y-x" in nm, and offset is "z-y-x" in voxels. '
+             'Type can be omitted for backward compatibility (inferred from name). '
+             'Examples: "pred:image:path.h5:5-5-5" or "label:seg:path.h5"'
     )
     parser.add_argument('--image', type=str, help='Path to image volume')
     parser.add_argument('--label', type=str, help='Path to label volume')
@@ -184,10 +190,11 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
 
     Args:
         volume_specs: List of volume specifications in format:
-            - "path" - just path
-            - "name:path" - name and path
-            - "name:path:resolution" - with resolution (e.g., "30-6-6")
-            - "name:path:resolution:offset" - with resolution and offset (e.g., "30-6-6:0-0-0")
+            - "path" - just path (type inferred from name)
+            - "name:path" - name and path (type inferred from name)
+            - "name:type:path" - name, type (image/seg), and path
+            - "name:type:path:resolution" - with resolution (e.g., "30-6-6")
+            - "name:type:path:resolution:offset" - with resolution and offset (e.g., "0-0-0")
 
     Returns:
         Dictionary mapping volume names to (data, type, resolution, offset) tuples
@@ -198,28 +205,54 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
     for spec in volume_specs:
         parts = spec.split(':')
 
-        # Parse based on number of parts
+        # Check if second part is a type specifier (image/seg/segmentation)
+        has_explicit_type = len(parts) >= 3 and parts[1] in ['image', 'img', 'seg', 'segmentation']
+
+        # Parse based on format
         if len(parts) == 1:
             # Just path: "path/to/file.h5"
             name = Path(parts[0]).stem
             path = parts[0]
+            vol_type = None  # Infer later
             resolution = None
             offset = None
         elif len(parts) == 2:
             # name:path
             name, path = parts
+            vol_type = None  # Infer later
             resolution = None
             offset = None
-        elif len(parts) == 3:
-            # name:path:resolution
-            name, path, res_str = parts
-            resolution = tuple(float(x) for x in res_str.split('-'))
-            offset = None
-        elif len(parts) >= 4:
-            # name:path:resolution:offset
-            name, path, res_str, off_str = parts[:4]
-            resolution = tuple(float(x) for x in res_str.split('-'))
-            offset = tuple(int(x) for x in off_str.split('-'))
+        elif has_explicit_type:
+            # Format: name:type:path[:resolution[:offset]]
+            name = parts[0]
+            vol_type = 'segmentation' if parts[1] in ['seg', 'segmentation'] else 'image'
+            path = parts[2]
+
+            # Parse optional resolution and offset
+            if len(parts) >= 4:
+                resolution = tuple(float(x) for x in parts[3].split('-'))
+            else:
+                resolution = None
+
+            if len(parts) >= 5:
+                offset = tuple(int(x) for x in parts[4].split('-'))
+            else:
+                offset = None
+        else:
+            # Legacy format: name:path:resolution[:offset]
+            name = parts[0]
+            path = parts[1]
+            vol_type = None  # Infer later
+
+            if len(parts) >= 3:
+                resolution = tuple(float(x) for x in parts[2].split('-'))
+            else:
+                resolution = None
+
+            if len(parts) >= 4:
+                offset = tuple(int(x) for x in parts[3].split('-'))
+            else:
+                offset = None
 
         print(f"Loading {name}: {path}")
         if resolution:
@@ -229,13 +262,15 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
 
         data = read_volume(path).squeeze()
 
-        # Infer type from name: anything with "label", "seg", "gt", "pred", "mask" is segmentation
-        name_lower = name.lower()
-        if any(keyword in name_lower for keyword in ['label', 'seg', 'gt', 'pred', 'mask']):
-            vol_type = 'segmentation'
-        else:
-            vol_type = 'image'
+        # Infer type if not explicitly specified
+        if vol_type is None:
+            name_lower = name.lower()
+            if any(keyword in name_lower for keyword in ['label', 'seg', 'gt', 'pred', 'mask']):
+                vol_type = 'segmentation'
+            else:
+                vol_type = 'image'
 
+        print(f"  Volume type: {vol_type}")
         volumes[name] = (data, vol_type, resolution, offset)
 
     return volumes
