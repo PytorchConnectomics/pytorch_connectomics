@@ -148,7 +148,6 @@ monitor:
     save_top_k: 1
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/nucmm_zebrafish_monai_unet/checkpoints/
     use_timestamp: true
 
   # Early stopping
@@ -168,7 +167,6 @@ inference:
     test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
     test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
     test_resolution: [1.0, 1.0, 1.0]
-    output_path: outputs/nucmm_zebrafish_monai_unet/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:

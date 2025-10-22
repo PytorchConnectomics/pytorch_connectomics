@@ -15,15 +15,90 @@ The codebase follows a clean separation of concerns:
 
 **Key Principle:** Lightning is the outer shell, MONAI is the inner toolbox. No reimplementation of training loops or domain-specific tools.
 
+## Installation
+
+### Prerequisites
+- **Python**: 3.8 or higher
+- **PyTorch**: 1.8.0 or higher (install separately based on your CUDA version)
+- **CUDA**: Recommended for GPU acceleration
+
+### Installation Methods
+
+#### 1. Basic Installation (Recommended)
+Install core dependencies only:
+```bash
+# Clone the repository
+git clone https://github.com/zudi-lin/pytorch_connectomics.git
+cd pytorch_connectomics
+
+# Install PyTorch (choose version based on your CUDA version)
+# Visit https://pytorch.org/get-started/locally/ for the correct command
+# Example for CUDA 11.8:
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+
+# Install PyTorch Connectomics in development mode
+pip install -e .
+```
+
+#### 2. Full Installation (All Features)
+Install with all optional features:
+```bash
+pip install -e .[full]
+```
+
+#### 3. Custom Installation
+Install specific feature sets:
+```bash
+# With hyperparameter optimization
+pip install -e .[optim]
+
+# With Weights & Biases experiment tracking
+pip install -e .[wandb]
+
+# With TIFF file support
+pip install -e .[tiff]
+
+# With 3D visualization
+pip install -e .[viz]
+
+# With development and testing tools
+pip install -e .[dev]
+
+# With documentation building tools
+pip install -e .[docs]
+
+# Multiple extras
+pip install -e .[full,dev,docs]
+```
+
+#### 4. MedNeXt Integration (Optional)
+For MedNeXt model support:
+```bash
+# Install from external repository
+pip install -e /projects/weilab/weidf/lib/MedNeXt
+
+# Or clone and install
+git clone https://github.com/MIC-DKFZ/MedNeXt.git
+cd MedNeXt
+pip install -e .
+```
+See [.claude/MEDNEXT.md](.claude/MEDNEXT.md) for detailed documentation.
+
+### Verifying Installation
+```bash
+# Test import
+python -c "import connectomics; print(connectomics.__version__)"
+
+# List available architectures
+python -c "from connectomics.models.architectures import print_available_architectures; print_available_architectures()"
+```
+
 ## Development Commands
 
-### Installation and Setup
+### Environment Activation
 ```bash
-# Install package in development mode
-pip install --editable .
-
-# Install with dependencies
-pip install -e .
+# Activate your conda/virtual environment
+source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
 ```
 
 ### Running Training/Inference
@@ -487,30 +562,165 @@ The codebase is transitioning from:
 - Lightning modules (`connectomics/lightning/`)
 - `scripts/main.py` entry point
 
-## External Dependencies
+## Dependencies
 
-### MedNeXt Integration
+### Core Dependencies (Always Installed)
+The following packages are automatically installed with `pip install -e .`:
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| **torch** | >=1.8.0 | Deep learning framework |
+| **numpy** | >=1.19.0 | Numerical computing |
+| **pytorch-lightning** | >=2.0.0 | Training orchestration (PRIMARY) |
+| **monai** | >=0.9.1 | Medical imaging toolkit (PRIMARY) |
+| **torchmetrics** | >=0.11.0 | Metrics computation |
+| **omegaconf** | >=2.1.0 | Hydra configuration (PRIMARY) |
+| **yacs** | >=0.1.8 | Legacy configuration (being phased out) |
+| **scipy** | >=1.5 | Signal processing, optimization |
+| **scikit-learn** | >=0.23.1 | Machine learning utilities |
+| **scikit-image** | >=0.17.2 | Image processing |
+| **opencv-python** | >=4.3.0 | Computer vision |
+| **h5py** | >=2.10.0 | HDF5 file I/O |
+| **matplotlib** | >=3.3.0 | Visualization |
+| **tensorboard** | >=2.2.2 | Training monitoring |
+| **tqdm** | >=4.58.0 | Progress bars |
+| **einops** | >=0.3.0 | Tensor operations |
+| **psutil** | >=5.8.0 | System monitoring |
+| **cc3d** | >=3.0.0 | Connected components (segmentation) |
+| **imageio** | >=2.9.0 | Image I/O |
+| **Cython** | >=0.29.22 | C extensions |
+
+### Optional Dependencies
+
+Install via `pip install -e .[extra_name]` where `extra_name` is:
+
+#### `[full]` - Recommended Full Installation
+- **gputil** (>=1.4.0): GPU utilities
+- **jupyter** (>=1.0): Interactive notebooks
+- **tifffile** (>=2021.11.2): TIFF file support
+- **wandb** (>=0.13.0): Experiment tracking
+
+#### `[optim]` - Hyperparameter Optimization
+- **optuna** (>=2.10.0): Automated hyperparameter tuning
+- Used in: `connectomics.decoding.auto_tuning`
+
+#### `[wandb]` - Weights & Biases Integration
+- **wandb** (>=0.13.0): Experiment tracking and monitoring
+- Used in: `connectomics.lightning.lit_trainer` (optional logger)
+
+#### `[tiff]` - TIFF File Support
+- **tifffile** (>=2021.11.2): Advanced TIFF reading/writing
+- Used in: `connectomics.data.io`
+
+#### `[viz]` - 3D Visualization
+- **neuroglancer** (>=1.0.0): Interactive 3D EM data visualization
+- Used in: `scripts/visualize_neuroglancer.py`
+
+#### `[metrics]` - Advanced Metrics
+- **funlib.evaluate**: Skeleton-based segmentation metrics (NERL, VOI)
+- Manual install: `pip install git+https://github.com/funkelab/funlib.evaluate.git`
+- Used in: `connectomics.decoding.auto_tuning`
+
+#### `[dev]` - Development Tools
+- **pytest** (>=6.0.0): Testing framework
+- **pytest-benchmark** (>=3.4.0): Performance benchmarking
+
+#### `[docs]` - Documentation Building
+- **sphinx** (==3.4.3): Documentation generator
+- **sphinxcontrib-katex**: Math rendering
+- **jinja2** (==3.0.3): Template engine
+- Additional sphinx extensions
+
+### External Dependencies
+
+#### MedNeXt Integration (Optional)
 MedNeXt models are available from external repository:
 - **Location**: `/projects/weilab/weidf/lib/MedNeXt`
 - **Import**: `from nnunet_mednext import create_mednext_v1`
+- **Installation**: `pip install -e /projects/weilab/weidf/lib/MedNeXt`
 - **Documentation**: See `.claude/MEDNEXT.md` for integration guide
+- **Note**: Graceful fallback if not installed (try/except import protection)
+
+### Dependency Notes
+
+1. **PyTorch Installation**: Install PyTorch separately based on your CUDA version before installing PyTorch Connectomics. Visit [pytorch.org](https://pytorch.org/get-started/locally/) for the correct command.
+
+2. **Legacy Dependencies**: `yacs` is included for backward compatibility but is being phased out in favor of Hydra/OmegaConf.
+
+3. **Optional Features**: All optional dependencies have graceful fallbacks - the package will work without them, but some features will be unavailable.
+
+4. **GPU Utilities**: `gputil` and `psutil` are used for GPU/system monitoring but are not critical for core functionality.
+
+5. **Post-Processing**: `cc3d` is required for connected component analysis in segmentation tasks and is included in core dependencies.
 
 ## Common Issues
+
+### Installation Issues
+
+#### Missing PyTorch
+```bash
+# Error: No module named 'torch'
+# Solution: Install PyTorch first
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+```
+
+#### Missing OmegaConf
+```bash
+# Error: No module named 'omegaconf'
+# Solution: Upgrade to latest version
+pip install --upgrade omegaconf
+```
+
+#### Missing cc3d
+```bash
+# Error: No module named 'cc3d'
+# Solution: Install connected-components-3d
+pip install connected-components-3d
+```
+
+#### Import Error: MedNeXt
+```bash
+# Error: Could not import MedNeXt
+# Solution: This is optional - install if needed
+pip install -e /projects/weilab/weidf/lib/MedNeXt
+# Or see .claude/MEDNEXT.md for installation instructions
+```
 
 ### Config Loading
 - Ensure YAML syntax is correct
 - Check paths are absolute or relative to working directory
 - Use `print_config(cfg)` to debug
+- Verify OmegaConf is installed (`pip install omegaconf>=2.1.0`)
 
-### GPU Memory
+### GPU Memory Issues
 - Reduce `data.batch_size`
 - Enable gradient checkpointing (model-specific)
 - Use mixed precision (`training.precision: "16-mixed"`)
+- Try smaller patch sizes in `data.patch_size`
 
-### Data Loading
+### Data Loading Issues
 - Increase `data.num_workers` for faster loading
 - Use `data.use_cache` for small datasets
 - Check `data.persistent_workers: true` for efficiency
+- Verify HDF5 files exist and are accessible (`h5py` installed)
+
+### Version Compatibility
+- **Python 3.8+** required (3.10 recommended)
+- **PyTorch 1.8+** required (2.0+ recommended)
+- **PyTorch Lightning 2.0+** required
+- **MONAI 0.9.1+** required (1.0+ recommended)
+
+### Environment Issues
+```bash
+# Reset environment if needed
+pip uninstall connectomics
+pip cache purge
+pip install -e .[full]
+
+# Verify installation
+python -c "import connectomics; print('Version:', connectomics.__version__)"
+python -c "from connectomics.models.architectures import list_architectures; print(list_architectures())"
+```
 
 ## Further Reading
 
