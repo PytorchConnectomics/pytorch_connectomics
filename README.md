@@ -273,12 +273,86 @@ See [docker/README.md](docker/README.md) for detailed Docker instructions.
 
 ## Quick Start
 
-### Training Your First Model
+This tutorial demonstrates the complete workflow: data download → visualization → training → testing → results visualization.
+
+**Prerequisites:**
+- Installed PyTorch Connectomics (see [Installation](#installation))
+- [Just](https://github.com/casey/just) command runner (optional, for convenience)
+  ```bash
+  # Install just (optional)
+  cargo install just  # Or: brew install just
+  ```
+
+### Lucchi++ Tutorial (Recommended)
+
+#### 1. Download Tutorial Data
 
 ```bash
-# Activate your environment (if using conda/venv)
-source /path/to/your/env/bin/activate
+# Download Lucchi++ dataset from HuggingFace
+wget https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip
+unzip Lucchi++.zip
+```
 
+#### 2. Visualize Data (Optional)
+
+```bash
+# Visualize training data
+just visualize tutorials/monai_lucchi++.yaml train
+```
+
+#### 3. Train a Model
+
+**On SLURM cluster:**
+```bash
+just slurm weilab 8 4 "train monai lucchi++"
+# Arguments: partition, #gpus, #cpus, command
+```
+
+**On local machine:**
+```bash
+# Adjust #gpus and #cpus in tutorials/monai_lucchi++.yaml if needed
+just train monai lucchi++
+```
+
+**Or directly with Python:**
+```bash
+python scripts/main.py --config tutorials/monai_lucchi++.yaml
+```
+
+#### 4. Monitor Training Progress
+
+```bash
+# Launch TensorBoard
+just tensorboard monai_lucchi++
+
+# Or directly:
+tensorboard --logdir outputs/lucchi++_monai_unet
+```
+
+#### 5. Test the Model
+
+```bash
+# Test with best checkpoint
+just test monai lucchi++ outputs/lucchi++_monai_unet/20251012_011259/checkpoints/epoch=869-step=8700.ckpt
+
+# Or directly:
+python scripts/main.py --config tutorials/monai_lucchi++.yaml \
+    --mode test \
+    --checkpoint outputs/lucchi++_monai_unet/20251012_011259/checkpoints/epoch=869-step=8700.ckpt
+```
+
+#### 6. Visualize Results
+
+```bash
+# Visualize predictions with Neuroglancer
+just visualize tutorials/monai_lucchi++.yaml test \
+    --port 5005 \
+    --volumes pred:image:outputs/lucchi++_monai_unet/results/test_im_prediction.h5:5-5-5
+```
+
+### Custom Training Examples
+
+```bash
 # Train with example configuration
 python scripts/main.py --config tutorials/lucchi.yaml
 
