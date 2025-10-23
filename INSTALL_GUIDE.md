@@ -11,13 +11,18 @@ python install.py
 
 The script will:
 1. **Auto-detect CUDA version** from your system
-2. **Create conda environment** with Python 3.11
-3. **Install scientific packages** via conda-forge (pre-built binaries: NumPy, SciPy, h5py, Cython, etc.)
+2. **Detect or create conda environment** (uses existing environment if you're already in one)
+3. **Check and install scientific packages** via conda-forge (pre-built binaries: NumPy, SciPy, h5py, Cython, etc.)
+   - Checks which packages are already installed (shows versions)
+   - Only installs missing packages
 4. **Install PyTorch** with matching CUDA support
 5. **Install PyTorch Connectomics** and all dependencies
 6. **Verify** the installation
 
-**Key advantage:** Uses pre-built conda binaries, so no compilation needed even with old GCC (4.8.5+)
+**Key advantages:**
+- Uses pre-built conda binaries, so no compilation needed even with old GCC (4.8.5+)
+- Intelligently skips already-installed packages (saves time)
+- Uses your current conda environment if you're already in one
 
 ## What the Script Detects
 
@@ -194,5 +199,7 @@ python install.py --python 3.12  # Use Python 3.12
 ✅ **Smart PyTorch version matching**
 ✅ **Python 3.13 protection**
 ✅ **Pre-built wheel usage** (no GCC issues)
+✅ **Smart environment detection** (uses existing conda env)
+✅ **Package version checking** (skips already-installed packages)
 ✅ **Installation verification**
 ✅ **SLURM/HPC support**

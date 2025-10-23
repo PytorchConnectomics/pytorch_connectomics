@@ -95,6 +95,35 @@ def print_info(text: str):
     print(f"{Colors.OKCYAN}ℹ {text}{Colors.ENDC}")
 
 
+def check_package_installed(package_name: str, env_name: str) -> tuple[bool, Optional[str]]:
+    """
+    Check if a package is already installed in the conda environment.
+
+    Args:
+        package_name: Name of the package to check
+        env_name: Name of the conda environment
+
+    Returns:
+        Tuple of (is_installed, version) where version is None if not installed
+    """
+    code, stdout, _ = run_command(
+        f"conda list -n {env_name} {package_name}",
+        check=False
+    )
+    if code == 0 and stdout:
+        # Check if package name appears in the output (not just empty list)
+        lines = stdout.strip().split('\n')
+        for line in lines:
+            if line.startswith('#'):
+                continue
+            parts = line.split()
+            if parts and parts[0] == package_name:
+                # Return True and version (second column)
+                version = parts[1] if len(parts) > 1 else "unknown"
+                return True, version
+    return False, None
+
+
 def check_conda() -> bool:
     """Check if conda is available."""
     code, _, _ = run_command("conda --version", check=False)
@@ -351,31 +380,69 @@ def install_pytorch_connectomics(
     # Install in two groups for better reliability
     # Group 1: Core numerical packages (MUST succeed)
     core_packages = ['numpy', 'h5py', 'cython']  # Let conda choose compatible versions
-    print_info(f"Installing core packages: {', '.join(core_packages)}")
-    code, stdout, stderr = run_command(
-        f"conda install -n {env_name} -c conda-forge {' '.join(core_packages)} -y",
-        check=False
-    )
-    if code != 0:
-        print_error("Failed to install core packages via conda!")
-        print_error(stderr)
-        print_error("\nThis is a critical error. These packages MUST be installed via conda")
-        print_error("to avoid GCC compilation errors.")
-        return False
-    print_success("Core packages installed via conda")
+
+    # Check which packages are already installed
+    already_installed = []
+    to_install = []
+
+    print_info("Checking which packages are already installed...")
+    for pkg in core_packages:
+        is_installed, version = check_package_installed(pkg, env_name)
+        if is_installed:
+            already_installed.append(f"{pkg} ({version})")
+        else:
+            to_install.append(pkg)
+
+    if already_installed:
+        print_success(f"Already installed: {', '.join(already_installed)}")
+
+    if to_install:
+        print_info(f"Installing: {', '.join(to_install)}")
+        code, stdout, stderr = run_command(
+            f"conda install -n {env_name} -c conda-forge {' '.join(to_install)} -y",
+            check=False
+        )
+        if code != 0:
+            print_error("Failed to install core packages via conda!")
+            print_error(stderr)
+            print_error("\nThis is a critical error. These packages MUST be installed via conda")
+            print_error("to avoid GCC compilation errors.")
+            return False
+        print_success(f"Core packages installed: {', '.join(to_install)}")
+    else:
+        print_success("All core packages already installed")
 
     # Group 2: Optional scientific packages (nice to have)
     optional_packages = ['scipy', 'scikit-learn', 'scikit-image', 'opencv']
-    print_info(f"Installing optional packages: {', '.join(optional_packages)}")
-    code, _, stderr = run_command(
-        f"conda install -n {env_name} -c conda-forge {' '.join(optional_packages)} -y",
-        check=False
-    )
-    if code != 0:
-        print_warning("Some optional conda packages failed to install")
-        print_info("These will be installed via pip if needed...")
+
+    # Check which optional packages are already installed
+    opt_already_installed = []
+    opt_to_install = []
+
+    print_info("Checking optional packages...")
+    for pkg in optional_packages:
+        is_installed, version = check_package_installed(pkg, env_name)
+        if is_installed:
+            opt_already_installed.append(f"{pkg} ({version})")
+        else:
+            opt_to_install.append(pkg)
+
+    if opt_already_installed:
+        print_success(f"Optional packages already installed: {', '.join(opt_already_installed)}")
+
+    if opt_to_install:
+        print_info(f"Installing optional packages: {', '.join(opt_to_install)}")
+        code, _, stderr = run_command(
+            f"conda install -n {env_name} -c conda-forge {' '.join(opt_to_install)} -y",
+            check=False
+        )
+        if code != 0:
+            print_warning("Some optional conda packages failed to install")
+            print_info("These will be installed via pip if needed...")
+        else:
+            print_success(f"Optional packages installed: {', '.join(opt_to_install)}")
     else:
-        print_success("Optional packages installed via conda")
+        print_success("All optional packages already installed")
 
     # Install PyTorch
     print_header("Step 3/5: Installing PyTorch")
