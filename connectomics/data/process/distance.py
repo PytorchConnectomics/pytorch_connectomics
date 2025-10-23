@@ -5,7 +5,13 @@ import torch
 import scipy
 import numpy as np
 from scipy.ndimage import distance_transform_edt, binary_fill_holes
-from skimage.morphology import remove_small_holes, skeletonize, binary_erosion, disk, ball
+from skimage.morphology import (
+    remove_small_holes,
+    skeletonize,
+    binary_erosion,
+    disk,
+    ball,
+)
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from skimage.filters import gaussian
 
@@ -14,19 +20,19 @@ from .misc import get_padsize, array_unpad
 from .quantize import energy_quantize
 
 __all__ = [
-    'edt_semantic',
-    'edt_instance',
-    'distance_transform',
-    'skeleton_aware_distance_transform',
-    'smooth_edge',
+    "edt_semantic",
+    "edt_instance",
+    "distance_transform",
+    "skeleton_aware_distance_transform",
+    "smooth_edge",
 ]
 
 
 def edt_semantic(
     label: np.ndarray,
-    mode: str = '2d',
+    mode: str = "2d",
     alpha_fore: float = 8.0,
-    alpha_back: float = 50.0
+    alpha_back: float = 50.0,
 ):
     """Euclidean distance transform (DT or EDT) for binary semantic mask.
 
@@ -35,18 +41,18 @@ def edt_semantic(
     - Avoid list append + stack pattern
     - Compute masks once
     """
-    assert mode in ['2d', '3d']
-    do_2d = (label.ndim == 2)
+    assert mode in ["2d", "3d"]
+    do_2d = label.ndim == 2
 
     resolution = (6.0, 1.0, 1.0)  # anisotropic data
-    if mode == '2d' or do_2d:
+    if mode == "2d" or do_2d:
         resolution = (1.0, 1.0)
 
     # Compute masks once (avoid redundant comparisons)
     fore = (label != 0).astype(np.uint8)
     back = (label == 0).astype(np.uint8)
 
-    if mode == '3d' or do_2d:
+    if mode == "3d" or do_2d:
         fore_edt = _edt_binary_mask(fore, resolution, alpha_fore)
         back_edt = _edt_binary_mask(back, resolution, alpha_back)
     else:
@@ -70,17 +76,20 @@ def _edt_binary_mask(mask, resolution, alpha):
     return distance_transform_edt(mask, resolution) / alpha
 
 
-def edt_instance(label: np.ndarray,
-                 mode: str = '2d',
-                 quantize: bool = True,
-                 resolution: Tuple[float] = (1.0, 1.0, 1.0),
-                 padding: bool = False,
-                 erosion: int = 0):
-    assert mode in ['2d', '3d']
-    if mode == '3d':
+def edt_instance(
+    label: np.ndarray,
+    mode: str = "2d",
+    quantize: bool = True,
+    resolution: Tuple[float] = (1.0, 1.0, 1.0),
+    padding: bool = False,
+    erosion: int = 0,
+):
+    assert mode in ["2d", "3d"]
+    if mode == "3d":
         # calculate 3d distance transform for instances
         vol_distance = distance_transform(
-            label, resolution=resolution, padding=padding, erosion=erosion)
+            label, resolution=resolution, padding=padding, erosion=erosion
+        )
         if quantize:
             vol_distance = energy_quantize(vol_distance)
         return vol_distance
@@ -93,7 +102,7 @@ def edt_instance(label: np.ndarray,
         distance = distance_transform(
             label[i],  # No .copy() - distance_transform doesn't modify input
             padding=padding,
-            erosion=erosion
+            erosion=erosion,
         )
         vol_distance[i] = distance
 
@@ -102,12 +111,15 @@ def edt_instance(label: np.ndarray,
 
     return vol_distance
 
-def distance_transform(label: np.ndarray,
-                       bg_value: float = -1.0,
-                       relabel: bool = True,
-                       padding: bool = False,
-                       resolution: Tuple[float] = (1.0, 1.0),
-                       erosion: int = 0):
+
+def distance_transform(
+    label: np.ndarray,
+    bg_value: float = -1.0,
+    relabel: bool = True,
+    padding: bool = False,
+    resolution: Tuple[float] = (1.0, 1.0),
+    erosion: int = 0,
+):
     """Euclidean distance transform (DT or EDT) for instance masks.
 
     Optimizations:
@@ -123,7 +135,7 @@ def distance_transform(label: np.ndarray,
         label = label_cc(label)
 
     if padding:
-        label = np.pad(label, pad_size, mode='constant', constant_values=0)
+        label = np.pad(label, pad_size, mode="constant", constant_values=0)
 
     label_shape = label.shape
 
@@ -138,30 +150,44 @@ def distance_transform(label: np.ndarray,
 
         # Compute all bounding boxes at once and process each instance
         bbox_array = compute_bbox_all(label, do_count=False)
-        
-        # Process each instance with EDT computation  
+
+        # Process each instance with EDT computation
         if bbox_array is not None:
             for i in range(bbox_array.shape[0]):
                 idx = int(bbox_array[i, 0])
-                
+
                 # Extract bbox coords and apply 1-pixel relaxation (for EDT smoothness)
                 if label.ndim == 2:
                     # 2D: [id, y_min, y_max, x_min, x_max]
-                    bbox_coords = [bbox_array[i, 1], bbox_array[i, 2] + 1,  # +1 for exclusive max
-                                   bbox_array[i, 3], bbox_array[i, 4] + 1]
+                    bbox_coords = [
+                        bbox_array[i, 1],
+                        bbox_array[i, 2] + 1,  # +1 for exclusive max
+                        bbox_array[i, 3],
+                        bbox_array[i, 4] + 1,
+                    ]
                     relaxed = bbox_relax(bbox_coords, label_shape, relax=1)
-                    bbox = (slice(relaxed[0], relaxed[1]), slice(relaxed[2], relaxed[3]))
+                    bbox = (
+                        slice(relaxed[0], relaxed[1]),
+                        slice(relaxed[2], relaxed[3]),
+                    )
                 else:  # 3D
                     # 3D: [id, z_min, z_max, y_min, y_max, x_min, x_max]
-                    bbox_coords = [bbox_array[i, 1], bbox_array[i, 2] + 1,  # +1 for exclusive max
-                                   bbox_array[i, 3], bbox_array[i, 4] + 1,
-                                   bbox_array[i, 5], bbox_array[i, 6] + 1]
+                    bbox_coords = [
+                        bbox_array[i, 1],
+                        bbox_array[i, 2] + 1,  # +1 for exclusive max
+                        bbox_array[i, 3],
+                        bbox_array[i, 4] + 1,
+                        bbox_array[i, 5],
+                        bbox_array[i, 6] + 1,
+                    ]
                     relaxed = bbox_relax(bbox_coords, label_shape, relax=1)
-                    bbox = (slice(relaxed[0], relaxed[1]), 
-                            slice(relaxed[2], relaxed[3]),
-                            slice(relaxed[4], relaxed[5]))
+                    bbox = (
+                        slice(relaxed[0], relaxed[1]),
+                        slice(relaxed[2], relaxed[3]),
+                        slice(relaxed[4], relaxed[5]),
+                    )
 
-                # Extract instance mask within bounding box                
+                # Extract instance mask within bounding box
                 temp2 = binary_fill_holes((label[bbox] == idx))
 
                 if erosion > 0:
@@ -200,6 +226,7 @@ def smooth_edge(binary, smooth_sigma: float = 2.0, smooth_threshold: float = 0.5
 
     return binary
 
+
 def skeleton_aware_distance_transform(
     label: np.ndarray,
     bg_value: float = -1.0,
@@ -212,7 +239,7 @@ def skeleton_aware_distance_transform(
 ):
     """Skeleton-based distance transform (SDT).
 
-    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware 
+    Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware
     Distance Transform." International Conference on Medical Image Computing and
     Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
     """
@@ -226,7 +253,7 @@ def skeleton_aware_distance_transform(
         # The distance_transform_edt function does not treat image border
         # as background. If image border needs to be considered as background
         # in distance calculation, set padding to True.
-        label = np.pad(label, pad_size, mode='constant', constant_values=0)
+        label = np.pad(label, pad_size, mode="constant", constant_values=0)
 
     label_shape = label.shape
     all_bg_sample = False
@@ -262,19 +289,18 @@ def skeleton_aware_distance_transform(
             skeleton_mask = (skeleton_mask != 0).astype(np.uint8)
             skeleton += skeleton_mask
 
-            skeleton_edt = distance_transform_edt(1-skeleton_mask, resolution)
+            skeleton_edt = distance_transform_edt(1 - skeleton_mask, resolution)
             boundary_edt = distance_transform_edt(temp2, resolution)
 
-            energy = boundary_edt / (skeleton_edt + boundary_edt + eps) # normalize
-            energy = energy ** alpha
+            energy = boundary_edt / (skeleton_edt + boundary_edt + eps)  # normalize
+            energy = energy**alpha
             distance = np.maximum(distance, energy * temp2.astype(np.float32))
 
     if bg_value != 0:
-        distance[distance==0] = bg_value
+        distance[distance == 0] = bg_value
 
     if padding:
         # Unpad the output array to preserve original shape.
-        distance = array_unpad(distance, get_padsize(
-            pad_size, ndim=distance.ndim))
+        distance = array_unpad(distance, get_padsize(pad_size, ndim=distance.ndim))
 
     return distance

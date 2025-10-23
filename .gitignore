@@ -126,10 +126,10 @@ dmypy.json
 .vscode/
 *~
 
-datasets/
+datasets/*
 others/
 locals/
-outputs/
+outputs/*
 tmpwdir/
 *.iml
 .idea/

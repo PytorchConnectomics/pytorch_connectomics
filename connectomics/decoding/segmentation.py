@@ -20,39 +20,44 @@ import numpy as np
 import cc3d
 import fastremap
 
-from skimage.measure import label
-from skimage.transform import resize
 from skimage.morphology import dilation, remove_small_objects
-from skimage.segmentation import watershed
+from scipy.ndimage import zoom
+import mahotas
+
 
 from .utils import remove_small_instances
 
 try:
     from numba import jit
+
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
+
     # Define dummy jit decorator
     def jit(*args, **kwargs):
         def decorator(func):
             return func
+
         return decorator
 
+
 __all__ = [
-    'decode_binary_cc',
-    'decode_binary_watershed',
-    'decode_binary_contour_cc',
-    'decode_binary_contour_watershed',
-    'decode_binary_contour_distance_watershed',
-    'decode_affinity_cc',
+    "decode_binary_cc",
+    "decode_binary_watershed",
+    "decode_binary_contour_cc",
+    "decode_binary_contour_watershed",
+    "decode_binary_contour_distance_watershed",
+    "decode_affinity_cc",
 ]
+
 
 def decode_binary_cc(
     predictions: np.ndarray,
     foreground_threshold: float = 0.8,
     min_instance_size: int = 128,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    remove_small_mode: str = 'background'
+    remove_small_mode: str = "background",
 ) -> np.ndarray:
     r"""Convert binary foreground probability maps to instance masks via
     connected-component labeling.
@@ -68,17 +73,24 @@ def decode_binary_cc(
         numpy.ndarray: Instance segmentation mask.
     """
     semantic = predictions[0]
-    foreground = (semantic > int(255 * foreground_threshold))
-    segmentation = label(foreground)
-    segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+    foreground = semantic > int(255 * foreground_threshold)
+    segmentation = cc3d.connected_components(foreground)
+    segmentation = remove_small_instances(
+        segmentation, min_instance_size, remove_small_mode
+    )
 
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
             int(semantic.shape[0] * scale_factors[0]),
             int(semantic.shape[1] * scale_factors[1]),
-            int(semantic.shape[2] * scale_factors[2])
+            int(semantic.shape[2] * scale_factors[2]),
         )
-        segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size
+            for out_size, in_size in zip(target_size, segmentation.shape)
+        ]
+        segmentation = zoom(segmentation, zoom_factors, order=0, mode="nearest")
 
     return fastremap.refit(segmentation)
 
@@ -89,8 +101,8 @@ def decode_binary_watershed(
     foreground_threshold: float = 0.85,
     min_instance_size: int = 128,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    remove_small_mode: str = 'background',
-    min_seed_size: int = 32
+    remove_small_mode: str = "background",
+    min_seed_size: int = 32,
 ) -> np.ndarray:
     r"""Convert binary foreground probability maps to instance masks via
     watershed segmentation algorithm.
@@ -114,19 +126,29 @@ def decode_binary_watershed(
     semantic = predictions[0]
     seed_map = semantic > int(255 * seed_threshold)
     foreground = semantic > int(255 * foreground_threshold)
-    seed = label(seed_map)
+    seed = cc3d.connected_components(seed_map)
     seed = remove_small_objects(seed, min_seed_size)
-    segmentation = watershed(-semantic.astype(np.float64), seed, mask=foreground)
-    segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+    segmentation = mahotas.cwatershed(
+        -semantic.astype(np.float64), seed, mask=foreground
+    )
+    segmentation = remove_small_instances(
+        segmentation, min_instance_size, remove_small_mode
+    )
 
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
             int(semantic.shape[0] * scale_factors[0]),
             int(semantic.shape[1] * scale_factors[1]),
-            int(semantic.shape[2] * scale_factors[2])
+            int(semantic.shape[2] * scale_factors[2]),
         )
-        segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size
+            for out_size, in_size in zip(target_size, segmentation.shape)
+        ]
+        segmentation = zoom(segmentation, zoom_factors, order=0, mode="nearest")
     return fastremap.refit(segmentation)
+
 
 def decode_binary_contour_cc(
     predictions: np.ndarray,
@@ -135,7 +157,7 @@ def decode_binary_contour_cc(
     min_instance_size: int = 128,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
     dilation_struct: Tuple[int, int, int] = (1, 5, 5),
-    remove_small_mode: str = 'background'
+    remove_small_mode: str = "background",
 ) -> np.ndarray:
     r"""Convert binary foreground probability maps and instance contours to
     instance masks via connected-component labeling.
@@ -161,22 +183,32 @@ def decode_binary_contour_cc(
     """
     semantic = predictions[0]
     boundary = predictions[1]
-    foreground = (semantic > int(255 * foreground_threshold)) * (boundary < int(255 * contour_threshold))
+    foreground = (semantic > int(255 * foreground_threshold)) * (
+        boundary < int(255 * contour_threshold)
+    )
 
-    segmentation = label(foreground)
+    segmentation = cc3d.connected_components(foreground)
     struct = np.ones(dilation_struct)
     segmentation = dilation(segmentation, struct)
-    segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+    segmentation = remove_small_instances(
+        segmentation, min_instance_size, remove_small_mode
+    )
 
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
             int(semantic.shape[0] * scale_factors[0]),
             int(semantic.shape[1] * scale_factors[1]),
-            int(semantic.shape[2] * scale_factors[2])
+            int(semantic.shape[2] * scale_factors[2]),
         )
-        segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size
+            for out_size, in_size in zip(target_size, segmentation.shape)
+        ]
+        segmentation = zoom(segmentation, zoom_factors, order=0, mode="nearest")
 
     return fastremap.refit(segmentation)
+
 
 def decode_binary_contour_watershed(
     predictions: np.ndarray,
@@ -185,11 +217,11 @@ def decode_binary_contour_watershed(
     foreground_threshold: float = 0.85,
     min_instance_size: int = 128,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    remove_small_mode: str = 'background',
+    remove_small_mode: str = "background",
     min_seed_size: int = 32,
     return_seed: bool = False,
     precomputed_seed: Optional[np.ndarray] = None,
-    prediction_scale: int = 255
+    prediction_scale: int = 255,
 ):
     r"""Convert binary foreground probability maps and instance contours to
     instance masks via watershed segmentation algorithm.
@@ -221,7 +253,7 @@ def decode_binary_contour_watershed(
         contour_threshold = contour_threshold * prediction_scale
         foreground_threshold = foreground_threshold * prediction_scale
 
-    foreground = (semantic > foreground_threshold)
+    foreground = semantic > foreground_threshold
 
     if precomputed_seed is not None:
         seed = precomputed_seed
@@ -230,18 +262,26 @@ def decode_binary_contour_watershed(
         seed = cc3d.connected_components(seed_map)
         seed = remove_small_objects(seed, min_seed_size)
 
-    segmentation = watershed(-semantic.astype(np.float64), seed, mask=foreground)
-    segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+    segmentation = mahotas.cwatershed(
+        -semantic.astype(np.float64), seed, mask=foreground
+    )
+    segmentation = remove_small_instances(
+        segmentation, min_instance_size, remove_small_mode
+    )
 
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
             int(semantic.shape[0] * scale_factors[0]),
             int(semantic.shape[1] * scale_factors[1]),
-            int(semantic.shape[2] * scale_factors[2])
+            int(semantic.shape[2] * scale_factors[2]),
         )
-        segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size
+            for out_size, in_size in zip(target_size, segmentation.shape)
+        ]
+        segmentation = zoom(segmentation, zoom_factors, order=0, mode="nearest")
 
-    
     segmentation = fastremap.refit(segmentation)
 
     if not return_seed:
@@ -249,18 +289,19 @@ def decode_binary_contour_watershed(
 
     return segmentation, seed
 
+
 def decode_binary_contour_distance_watershed(
     predictions: np.ndarray,
     binary_threshold: Tuple[float, float] = (0.9, 0.85),
-    contour_threshold: Tuple[float, float] = (0.8, 1.1),    
-    distance_threshold: Tuple[float, float] = (0.5, 0),    
+    contour_threshold: Tuple[float, float] = (0.8, 1.1),
+    distance_threshold: Tuple[float, float] = (0.5, 0),
     min_instance_size: int = 128,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    remove_small_mode: str = 'background',
+    remove_small_mode: str = "background",
     min_seed_size: int = 32,
     return_seed: bool = False,
     precomputed_seed: Optional[np.ndarray] = None,
-    prediction_scale: int = 255
+    prediction_scale: int = 255,
 ):
     r"""Convert binary foreground probability maps, instance contours and signed distance
     transform to instance masks via watershed segmentation algorithm.
@@ -271,11 +312,11 @@ def decode_binary_contour_distance_watershed(
 
     Args:
         predictions (numpy.ndarray): foreground, contour, and distance probability of shape :math:`(3, Z, Y, X)`.
-        binary_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for binary mask. 
+        binary_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for binary mask.
             The first value is used for seed generation, the second for foreground mask. Default: (0.9, 0.85)
-        contour_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for instance contours. 
+        contour_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for instance contours.
             The first value is used for seed generation, the second for foreground mask. Default: (0.8, 1.1)
-        distance_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for signed distance. 
+        distance_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for signed distance.
             The first value is used for seed generation, the second for foreground mask. Default: (0.5, -0.5)
         min_instance_size (int): minimum size threshold for instances to keep. Default: 128
         scale_factors (tuple): scale factors for resizing in :math:`(Z, Y, X)` order. Default: (1.0, 1.0, 1.0)
@@ -290,7 +331,7 @@ def decode_binary_contour_distance_watershed(
     """
     assert predictions.shape[0] == 3
     binary, contour, distance = predictions[0], predictions[1], predictions[2]
-    
+
     if prediction_scale == 255:
         distance = (distance / prediction_scale) * 2.0 - 1.0
         binary_threshold = binary_threshold * prediction_scale
@@ -300,28 +341,41 @@ def decode_binary_contour_distance_watershed(
     if precomputed_seed is not None:
         seed = precomputed_seed
     else:  # compute the instance seeds
-        seed_map = (binary > binary_threshold[0]) \
-                   * (contour < contour_threshold[0]) \
-                   * (distance > distance_threshold[0])
+        seed_map = (
+            (binary > binary_threshold[0])
+            * (contour < contour_threshold[0])
+            * (distance > distance_threshold[0])
+        )
         seed = cc3d.connected_components(seed_map)
         seed = remove_small_objects(seed, min_seed_size)
 
-    foreground = (binary > binary_threshold[1]) \
-                * (contour < contour_threshold[1]) \
-                * (distance > distance_threshold[1])
+    foreground = (
+        (binary > binary_threshold[1])
+        * (contour < contour_threshold[1])
+        * (distance > distance_threshold[1])
+    )
 
-    segmentation = watershed(-distance.astype(np.float64), seed, mask=foreground)
-    segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+    segmentation = mahotas.cwatershed(
+        -distance.astype(np.float64), seed, mask=foreground
+    )
+    segmentation = remove_small_instances(
+        segmentation, min_instance_size, remove_small_mode
+    )
 
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
             int(binary.shape[0] * scale_factors[0]),
             int(binary.shape[1] * scale_factors[1]),
-            int(binary.shape[2] * scale_factors[2])
+            int(binary.shape[2] * scale_factors[2]),
         )
-        segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size
+            for out_size, in_size in zip(target_size, segmentation.shape)
+        ]
+        segmentation = zoom(segmentation, zoom_factors, order=0, mode="nearest")
 
-    segmentation = fastremap.refit(segmentation)    
+    segmentation = fastremap.refit(segmentation)
     if not return_seed:
         return segmentation
 
@@ -391,7 +445,11 @@ def _connected_components_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
 
                         # Check 6-connected neighbors
                         # Positive x
-                        if x + 1 < visited.shape[0] and hard_aff[0, x, y, z] and not visited[x + 1, y, z]:
+                        if (
+                            x + 1 < visited.shape[0]
+                            and hard_aff[0, x, y, z]
+                            and not visited[x + 1, y, z]
+                        ):
                             stack_x[stack_size] = x + 1
                             stack_y[stack_size] = y
                             stack_z[stack_size] = z
@@ -399,7 +457,11 @@ def _connected_components_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x + 1, y, z] = True
 
                         # Positive y
-                        if y + 1 < visited.shape[1] and hard_aff[1, x, y, z] and not visited[x, y + 1, z]:
+                        if (
+                            y + 1 < visited.shape[1]
+                            and hard_aff[1, x, y, z]
+                            and not visited[x, y + 1, z]
+                        ):
                             stack_x[stack_size] = x
                             stack_y[stack_size] = y + 1
                             stack_z[stack_size] = z
@@ -407,7 +469,11 @@ def _connected_components_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x, y + 1, z] = True
 
                         # Positive z
-                        if z + 1 < visited.shape[2] and hard_aff[2, x, y, z] and not visited[x, y, z + 1]:
+                        if (
+                            z + 1 < visited.shape[2]
+                            and hard_aff[2, x, y, z]
+                            and not visited[x, y, z + 1]
+                        ):
                             stack_x[stack_size] = x
                             stack_y[stack_size] = y
                             stack_z[stack_size] = z + 1
@@ -415,7 +481,11 @@ def _connected_components_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x, y, z + 1] = True
 
                         # Negative x
-                        if x - 1 >= 0 and hard_aff[0, x - 1, y, z] and not visited[x - 1, y, z]:
+                        if (
+                            x - 1 >= 0
+                            and hard_aff[0, x - 1, y, z]
+                            and not visited[x - 1, y, z]
+                        ):
                             stack_x[stack_size] = x - 1
                             stack_y[stack_size] = y
                             stack_z[stack_size] = z
@@ -423,7 +493,11 @@ def _connected_components_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x - 1, y, z] = True
 
                         # Negative y
-                        if y - 1 >= 0 and hard_aff[1, x, y - 1, z] and not visited[x, y - 1, z]:
+                        if (
+                            y - 1 >= 0
+                            and hard_aff[1, x, y - 1, z]
+                            and not visited[x, y - 1, z]
+                        ):
                             stack_x[stack_size] = x
                             stack_y[stack_size] = y - 1
                             stack_z[stack_size] = z
@@ -431,7 +505,11 @@ def _connected_components_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                             visited[x, y - 1, z] = True
 
                         # Negative z
-                        if z - 1 >= 0 and hard_aff[2, x, y, z - 1] and not visited[x, y, z - 1]:
+                        if (
+                            z - 1 >= 0
+                            and hard_aff[2, x, y, z - 1]
+                            and not visited[x, y, z - 1]
+                        ):
                             stack_x[stack_size] = x
                             stack_y[stack_size] = y
                             stack_z[stack_size] = z - 1
@@ -449,7 +527,7 @@ def decode_affinity_cc(
     use_numba: bool = True,
     min_instance_size: int = 0,
     scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0),
-    remove_small_mode: str = 'background'
+    remove_small_mode: str = "background",
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
@@ -526,7 +604,9 @@ def decode_affinity_cc(
         - :func:`decode_binary_contour_watershed`: Watershed on binary + contour predictions
     """
     assert affinities.ndim == 4, f"Expected 4D array, got {affinities.ndim}D"
-    assert affinities.shape[0] >= 3, f"Expected >= 3 channels, got {affinities.shape[0]}"
+    assert (
+        affinities.shape[0] >= 3
+    ), f"Expected >= 3 channels, got {affinities.shape[0]}"
 
     # Extract short-range affinities (first 3 channels)
     short_range_aff = affinities[:3]
@@ -542,27 +622,35 @@ def decode_affinity_cc(
         # Fallback to skimage (slower but always available)
         if use_numba and not NUMBA_AVAILABLE:
             import warnings
+
             warnings.warn(
                 "Numba not available. Using skimage (slower). "
                 "Install numba for 10-100x speedup: pip install numba>=0.60.0",
-                UserWarning
+                UserWarning,
             )
 
         # Create foreground mask (any affinity > 0)
         foreground = hard_aff.any(axis=0)
-        segmentation = label(foreground)
+        segmentation = cc3d.connected_components(foreground)
 
     # Remove small instances
     if min_instance_size > 0:
-        segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+        segmentation = remove_small_instances(
+            segmentation, min_instance_size, remove_small_mode
+        )
 
     # Resize if requested
     if not all(x == 1.0 for x in scale_factors):
         target_size = (
             int(segmentation.shape[0] * scale_factors[0]),
             int(segmentation.shape[1] * scale_factors[1]),
-            int(segmentation.shape[2] * scale_factors[2])
+            int(segmentation.shape[2] * scale_factors[2]),
         )
-        segmentation = resize(segmentation, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size
+            for out_size, in_size in zip(target_size, segmentation.shape)
+        ]
+        segmentation = zoom(segmentation, zoom_factors, order=0, mode="nearest")
 
     return fastremap.refit(segmentation)

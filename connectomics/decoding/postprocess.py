@@ -13,28 +13,30 @@ from typing import List
 import numpy as np
 
 from scipy import ndimage
-from skimage.measure import label
+
+# from skimage.measure import label  # Replaced with cc3d.connected_components
+import cc3d
 from skimage.feature import peak_local_max
-from skimage.segmentation import watershed
+
+# from skimage.segmentation import watershed  # Replaced with mahotas for better performance
+import mahotas
 
 from connectomics.data.process import bbox_ND, crop_ND, replace_ND
 
 
 __all__ = [
-    'binarize_and_median',
-    'remove_masks',
-    'add_masks',
-    'merge_masks',
-    'watershed_split',
-    'stitch_3d',
-    'intersection_over_union',
+    "binarize_and_median",
+    "remove_masks",
+    "add_masks",
+    "merge_masks",
+    "watershed_split",
+    "stitch_3d",
+    "intersection_over_union",
 ]
 
 
 def binarize_and_median(
-    pred: np.ndarray,
-    size: tuple = (7, 7, 7),
-    thres: float = 0.8
+    pred: np.ndarray, size: tuple = (7, 7, 7), thres: float = 0.8
 ) -> np.ndarray:
     """First binarize the prediction with a given threshold, and
     then conduct median filtering to reduce noise.
@@ -43,7 +45,7 @@ def binarize_and_median(
         pred (numpy.ndarray): predicted foreground probability within (0,1).
         size (tuple): kernel size of filtering. Default: (7,7,7)
         thres (float): threshold for binarizing the prediction. Default: 0.8
-        
+
     Returns:
         numpy.ndarray: Filtered binary mask.
     """
@@ -54,11 +56,11 @@ def binarize_and_median(
 
 def remove_masks(vol: np.ndarray, indices: List[int]) -> np.ndarray:
     """Remove objects by indices from a segmentation volume.
-    
+
     Args:
         vol (numpy.ndarray): Segmentation volume.
         indices (list): List of object IDs to remove.
-        
+
     Returns:
         numpy.ndarray: Volume with specified objects removed.
     """
@@ -71,12 +73,12 @@ def add_masks(vol_base: np.ndarray, vol: np.ndarray, indices: List[int]) -> np.n
     """Add the instances in a new segmentation volume to the
     original one. A new instance can overwrite existing object
     pixels if the corresponding region contains non-background.
-    
+
     Args:
         vol_base (numpy.ndarray): Base segmentation volume.
         vol (numpy.ndarray): Volume containing new objects to add.
         indices (list): List of object IDs from vol to add.
-        
+
     Returns:
         numpy.ndarray: Combined segmentation volume.
     """
@@ -88,11 +90,11 @@ def add_masks(vol_base: np.ndarray, vol: np.ndarray, indices: List[int]) -> np.n
 
 def merge_masks(vol: np.ndarray, indices: List[List[int]]) -> np.ndarray:
     """Merge two or more masks into a single one.
-    
+
     Args:
         vol (numpy.ndarray): Segmentation volume.
         indices (list of lists): Each inner list contains IDs to merge together.
-        
+
     Returns:
         numpy.ndarray: Volume with merged objects.
     """
@@ -107,29 +109,26 @@ def merge_masks(vol: np.ndarray, indices: List[List[int]]) -> np.ndarray:
 
 
 def watershed_split(
-    vol: np.ndarray,
-    index: int,
-    show_id: bool = False,
-    min_distance: int = 5
+    vol: np.ndarray, index: int, show_id: bool = False, min_distance: int = 5
 ) -> np.ndarray:
     """Apply watershed transform to split a 3D object into two or more
     parts based on the given index.
-    
+
     Args:
         vol (numpy.ndarray): 3D label array.
         index (int): ID of the object to split.
         show_id (bool): Whether to print the new IDs. Default: False
         min_distance (int): Minimum distance between peaks. Default: 5
-        
+
     Returns:
         numpy.ndarray: Volume with split object.
-        
+
     References:
         https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_watershed.html
     """
     assert vol.ndim == 3  # 3D label array
     max_idx = max(np.unique(vol))
-    binary = (vol == index)
+    binary = vol == index
     bbox = bbox_ND(binary, relax=1)  # avoid cropped object touching borders
     cropped = crop_ND(binary, bbox, end_included=True)
 
@@ -138,8 +137,8 @@ def watershed_split(
     coords = peak_local_max(distance, min_distance=min_distance, labels=cropped)
     mask = np.zeros(distance.shape, dtype=bool)
     mask[tuple(coords.T)] = True
-    markers = label(mask)
-    split_objects = watershed(-distance, markers, mask=cropped)
+    markers = cc3d.connected_components(mask)
+    split_objects = mahotas.cwatershed(-distance, markers, mask=cropped)
 
     seg_id = np.unique(split_objects)
     new_id = []
@@ -161,7 +160,7 @@ def stitch_3d(masks: np.ndarray, stitch_threshold: float = 0.25) -> np.ndarray:
     Args:
         masks (numpy.ndarray): 3D volume comprised of a 2D annotations stack of shape :math:`(Z, Y, X)`.
         stitch_threshold (float): threshold for joining 2D annotations via IOU. Default: 0.25
-        
+
     Returns:
         numpy.ndarray: 3D stitched segmentation.
     """
@@ -196,9 +195,11 @@ def stitch_3d(masks: np.ndarray, stitch_threshold: float = 0.25) -> np.ndarray:
     return masks
 
 
-def intersection_over_union(masks_true: np.ndarray, masks_pred: np.ndarray) -> np.ndarray:
+def intersection_over_union(
+    masks_true: np.ndarray, masks_pred: np.ndarray
+) -> np.ndarray:
     """Calculates the intersection over union for all mask pairs.
-    
+
     Abducted from the cellpose repository (https://github.com/MouseLand/cellpose/blob/master/cellpose/metrics.py).
 
     Args:
@@ -206,7 +207,7 @@ def intersection_over_union(masks_true: np.ndarray, masks_pred: np.ndarray) -> n
         masks_pred (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math:`(Y, X)`.
 
     Returns:
-        numpy.ndarray: A ND-array recording the IoU score (float) for each label pair, 
+        numpy.ndarray: A ND-array recording the IoU score (float) for each label pair,
                        size [masks_true.max()+1, masks_pred.max()+1]
     """
     overlap = _label_overlap(masks_true, masks_pred)

@@ -13,8 +13,10 @@ The script will:
 1. **Auto-detect CUDA version** from your system
 2. **Detect or create conda environment** (uses existing environment if you're already in one)
 3. **Check and install scientific packages** via conda-forge (pre-built binaries)
-   - Core: NumPy, h5py, Cython, connected-components-3d (cc3d)
-   - Optional: SciPy, scikit-learn, scikit-image, OpenCV
+   - Core packages (always installed): NumPy, h5py, Cython, connected-components-3d (cc3d)
+   - Optional packages (prompted): SciPy, scikit-learn, scikit-image, OpenCV
+     - **Default: Skip** (faster, pip will install if needed)
+     - Conda installation can take 5-10 minutes due to dependency resolution
    - Checks which packages are already installed (shows versions)
    - Only installs missing packages
    - **CRITICAL**: cc3d installed with NumPy to avoid version conflicts
@@ -26,6 +28,7 @@ The script will:
 - Uses pre-built conda binaries, so no compilation needed even with old GCC (4.8.5+)
 - cc3d installed via conda prevents NumPy version conflicts during pip install
 - Intelligently skips already-installed packages (saves time)
+- Optional packages skipped by default (faster installation, 2-3 min vs 10+ min)
 - Uses your current conda environment if you're already in one
 - `--no-build-isolation` ensures pip uses conda-installed dependencies
 

@@ -130,15 +130,17 @@ python install.py --help                            # See all options
 ```
 
 **What it installs:**
-- ✅ Conda environment with Python 3.11 (or specified version)
-- ✅ Pre-built scientific packages via conda-forge (NumPy, SciPy, h5py, Cython, etc.)
+- ✅ Conda environment with Python 3.10 (required for cc3d)
+- ✅ Core packages via conda-forge (NumPy, h5py, Cython, connected-components-3d)
 - ✅ PyTorch with matching CUDA support (auto-detected)
 - ✅ PyTorch Connectomics and all dependencies
+- ⚠️ Optional packages (scipy, scikit-learn, etc.) - prompted, default: skip
 
 **Why this approach?**
 - Uses pre-built conda binaries → No compilation required
 - Avoids GCC version issues → Works with old compilers (GCC 4.8.5+)
-- Faster installation → No building from source
+- Fast installation → 2-3 minutes (vs 10+ with optional packages)
+- Optional packages skipped by default → pip installs them later if needed
 
 **CUDA Support:**
 - CUDA 11.x → PyTorch cu118
@@ -242,6 +244,50 @@ pip install -e .[docs]
 
 # Multiple features
 pip install -e .[full,dev,docs]
+```
+
+### Command-Line Tools (Optional)
+
+For convenient command-line usage, install the `just` command runner:
+
+```bash
+# Install just (choose one method):
+
+# Via Rust (recommended)
+cargo install just
+
+# Via Homebrew (macOS)
+brew install just
+
+# Via Conda
+conda install -c conda-forge just
+
+# Via system package manager
+# Ubuntu/Debian: apt install just
+# Arch Linux: pacman -S just
+# Fedora: dnf install just
+```
+
+**Benefits of using `just`:**
+- 🚀 **Simplified commands**: `just train monai lucchi++` instead of long Python commands
+- 📊 **Built-in monitoring**: `just tensorboard experiment-name`
+- 🖥️ **SLURM integration**: `just slurm partition gpus cpus "command"`
+- 🔍 **Easy visualization**: `just visualize config mode`
+- 📋 **Command discovery**: `just --list` shows all available commands
+
+**Example usage:**
+```bash
+# List all available commands
+just --list
+
+# Train a model
+just train monai lucchi++
+
+# Launch TensorBoard
+just tensorboard monai_lucchi++
+
+# Visualize results
+just visualize tutorials/monai_lucchi++.yaml test
 ```
 
 ### Verify Installation
@@ -555,6 +601,91 @@ Multiple losses can be combined with custom weights.
 **Data Shape**: `(batch, channels, depth, height, width)`
 
 **Typical Patch Size**: 128×128×128 for 3D volumes
+
+---
+
+## Justfile Commands Reference
+
+The included `justfile` provides convenient shortcuts for common operations. Run `just --list` to see all available commands.
+
+### Training Commands
+
+```bash
+# Train a model (use + for extra args)
+just train monai lucchi++                    # Basic training
+just train monai lucchi++ -- data.batch_size=8 --fast-dev-run
+
+# Resume training from checkpoint
+just resume monai lucchi++ checkpoint.ckpt
+just resume monai lucchi++ checkpoint.ckpt -- --reset-optimizer
+
+# Test a trained model
+just test monai lucchi++ checkpoint.ckpt
+just test monai lucchi++ checkpoint.ckpt -- --fast-dev-run
+```
+
+### Monitoring Commands
+
+```bash
+# Launch TensorBoard for specific experiment
+just tensorboard monai_lucchi++
+
+# Launch TensorBoard for all experiments
+just tensorboard-all
+
+# Launch TensorBoard for specific run
+just tensorboard-run monai_lucchi++ 20250203_143052
+```
+
+### SLURM/HPC Commands
+
+```bash
+# Setup SLURM environment (detect CUDA/cuDNN)
+just setup-slurm
+
+# Launch training on SLURM
+just slurm weilab 8 4 "train monai lucchi++"
+# Arguments: partition, #cpus, #gpus, command
+
+# Launch parameter sweep
+just sweep tutorials/sweep_example.yaml
+```
+
+### Visualization Commands
+
+```bash
+# Visualize training data
+just visualize tutorials/monai_lucchi++.yaml train
+
+# Visualize test results
+just visualize tutorials/monai_lucchi++.yaml test \
+    --port 5005 \
+    --volumes pred:image:outputs/results/test_im_prediction.h5:5-5-5
+
+# Visualize specific files
+just visualize-files datasets/img.tif datasets/label.h5
+
+# Visualize multiple volumes
+just visualize-volumes image:path/img.tif label:path/lbl.h5
+
+# Remote visualization (public IP)
+just visualize-remote 8080 tutorials/monai_lucchi++.yaml
+```
+
+### Command Examples
+
+```bash
+# Complete workflow example
+just setup-slurm                                    # Setup environment
+just train monai lucchi++                          # Train model
+just tensorboard monai_lucchi++                    # Monitor training
+just test monai lucchi++ checkpoint.ckpt           # Test model
+just visualize tutorials/monai_lucchi++.yaml test   # Visualize results
+
+# SLURM workflow
+just slurm weilab 8 4 "train monai lucchi++"       # Submit training job
+just tensorboard monai_lucchi++                    # Monitor from local machine
+```
 
 ---
 

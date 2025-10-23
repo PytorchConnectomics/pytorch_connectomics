@@ -430,7 +430,7 @@ def install_pytorch_connectomics(
     else:
         print_success("All core packages already installed")
 
-    # Group 2: Optional scientific packages (nice to have)
+    # Group 2: Optional scientific packages (nice to have, but slow to install)
     optional_packages = ['scipy', 'scikit-learn', 'scikit-image', 'opencv']
 
     # Check which optional packages are already installed
@@ -449,16 +449,30 @@ def install_pytorch_connectomics(
         print_success(f"Optional packages already installed: {', '.join(opt_already_installed)}")
 
     if opt_to_install:
-        print_info(f"Installing optional packages: {', '.join(opt_to_install)}")
-        code, _, stderr = run_command(
-            f"conda install -n {env_name} -c conda-forge {' '.join(opt_to_install)} -y",
-            check=False
-        )
-        if code != 0:
-            print_warning("Some optional conda packages failed to install")
-            print_info("These will be installed via pip if needed...")
+        # Prompt user - conda can be very slow for optional packages
+        install_optional = False
+        if skip_prompts:
+            print_info("Skipping optional packages (will be installed by pip if needed)")
         else:
-            print_success(f"Optional packages installed: {', '.join(opt_to_install)}")
+            print_warning(f"Optional packages to install: {', '.join(opt_to_install)}")
+            print_warning("Note: Installing these via conda can take 5-10 minutes due to dependency resolution")
+            print_info("They will be automatically installed via pip later if needed (faster)")
+            install_optional = prompt_yes_no("Install optional packages via conda now?", default=False)
+
+        if install_optional:
+            print_info(f"Installing optional packages: {', '.join(opt_to_install)}")
+            print_info("This may take several minutes...")
+            code, _, stderr = run_command(
+                f"conda install -n {env_name} -c conda-forge {' '.join(opt_to_install)} -y",
+                check=False
+            )
+            if code != 0:
+                print_warning("Some optional conda packages failed to install")
+                print_info("These will be installed via pip if needed...")
+            else:
+                print_success(f"Optional packages installed: {', '.join(opt_to_install)}")
+        else:
+            print_info("Skipping optional packages - pip will install them if needed")
     else:
         print_success("All optional packages already installed")
 

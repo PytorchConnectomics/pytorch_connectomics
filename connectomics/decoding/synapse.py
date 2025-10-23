@@ -14,13 +14,13 @@ from typing import Tuple
 import numpy as np
 
 from skimage.morphology import binary_dilation, remove_small_objects
-from skimage.transform import resize
+from scipy.ndimage import zoom
 import cc3d
 
 from .utils import cast2dtype
 
 
-__all__ = ['polarity2instance']
+__all__ = ["polarity2instance"]
 
 
 def polarity2instance(
@@ -72,31 +72,31 @@ def polarity2instance(
     """
     if exclusive:
         idx_arr = np.argmax(volume, axis=0)
-        temp = np.stack([
-            idx_arr == 1,
-            idx_arr == 2,
-            idx_arr != 0,  # union of pre- and post-synaptic masks
-        ], axis=0)
+        temp = np.stack(
+            [
+                idx_arr == 1,
+                idx_arr == 2,
+                idx_arr != 0,  # union of pre- and post-synaptic masks
+            ],
+            axis=0,
+        )
     else:
         thres = int(255.0 * thres)
-        temp = (volume > thres)  # boolean array
+        temp = volume > thres  # boolean array
 
     del volume
     syn_pre = temp[0]
     syn_pre &= temp[2]
-    syn_pre = remove_small_objects(syn_pre,
-                                    min_size=thres_small, connectivity=1)
+    syn_pre = remove_small_objects(syn_pre, min_size=thres_small, connectivity=1)
 
     syn_post = temp[1]
     syn_post &= temp[2]
-    syn_post = remove_small_objects(syn_post,
-                                     min_size=thres_small, connectivity=1)
+    syn_post = remove_small_objects(syn_post, min_size=thres_small, connectivity=1)
 
     if semantic:
         # Generate only the semantic mask. The pre-synaptic region is labeled
         # with 1, while the post-synaptic region is labeled with 2.
-        segm = np.maximum(syn_pre.astype(np.uint8),
-                          syn_post.astype(np.uint8) * 2)
+        segm = np.maximum(syn_pre.astype(np.uint8), syn_post.astype(np.uint8) * 2)
 
     else:  # Generate the instance mask.
         # The pre- and post-synaptic masks may not touch each other. Dilating the
@@ -127,8 +127,12 @@ def polarity2instance(
         target_size = (
             int(segm.shape[0] * scale_factors[0]),
             int(segm.shape[1] * scale_factors[1]),
-            int(segm.shape[2] * scale_factors[2])
+            int(segm.shape[2] * scale_factors[2]),
         )
-        segm = resize(segm, target_size, order=0, anti_aliasing=False, preserve_range=True)
+        # Calculate zoom factors for target size
+        zoom_factors = [
+            out_size / in_size for out_size, in_size in zip(target_size, segm.shape)
+        ]
+        segm = zoom(segm, zoom_factors, order=0, mode="nearest")
 
     return cast2dtype(segm)
