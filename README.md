@@ -79,7 +79,53 @@ This repository is maintained by [Dr. Wei's lab](donglaiw.github.io) at Boston C
 
 ### Quick Start
 
-#### 0. System Setup (Optional)
+#### 0. Automated Installation (Recommended)
+
+Run the Python installation script:
+
+```bash
+cd /path/to/pytorch_connectomics
+python install.py
+```
+
+**Features:**
+- 🎨 **Colored output** with progress indicators
+- 🔍 **Auto-detects CUDA** version (nvidia-smi, nvcc, module system, /usr/local)
+- 🔧 **Command-line arguments** for customization
+- ✅ **Better error handling** and user feedback
+- 📊 **Installation verification** with detailed output
+- 🚀 **CI/CD support** with `--yes` flag
+
+**Advanced usage:**
+```bash
+python install.py --env-name my_env --python 3.10  # Custom environment
+python install.py --cuda 12.4                       # Specify CUDA version
+python install.py --cpu-only                        # CPU-only installation
+python install.py --yes                             # Skip prompts (CI mode)
+python install.py --help                            # See all options
+```
+
+**What it installs:**
+- ✅ Conda environment with Python 3.11 (or specified version)
+- ✅ Pre-built scientific packages via conda-forge (NumPy, SciPy, h5py, Cython, etc.)
+- ✅ PyTorch with matching CUDA support (auto-detected)
+- ✅ PyTorch Connectomics and all dependencies
+
+**Why this approach?**
+- Uses pre-built conda binaries → No compilation required
+- Avoids GCC version issues → Works with old compilers (GCC 4.8.5+)
+- Faster installation → No building from source
+
+**CUDA Support:**
+- CUDA 11.x → PyTorch cu118
+- CUDA 12.1-12.3 → PyTorch cu121
+- CUDA 12.4+ → PyTorch cu124
+- SLURM/HPC module systems
+- CPU-only fallback
+
+#### Manual Installation
+
+##### 0. System Setup (Optional)
 
 **Create Conda Environment:**
 
@@ -481,6 +527,45 @@ Example configurations are provided in the `tutorials/` directory:
 Run any tutorial:
 ```bash
 python scripts/main.py --config tutorials/lucchi.yaml
+```
+
+---
+
+## Troubleshooting
+
+### Installation Issues
+
+**Problem: Python 3.13 build errors (`NumPy requires GCC >= 9.3`)**
+
+```bash
+# Solution 1: Use Python 3.10 or 3.11 (recommended)
+conda create -n pytc python=3.11
+conda activate pytc
+pip install -e .
+
+# Solution 2: Install NumPy via conda (pre-built binaries)
+conda install "numpy<2.0" -c conda-forge
+pip install -e . --no-build-isolation
+```
+
+**Problem: GCC version too old on system**
+
+The installation script automatically handles this by using conda's pre-built binaries.
+
+If you're installing manually:
+```bash
+# Install scientific packages via conda (pre-built, no GCC needed)
+conda activate pytc
+conda install -c conda-forge numpy scipy scikit-learn scikit-image h5py cython opencv
+pip install -e . --no-build-isolation
+```
+
+**Problem: Package not found or build failures**
+
+```bash
+# Install scientific packages via conda first
+conda install numpy scipy scikit-learn scikit-image opencv h5py -c conda-forge
+pip install -e . --no-build-isolation
 ```
 
 ---
