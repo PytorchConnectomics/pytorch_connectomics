@@ -543,8 +543,30 @@ def install_pytorch_connectomics(
             return False
     print_success("PyTorch Connectomics installed")
 
+    # Install just (command runner) for all installation types
+    print_header("Step 5/6: Installing Command Runner (just)")
+    print_info("Installing just command runner via conda...")
+
+    # Check if just is already installed
+    is_installed, version = check_package_installed("just", env_name)
+    if is_installed:
+        print_success(f"just already installed: {version}")
+    else:
+        code, _, stderr = run_command(
+            f"conda install -n {env_name} -c conda-forge just -y", check=False
+        )
+        if code != 0:
+            print_warning("Failed to install just via conda")
+            print_info("You can install just manually:")
+            print_info("  - Rust: cargo install just")
+            print_info("  - Homebrew: brew install just")
+            print_info("  - Ubuntu/Debian: apt install just")
+            print_info("  - Arch: pacman -S just")
+        else:
+            print_success("just installed successfully")
+
     # Verify installation
-    print_header("Step 5/5: Verifying Installation")
+    print_header("Step 6/6: Verifying Installation")
     code, stdout, _ = run_command(
         f'conda run -n {env_name} python -c "import torch; '
         f"print(f'PyTorch: {{torch.__version__}}'); "
@@ -597,12 +619,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python install.py                           # Auto-detect everything (basic installation)
+  python install.py                           # Auto-detect everything (basic installation, non-interactive)
   python install.py --env-name my_env         # Custom environment name
   python install.py --python 3.10             # Use Python 3.10
   python install.py --cuda 12.4               # Specify CUDA version
   python install.py --cpu-only                # CPU-only installation
-  python install.py --yes                     # Skip prompts (CI mode)
+  python install.py --interactive             # Enable interactive prompts
   python install.py --install-type dev        # Development installation with dev tools
   python install.py --install-type full        # Full installation with all features
   python install.py --pip-options "--no-deps" # Custom pip options
@@ -622,7 +644,10 @@ Examples:
         "--cpu-only", action="store_true", help="Install CPU-only PyTorch"
     )
     parser.add_argument(
-        "--yes", "-y", action="store_true", help="Skip all prompts (for CI/automation)"
+        "--interactive",
+        "-i",
+        action="store_true",
+        help="Enable interactive prompts (default: non-interactive)",
     )
     parser.add_argument(
         "--no-color", action="store_true", help="Disable colored output"
@@ -654,7 +679,7 @@ Examples:
         python_version=args.python,
         cuda_version=args.cuda,
         cpu_only=args.cpu_only,
-        skip_prompts=args.yes,
+        skip_prompts=not args.interactive,
         pip_options=args.pip_options,
         install_type=args.install_type,
     )

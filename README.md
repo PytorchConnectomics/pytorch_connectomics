@@ -149,6 +149,54 @@ python install.py --help                            # See all options
 - SLURM/HPC module systems
 - CPU-only fallback
 
+#### Automatic Installation (Recommended)
+
+**Quick Start:**
+
+```bash
+# Clone the repository
+git clone https://github.com/zudi-lin/pytorch_connectomics.git
+cd pytorch_connectomics
+
+# Run automatic installation script (includes just command runner)
+python install.py
+```
+
+**Installation Options:**
+
+```bash
+# Basic installation (core dependencies only)
+python install.py --install-type basic
+
+# Development installation (with dev tools)
+python install.py --install-type dev
+
+# Full installation (all features)
+python install.py --install-type full
+
+# Custom environment name
+python install.py --env-name my_env
+
+# Specify CUDA version
+python install.py --cuda 12.4
+
+# CPU-only installation
+python install.py --cpu-only
+
+# Enable interactive prompts (default: non-interactive)
+python install.py --interactive
+```
+
+**Features:**
+- ✅ **Auto-detects CUDA** version and installs matching PyTorch
+- ✅ **Creates conda environment** automatically (or uses current one)
+- ✅ **Installs pre-built packages** via conda (avoids compilation)
+- ✅ **Handles SLURM/HPC** module systems
+- ✅ **Multiple installation types** (basic/dev/full)
+- ✅ **Non-interactive by default** (streamlined installation)
+- ✅ **Automatic just installation** (command runner for all types)
+- ✅ **Fallback mechanisms** for compatibility
+
 #### Manual Installation
 
 ##### 0. System Setup (Optional)
