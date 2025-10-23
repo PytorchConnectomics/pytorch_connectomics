@@ -14,9 +14,8 @@ requirements = [
     'monai>=0.9.1',
     'torchmetrics>=0.11.0',
 
-    # Configuration management (Hydra/OmegaConf is PRIMARY, YACS is legacy)
+    # Configuration management (Hydra/OmegaConf)
     'omegaconf>=2.1.0',
-    'yacs>=0.1.8',  # Legacy - being phased out
 
     # Scientific computing
     'scipy>=1.5',
@@ -38,7 +37,7 @@ requirements = [
     'psutil>=5.8.0',
 
     # Post-processing (required for segmentation)
-    'cc3d>=3.0.0',
+    'connected-components-3d>=3.0.0',  # imports as 'cc3d'
 
     # Build tools
     'Cython>=0.29.22',

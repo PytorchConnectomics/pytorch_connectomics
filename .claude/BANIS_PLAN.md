@@ -751,7 +751,7 @@ def threshold_sweep(
 **Integration:**
 ```python
 # In connectomics/lightning/lit_model.py
-from connectomics.engine.metrics.skeleton_metrics import SkeletonMetrics
+from connectomics.metrics.skeleton_metrics import SkeletonMetrics
 
 class ConnectomicsModule(LightningModule):
     def __init__(self, cfg, model=None):

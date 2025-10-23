@@ -28,7 +28,7 @@ The field of **connectomics** aims to reconstruct the wiring diagram of the brai
 
 **PyTorch Connectomics** (PyTC) is a modern deep learning framework for automatic and semi-automatic **semantic and instance segmentation** in connectomics. Built on [PyTorch](https://pytorch.org/), [PyTorch Lightning](https://lightning.ai/), and [MONAI](https://monai.io/), it provides a scalable, flexible, and easy-to-use platform for EM image analysis.
 
-This repository is maintained by the [Visual Computing Group (VCG)](https://vcg.seas.harvard.edu) at Harvard University.
+This repository is maintained by [Dr. Wei's lab](donglaiw.github.io) at Boston College.
 
 🚀 **Version 2.0** features a complete rewrite with PyTorch Lightning orchestration and MONAI medical imaging tools!
 
@@ -77,13 +77,39 @@ This repository is maintained by the [Visual Computing Group (VCG)](https://vcg.
 
 ### Quick Start
 
-#### 1. Install PyTorch
-First, install PyTorch based on your CUDA version. Visit [pytorch.org](https://pytorch.org/get-started/locally/) for the correct command.
+#### 0. System Setup (Optional)
+
+**Create Conda Environment:**
 
 ```bash
-# Example for CUDA 11.8
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# Create a new conda environment with Python 3.10
+conda create -n pytc python=3.10
 
+# Activate the environment
+conda activate pytc
+```
+
+**On SLURM systems**, load CUDA/cuDNN modules:
+
+```bash
+# Search for available CUDA versions
+module avail cuda
+
+# Search for available cuDNN versions
+module avail cudnn
+
+# Load the latest versions (example)
+module load cuda/12.1
+module load cudnn/8.9.0
+
+# Verify CUDA version
+nvcc --version
+```
+
+#### 1. Install PyTorch
+Install PyTorch based on your CUDA version. Visit [pytorch.org](https://pytorch.org/get-started/locally/) for the correct command.
+
+```bash
 # Example for CUDA 12.1
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
@@ -97,6 +123,9 @@ pip install torch torchvision
 # Clone the repository
 git clone https://github.com/zudi-lin/pytorch_connectomics.git
 cd pytorch_connectomics
+
+# checkout v2.0 branch
+git checkout v2.0
 
 # Basic installation (core dependencies only)
 pip install -e .
@@ -478,16 +507,12 @@ Areas where contributions are especially welcome:
 
 This project is built upon numerous previous projects. We'd like to thank:
 
-- [pyGreenTea](https://github.com/naibaf7/PyGreentea): HHMI Janelia FlyEM Team
-- [DataProvider](https://github.com/torms3/DataProvider): Princeton SeungLab
-- [Detectron2](https://github.com/facebookresearch/detectron2): Facebook AI Research
 - [PyTorch Lightning](https://lightning.ai/): Lightning AI Team
 - [MONAI](https://monai.io/): MONAI Consortium
 - [MedNeXt](https://github.com/MIC-DKFZ/MedNeXt): DKFZ Medical Image Computing
 
 We gratefully acknowledge the support from:
-- NSF awards IIS-1835231 and IIS-2124179
-- Harvard Visual Computing Group
+- NSF awards IIS-1835231, IIS-2124179 and IIS-2239688
 
 ---
 
@@ -525,13 +550,6 @@ If you find PyTorch Connectomics useful in your research, please cite:
 
 - **v1.0** (2021): Initial release
   - Custom trainer implementation
-  - YACS configuration
   - Custom augmentation pipeline
 
 See [RELEASE_NOTES.md](RELEASE_NOTES.md) for detailed release notes.
-
----
-
-<p align="center">
-  <b>Built with ❤️ by the Harvard Visual Computing Group</b>
-</p>

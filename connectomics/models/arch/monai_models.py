@@ -4,7 +4,7 @@ MONAI model wrappers with standard interface.
 Provides wrappers for MONAI native models (BasicUNet, UNet, UNETR, SwinUNETR)
 that conform to the ConnectomicsModel interface.
 
-All models use Hydra config format only (no YACS support).
+Uses Hydra/OmegaConf configuration.
 """
 
 import torch

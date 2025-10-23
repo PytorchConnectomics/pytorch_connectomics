@@ -1,7 +1,7 @@
 """
 Optimizer and LR scheduler builders for PyTorch Connectomics.
 
-Supports both YACS (legacy) and Hydra/OmegaConf (modern) configurations.
+Uses Hydra/OmegaConf configuration.
 Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 """
 

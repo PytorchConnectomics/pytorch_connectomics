@@ -100,7 +100,7 @@ def test_weighted_concat_dataset():
 )
 def test_skeleton_metrics():
     """Test skeleton-based metrics (if funlib available)."""
-    from connectomics.engine.metrics.skeleton_metrics import SkeletonMetrics
+    from connectomics.metrics.skeleton_metrics import SkeletonMetrics
 
     # This test requires a skeleton file, so we skip if not available
     pytest.skip("Skeleton metrics require test skeleton file")

@@ -166,8 +166,8 @@ connectomics/
 │   ├── io/                       # Data I/O utilities
 │   └── process/                  # Preprocessing utilities
 │
-├── engine/                       # Legacy training engine (being phased out)
-│   └── trainer.py
+├── metrics/                      # Evaluation metrics
+│   └── metrics_seg.py            # Segmentation metrics (Adapted Rand, etc.)
 │
 └── utils/                        # Utilities (visualization, system setup)
 
@@ -327,7 +327,7 @@ print(model.get_model_info())  # Shows parameters, architecture details
 
 ### Model Factory (`models/build.py`)
 - Registry-based model building system
-- **Hydra configs only** (YACS support removed in v2.0)
+- **Hydra/OmegaConf configs only**
 - PyTorch Lightning handles parallelization automatically
 - Clean error messages with architecture listing
 
@@ -551,16 +551,17 @@ scheduler:
 ## Migration Notes
 
 ### From Legacy System
-The codebase is transitioning from:
-- YACS configs → Hydra/OmegaConf configs
-- Custom trainer → PyTorch Lightning
-- Custom models → MONAI native models
-- `scripts/build.py` → `scripts/main.py`
+The codebase has migrated from:
+- YACS configs → Hydra/OmegaConf configs ✅
+- Custom trainer → PyTorch Lightning ✅
+- Custom models → MONAI native models ✅
+- `scripts/build.py` → `scripts/main.py` ✅
 
-**Both systems are supported** during transition, but new development should use:
-- Hydra configs (`tutorials/*.yaml`)
+**New development uses:**
+- Hydra/OmegaConf configs (`tutorials/*.yaml`)
 - Lightning modules (`connectomics/lightning/`)
 - `scripts/main.py` entry point
+- MONAI models and transforms
 
 ## Dependencies
 
@@ -575,7 +576,6 @@ The following packages are automatically installed with `pip install -e .`:
 | **monai** | >=0.9.1 | Medical imaging toolkit (PRIMARY) |
 | **torchmetrics** | >=0.11.0 | Metrics computation |
 | **omegaconf** | >=2.1.0 | Hydra configuration (PRIMARY) |
-| **yacs** | >=0.1.8 | Legacy configuration (being phased out) |
 | **scipy** | >=1.5 | Signal processing, optimization |
 | **scikit-learn** | >=0.23.1 | Machine learning utilities |
 | **scikit-image** | >=0.17.2 | Image processing |
@@ -645,13 +645,11 @@ MedNeXt models are available from external repository:
 
 1. **PyTorch Installation**: Install PyTorch separately based on your CUDA version before installing PyTorch Connectomics. Visit [pytorch.org](https://pytorch.org/get-started/locally/) for the correct command.
 
-2. **Legacy Dependencies**: `yacs` is included for backward compatibility but is being phased out in favor of Hydra/OmegaConf.
+2. **Optional Features**: All optional dependencies have graceful fallbacks - the package will work without them, but some features will be unavailable.
 
-3. **Optional Features**: All optional dependencies have graceful fallbacks - the package will work without them, but some features will be unavailable.
+3. **GPU Utilities**: `gputil` and `psutil` are used for GPU/system monitoring but are not critical for core functionality.
 
-4. **GPU Utilities**: `gputil` and `psutil` are used for GPU/system monitoring but are not critical for core functionality.
-
-5. **Post-Processing**: `cc3d` is required for connected component analysis in segmentation tasks and is included in core dependencies.
+4. **Post-Processing**: `cc3d` is required for connected component analysis in segmentation tasks and is included in core dependencies.
 
 ## Common Issues
 

@@ -140,7 +140,7 @@ def build_mednext(cfg) -> ConnectomicsModel:
     """
     _check_mednext_available()
 
-    # Extract config (Hydra only - no YACS support)
+    # Extract config from Hydra/OmegaConf
     in_channels = cfg.model.in_channels
     out_channels = cfg.model.out_channels
     model_size = getattr(cfg.model, 'mednext_size', 'S')

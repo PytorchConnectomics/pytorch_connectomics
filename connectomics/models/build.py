@@ -4,7 +4,7 @@ Modern model builder using architecture registry.
 Uses MONAI and MedNeXt native models with automatic configuration.
 All models are registered in the architecture registry.
 
-Hydra configs only - no YACS support.
+Uses Hydra/OmegaConf configuration.
 """
 
 import torch

@@ -877,7 +877,7 @@ class ConnectomicsModule(pl.LightningModule):
         if not self.test_adapted_rand:
             return
 
-        from connectomics.engine.metrics import adapted_rand
+        from connectomics.metrics import adapted_rand
 
         batch_size = predictions.shape[0]
 
