@@ -31,6 +31,7 @@ requirements = [
     "psutil>=5.8.0",
     # Post-processing (required for segmentation)
     "connected-components-3d>=3.0.0",  # imports as 'cc3d'
+    "fastremap>=1.10.0",  # Fast remapping for segmentation labels
     # Build tools
     "Cython>=0.29.22",
 ]

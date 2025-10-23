@@ -29,39 +29,38 @@ from typing import Optional, Tuple
 
 class Colors:
     """ANSI color codes for terminal output."""
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
+
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
     @classmethod
     def disable(cls):
         """Disable colors for non-interactive terminals."""
-        cls.HEADER = ''
-        cls.OKBLUE = ''
-        cls.OKCYAN = ''
-        cls.OKGREEN = ''
-        cls.WARNING = ''
-        cls.FAIL = ''
-        cls.ENDC = ''
-        cls.BOLD = ''
-        cls.UNDERLINE = ''
+        cls.HEADER = ""
+        cls.OKBLUE = ""
+        cls.OKCYAN = ""
+        cls.OKGREEN = ""
+        cls.WARNING = ""
+        cls.FAIL = ""
+        cls.ENDC = ""
+        cls.BOLD = ""
+        cls.UNDERLINE = ""
 
 
-def run_command(cmd: str, check: bool = True, capture: bool = True) -> Tuple[int, str, str]:
+def run_command(
+    cmd: str, check: bool = True, capture: bool = True
+) -> Tuple[int, str, str]:
     """Run shell command and return (returncode, stdout, stderr)."""
     try:
         result = subprocess.run(
-            cmd,
-            shell=True,
-            check=check,
-            capture_output=capture,
-            text=True
+            cmd, shell=True, check=check, capture_output=capture, text=True
         )
         return result.returncode, result.stdout, result.stderr
     except subprocess.CalledProcessError as e:
@@ -95,7 +94,9 @@ def print_info(text: str):
     print(f"{Colors.OKCYAN}ℹ {text}{Colors.ENDC}")
 
 
-def check_package_installed(package_name: str, env_name: str) -> tuple[bool, Optional[str]]:
+def check_package_installed(
+    package_name: str, env_name: str
+) -> tuple[bool, Optional[str]]:
     """
     Check if a package is already installed in the conda environment.
 
@@ -107,14 +108,13 @@ def check_package_installed(package_name: str, env_name: str) -> tuple[bool, Opt
         Tuple of (is_installed, version) where version is None if not installed
     """
     code, stdout, _ = run_command(
-        f"conda list -n {env_name} {package_name}",
-        check=False
+        f"conda list -n {env_name} {package_name}", check=False
     )
     if code == 0 and stdout:
         # Check if package name appears in the output (not just empty list)
-        lines = stdout.strip().split('\n')
+        lines = stdout.strip().split("\n")
         for line in lines:
-            if line.startswith('#'):
+            if line.startswith("#"):
                 continue
             parts = line.split()
             if parts and parts[0] == package_name:
@@ -185,8 +185,12 @@ def detect_cuda() -> Optional[str]:
     print_info("Detecting CUDA installation...")
 
     # Try all detection methods
-    for detector in [detect_cuda_nvidia_smi, detect_cuda_nvcc,
-                     detect_cuda_module, detect_cuda_local]:
+    for detector in [
+        detect_cuda_nvidia_smi,
+        detect_cuda_nvcc,
+        detect_cuda_module,
+        detect_cuda_local,
+    ]:
         version = detector()
         if version:
             return version
@@ -197,7 +201,7 @@ def detect_cuda() -> Optional[str]:
 def cuda_to_pytorch(cuda_version: str) -> str:
     """Map CUDA version to PyTorch wheel version."""
     try:
-        major, minor = map(int, cuda_version.split('.'))
+        major, minor = map(int, cuda_version.split("."))
 
         if major == 12:
             if minor >= 4:
@@ -221,9 +225,9 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
         response = input(f"{question} [{choices}]: ").strip().lower()
         if not response:
             return default
-        if response in ['y', 'yes']:
+        if response in ["y", "yes"]:
             return True
-        if response in ['n', 'no']:
+        if response in ["n", "no"]:
             return False
         print_warning("Please answer 'y' or 'n'")
 
@@ -240,14 +244,14 @@ def env_exists(env_name: str) -> bool:
     """Check if conda environment exists."""
     code, stdout, _ = run_command("conda env list", check=False)
     if code == 0:
-        return any(line.startswith(env_name) for line in stdout.split('\n'))
+        return any(line.startswith(env_name) for line in stdout.split("\n"))
     return False
 
 
 def get_current_conda_env() -> Optional[str]:
     """Get the name of the currently active conda environment."""
-    conda_env = os.environ.get('CONDA_DEFAULT_ENV')
-    if conda_env and conda_env != 'base':
+    conda_env = os.environ.get("CONDA_DEFAULT_ENV")
+    if conda_env and conda_env != "base":
         return conda_env
     return None
 
@@ -257,7 +261,9 @@ def install_pytorch_connectomics(
     python_version: str = "3.10",
     cuda_version: Optional[str] = None,
     cpu_only: bool = False,
-    skip_prompts: bool = False
+    skip_prompts: bool = False,
+    pip_options: str = "",
+    install_type: str = "basic",
 ) -> bool:
     """Main installation function."""
 
@@ -269,7 +275,7 @@ def install_pytorch_connectomics(
     print_success("conda found")
 
     # Validate Python version (cc3d requires Python 3.10)
-    py_major, py_minor = map(int, python_version.split('.')[:2])
+    py_major, py_minor = map(int, python_version.split(".")[:2])
     if py_major != 3 or py_minor < 8 or py_minor >= 13:
         print_error(f"Python {python_version} is not supported")
         print_error("Supported versions: 3.8 to 3.12")
@@ -277,10 +283,14 @@ def install_pytorch_connectomics(
         return False
 
     if py_minor != 10:
-        print_warning(f"Python {python_version} specified, but cc3d (connected-components-3d) requires Python 3.10")
+        print_warning(
+            f"Python {python_version} specified, but cc3d (connected-components-3d) requires Python 3.10"
+        )
         print_warning("Installation may fail. Recommended: Use Python 3.10")
         if not skip_prompts and not prompt_yes_no("Continue anyway?", default=False):
-            print_info("Installation cancelled. Use --python 3.10 for best compatibility.")
+            print_info(
+                "Installation cancelled. Use --python 3.10 for best compatibility."
+            )
             return False
 
     # Check if already in a conda environment
@@ -288,11 +298,13 @@ def install_pytorch_connectomics(
     use_current_env = False
 
     if current_env:
-        print_info(f"Detected active conda environment: {Colors.BOLD}{current_env}{Colors.ENDC}")
+        print_info(
+            f"Detected active conda environment: {Colors.BOLD}{current_env}{Colors.ENDC}"
+        )
         if not skip_prompts:
             use_current_env = prompt_yes_no(
                 f"Install in current environment '{current_env}' instead of creating '{env_name}'?",
-                default=True
+                default=True,
             )
             if use_current_env:
                 env_name = current_env
@@ -332,7 +344,9 @@ def install_pytorch_connectomics(
                 if choice == "1":
                     pytorch_install = "pip install torch torchvision"
                 elif choice == "2":
-                    cuda_version = input("Enter CUDA version (e.g., 11.8, 12.1, 12.4): ").strip()
+                    cuda_version = input(
+                        "Enter CUDA version (e.g., 11.8, 12.1, 12.4): "
+                    ).strip()
                     pytorch_cuda = cuda_to_pytorch(cuda_version)
                     pytorch_install = f"pip install torch torchvision --index-url https://download.pytorch.org/whl/{pytorch_cuda}"
                 else:
@@ -345,7 +359,9 @@ def install_pytorch_connectomics(
     print(f"  Python: {Colors.BOLD}{python_version}{Colors.ENDC}")
     print(f"  CUDA: {Colors.BOLD}{cuda_version or 'CPU-only'}{Colors.ENDC}")
     if cuda_version:
-        print(f"  PyTorch: {Colors.BOLD}with {cuda_to_pytorch(cuda_version)} support{Colors.ENDC}")
+        print(
+            f"  PyTorch: {Colors.BOLD}with {cuda_to_pytorch(cuda_version)} support{Colors.ENDC}"
+        )
     else:
         print(f"  PyTorch: {Colors.BOLD}CPU-only{Colors.ENDC}")
 
@@ -375,7 +391,9 @@ def install_pytorch_connectomics(
         # Create environment
         print_header("Step 1/5: Creating Conda Environment")
         print_info(f"Creating environment '{env_name}' with Python {python_version}...")
-        code, _, stderr = run_command(f"conda create -n {env_name} python={python_version} -y", check=False)
+        code, _, stderr = run_command(
+            f"conda create -n {env_name} python={python_version} -y", check=False
+        )
         if code != 0:
             print_error(f"Failed to create conda environment: {stderr}")
             return False
@@ -396,7 +414,7 @@ def install_pytorch_connectomics(
     # Group 1: Core numerical packages + cc3d (MUST succeed together for compatibility)
     # CRITICAL: Install cc3d (connected-components-3d) with numpy/h5py/cython to avoid
     # building from source with wrong numpy version
-    core_packages = ['numpy', 'h5py', 'cython', 'connected-components-3d']
+    core_packages = ["numpy", "h5py", "cython", "connected-components-3d"]
 
     # Check which packages are already installed
     already_installed = []
@@ -418,12 +436,14 @@ def install_pytorch_connectomics(
         print_info("Note: Installing cc3d with numpy to ensure compatibility")
         code, stdout, stderr = run_command(
             f"conda install -n {env_name} -c conda-forge {' '.join(to_install)} -y",
-            check=False
+            check=False,
         )
         if code != 0:
             print_error("Failed to install core packages via conda!")
             print_error(stderr)
-            print_error("\nThis is a critical error. These packages MUST be installed via conda")
+            print_error(
+                "\nThis is a critical error. These packages MUST be installed via conda"
+            )
             print_error("to avoid GCC compilation errors.")
             return False
         print_success(f"Core packages installed: {', '.join(to_install)}")
@@ -431,7 +451,7 @@ def install_pytorch_connectomics(
         print_success("All core packages already installed")
 
     # Group 2: Optional scientific packages (nice to have, but slow to install)
-    optional_packages = ['scipy', 'scikit-learn', 'scikit-image', 'opencv']
+    optional_packages = ["scipy", "scikit-learn", "scikit-image", "opencv"]
 
     # Check which optional packages are already installed
     opt_already_installed = []
@@ -446,31 +466,43 @@ def install_pytorch_connectomics(
             opt_to_install.append(pkg)
 
     if opt_already_installed:
-        print_success(f"Optional packages already installed: {', '.join(opt_already_installed)}")
+        print_success(
+            f"Optional packages already installed: {', '.join(opt_already_installed)}"
+        )
 
     if opt_to_install:
         # Prompt user - conda can be very slow for optional packages
         install_optional = False
         if skip_prompts:
-            print_info("Skipping optional packages (will be installed by pip if needed)")
+            print_info(
+                "Skipping optional packages (will be installed by pip if needed)"
+            )
         else:
             print_warning(f"Optional packages to install: {', '.join(opt_to_install)}")
-            print_warning("Note: Installing these via conda can take 5-10 minutes due to dependency resolution")
-            print_info("They will be automatically installed via pip later if needed (faster)")
-            install_optional = prompt_yes_no("Install optional packages via conda now?", default=False)
+            print_warning(
+                "Note: Installing these via conda can take 5-10 minutes due to dependency resolution"
+            )
+            print_info(
+                "They will be automatically installed via pip later if needed (faster)"
+            )
+            install_optional = prompt_yes_no(
+                "Install optional packages via conda now?", default=False
+            )
 
         if install_optional:
             print_info(f"Installing optional packages: {', '.join(opt_to_install)}")
             print_info("This may take several minutes...")
             code, _, stderr = run_command(
                 f"conda install -n {env_name} -c conda-forge {' '.join(opt_to_install)} -y",
-                check=False
+                check=False,
             )
             if code != 0:
                 print_warning("Some optional conda packages failed to install")
                 print_info("These will be installed via pip if needed...")
             else:
-                print_success(f"Optional packages installed: {', '.join(opt_to_install)}")
+                print_success(
+                    f"Optional packages installed: {', '.join(opt_to_install)}"
+                )
         else:
             print_info("Skipping optional packages - pip will install them if needed")
     else:
@@ -481,7 +513,9 @@ def install_pytorch_connectomics(
     print_info(f"Running: {pytorch_install}")
 
     # Use conda run to execute in the environment
-    code, _, stderr = run_command(f"conda run -n {env_name} {pytorch_install}", check=False)
+    code, _, stderr = run_command(
+        f"conda run -n {env_name} {pytorch_install}", check=False
+    )
     if code != 0:
         print_error(f"Failed to install PyTorch: {stderr}")
         return False
@@ -489,14 +523,21 @@ def install_pytorch_connectomics(
 
     # Install PyTorch Connectomics
     print_header("Step 4/5: Installing PyTorch Connectomics")
-    print_info("Installing package in editable mode (using pre-built dependencies)...")
-    code, _, stderr = run_command(
-        f"conda run -n {env_name} pip install -e . --no-build-isolation",
-        check=False
-    )
+    print_info(f"Installing package in editable mode ({install_type} installation)...")
+
+    # Build pip install command with appropriate extras
+    pip_cmd = f"conda run -n {env_name} pip install -e ."
+    if install_type != "basic":
+        pip_cmd += f"[{install_type}]"
+    if pip_options:
+        pip_cmd += f" {pip_options}"
+
+    code, _, stderr = run_command(f"{pip_cmd} --no-build-isolation", check=False)
     if code != 0:
-        print_warning("Installation with --no-build-isolation failed, retrying without it...")
-        code, _, stderr = run_command(f"conda run -n {env_name} pip install -e .", check=False)
+        print_warning(
+            "Installation with --no-build-isolation failed, retrying without it..."
+        )
+        code, _, stderr = run_command(pip_cmd, check=False)
         if code != 0:
             print_error(f"Failed to install PyTorch Connectomics: {stderr}")
             return False
@@ -505,11 +546,11 @@ def install_pytorch_connectomics(
     # Verify installation
     print_header("Step 5/5: Verifying Installation")
     code, stdout, _ = run_command(
-        f"conda run -n {env_name} python -c \"import torch; "
+        f'conda run -n {env_name} python -c "import torch; '
         f"print(f'PyTorch: {{torch.__version__}}'); "
         f"print(f'CUDA available: {{torch.cuda.is_available()}}'); "
-        f"print(f'CUDA version: {{torch.version.cuda if torch.cuda.is_available() else \\\"N/A\\\"}}')\""
-        , check=False
+        f'print(f\'CUDA version: {{torch.version.cuda if torch.cuda.is_available() else \\"N/A\\"}}\')"',
+        check=False,
     )
     if code == 0:
         print_success("Installation verified")
@@ -521,7 +562,9 @@ def install_pytorch_connectomics(
     print_header("Installation Complete!")
 
     if use_current_env:
-        print(f"{Colors.OKGREEN}You're already in the environment - ready to use!{Colors.ENDC}\n")
+        print(
+            f"{Colors.OKGREEN}You're already in the environment - ready to use!{Colors.ENDC}\n"
+        )
     else:
         print("To use PyTorch Connectomics:\n")
         print(f"  1. Activate the environment:")
@@ -535,10 +578,14 @@ def install_pytorch_connectomics(
         step_num += 1
 
     print(f"  {step_num}. Run training:")
-    print(f"     {Colors.BOLD}python scripts/main.py --config tutorials/lucchi.yaml{Colors.ENDC}\n")
+    print(
+        f"     {Colors.BOLD}python scripts/main.py --config tutorials/lucchi.yaml{Colors.ENDC}\n"
+    )
 
     print(f"  {step_num + 1}. Check available models:")
-    print(f"     {Colors.BOLD}python -c 'from connectomics.models.arch import list_architectures; print(list_architectures())'{Colors.ENDC}\n")
+    print(
+        f"     {Colors.BOLD}python -c 'from connectomics.models.arch import list_architectures; print(list_architectures())'{Colors.ENDC}\n"
+    )
 
     return True
 
@@ -550,43 +597,46 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python install.py                           # Auto-detect everything
+  python install.py                           # Auto-detect everything (basic installation)
   python install.py --env-name my_env         # Custom environment name
   python install.py --python 3.10             # Use Python 3.10
   python install.py --cuda 12.4               # Specify CUDA version
   python install.py --cpu-only                # CPU-only installation
   python install.py --yes                     # Skip prompts (CI mode)
-        """
+  python install.py --install-type dev        # Development installation with dev tools
+  python install.py --install-type full        # Full installation with all features
+  python install.py --pip-options "--no-deps" # Custom pip options
+        """,
     )
 
     parser.add_argument(
-        '--env-name',
-        default='pytc',
-        help='Conda environment name (default: pytc)'
+        "--env-name", default="pytc", help="Conda environment name (default: pytc)"
     )
     parser.add_argument(
-        '--python',
-        default='3.10',
-        help='Python version (default: 3.10, required for cc3d)'
+        "--python",
+        default="3.10",
+        help="Python version (default: 3.10, required for cc3d)",
+    )
+    parser.add_argument("--cuda", help="CUDA version (e.g., 11.8, 12.1, 12.4)")
+    parser.add_argument(
+        "--cpu-only", action="store_true", help="Install CPU-only PyTorch"
     )
     parser.add_argument(
-        '--cuda',
-        help='CUDA version (e.g., 11.8, 12.1, 12.4)'
+        "--yes", "-y", action="store_true", help="Skip all prompts (for CI/automation)"
     )
     parser.add_argument(
-        '--cpu-only',
-        action='store_true',
-        help='Install CPU-only PyTorch'
+        "--no-color", action="store_true", help="Disable colored output"
     )
     parser.add_argument(
-        '--yes', '-y',
-        action='store_true',
-        help='Skip all prompts (for CI/automation)'
+        "--pip-options",
+        default="",
+        help='Additional options to pass to pip install -e . (e.g., "--no-deps --force-reinstall")',
     )
     parser.add_argument(
-        '--no-color',
-        action='store_true',
-        help='Disable colored output'
+        "--install-type",
+        choices=["basic", "dev", "full"],
+        default="basic",
+        help="Installation type: basic (core only), dev (with dev tools), full (all features) (default: basic)",
     )
 
     args = parser.parse_args()
@@ -604,7 +654,9 @@ Examples:
         python_version=args.python,
         cuda_version=args.cuda,
         cpu_only=args.cpu_only,
-        skip_prompts=args.yes
+        skip_prompts=args.yes,
+        pip_options=args.pip_options,
+        install_type=args.install_type,
     )
 
     sys.exit(0 if success else 1)

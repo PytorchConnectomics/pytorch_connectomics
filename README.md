@@ -335,8 +335,10 @@ This tutorial demonstrates the complete workflow: data download → visualizatio
 
 ```bash
 # Download Lucchi++ dataset from HuggingFace
+mkdir -p datasets/
 wget https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip
-unzip Lucchi++.zip
+unzip Lucchi++.zip -d datasets/
+rm Lucchi++.zip 
 ```
 
 #### 2. Visualize Data (Optional)
