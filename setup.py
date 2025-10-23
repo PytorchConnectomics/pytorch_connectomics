@@ -7,7 +7,7 @@ from setuptools import setup, Extension, find_packages
 requirements = [
     # Deep learning frameworks
     'torch>=1.8.0',
-    'numpy>=1.19.0',
+    'numpy>=1.21.0,<2.0',  # Pin to 1.x for GCC 4.8.5 compatibility (NumPy 2.x requires GCC 9.3+)
 
     # PyTorch Lightning & MONAI (PRIMARY frameworks)
     'pytorch-lightning>=2.0.0',
@@ -123,7 +123,7 @@ def setup_package():
         url=url,
         license='MIT',
         author='PyTorch Connectomics Contributors',
-        python_requires='>=3.8',
+        python_requires='>=3.8,<3.13',  # Python 3.13 has limited pre-built wheel support
         install_requires=requirements,
         extras_require=extras_require,
         include_dirs=getInclude(),

@@ -72,8 +72,10 @@ This repository is maintained by [Dr. Wei's lab](donglaiw.github.io) at Boston C
 ## Installation
 
 ### Prerequisites
-- **Python**: 3.8 or higher (3.10 recommended)
-- **CUDA**: Recommended for GPU acceleration (10.2+)
+- **Python**: 3.8 to 3.12 (3.10 or 3.11 recommended)
+  - ⚠️ **Python 3.13 not yet supported** due to limited pre-built wheel availability
+- **CUDA**: Recommended for GPU acceleration (11.8+ recommended)
+- **GCC**: Version 4.8+ (for systems building from source)
 
 ### Quick Start
 
@@ -82,11 +84,13 @@ This repository is maintained by [Dr. Wei's lab](donglaiw.github.io) at Boston C
 **Create Conda Environment:**
 
 ```bash
-# Create a new conda environment with Python 3.10
+# Create a new conda environment with Python 3.10 (recommended)
 conda create -n pytc python=3.10
 
 # Activate the environment
 conda activate pytc
+
+# Note: Python 3.11 also works well. Avoid Python 3.13 for now.
 ```
 
 **On SLURM systems**, load CUDA/cuDNN modules:
