@@ -157,20 +157,22 @@ python install.py
 # Select option 2 when prompted, enter CUDA version
 ```
 
-### Package build errors
+### Package build errors (h5py, NumPy)
 
-The installation script automatically installs packages via conda to avoid build errors.
+**Error:** `NumPy requires GCC >= 9.3`
 
-If installing manually and encountering build errors:
+**Solution:**
 ```bash
 conda activate pytc
 
-# Install all packages that might require compilation via conda
-conda install -c conda-forge numpy scipy scikit-learn scikit-image opencv h5py cython
+# Install core packages via conda FIRST (critical!)
+conda install -c conda-forge numpy h5py cython
 
-# Then install PyTorch Connectomics without building dependencies
+# Then install PyTorch Connectomics
 pip install -e . --no-build-isolation
 ```
+
+This uses pre-built conda binaries instead of building from source.
 
 ### Want different Python version
 

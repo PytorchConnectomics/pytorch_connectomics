@@ -3,13 +3,19 @@
 PyTorch Connectomics Installation Script
 
 Automatically detects CUDA version and installs PyTorch with matching support.
-Supports: nvidia-smi, nvcc, module system, and /usr/local detection.
+Features:
+- Auto-detects CUDA (nvidia-smi, nvcc, module system, /usr/local)
+- Detects and uses current conda environment (smart installation)
+- Installs pre-built packages via conda (avoids GCC issues)
+- Verifies installation
 
 Usage:
-    python install.py
+    python install.py                           # Interactive mode
+    conda activate my_env && python install.py  # Use current environment
     python install.py --env-name my_env --python 3.10
     python install.py --cuda 12.4
     python install.py --cpu-only
+    python install.py --yes                     # CI mode (no prompts)
 """
 
 import os
@@ -209,6 +215,14 @@ def env_exists(env_name: str) -> bool:
     return False
 
 
+def get_current_conda_env() -> Optional[str]:
+    """Get the name of the currently active conda environment."""
+    conda_env = os.environ.get('CONDA_DEFAULT_ENV')
+    if conda_env and conda_env != 'base':
+        return conda_env
+    return None
+
+
 def install_pytorch_connectomics(
     env_name: str = "pytc",
     python_version: str = "3.11",
@@ -224,6 +238,26 @@ def install_pytorch_connectomics(
         return False
 
     print_success("conda found")
+
+    # Check if already in a conda environment
+    current_env = get_current_conda_env()
+    use_current_env = False
+
+    if current_env:
+        print_info(f"Detected active conda environment: {Colors.BOLD}{current_env}{Colors.ENDC}")
+        if not skip_prompts:
+            use_current_env = prompt_yes_no(
+                f"Install in current environment '{current_env}' instead of creating '{env_name}'?",
+                default=True
+            )
+            if use_current_env:
+                env_name = current_env
+                print_success(f"Will use current environment: {env_name}")
+        else:
+            # In CI mode, use current env if it matches the target env name
+            if current_env == env_name:
+                use_current_env = True
+                print_info(f"Using current environment: {env_name}")
 
     # Handle CUDA
     if cpu_only:
@@ -275,27 +309,33 @@ def install_pytorch_connectomics(
         print_info("Installation cancelled")
         return False
 
-    # Check if environment exists
-    if env_exists(env_name):
-        print_warning(f"Environment '{env_name}' already exists")
-        if not skip_prompts and not prompt_yes_no("Remove and recreate?"):
-            print_info("Installation cancelled")
-            return False
+    # Create or use existing environment
+    if use_current_env:
+        # Skip environment creation, use current one
+        print_header("Step 1/5: Using Existing Environment")
+        print_success(f"Using environment: {env_name}")
+    else:
+        # Check if environment exists
+        if env_exists(env_name):
+            print_warning(f"Environment '{env_name}' already exists")
+            if not skip_prompts and not prompt_yes_no("Remove and recreate?"):
+                print_info("Installation cancelled")
+                return False
 
-        print_info(f"Removing existing environment '{env_name}'...")
-        code, _, _ = run_command(f"conda env remove -n {env_name} -y", check=False)
+            print_info(f"Removing existing environment '{env_name}'...")
+            code, _, _ = run_command(f"conda env remove -n {env_name} -y", check=False)
+            if code != 0:
+                print_error(f"Failed to remove environment '{env_name}'")
+                return False
+
+        # Create environment
+        print_header("Step 1/5: Creating Conda Environment")
+        print_info(f"Creating environment '{env_name}' with Python {python_version}...")
+        code, _, stderr = run_command(f"conda create -n {env_name} python={python_version} -y", check=False)
         if code != 0:
-            print_error(f"Failed to remove environment '{env_name}'")
+            print_error(f"Failed to create conda environment: {stderr}")
             return False
-
-    # Create environment
-    print_header("Step 1/5: Creating Conda Environment")
-    print_info(f"Creating environment '{env_name}' with Python {python_version}...")
-    code, _, stderr = run_command(f"conda create -n {env_name} python={python_version} -y", check=False)
-    if code != 0:
-        print_error(f"Failed to create conda environment: {stderr}")
-        return False
-    print_success(f"Environment '{env_name}' created")
+        print_success(f"Environment '{env_name}' created")
 
     # Get conda base for activation
     conda_base = get_conda_base()
@@ -306,25 +346,36 @@ def install_pytorch_connectomics(
     # Install scientific packages via conda (pre-built binaries, no compilation)
     print_header("Step 2/5: Installing Scientific Packages")
     print_info("Installing pre-built packages via conda-forge...")
-    scientific_packages = [
-        'numpy<2.0',        # Pin to 1.x for GCC compatibility
-        'scipy',
-        'scikit-learn',
-        'scikit-image',
-        'h5py',
-        'cython',
-        'opencv',
-    ]
-    packages_str = ' '.join(scientific_packages)
-    code, _, stderr = run_command(
-        f"conda install -n {env_name} -c conda-forge {packages_str} -y",
+    print_info("This step is CRITICAL to avoid compilation errors...")
+
+    # Install in two groups for better reliability
+    # Group 1: Core numerical packages (MUST succeed)
+    core_packages = ['numpy', 'h5py', 'cython']  # Let conda choose compatible versions
+    print_info(f"Installing core packages: {', '.join(core_packages)}")
+    code, stdout, stderr = run_command(
+        f"conda install -n {env_name} -c conda-forge {' '.join(core_packages)} -y",
         check=False
     )
     if code != 0:
-        print_warning(f"Some conda packages failed to install: {stderr}")
-        print_info("Will try to install missing packages via pip later...")
+        print_error("Failed to install core packages via conda!")
+        print_error(stderr)
+        print_error("\nThis is a critical error. These packages MUST be installed via conda")
+        print_error("to avoid GCC compilation errors.")
+        return False
+    print_success("Core packages installed via conda")
+
+    # Group 2: Optional scientific packages (nice to have)
+    optional_packages = ['scipy', 'scikit-learn', 'scikit-image', 'opencv']
+    print_info(f"Installing optional packages: {', '.join(optional_packages)}")
+    code, _, stderr = run_command(
+        f"conda install -n {env_name} -c conda-forge {' '.join(optional_packages)} -y",
+        check=False
+    )
+    if code != 0:
+        print_warning("Some optional conda packages failed to install")
+        print_info("These will be installed via pip if needed...")
     else:
-        print_success("Scientific packages installed via conda")
+        print_success("Optional packages installed via conda")
 
     # Install PyTorch
     print_header("Step 3/5: Installing PyTorch")
@@ -369,18 +420,25 @@ def install_pytorch_connectomics(
 
     # Print usage instructions
     print_header("Installation Complete!")
-    print("To use PyTorch Connectomics:\n")
-    print(f"  1. Activate the environment:")
-    print(f"     {Colors.BOLD}conda activate {env_name}{Colors.ENDC}\n")
+
+    if use_current_env:
+        print(f"{Colors.OKGREEN}You're already in the environment - ready to use!{Colors.ENDC}\n")
+    else:
+        print("To use PyTorch Connectomics:\n")
+        print(f"  1. Activate the environment:")
+        print(f"     {Colors.BOLD}conda activate {env_name}{Colors.ENDC}\n")
+
+    step_num = 1 if use_current_env else 2
 
     if cuda_version and run_command("command -v module", check=False)[0] == 0:
-        print(f"  2. Load CUDA module (if needed):")
+        print(f"  {step_num}. Load CUDA module (if needed):")
         print(f"     {Colors.BOLD}module load cuda/{cuda_version}{Colors.ENDC}\n")
+        step_num += 1
 
-    print(f"  3. Run training:")
+    print(f"  {step_num}. Run training:")
     print(f"     {Colors.BOLD}python scripts/main.py --config tutorials/lucchi.yaml{Colors.ENDC}\n")
 
-    print(f"  4. Check available models:")
+    print(f"  {step_num + 1}. Check available models:")
     print(f"     {Colors.BOLD}python -c 'from connectomics.models.arch import list_architectures; print(list_architectures())'{Colors.ENDC}\n")
 
     return True

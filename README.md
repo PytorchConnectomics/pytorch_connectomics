@@ -71,6 +71,20 @@ This repository is maintained by [Dr. Wei's lab](donglaiw.github.io) at Boston C
 
 ## Installation
 
+### TL;DR - Quick Install
+
+```bash
+# Automated (recommended)
+python install.py
+
+# Manual
+conda create -n pytc python=3.11 -y
+conda activate pytc
+conda install -c conda-forge numpy h5py cython  # CRITICAL: pre-built binaries
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install -e . --no-build-isolation
+```
+
 ### Prerequisites
 - **Python**: 3.8 to 3.12 (3.10 or 3.11 recommended)
   - ⚠️ **Python 3.13 not yet supported** due to limited pre-built wheel availability
@@ -91,10 +105,18 @@ python install.py
 **Features:**
 - 🎨 **Colored output** with progress indicators
 - 🔍 **Auto-detects CUDA** version (nvidia-smi, nvcc, module system, /usr/local)
+- 🌟 **Smart environment detection** - uses current conda env if active
 - 🔧 **Command-line arguments** for customization
 - ✅ **Better error handling** and user feedback
 - 📊 **Installation verification** with detailed output
 - 🚀 **CI/CD support** with `--yes` flag
+
+**Smart features:**
+```bash
+# If you're already in a conda environment, it will detect and offer to use it:
+conda activate my_env
+python install.py  # Prompts: "Install in current environment 'my_env'? [Y/n]"
+```
 
 **Advanced usage:**
 ```bash
@@ -560,13 +582,21 @@ conda install -c conda-forge numpy scipy scikit-learn scikit-image h5py cython o
 pip install -e . --no-build-isolation
 ```
 
-**Problem: Package not found or build failures**
+**Problem: h5py or NumPy build errors (`NumPy requires GCC >= 9.3`)**
+
+**Solution:** Install via conda FIRST, then pip:
 
 ```bash
-# Install scientific packages via conda first
-conda install numpy scipy scikit-learn scikit-image opencv h5py -c conda-forge
+conda activate pytc
+
+# Install core packages via conda (pre-built binaries, no compilation)
+conda install -c conda-forge numpy h5py cython
+
+# Then install PyTorch Connectomics
 pip install -e . --no-build-isolation
 ```
+
+**Why?** Conda provides pre-built binaries → no GCC 9.3+ needed. If pip installs these packages, it builds from source → fails on old GCC.
 
 ---
 
