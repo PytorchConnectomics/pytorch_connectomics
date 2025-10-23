@@ -78,15 +78,17 @@ This repository is maintained by [Dr. Wei's lab](donglaiw.github.io) at Boston C
 python install.py
 
 # Manual
-conda create -n pytc python=3.11 -y
+conda create -n pytc python=3.10 -y  # Python 3.10 required for cc3d
 conda activate pytc
-conda install -c conda-forge numpy h5py cython  # CRITICAL: pre-built binaries
+# CRITICAL: Install these together to avoid build-time conflicts
+conda install -c conda-forge numpy h5py cython connected-components-3d
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -e . --no-build-isolation
 ```
 
 ### Prerequisites
-- **Python**: 3.8 to 3.12 (3.10 or 3.11 recommended)
+- **Python**: 3.8 to 3.12 (**3.10 strongly recommended**)
+  - ⚠️ **Python 3.10 required for cc3d** (connected-components-3d)
   - ⚠️ **Python 3.13 not yet supported** due to limited pre-built wheel availability
 - **CUDA**: Recommended for GPU acceleration (11.8+ recommended)
 - **GCC**: Version 4.8+ (for systems building from source)
@@ -560,8 +562,8 @@ python scripts/main.py --config tutorials/lucchi.yaml
 **Problem: Python 3.13 build errors (`NumPy requires GCC >= 9.3`)**
 
 ```bash
-# Solution 1: Use Python 3.10 or 3.11 (recommended)
-conda create -n pytc python=3.11
+# Solution 1: Use Python 3.10 (strongly recommended for cc3d compatibility)
+conda create -n pytc python=3.10
 conda activate pytc
 pip install -e .
 
@@ -578,11 +580,12 @@ If you're installing manually:
 ```bash
 # Install scientific packages via conda (pre-built, no GCC needed)
 conda activate pytc
-conda install -c conda-forge numpy scipy scikit-learn scikit-image h5py cython opencv
+# CRITICAL: Include cc3d to avoid building it with wrong numpy version
+conda install -c conda-forge numpy scipy scikit-learn scikit-image h5py cython connected-components-3d opencv
 pip install -e . --no-build-isolation
 ```
 
-**Problem: h5py or NumPy build errors (`NumPy requires GCC >= 9.3`)**
+**Problem: h5py, NumPy, or cc3d build errors (`NumPy requires GCC >= 9.3`)**
 
 **Solution:** Install via conda FIRST, then pip:
 
@@ -590,7 +593,8 @@ pip install -e . --no-build-isolation
 conda activate pytc
 
 # Install core packages via conda (pre-built binaries, no compilation)
-conda install -c conda-forge numpy h5py cython
+# CRITICAL: Install cc3d with numpy to avoid version conflicts
+conda install -c conda-forge numpy h5py cython connected-components-3d
 
 # Then install PyTorch Connectomics
 pip install -e . --no-build-isolation

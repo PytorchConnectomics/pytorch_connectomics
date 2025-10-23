@@ -254,7 +254,7 @@ def get_current_conda_env() -> Optional[str]:
 
 def install_pytorch_connectomics(
     env_name: str = "pytc",
-    python_version: str = "3.11",
+    python_version: str = "3.10",
     cuda_version: Optional[str] = None,
     cpu_only: bool = False,
     skip_prompts: bool = False
@@ -267,6 +267,21 @@ def install_pytorch_connectomics(
         return False
 
     print_success("conda found")
+
+    # Validate Python version (cc3d requires Python 3.10)
+    py_major, py_minor = map(int, python_version.split('.')[:2])
+    if py_major != 3 or py_minor < 8 or py_minor >= 13:
+        print_error(f"Python {python_version} is not supported")
+        print_error("Supported versions: 3.8 to 3.12")
+        print_error("Recommended: 3.10 (required for connected-components-3d)")
+        return False
+
+    if py_minor != 10:
+        print_warning(f"Python {python_version} specified, but cc3d (connected-components-3d) requires Python 3.10")
+        print_warning("Installation may fail. Recommended: Use Python 3.10")
+        if not skip_prompts and not prompt_yes_no("Continue anyway?", default=False):
+            print_info("Installation cancelled. Use --python 3.10 for best compatibility.")
+            return False
 
     # Check if already in a conda environment
     current_env = get_current_conda_env()
@@ -378,8 +393,10 @@ def install_pytorch_connectomics(
     print_info("This step is CRITICAL to avoid compilation errors...")
 
     # Install in two groups for better reliability
-    # Group 1: Core numerical packages (MUST succeed)
-    core_packages = ['numpy', 'h5py', 'cython']  # Let conda choose compatible versions
+    # Group 1: Core numerical packages + cc3d (MUST succeed together for compatibility)
+    # CRITICAL: Install cc3d (connected-components-3d) with numpy/h5py/cython to avoid
+    # building from source with wrong numpy version
+    core_packages = ['numpy', 'h5py', 'cython', 'connected-components-3d']
 
     # Check which packages are already installed
     already_installed = []
@@ -398,6 +415,7 @@ def install_pytorch_connectomics(
 
     if to_install:
         print_info(f"Installing: {', '.join(to_install)}")
+        print_info("Note: Installing cc3d with numpy to ensure compatibility")
         code, stdout, stderr = run_command(
             f"conda install -n {env_name} -c conda-forge {' '.join(to_install)} -y",
             check=False
@@ -534,8 +552,8 @@ Examples:
     )
     parser.add_argument(
         '--python',
-        default='3.11',
-        help='Python version (default: 3.11)'
+        default='3.10',
+        help='Python version (default: 3.10, required for cc3d)'
     )
     parser.add_argument(
         '--cuda',

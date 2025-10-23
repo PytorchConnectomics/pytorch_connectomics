@@ -12,17 +12,22 @@ python install.py
 The script will:
 1. **Auto-detect CUDA version** from your system
 2. **Detect or create conda environment** (uses existing environment if you're already in one)
-3. **Check and install scientific packages** via conda-forge (pre-built binaries: NumPy, SciPy, h5py, Cython, etc.)
+3. **Check and install scientific packages** via conda-forge (pre-built binaries)
+   - Core: NumPy, h5py, Cython, connected-components-3d (cc3d)
+   - Optional: SciPy, scikit-learn, scikit-image, OpenCV
    - Checks which packages are already installed (shows versions)
    - Only installs missing packages
+   - **CRITICAL**: cc3d installed with NumPy to avoid version conflicts
 4. **Install PyTorch** with matching CUDA support
-5. **Install PyTorch Connectomics** and all dependencies
+5. **Install PyTorch Connectomics** using `--no-build-isolation` (uses conda packages)
 6. **Verify** the installation
 
 **Key advantages:**
 - Uses pre-built conda binaries, so no compilation needed even with old GCC (4.8.5+)
+- cc3d installed via conda prevents NumPy version conflicts during pip install
 - Intelligently skips already-installed packages (saves time)
 - Uses your current conda environment if you're already in one
+- `--no-build-isolation` ensures pip uses conda-installed dependencies
 
 ## What the Script Detects
 
@@ -54,12 +59,14 @@ If auto-detection fails, the script offers:
 ```bash
 python install.py --help                    # Show all options
 python install.py --env-name my_env         # Custom environment name
-python install.py --python 3.10             # Use Python 3.10 instead of 3.11
+python install.py --python 3.10             # Use Python 3.10 (DEFAULT, required for cc3d)
 python install.py --cuda 12.4               # Manually specify CUDA version
 python install.py --cpu-only                # CPU-only installation (no GPU)
 python install.py --yes                     # Skip all prompts (for CI/CD)
 python install.py --no-color                # Disable colored output
 ```
+
+**Note:** Python 3.10 is the default and strongly recommended version because `connected-components-3d` (cc3d) requires it.
 
 ## Example: SLURM System
 
@@ -94,7 +101,7 @@ python scripts/main.py --config tutorials/lucchi.yaml
 ERROR: Package 'connectomics' requires Python: 3.13.5 not in '<3.13,>=3.8'
 ```
 
-**Solution:** This is expected! Python 3.13 is not supported. The script will create a Python 3.11 environment automatically.
+**Solution:** This is expected! Python 3.13 is not supported. The script will create a Python 3.10 environment automatically (required for cc3d).
 
 ### GCC Too Old
 
@@ -138,8 +145,11 @@ If you prefer manual installation:
 
 ```bash
 # Create environment
-conda create -n pytc python=3.11 -y
+conda create -n pytc python=3.10 -y  # Python 3.10 required for cc3d
 conda activate pytc
+
+# Install core packages via conda (CRITICAL for compatibility)
+conda install -c conda-forge numpy h5py cython connected-components-3d
 
 # Install PyTorch (adjust CUDA version)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
