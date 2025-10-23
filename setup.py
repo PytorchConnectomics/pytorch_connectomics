@@ -41,32 +41,19 @@ extras_require = {
     # Full installation with all recommended features
     "full": [
         "gputil>=1.4.0",
-        "jupyter>=1.0",
         "tifffile>=2021.11.2",
         "wandb>=0.13.0",
-    ],
-    # Hyperparameter optimization
-    "optim": [
         "optuna>=2.10.0",
+        "neuroglancer>=1.0.0",
     ],
     # Advanced metrics (skeleton-based)
     "metrics": [
         # Install manually: pip install git+https://github.com/funkelab/funlib.evaluate.git
     ],
-    # 3D visualization
-    "viz": [
-        "neuroglancer>=1.0.0",
-    ],
-    # Experiment tracking
-    "wandb": [
-        "wandb>=0.13.0",
-    ],
-    # TIFF file support
-    "tiff": [
-        "tifffile>=2021.11.2",
-    ],
-    # Documentation building
-    "docs": [
+    # Development and testing
+    "dev": [
+        "pytest>=6.0.0",
+        "pytest-benchmark>=3.4.0",
         "sphinx==3.4.3",
         "sphinxcontrib-katex",
         "jinja2==3.0.3",
@@ -75,11 +62,6 @@ extras_require = {
         "sphinxcontrib-htmlhelp==2.0.1",
         "sphinxcontrib-qthelp==1.0.3",
         "sphinxcontrib-serializinghtml==1.1.5",
-    ],
-    # Development and testing
-    "dev": [
-        "pytest>=6.0.0",
-        "pytest-benchmark>=3.4.0",
     ],
     # Command-line tools and utilities
     "cli": [
