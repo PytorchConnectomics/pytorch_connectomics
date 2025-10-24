@@ -7,7 +7,8 @@ from tqdm import tqdm  # show progress
 from scipy.ndimage.measurements import center_of_mass
 from scipy.spatial import KDTree
 
-from connectomics.data.utils import *
+from connectomics.data.io import *
+from connectomics.data.process import *
 
 
 def voxel_instance_size(target: np.ndarray, ds_name: str = 'main') -> pd.DataFrame:

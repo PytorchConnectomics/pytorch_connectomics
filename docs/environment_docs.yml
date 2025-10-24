@@ -242,5 +242,4 @@ dependencies:
       - werkzeug==3.0.1
       - widgetsnbextension==4.0.10
       - wrapt==1.16.0
-      - yacs==0.1.8
       - zipp==3.18.1

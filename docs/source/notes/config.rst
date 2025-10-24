@@ -1,186 +1,560 @@
-Configurations
-================
+Configuration System
+=====================
 
-`PyTorch Connectomics <https://github.com/zudi-lin/pytorch_connectomics>`_ uses a key-value based configuration system 
-that can be adjusted to carry out standard and commonly used tasks. The configuration system is built with `YACS <https://github.com/rbgirshick/yacs>`_
-that uses YAML, a human-readable data-serialization language, to manage options.
+.. note::
+   **PyTorch Connectomics v2.0** uses **Hydra/OmegaConf** as the configuration system.
 
-    .. note::
-        The system has ``_C.KEY:VALUE``  field, which will use a pre-defined configurations first. Values in the pre-defined config will be overwritten in sub-configs, if there are any according to the user requirements. We provided several base configs for standard tasks in connectomics research as ``<task>.yaml`` files at `pytorch_connectomics/configs/ <https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs>`_.
+PyTorch Connectomics uses a flexible, type-safe configuration system built on
+`Hydra <https://hydra.cc/>`_ and `OmegaConf <https://omegaconf.readthedocs.io/>`_.
+Configuration files are written in YAML and support CLI overrides, composition, and type checking.
 
-We do not expect all features in the package to be available through configs, which will make it too complicated. If you need 
-to add options that are not available in the current version, please modify the keys-value pairs in ``/connectomics/config/config.py``
+Quick Start
+-----------
 
-Basic Usage
--------------
+**Basic training:**
 
-Some basic usage of the ``CfgNode`` object in `YACS <https://github.com/rbgirshick/yacs>`_ is shown below:
+.. code-block:: bash
+
+    # Train with a config file
+    python scripts/main.py --config tutorials/lucchi.yaml
+
+    # Override config from CLI
+    python scripts/main.py --config tutorials/lucchi.yaml \
+        data.batch_size=4 \
+        training.max_epochs=200
+
+**Python API:**
 
 .. code-block:: python
 
-   from yacs.config import CfgNode as CN
-   _C = CN()            # config definition
-   _C.SYSTEM = CN()     # config definition for GPU and CPU
-   _C.SYSTEM.NUM_GPUS = 4 
+    from connectomics.config import load_config, print_config
 
-   _C.MODEL = CN()      # Model architectures defined in the package
-   _C.MODEL.ARCHITECTURE = 'unet_residual_3d' 
+    # Load config
+    cfg = load_config("tutorials/lucchi.yaml")
 
-   # specify the name and type of additional targets in the augmentor
-   _C.AUGMENTOR = CN()
-   _C.AUGMENTOR.ADDITIONAL_TARGETS_NAME = ['label']
-   _C.AUGMENTOR.ADDITIONAL_TARGETS_TYPE = ['mask']
-   
-The configs in PyTorch Connectomics also accepts command line configuration overwriting, *i.e.*, key-value pairs provided in the command line will 
-overwrite the existing values in the config file. For example, we can add arguments when executing ``scripts/main.py``:
+    # Access values
+    print(cfg.model.architecture)  # 'monai_basic_unet3d'
+    print(cfg.data.batch_size)     # 2
 
-.. code-block:: none
+    # Modify values
+    cfg.data.batch_size = 4
 
-    python -u scripts/main.py \
-    --config-file configs/Lucchi-Mitochondria.yaml SOLVER.ITERATION_TOTAL 30000
-  
-To see the list of all available configurations in the current PyTorch Connectomics package and their default values, please check the `config references <https://github.com/zudi-
-lin/pytorch_connectomics/blob/master/connectomics/config/config.py>`_. All configuration options after command line overwriting will be saved to the experiment directory for future reference.
+    # Print entire config
+    print_config(cfg)
 
+Configuration Structure
+-----------------------
 
-Multiple Losses for a Single Learning Target
-----------------------------------------------
-
-Sometimes training with a single loss function does not produce favorable predictions. Thus we provide a simple way to specify multiple loss functions
-for training the segmentation models. For example, to use the weighted binary cross-entropy loss (``WeightedBCE``) and the soft Sørensen–Dice  
-loss (``DiceLoss``) at the same time, we can change the key-value pairs of ``LOSS_OPTION`` in the ``config.yaml`` file by doing:
+A typical v2.0 config file has the following sections:
 
 .. code-block:: yaml
 
-   MODEL:
-     LOSS_OPTION: [['WeightedBCE', 'DiceLoss']]
-     LOSS_WEIGHT: [[1.0, 0.5]]
-     WEIGHT_OPT: [['1', '0']]
+    # System configuration
+    system:
+      num_gpus: 1
+      num_cpus: 4
+      seed: 42
 
-``LOSS_OPTION``: the loss criterions to be used during training.
-``LOSS_WEIGHT``: the relative weight of each loss function.
-``WEIGHT_OPT``: the option for generating pixel-wise loss mask (set to '0' disable).
+    # Model configuration
+    model:
+      architecture: monai_basic_unet3d
+      in_channels: 1
+      out_channels: 2
+      filters: [32, 64, 128, 256, 512]
+      dropout: 0.1
+      loss_functions:
+        - DiceLoss
+        - BCEWithLogitsLoss
+      loss_weights: [1.0, 1.0]
 
-If you only want to use weighted binary cross-entropy loss, do:
+    # Data configuration
+    data:
+      train_image: "datasets/lucchi/train_image.h5"
+      train_label: "datasets/lucchi/train_label.h5"
+      val_image: "datasets/lucchi/val_image.h5"
+      val_label: "datasets/lucchi/val_label.h5"
+      patch_size: [128, 128, 128]
+      batch_size: 2
+      num_workers: 4
+
+    # Optimizer configuration
+    optimizer:
+      name: AdamW
+      lr: 1e-4
+      weight_decay: 1e-4
+
+    # Scheduler configuration
+    scheduler:
+      name: CosineAnnealingLR
+      warmup_epochs: 5
+      min_lr: 1e-6
+
+    # Training configuration
+    training:
+      max_epochs: 100
+      precision: "16-mixed"
+      gradient_clip_val: 1.0
+      accumulate_grad_batches: 1
+
+    # Checkpoint configuration
+    checkpoint:
+      monitor: "val/loss"
+      mode: "min"
+      save_top_k: 3
+      save_last: true
+
+    # Logging configuration
+    logging:
+      log_every_n_steps: 10
+      save_dir: "outputs"
+
+Configuration Sections
+----------------------
+
+System Configuration
+^^^^^^^^^^^^^^^^^^^^
+
+Controls hardware and reproducibility:
 
 .. code-block:: yaml
 
-   MODEL:
-     LOSS_OPTION: [['WeightedBCE']]
-     LOSS_WEIGHT: [[1.0]]
-     WEIGHT_OPT: [['1']]
+    system:
+      num_gpus: 1          # Number of GPUs (0 for CPU)
+      num_cpus: 4          # Number of CPU workers
+      seed: 42             # Random seed for reproducibility
+      deterministic: false # Use deterministic algorithms (slower)
 
-Multitask Learning
+Model Configuration
+^^^^^^^^^^^^^^^^^^^
+
+Specifies model architecture and loss functions:
+
+.. code-block:: yaml
+
+    model:
+      architecture: monai_basic_unet3d  # Model architecture
+      in_channels: 1                     # Input channels
+      out_channels: 2                    # Output channels
+      filters: [32, 64, 128, 256, 512]  # Filter sizes per level
+      dropout: 0.1                       # Dropout rate
+
+      # Loss functions
+      loss_functions:
+        - DiceLoss
+        - BCEWithLogitsLoss
+      loss_weights: [1.0, 1.0]
+
+      # Optional: Deep supervision
+      deep_supervision: true
+
+**Available architectures:**
+
+- ``monai_basic_unet3d``: Simple and fast 3D U-Net
+- ``monai_unet``: U-Net with residual units
+- ``monai_unetr``: Transformer-based UNETR
+- ``monai_swin_unetr``: Swin Transformer U-Net
+- ``mednext``: MedNeXt with predefined sizes (S/B/M/L)
+- ``mednext_custom``: MedNeXt with custom parameters
+
+**Available loss functions:**
+
+- ``DiceLoss``: Soft Dice loss
+- ``FocalLoss``: Focal loss for class imbalance
+- ``TverskyLoss``: Tversky loss
+- ``DiceCELoss``: Combined Dice + Cross-Entropy
+- ``BCEWithLogitsLoss``: Binary cross-entropy
+- ``CrossEntropyLoss``: Multi-class cross-entropy
+
+Data Configuration
+^^^^^^^^^^^^^^^^^^
+
+Specifies data paths and loading parameters:
+
+.. code-block:: yaml
+
+    data:
+      # Data paths
+      train_image: "path/to/train_image.h5"
+      train_label: "path/to/train_label.h5"
+      val_image: "path/to/val_image.h5"
+      val_label: "path/to/val_label.h5"
+      test_image: "path/to/test_image.h5"  # Optional
+
+      # Patch sampling
+      patch_size: [128, 128, 128]
+
+      # Data loader settings
+      batch_size: 2
+      num_workers: 4
+      persistent_workers: true
+      pin_memory: true
+
+      # Augmentation
+      use_augmentation: true
+      augmentation_params:
+        rotation_range: 45
+        scale_range: [0.9, 1.1]
+
+Optimizer Configuration
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Specifies optimizer type and hyperparameters:
+
+.. code-block:: yaml
+
+    optimizer:
+      name: AdamW           # Optimizer type
+      lr: 1e-4             # Learning rate
+      weight_decay: 1e-4   # Weight decay (L2 regularization)
+
+      # Optimizer-specific params
+      betas: [0.9, 0.999]  # For Adam/AdamW
+      momentum: 0.9        # For SGD
+
+**Supported optimizers:**
+
+- ``Adam``, ``AdamW``, ``SGD``, ``RMSprop``, ``Adagrad``
+
+Scheduler Configuration
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Specifies learning rate scheduling:
+
+.. code-block:: yaml
+
+    scheduler:
+      name: CosineAnnealingLR
+      warmup_epochs: 5
+      min_lr: 1e-6
+
+      # Scheduler-specific params
+      T_max: 100           # For CosineAnnealingLR
+      step_size: 30        # For StepLR
+      gamma: 0.1           # For StepLR, ExponentialLR
+
+**Supported schedulers:**
+
+- ``CosineAnnealingLR``, ``StepLR``, ``ExponentialLR``, ``ReduceLROnPlateau``
+
+Training Configuration
+^^^^^^^^^^^^^^^^^^^^^^
+
+Controls training loop parameters:
+
+.. code-block:: yaml
+
+    training:
+      max_epochs: 100
+      precision: "16-mixed"         # "32", "16-mixed", "bf16-mixed"
+      gradient_clip_val: 1.0
+      gradient_clip_algorithm: "norm"
+      accumulate_grad_batches: 1    # Gradient accumulation
+      val_check_interval: 1.0       # Validation frequency
+      limit_train_batches: 1.0      # For debugging
+      limit_val_batches: 1.0
+
+Command Line Overrides
+-----------------------
+
+Override any config value from the command line:
+
+.. code-block:: bash
+
+    # Override single values
+    python scripts/main.py --config tutorials/lucchi.yaml \
+        data.batch_size=4
+
+    # Override multiple values
+    python scripts/main.py --config tutorials/lucchi.yaml \
+        data.batch_size=4 \
+        training.max_epochs=200 \
+        optimizer.lr=1e-3
+
+    # Override nested values
+    python scripts/main.py --config tutorials/lucchi.yaml \
+        model.filters=[64,128,256,512]
+
+    # Add new values
+    python scripts/main.py --config tutorials/lucchi.yaml \
+        +training.fast_dev_run=true
+
+Multiple Loss Functions
+------------------------
+
+Combine multiple loss functions with different weights:
+
+.. code-block:: yaml
+
+    model:
+      loss_functions:
+        - DiceLoss
+        - BCEWithLogitsLoss
+        - FocalLoss
+      loss_weights: [1.0, 1.0, 0.5]
+
+The total loss is computed as:
+
+.. code-block:: python
+
+    total_loss = (1.0 * dice_loss +
+                  1.0 * bce_loss +
+                  0.5 * focal_loss)
+
+Deep Supervision
+----------------
+
+Enable multi-scale loss computation for improved training:
+
+.. code-block:: yaml
+
+    model:
+      architecture: mednext
+      deep_supervision: true
+      loss_functions:
+        - DiceLoss
+      loss_weights: [1.0]
+
+Deep supervision automatically:
+
+- Computes losses at multiple scales (5 scales for MedNeXt)
+- Resizes ground truth to match each scale
+- Averages losses across scales
+
+MedNeXt Configuration
+---------------------
+
+**Predefined sizes:**
+
+.. code-block:: yaml
+
+    model:
+      architecture: mednext
+      mednext_size: S              # S, B, M, or L
+      mednext_kernel_size: 3       # 3, 5, or 7
+      deep_supervision: true
+      in_channels: 1
+      out_channels: 2
+
+**Custom configuration:**
+
+.. code-block:: yaml
+
+    model:
+      architecture: mednext_custom
+      mednext_base_channels: 32
+      mednext_exp_r: [2, 3, 4, 4, 4, 4, 4, 3, 2]
+      mednext_block_counts: [3, 4, 8, 8, 8, 8, 8, 4, 3]
+      mednext_kernel_size: 7
+      mednext_grn: true
+      deep_supervision: true
+
+See `.claude/MEDNEXT.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/.claude/MEDNEXT.md>`_ for details.
+
+2D Configuration
+----------------
+
+For 2D segmentation tasks:
+
+.. code-block:: yaml
+
+    model:
+      architecture: monai_basic_unet2d  # or monai_unet2d
+      in_channels: 1
+      out_channels: 2
+      filters: [32, 64, 128, 256]
+
+    data:
+      patch_size: [1, 256, 256]  # [D, H, W] - D=1 for 2D
+
+Mixed Precision Training
+------------------------
+
+Use mixed precision for faster training and reduced memory:
+
+.. code-block:: yaml
+
+    training:
+      precision: "16-mixed"  # FP16 mixed precision
+
+    # Or for BFloat16 (requires Ampere+ GPUs)
+    training:
+      precision: "bf16-mixed"
+
+Distributed Training
 --------------------
 
-To conduct multitask learning, which predicts multiple targets given a image volume, we can further adjust the ``TARGET_OPT`` option.
-For example, to conduct instance segmentation of mitochondria, we can predict not only the binary foreground mask but also the instance
-boundary to distinguish closely touching objects. Specifically, we can use the following options:
+Automatically use distributed training with multiple GPUs:
 
 .. code-block:: yaml
 
-   MODEL:
-     TARGET_OPT: ['0', '4-2-1']
-     LOSS_OPTION: [['WeightedBCE', 'DiceLoss'], ['WeightedBCE']]
-     LOSS_WEIGHT: [[1.0, 1.0], [1.0]]
-     WEIGHT_OPT: [['1', '0'], ['1']]
+    system:
+      num_gpus: 4  # Uses DDP automatically
 
-``TARGET_OPT``: a list of the targets to learn.
+    data:
+      batch_size: 2  # Per-GPU batch size
 
-Currently seven types of ``TARGET_OPT`` are supported:
+Effective batch size = ``num_gpus * batch_size = 4 * 2 = 8``
 
-- ``'0'``: binary foreground mask (used in the `mitochondria semantic segmentation tutorial <../tutorials/mito.html#semantic-segmentation>`_).
+Gradient Accumulation
+---------------------
 
-- ``'1'``: synaptic polarity mask (used in the `synaptic polairty tutorial <../tutorials/synapse.html#synaptic-polarity-detection>`_).
+Simulate larger batch sizes:
 
-- ``'2'``: affinity map (used in the `neuron segmentation tutorial <../tutorials/neuron.html>`_).
+.. code-block:: yaml
 
-- ``'3'``: masks of small objects only.
+    data:
+      batch_size: 2
 
-- ``'4'``: instance boundaries (used in the `mitochondria instance segmentation tutorial <../tutorials/mito.html#instance-segmentation>`_).
+    training:
+      accumulate_grad_batches: 4
 
-- ``'5'``: distance transform. This target represents each pixel as the (quantized) distance to the instance boundaries. By default the distance is calculated for each slice in a given volume. To calculate the distance transform for 3D objects, set the option to ``'5-3d'``.
+Effective batch size = ``batch_size * accumulate_grad_batches = 2 * 4 = 8``
 
-- ``'9'``: generic segmantic segmentation. Supposing there are 12 classes (including one background class) to predict, we need to set ``MODEL.OUT_PLANES: 12`` and ``MODEL.TARGET_OPT: ['9-12']``. Here ``9`` represent the multi-class semantic segmentation task, while ``12`` in ``['9-12']`` represents the 12 semantic classes.
+Checkpointing and Logging
+--------------------------
 
-The list of learning targets here can be outdated. To check the latest version of supported learning targets, please see the 
-``seg_to_targets`` function in this `file <https://github.com/zudi-lin/pytorch_connectomics/blob/master/connectomics/data/utils/data_segmentation.py>`_.
+**Model checkpointing:**
 
-Inference
------------
+.. code-block:: yaml
 
-Most of the config options are shared by training and inference. However, there are
-several options to be adjusted at inference time by the ``update_inference_cfg`` function:
+    checkpoint:
+      monitor: "val/loss"
+      mode: "min"              # "min" or "max"
+      save_top_k: 3            # Keep best 3 checkpoints
+      save_last: true          # Also save last checkpoint
+      filename: "epoch{epoch:02d}-loss{val/loss:.2f}"
+
+**Early stopping:**
+
+.. code-block:: yaml
+
+    early_stopping:
+      monitor: "val/loss"
+      patience: 10
+      mode: "min"
+      min_delta: 0.0
+
+**Logging:**
+
+.. code-block:: yaml
+
+    logging:
+      log_every_n_steps: 10
+      save_dir: "outputs"
+      experiment_name: "lucchi_exp"
+
+      # Weights & Biases (optional)
+      use_wandb: false
+      wandb_project: "connectomics"
+      wandb_entity: "your_team"
+
+Configuration in Python
+-----------------------
+
+**Load and modify configs:**
 
 .. code-block:: python
 
-   def update_inference_cfg(cfg: CfgNode):
-      r"""Overwrite configurations (cfg) when running mode is inference. Please 
-      note that None type is only supported in YACS>=0.1.8.
-      """
-      # dataset configurations
-      if cfg.INFERENCE.INPUT_PATH is not None:
-         cfg.DATASET.INPUT_PATH = cfg.INFERENCE.INPUT_PATH
-      cfg.DATASET.IMAGE_NAME = cfg.INFERENCE.IMAGE_NAME
-      cfg.DATASET.OUTPUT_PATH = cfg.INFERENCE.OUTPUT_PATH
+    from connectomics.config import load_config, save_config, print_config
+    from omegaconf import OmegaConf
 
-      if cfg.INFERENCE.PAD_SIZE is not None:
-         cfg.DATASET.PAD_SIZE = cfg.INFERENCE.PAD_SIZE
-      if cfg.INFERENCE.IS_ABSOLUTE_PATH is not None:
-         cfg.DATASET.IS_ABSOLUTE_PATH = cfg.INFERENCE.IS_ABSOLUTE_PATH
+    # Load config
+    cfg = load_config("tutorials/lucchi.yaml")
 
-      if cfg.INFERENCE.DO_CHUNK_TITLE is not None:
-         cfg.DATASET.DO_CHUNK_TITLE = cfg.INFERENCE.DO_CHUNK_TITLE
+    # Access values
+    print(cfg.model.architecture)
+    print(cfg.data.batch_size)
 
-      # model configurations
-      if cfg.INFERENCE.INPUT_SIZE is not None:
-         cfg.MODEL.INPUT_SIZE = cfg.INFERENCE.INPUT_SIZE
-      if cfg.INFERENCE.OUTPUT_SIZE is not None:
-         cfg.MODEL.OUTPUT_SIZE = cfg.INFERENCE.OUTPUT_SIZE
+    # Modify values
+    cfg.data.batch_size = 4
+    cfg.training.max_epochs = 200
 
-      # output file name(s)
-      if cfg.DATASET.DO_CHUNK_TITLE or cfg.DATASET.INFERENCE.DO_SINGLY:
-         out_name = cfg.INFERENCE.OUTPUT_NAME
-         name_lst = out_name.split(".")
-         assert len(name_lst) <= 2, \
-               "Invalid output file name is given."
-         if len(name_lst) == 2:
-               cfg.INFERENCE.OUTPUT_NAME = name_lst[0]
+    # Merge configs
+    overrides = OmegaConf.create({
+        "data": {"batch_size": 8},
+        "optimizer": {"lr": 1e-3}
+    })
+    cfg = OmegaConf.merge(cfg, overrides)
 
-      for topt in cfg.MODEL.TARGET_OPT:
-         # For multi-class semantic segmentation and quantized distance
-         # transform, no activation function is applied at the output layer
-         # during training. For inference where the output is assumed to be
-         # in (0,1), we apply softmax.
-         if topt[0] in ['5', '9'] and cfg.MODEL.OUTPUT_ACT == 'none':
-               cfg.MODEL.OUTPUT_ACT = 'softmax'
-               break
+    # Save config
+    save_config(cfg, "modified_config.yaml")
 
-There are also several options exclusive for inference. For example:
+    # Print config
+    print_config(cfg)
 
-.. code-block:: yaml
+**Create configs programmatically:**
 
-   INFERENCE:
-     AUG_MODE: 'mean' # options for test augmentation
-     AUG_NUM: 4
-     BLENDING: 'gaussian' # blending function for overlapping inference
-     STRIDE: (4, 128, 128) # sampling stride for inference
-     SAMPLES_PER_BATCH: 4 # per GPU batchsize for inference 
+.. code-block:: python
 
-Since at test time the model only runs forward pass, a larger mini-batch size is recommended for higher inference throughput. 
+    from omegaconf import OmegaConf
 
-2D Models
------------
+    cfg = OmegaConf.create({
+        "system": {"num_gpus": 1, "seed": 42},
+        "model": {
+            "architecture": "monai_basic_unet3d",
+            "in_channels": 1,
+            "out_channels": 2
+        },
+        "data": {
+            "batch_size": 2,
+            "patch_size": [128, 128, 128]
+        }
+    })
 
-Our package is mainly developed for volumetric data, but also supported 2D trainin and inference. There are a bunch of 
-configuration options to update for 2D functionalities:
+Inference Configuration
+-----------------------
+
+Many training configs are reused for inference. Key differences:
 
 .. code-block:: yaml
 
-   MODEL:
-     ARCHITECTURE: unet_2d # specify a 2D architecture
-     INPUT_SIZE: [1, 513, 513] # the z-dimension will be ignored
-     OUTPUT_SIZE: [1, 513, 513]
-   DATASET:
-     DO_2D: True # stream 2D samples
-     LOAD_2D: True # directly load 2D data if True, else load 3D and sample 2D patches
+    # inference_config.yaml
+    model:
+      architecture: monai_basic_unet3d
+      # ... same as training
+
+    data:
+      test_image: "path/to/test.h5"
+      patch_size: [128, 128, 128]
+      batch_size: 4  # Can use larger batch size
+
+    inference:
+      checkpoint_path: "outputs/best.ckpt"
+      output_path: "predictions/"
+      overlap: 0.5               # Overlap between patches
+      blend_mode: "gaussian"     # "gaussian" or "linear"
+      do_tta: false             # Test-time augmentation
+
+**Run inference:**
+
+.. code-block:: bash
+
+    python scripts/main.py \
+        --config inference_config.yaml \
+        --mode test \
+        --checkpoint outputs/best.ckpt
+
+Configuration Examples
+----------------------
+
+See the ``tutorials/`` directory for complete examples:
+
+- `tutorials/lucchi.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/lucchi.yaml>`_: MONAI BasicUNet
+- `tutorials/mednext_lucchi.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_lucchi.yaml>`_: MedNeXt-S
+- `tutorials/mednext_custom.yaml <https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_custom.yaml>`_: Custom MedNeXt
+
+Best Practices
+--------------
+
+1. **Use version control** for config files
+2. **Document** non-obvious parameter choices
+3. **Start simple** with basic configs, then customize
+4. **Save configs** with experiment outputs for reproducibility
+5. **Use meaningful names** for experiments
+6. **Validate configs** before long training runs
+
+For more information:
+
+- `Hydra Documentation <https://hydra.cc/>`_
+- `OmegaConf Documentation <https://omegaconf.readthedocs.io/>`_
+- `.claude/CLAUDE.md <https://github.com/zudi-lin/pytorch_connectomics/blob/master/.claude/CLAUDE.md>`_

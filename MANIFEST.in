@@ -1,0 +1,36 @@
+# Include documentation files
+include README.md
+include QUICKSTART.md
+include TROUBLESHOOTING.md
+include INSTALLATION.md
+include LICENSE
+include CONTRIBUTING.md
+include RELEASE_NOTES.md
+
+# Include configuration examples
+recursive-include tutorials *.yaml *.yml
+
+# Include notebooks
+recursive-include notebooks *.ipynb
+
+# Exclude unnecessary files
+global-exclude *.py[cod] __pycache__ *.so *.dylib
+exclude .gitignore
+exclude .gitattributes
+
+# Exclude development and CI files
+exclude .github
+recursive-exclude .github *
+exclude .claude
+recursive-exclude .claude *
+exclude docker
+recursive-exclude docker *
+exclude scripts
+recursive-exclude scripts *
+
+# Exclude outputs and temporary files
+exclude outputs
+recursive-exclude outputs *
+exclude datasets
+recursive-exclude datasets *
+prune tests

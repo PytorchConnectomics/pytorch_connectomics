@@ -126,7 +126,7 @@ dmypy.json
 .vscode/
 *~
 
-datasets/
+datasets/*
 others/
 locals/
 outputs/
@@ -134,3 +134,20 @@ tmpwdir/
 *.iml
 .idea/
 docs/pytorch_sphinx_theme
+lightning_logs/
+slurm_outputs/
+
+# Build artifacts
+build/
+*.egg-info/
+
+# Editor configs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Development logs and documentation
+.claude/

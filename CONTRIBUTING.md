@@ -108,7 +108,7 @@ For example:
 
 * [connectomics](connectomics) - The actual Pytorch Connectomics library.
     * [data](connectomics/data) - Dataset and dataloader for large-scale volumetric data
-    * [model](connectomics/model) - Model zoo for 3D segmentation
+    * [models](connectomics/models) - Model zoo for 3D segmentation
     * [engine](connectomics/engine) - Training and inference routines
     * [config](connectomics/config) - Configuration files for training and inference
 

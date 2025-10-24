@@ -1,8 +1,0 @@
-MODEL:
-  ARCHITECTURE: unet_3d
-  BLOCK_TYPE: residual_se
-  LABEL_EROSION: 1
-DATASET:
-  OUTPUT_PATH: outputs/Zebrafinch_UNet
-INFERENCE:
-  OUTPUT_PATH: outputs/Zebrafinch_UNet/test
