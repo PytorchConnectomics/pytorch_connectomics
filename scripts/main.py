@@ -95,9 +95,14 @@ def parse_args():
 
     parser.add_argument(
         "--config",
-        required=True,
+        required=False,
         type=str,
         help="Path to Hydra YAML config file",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run quick demo with synthetic data (30 seconds, no config needed)",
     )
     parser.add_argument(
         "--mode",
@@ -244,6 +249,47 @@ def create_datamodule(cfg: Config, mode: str = 'train') -> ConnectomicsDataModul
         VolumeDataModule instance
     """
     print("Creating datasets...")
+
+    # Auto-download tutorial data if missing
+    if mode == 'train' and cfg.data.train_image:
+        train_image_path = Path(cfg.data.train_image)
+        if not train_image_path.exists():
+            print(f"\n⚠️  Training data not found: {cfg.data.train_image}")
+
+            # Try to infer dataset name from path
+            from connectomics.utils.download import DATASETS, download_dataset
+            path_str = str(cfg.data.train_image).lower()
+            dataset_name = None
+            for name in DATASETS.keys():
+                if name in path_str and not name.endswith("++"):  # Skip aliases
+                    dataset_name = name
+                    break
+
+            if dataset_name:
+                print(f"💡 Attempting to auto-download '{dataset_name}' dataset...")
+                print(f"   (You can disable auto-download by manually downloading data)")
+
+                # Prompt user
+                try:
+                    response = input(f"   Download {dataset_name} dataset (~{DATASETS[dataset_name]['size_mb']} MB)? [Y/n]: ").strip().lower()
+                    if response in ['', 'y', 'yes']:
+                        if download_dataset(dataset_name, base_dir=Path.cwd()):
+                            print("✅ Data downloaded successfully!")
+                        else:
+                            print("❌ Download failed. Please download manually:")
+                            print(f"   wget {DATASETS[dataset_name]['url']}")
+                            raise FileNotFoundError(f"Training data not found: {cfg.data.train_image}")
+                    else:
+                        print("❌ Download cancelled. Please download manually.")
+                        raise FileNotFoundError(f"Training data not found: {cfg.data.train_image}")
+                except KeyboardInterrupt:
+                    print("\n❌ Download cancelled by user")
+                    raise FileNotFoundError(f"Training data not found: {cfg.data.train_image}")
+            else:
+                print("💡 Available datasets:")
+                from connectomics.utils.download import list_datasets
+                list_datasets()
+                raise FileNotFoundError(f"Training data not found: {cfg.data.train_image}")
 
     # Check dataset type early
     dataset_type = getattr(cfg.data, 'dataset_type', None)
@@ -847,11 +893,32 @@ def main():
     # Parse arguments
     args = parse_args()
 
+    # Handle demo mode
+    if args.demo:
+        from connectomics.utils.demo import run_demo
+        run_demo()
+        return
+
+    # Validate that config is provided for non-demo modes
+    if not args.config:
+        print("❌ Error: --config is required (or use --demo for a quick test)")
+        print("\nUsage:")
+        print("  python scripts/main.py --config tutorials/lucchi.yaml")
+        print("  python scripts/main.py --demo")
+        sys.exit(1)
+
     # Setup config
     print("\n" + "=" * 60)
     print("🚀 PyTorch Connectomics Hydra Training")
     print("=" * 60)
     cfg = setup_config(args)
+
+    # Run preflight checks for training mode
+    if args.mode == 'train':
+        from connectomics.utils.errors import preflight_check, print_preflight_issues
+        issues = preflight_check(cfg)
+        if issues:
+            print_preflight_issues(issues)
 
     # Create run directory only for training mode
     # Structure: outputs/experiment_name/YYYYMMDD_HHMMSS/{checkpoints,logs,config.yaml}

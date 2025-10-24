@@ -1,0 +1,81 @@
+{% set name = "pytorch-connectomics" %}
+{% set version = "2.0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://github.com/zudi-lin/pytorch_connectomics/archive/v{{ version }}.tar.gz
+  sha256: # Will be filled in during feedstock creation
+
+build:
+  number: 0
+  skip: true  # [py<38 or py>=313]
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  entry_points:
+    - pytc-demo = connectomics.utils.demo:run_demo
+    - pytc-download = connectomics.utils.download:main
+
+requirements:
+  build:
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+  host:
+    - python
+    - pip
+    - setuptools >=45
+    - wheel
+    - cython >=0.29.22
+    - numpy
+  run:
+    - python
+    - pytorch >=1.8.0
+    - {{ pin_compatible('numpy') }}
+    - pytorch-lightning >=2.0.0
+    - monai >=0.9.1
+    - torchmetrics >=0.11.0
+    - omegaconf >=2.1.0
+    - scipy >=1.5
+    - scikit-learn >=0.23.1
+    - scikit-image >=0.17.2
+    - opencv
+    - h5py >=2.10.0
+    - imageio >=2.9.0
+    - matplotlib-base >=3.3.0
+    - tensorboard >=2.2.2
+    - tqdm >=4.58.0
+    - einops >=0.3.0
+    - psutil >=5.8.0
+    - connected-components-3d >=3.0.0
+    - fastremap >=1.10.0
+
+test:
+  imports:
+    - connectomics
+    - connectomics.config
+    - connectomics.data
+    - connectomics.lightning
+    - connectomics.models
+    - connectomics.utils
+  commands:
+    - pytc-demo --help
+    - pytc-download --list
+
+about:
+  home: https://github.com/zudi-lin/pytorch_connectomics
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: Semantic and instance segmentation toolbox for EM connectomics
+  description: |
+    PyTorch Connectomics is a modern deep learning framework for automatic
+    and semi-automatic semantic and instance segmentation in connectomics.
+    Built on PyTorch Lightning and MONAI, it provides a scalable, flexible,
+    and easy-to-use platform for electron microscopy image analysis.
+  doc_url: https://connectomics.readthedocs.io
+  dev_url: https://github.com/zudi-lin/pytorch_connectomics
+
+extra:
+  recipe-maintainers:
+    - zudi-lin
