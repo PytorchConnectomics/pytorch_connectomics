@@ -136,3 +136,15 @@ tmpwdir/
 docs/pytorch_sphinx_theme
 lightning_logs/
 slurm_outputs/
+
+# Build artifacts
+build/
+*.egg-info/
+
+# Editor configs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
