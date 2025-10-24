@@ -274,8 +274,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Acknowledgements
 
-Built with love by [Dr. Wei's lab](https://donglaiw.github.io) at Boston College.
-
 **Powered by:**
 - [PyTorch Lightning](https://lightning.ai/) - Lightning AI Team
 - [MONAI](https://monai.io/) - MONAI Consortium
@@ -296,14 +294,9 @@ Copyright © PyTorch Connectomics Contributors
 
 ## Version History
 
-- **v2.0.0** (2024) - Complete rewrite with PyTorch Lightning + MONAI
+- **v2.0** (2025) - Complete rewrite with PyTorch Lightning + MONAI
 - **v1.0** (2021) - Initial release
 
 See [RELEASE_NOTES.md](RELEASE_NOTES.md) for detailed release notes.
 
 ---
-
-<p align="center">
-Made with ❤️ for the neuroscience community<br>
-⭐ Star us on GitHub if this helped your research!
-</p>
