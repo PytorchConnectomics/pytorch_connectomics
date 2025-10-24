@@ -148,3 +148,6 @@ build/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Development logs and documentation
+.claude/
