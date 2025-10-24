@@ -1,19 +1,62 @@
 """
 Modern Hydra-based configuration system for PyTorch Connectomics.
 
-Uses dataclasses and OmegaConf for type-safe, composable configurations
-that integrate seamlessly with PyTorch Lightning.
+This module provides a comprehensive, type-safe configuration system using dataclasses
+and OmegaConf for PyTorch Connectomics. It supports:
+
+- Type-safe configuration with dataclasses
+- Composable configurations for different experiments
+- Integration with PyTorch Lightning
+- Support for multiple model architectures (UNet, MedNeXt, RSUNet, etc.)
+- Comprehensive data loading and augmentation options
+- Advanced training and inference configurations
+
+The configuration system is organized into logical sections:
+- System: Hardware and parallelization settings
+- Model: Architecture and loss function configurations
+- Data: Dataset loading and transformation settings
+- Optimization: Training parameters and schedulers
+- Monitor: Logging, checkpointing, and early stopping
+- Inference: Test-time augmentation and postprocessing
+
+Example usage:
+    from connectomics.config.hydra_config import Config
+    from connectomics.config.hydra_utils import load_config
+
+    # Load configuration from YAML
+    cfg = load_config("tutorials/monai_lucchi++.yaml")
+
+    # Access configuration sections
+    print(f"Model architecture: {cfg.model.architecture}")
+    print(f"Batch size: {cfg.system.training.batch_size}")
+
+    # Configure edge detection for instance segmentation
+    cfg.data.label_transform.edge_mode.mode = "seg-all"  # Instance boundaries only
+    cfg.data.label_transform.edge_mode.thickness = 5     # 5-pixel boundary thickness
+    cfg.data.label_transform.edge_mode.processing_mode = "3d"  # Full 3D processing
 """
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple, Any, Union
+
 # Note: MISSING can be imported from omegaconf if needed for required fields
 
 
 @dataclass
 class SystemTrainingConfig:
-    """System configuration for training."""
+    """System configuration for training mode.
+
+    Controls hardware resources and parallelization settings during training.
+    These settings affect data loading, model training, and memory usage.
+
+    Attributes:
+        num_gpus: Number of GPUs to use for training (0 for CPU-only)
+        num_cpus: Number of CPU cores available for data loading
+        num_workers: Number of parallel data loading workers
+        batch_size: Training batch size (per GPU)
+    """
+
     num_gpus: int = 1
     num_cpus: int = 4
     num_workers: int = 8
@@ -22,7 +65,18 @@ class SystemTrainingConfig:
 
 @dataclass
 class SystemInferenceConfig:
-    """System configuration for inference."""
+    """System configuration for inference mode.
+
+    Controls hardware resources and parallelization settings during inference.
+    Typically uses fewer resources than training to optimize for memory efficiency.
+
+    Attributes:
+        num_gpus: Number of GPUs to use for inference (0 for CPU-only)
+        num_cpus: Number of CPU cores available for data loading
+        num_workers: Number of parallel data loading workers
+        batch_size: Inference batch size (usually 1 for large volumes)
+    """
+
     num_gpus: int = 1
     num_cpus: int = 1
     num_workers: int = 1
@@ -31,7 +85,19 @@ class SystemInferenceConfig:
 
 @dataclass
 class SystemConfig:
-    """System configuration for hardware and parallelization."""
+    """System configuration for hardware and parallelization.
+
+    Central configuration for all system-level settings including hardware resources,
+    parallelization, reproducibility, and automatic hyperparameter planning.
+
+    Attributes:
+        training: Training-specific system settings
+        inference: Inference-specific system settings
+        seed: Random seed for reproducibility (None for random)
+        auto_plan: Enable automatic hyperparameter planning based on available GPU
+        print_auto_plan: Print auto-planning results to console
+    """
+
     training: SystemTrainingConfig = field(default_factory=SystemTrainingConfig)
     inference: SystemInferenceConfig = field(default_factory=SystemInferenceConfig)
     seed: Optional[int] = None
@@ -43,9 +109,22 @@ class SystemConfig:
 
 @dataclass
 class ModelConfig:
-    """Model architecture configuration."""
+    """Model architecture configuration.
+
+    Comprehensive configuration for neural network architectures, loss functions,
+    and multi-task learning setups. Supports multiple architectures including
+    UNet variants, MedNeXt, RSUNet, and transformer-based models.
+
+    Key Features:
+    - Multiple architecture support (UNet, MedNeXt, RSUNet, UNETR, etc.)
+    - Configurable loss functions with weighting
+    - Multi-task learning capabilities
+    - Architecture-specific parameter tuning
+    - Deep supervision support
+    """
+
     # Architecture
-    architecture: str = 'monai_basic_unet3d'
+    architecture: str = "monai_basic_unet3d"
 
     # I/O dimensions
     input_size: List[int] = field(default_factory=lambda: [128, 128, 128])
@@ -61,11 +140,13 @@ class ModelConfig:
     activation: str = "relu"
 
     # UNet-specific parameters (MONAI UNet)
-    spatial_dims: int = 3           # Spatial dimensions: 2 for 2D, 3 for 3D (auto-inferred from input_size length, not used directly)
-    num_res_units: int = 2         # Number of residual units per block
-    kernel_size: int = 3            # Convolution kernel size
+    spatial_dims: int = (
+        3  # Spatial dimensions: 2 for 2D, 3 for 3D (auto-inferred from input_size length, not used directly)
+    )
+    num_res_units: int = 2  # Number of residual units per block
+    kernel_size: int = 3  # Convolution kernel size
     strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
-    act: str = "relu"               # Activation function: 'relu', 'prelu', 'elu', etc.
+    act: str = "relu"  # Activation function: 'relu', 'prelu', 'elu', etc.
 
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
@@ -83,7 +164,7 @@ class ModelConfig:
     mednext_kernel_size: int = 3  # 3, 5, or 7
     mednext_do_res: bool = True  # Residual connections in blocks
     mednext_do_res_up_down: bool = True  # Residual connections in up/down blocks
-    mednext_block_counts: List[int] = field(default_factory=lambda: [2,2,2,2,2,2,2,2,2])
+    mednext_block_counts: List[int] = field(default_factory=lambda: [2, 2, 2, 2, 2, 2, 2, 2, 2])
     mednext_checkpoint_style: Optional[str] = None  # None or 'outside_block'
     mednext_norm: str = "group"  # 'group' or 'layer'
     mednext_dim: str = "3d"  # '2d' or '3d'
@@ -106,24 +187,28 @@ class ModelConfig:
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
     loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
-    
+
     # Multi-task learning configuration
     # Defines which output channels correspond to which targets
     # Format: list of (start_ch, end_ch, target_name, loss_indices)
     # Example: [[0, 1, "binary", [0]], [1, 2, "boundary", [1]], [2, 3, "edt", [2]]]
-    multi_task_config: Optional[List[List[Any]]] = None  # None = single task (apply all losses to all channels)
+    multi_task_config: Optional[List[List[Any]]] = (
+        None  # None = single task (apply all losses to all channels)
+    )
 
 
 # Label transformation configurations
 @dataclass
 class AffinityConfig:
     """Affinity map generation configuration. Enabled when offsets is non-empty."""
+
     offsets: List[str] = field(default_factory=list)  # Offsets in "z-y-x" format (empty = disabled)
 
 
 @dataclass
 class SkeletonDistanceConfig:
     """Skeleton-aware distance transform configuration."""
+
     enabled: bool = False
     resolution: List[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
     alpha: float = 0.8
@@ -132,8 +217,32 @@ class SkeletonDistanceConfig:
 
 
 @dataclass
+class EdgeModeConfig:
+    """Edge detection mode configuration for boundary generation.
+
+    Controls how boundaries are detected and generated from segmentation masks.
+    Different modes are optimized for different segmentation tasks.
+
+    Edge Modes:
+    - "all": Detects all boundaries including instance-to-background edges
+    - "seg-all": Only instance-to-instance boundaries (recommended for instance segmentation)
+    - "seg-no-bg": Instance boundaries excluding background interactions
+
+    Attributes:
+        mode: Edge detection mode ("all", "seg-all", "seg-no-bg")
+        thickness: Boundary thickness in pixels (default: 1)
+        processing_mode: Processing mode ("2d" for slice-by-slice, "3d" for full 3D)
+    """
+
+    mode: str = "seg-all"  # Edge detection mode
+    thickness: int = 1  # Boundary thickness in pixels
+    processing_mode: str = "3d"  # Processing mode: "2d" or "3d"
+
+
+@dataclass
 class LabelTargetConfig:
     """Configuration block describing an individual label target."""
+
     name: Optional[str] = None
     kwargs: Dict[str, Any] = field(default_factory=dict)
     output_key: Optional[str] = None
@@ -141,11 +250,32 @@ class LabelTargetConfig:
 
 @dataclass
 class LabelTransformConfig:
-    """Multi-channel label transformation configuration."""
+    """Multi-channel label transformation configuration.
+
+    Comprehensive configuration for label transformations including boundary detection,
+    affinity maps, distance transforms, and multi-task learning setups. Supports
+    various edge detection modes and transformation strategies.
+
+    Key Features:
+    - Multiple edge detection modes for boundary generation
+    - Affinity map generation for instance segmentation
+    - Skeleton-aware distance transforms
+    - Multi-task learning support
+    - Configurable output formats and data types
+
+    Edge Mode Options:
+    - "all": All boundaries (instance-to-instance and instance-to-background)
+    - "seg-all": Only instance-to-instance boundaries (no background edges)
+    - "seg-no-bg": Instance boundaries excluding background interactions
+    """
+
     normalize: bool = True  # Convert labels to 0-1 range
     erosion: int = 0  # Border erosion kernel half-size (0 = disabled, uses seg_widen_border)
     affinity: AffinityConfig = field(default_factory=AffinityConfig)
     skeleton_distance: SkeletonDistanceConfig = field(default_factory=SkeletonDistanceConfig)
+    edge_mode: EdgeModeConfig = field(
+        default_factory=EdgeModeConfig
+    )  # Edge detection configuration
     keys: List[str] = field(default_factory=lambda: ["label"])
     stack_outputs: bool = True
     retain_original: bool = False
@@ -160,35 +290,55 @@ class LabelTransformConfig:
 @dataclass
 class ImageTransformConfig:
     """Image transformation configuration."""
+
     normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
-    clip_percentile_low: float = 0.0   # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
-    clip_percentile_high: float = 1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
-    resize: Optional[List[float]] = None  # Resize factors [H_scale, W_scale] for 2D or [D_scale, H_scale, W_scale] for 3D. None = no resize. Uses bilinear interpolation for images.
+    clip_percentile_low: float = (
+        0.0  # Lower percentile for clipping (0.0 = no clip, 0.05 = 5th percentile)
+    )
+    clip_percentile_high: float = (
+        1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
+    )
+    resize: Optional[List[float]] = (
+        None  # Resize factors [H_scale, W_scale] for 2D or [D_scale, H_scale, W_scale] for 3D. None = no resize. Uses bilinear interpolation for images.
+    )
 
 
 @dataclass
 class DataConfig:
-    """Dataset and data loading configuration."""
+    """Dataset and data loading configuration.
+
+    Comprehensive configuration for data loading, preprocessing, augmentation,
+    and dataset management. Supports both volume-based and file-based datasets
+    with extensive transformation and augmentation options.
+
+    Key Features:
+    - Support for volume-based and JSON-based datasets
+    - Configurable data augmentation pipelines
+    - Multi-channel label transformations
+    - Train/validation splitting options
+    - Caching and performance optimization
+    """
+
     # Dataset type
     dataset_type: Optional[str] = None  # Type of dataset: None (volume), 'filename', 'tile', etc.
-    
+
     # Paths - Volume-based datasets
     train_image: Optional[str] = None
     train_label: Optional[str] = None
-    train_mask: Optional[str] = None   # Valid region mask for training
+    train_mask: Optional[str] = None  # Valid region mask for training
     val_image: Optional[str] = None
     val_label: Optional[str] = None
-    val_mask: Optional[str] = None     # Valid region mask for validation
+    val_mask: Optional[str] = None  # Valid region mask for validation
     test_image: Optional[str] = None
     test_label: Optional[str] = None
-    test_mask: Optional[str] = None    # Valid region mask for testing
-    
+    test_mask: Optional[str] = None  # Valid region mask for testing
+
     # Paths - JSON/filename-based datasets
     train_json: Optional[str] = None  # JSON file with image/label file lists
     val_json: Optional[str] = None
     test_json: Optional[str] = None
     train_image_key: str = "images"  # Key in JSON for image files
-    train_label_key: str = "masks"   # Key in JSON for label files
+    train_label_key: str = "masks"  # Key in JSON for label files
     val_image_key: str = "images"
     val_label_key: str = "masks"
     test_image_key: str = "images"
@@ -198,17 +348,25 @@ class DataConfig:
     # Data properties
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
     pad_size: List[int] = field(default_factory=lambda: [8, 32, 32])
-    pad_mode: str = 'reflect'  # Padding mode: 'reflect', 'replicate', 'constant', 'edge'
+    pad_mode: str = "reflect"  # Padding mode: 'reflect', 'replicate', 'constant', 'edge'
     stride: List[int] = field(default_factory=lambda: [1, 1, 1])  # Sampling stride (z, y, x)
 
     # Voxel resolution (physical dimensions in nm)
-    train_resolution: Optional[List[float]] = None  # Training data resolution [z, y, x] in nm (e.g., [30, 6, 6])
-    test_resolution: Optional[List[float]] = None   # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    train_resolution: Optional[List[float]] = (
+        None  # Training data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    )
+    test_resolution: Optional[List[float]] = (
+        None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    )
 
     # Axis transposition (empty list = no transpose)
-    train_transpose: List[int] = field(default_factory=list)  # Axis permutation for training data (e.g., [2,1,0] for xyz->zyx)
-    val_transpose: List[int] = field(default_factory=list)    # Axis permutation for validation data
-    test_transpose: List[int] = field(default_factory=list)   # Axis permutation for test data (deprecated, use inference.data.test_transpose)
+    train_transpose: List[int] = field(
+        default_factory=list
+    )  # Axis permutation for training data (e.g., [2,1,0] for xyz->zyx)
+    val_transpose: List[int] = field(default_factory=list)  # Axis permutation for validation data
+    test_transpose: List[int] = field(
+        default_factory=list
+    )  # Axis permutation for test data (deprecated, use inference.data.test_transpose)
 
     # Dataset statistics (for auto-planning)
     target_spacing: Optional[List[float]] = None  # Target voxel spacing [z, y, x] in mm
@@ -218,10 +376,10 @@ class DataConfig:
     # If enabled, splits single volume into train/val regions
     split_enabled: bool = False  # Enable automatic train/val split (default: False)
     split_train_range: List[float] = field(default_factory=lambda: [0.0, 0.8])  # Train: 0-80%
-    split_val_range: List[float] = field(default_factory=lambda: [0.8, 1.0])    # Val: 80-100%
+    split_val_range: List[float] = field(default_factory=lambda: [0.8, 1.0])  # Val: 80-100%
     split_axis: int = 0  # Axis to split along (0=Z, 1=Y, 2=X)
     split_pad_val: bool = True  # Pad validation to patch_size if smaller
-    split_pad_mode: str = 'reflect'  # Padding mode: 'reflect', 'replicate', 'constant'
+    split_pad_mode: str = "reflect"  # Padding mode: 'reflect', 'replicate', 'constant'
 
     # Data loading (batch_size and num_workers moved to system.training/system.inference)
     pin_memory: bool = True
@@ -236,18 +394,23 @@ class DataConfig:
 
     # Sampling (for volumetric datasets)
     iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
-    use_preloaded_cache: bool = True  # Preload volumes into memory for fast random cropping (default: True)
+    use_preloaded_cache: bool = (
+        True  # Preload volumes into memory for fast random cropping (default: True)
+    )
 
     # Multi-channel label transformation (for affinity maps, distance transforms, etc.)
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 
     # Augmentation configuration (nested under data in YAML)
-    augmentation: Optional['AugmentationConfig'] = None  # Set to None for simple enabled flag, or full config for detailed control
+    augmentation: Optional["AugmentationConfig"] = (
+        None  # Set to None for simple enabled flag, or full config for detailed control
+    )
 
 
 @dataclass
 class OptimizerConfig:
     """Optimizer configuration."""
+
     name: str = "AdamW"
     lr: float = 0.001
     weight_decay: float = 0.01
@@ -259,6 +422,7 @@ class OptimizerConfig:
 @dataclass
 class SchedulerConfig:
     """Learning rate scheduler configuration."""
+
     name: str = "CosineAnnealingLR"
     warmup_epochs: int = 10
     warmup_start_lr: float = 0.0001
@@ -282,7 +446,20 @@ class SchedulerConfig:
 
 @dataclass
 class OptimizationConfig:
-    """Optimization configuration (optimizer + scheduler + training params)."""
+    """Optimization configuration (optimizer + scheduler + training params).
+
+    Comprehensive configuration for training optimization including optimizers,
+    learning rate schedulers, and training parameters. Supports multiple
+    optimization strategies and precision modes.
+
+    Key Features:
+    - Multiple optimizer support (AdamW, SGD, etc.)
+    - Learning rate scheduling (CosineAnnealing, ReduceLROnPlateau, etc.)
+    - Mixed precision training support
+    - Gradient clipping and accumulation
+    - Performance optimization settings
+    """
+
     max_epochs: int = 100
     max_steps: Optional[int] = None
     gradient_clip_val: float = 1.0
@@ -304,6 +481,7 @@ class OptimizationConfig:
 @dataclass
 class CheckpointConfig:
     """Model checkpointing configuration."""
+
     monitor: str = "train_loss_total_epoch"
     mode: str = "min"
     save_top_k: int = 1
@@ -317,6 +495,7 @@ class CheckpointConfig:
 @dataclass
 class EarlyStoppingConfig:
     """Early stopping configuration."""
+
     enabled: bool = False
     monitor: str = "train_loss_total_epoch"
     patience: int = 100
@@ -330,6 +509,7 @@ class EarlyStoppingConfig:
 @dataclass
 class ScalarLoggingConfig:
     """Scalar logging configuration."""
+
     loss: List[str] = field(default_factory=lambda: ["train_loss_total_epoch"])
     loss_every_n_steps: int = 10
     val_check_interval: Union[int, float] = 1.0
@@ -339,24 +519,28 @@ class ScalarLoggingConfig:
 @dataclass
 class ImageLoggingConfig:
     """Image visualization configuration."""
+
     enabled: bool = True
     max_images: int = 4
     num_slices: int = 8
     log_every_n_epochs: int = 1  # Log visualization every N epochs
 
     # Channel visualization options
-    channel_mode: str = 'argmax'  # 'argmax', 'all', or 'selected'
+    channel_mode: str = "argmax"  # 'argmax', 'all', or 'selected'
     selected_channels: Optional[List[int]] = None  # Only used when channel_mode='selected'
 
 
 @dataclass
 class PredictionSavingConfig:
     """Configuration for saving intermediate predictions during training/validation."""
+
     enabled: bool = False  # Enable saving predictions
     save_during_training: bool = False  # Save predictions during training
     save_during_validation: bool = True  # Save predictions during validation
     save_every_n_epochs: int = 10  # Save predictions every N epochs
-    save_every_n_steps: Optional[int] = None  # Save predictions every N steps (overrides epochs if set)
+    save_every_n_steps: Optional[int] = (
+        None  # Save predictions every N steps (overrides epochs if set)
+    )
     output_dir: str = "outputs/predictions"  # Directory to save predictions
     max_samples: int = 4  # Maximum number of samples to save per epoch/step
     save_labels: bool = True  # Also save ground truth labels
@@ -368,6 +552,7 @@ class PredictionSavingConfig:
 @dataclass
 class LoggingConfig:
     """Logging configuration (scalar + images)."""
+
     scalar: ScalarLoggingConfig = field(default_factory=ScalarLoggingConfig)
     images: ImageLoggingConfig = field(default_factory=ImageLoggingConfig)
     predictions: PredictionSavingConfig = field(default_factory=PredictionSavingConfig)
@@ -375,19 +560,31 @@ class LoggingConfig:
 
 @dataclass
 class MonitorConfig:
-    """Monitoring configuration (logging, checkpointing, early stopping)."""
+    """Monitoring configuration (logging, checkpointing, early stopping).
+
+    Comprehensive configuration for training monitoring, logging, and model
+    checkpointing. Includes TensorBoard logging, model checkpointing, and
+    early stopping mechanisms.
+
+    Key Features:
+    - TensorBoard logging with scalar and image visualization
+    - Model checkpointing with multiple strategies
+    - Early stopping with configurable metrics
+    - Prediction saving during training/validation
+    - Anomaly detection for debugging
+    """
+
     detect_anomaly: bool = False
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     checkpoint: CheckpointConfig = field(default_factory=CheckpointConfig)
     early_stopping: EarlyStoppingConfig = field(default_factory=EarlyStoppingConfig)
 
 
-
-
 # Augmentation configurations
 @dataclass
 class FlipConfig:
     """Random flip augmentation."""
+
     enabled: bool = True
     prob: float = 0.5
     spatial_axis: Optional[List[int]] = None  # None = all axes
@@ -396,6 +593,7 @@ class FlipConfig:
 @dataclass
 class RotateConfig:
     """Random rotation augmentation."""
+
     enabled: bool = True
     prob: float = 0.5
     max_angle: float = 90.0
@@ -404,6 +602,7 @@ class RotateConfig:
 @dataclass
 class ElasticConfig:
     """Elastic deformation augmentation."""
+
     enabled: bool = True
     prob: float = 0.3
     sigma_range: Tuple[float, float] = (5.0, 8.0)
@@ -413,6 +612,7 @@ class ElasticConfig:
 @dataclass
 class IntensityConfig:
     """Intensity augmentation."""
+
     enabled: bool = True
     gaussian_noise_prob: float = 0.3
     gaussian_noise_std: float = 0.05
@@ -425,6 +625,7 @@ class IntensityConfig:
 @dataclass
 class MisalignmentConfig:
     """Misalignment augmentation for EM data."""
+
     enabled: bool = True
     prob: float = 0.5
     displacement: int = 16
@@ -434,6 +635,7 @@ class MisalignmentConfig:
 @dataclass
 class MissingSectionConfig:
     """Missing section augmentation for EM data."""
+
     enabled: bool = True
     prob: float = 0.3
     num_sections: int = 2
@@ -442,6 +644,7 @@ class MissingSectionConfig:
 @dataclass
 class MotionBlurConfig:
     """Motion blur augmentation for EM data."""
+
     enabled: bool = True
     prob: float = 0.3
     sections: int = 2
@@ -451,6 +654,7 @@ class MotionBlurConfig:
 @dataclass
 class CutNoiseConfig:
     """CutNoise augmentation."""
+
     enabled: bool = False
     prob: float = 0.5
     length_ratio: float = 0.25
@@ -460,6 +664,7 @@ class CutNoiseConfig:
 @dataclass
 class CutBlurConfig:
     """CutBlur augmentation."""
+
     enabled: bool = True
     prob: float = 0.3
     length_ratio: float = 0.25
@@ -470,6 +675,7 @@ class CutBlurConfig:
 @dataclass
 class MissingPartsConfig:
     """Missing parts augmentation."""
+
     enabled: bool = True
     prob: float = 0.5
     hole_range: Tuple[float, float] = (0.1, 0.3)
@@ -478,6 +684,7 @@ class MissingPartsConfig:
 @dataclass
 class MixupConfig:
     """Mixup augmentation."""
+
     enabled: bool = True
     prob: float = 0.5
     alpha_range: Tuple[float, float] = (0.7, 0.9)
@@ -486,6 +693,7 @@ class MixupConfig:
 @dataclass
 class CopyPasteConfig:
     """Copy-Paste augmentation."""
+
     enabled: bool = True
     prob: float = 0.5
     max_obj_ratio: float = 0.7
@@ -496,14 +704,15 @@ class CopyPasteConfig:
 @dataclass
 class AugmentationConfig:
     """Complete augmentation configuration."""
+
     enabled: bool = False
-    
+
     # Standard augmentations
     flip: FlipConfig = field(default_factory=FlipConfig)
     rotate: RotateConfig = field(default_factory=RotateConfig)
     elastic: ElasticConfig = field(default_factory=ElasticConfig)
     intensity: IntensityConfig = field(default_factory=IntensityConfig)
-    
+
     # EM-specific augmentations
     misalignment: MisalignmentConfig = field(default_factory=MisalignmentConfig)
     missing_section: MissingSectionConfig = field(default_factory=MissingSectionConfig)
@@ -511,7 +720,7 @@ class AugmentationConfig:
     cut_noise: CutNoiseConfig = field(default_factory=CutNoiseConfig)
     cut_blur: CutBlurConfig = field(default_factory=CutBlurConfig)
     missing_parts: MissingPartsConfig = field(default_factory=MissingPartsConfig)
-    
+
     # Advanced augmentations
     mixup: MixupConfig = field(default_factory=MixupConfig)
     copy_paste: CopyPasteConfig = field(default_factory=CopyPasteConfig)
@@ -520,47 +729,80 @@ class AugmentationConfig:
 @dataclass
 class InferenceDataConfig:
     """Inference data configuration."""
+
     test_image: Optional[str] = None  # Singular form for compatibility
     test_label: Optional[str] = None  # Singular form for compatibility
     test_mask: Optional[str] = None  # Optional mask for inference
-    test_resolution: Optional[List[float]] = None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
-    test_transpose: List[int] = field(default_factory=list)  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
+    test_resolution: Optional[List[float]] = (
+        None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
+    )
+    test_transpose: List[int] = field(
+        default_factory=list
+    )  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
     output_path: str = "results/"
 
 
 @dataclass
 class SlidingWindowConfig:
     """MONAI SlidingWindowInferer configuration."""
+
     window_size: Optional[List[int]] = None
     sw_batch_size: Optional[int] = None  # If None, will use system.inference.batch_size
     overlap: float = 0.5
     blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
-    sigma_scale: float = 0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
+    sigma_scale: float = (
+        0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
+    )
     padding_mode: str = "constant"  # Padding mode at volume boundaries
 
 
 @dataclass
 class TestTimeAugmentationConfig:
     """Test-time augmentation configuration."""
+
     enabled: bool = False
-    flip_axes: Any = None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
-    act: Optional[str] = None  # Single activation for all channels: 'softmax', 'sigmoid', 'tanh', None (deprecated, use channel_activations)
-    channel_activations: Optional[List[Any]] = None  # Per-channel activations: [[0, 'sigmoid'], [1, 'sigmoid'], [2, 'tanh']]
-    select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
+    flip_axes: Any = (
+        None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
+    )
+    act: Optional[str] = (
+        None  # Single activation for all channels: 'softmax', 'sigmoid', 'tanh', None (deprecated, use channel_activations)
+    )
+    channel_activations: Optional[List[Any]] = (
+        None  # Per-channel activations: [[0, 'sigmoid'], [1, 'sigmoid'], [2, 'tanh']]
+    )
+    select_channel: Any = (
+        None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
+    )
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
-    save_predictions: bool = False  # Save intermediate TTA predictions (before decoding) to disk (default: False)
+    save_predictions: bool = (
+        False  # Save intermediate TTA predictions (before decoding) to disk (default: False)
+    )
 
 
 @dataclass
 class DecodeBinaryContourDistanceWatershedConfig:
     """Configuration for decode_binary_contour_distance_watershed function."""
-    binary_threshold: Tuple[float, float] = (0.9, 0.85)  # (seed_threshold, foreground_threshold) for binary mask
-    contour_threshold: Tuple[float, float] = (0.8, 1.1)  # (seed_threshold, foreground_threshold) for instance contours
-    distance_threshold: Tuple[float, float] = (0.5, -0.5)  # (seed_threshold, foreground_threshold) for signed distance
+
+    binary_threshold: Tuple[float, float] = (
+        0.9,
+        0.85,
+    )  # (seed_threshold, foreground_threshold) for binary mask
+    contour_threshold: Tuple[float, float] = (
+        0.8,
+        1.1,
+    )  # (seed_threshold, foreground_threshold) for instance contours
+    distance_threshold: Tuple[float, float] = (
+        0.5,
+        -0.5,
+    )  # (seed_threshold, foreground_threshold) for signed distance
     min_instance_size: int = 128  # Minimum size threshold for instances to keep
-    scale_factors: Tuple[float, float, float] = (1.0, 1.0, 1.0)  # Scale factors for resizing in (Z, Y, X) order
-    remove_small_mode: str = 'background'  # 'background', 'neighbor', or 'none'
+    scale_factors: Tuple[float, float, float] = (
+        1.0,
+        1.0,
+        1.0,
+    )  # Scale factors for resizing in (Z, Y, X) order
+    remove_small_mode: str = "background"  # 'background', 'neighbor', or 'none'
     min_seed_size: int = 32  # Minimum size of seed objects
     return_seed: bool = False  # Whether to return the seed map
     precomputed_seed: Optional[Any] = None  # Precomputed seed map (numpy array)
@@ -570,46 +812,97 @@ class DecodeBinaryContourDistanceWatershedConfig:
 @dataclass
 class DecodeModeConfig:
     """Configuration for a single decode mode/function."""
-    name: str = "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
-    kwargs: Dict[str, Any] = field(default_factory=dict)  # Keyword arguments for the decode function
+
+    name: str = (
+        "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
+    )
+    kwargs: Dict[str, Any] = field(
+        default_factory=dict
+    )  # Keyword arguments for the decode function
 
 
 @dataclass
 class PostprocessingConfig:
     """Postprocessing configuration."""
-    output_scale: Optional[float] = None  # Scale predictions for saving (e.g., 255.0 for uint8). None = no scaling
-    output_dtype: Optional[str] = None  # Output data type: 'uint8', 'uint16', 'float32'. None = no conversion (keep as-is)
-    output_transpose: List[int] = field(default_factory=list)  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
+
+    output_scale: Optional[float] = (
+        None  # Scale predictions for saving (e.g., 255.0 for uint8). None = no scaling
+    )
+    output_dtype: Optional[str] = (
+        None  # Output data type: 'uint8', 'uint16', 'float32'. None = no conversion (keep as-is)
+    )
+    output_transpose: List[int] = field(
+        default_factory=list
+    )  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
 
 
 @dataclass
 class EvaluationConfig:
     """Evaluation configuration."""
+
     enabled: bool = True  # Use eval mode (vs train mode for BatchNorm)
     metrics: Optional[List[str]] = None  # e.g., ['dice', 'jaccard', 'accuracy']
 
 
 @dataclass
 class InferenceConfig:
-    """Inference configuration."""
+    """Inference configuration.
+
+    Comprehensive configuration for model inference including test-time augmentation,
+    sliding window inference, postprocessing, and evaluation. Supports advanced
+    inference strategies for medical imaging tasks.
+
+    Key Features:
+    - Sliding window inference for large volumes
+    - Test-time augmentation (TTA) support
+    - Multiple decoding strategies
+    - Postprocessing and evaluation
+    - System resource overrides for inference
+    """
+
     data: InferenceDataConfig = field(default_factory=InferenceDataConfig)
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
-    test_time_augmentation: TestTimeAugmentationConfig = field(default_factory=TestTimeAugmentationConfig)
+    test_time_augmentation: TestTimeAugmentationConfig = field(
+        default_factory=TestTimeAugmentationConfig
+    )
     decoding: Optional[List[DecodeModeConfig]] = None  # List of decode modes to apply sequentially
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
 
     # Inference-specific overrides (override system settings during inference)
     # Use -1 to keep training values, or >= 0 to override
-    num_gpus: int = -1          # Override system.training.num_gpus if >= 0
-    num_cpus: int = -1          # Override system.training.num_cpus if >= 0
-    batch_size: int = -1        # Override system.training.batch_size if >= 0 (typically 1 for inference)
-    num_workers: int = -1       # Override system.training.num_workers if >= 0
+    num_gpus: int = -1  # Override system.training.num_gpus if >= 0
+    num_cpus: int = -1  # Override system.training.num_cpus if >= 0
+    batch_size: int = -1  # Override system.training.batch_size if >= 0 (typically 1 for inference)
+    num_workers: int = -1  # Override system.training.num_workers if >= 0
 
 
 @dataclass
 class Config:
-    """Main configuration for PyTorch Connectomics."""
+    """Main configuration for PyTorch Connectomics.
+
+    The central configuration class that combines all configuration sections
+    into a single, type-safe configuration object. This is the main entry point
+    for all PyTorch Connectomics experiments.
+
+    Configuration Sections:
+        system: Hardware and parallelization settings
+        model: Neural network architecture and loss functions
+        data: Dataset loading and preprocessing
+        optimization: Training parameters and schedulers
+        monitor: Logging, checkpointing, and monitoring
+        inference: Test-time augmentation and postprocessing
+
+    Attributes:
+        experiment_name: Name of the experiment for organization
+        description: Optional description of the experiment
+        system: System configuration for hardware and parallelization
+        model: Model architecture and loss configuration
+        data: Data loading and preprocessing configuration
+        optimization: Training optimization configuration
+        monitor: Monitoring and logging configuration
+        inference: Inference and postprocessing configuration
+    """
 
     # Metadata
     experiment_name: str = "connectomics_experiment"
@@ -624,4 +917,87 @@ class Config:
     inference: InferenceConfig = field(default_factory=InferenceConfig)
 
 
-__all__ = ['Config', 'DecodeBinaryContourDistanceWatershedConfig']
+# Utility functions for common configuration tasks
+def configure_edge_mode(
+    cfg: Config, mode: str = "seg-all", thickness: int = 1, processing_mode: str = "3d"
+) -> None:
+    """Configure edge detection mode for instance segmentation.
+
+    Args:
+        cfg: Configuration object to modify
+        mode: Edge detection mode ("all", "seg-all", "seg-no-bg")
+        thickness: Boundary thickness in pixels
+        processing_mode: Processing mode ("2d" or "3d")
+    """
+    cfg.data.label_transform.edge_mode.mode = mode
+    cfg.data.label_transform.edge_mode.thickness = thickness
+    cfg.data.label_transform.edge_mode.processing_mode = processing_mode
+
+
+def configure_instance_segmentation(cfg: Config, boundary_thickness: int = 5) -> None:
+    """Configure for instance segmentation with boundary detection.
+
+    Args:
+        cfg: Configuration object to modify
+        boundary_thickness: Thickness of instance boundaries
+    """
+    configure_edge_mode(cfg, mode="seg-all", thickness=boundary_thickness, processing_mode="3d")
+    cfg.data.label_transform.boundary_thickness = boundary_thickness
+
+
+__all__ = [
+    # Main configuration class
+    "Config",
+    # System configuration
+    "SystemConfig",
+    "SystemTrainingConfig",
+    "SystemInferenceConfig",
+    # Model configuration
+    "ModelConfig",
+    # Data configuration
+    "DataConfig",
+    "ImageTransformConfig",
+    "LabelTransformConfig",
+    "AffinityConfig",
+    "SkeletonDistanceConfig",
+    "LabelTargetConfig",
+    "EdgeModeConfig",
+    # Optimization configuration
+    "OptimizationConfig",
+    "OptimizerConfig",
+    "SchedulerConfig",
+    # Monitoring configuration
+    "MonitorConfig",
+    "CheckpointConfig",
+    "EarlyStoppingConfig",
+    "LoggingConfig",
+    "ScalarLoggingConfig",
+    "ImageLoggingConfig",
+    "PredictionSavingConfig",
+    # Inference configuration
+    "InferenceConfig",
+    "InferenceDataConfig",
+    "SlidingWindowConfig",
+    "TestTimeAugmentationConfig",
+    "PostprocessingConfig",
+    "EvaluationConfig",
+    "DecodeModeConfig",
+    "DecodeBinaryContourDistanceWatershedConfig",
+    # Augmentation configuration
+    "AugmentationConfig",
+    "FlipConfig",
+    "RotateConfig",
+    "ElasticConfig",
+    "IntensityConfig",
+    "MisalignmentConfig",
+    "MissingSectionConfig",
+    "MotionBlurConfig",
+    "CutNoiseConfig",
+    "CutBlurConfig",
+    "MissingPartsConfig",
+    "MixupConfig",
+    "CopyPasteConfig",
+    # Utility functions
+    "configure_edge_mode",
+    "configure_instance_segmentation",
+]

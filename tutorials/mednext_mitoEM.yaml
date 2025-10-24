@@ -85,7 +85,7 @@ data:
       - name: instance_boundary     # Channel 1: contour map
         kwargs:
           thickness: 1
-          do_bg_edges: true
+          edge_mode: "all"
           mode: "2d"
       - name: instance_sdt          # Channel 2: distance transform (bbox-optimized)
         kwargs:

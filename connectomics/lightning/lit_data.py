@@ -61,13 +61,13 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         val_data_dicts: Optional[List[Dict[str, Any]]] = None,
         test_data_dicts: Optional[List[Dict[str, Any]]] = None,
         transforms: Optional[Dict[str, Compose]] = None,
-        dataset_type: str = 'standard',
+        dataset_type: str = "standard",
         batch_size: int = 1,
         num_workers: int = 0,
         pin_memory: bool = True,
         persistent_workers: bool = False,
         cache_rate: float = 1.0,
-        cache_dir: str = './cache',
+        cache_dir: str = "./cache",
         train_transpose_axes: Optional[List[int]] = None,
         val_transpose_axes: Optional[List[int]] = None,
         test_transpose_axes: Optional[List[int]] = None,
@@ -112,30 +112,30 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         val_has_entries = self.val_data_dicts is not None and len(self.val_data_dicts) > 0
         self.skip_validation = not val_has_entries
 
-        if stage == 'fit' or stage is None:
+        if stage == "fit" or stage is None:
             # Setup training dataset
             if self.train_data_dicts:
                 self.train_dataset = self._create_dataset(
                     data_dicts=self.train_data_dicts,
-                    transforms=self.transforms.get('train'),
-                    mode='train',
+                    transforms=self.transforms.get("train"),
+                    mode="train",
                 )
 
             # Setup validation dataset
             if self.val_data_dicts:
                 self.val_dataset = self._create_dataset(
                     data_dicts=self.val_data_dicts,
-                    transforms=self.transforms.get('val'),
-                    mode='val',
+                    transforms=self.transforms.get("val"),
+                    mode="val",
                 )
 
-        if stage == 'test' or stage is None:
+        if stage == "test" or stage is None:
             # Setup test dataset
             if self.test_data_dicts:
                 self.test_dataset = self._create_dataset(
                     data_dicts=self.test_data_dicts,
-                    transforms=self.transforms.get('test'),
-                    mode='test',
+                    transforms=self.transforms.get("test"),
+                    mode="test",
                 )
 
     def _create_dataset(
@@ -143,14 +143,16 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         data_dicts: List[Dict[str, Any]],
         transforms: Optional[Compose],
         mode: str,
-    ) -> Union[MonaiConnectomicsDataset, MonaiCachedConnectomicsDataset, MonaiPersistentConnectomicsDataset]:
+    ) -> Union[
+        MonaiConnectomicsDataset, MonaiCachedConnectomicsDataset, MonaiPersistentConnectomicsDataset
+    ]:
         """Create appropriate dataset based on configuration."""
 
         # Prepare dataset arguments
         dataset_args = {
-            'data_dicts': data_dicts,
-            'transforms': transforms,
-            'mode': mode,
+            "data_dicts": data_dicts,
+            "transforms": transforms,
+            "mode": mode,
             **self.dataset_kwargs,
         }
 
@@ -158,10 +160,10 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         # and NOT passed as a dataset parameter. The transform builders handle this.
 
         # Add type-specific arguments
-        if self.dataset_type == 'cached':
-            dataset_args['cache_rate'] = self.cache_rate
-        elif self.dataset_type == 'persistent':
-            dataset_args['cache_dir'] = self.cache_dir
+        if self.dataset_type == "cached":
+            dataset_args["cache_rate"] = self.cache_rate
+        elif self.dataset_type == "persistent":
+            dataset_args["cache_dir"] = self.cache_dir
 
         return create_connectomics_dataset(
             dataset_type=self.dataset_type,
@@ -189,8 +191,8 @@ class ConnectomicsDataModule(pl.LightningDataModule):
                 def __getitem__(self, idx):
                     zero = torch.zeros(1, dtype=torch.float32)
                     return {
-                        'image': zero,
-                        'label': zero,
+                        "image": zero,
+                        "label": zero,
                     }
 
             return DataLoader(
@@ -234,11 +236,11 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         # Stack samples while preserving dict structure
         if not batch:
             return {}
-        
+
         # Get all keys from first sample
         keys = list(batch[0].keys())
         result = {}
-        
+
         for key in keys:
             # Stack all values for this key
             values = [sample[key] for sample in batch]
@@ -249,7 +251,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
                 result[key] = torch.stack([torch.from_numpy(v) for v in values])
             else:
                 result[key] = values  # Keep as list if not tensor/array
-        
+
         return result
 
 
@@ -312,7 +314,7 @@ class VolumeDataModule(ConnectomicsDataModule):
             )
 
         # Add sample size to dataset kwargs
-        kwargs['sample_size'] = sample_size
+        kwargs["sample_size"] = sample_size
 
         super().__init__(
             train_data_dicts=train_data_dicts,
@@ -330,9 +332,9 @@ class VolumeDataModule(ConnectomicsDataModule):
         """Create volume-specific dataset."""
 
         # Extract paths from data dictionaries
-        image_paths = [d['image'] for d in data_dicts]
-        label_paths = [d['label'] for d in data_dicts if 'label' in d]
-        mask_paths = [d['mask'] for d in data_dicts if 'mask' in d]
+        image_paths = [d["image"] for d in data_dicts]
+        label_paths = [d["label"] for d in data_dicts if "label" in d]
+        mask_paths = [d["mask"] for d in data_dicts if "mask" in d]
 
         # Ensure we have label and mask paths or None
         if not label_paths:
@@ -389,34 +391,34 @@ class TileDataModule(ConnectomicsDataModule):
     ):
         # Store tile-specific parameters
         self.train_jsons = {
-            'volume': train_volume_json,
-            'label': train_label_json,
-            'mask': train_mask_json,
+            "volume": train_volume_json,
+            "label": train_label_json,
+            "mask": train_mask_json,
         }
 
         self.val_jsons = None
         if val_volume_json:
             self.val_jsons = {
-                'volume': val_volume_json,
-                'label': val_label_json,
-                'mask': val_mask_json,
+                "volume": val_volume_json,
+                "label": val_label_json,
+                "mask": val_mask_json,
             }
 
         self.test_jsons = None
         if test_volume_json:
             self.test_jsons = {
-                'volume': test_volume_json,
-                'label': test_label_json,
-                'mask': test_mask_json,
+                "volume": test_volume_json,
+                "label": test_label_json,
+                "mask": test_mask_json,
             }
 
         # Add chunk_num to dataset kwargs
-        kwargs['chunk_num'] = chunk_num
+        kwargs["chunk_num"] = chunk_num
 
         # Create dummy data dictionaries (actual data will be created in _create_dataset)
-        train_data_dicts = [{'dummy': 'train'}]
-        val_data_dicts = [{'dummy': 'val'}] if self.val_jsons else None
-        test_data_dicts = [{'dummy': 'test'}] if self.test_jsons else None
+        train_data_dicts = [{"dummy": "train"}]
+        val_data_dicts = [{"dummy": "val"}] if self.val_jsons else None
+        test_data_dicts = [{"dummy": "test"}] if self.test_jsons else None
 
         super().__init__(
             train_data_dicts=train_data_dicts,
@@ -434,11 +436,11 @@ class TileDataModule(ConnectomicsDataModule):
         """Create tile-specific dataset."""
 
         # Get appropriate JSON files for the mode
-        if mode == 'train':
+        if mode == "train":
             jsons = self.train_jsons
-        elif mode == 'val':
+        elif mode == "val":
             jsons = self.val_jsons
-        elif mode == 'test':
+        elif mode == "test":
             jsons = self.test_jsons
         else:
             raise ValueError(f"Unknown mode: {mode}")
@@ -447,9 +449,9 @@ class TileDataModule(ConnectomicsDataModule):
             return None
 
         return create_tile_dataset(
-            volume_json=jsons['volume'],
-            label_json=jsons['label'],
-            mask_json=jsons['mask'],
+            volume_json=jsons["volume"],
+            label_json=jsons["label"],
+            mask_json=jsons["mask"],
             transforms=transforms,
             dataset_type=self.dataset_type,
             cache_rate=self.cache_rate,
@@ -462,14 +464,14 @@ def create_volume_datamodule(
     train_image_paths: List[str],
     train_label_paths: Optional[List[str]] = None,
     train_mask_paths: Optional[List[str]] = None,
-    val_image_paths: Optional[List[str]] = None,    
+    val_image_paths: Optional[List[str]] = None,
     val_label_paths: Optional[List[str]] = None,
-    val_mask_paths: Optional[List[str]] = None, 
+    val_mask_paths: Optional[List[str]] = None,
     sample_size: Tuple[int, int, int] = (32, 256, 256),
     batch_size: int = 1,
     num_workers: int = 0,
-    dataset_type: str = 'standard',
-    task_type: str = 'binary',
+    dataset_type: str = "standard",
+    task_type: str = "binary",
     **kwargs,
 ) -> VolumeDataModule:
     """
@@ -479,7 +481,7 @@ def create_volume_datamodule(
         train_image_paths: Training image file paths
         train_label_paths: Optional training label file paths
         train_mask_paths: Optional training mask file paths
-        val_image_paths: Optional validation image file paths        
+        val_image_paths: Optional validation image file paths
         val_label_paths: Optional validation label file paths
         val_mask_paths: Optional validation mask file paths
         sample_size: Size of samples to extract (z, y, x)
@@ -498,41 +500,47 @@ def create_volume_datamodule(
 
     if train_label_paths:
         from types import SimpleNamespace
-        if task_type == 'binary':
+
+        if task_type == "binary":
             cfg = SimpleNamespace(
-                keys=['label'],
-                targets=[{'name': 'binary'}],
+                keys=["label"],
+                targets=[{"name": "binary"}],
             )
-            transforms['train'] = create_label_transform_pipeline(cfg)
-        elif task_type == 'affinity':
+            transforms["train"] = create_label_transform_pipeline(cfg)
+        elif task_type == "affinity":
             cfg = SimpleNamespace(
-                keys=['label'],
-                targets=[{
-                    'name': 'affinity',
-                    'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
-                }],
-            )
-            transforms['train'] = create_label_transform_pipeline(cfg)
-        elif task_type == 'instance':
-            cfg = SimpleNamespace(
-                keys=['label'],
+                keys=["label"],
                 targets=[
-                    {'name': 'binary'},
-                    {'name': 'instance_boundary', 'kwargs': {'thickness': 1, 'do_bg_edges': False}},
-                    {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+                    {
+                        "name": "affinity",
+                        "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
+                    }
                 ],
             )
-            transforms['train'] = create_label_transform_pipeline(cfg)
+            transforms["train"] = create_label_transform_pipeline(cfg)
+        elif task_type == "instance":
+            cfg = SimpleNamespace(
+                keys=["label"],
+                targets=[
+                    {"name": "binary"},
+                    {
+                        "name": "instance_boundary",
+                        "kwargs": {"thickness": 1, "edge_mode": "seg-all"},
+                    },
+                    {"name": "instance_edt", "kwargs": {"mode": "2d", "quantize": False}},
+                ],
+            )
+            transforms["train"] = create_label_transform_pipeline(cfg)
 
     # Use same transforms for validation if available
-    if val_image_paths and transforms.get('train'):
-        transforms['val'] = transforms['train']
+    if val_image_paths and transforms.get("train"):
+        transforms["val"] = transforms["train"]
 
     return VolumeDataModule(
         train_image_paths=train_image_paths,
         train_label_paths=train_label_paths,
         train_mask_paths=train_mask_paths,
-        val_image_paths=val_image_paths,    
+        val_image_paths=val_image_paths,
         val_label_paths=val_label_paths,
         val_mask_paths=val_mask_paths,
         sample_size=sample_size,
@@ -550,12 +558,12 @@ def create_tile_datamodule(
     train_mask_json: Optional[str] = None,
     val_volume_json: Optional[str] = None,
     val_label_json: Optional[str] = None,
-    val_mask_json: Optional[str] = None,    
+    val_mask_json: Optional[str] = None,
     chunk_num: Tuple[int, int, int] = (2, 2, 2),
     batch_size: int = 1,
     num_workers: int = 0,
-    dataset_type: str = 'standard',
-    task_type: str = 'binary',
+    dataset_type: str = "standard",
+    task_type: str = "binary",
     **kwargs,
 ) -> TileDataModule:
     """
@@ -582,35 +590,41 @@ def create_tile_datamodule(
 
     if train_label_json:
         from types import SimpleNamespace
-        if task_type == 'binary':
+
+        if task_type == "binary":
             cfg = SimpleNamespace(
-                keys=['label'],
-                targets=[{'name': 'binary'}],
+                keys=["label"],
+                targets=[{"name": "binary"}],
             )
-            transforms['train'] = create_label_transform_pipeline(cfg)
-        elif task_type == 'affinity':
+            transforms["train"] = create_label_transform_pipeline(cfg)
+        elif task_type == "affinity":
             cfg = SimpleNamespace(
-                keys=['label'],
-                targets=[{
-                    'name': 'affinity',
-                    'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
-                }],
-            )
-            transforms['train'] = create_label_transform_pipeline(cfg)
-        elif task_type == 'instance':
-            cfg = SimpleNamespace(
-                keys=['label'],
+                keys=["label"],
                 targets=[
-                    {'name': 'binary'},
-                    {'name': 'instance_boundary', 'kwargs': {'thickness': 1, 'do_bg_edges': False}},
-                    {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+                    {
+                        "name": "affinity",
+                        "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
+                    }
                 ],
             )
-            transforms['train'] = create_label_transform_pipeline(cfg)
+            transforms["train"] = create_label_transform_pipeline(cfg)
+        elif task_type == "instance":
+            cfg = SimpleNamespace(
+                keys=["label"],
+                targets=[
+                    {"name": "binary"},
+                    {
+                        "name": "instance_boundary",
+                        "kwargs": {"thickness": 1, "edge_mode": "seg-all"},
+                    },
+                    {"name": "instance_edt", "kwargs": {"mode": "2d", "quantize": False}},
+                ],
+            )
+            transforms["train"] = create_label_transform_pipeline(cfg)
 
     # Use same transforms for validation if available
-    if val_volume_json and transforms.get('train'):
-        transforms['val'] = transforms['train']
+    if val_volume_json and transforms.get("train"):
+        transforms["val"] = transforms["train"]
 
     return TileDataModule(
         train_volume_json=train_volume_json,
@@ -628,7 +642,9 @@ def create_tile_datamodule(
     )
 
 
-def create_datamodule_from_config(config: Dict[str, Any]) -> Union[VolumeDataModule, TileDataModule]:
+def create_datamodule_from_config(
+    config: Dict[str, Any],
+) -> Union[VolumeDataModule, TileDataModule]:
     """
     Create DataModule from configuration dictionary.
 
@@ -639,44 +655,44 @@ def create_datamodule_from_config(config: Dict[str, Any]) -> Union[VolumeDataMod
         Appropriate DataModule instance based on configuration
     """
 
-    dataset_config = config.get('DATASET', {})
+    dataset_config = config.get("DATASET", {})
 
     # Determine dataset type
-    if 'volume_json' in dataset_config or 'train_volume_json' in dataset_config:
+    if "volume_json" in dataset_config or "train_volume_json" in dataset_config:
         # Tile-based dataset
         return TileDataModule(
-            train_volume_json=dataset_config.get('train_volume_json'),
-            train_label_json=dataset_config.get('train_label_json'),
-            train_mask_json=dataset_config.get('train_mask_json'),
-            val_volume_json=dataset_config.get('val_volume_json'),
-            val_label_json=dataset_config.get('val_label_json'),
-            val_mask_json=dataset_config.get('val_mask_json'),
-            chunk_num=dataset_config.get('chunk_num', (2, 2, 2)),
-            batch_size=config.get('SOLVER', {}).get('batch_size', 1),
-            num_workers=config.get('SYSTEM', {}).get('num_workers', 0),
-            dataset_type=dataset_config.get('dataset_type', 'standard'),
+            train_volume_json=dataset_config.get("train_volume_json"),
+            train_label_json=dataset_config.get("train_label_json"),
+            train_mask_json=dataset_config.get("train_mask_json"),
+            val_volume_json=dataset_config.get("val_volume_json"),
+            val_label_json=dataset_config.get("val_label_json"),
+            val_mask_json=dataset_config.get("val_mask_json"),
+            chunk_num=dataset_config.get("chunk_num", (2, 2, 2)),
+            batch_size=config.get("SOLVER", {}).get("batch_size", 1),
+            num_workers=config.get("SYSTEM", {}).get("num_workers", 0),
+            dataset_type=dataset_config.get("dataset_type", "standard"),
         )
     else:
         # Volume-based dataset
         return VolumeDataModule(
-            train_image_paths=dataset_config.get('train_image_paths', []),
-            train_label_paths=dataset_config.get('train_label_paths'),
-            train_mask_paths=dataset_config.get('train_mask_paths'),
-            val_image_paths=dataset_config.get('val_image_paths'),
-            val_label_paths=dataset_config.get('val_label_paths'),
-            val_mask_paths=dataset_config.get('val_mask_paths'),
-            sample_size=dataset_config.get('sample_size', (32, 256, 256)),
-            batch_size=config.get('SOLVER', {}).get('batch_size', 1),
-            num_workers=config.get('SYSTEM', {}).get('num_workers', 0),
-            dataset_type=dataset_config.get('dataset_type', 'standard'),
+            train_image_paths=dataset_config.get("train_image_paths", []),
+            train_label_paths=dataset_config.get("train_label_paths"),
+            train_mask_paths=dataset_config.get("train_mask_paths"),
+            val_image_paths=dataset_config.get("val_image_paths"),
+            val_label_paths=dataset_config.get("val_label_paths"),
+            val_mask_paths=dataset_config.get("val_mask_paths"),
+            sample_size=dataset_config.get("sample_size", (32, 256, 256)),
+            batch_size=config.get("SOLVER", {}).get("batch_size", 1),
+            num_workers=config.get("SYSTEM", {}).get("num_workers", 0),
+            dataset_type=dataset_config.get("dataset_type", "standard"),
         )
 
 
 __all__ = [
-    'ConnectomicsDataModule',
-    'VolumeDataModule',
-    'TileDataModule',
-    'create_volume_datamodule',
-    'create_tile_datamodule',
-    'create_datamodule_from_config',
+    "ConnectomicsDataModule",
+    "VolumeDataModule",
+    "TileDataModule",
+    "create_volume_datamodule",
+    "create_tile_datamodule",
+    "create_datamodule_from_config",
 ]

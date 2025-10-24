@@ -83,7 +83,7 @@ data:
       - name: instance_boundary
         kwargs:
           thickness: 1
-          do_bg_edges: false
+          edge_mode: "seg-all"
           mode: "2d"
       - name: instance_edt
         kwargs:

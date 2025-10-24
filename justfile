@@ -35,16 +35,19 @@ test model dataset checkpoint *ARGS='':
 
 # Launch TensorBoard for a specific experiment (e.g., just tensorboard lucchi_monai_unet)
 # Shows all runs (timestamped directories) for comparison
-tensorboard experiment:
-    tensorboard --logdir outputs/{{experiment}} --port 6006
+# Usage: just tensorboard experiment [port] (default port: 6006)
+tensorboard experiment port='6006':
+    tensorboard --logdir outputs/{{experiment}} --port {{port}}
 
 # Launch TensorBoard for all experiments
-tensorboard-all:
-    tensorboard --logdir outputs/ --port 6006
+# Usage: just tensorboard-all [port] (default port: 6006)
+tensorboard-all port='6006':
+    tensorboard --logdir outputs/ --port {{port}}
 
 # Launch TensorBoard for a specific run (e.g., just tensorboard-run lucchi_monai_unet 20250203_143052)
-tensorboard-run experiment timestamp:
-    tensorboard --logdir outputs/{{experiment}}/{{timestamp}}/logs --port 6006
+# Usage: just tensorboard-run experiment timestamp [port] (default port: 6006)
+tensorboard-run experiment timestamp port='6006':
+    tensorboard --logdir outputs/{{experiment}}/{{timestamp}}/logs --port {{port}}
 
 # Launch any just command on SLURM (e.g., just slurm weilab 8 4 "train lucchi")
 slurm partition num_cpu num_gpu cmd:

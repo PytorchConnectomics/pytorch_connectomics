@@ -27,7 +27,7 @@ from .misc import *
 
 class SegToBinaryMaskd(MapTransform):
     """Convert segmentation to binary mask using MONAI MapTransform.
-    
+
     Args:
         keys: Keys to transform
         segment_id: List of segment IDs to include as foreground.
@@ -59,7 +59,7 @@ class SegToAffinityMapd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        offsets: List[str] = ['1-1-0', '1-0-0', '0-1-0', '0-0-1'],
+        offsets: List[str] = ["1-1-0", "1-0-0", "0-1-0", "0-0-1"],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -79,7 +79,7 @@ class SegToInstanceBoundaryMaskd(MapTransform):
     Args:
         keys: Keys to transform
         thickness: Thickness of the boundary (half-size of dilation struct) (default: 1)
-        do_bg_edges: Generate contour between instances and background (default: True)
+        edge_mode: Edge detection mode - "all", "seg-all", or "seg-no-bg" (default: "seg-all")
         mode: '2d' for slice-by-slice or '3d' for full 3D boundary detection (default: '3d')
         allow_missing_keys: Whether to allow missing keys
     """
@@ -88,20 +88,20 @@ class SegToInstanceBoundaryMaskd(MapTransform):
         self,
         keys: KeysCollection,
         thickness: int = 1,
-        do_bg_edges: bool = True,
-        mode: str = '3d',
+        edge_mode: str = "seg-all",
+        mode: str = "3d",
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.thickness = thickness
-        self.do_bg_edges = do_bg_edges
+        self.edge_mode = edge_mode
         self.mode = mode
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_bd(d[key], self.thickness, self.do_bg_edges, self.mode)
+                d[key] = seg_to_instance_bd(d[key], self.thickness, self.edge_mode, self.mode)
         return d
 
 
@@ -118,7 +118,7 @@ class SegToInstanceEDTd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mode: str = '2d',
+        mode: str = "2d",
         quantize: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -223,7 +223,7 @@ class SegToSkeletonAwareEDTd(MapTransform):
 
 class SegToSemanticEDTd(MapTransform):
     """Convert segmentation to semantic EDT using MONAI MapTransform.
-    
+
     Args:
         keys: Keys to transform
         mode: EDT computation mode: '2d' or '3d' (default: '2d')
@@ -235,7 +235,7 @@ class SegToSemanticEDTd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mode: str = '2d',
+        mode: str = "2d",
         alpha_fore: float = 8.0,
         alpha_back: float = 50.0,
         allow_missing_keys: bool = False,
@@ -249,9 +249,9 @@ class SegToSemanticEDTd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_semantic_edt(d[key], mode=self.mode, 
-                                             alpha_fore=self.alpha_fore, 
-                                             alpha_back=self.alpha_back)
+                d[key] = seg_to_semantic_edt(
+                    d[key], mode=self.mode, alpha_fore=self.alpha_fore, alpha_back=self.alpha_back
+                )
         return d
 
 
@@ -261,7 +261,7 @@ class SegToFlowFieldd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1'],
+        target_opt: List[str] = ["1"],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -278,7 +278,7 @@ class SegToFlowFieldd(MapTransform):
 
 class SegToSynapticPolarityd(MapTransform):
     """Convert segmentation to synaptic polarity using MONAI MapTransform.
-    
+
     Args:
         keys: Keys to transform
         exclusive: If False, returns 3-channel non-exclusive masks (for BCE loss).
@@ -305,7 +305,7 @@ class SegToSynapticPolarityd(MapTransform):
 
 class SegToSmallObjectd(MapTransform):
     """Convert segmentation to small object mask using MONAI MapTransform.
-    
+
     Args:
         keys: Keys to transform
         threshold: Maximum voxel count for objects to be considered small (default: 100)
@@ -335,7 +335,7 @@ class ComputeBinaryRatioWeightd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1'],
+        target_opt: List[str] = ["1"],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -355,7 +355,7 @@ class ComputeUNet3DWeightd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        target_opt: List[str] = ['1', '1', '5.0', '0.3'],
+        target_opt: List[str] = ["1", "1", "5.0", "0.3"],
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -461,7 +461,7 @@ class SegErosionInstanced(MapTransform):
 
 class EnergyQuantized(MapTransform):
     """Quantize continuous energy maps using MONAI MapTransform.
-    
+
     This transform converts continuous energy values to discrete quantized levels,
     useful for training neural networks on energy-based targets.
     """
@@ -491,7 +491,7 @@ class EnergyQuantized(MapTransform):
 
 class DecodeQuantized(MapTransform):
     """Decode quantized energy maps back to continuous values using MONAI MapTransform.
-    
+
     This transform converts quantized discrete levels back to continuous energy values,
     typically used for inference or evaluation.
     """
@@ -499,7 +499,7 @@ class DecodeQuantized(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        mode: str = 'max',
+        mode: str = "max",
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -509,7 +509,7 @@ class DecodeQuantized(MapTransform):
             allow_missing_keys: Whether to ignore missing keys.
         """
         super().__init__(keys, allow_missing_keys)
-        if mode not in ['max', 'mean']:
+        if mode not in ["max", "mean"]:
             raise ValueError(f"Mode must be 'max' or 'mean', got {mode}")
         self.mode = mode
 
@@ -523,7 +523,7 @@ class DecodeQuantized(MapTransform):
 
 class SegSelectiond(MapTransform):
     """Select specific segmentation indices using MONAI MapTransform.
-    
+
     This transform selects only the specified label indices from a segmentation,
     renumbering them consecutively starting from 1.
     """
@@ -541,7 +541,9 @@ class SegSelectiond(MapTransform):
             allow_missing_keys: Whether to ignore missing keys.
         """
         super().__init__(keys, allow_missing_keys)
-        self.indices = ensure_tuple_rep(indices, 1) if not isinstance(indices, (list, tuple)) else indices
+        self.indices = (
+            ensure_tuple_rep(indices, 1) if not isinstance(indices, (list, tuple)) else indices
+        )
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -592,12 +594,18 @@ class MultiTaskLabelTransformd(MapTransform):
     }
     _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "binary": {},
-        "affinity": {"offsets": ['1-1-0', '1-0-0', '0-1-0', '0-0-1']},
-        "instance_boundary": {"thickness": 1, "do_bg_edges": False, "mode": "3d"},
+        "affinity": {"offsets": ["1-1-0", "1-0-0", "0-1-0", "0-0-1"]},
+        "instance_boundary": {"thickness": 1, "edge_mode": "seg-all", "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},
-        "skeleton_aware_edt": {"bg_value": -1.0, "relabel": True, "padding": False,
-                               "resolution": (1.0, 1.0, 1.0), "alpha": 0.8,
-                               "smooth": True, "smooth_skeleton_only": True},
+        "skeleton_aware_edt": {
+            "bg_value": -1.0,
+            "relabel": True,
+            "padding": False,
+            "resolution": (1.0, 1.0, 1.0),
+            "alpha": 0.8,
+            "smooth": True,
+            "smooth_skeleton_only": True,
+        },
         "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0},
         "polarity": {"exclusive": False},
         "small_object": {"threshold": 100},
@@ -681,7 +689,7 @@ class MultiTaskLabelTransformd(MapTransform):
 
     def _prepare_label(self, label: Any) -> Tuple[np.ndarray, bool]:
         """Convert label to numpy without duplicating data where possible.
-        
+
         MONAI transforms expect channel-first format [C, D, H, W], not batch-first [B, C, D, H, W].
         We should not remove the channel dimension.
         """
@@ -709,7 +717,7 @@ class MultiTaskLabelTransformd(MapTransform):
 
             label = d[key]
             label_np, had_batch_dim = self._prepare_label(label)
-            
+
             # Remove channel dimension if it's 1 (target functions expect [D, H, W] not [1, D, H, W])
             if label_np.ndim == 4 and label_np.shape[0] == 1:
                 label_np = label_np[0]
@@ -719,7 +727,9 @@ class MultiTaskLabelTransformd(MapTransform):
                 result = spec["fn"](label_np, **spec["kwargs"])
                 if result is None:
                     raise RuntimeError(f"Task '{spec['name']}' returned None.")
-                result_arr = np.asarray(result, dtype=np.float32)  # Convert to float32 (handles bool->float)
+                result_arr = np.asarray(
+                    result, dtype=np.float32
+                )  # Convert to float32 (handles bool->float)
 
                 # Ensure each output has a channel dimension [C, D, H, W]
                 # If output is [D, H, W], expand to [1, D, H, W]
@@ -741,28 +751,30 @@ class MultiTaskLabelTransformd(MapTransform):
                 else:
                     d[key] = label
                 for spec, result in zip(self.task_specs, outputs):
-                    out_key = spec["output_key"] or self.output_key_format.format(key=key, task=spec["name"])
+                    out_key = spec["output_key"] or self.output_key_format.format(
+                        key=key, task=spec["name"]
+                    )
                     d[out_key] = self._to_tensor(result, add_batch_dim=False)
         return d
 
 
 __all__ = [
-    'SegToBinaryMaskd',
-    'SegToAffinityMapd',
-    'SegToInstanceBoundaryMaskd',
-    'SegToInstanceEDTd',
-    'SegToSkeletonAwareEDTd',
-    'SegToSemanticEDTd',
-    'SegToFlowFieldd',
-    'SegToSynapticPolarityd',
-    'SegToSmallObjectd',
-    'ComputeBinaryRatioWeightd',
-    'ComputeUNet3DWeightd',
-    'SegErosiond',
-    'SegDilationd',
-    'SegErosionInstanced',
-    'EnergyQuantized',
-    'DecodeQuantized',
-    'SegSelectiond',
-    'MultiTaskLabelTransformd',
+    "SegToBinaryMaskd",
+    "SegToAffinityMapd",
+    "SegToInstanceBoundaryMaskd",
+    "SegToInstanceEDTd",
+    "SegToSkeletonAwareEDTd",
+    "SegToSemanticEDTd",
+    "SegToFlowFieldd",
+    "SegToSynapticPolarityd",
+    "SegToSmallObjectd",
+    "ComputeBinaryRatioWeightd",
+    "ComputeUNet3DWeightd",
+    "SegErosiond",
+    "SegDilationd",
+    "SegErosionInstanced",
+    "EnergyQuantized",
+    "DecodeQuantized",
+    "SegSelectiond",
+    "MultiTaskLabelTransformd",
 ]

@@ -18,7 +18,7 @@ description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residua
 # System
 system:
   training:
-    num_gpus: 4
+    num_gpus: 4                        
     num_cpus: 8
     num_workers: 8                     # More workers for parallel data loading (6x speedup)
     batch_size: 32                      # Larger batch for smaller patches
@@ -88,8 +88,8 @@ data:
       - name: binary                # Channel 0: foreground mask
       - name: instance_boundary     # Channel 1: contour map
         kwargs:
-          thickness: 1
-          do_bg_edges: true
+          thickness: 5
+          edge_mode: "seg-no-bg"
           mode: "3d"
       - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
         kwargs:

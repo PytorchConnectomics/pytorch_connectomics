@@ -214,12 +214,28 @@ def preflight_check(cfg) -> list:
     """
     issues = []
 
-    # Check data files exist
-    if cfg.data.train_image and not Path(cfg.data.train_image).exists():
-        issues.append(f"❌ Training image not found: {cfg.data.train_image}")
+    # Check data files exist (supports glob patterns)
+    if cfg.data.train_image:
+        from glob import glob
+        # Check if pattern contains wildcards
+        if "*" in cfg.data.train_image or "?" in cfg.data.train_image:
+            # Expand glob pattern
+            matched_files = glob(cfg.data.train_image)
+            if not matched_files:
+                issues.append(f"❌ Training image pattern matched no files: {cfg.data.train_image}")
+        elif not Path(cfg.data.train_image).exists():
+            issues.append(f"❌ Training image not found: {cfg.data.train_image}")
 
-    if cfg.data.train_label and not Path(cfg.data.train_label).exists():
-        issues.append(f"❌ Training label not found: {cfg.data.train_label}")
+    if cfg.data.train_label:
+        from glob import glob
+        # Check if pattern contains wildcards
+        if "*" in cfg.data.train_label or "?" in cfg.data.train_label:
+            # Expand glob pattern
+            matched_files = glob(cfg.data.train_label)
+            if not matched_files:
+                issues.append(f"❌ Training label pattern matched no files: {cfg.data.train_label}")
+        elif not Path(cfg.data.train_label).exists():
+            issues.append(f"❌ Training label not found: {cfg.data.train_label}")
 
     # Check GPU availability
     if cfg.system.training.num_gpus > 0 and not torch.cuda.is_available():

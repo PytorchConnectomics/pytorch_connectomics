@@ -54,9 +54,9 @@ def create_test_data():
 
     # Package data in MONAI-style dictionary
     data = {
-        'image': MetaTensor(image[None, ...]),  # Add channel dimension
-        'label': MetaTensor(label),
-        'valid_mask': MetaTensor(valid_mask),
+        "image": MetaTensor(image[None, ...]),  # Add channel dimension
+        "label": MetaTensor(label),
+        "valid_mask": MetaTensor(valid_mask),
     }
 
     print(f"Created test data with shape: {shape}")
@@ -74,57 +74,61 @@ def test_individual_transforms():
 
     # Test binary mask transform (modifies 'label' in-place)
     print("\n1. Testing SegToBinaryMaskd...")
-    binary_transform = SegToBinaryMaskd(keys=['label'])
+    binary_transform = SegToBinaryMaskd(keys=["label"])
     result = binary_transform(data.copy())
 
-    assert 'label' in result, "Label key missing"
-    binary_mask = result['label']
+    assert "label" in result, "Label key missing"
+    binary_mask = result["label"]
     print(f"   Binary mask shape: {binary_mask.shape}")
     print(f"   Binary mask dtype: {binary_mask.dtype}")
 
     # Test affinity transform (modifies 'label' in-place)
     print("\n2. Testing SegToAffinityMapd...")
-    affinity_transform = SegToAffinityMapd(keys=['label'], offsets=['1-0-0', '0-1-0', '0-0-1'])
+    affinity_transform = SegToAffinityMapd(keys=["label"], offsets=["1-0-0", "0-1-0", "0-0-1"])
     result = affinity_transform(create_test_data())
 
-    assert 'label' in result, "Label key missing"
-    affinity = result['label']
+    assert "label" in result, "Label key missing"
+    affinity = result["label"]
     print(f"   Affinity map shape: {affinity.shape}")
 
     # Test instance boundary transform (modifies 'label' in-place)
     print("\n3. Testing SegToInstanceBoundaryMaskd (3D mode)...")
-    boundary_transform = SegToInstanceBoundaryMaskd(keys=['label'], thickness=1, do_bg_edges=True, mode='3d')
+    boundary_transform = SegToInstanceBoundaryMaskd(
+        keys=["label"], thickness=1, edge_mode="all", mode="3d"
+    )
     result = boundary_transform(create_test_data())
 
-    assert 'label' in result, "Label key missing"
-    boundary = result['label']
+    assert "label" in result, "Label key missing"
+    boundary = result["label"]
     print(f"   3D boundary mask shape: {boundary.shape}")
 
     # Test 2D mode as well
     print("\n4. Testing SegToInstanceBoundaryMaskd (2D mode)...")
-    boundary_transform_2d = SegToInstanceBoundaryMaskd(keys=['label'], thickness=1, do_bg_edges=True, mode='2d')
+    boundary_transform_2d = SegToInstanceBoundaryMaskd(
+        keys=["label"], thickness=1, edge_mode="all", mode="2d"
+    )
     result = boundary_transform_2d(create_test_data())
 
-    assert 'label' in result, "Label key missing"
-    boundary_2d = result['label']
+    assert "label" in result, "Label key missing"
+    boundary_2d = result["label"]
     print(f"   2D boundary mask shape: {boundary_2d.shape}")
 
     # Test instance EDT transform (modifies 'label' in-place)
     print("\n5. Testing SegToInstanceEDTd...")
-    edt_transform = SegToInstanceEDTd(keys=['label'], mode='2d', quantize=False)
+    edt_transform = SegToInstanceEDTd(keys=["label"], mode="2d", quantize=False)
     result = edt_transform(create_test_data())
 
-    assert 'label' in result, "Label key missing"
-    distance = result['label']
+    assert "label" in result, "Label key missing"
+    distance = result["label"]
     print(f"   Distance transform shape: {distance.shape}")
 
     # Test flow field transform (modifies 'label' in-place)
     print("\n6. Testing SegToFlowFieldd...")
-    flow_transform = SegToFlowFieldd(keys=['label'])
+    flow_transform = SegToFlowFieldd(keys=["label"])
     result = flow_transform(create_test_data())
 
-    assert 'label' in result, "Label key missing"
-    flow = result['label']
+    assert "label" in result, "Label key missing"
+    flow = result["label"]
     print(f"   Flow field shape: {flow.shape}")
 
     print("✅ All individual transforms passed!")
@@ -139,42 +143,45 @@ def test_compose_pipelines():
     # Test label transform pipeline with binary target
     print("\n2. Testing label transform pipeline (binary)...")
     from types import SimpleNamespace
+
     binary_cfg = SimpleNamespace(
-        keys=['label'],
-        targets=[{'name': 'binary'}],
+        keys=["label"],
+        targets=[{"name": "binary"}],
     )
     binary_pipeline = create_label_transform_pipeline(binary_cfg)
     result = binary_pipeline(data)
-    assert 'label' in result, "Binary mask not generated"
+    assert "label" in result, "Binary mask not generated"
     print(f"   Binary mask shape: {result['label'].shape}")
 
     # Test label transform pipeline with affinity target
     print("\n3. Testing label transform pipeline (affinity)...")
     affinity_cfg = SimpleNamespace(
-        keys=['label'],
-        targets=[{
-            'name': 'affinity',
-            'kwargs': {'offsets': ['1-0-0', '0-1-0', '0-0-1']},
-        }],
+        keys=["label"],
+        targets=[
+            {
+                "name": "affinity",
+                "kwargs": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},
+            }
+        ],
     )
     affinity_pipeline = create_label_transform_pipeline(affinity_cfg)
     result = affinity_pipeline(data)
-    assert 'label' in result, "Affinity map not generated"
+    assert "label" in result, "Affinity map not generated"
     print(f"   Affinity map shape: {result['label'].shape}")
 
     # Test label transform pipeline with multi-task instance segmentation
     print("\n4. Testing label transform pipeline (instance multi-task)...")
     instance_cfg = SimpleNamespace(
-        keys=['label'],
+        keys=["label"],
         targets=[
-            {'name': 'binary'},
-            {'name': 'instance_boundary', 'kwargs': {'thickness': 1, 'do_bg_edges': False}},
-            {'name': 'instance_edt', 'kwargs': {'mode': '2d', 'quantize': False}},
+            {"name": "binary"},
+            {"name": "instance_boundary", "kwargs": {"thickness": 1, "edge_mode": "seg-all"}},
+            {"name": "instance_edt", "kwargs": {"mode": "2d", "quantize": False}},
         ],
     )
     instance_pipeline = create_label_transform_pipeline(instance_cfg)
     result = instance_pipeline(data)
-    assert 'label' in result, "Multi-task output not generated"
+    assert "label" in result, "Multi-task output not generated"
     print(f"   Multi-task output shape: {result['label'].shape}")  # Should be [3, D, H, W]
 
     print("✅ All label transform pipelines passed!")
@@ -214,27 +221,28 @@ def test_compatibility():
     label = np.zeros(shape, dtype=np.int32)
     label[4:12, 10:22, 10:22] = 1
 
-    data = {'label': label}
+    data = {"label": label}
 
     # Use pipeline API instead of individual transforms
     from types import SimpleNamespace
+
     binary_cfg = SimpleNamespace(
-        keys=['label'],
-        targets=[{'name': 'binary'}],
+        keys=["label"],
+        targets=[{"name": "binary"}],
     )
     binary_pipeline = create_label_transform_pipeline(binary_cfg)
     result = binary_pipeline(data)
 
-    assert 'label' in result, "Binary mask not generated from numpy array"
+    assert "label" in result, "Binary mask not generated from numpy array"
     print(f"   Processed numpy array with shape: {result['label'].shape}")
 
     # Test with torch tensors
     print("\n2. Testing with torch tensors...")
     label_tensor = torch.from_numpy(label)
-    data = {'label': label_tensor}
+    data = {"label": label_tensor}
 
     result = binary_pipeline(data)
-    assert 'label' in result, "Binary mask not generated from torch tensor"
+    assert "label" in result, "Binary mask not generated from torch tensor"
     print(f"   Processed torch tensor with shape: {result['label'].shape}")
 
     print("✅ Compatibility tests passed!")
@@ -260,6 +268,7 @@ def main():
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
