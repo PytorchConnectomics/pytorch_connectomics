@@ -217,6 +217,7 @@ def preflight_check(cfg) -> list:
     # Check data files exist (supports glob patterns)
     if cfg.data.train_image:
         from glob import glob
+
         # Check if pattern contains wildcards
         if "*" in cfg.data.train_image or "?" in cfg.data.train_image:
             # Expand glob pattern
@@ -228,6 +229,7 @@ def preflight_check(cfg) -> list:
 
     if cfg.data.train_label:
         from glob import glob
+
         # Check if pattern contains wildcards
         if "*" in cfg.data.train_label or "?" in cfg.data.train_label:
             # Expand glob pattern
@@ -239,9 +241,7 @@ def preflight_check(cfg) -> list:
 
     # Check GPU availability
     if cfg.system.training.num_gpus > 0 and not torch.cuda.is_available():
-        issues.append(
-            f"❌ {cfg.system.training.num_gpus} GPU(s) requested but CUDA not available"
-        )
+        issues.append(f"❌ {cfg.system.training.num_gpus} GPU(s) requested but CUDA not available")
 
     # Check GPU count
     if cfg.system.training.num_gpus > torch.cuda.device_count():
@@ -257,25 +257,16 @@ def preflight_check(cfg) -> list:
 
             patch_volume = np.prod(cfg.data.patch_size)
             estimated_gb = (
-                cfg.system.training.batch_size
-                * patch_volume
-                * cfg.model.in_channels
-                * 4
-                * 10
-                / 1e9
+                cfg.system.training.batch_size * patch_volume * cfg.model.in_channels * 4 * 10 / 1e9
             )
 
-            available_gb = (
-                torch.cuda.get_device_properties(0).total_memory / 1e9
-            )
+            available_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
 
             if estimated_gb > available_gb * 0.8:  # Leave 20% headroom
                 issues.append(
                     f"⚠️  Estimated memory ({estimated_gb:.1f}GB) may exceed available ({available_gb:.1f}GB)"
                 )
-                issues.append(
-                    f"   💡 Consider reducing batch_size or patch_size"
-                )
+                issues.append(f"   💡 Consider reducing batch_size or patch_size")
         except Exception:
             pass  # Skip memory estimation if it fails
 
@@ -287,21 +278,15 @@ def preflight_check(cfg) -> list:
                 f"⚠️  Very small patch size: {patch_size} (may not capture enough context)"
             )
         if max(patch_size) > 256:
-            issues.append(
-                f"⚠️  Very large patch size: {patch_size} (may cause GPU OOM)"
-            )
+            issues.append(f"⚠️  Very large patch size: {patch_size} (may cause GPU OOM)")
 
     # Check learning rate
     if hasattr(cfg, "optimizer") and hasattr(cfg.optimizer, "lr"):
         lr = cfg.optimizer.get("lr", 1e-4)
         if lr > 1e-2:
-            issues.append(
-                f"⚠️  Learning rate very high: {lr} (may cause instability)"
-            )
+            issues.append(f"⚠️  Learning rate very high: {lr} (may cause instability)")
         if lr < 1e-6:
-            issues.append(
-                f"⚠️  Learning rate very low: {lr} (training may be very slow)"
-            )
+            issues.append(f"⚠️  Learning rate very low: {lr} (training may be very slow)")
 
     return issues
 
@@ -317,6 +302,15 @@ def print_preflight_issues(issues: list):
     for issue in issues:
         print(f"  {issue}")
     print("=" * 60 + "\n")
+
+    # Check if running in non-interactive environment (SLURM, cluster, etc.)
+    import sys
+
+    is_non_interactive = not sys.stdin.isatty() or os.environ.get("SLURM_JOB_ID") is not None
+
+    if is_non_interactive:
+        print("Non-interactive environment detected. Continuing automatically...\n")
+        return
 
     # Ask user if they want to continue
     try:

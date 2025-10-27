@@ -47,7 +47,7 @@ Choose your preferred method:
 <summary><b>🚀 One-Command Install (Recommended)</b></summary>
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/v2.0/quickstart.sh | bash
+curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/refs/heads/master/quickstart.sh | bash
 conda activate pytc
 ```
 

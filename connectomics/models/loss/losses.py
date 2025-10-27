@@ -40,15 +40,23 @@ class CrossEntropyLossWrapper(nn.Module):
         Compute cross-entropy loss with automatic shape handling.
 
         Args:
-            input: Model output [B, C, D, H, W] (C=2 for binary)
-            target: Ground truth [B, 1, D, H, W] or [B, D, H, W]
+            input: Model output
+                   2D: [B, C, H, W]
+                   3D: [B, C, D, H, W]
+            target: Ground truth
+                    2D: [B, 1, H, W] or [B, H, W]
+                    3D: [B, 1, D, H, W] or [B, D, H, W]
 
         Returns:
             Loss value
         """
         # Squeeze channel dimension if present
-        if target.dim() == 5 and target.shape[1] == 1:
-            target = target.squeeze(1)  # [B, 1, D, H, W] -> [B, D, H, W]
+        # 2D: [B, 1, H, W] -> [B, H, W]
+        # 3D: [B, 1, D, H, W] -> [B, D, H, W]
+        if target.dim() == 4 and target.shape[1] == 1:
+            target = target.squeeze(1)  # 2D case
+        elif target.dim() == 5 and target.shape[1] == 1:
+            target = target.squeeze(1)  # 3D case
 
         # Convert to long type for cross-entropy
         target = target.long()

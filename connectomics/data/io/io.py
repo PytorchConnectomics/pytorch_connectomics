@@ -19,6 +19,7 @@ import imageio
 
 # Avoid PIL "IOError: image file truncated"
 from PIL import ImageFile
+
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -26,10 +27,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 # HDF5 I/O
 # =============================================================================
 
+
 def read_hdf5(
-    filename: str,
-    dataset: Optional[str] = None,
-    slice_obj: Optional[tuple] = None
+    filename: str, dataset: Optional[str] = None, slice_obj: Optional[tuple] = None
 ) -> np.ndarray:
     """Read data from HDF5 file.
 
@@ -41,7 +41,7 @@ def read_hdf5(
     Returns:
         Data from the HDF5 file as numpy array
     """
-    with h5py.File(filename, 'r') as file_handle:
+    with h5py.File(filename, "r") as file_handle:
         if dataset is None:
             dataset = list(file_handle)[0]
 
@@ -53,9 +53,9 @@ def read_hdf5(
 def write_hdf5(
     filename: str,
     data_array: Union[np.ndarray, List[np.ndarray]],
-    dataset: Union[str, List[str]] = 'main',
-    compression: str = 'gzip',
-    compression_level: int = 4
+    dataset: Union[str, List[str]] = "main",
+    compression: str = "gzip",
+    compression_level: int = 4,
 ) -> None:
     """Write data to HDF5 file.
 
@@ -66,23 +66,23 @@ def write_hdf5(
         compression: Compression algorithm ('gzip', 'lzf', or None)
         compression_level: Compression level (0-9 for gzip)
     """
-    with h5py.File(filename, 'w') as file_handle:
+    with h5py.File(filename, "w") as file_handle:
         if isinstance(dataset, list):
             for i, dataset_name in enumerate(dataset):
                 file_handle.create_dataset(
                     dataset_name,
                     data=data_array[i],
                     compression=compression,
-                    compression_opts=compression_level if compression == 'gzip' else None,
-                    dtype=data_array[i].dtype
+                    compression_opts=compression_level if compression == "gzip" else None,
+                    dtype=data_array[i].dtype,
                 )
         else:
             file_handle.create_dataset(
                 dataset,
                 data=data_array,
                 compression=compression,
-                compression_opts=compression_level if compression == 'gzip' else None,
-                dtype=data_array.dtype
+                compression_opts=compression_level if compression == "gzip" else None,
+                dtype=data_array.dtype,
             )
 
 
@@ -95,7 +95,7 @@ def list_hdf5_datasets(filename: str) -> List[str]:
     Returns:
         List of dataset names
     """
-    with h5py.File(filename, 'r') as file_handle:
+    with h5py.File(filename, "r") as file_handle:
         return list(file_handle.keys())
 
 
@@ -103,7 +103,7 @@ def list_hdf5_datasets(filename: str) -> List[str]:
 # Image I/O
 # =============================================================================
 
-SUPPORTED_IMAGE_FORMATS = ['png', 'tif', 'tiff', 'jpg', 'jpeg']
+SUPPORTED_IMAGE_FORMATS = ["png", "tif", "tiff", "jpg", "jpeg"]
 
 
 def read_image(filename: str, add_channel: bool = False) -> Optional[np.ndarray]:
@@ -170,11 +170,10 @@ def read_image_as_volume(filename: str, drop_channel: bool = False) -> np.ndarra
     Raises:
         ValueError: If file format is not supported
     """
-    image_suffix = filename[filename.rfind('.') + 1:].lower()
+    image_suffix = filename[filename.rfind(".") + 1 :].lower()
     if image_suffix not in SUPPORTED_IMAGE_FORMATS:
         raise ValueError(
-            f"Unsupported format: {image_suffix}. "
-            f"Supported formats: {SUPPORTED_IMAGE_FORMATS}"
+            f"Unsupported format: {image_suffix}. " f"Supported formats: {SUPPORTED_IMAGE_FORMATS}"
         )
 
     data = imageio.imread(filename)
@@ -201,7 +200,7 @@ def save_image(filename: str, data: np.ndarray) -> None:
     imageio.imsave(filename, data)
 
 
-def save_images(directory: str, data: np.ndarray, prefix: str = '', format: str = 'png') -> None:
+def save_images(directory: str, data: np.ndarray, prefix: str = "", format: str = "png") -> None:
     """Save a stack of images to a directory.
 
     Args:
@@ -220,6 +219,7 @@ def save_images(directory: str, data: np.ndarray, prefix: str = '', format: str 
 # =============================================================================
 # Pickle I/O
 # =============================================================================
+
 
 def read_pickle_file(filename: str) -> Union[object, List[object]]:
     """Read data from a pickle file.
@@ -251,7 +251,7 @@ def write_pickle_file(filename: str, data: object) -> None:
         filename: Path to the output pickle file
         data: Data to pickle
     """
-    with open(filename, 'wb') as file_handle:
+    with open(filename, "wb") as file_handle:
         pickle.dump(data, file_handle)
 
 
@@ -259,10 +259,9 @@ def write_pickle_file(filename: str, data: object) -> None:
 # High-level Volume I/O
 # =============================================================================
 
+
 def read_volume(
-    filename: str,
-    dataset: Optional[str] = None,
-    drop_channel: bool = False
+    filename: str, dataset: Optional[str] = None, drop_channel: bool = False
 ) -> np.ndarray:
     """Load volumetric data in HDF5, TIFF or PNG formats.
 
@@ -277,31 +276,30 @@ def read_volume(
     Raises:
         ValueError: If file format is not recognized
     """
-    image_suffix = filename[filename.rfind('.') + 1:].lower()
+    image_suffix = filename[filename.rfind(".") + 1 :].lower()
 
-    if image_suffix in ['h5', 'hdf5']:
+    if image_suffix in ["h5", "hdf5"]:
         data = read_hdf5(filename, dataset)
-    elif 'tif' in image_suffix:
+    elif "tif" in image_suffix:
         data = imageio.volread(filename).squeeze()
         if data.ndim == 4:
             # Convert (D, C, H, W) to (C, D, H, W) order
             data = data.transpose(1, 0, 2, 3)
-    elif 'png' in image_suffix:
+    elif "png" in image_suffix:
         data = read_images(filename)
         if data.ndim == 4:
             # Convert (D, H, W, C) to (C, D, H, W) order
             data = data.transpose(3, 0, 1, 2)
     else:
         raise ValueError(
-            f'Unrecognizable file format for {filename}. '
-            f'Expected: h5, hdf5, tif, tiff, or png'
+            f"Unrecognizable file format for {filename}. " f"Expected: h5, hdf5, tif, tiff, or png"
         )
 
-    if data.ndim not in [3, 4]:
-        raise ValueError(
-            f"Currently supported volume data should be 3D (D, H, W) or 4D (C, D, H, W), "
-            f"got {data.ndim}D"
-        )
+    # if data.ndim not in [3, 4]:
+    #     raise ValueError(
+    #         f"Currently supported volume data should be 3D (D, H, W) or 4D (C, D, H, W), "
+    #         f"got {data.ndim}D"
+    #     )
 
     if drop_channel and data.ndim == 4:
         # Merge multiple channels to grayscale by average
@@ -312,10 +310,7 @@ def read_volume(
 
 
 def save_volume(
-    filename: str,
-    volume: np.ndarray,
-    dataset: str = 'main',
-    file_format: str = 'h5'
+    filename: str, volume: np.ndarray, dataset: str = "main", file_format: str = "h5"
 ) -> None:
     """Save volumetric data in specified format.
 
@@ -328,21 +323,15 @@ def save_volume(
     Raises:
         ValueError: If file format is not supported
     """
-    if file_format == 'h5':
+    if file_format == "h5":
         write_hdf5(filename, volume, dataset=dataset)
-    elif file_format == 'png':
+    elif file_format == "png":
         save_images(filename, volume)
     else:
-        raise ValueError(
-            f"Unsupported format: {file_format}. "
-            f"Supported formats: h5, png"
-        )
+        raise ValueError(f"Unsupported format: {file_format}. " f"Supported formats: h5, png")
 
 
-def get_vol_shape(
-    filename: str,
-    dataset: Optional[str] = None
-) -> tuple:
+def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
     """Get volume shape without loading the entire volume into memory.
 
     This function efficiently retrieves the shape of volumetric data
@@ -369,21 +358,22 @@ def get_vol_shape(
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File not found: {filename}")
 
-    image_suffix = filename[filename.rfind('.') + 1:].lower()
+    image_suffix = filename[filename.rfind(".") + 1 :].lower()
 
-    if image_suffix in ['h5', 'hdf5']:
+    if image_suffix in ["h5", "hdf5"]:
         # HDF5: Read shape from metadata (no data loading)
-        with h5py.File(filename, 'r') as f:
+        with h5py.File(filename, "r") as f:
             if dataset is None:
                 dataset = list(f.keys())[0]
             return f[dataset].shape
 
-    elif 'tif' in image_suffix:
+    elif "tif" in image_suffix:
         # TIFF: Use imageio to get metadata
         import tifffile
+
         with tifffile.TiffFile(filename) as tif:
             # Get shape from first series
-            if hasattr(tif, 'series'):
+            if hasattr(tif, "series"):
                 # Multi-page TIFF
                 shape = tif.series[0].shape
             else:
@@ -391,7 +381,7 @@ def get_vol_shape(
                 shape = tif.pages[0].shape
             return shape
 
-    elif 'png' in image_suffix:
+    elif "png" in image_suffix:
         # PNG stack: Count files and read one image for dimensions
         file_list = sorted(glob.glob(filename))
         if len(file_list) == 0:
@@ -412,22 +402,27 @@ def get_vol_shape(
 
     else:
         raise ValueError(
-            f'Unrecognizable file format for {filename}. '
-            f'Expected: h5, hdf5, tif, tiff, or png'
+            f"Unrecognizable file format for {filename}. " f"Expected: h5, hdf5, tif, tiff, or png"
         )
 
 
 __all__ = [
     # HDF5 I/O
-    'read_hdf5', 'write_hdf5', 'list_hdf5_datasets',
-
+    "read_hdf5",
+    "write_hdf5",
+    "list_hdf5_datasets",
     # Image I/O
-    'read_image', 'read_images', 'read_image_as_volume',
-    'save_image', 'save_images', 'SUPPORTED_IMAGE_FORMATS',
-
+    "read_image",
+    "read_images",
+    "read_image_as_volume",
+    "save_image",
+    "save_images",
+    "SUPPORTED_IMAGE_FORMATS",
     # Pickle I/O
-    'read_pickle_file', 'write_pickle_file',
-
+    "read_pickle_file",
+    "write_pickle_file",
     # High-level volume I/O
-    'read_volume', 'save_volume', 'get_vol_shape',
+    "read_volume",
+    "save_volume",
+    "get_vol_shape",
 ]

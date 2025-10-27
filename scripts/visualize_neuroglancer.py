@@ -48,7 +48,7 @@ else:
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description='Visualize volumes with Neuroglancer',
+        description="Visualize volumes with Neuroglancer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -88,47 +88,65 @@ Interactive mode (with -i flag):
     volumes['train_image'][0]  # numpy array of image data
     viewer                     # Neuroglancer viewer instance
     cfg                        # config object (if --config used)
-        """
+        """,
     )
 
     # Input sources (at least one required, but not mutually exclusive)
     parser.add_argument(
-        '--config',
-        type=str,
-        help='Path to config YAML file (reads train/test image/label paths)'
+        "--config", type=str, help="Path to config YAML file (reads train/test image/label paths)"
     )
     parser.add_argument(
-        '--volumes',
+        "--volumes",
         type=str,
-        nargs='+',
+        nargs="+",
         help='Volume paths in format "name:type:path[:resolution[:offset]]" where type is "image" or "seg", '
-             'resolution is "z-y-x" in nm, and offset is "z-y-x" in voxels. '
-             'Type can be omitted for backward compatibility (inferred from name). '
-             'Examples: "pred:image:path.h5:5-5-5" or "label:seg:path.h5"'
+        'resolution is "z-y-x" in nm, and offset is "z-y-x" in voxels. '
+        "Type can be omitted for backward compatibility (inferred from name). "
+        'Examples: "pred:image:path.h5:5-5-5" or "label:seg:path.h5"',
     )
-    parser.add_argument('--image', type=str, help='Path to image volume')
-    parser.add_argument('--label', type=str, help='Path to label volume')
+    parser.add_argument("--image", type=str, help="Path to image volume")
+    parser.add_argument("--label", type=str, help="Path to label volume")
 
     # Server settings
-    parser.add_argument('--ip', type=str, default='localhost',
-                        help='Server IP address (default: localhost, use 0.0.0.0 for remote access)')
-    parser.add_argument('--port', type=int, default=9999,
-                        help='Server port (default: 9999)')
+    parser.add_argument(
+        "--ip",
+        type=str,
+        default="localhost",
+        help="Server IP address (default: localhost, use 0.0.0.0 for remote access)",
+    )
+    parser.add_argument("--port", type=int, default=9999, help="Server port (default: 9999)")
 
     # Volume metadata
-    parser.add_argument('--resolution', type=float, nargs=3, default=[30, 6, 6],
-                        help='Voxel resolution in nm as [z, y, x] (default: 30 6 6 for EM data)')
-    parser.add_argument('--offset', type=int, nargs=3, default=[0, 0, 0],
-                        help='Volume offset as [z, y, x] (default: 0 0 0)')
+    parser.add_argument(
+        "--resolution",
+        type=float,
+        nargs=3,
+        default=[30, 6, 6],
+        help="Voxel resolution in nm as [z, y, x] (default: 30 6 6 for EM data)",
+    )
+    parser.add_argument(
+        "--offset",
+        type=int,
+        nargs=3,
+        default=[0, 0, 0],
+        help="Volume offset as [z, y, x] (default: 0 0 0)",
+    )
 
     # Display options
-    parser.add_argument('--mode', type=str, choices=['train', 'test', 'both'], default='train',
-                        help='Which data to load from config (default: train)')
+    parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["train", "test", "both"],
+        default="train",
+        help="Which data to load from config (default: train)",
+    )
 
     return parser.parse_args()
 
 
-def load_volumes_from_config(config_path: str, mode: str = 'train') -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]]:
+def load_volumes_from_config(
+    config_path: str, mode: str = "train"
+) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]]:
     """
     Load volumes from a config file.
 
@@ -145,38 +163,89 @@ def load_volumes_from_config(config_path: str, mode: str = 'train') -> Dict[str,
 
     # Get resolution from config
     train_resolution = None
-    if hasattr(cfg.data, 'train_resolution') and cfg.data.train_resolution:
+    if hasattr(cfg.data, "train_resolution") and cfg.data.train_resolution:
         train_resolution = tuple(cfg.data.train_resolution)
         print(f"Using train resolution from config: {train_resolution} nm (z, y, x)")
 
     test_resolution = None
     # Check inference.data.test_resolution first, then fall back to data.test_resolution
-    if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and hasattr(cfg.inference.data, 'test_resolution') and cfg.inference.data.test_resolution:
+    if (
+        hasattr(cfg, "inference")
+        and hasattr(cfg.inference, "data")
+        and hasattr(cfg.inference.data, "test_resolution")
+        and cfg.inference.data.test_resolution
+    ):
         test_resolution = tuple(cfg.inference.data.test_resolution)
         print(f"Using test resolution from inference config: {test_resolution} nm (z, y, x)")
-    elif hasattr(cfg.data, 'test_resolution') and cfg.data.test_resolution:
+    elif hasattr(cfg.data, "test_resolution") and cfg.data.test_resolution:
         test_resolution = tuple(cfg.data.test_resolution)
         print(f"Using test resolution from data config: {test_resolution} nm (z, y, x)")
 
     # Training data
-    if mode in ['train', 'both']:
-        if hasattr(cfg.data, 'train_image') and cfg.data.train_image:
+    if mode in ["train", "both"]:
+        if hasattr(cfg.data, "train_image") and cfg.data.train_image:
             print(f"Loading train image: {cfg.data.train_image}")
-            volumes['train_image'] = (read_volume(cfg.data.train_image), 'image', train_resolution, None)
+            data = read_volume(cfg.data.train_image)
+            # Convert 2D to 3D if needed
+            if data.ndim == 2:
+                data = data[None, :, :]  # (H, W) -> (1, H, W)
+                print(f"  Converted 2D train image to 3D: {data.shape}")
+                # Update resolution from 2D to 3D
+                if train_resolution and len(train_resolution) == 2:
+                    train_resolution = (1.0,) + train_resolution  # Add z=1.0
+                    print(f"  Updated train resolution to 3D: {train_resolution}")
+            volumes["train_image"] = (data, "image", train_resolution, None)
 
-        if hasattr(cfg.data, 'train_label') and cfg.data.train_label:
+        if hasattr(cfg.data, "train_label") and cfg.data.train_label:
             print(f"Loading train label: {cfg.data.train_label}")
-            volumes['train_label'] = (read_volume(cfg.data.train_label), 'segmentation', train_resolution, None)
+            data = read_volume(cfg.data.train_label)
+            # Convert 2D to 3D if needed
+            if data.ndim == 2:
+                data = data[None, :, :]  # (H, W) -> (1, H, W)
+                print(f"  Converted 2D train label to 3D: {data.shape}")
+                # Update resolution from 2D to 3D
+                if train_resolution and len(train_resolution) == 2:
+                    train_resolution = (1.0,) + train_resolution  # Add z=1.0
+                    print(f"  Updated train resolution to 3D: {train_resolution}")
+            volumes["train_label"] = (data, "segmentation", train_resolution, None)
 
     # Test data
-    if mode in ['test', 'both']:
-        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and hasattr(cfg.inference.data, 'test_image') and cfg.inference.data.test_image:
+    if mode in ["test", "both"]:
+        if (
+            hasattr(cfg, "inference")
+            and hasattr(cfg.inference, "data")
+            and hasattr(cfg.inference.data, "test_image")
+            and cfg.inference.data.test_image
+        ):
             print(f"Loading test image: {cfg.inference.data.test_image}")
-            volumes['test_image'] = (read_volume(cfg.inference.data.test_image), 'image', test_resolution, None)
+            data = read_volume(cfg.inference.data.test_image)
+            # Convert 2D to 3D if needed
+            if data.ndim == 2:
+                data = data[None, :, :]  # (H, W) -> (1, H, W)
+                print(f"  Converted 2D test image to 3D: {data.shape}")
+                # Update resolution from 2D to 3D
+                if test_resolution and len(test_resolution) == 2:
+                    test_resolution = (1.0,) + test_resolution  # Add z=1.0
+                    print(f"  Updated test resolution to 3D: {test_resolution}")
+            volumes["test_image"] = (data, "image", test_resolution, None)
 
-        if hasattr(cfg, 'inference') and hasattr(cfg.inference, 'data') and hasattr(cfg.inference.data, 'test_label') and cfg.inference.data.test_label:
+        if (
+            hasattr(cfg, "inference")
+            and hasattr(cfg.inference, "data")
+            and hasattr(cfg.inference.data, "test_label")
+            and cfg.inference.data.test_label
+        ):
             print(f"Loading test label: {cfg.inference.data.test_label}")
-            volumes['test_label'] = (read_volume(cfg.inference.data.test_label), 'segmentation', test_resolution, None)
+            data = read_volume(cfg.inference.data.test_label)
+            # Convert 2D to 3D if needed
+            if data.ndim == 2:
+                data = data[None, :, :]  # (H, W) -> (1, H, W)
+                print(f"  Converted 2D test label to 3D: {data.shape}")
+                # Update resolution from 2D to 3D
+                if test_resolution and len(test_resolution) == 2:
+                    test_resolution = (1.0,) + test_resolution  # Add z=1.0
+                    print(f"  Updated test resolution to 3D: {test_resolution}")
+            volumes["test_label"] = (data, "segmentation", test_resolution, None)
 
     if not volumes:
         print(f"WARNING: No volumes found in config for mode='{mode}'")
@@ -184,7 +253,9 @@ def load_volumes_from_config(config_path: str, mode: str = 'train') -> Dict[str,
     return volumes
 
 
-def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], Optional[Tuple]]]:
+def load_volumes_from_paths(
+    volume_specs: List[str],
+) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], Optional[Tuple]]]:
     """
     Load volumes from path specifications.
 
@@ -203,10 +274,10 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
     volumes = {}
 
     for spec in volume_specs:
-        parts = spec.split(':')
+        parts = spec.split(":")
 
         # Check if second part is a type specifier (image/seg/segmentation)
-        has_explicit_type = len(parts) >= 3 and parts[1] in ['image', 'img', 'seg', 'segmentation']
+        has_explicit_type = len(parts) >= 3 and parts[1] in ["image", "img", "seg", "segmentation"]
 
         # Parse based on format
         if len(parts) == 1:
@@ -225,17 +296,17 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
         elif has_explicit_type:
             # Format: name:type:path[:resolution[:offset]]
             name = parts[0]
-            vol_type = 'segmentation' if parts[1] in ['seg', 'segmentation'] else 'image'
+            vol_type = "segmentation" if parts[1] in ["seg", "segmentation"] else "image"
             path = parts[2]
 
             # Parse optional resolution and offset
             if len(parts) >= 4:
-                resolution = tuple(float(x) for x in parts[3].split('-'))
+                resolution = tuple(float(x) for x in parts[3].split("-"))
             else:
                 resolution = None
 
             if len(parts) >= 5:
-                offset = tuple(int(x) for x in parts[4].split('-'))
+                offset = tuple(int(x) for x in parts[4].split("-"))
             else:
                 offset = None
         else:
@@ -245,12 +316,12 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
             vol_type = None  # Infer later
 
             if len(parts) >= 3:
-                resolution = tuple(float(x) for x in parts[2].split('-'))
+                resolution = tuple(float(x) for x in parts[2].split("-"))
             else:
                 resolution = None
 
             if len(parts) >= 4:
-                offset = tuple(int(x) for x in parts[3].split('-'))
+                offset = tuple(int(x) for x in parts[3].split("-"))
             else:
                 offset = None
 
@@ -261,14 +332,23 @@ def load_volumes_from_paths(volume_specs: List[str]) -> Dict[str, Tuple[np.ndarr
             print(f"  Custom offset: {offset}")
 
         data = read_volume(path).squeeze()
+        
+        # Convert 2D to 3D if needed
+        if data.ndim == 2:
+            data = data[None, :, :]  # (H, W) -> (1, H, W)
+            print(f"  Converted 2D to 3D: {data.shape}")
+            # Update resolution from 2D to 3D if it exists
+            if resolution and len(resolution) == 2:
+                resolution = (1.0,) + resolution  # Add z=1.0
+                print(f"  Updated resolution to 3D: {resolution}")
 
         # Infer type if not explicitly specified
         if vol_type is None:
             name_lower = name.lower()
-            if any(keyword in name_lower for keyword in ['label', 'seg', 'gt', 'pred', 'mask']):
-                vol_type = 'segmentation'
+            if any(keyword in name_lower for keyword in ["label", "seg", "gt", "pred", "mask"]):
+                vol_type = "segmentation"
             else:
-                vol_type = 'image'
+                vol_type = "image"
 
         print(f"  Volume type: {vol_type}")
         volumes[name] = (data, vol_type, resolution, offset)
@@ -280,8 +360,8 @@ def create_neuroglancer_layer(
     data: np.ndarray,
     resolution: Tuple[float, float, float],
     offset: Tuple[int, int, int] = (0, 0, 0),
-    volume_type: str = 'image'
-) -> 'neuroglancer.LocalVolume':
+    volume_type: str = "image",
+) -> "neuroglancer.LocalVolume":
     """
     Create a Neuroglancer layer from volume data.
 
@@ -305,28 +385,23 @@ def create_neuroglancer_layer(
 
     # Create coordinate space
     coord_space = neuroglancer.CoordinateSpace(
-        names=['z', 'y', 'x'],
-        units=['nm', 'nm', 'nm'],
-        scales=resolution
+        names=["z", "y", "x"], units=["nm", "nm", "nm"], scales=resolution
     )
 
     print(f"  Shape: {data.shape}, Type: {volume_type}, Resolution: {resolution}")
 
     return neuroglancer.LocalVolume(
-        data,
-        dimensions=coord_space,
-        volume_type=volume_type,
-        voxel_offset=offset
+        data, dimensions=coord_space, volume_type=volume_type, voxel_offset=offset
     )
 
 
 def visualize_volumes(
     volumes: Dict[str, Tuple],
-    ip: str = 'localhost',
+    ip: str = "localhost",
     port: int = 9999,
     resolution: Tuple[float, float, float] = (30, 6, 6),
-    offset: Tuple[int, int, int] = (0, 0, 0)
-) -> 'neuroglancer.Viewer':
+    offset: Tuple[int, int, int] = (0, 0, 0),
+) -> "neuroglancer.Viewer":
     """
     Visualize volumes with Neuroglancer.
 
@@ -370,20 +445,20 @@ def visualize_volumes(
             state.layers.append(name=name, layer=layer)
 
     # Print viewer URL and instructions
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Neuroglancer viewer ready!")
-    print("="*70)
+    print("=" * 70)
     print(f"\nOpen this URL in your browser:")
     print(f"  {viewer}")
     print(f"\nServer: {ip}:{port}")
     print(f"Volumes: {list(volumes.keys())}")
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Interactive Python session - examine variables:")
     print("  viewer   - Neuroglancer viewer instance")
     print("  volumes  - Dictionary of loaded volumes")
     print("  For volume data: volumes['name'][0] (numpy array)")
     print("\nExit with: exit() or Ctrl+D")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     return viewer
 
@@ -395,6 +470,7 @@ def main():
     # Check for neuroglancer (after argparse so --help works without it)
     try:
         import neuroglancer as ng
+
         global neuroglancer
         neuroglancer = ng
     except ImportError:
@@ -416,7 +492,9 @@ def main():
         print("  --image IMG          Load image volume")
         print("  --label LBL          Load label volume")
         print("  --volumes VOL...     Load multiple volumes")
-        print("\nExample: python scripts/visualize_neuroglancer.py --image img.tif --label label.h5")
+        print(
+            "\nExample: python scripts/visualize_neuroglancer.py --image img.tif --label label.h5"
+        )
         sys.exit(1)
 
     # Load volumes based on input method (can combine multiple sources!)
@@ -433,10 +511,20 @@ def main():
     # Add image/label (if provided and not empty strings)
     if args.image and args.image.strip():
         print(f"Loading image: {args.image}")
-        volumes['image'] = (read_volume(args.image), 'image', None, None)
+        data = read_volume(args.image)
+        # Convert 2D to 3D if needed
+        if data.ndim == 2:
+            data = data[None, :, :]  # (H, W) -> (1, H, W)
+            print(f"  Converted 2D image to 3D: {data.shape}")
+        volumes["image"] = (data, "image", None, None)
     if args.label and args.label.strip():
         print(f"Loading label: {args.label}")
-        volumes['label'] = (read_volume(args.label), 'segmentation', None, None)
+        data = read_volume(args.label)
+        # Convert 2D to 3D if needed
+        if data.ndim == 2:
+            data = data[None, :, :]  # (H, W) -> (1, H, W)
+            print(f"  Converted 2D label to 3D: {data.shape}")
+        volumes["label"] = (data, "segmentation", None, None)
 
     # Add additional volumes (if provided) - these can override config volumes
     if args.volumes:
@@ -452,12 +540,12 @@ def main():
         ip=args.ip,
         port=args.port,
         resolution=tuple(args.resolution),
-        offset=tuple(args.offset)
+        offset=tuple(args.offset),
     )
 
     # Return viewer for interactive mode
     return viewer
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,32 +1,44 @@
-# Lucchi mitochondria segmentation with MONAI Residual UNet
-# Electron microscopy (EM) dataset
+# 2D Worm Segmentation with MONAI Residual UNet
+# Electron microscopy (EM) dataset - 2D slices
 #
-# This config uses MONAI's UNet with residual units - a robust baseline
-# for 3D medical image segmentation. The residual connections help with
-# gradient flow and improve performance over standard U-Net.
+# This config demonstrates 2D segmentation using MONAI's UNet with residual units.
+#
+# Key features for 2D training:
+# - Proper 2D architecture (spatial_dims=2, auto-inferred from input_size)
+# - NEW: data_transform for paired image/label transforms (resize, crop, etc.)
+# - image_transform for image-only processing (normalization, intensity)
+# - Optimized batch size and data loading for 2D slices
+# - Augmentation pipeline tuned for 2D EM data
+#
+# Transform pipeline explanation:
+#   data_transform  → Applied to BOTH image and label (keeps them aligned)
+#                     Example: resize, spatial augmentations
+#                     Uses bilinear for images, nearest-neighbor for labels
+#   image_transform → Applied to image ONLY (intensity/normalization)
+#                     Example: normalize to [0,1], clip percentiles
 
 experiment_name: monai2d_worm  # Will be overridden by YAML filename
-description: Mitochondria segmentation on Lucchi++ EM dataset using MONAI Residual UNet
+description: 2D worm segmentation using MONAI Residual UNet with paired data transforms
 
-# System
+# System - Optimized for 2D training
 system:
   training:
-    num_gpus: 4
-    num_cpus: 8
-    num_workers: 8
-    batch_size: 32
+    num_gpus: 1                          # Single GPU
+    num_cpus: 1                          # Increase for better data loading
+    num_workers: 1                       # Parallel data loading (2D slices are lighter)
+    batch_size: 8                        # Higher batch size for 2D (vs 4 for 3D)
   inference:
     num_gpus: 1
-    num_cpus: 1
-    num_workers: 1
-    batch_size: 32
-  seed: 42
+    num_cpus: 4
+    num_workers: 4
+    batch_size: 32                       # Process multiple 2D slices in parallel
+  seed: 42                               # Reproducibility
 
 # Model - MONAI UNet with residual units (2D)
 model:
   architecture: monai_unet
-  input_size: [512, 512]               # 2D input (spatial_dims auto-inferred from input_size length)
-  output_size: [512, 512]
+  input_size: [384, 384]               # 2D input (spatial_dims auto-inferred from input_size length)
+  output_size: [384, 384]
   in_channels: 1
   out_channels: 2                      # 2 channels for binary segmentation with sigmoid activation
 
@@ -53,21 +65,25 @@ data:
   use_preloaded_cache: true            # Load volumes into memory for fast training
 
   # Patch configuration
-  patch_size: [512, 512]          # Larger patches for better context
-  pad_size: [32, 32]                 # Padding for valid convolutions
+  patch_size: [384, 384]          # Larger patches for better context
+  pad_size: [0, 0]                 # Padding for valid convolutions
   pad_mode: reflect                    # Reflection padding at boundaries
   iter_num_per_epoch: 1280             # 1280 random crops per epoch
-  
-  # Image normalization
+
+  # Data transformation (applied to image/label/mask for spatial alignment)
+  # NEW: Paired transforms ensure image and label stay aligned
+  data_transform:
+    resize: [512, 512]                   # Resize to 512x512 (bilinear for image, nearest for label)
+
+  # Image normalization (applied to image only)
   image_transform:
-    resize: [512, 512]                   # Resize to fixed dimensions (512x512)
-    normalize: "0-1"                   # Min-max normalization to [0, 1]
-    clip_percentile_low: 0.0           # No clipping
+    normalize: "0-1"                     # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.0             # No intensity clipping
     clip_percentile_high: 1.0
-  
-  # Augmentation
+
+  # Augmentation - Enabled for better generalization
   augmentation:
-    enabled: true
+    enabled: true                        # Enable data augmentation
 
 
 # Optimizer - AdamW with optimized hyperparameters
@@ -138,8 +154,6 @@ inference:
   data:
     test_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/Image96_00002_0000.tif
     test_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/Image96_00002.tif
-    #test_image: datasets/Lucchi++/train_im.h5
-    #test_label: datasets/Lucchi++/train_mito.h5
     test_resolution: [5, 5]
     output_path: outputs/monai2d_worm/results/
 

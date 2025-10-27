@@ -288,8 +288,23 @@ class LabelTransformConfig:
 
 
 @dataclass
+class DataTransformConfig:
+    """Data transformation configuration applied to all data (image/label/mask).
+
+    These transforms are applied to paired data (image, label, mask) to ensure
+    spatial alignment. Each transform uses appropriate interpolation:
+    - Image: bilinear interpolation (smooth)
+    - Label/Mask: nearest-neighbor interpolation (preserves integer values)
+    """
+
+    resize: Optional[List[float]] = (
+        None  # Resize to target size [H, W] for 2D or [D, H, W] for 3D. None = no resize.
+    )
+
+
+@dataclass
 class ImageTransformConfig:
-    """Image transformation configuration."""
+    """Image transformation configuration (applied to image only)."""
 
     normalize: str = "0-1"  # "none", "normal" (z-score), or "0-1" (min-max)
     clip_percentile_low: float = (
@@ -297,9 +312,6 @@ class ImageTransformConfig:
     )
     clip_percentile_high: float = (
         1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
-    )
-    resize: Optional[List[float]] = (
-        None  # Resize factors [H_scale, W_scale] for 2D or [D_scale, H_scale, W_scale] for 3D. None = no resize. Uses bilinear interpolation for images.
     )
 
 
@@ -389,7 +401,10 @@ class DataConfig:
     use_cache: bool = False
     cache_rate: float = 1.0
 
-    # Image transformation
+    # Data transformation (applied to image/label/mask)
+    data_transform: DataTransformConfig = field(default_factory=DataTransformConfig)
+
+    # Image transformation (applied to image only)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
 
     # Sampling (for volumetric datasets)

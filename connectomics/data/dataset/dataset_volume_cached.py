@@ -17,25 +17,38 @@ from monai.utils import ensure_tuple_rep
 from ..io import read_volume
 
 
-def crop_volume(volume: np.ndarray, size: Tuple[int, int, int], start: Tuple[int, int, int]) -> np.ndarray:
+def crop_volume(
+    volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...]
+) -> np.ndarray:
     """
     Crop a subvolume from a volume using numpy slicing (fast!).
 
     Args:
-        volume: Input volume (C, Z, Y, X) or (Z, Y, X)
-        size: Crop size (z, y, x)
-        start: Start position (z, y, x)
+        volume: Input volume
+                2D: (C, H, W) or (H, W)
+                3D: (C, D, H, W) or (D, H, W)
+        size: Crop size (d, h, w) for 3D or (h, w) for 2D
+        start: Start position (d, h, w) for 3D or (h, w) for 2D
 
     Returns:
         Cropped volume
     """
-    z, y, x = start
-    sz, sy, sx = size
+    ndim = len(size)
+    if ndim not in [2, 3]:
+        raise ValueError(f"crop_volume only supports 2D or 3D, got {ndim}D")
 
-    if volume.ndim == 4:  # (C, Z, Y, X)
-        return volume[:, z:z+sz, y:y+sy, x:x+sx]
-    else:  # (Z, Y, X)
-        return volume[z:z+sz, y:y+sy, x:x+sx]
+    # Build slicing tuple dynamically based on dimensions
+    slices = [slice(start[i], start[i] + size[i]) for i in range(ndim)]
+
+    # Check if volume has channel dimension
+    has_channel = volume.ndim == ndim + 1
+
+    if has_channel:
+        # (C, ...) format - keep all channels, crop spatial dims
+        return volume[(slice(None),) + tuple(slices)]
+    else:
+        # No channel dimension - crop directly
+        return volume[tuple(slices)]
 
 
 class CachedVolumeDataset(Dataset):
@@ -65,12 +78,22 @@ class CachedVolumeDataset(Dataset):
         patch_size: Tuple[int, int, int] = (112, 112, 112),
         iter_num: int = 500,
         transforms: Optional[Compose] = None,
-        mode: str = 'train',
+        mode: str = "train",
     ):
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
         self.mask_paths = mask_paths if mask_paths else [None] * len(image_paths)
-        self.patch_size = ensure_tuple_rep(patch_size, 3)
+
+        # Support both 2D and 3D patch sizes
+        if isinstance(patch_size, (list, tuple)):
+            ndim = len(patch_size)
+            if ndim not in [2, 3]:
+                raise ValueError(f"patch_size must be 2D or 3D, got {ndim}D")
+            self.patch_size = ensure_tuple_rep(patch_size, ndim)
+        else:
+            # Single value - assume 3D for backward compatibility
+            self.patch_size = ensure_tuple_rep(patch_size, 3)
+
         self.iter_num = iter_num if iter_num > 0 else len(image_paths)
         self.transforms = transforms
         self.mode = mode
@@ -81,18 +104,28 @@ class CachedVolumeDataset(Dataset):
         self.cached_labels = []
         self.cached_masks = []
 
-        for i, (img_path, lbl_path, mask_path) in enumerate(zip(image_paths, self.label_paths, self.mask_paths)):
+        for i, (img_path, lbl_path, mask_path) in enumerate(
+            zip(image_paths, self.label_paths, self.mask_paths)
+        ):
             # Load image
             img = read_volume(img_path)
-            if img.ndim == 3:
-                img = img[None, ...]  # Add channel dimension: (C, Z, Y, X)
+            # Add channel dimension for both 2D and 3D
+            # 2D: (H, W) → (1, H, W)
+            # 3D: (D, H, W) → (1, D, H, W)
+            if img.ndim == 2:
+                img = img[None, ...]  # Add channel for 2D
+            elif img.ndim == 3:
+                img = img[None, ...]  # Add channel for 3D
             self.cached_images.append(img)
 
             # Load label if available
             if lbl_path:
                 lbl = read_volume(lbl_path)
-                if lbl.ndim == 3:
-                    lbl = lbl[None, ...]
+                # Add channel dimension for both 2D and 3D
+                if lbl.ndim == 2:
+                    lbl = lbl[None, ...]  # Add channel for 2D
+                elif lbl.ndim == 3:
+                    lbl = lbl[None, ...]  # Add channel for 3D
                 self.cached_labels.append(lbl)
             else:
                 self.cached_labels.append(None)
@@ -111,12 +144,14 @@ class CachedVolumeDataset(Dataset):
         print(f"  ✓ Loaded {len(self.cached_images)} volumes into memory")
 
         # Store volume sizes for random position generation
-        self.volume_sizes = [img.shape[-3:] for img in self.cached_images]  # (Z, Y, X)
+        # Support both 2D and 3D: get last N dimensions matching patch_size
+        ndim = len(self.patch_size)
+        self.volume_sizes = [img.shape[-ndim:] for img in self.cached_images]  # (Z, Y, X) or (Y, X)
 
     def __len__(self) -> int:
         return self.iter_num
 
-    def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, int, int]:
+    def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         """
         Get a random crop position for training (like v1 VolumeDataset).
 
@@ -124,19 +159,20 @@ class CachedVolumeDataset(Dataset):
             vol_idx: Volume index
 
         Returns:
-            Random crop start position (z, y, x)
+            Random crop start position (z, y, x) for 3D or (y, x) for 2D
         """
         vol_size = self.volume_sizes[vol_idx]
         patch_size = self.patch_size
 
         # Random position ensuring crop fits within volume
-        z = random.randint(0, max(0, vol_size[0] - patch_size[0]))
-        y = random.randint(0, max(0, vol_size[1] - patch_size[1]))
-        x = random.randint(0, max(0, vol_size[2] - patch_size[2]))
+        # Support both 2D and 3D
+        positions = tuple(
+            random.randint(0, max(0, vol_size[i] - patch_size[i]))
+            for i in range(len(patch_size))
+        )
+        return positions
 
-        return (z, y, x)
-
-    def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, int, int]:
+    def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         """
         Get center crop position for validation/test.
 
@@ -144,16 +180,18 @@ class CachedVolumeDataset(Dataset):
             vol_idx: Volume index
 
         Returns:
-            Center crop start position (z, y, x)
+            Center crop start position (z, y, x) for 3D or (y, x) for 2D
         """
         vol_size = self.volume_sizes[vol_idx]
         patch_size = self.patch_size
 
-        z = max(0, (vol_size[0] - patch_size[0]) // 2)
-        y = max(0, (vol_size[1] - patch_size[1]) // 2)
-        x = max(0, (vol_size[2] - patch_size[2]) // 2)
-
-        return (z, y, x)
+        # Center position for each dimension
+        # Support both 2D and 3D
+        positions = tuple(
+            max(0, (vol_size[i] - patch_size[i]) // 2)
+            for i in range(len(patch_size))
+        )
+        return positions
 
     def __getitem__(self, index: int) -> Dict[str, Any]:
         """Get a random crop from cached volumes (fast numpy slicing!)."""
@@ -167,7 +205,7 @@ class CachedVolumeDataset(Dataset):
         mask = self.cached_masks[vol_idx]
 
         # Get crop position
-        if self.mode == 'train':
+        if self.mode == "train":
             pos = self._get_random_crop_position(vol_idx)
         else:
             pos = self._get_center_crop_position(vol_idx)
@@ -186,9 +224,9 @@ class CachedVolumeDataset(Dataset):
 
         # Create data dict
         data = {
-            'image': image_crop,
-            'label': label_crop,
-            'mask': mask_crop,
+            "image": image_crop,
+            "label": label_crop,
+            "mask": mask_crop,
         }
 
         # Apply additional transforms if provided (augmentation, normalization, etc.)
@@ -198,4 +236,4 @@ class CachedVolumeDataset(Dataset):
         return data
 
 
-__all__ = ['CachedVolumeDataset']
+__all__ = ["CachedVolumeDataset"]

@@ -930,6 +930,45 @@ class ConvertToFloatd(MapTransform):
         return d
 
 
+class SqueezeLabeld(MapTransform):
+    """
+    Squeeze channel dimension from labels for 2D/3D compatibility.
+
+    CrossEntropyLoss expects labels without channel dimension:
+    - 2D: (B, H, W) instead of (B, 1, H, W)
+    - 3D: (B, D, H, W) instead of (B, 1, D, H, W)
+
+    This transform removes the channel dimension (dim=1) if it equals 1.
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: Keys to squeeze (typically ['label'])
+            allow_missing_keys: Whether to allow missing keys
+        """
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Squeeze channel dimension if size == 1."""
+        d = dict(data)
+        for key in self.key_iterator(d):
+            if key in d:
+                label = d[key]
+                # Check if it has a channel dimension of size 1
+                if isinstance(label, np.ndarray):
+                    if label.ndim >= 3 and label.shape[0] == 1:
+                        d[key] = label.squeeze(0)  # Remove channel dim
+                elif isinstance(label, torch.Tensor):
+                    if label.ndim >= 3 and label.shape[0] == 1:
+                        d[key] = label.squeeze(0)  # Remove channel dim
+        return d
+
+
 class NormalizeLabelsd(MapTransform):
     """
     Convert labels to binary {0, 1} integers.

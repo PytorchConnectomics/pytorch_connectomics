@@ -71,9 +71,13 @@ class LoadVolumed(MapTransform):
                         spatial_transpose = [i + 1 for i in self.transpose_axes]
                         volume = np.transpose(volume, [0] + spatial_transpose)
 
-                # Ensure we have at least 4 dimensions (add channel if needed)
-                if volume.ndim == 3:
-                    volume = np.expand_dims(volume, axis=0)
+                # Ensure channel dimension exists (add channel if needed)
+                # 2D: (H, W) → (1, H, W)
+                # 3D: (D, H, W) → (1, D, H, W)
+                if volume.ndim == 2:
+                    volume = np.expand_dims(volume, axis=0)  # Add channel for 2D
+                elif volume.ndim == 3:
+                    volume = np.expand_dims(volume, axis=0)  # Add channel for 3D
                 d[key] = volume
                 meta_key = f"{key}_meta_dict"
                 meta_dict = dict(d.get(meta_key, {}))

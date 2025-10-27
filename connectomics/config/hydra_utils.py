@@ -42,34 +42,31 @@ def load_config(config_path: Union[str, Path]) -> Config:
 def save_config(cfg: Config, save_path: Union[str, Path]) -> None:
     """
     Save configuration to YAML file.
-    
+
     Args:
         cfg: Config object to save
         save_path: Path where to save the YAML file
     """
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     omega_conf = OmegaConf.structured(cfg)
     OmegaConf.save(omega_conf, save_path)
 
 
-def merge_configs(
-    base_cfg: Config,
-    *override_cfgs: Union[Config, Dict, str, Path]
-) -> Config:
+def merge_configs(base_cfg: Config, *override_cfgs: Union[Config, Dict, str, Path]) -> Config:
     """
     Merge multiple configurations together.
-    
+
     Args:
         base_cfg: Base configuration
         *override_cfgs: One or more override configs (Config, dict, or path to YAML)
-        
+
     Returns:
         Merged Config object
     """
     result = OmegaConf.structured(base_cfg)
-    
+
     for override_cfg in override_cfgs:
         if isinstance(override_cfg, (str, Path)):
             override_omega = OmegaConf.load(override_cfg)
@@ -79,22 +76,22 @@ def merge_configs(
             override_omega = OmegaConf.create(override_cfg)
         else:
             raise TypeError(f"Unsupported config type: {type(override_cfg)}")
-        
+
         result = OmegaConf.merge(result, override_omega)
-    
+
     return OmegaConf.to_object(result)
 
 
 def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
     """
     Update config from command-line overrides.
-    
+
     Supports dot notation: ['data.batch_size=4', 'model.architecture=unet3d']
-    
+
     Args:
         cfg: Base Config object
         overrides: List of 'key=value' strings
-        
+
     Returns:
         Updated Config object
     """
@@ -107,11 +104,11 @@ def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
 def to_dict(cfg: Config, resolve: bool = True) -> Dict[str, Any]:
     """
     Convert Config to dictionary.
-    
+
     Args:
         cfg: Config object
         resolve: Whether to resolve variable interpolations
-        
+
     Returns:
         Dictionary representation
     """
@@ -122,10 +119,10 @@ def to_dict(cfg: Config, resolve: bool = True) -> Dict[str, Any]:
 def from_dict(d: Dict[str, Any]) -> Config:
     """
     Create Config from dictionary.
-    
+
     Args:
         d: Dictionary with configuration values
-        
+
     Returns:
         Config object
     """
@@ -138,7 +135,7 @@ def from_dict(d: Dict[str, Any]) -> Config:
 def print_config(cfg: Config, resolve: bool = True) -> None:
     """
     Pretty print configuration.
-    
+
     Args:
         cfg: Config to print
         resolve: Whether to resolve variable interpolations
@@ -150,10 +147,10 @@ def print_config(cfg: Config, resolve: bool = True) -> None:
 def validate_config(cfg: Config) -> None:
     """
     Validate configuration values.
-    
+
     Args:
         cfg: Config object to validate
-        
+
     Raises:
         ValueError: If configuration is invalid
     """
@@ -162,9 +159,9 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("model.in_channels must be positive")
     if cfg.model.out_channels <= 0:
         raise ValueError("model.out_channels must be positive")
-    if len(cfg.model.input_size) != 3:
-        raise ValueError("model.input_size must be 3D")
-    
+    if len(cfg.model.input_size) not in [2, 3]:
+        raise ValueError("model.input_size must be 2D or 3D (got length {})".format(len(cfg.model.input_size)))
+
     # System validation
     if cfg.system.training.batch_size <= 0:
         raise ValueError("system.training.batch_size must be positive")
@@ -172,8 +169,8 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("system.training.num_workers must be non-negative")
 
     # Data validation
-    if len(cfg.data.patch_size) != 3:
-        raise ValueError("data.patch_size must be 3D")
+    if len(cfg.data.patch_size) not in [2, 3]:
+        raise ValueError("data.patch_size must be 2D or 3D (got length {})".format(len(cfg.data.patch_size)))
 
     # Optimizer validation
     if cfg.optimization.optimizer.lr <= 0:
@@ -188,7 +185,7 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("optimization.gradient_clip_val must be non-negative")
     if cfg.optimization.accumulate_grad_batches <= 0:
         raise ValueError("optimization.accumulate_grad_batches must be positive")
-    
+
     # Loss validation
     if len(cfg.model.loss_functions) != len(cfg.model.loss_weights):
         raise ValueError("loss_functions and loss_weights must have same length")
@@ -199,16 +196,17 @@ def validate_config(cfg: Config) -> None:
 def get_config_hash(cfg: Config) -> str:
     """
     Generate a hash string for the configuration.
-    
+
     Useful for experiment tracking and reproducibility.
-    
+
     Args:
         cfg: Config object
-        
+
     Returns:
         Hash string
     """
     import hashlib
+
     omega_conf = OmegaConf.structured(cfg)
     yaml_str = OmegaConf.to_yaml(omega_conf, resolve=True)
     return hashlib.md5(yaml_str.encode()).hexdigest()[:8]
@@ -228,20 +226,20 @@ def create_experiment_name(cfg: Config) -> str:
         cfg.model.architecture,
         f"bs{cfg.system.training.batch_size}",
         f"lr{cfg.optimization.optimizer.lr:.0e}",
-        get_config_hash(cfg)
+        get_config_hash(cfg),
     ]
     return "_".join(parts)
 
 
 __all__ = [
-    'load_config',
-    'save_config',
-    'merge_configs',
-    'update_from_cli',
-    'to_dict',
-    'from_dict',
-    'print_config',
-    'validate_config',
-    'get_config_hash',
-    'create_experiment_name',
+    "load_config",
+    "save_config",
+    "merge_configs",
+    "update_from_cli",
+    "to_dict",
+    "from_dict",
+    "print_config",
+    "validate_config",
+    "get_config_hash",
+    "create_experiment_name",
 ]
