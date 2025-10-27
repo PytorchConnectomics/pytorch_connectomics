@@ -4,7 +4,7 @@
 #
 # Usage:
 #   bash quickstart.sh
-#   curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/v2.0/quickstart.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/refs/heads/master/quickstart.sh | bash
 
 set -e
 

@@ -5,7 +5,7 @@
 # for 3D medical image segmentation. The residual connections help with
 # gradient flow and improve performance over standard U-Net.
 
-experiment_name: lucchi++_monai_unet
+experiment_name: monai2d_worm  # Will be overridden by YAML filename
 description: Mitochondria segmentation on Lucchi++ EM dataset using MONAI Residual UNet
 
 # System
@@ -47,8 +47,8 @@ model:
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:
   # Volume configuration
-  train_image: datasets/Lucchi++/train_im.h5
-  train_label: datasets/Lucchi++/train_mito.h5
+  train_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/Image96_00001_0000.tif
+  train_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/Image96_00001.tif
   train_resolution: [5, 5]        # Lucchi EM: 5nm isotropic resolution
   use_preloaded_cache: true            # Load volumes into memory for fast training
 
@@ -60,7 +60,7 @@ data:
   
   # Image normalization
   image_transform:
-    resize: [0.25, 0.25]                # Resize to 1/4 of original size (bilinear for images)
+    resize: [512, 512]                   # Resize to fixed dimensions (512x512)
     normalize: "0-1"                   # Min-max normalization to [0, 1]
     clip_percentile_low: 0.0           # No clipping
     clip_percentile_high: 1.0
@@ -118,7 +118,7 @@ monitor:
     save_top_k: 1
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/lucchi++_monai_unet/checkpoints/
+    dirpath: checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
     # checkpoint_filename: auto-generated from monitor metric (epoch={epoch:03d}-{monitor}={value:.4f})
     use_timestamp: true       # Enable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
@@ -136,16 +136,16 @@ monitor:
 # Inference - MONAI SlidingWindowInferer
 inference:
   data:
-    test_image: datasets/Lucchi++/test_im.h5
-    test_label: datasets/Lucchi++/test_mito.h5
+    test_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/Image96_00002_0000.tif
+    test_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/Image96_00002.tif
     #test_image: datasets/Lucchi++/train_im.h5
     #test_label: datasets/Lucchi++/train_mito.h5
     test_resolution: [5, 5]
-    output_path: outputs/lucchi++_monai_unet/results/
+    output_path: outputs/monai2d_worm/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [512, 512]         # Patch size extracted from volume
+    window_size: null               # Disable sliding window for 2D data (use direct inference)
     # sw_batch_size: automatically set from system.inference.batch_size (currently 32)
     overlap: 0.5                         # 50% overlap between patches
     blending: gaussian                   # Gaussian weighting for smooth blending
