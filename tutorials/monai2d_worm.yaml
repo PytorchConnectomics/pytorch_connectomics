@@ -24,9 +24,9 @@ description: 2D worm segmentation using MONAI Residual UNet with paired data tra
 system:
   training:
     num_gpus: 1                          # Single GPU
-    num_cpus: 1                          # Increase for better data loading
-    num_workers: 1                       # Parallel data loading (2D slices are lighter)
-    batch_size: 8                        # Higher batch size for 2D (vs 4 for 3D)
+    num_cpus: 4                          # Increase for better data loading
+    num_workers: 4                       # Parallel data loading (2D slices are lighter)
+    batch_size: 32                        # Higher batch size for 2D (vs 4 for 3D)
   inference:
     num_gpus: 1
     num_cpus: 4
@@ -59,8 +59,8 @@ model:
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:
   # Volume configuration
-  train_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/Image96_00001_0000.tif
-  train_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/Image96_00001.tif
+  train_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/*.tif
+  train_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/*.tif
   train_resolution: [5, 5]        # Lucchi EM: 5nm isotropic resolution
   use_preloaded_cache: true            # Load volumes into memory for fast training
 
