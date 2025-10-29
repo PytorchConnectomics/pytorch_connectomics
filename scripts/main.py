@@ -1013,12 +1013,15 @@ def create_trainer(
     if system_cfg.num_gpus > 1:
         # Multi-GPU training: configure DDP
         deep_supervision_enabled = getattr(cfg.model, "deep_supervision", False)
-        if deep_supervision_enabled:
-            # Deep supervision requires find_unused_parameters=True
+        ddp_find_unused_params = getattr(cfg.model, "ddp_find_unused_parameters", False)
+        
+        if deep_supervision_enabled or ddp_find_unused_params:
+            # Deep supervision or explicit config requires find_unused_parameters=True
             # because auxiliary heads at different scales may not all be used
             from pytorch_lightning.strategies import DDPStrategy
             strategy = DDPStrategy(find_unused_parameters=True)
-            print("  Strategy: DDP with find_unused_parameters=True (deep supervision enabled)")
+            reason = "deep supervision" if deep_supervision_enabled else "explicit config"
+            print(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
         else:
             from pytorch_lightning.strategies import DDPStrategy
             strategy = DDPStrategy(find_unused_parameters=False)

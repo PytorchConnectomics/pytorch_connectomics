@@ -64,8 +64,12 @@ def create_trainer(
 
     # Check if deep supervision is enabled (requires DDP with find_unused_parameters=True)
     deep_supervision_enabled = False
-    if hasattr(cfg, 'model') and hasattr(cfg.model, 'deep_supervision'):
-        deep_supervision_enabled = cfg.model.deep_supervision
+    ddp_find_unused_params = False
+    if hasattr(cfg, 'model'):
+        if hasattr(cfg.model, 'deep_supervision'):
+            deep_supervision_enabled = cfg.model.deep_supervision
+        if hasattr(cfg.model, 'ddp_find_unused_parameters'):
+            ddp_find_unused_params = cfg.model.ddp_find_unused_parameters
 
     # Configure DDP strategy for multi-GPU training
     strategy = 'auto'  # Default strategy
@@ -83,8 +87,8 @@ def create_trainer(
 
     if num_gpus > 1:
         # Multi-GPU training: use DDP
-        if deep_supervision_enabled:
-            # Deep supervision requires find_unused_parameters=True
+        if deep_supervision_enabled or ddp_find_unused_params:
+            # Deep supervision or explicit config requires find_unused_parameters=True
             # because auxiliary heads at different scales may not all be used
             strategy = DDPStrategy(find_unused_parameters=True)
         else:
