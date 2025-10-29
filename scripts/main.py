@@ -822,6 +822,7 @@ def create_datamodule(
             cache_rate=cfg.data.cache_rate if use_cache else 0.0,
             iter_num=iter_num_for_dataset,
             sample_size=tuple(cfg.data.patch_size),
+            do_2d=cfg.data.do_2d,
         )
         # Setup datasets based on mode
         if mode == "train":
