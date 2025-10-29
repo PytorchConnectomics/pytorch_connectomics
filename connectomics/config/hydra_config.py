@@ -329,10 +329,14 @@ class DataConfig:
     - Multi-channel label transformations
     - Train/validation splitting options
     - Caching and performance optimization
+    - 2D data support with do_2d parameter
     """
 
     # Dataset type
     dataset_type: Optional[str] = None  # Type of dataset: None (volume), 'filename', 'tile', etc.
+    
+    # 2D data support
+    do_2d: bool = False  # Enable 2D data processing (extract 2D slices from 3D volumes)
 
     # Paths - Volume-based datasets
     train_image: Optional[str] = None
@@ -755,6 +759,9 @@ class InferenceDataConfig:
         default_factory=list
     )  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
     output_path: str = "results/"
+    
+    # 2D data support
+    do_2d: bool = False  # Enable 2D data processing for inference
 
 
 @dataclass
