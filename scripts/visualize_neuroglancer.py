@@ -36,13 +36,86 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import connectomics modules (needed for helper functions)
 from connectomics.data.io import read_volume
-from connectomics.config import load_config
+from connectomics.config import load_config, resolve_data_paths
 
 # Lazy import for neuroglancer (checked at runtime)
 if TYPE_CHECKING:
     import neuroglancer
 else:
     neuroglancer = None  # Will be imported in main() after arg parsing
+
+
+def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
+    """
+    Apply image transformations from config (normalization and clipping).
+
+    Args:
+        data: Input image array
+        cfg: Config object with image_transform settings
+
+    Returns:
+        Transformed image array (same dtype as input)
+    """
+    if not hasattr(cfg.data, 'image_transform'):
+        return data
+
+    transform_cfg = cfg.data.image_transform
+    original_dtype = data.dtype
+    data = data.astype(np.float32)  # Work in float32
+
+    print(f"  Applying image transformations:")
+    print(f"    Original range: [{data.min():.2f}, {data.max():.2f}]")
+
+    # Percentile clipping
+    if hasattr(transform_cfg, 'clip_percentile_low') and hasattr(transform_cfg, 'clip_percentile_high'):
+        low_pct = transform_cfg.clip_percentile_low
+        high_pct = transform_cfg.clip_percentile_high
+
+        if low_pct > 0.0 or high_pct < 1.0:
+            low_val = np.percentile(data, low_pct * 100)
+            high_val = np.percentile(data, high_pct * 100)
+            print(f"    Clipping: {low_pct*100:.1f}th percentile ({low_val:.2f}) to {high_pct*100:.1f}th percentile ({high_val:.2f})")
+            data = np.clip(data, low_val, high_val)
+
+    # Normalization
+    if hasattr(transform_cfg, 'normalize'):
+        normalize_mode = transform_cfg.normalize
+
+        if normalize_mode == "0-1":
+            # Min-max normalization to [0, 1]
+            data_min = data.min()
+            data_max = data.max()
+            if data_max > data_min:
+                data = (data - data_min) / (data_max - data_min)
+                print(f"    Normalized to [0, 1] (min-max)")
+            else:
+                print(f"    Warning: data_min == data_max, skipping normalization")
+
+        elif normalize_mode == "normal":
+            # Z-score normalization
+            data_mean = data.mean()
+            data_std = data.std()
+            if data_std > 0:
+                data = (data - data_mean) / data_std
+                print(f"    Normalized (z-score): mean={data_mean:.2f}, std={data_std:.2f}")
+            else:
+                print(f"    Warning: data_std == 0, skipping normalization")
+
+        elif normalize_mode == "none":
+            print(f"    No normalization applied")
+
+    print(f"    Final range: [{data.min():.2f}, {data.max():.2f}]")
+
+    # Convert back to original dtype for visualization
+    if normalize_mode == "0-1" and original_dtype == np.uint8:
+        data = (data * 255).astype(np.uint8)
+    elif normalize_mode == "0-1" and original_dtype == np.uint16:
+        data = (data * 65535).astype(np.uint16)
+    else:
+        # Keep as float32 for normalized data
+        pass
+
+    return data
 
 
 def parse_args():
@@ -159,6 +232,7 @@ def load_volumes_from_config(
         where type is 'image' or 'segmentation', resolution is from config (or None), and offset is None
     """
     cfg = load_config(config_path)
+    cfg = resolve_data_paths(cfg)  # Resolve paths and expand globs
     volumes = {}
 
     # Get resolution from config
@@ -184,30 +258,82 @@ def load_volumes_from_config(
     # Training data
     if mode in ["train", "both"]:
         if hasattr(cfg.data, "train_image") and cfg.data.train_image:
-            print(f"Loading train image: {cfg.data.train_image}")
-            data = read_volume(cfg.data.train_image)
-            # Convert 2D to 3D if needed
-            if data.ndim == 2:
-                data = data[None, :, :]  # (H, W) -> (1, H, W)
-                print(f"  Converted 2D train image to 3D: {data.shape}")
-                # Update resolution from 2D to 3D
-                if train_resolution and len(train_resolution) == 2:
-                    train_resolution = (1.0,) + train_resolution  # Add z=1.0
-                    print(f"  Updated train resolution to 3D: {train_resolution}")
-            volumes["train_image"] = (data, "image", train_resolution, None)
+            print(f"Loading train images: {cfg.data.train_image}")
+
+            # Handle list of files (load all volumes)
+            if isinstance(cfg.data.train_image, list):
+                print(f"  Found {len(cfg.data.train_image)} volumes, loading all...")
+                for idx, img_file in enumerate(cfg.data.train_image):
+                    print(f"  [{idx+1}/{len(cfg.data.train_image)}] Loading: {img_file}")
+                    try:
+                        data = read_volume(img_file)
+
+                        # Convert 2D to 3D if needed
+                        if data.ndim == 2:
+                            data = data[None, :, :]  # (H, W) -> (1, H, W)
+                            print(f"      Converted 2D to 3D: {data.shape}")
+
+                        # Apply image transformations (normalization, clipping)
+                        data = apply_image_transform(data, cfg)
+
+                        # Create unique name for this volume
+                        vol_name = f"train_image_{idx}" if len(cfg.data.train_image) > 1 else "train_image"
+                        volumes[vol_name] = (data, "image", train_resolution, None)
+                        print(f"      Loaded: {data.shape}, dtype={data.dtype}")
+                    except Exception as e:
+                        print(f"      Error loading {img_file}: {e}")
+            else:
+                # Single file
+                data = read_volume(cfg.data.train_image)
+                if data is not None:
+                    # Convert 2D to 3D if needed
+                    if data.ndim == 2:
+                        data = data[None, :, :]  # (H, W) -> (1, H, W)
+                        print(f"  Converted 2D train image to 3D: {data.shape}")
+                        # Update resolution from 2D to 3D
+                        if train_resolution and len(train_resolution) == 2:
+                            train_resolution = (1.0,) + train_resolution  # Add z=1.0
+                            print(f"  Updated train resolution to 3D: {train_resolution}")
+
+                    # Apply image transformations (normalization, clipping)
+                    data = apply_image_transform(data, cfg)
+                    volumes["train_image"] = (data, "image", train_resolution, None)
 
         if hasattr(cfg.data, "train_label") and cfg.data.train_label:
-            print(f"Loading train label: {cfg.data.train_label}")
-            data = read_volume(cfg.data.train_label)
-            # Convert 2D to 3D if needed
-            if data.ndim == 2:
-                data = data[None, :, :]  # (H, W) -> (1, H, W)
-                print(f"  Converted 2D train label to 3D: {data.shape}")
-                # Update resolution from 2D to 3D
-                if train_resolution and len(train_resolution) == 2:
-                    train_resolution = (1.0,) + train_resolution  # Add z=1.0
-                    print(f"  Updated train resolution to 3D: {train_resolution}")
-            volumes["train_label"] = (data, "segmentation", train_resolution, None)
+            print(f"Loading train labels: {cfg.data.train_label}")
+
+            # Handle list of files (load all volumes)
+            if isinstance(cfg.data.train_label, list):
+                print(f"  Found {len(cfg.data.train_label)} volumes, loading all...")
+                for idx, lbl_file in enumerate(cfg.data.train_label):
+                    print(f"  [{idx+1}/{len(cfg.data.train_label)}] Loading: {lbl_file}")
+                    try:
+                        data = read_volume(lbl_file)
+
+                        # Convert 2D to 3D if needed
+                        if data.ndim == 2:
+                            data = data[None, :, :]  # (H, W) -> (1, H, W)
+                            print(f"      Converted 2D to 3D: {data.shape}")
+
+                        # Create unique name for this volume
+                        vol_name = f"train_label_{idx}" if len(cfg.data.train_label) > 1 else "train_label"
+                        volumes[vol_name] = (data, "segmentation", train_resolution, None)
+                        print(f"      Loaded: {data.shape}, dtype={data.dtype}")
+                    except Exception as e:
+                        print(f"      Error loading {lbl_file}: {e}")
+            else:
+                # Single file
+                data = read_volume(cfg.data.train_label)
+                if data is not None:
+                    # Convert 2D to 3D if needed
+                    if data.ndim == 2:
+                        data = data[None, :, :]  # (H, W) -> (1, H, W)
+                        print(f"  Converted 2D train label to 3D: {data.shape}")
+                        # Update resolution from 2D to 3D
+                        if train_resolution and len(train_resolution) == 2:
+                            train_resolution = (1.0,) + train_resolution  # Add z=1.0
+                            print(f"  Updated train resolution to 3D: {train_resolution}")
+                    volumes["train_label"] = (data, "segmentation", train_resolution, None)
 
     # Test data
     if mode in ["test", "both"]:

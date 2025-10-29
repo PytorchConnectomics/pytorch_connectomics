@@ -232,7 +232,7 @@ def skeleton_aware_distance_transform(
     bg_value: float = -1.0,
     relabel: bool = True,
     padding: bool = False,
-    resolution: Tuple[float] = (1.0, 1.0),
+    resolution: Tuple[float] = (1.0, 1.0, 1.0),
     alpha: float = 0.8,
     smooth: bool = True,
     smooth_skeleton_only: bool = True,

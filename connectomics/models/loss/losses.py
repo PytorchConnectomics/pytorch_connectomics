@@ -75,6 +75,7 @@ class WeightedMSELoss(nn.Module):
         reduction: Reduction method ('mean', 'sum', 'none')
         tanh: If True, apply tanh activation to predictions before computing loss.
               Useful for distance transform targets in range [-1, 1].
+              With both pred and target in [-1, 1], MSE should be < 4.
     """
 
     def __init__(self, reduction: str = 'mean', tanh: bool = False):
@@ -93,16 +94,17 @@ class WeightedMSELoss(nn.Module):
 
         Args:
             pred: Predictions (logits if tanh=True, otherwise predictions)
-            target: Ground truth
+            target: Ground truth (range [-1, 1] for SDT)
             weight: Optional spatial weights
 
         Returns:
-            Loss value
+            Loss value (should be < 4 for range [-1, 1])
         """
-        # Apply tanh activation if enabled
+        # Apply tanh activation if enabled (constrains pred to [-1, 1])
         if self.tanh:
             pred = torch.tanh(pred)
-        
+
+        # Compute MSE (for range [-1,1], max error is (1-(-1))^2 = 4)
         mse = (pred - target) ** 2
 
         if weight is not None:

@@ -71,6 +71,7 @@ from connectomics.config import (
     update_from_cli,
     print_config,
     validate_config,
+    resolve_data_paths,
     Config,
 )
 
@@ -173,6 +174,9 @@ def setup_config(args) -> Config:
     print(f"📄 Loading config: {args.config}")
     cfg = load_config(args.config)
 
+    # Resolve data paths (combine train_path with train_image, etc.)
+    cfg = resolve_data_paths(cfg)
+
     # Extract config file name and set output folder
     config_path = Path(args.config)
     config_name = config_path.stem  # Get filename without extension
@@ -251,18 +255,22 @@ def setup_config(args) -> Config:
     return cfg
 
 
-def expand_file_paths(path_or_pattern: str) -> List[str]:
+def expand_file_paths(path_or_pattern) -> List[str]:
     """
     Expand glob patterns to list of file paths.
 
     Args:
-        path_or_pattern: Single file path or glob pattern (e.g., "img_*.h5")
+        path_or_pattern: Single file path, glob pattern, or list of paths/patterns
 
     Returns:
         List of expanded file paths, sorted alphabetically
     """
     from glob import glob
     from pathlib import Path
+
+    # If already a list, return it (may have been expanded by resolve_data_paths)
+    if isinstance(path_or_pattern, list):
+        return path_or_pattern
 
     # Check if pattern contains wildcards
     if "*" in path_or_pattern or "?" in path_or_pattern:
@@ -295,16 +303,23 @@ def create_datamodule(
     # Auto-download tutorial data if missing
     if mode == "train" and cfg.data.train_image:
         from glob import glob
+        from pathlib import Path as PathLib
 
-        # Check if data exists (support glob patterns)
+        # Check if data exists (support glob patterns and lists)
         data_exists = False
-        if "*" in cfg.data.train_image or "?" in cfg.data.train_image:
+
+        # Handle list of files
+        if isinstance(cfg.data.train_image, list):
+            # Check if at least one file in the list exists
+            data_exists = any(PathLib(img).exists() for img in cfg.data.train_image)
+        # Handle glob pattern
+        elif "*" in cfg.data.train_image or "?" in cfg.data.train_image:
             # Glob pattern - check if any files match
             matched_files = glob(cfg.data.train_image)
             data_exists = len(matched_files) > 0
+        # Handle single file path
         else:
-            # Single file path
-            data_exists = Path(cfg.data.train_image).exists()
+            data_exists = PathLib(cfg.data.train_image).exists()
 
         if not data_exists:
             print(f"\n⚠️  Training data not found: {cfg.data.train_image}")
@@ -333,7 +348,7 @@ def create_datamodule(
                         .lower()
                     )
                     if response in ["", "y", "yes"]:
-                        if download_dataset(dataset_name, base_dir=Path.cwd()):
+                        if download_dataset(dataset_name, base_dir=PathLib.cwd()):
                             print("✅ Data downloaded successfully!")
                         else:
                             print("❌ Download failed. Please download manually:")
@@ -445,18 +460,45 @@ def create_datamodule(
     else:
         # Check dataset type to determine how to load data
         if dataset_type == "filename":
-            # Filename-based dataset: uses JSON file lists
-            print(f"  Using filename-based dataset")
-            print(f"  Train JSON: {cfg.data.train_json}")
-            print(f"  Image key: {cfg.data.train_image_key}")
-            print(f"  Label key: {cfg.data.train_label_key}")
+            # Check if train_json is empty or doesn't exist
+            train_json_empty = False
+            if cfg.data.train_json is None or cfg.data.train_json == "":
+                train_json_empty = True
+            else:
+                try:
+                    from pathlib import Path
+                    import json
+                    json_path = Path(cfg.data.train_json)
+                    if not json_path.exists():
+                        train_json_empty = True
+                    else:
+                        # Check if JSON file is empty or has no images
+                        with open(json_path, 'r') as f:
+                            json_data = json.load(f)
+                        image_files = json_data.get(cfg.data.train_image_key, [])
+                        if not image_files:
+                            train_json_empty = True
+                except (FileNotFoundError, json.JSONDecodeError, KeyError):
+                    train_json_empty = True
+            
+            if train_json_empty:
+                # Fallback to volume-based dataset when train_json is empty
+                print(f"  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
+                print(f"  Train JSON: {cfg.data.train_json}")
+                dataset_type = None  # Switch to volume-based
+            else:
+                # Filename-based dataset: uses JSON file lists
+                print(f"  Using filename-based dataset")
+                print(f"  Train JSON: {cfg.data.train_json}")
+                print(f"  Image key: {cfg.data.train_image_key}")
+                print(f"  Label key: {cfg.data.train_label_key}")
 
-            # For filename dataset, we'll create data dicts later in the DataModule
-            # Here we just need placeholder dicts
-            train_data_dicts = [{"dataset_type": "filename"}]
-            val_data_dicts = None  # Handled by train_val_split in DataModule
-
-        else:
+                # For filename dataset, we'll create data dicts later in the DataModule
+                # Here we just need placeholder dicts
+                train_data_dicts = [{"dataset_type": "filename"}]
+                val_data_dicts = None  # Handled by train_val_split in DataModule
+        
+        if dataset_type != "filename":
             # Standard mode: separate train and val files (supports glob patterns)
             if cfg.data.train_image is None:
                 raise ValueError(
@@ -966,11 +1008,28 @@ def create_trainer(
         print("  ⚠️  PyTorch anomaly detection ENABLED (training will be slower)")
         print("      This helps pinpoint the exact operation causing NaN in backward pass")
 
+    # Configure DDP strategy for multi-GPU training with deep supervision
+    strategy = "auto"  # Default strategy
+    if system_cfg.num_gpus > 1:
+        # Multi-GPU training: configure DDP
+        deep_supervision_enabled = getattr(cfg.model, "deep_supervision", False)
+        if deep_supervision_enabled:
+            # Deep supervision requires find_unused_parameters=True
+            # because auxiliary heads at different scales may not all be used
+            from pytorch_lightning.strategies import DDPStrategy
+            strategy = DDPStrategy(find_unused_parameters=True)
+            print("  Strategy: DDP with find_unused_parameters=True (deep supervision enabled)")
+        else:
+            from pytorch_lightning.strategies import DDPStrategy
+            strategy = DDPStrategy(find_unused_parameters=False)
+            print("  Strategy: DDP (standard)")
+
     trainer = pl.Trainer(
         max_epochs=cfg.optimization.max_epochs,
         max_steps=getattr(cfg.optimization, "max_steps", None) or -1,
         accelerator="gpu" if use_gpu else "cpu",
         devices=system_cfg.num_gpus if use_gpu else 1,
+        strategy=strategy,
         precision=cfg.optimization.precision,
         gradient_clip_val=cfg.optimization.gradient_clip_val,
         accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,

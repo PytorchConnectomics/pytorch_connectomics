@@ -50,7 +50,7 @@ model:
   multi_task_config:
     - [0, 1, "binary", [0, 1]]         # Channel 0: binary mask -> DiceLoss + BCE
     - [1, 2, "boundary", [1]]          # Channel 1: boundary mask -> BCE only
-    - [2, 3, "edt", [2]]               # Channel 2: EDT -> MSE only
+    - [2, 3, "sdt", [2]]               # Distance channel: MSE (with tanh activation)
 # Data - Using JSON filename-based dataset
 data:
   # Use filename-based dataset with JSON file lists

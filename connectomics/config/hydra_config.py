@@ -334,16 +334,23 @@ class DataConfig:
     # Dataset type
     dataset_type: Optional[str] = None  # Type of dataset: None (volume), 'filename', 'tile', etc.
 
+    # Base path (prepended to train_image, train_label, etc. if set)
+    train_path: str = ""  # Base path for training data (e.g., "/path/to/dataset/")
+    val_path: str = ""  # Base path for validation data
+    test_path: str = ""  # Base path for test data
+
     # Paths - Volume-based datasets
-    train_image: Optional[str] = None
-    train_label: Optional[str] = None
-    train_mask: Optional[str] = None  # Valid region mask for training
-    val_image: Optional[str] = None
-    val_label: Optional[str] = None
-    val_mask: Optional[str] = None  # Valid region mask for validation
-    test_image: Optional[str] = None
-    test_label: Optional[str] = None
-    test_mask: Optional[str] = None  # Valid region mask for testing
+    # These can be strings (single file), lists (multiple files), or None
+    # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
+    train_image: Any = None  # str, List[str], or None
+    train_label: Any = None  # str, List[str], or None
+    train_mask: Any = None  # str, List[str], or None (Valid region mask for training)
+    val_image: Any = None  # str, List[str], or None
+    val_label: Any = None  # str, List[str], or None
+    val_mask: Any = None  # str, List[str], or None (Valid region mask for validation)
+    test_image: Any = None  # str, List[str], or None
+    test_label: Any = None  # str, List[str], or None
+    test_mask: Any = None  # str, List[str], or None (Valid region mask for testing)
 
     # Paths - JSON/filename-based datasets
     train_json: Optional[str] = None  # JSON file with image/label file lists
@@ -412,6 +419,9 @@ class DataConfig:
     use_preloaded_cache: bool = (
         True  # Preload volumes into memory for fast random cropping (default: True)
     )
+
+    # Reject sampling configuration (for volumetric patch sampling)
+    reject_sampling: Optional[Dict[str, Any]] = None  # Dict with 'size_thres' and 'p' keys
 
     # Multi-channel label transformation (for affinity maps, distance transforms, etc.)
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
@@ -745,9 +755,9 @@ class AugmentationConfig:
 class InferenceDataConfig:
     """Inference data configuration."""
 
-    test_image: Optional[str] = None  # Singular form for compatibility
-    test_label: Optional[str] = None  # Singular form for compatibility
-    test_mask: Optional[str] = None  # Optional mask for inference
+    test_image: Any = None  # str, List[str], or None - Can be single file or list of files
+    test_label: Any = None  # str, List[str], or None - Can be single file or list of files
+    test_mask: Any = None  # str, List[str], or None - Optional mask for inference
     test_resolution: Optional[List[float]] = (
         None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
     )
@@ -763,12 +773,14 @@ class SlidingWindowConfig:
 
     window_size: Optional[List[int]] = None
     sw_batch_size: Optional[int] = None  # If None, will use system.inference.batch_size
-    overlap: float = 0.5
+    overlap: Optional[float] = 0.5  # Overlap ratio (0-1), or None to use stride instead
+    stride: Optional[List[int]] = None  # Explicit stride (overrides overlap if set)
     blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
     sigma_scale: float = (
         0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
     )
     padding_mode: str = "constant"  # Padding mode at volume boundaries
+    pad_size: Optional[List[int]] = None  # Padding size for context (e.g., [16, 32, 32])
 
 
 @dataclass

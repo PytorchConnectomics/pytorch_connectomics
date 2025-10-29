@@ -231,6 +231,95 @@ def create_experiment_name(cfg: Config) -> str:
     return "_".join(parts)
 
 
+def resolve_data_paths(cfg: Config) -> Config:
+    """
+    Resolve data paths by combining base paths (train_path, val_path, test_path)
+    with relative file paths (train_image, train_label, etc.).
+
+    This function modifies the config in-place by:
+    1. Prepending base paths to relative file paths
+    2. Expanding glob patterns to actual file lists
+    3. Flattening nested lists from glob expansion
+
+    Args:
+        cfg: Config object to resolve paths for
+
+    Returns:
+        Config object with resolved paths (same object, modified in-place)
+
+    Example:
+        >>> cfg.data.train_path = "/data/barcode/"
+        >>> cfg.data.train_image = ["PT37/*_raw.tif", "file.tif"]
+        >>> resolve_data_paths(cfg)
+        >>> print(cfg.data.train_image)
+        ['/data/barcode/PT37/img1_raw.tif', '/data/barcode/PT37/img2_raw.tif', '/data/barcode/file.tif']
+    """
+    import os
+    from glob import glob
+
+    def _combine_path(base_path: str, file_path: Optional[Union[str, List[str]]]) -> Optional[Union[str, List[str]]]:
+        """Helper to combine base path with file path(s) and expand globs."""
+        if file_path is None:
+            return file_path
+
+        # Handle list of paths
+        if isinstance(file_path, list):
+            result = []
+            for p in file_path:
+                resolved = _combine_path(base_path, p)
+                # If resolved is a list (from glob expansion), extend
+                if isinstance(resolved, list):
+                    result.extend(resolved)
+                else:
+                    result.append(resolved)
+            return result
+
+        # Handle string path
+        # Combine with base path if relative
+        if base_path and not os.path.isabs(file_path):
+            file_path = os.path.join(base_path, file_path)
+
+        # Expand glob patterns
+        if "*" in file_path or "?" in file_path:
+            expanded = sorted(glob(file_path))
+            if expanded:
+                return expanded
+            else:
+                # No matches - return original pattern (will be caught by validation)
+                return file_path
+
+        return file_path
+
+    # Resolve training paths
+    if cfg.data.train_path:
+        cfg.data.train_image = _combine_path(cfg.data.train_path, cfg.data.train_image)
+        cfg.data.train_label = _combine_path(cfg.data.train_path, cfg.data.train_label)
+        cfg.data.train_mask = _combine_path(cfg.data.train_path, cfg.data.train_mask)
+        cfg.data.train_json = _combine_path(cfg.data.train_path, cfg.data.train_json)
+
+    # Resolve validation paths
+    if cfg.data.val_path:
+        cfg.data.val_image = _combine_path(cfg.data.val_path, cfg.data.val_image)
+        cfg.data.val_label = _combine_path(cfg.data.val_path, cfg.data.val_label)
+        cfg.data.val_mask = _combine_path(cfg.data.val_path, cfg.data.val_mask)
+        cfg.data.val_json = _combine_path(cfg.data.val_path, cfg.data.val_json)
+
+    # Resolve test paths
+    if cfg.data.test_path:
+        cfg.data.test_image = _combine_path(cfg.data.test_path, cfg.data.test_image)
+        cfg.data.test_label = _combine_path(cfg.data.test_path, cfg.data.test_label)
+        cfg.data.test_mask = _combine_path(cfg.data.test_path, cfg.data.test_mask)
+        cfg.data.test_json = _combine_path(cfg.data.test_path, cfg.data.test_json)
+
+    # Also resolve inference data paths
+    if cfg.data.test_path and cfg.inference.data:
+        cfg.inference.data.test_image = _combine_path(cfg.data.test_path, cfg.inference.data.test_image)
+        cfg.inference.data.test_label = _combine_path(cfg.data.test_path, cfg.inference.data.test_label)
+        cfg.inference.data.test_mask = _combine_path(cfg.data.test_path, cfg.inference.data.test_mask)
+
+    return cfg
+
+
 __all__ = [
     "load_config",
     "save_config",
@@ -242,4 +331,5 @@ __all__ = [
     "validate_config",
     "get_config_hash",
     "create_experiment_name",
+    "resolve_data_paths",
 ]

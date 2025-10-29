@@ -1,0 +1,247 @@
+# Fiber segmentation with MedNeXt
+# Multi-task learning: Binary + Contour + Signed Distance Transform (BCS)
+#
+# This config uses MedNeXt for fiber segmentation with multi-task learning to predict:
+#   - Channel 0: Binary fiber masks (sigmoid activation)
+#   - Channel 1: Fiber contour/boundary maps (sigmoid activation)
+#   - Channel 2: Signed distance transforms (tanh activation)
+#
+# Multi-task setup uses different loss functions for each channel:
+#   - Binary: DiceLoss + BCEWithLogitsLoss
+#   - Contour: DiceLoss + BCEWithLogitsLoss
+#   - Distance: WeightedMSELoss (with tanh activation)
+#
+# Based on barcode-R-BCS.yaml configuration:
+#   - 3 output channels (Binary + Contour + SDT)
+#   - Loss weights: [1.0, 0.5] for Binary, [1.0, 0.5] for Contour, [4.0] for SDT
+#   - Contour: instance boundary with thickness=1, edge_mode="all"
+#   - SDT: affinity-based signed distance (a-0-40-16-16)
+
+experiment_name: fiber_mednext_bcs
+description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
+
+# System
+system:
+  training:
+    num_gpus: 4                        # 4 GPU (matches barcode-R-Base.yaml)
+    num_cpus: 8                       # 16 CPUs for data loading
+    num_workers: 8                     # Parallel data loading workers
+    batch_size: 16                      # Batch size (matches barcode-R-Base.yaml)
+  inference:
+    num_gpus: 1
+    num_cpus: 16
+    num_workers: 1
+    batch_size: 4                      # Inference batch size (matches barcode-R-Base.yaml)
+  seed: 42
+
+# Model - MedNeXt for multi-task fiber segmentation
+model:
+  architecture: mednext                # MedNeXt architecture (predefined sizes)
+  in_channels: 1                       # Single-channel grayscale EM images
+  out_channels: 3                      # 3 outputs: Binary + Contour + SDT
+  mednext_size: S                      # S (Small): ~5.6M params - good for 3D patches
+  mednext_kernel_size: 3               # 3x3x3 kernels (recommended for fiber-like structures)
+  mednext_dim: "3d"                    # 3D convolutions
+  #deep_supervision: true               # STRONGLY RECOMMENDED for MedNeXt
+  deep_supervision: false               # STRONGLY RECOMMENDED for MedNeXt
+
+  # Multi-task loss configuration (aligned with barcode-R-BCS.yaml)
+  # Binary channel: DiceLoss + BCEWithLogitsLoss (weights: 1.0, 0.5)
+  # Contour channel: DiceLoss + BCEWithLogitsLoss (weights: 1.0, 0.5)
+  # SDT channel: WeightedMSE (weight: 4.0)
+  loss_functions: [DiceLoss, BCEWithLogitsLoss, DiceLoss, BCEWithLogitsLoss, WeightedMSE]
+  loss_weights: [1.0, 0.5, 1.0, 0.5, 4.0]
+  loss_kwargs:
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
+    - {}                                 # BCEWithLogitsLoss for binary
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for contour
+    - {}                                 # BCEWithLogitsLoss for contour
+    - {tanh: true}                       # WeightedMSE for SDT (with tanh activation)
+
+  # Multi-task configuration (matches barcode-R-BCS.yaml)
+  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
+  multi_task_config:
+    - [0, 1, "label", [0, 1]]          # Channel 0: Binary fiber mask (Dice + BCE)
+    - [1, 2, "boundary", [2, 3]]       # Channel 1: Contour map (Dice + BCE)
+    - [2, 3, "sdt", [4]]               # Channel 2: Signed Distance Transform (WeightedMSE)
+
+# Data - Fiber dataset configuration (based on barcode-R-Base.yaml)
+data:
+  # Base paths (NEW: will be combined with train_image/train_label/test_image)
+  train_path: '/projects/weilab/dataset/barcode/train_r2/'
+  test_path: "/projects/weilab/dataset/barcode/test_r2/"
+
+  # Volume configuration - TIFF files (barcode fiber structure)
+  # Matches barcode-R dataset structure: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif"]
+  # These paths will be combined with train_path above
+  
+  train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
+  train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
+  #train_image: ["CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif"]
+  #train_label: ["CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif"]
+   
+  train_resolution: [40, 16, 16]   # Isotropic resolution (adjust based on actual data)
+  use_preloaded_cache: true  
+  persistent_workers: true            # Keep workers alive between epochs
+
+  # Patch configuration (matches barcode-R-Base.yaml)
+  patch_size: [32, 96, 96]            # Training patch size
+  pad_size: [8, 16, 16]              # Reflection padding for context
+  pad_mode: reflect                   # Reflection padding at boundaries
+  iter_num_per_epoch: 1000            # Iterations per epoch
+  
+  # Image normalization
+  image_transform:
+    normalize: "0-1"                   # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.005           # No clipping
+    clip_percentile_high: 0.995
+
+  # Label transformation for multi-task learning (aligned with barcode-R-BCS.yaml)
+  # TARGET_OPT: ["0", "4-0-1", "a-0-40-16-16"]
+  label_transform:
+    targets:
+      - name: binary                   # Channel 0: Binary fiber mask
+      - name: instance_boundary        # Channel 1: Contour map (4-0-1)
+        kwargs:
+          thickness: 1                 # thickness=1 (from "4-0-1")
+          edge_mode: "all"             # edge_mode="all" (from "4-0-1")
+          mode: "3d"                   # 3D mode for volumetric data
+      - name: skeleton_aware_edt       # Channel 2: Skeleton-aware EDT (a-0-40-16-16)
+        kwargs:
+          resolution: [40, 16, 16]     # Physical voxel resolution (z, y, x) from train_resolution
+          alpha: 0.8                   # Balance between EDT and skeleton distance
+          smooth: true                 # Smooth distance transform
+          smooth_skeleton_only: true   # Only smooth skeleton regions
+          bg_value: -1.0               # Background value for distance map
+          relabel: true                # Relabel connected components
+          padding: false               # No padding
+
+  # Augmentation
+  # Note: When enabled, augmentations (rotation, flip, etc.) are applied to:
+  #   - image: geometric + intensity transforms
+  #   - label: same geometric transforms as image
+  #   - mask: same geometric transforms as image and label
+  # This ensures spatial consistency across image/label/mask triplets
+  augmentation:
+    enabled: true
+
+# Optimizer - AdamW with cosine annealing (based on barcode-R-Base.yaml)
+optimization:
+  max_epochs: 1000                     # ~100k iterations / (1000 iters/epoch) = 100 epochs
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "32"                      # FP32 (matches barcode MIXED_PRECESION: False)
+
+  optimizer:
+    name: AdamW
+    lr: 0.02                           # BASE_LR: 0.02 (matches barcode-R-Base.yaml)
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+
+  # Scheduler - Cosine annealing with warmup (matches barcode LR_SCHEDULER_NAME: WarmupCosineLR)
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+    warmup_start_lr: 1.0e-5
+    min_lr: 1.0e-6
+    t_max: 995                         # max_epochs - warmup_epochs
+
+monitor:
+  # Loss monitoring and validation frequency
+  detect_anomaly: false
+  logging:
+    # scalar loss
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+      benchmark: true
+
+    # visualization
+    images:
+      enabled: true
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 5            # Log less frequently for fiber data
+      channel_mode: all                # Show all 3 channels for multi-task
+      selected_channels: null
+
+  # Checkpointing (matches barcode ITERATION_SAVE: 5000)
+  checkpoint:
+    mode: min
+    save_top_k: 3
+    save_last: true
+    save_every_n_epochs: 50           # Save every 50 epochs (~50k iterations)
+    dirpath: outputs/fiber_mednext_bcs/checkpoints/
+    use_timestamp: true
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    monitor: train_loss_total_epoch
+    patience: 100                      # Patience in epochs
+    mode: min
+    min_delta: 1.0e-5
+    check_finite: true
+    threshold: 0.01
+    divergence_threshold: 100.0
+
+# Inference - MONAI SlidingWindowInferer for fiber segmentation (based on barcode-R-Base.yaml)
+inference:
+  data:
+    # Test on all available volumes (matches barcode INFERENCE IMAGE_NAME)
+    # Note: test_path will be combined with these relative paths
+    test_image:
+      - 1-xri_deconvolved.tif
+      - 2-xri_deconvolved.tif
+      - 3-xri_deconvolved.tif
+      - 4_1-xri_deconvolved.tif
+      - 4_2-xri_deconvolved.tif
+      - 4_3-xri_deconvolved.tif
+      - 5_1-xri_deconvolved.tif
+      - 5_2-xri_deconvolved.tif
+      - 6_1-xri_deconvolved.tif
+      - 6_2-xri_deconvolved.tif
+    test_resolution: [1.0, 1.0, 1.0]   # Isotropic resolution
+    output_path: outputs/fiber_mednext_bcs/test/
+
+  # MONAI SlidingWindowInferer parameters (matches barcode INFERENCE)
+  sliding_window:
+    window_size: [33, 257, 257]        # INPUT_SIZE/OUTPUT_SIZE (barcode-R-Base.yaml)
+    stride: [26, 128, 128]             # STRIDE (barcode-R-Base.yaml)
+    overlap: null                      # Use stride instead of overlap
+    blending: gaussian                 # Gaussian weighting for smooth blending
+    sigma_scale: 0.25
+    padding_mode: reflect              # Reflection-padding at volume boundaries
+    pad_size: [16, 32, 32]             # PAD_SIZE (matches barcode-R-Base.yaml)
+
+  # Test-Time Augmentation (TTA) - matches barcode AUG_MODE: "mean"
+  test_time_augmentation:
+    enabled: true
+    flip_axes: null                    # Use all flip augmentations (AUG_NUM: None)
+    # Per-channel activations (aligned with barcode-R-BCS.yaml OUTPUT_ACT)
+    # OUTPUT_ACT: ["sigmoid", "sigmoid", "tanh"]
+    channel_activations:
+      - [0, sigmoid]                   # Channel 0: binary fiber mask
+      - [1, sigmoid]                   # Channel 1: contour
+      - [2, tanh]                      # Channel 2: SDT
+    select_channel: all
+    ensemble_mode: mean                # AUG_MODE: "mean"
+    apply_mask: false                  # No test mask for fiber data
+
+  # Decoding configuration (instance segmentation postprocessing)
+  decoding:
+    - name: decode_binary_contour_distance_watershed
+      kwargs:
+        binary_threshold: [0.9, 0.85]
+        contour_threshold: [0.8, 1.1]
+        distance_threshold: [0.5, -0.5]
+        min_instance_size: 100         # Larger fibers (adjust based on data)
+        min_seed_size: 50
+        prediction_scale: 1
+
+  # Evaluation
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand]

@@ -20,6 +20,7 @@ from pytorch_lightning.callbacks import (
     RichProgressBar,
 )
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.strategies import DDPStrategy
 from omegaconf import DictConfig
 
 from ..config import Config
@@ -60,14 +61,44 @@ def create_trainer(
     
     # Get training configuration
     training_cfg = cfg.optimization if hasattr(cfg, 'optimization') else None
-    
+
+    # Check if deep supervision is enabled (requires DDP with find_unused_parameters=True)
+    deep_supervision_enabled = False
+    if hasattr(cfg, 'model') and hasattr(cfg.model, 'deep_supervision'):
+        deep_supervision_enabled = cfg.model.deep_supervision
+
+    # Configure DDP strategy for multi-GPU training
+    strategy = 'auto'  # Default strategy
+
+    # Get number of GPUs (handle both system.num_gpus and system.training.num_gpus)
+    if hasattr(cfg, 'system'):
+        if hasattr(cfg.system, 'training') and hasattr(cfg.system.training, 'num_gpus'):
+            num_gpus = cfg.system.training.num_gpus
+        elif hasattr(cfg.system, 'num_gpus'):
+            num_gpus = cfg.system.num_gpus
+        else:
+            num_gpus = 1
+    else:
+        num_gpus = 1
+
+    if num_gpus > 1:
+        # Multi-GPU training: use DDP
+        if deep_supervision_enabled:
+            # Deep supervision requires find_unused_parameters=True
+            # because auxiliary heads at different scales may not all be used
+            strategy = DDPStrategy(find_unused_parameters=True)
+        else:
+            # Standard DDP (more efficient)
+            strategy = DDPStrategy(find_unused_parameters=False)
+
     # Build trainer arguments
     trainer_args = {
         'max_epochs': training_cfg.max_epochs if training_cfg else 100,
         'callbacks': callbacks,
         'logger': logger,
-        'accelerator': 'gpu' if (hasattr(cfg.system, 'num_gpus') and cfg.system.num_gpus > 0) else 'cpu',
-        'devices': cfg.system.num_gpus if hasattr(cfg.system, 'num_gpus') else 1,
+        'accelerator': 'gpu' if num_gpus > 0 else 'cpu',
+        'devices': num_gpus,
+        'strategy': strategy,
         'precision': training_cfg.precision if training_cfg and hasattr(training_cfg, 'precision') else 32,
         'gradient_clip_val': training_cfg.gradient_clip_val if training_cfg and hasattr(training_cfg, 'gradient_clip_val') else 0.0,
         'accumulate_grad_batches': training_cfg.accumulate_grad_batches if training_cfg and hasattr(training_cfg, 'accumulate_grad_batches') else 1,
@@ -75,10 +106,10 @@ def create_trainer(
         'enable_progress_bar': True,
         'enable_model_summary': True,
     }
-    
+
     # Override with any additional kwargs
     trainer_args.update(trainer_kwargs)
-    
+
     return pl.Trainer(**trainer_args)
 
 

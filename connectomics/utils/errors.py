@@ -214,30 +214,52 @@ def preflight_check(cfg) -> list:
     """
     issues = []
 
-    # Check data files exist (supports glob patterns)
+    # Check data files exist (supports glob patterns and lists)
     if cfg.data.train_image:
         from glob import glob
 
-        # Check if pattern contains wildcards
-        if "*" in cfg.data.train_image or "?" in cfg.data.train_image:
-            # Expand glob pattern
-            matched_files = glob(cfg.data.train_image)
-            if not matched_files:
-                issues.append(f"❌ Training image pattern matched no files: {cfg.data.train_image}")
-        elif not Path(cfg.data.train_image).exists():
-            issues.append(f"❌ Training image not found: {cfg.data.train_image}")
+        # Handle list of files
+        if isinstance(cfg.data.train_image, list):
+            for img_path in cfg.data.train_image:
+                if "*" in img_path or "?" in img_path:
+                    matched_files = glob(img_path)
+                    if not matched_files:
+                        issues.append(f"❌ Training image pattern matched no files: {img_path}")
+                elif not Path(img_path).exists():
+                    issues.append(f"❌ Training image not found: {img_path}")
+        # Handle single file/pattern
+        else:
+            # Check if pattern contains wildcards
+            if "*" in cfg.data.train_image or "?" in cfg.data.train_image:
+                # Expand glob pattern
+                matched_files = glob(cfg.data.train_image)
+                if not matched_files:
+                    issues.append(f"❌ Training image pattern matched no files: {cfg.data.train_image}")
+            elif not Path(cfg.data.train_image).exists():
+                issues.append(f"❌ Training image not found: {cfg.data.train_image}")
 
     if cfg.data.train_label:
         from glob import glob
 
-        # Check if pattern contains wildcards
-        if "*" in cfg.data.train_label or "?" in cfg.data.train_label:
-            # Expand glob pattern
-            matched_files = glob(cfg.data.train_label)
-            if not matched_files:
-                issues.append(f"❌ Training label pattern matched no files: {cfg.data.train_label}")
-        elif not Path(cfg.data.train_label).exists():
-            issues.append(f"❌ Training label not found: {cfg.data.train_label}")
+        # Handle list of files
+        if isinstance(cfg.data.train_label, list):
+            for lbl_path in cfg.data.train_label:
+                if "*" in lbl_path or "?" in lbl_path:
+                    matched_files = glob(lbl_path)
+                    if not matched_files:
+                        issues.append(f"❌ Training label pattern matched no files: {lbl_path}")
+                elif not Path(lbl_path).exists():
+                    issues.append(f"❌ Training label not found: {lbl_path}")
+        # Handle single file/pattern
+        else:
+            # Check if pattern contains wildcards
+            if "*" in cfg.data.train_label or "?" in cfg.data.train_label:
+                # Expand glob pattern
+                matched_files = glob(cfg.data.train_label)
+                if not matched_files:
+                    issues.append(f"❌ Training label pattern matched no files: {cfg.data.train_label}")
+            elif not Path(cfg.data.train_label).exists():
+                issues.append(f"❌ Training label not found: {cfg.data.train_label}")
 
     # Check GPU availability
     if cfg.system.training.num_gpus > 0 and not torch.cuda.is_available():

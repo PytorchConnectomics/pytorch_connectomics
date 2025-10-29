@@ -1005,33 +1005,72 @@ class ConnectomicsModule(pl.LightningModule):
             ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
             all_outputs = [main_output] + ds_outputs
 
+            # Check if multi-task learning is configured
+            is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
+
             for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
                 # Match target to output size
                 target = self._match_target_to_output(labels, output)
 
                 # Compute loss for this scale
                 scale_loss = 0.0
-                for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                    loss = loss_fn(output, target)
 
-                    # Check for NaN/Inf immediately after computing loss
-                    if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
-                        print(f"\n{'='*80}")
-                        print(f"⚠️  NaN/Inf detected in loss computation!")
-                        print(f"{'='*80}")
-                        print(f"Loss function: {loss_fn.__class__.__name__}")
-                        print(f"Loss value: {loss.item()}")
-                        print(f"Scale: {scale_idx}, Weight: {weight}")
-                        print(f"Output shape: {output.shape}, range: [{output.min():.4f}, {output.max():.4f}]")
-                        print(f"Target shape: {target.shape}, range: [{target.min():.4f}, {target.max():.4f}]")
-                        print(f"Output contains NaN: {torch.isnan(output).any()}")
-                        print(f"Target contains NaN: {torch.isnan(target).any()}")
-                        if self.debug_on_nan:
-                            print(f"\nEntering debugger...")
-                            pdb.set_trace()
-                        raise ValueError(f"NaN/Inf in loss at scale {scale_idx}")
+                if is_multi_task:
+                    # Multi-task learning with deep supervision:
+                    # Apply specific losses to specific channels at each scale
+                    for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
+                        start_ch, end_ch, task_name, loss_indices = task_config
 
-                    scale_loss += loss * weight
+                        # Extract channels for this task
+                        task_output = output[:, start_ch:end_ch, ...]
+                        task_target = target[:, start_ch:end_ch, ...]
+
+                        # Apply specified losses for this task
+                        for loss_idx in loss_indices:
+                            loss_fn = self.loss_functions[loss_idx]
+                            weight = self.loss_weights[loss_idx]
+
+                            loss = loss_fn(task_output, task_target)
+
+                            # Check for NaN/Inf
+                            if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                                print(f"\n{'='*80}")
+                                print(f"⚠️  NaN/Inf detected in deep supervision multi-task loss!")
+                                print(f"{'='*80}")
+                                print(f"Scale: {scale_idx}, Task: {task_name} (channels {start_ch}:{end_ch})")
+                                print(f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})")
+                                print(f"Loss value: {loss.item()}")
+                                print(f"Output shape: {task_output.shape}, range: [{task_output.min():.4f}, {task_output.max():.4f}]")
+                                print(f"Target shape: {task_target.shape}, range: [{task_target.min():.4f}, {task_target.max():.4f}]")
+                                if self.debug_on_nan:
+                                    print(f"\nEntering debugger...")
+                                    pdb.set_trace()
+                                raise ValueError(f"NaN/Inf in deep supervision loss at scale {scale_idx}, task {task_name}")
+
+                            scale_loss += loss * weight
+                else:
+                    # Standard deep supervision: apply all losses to all outputs
+                    for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                        loss = loss_fn(output, target)
+
+                        # Check for NaN/Inf immediately after computing loss
+                        if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                            print(f"\n{'='*80}")
+                            print(f"⚠️  NaN/Inf detected in loss computation!")
+                            print(f"{'='*80}")
+                            print(f"Loss function: {loss_fn.__class__.__name__}")
+                            print(f"Loss value: {loss.item()}")
+                            print(f"Scale: {scale_idx}, Weight: {weight}")
+                            print(f"Output shape: {output.shape}, range: [{output.min():.4f}, {output.max():.4f}]")
+                            print(f"Target shape: {target.shape}, range: [{target.min():.4f}, {target.max():.4f}]")
+                            print(f"Output contains NaN: {torch.isnan(output).any()}")
+                            print(f"Target contains NaN: {torch.isnan(target).any()}")
+                            if self.debug_on_nan:
+                                print(f"\nEntering debugger...")
+                                pdb.set_trace()
+                            raise ValueError(f"NaN/Inf in loss at scale {scale_idx}")
+
+                        scale_loss += loss * weight
 
                 total_loss += scale_loss * ds_weight
                 loss_dict[f'train_loss_scale_{scale_idx}'] = scale_loss.item()
@@ -1100,15 +1139,38 @@ class ConnectomicsModule(pl.LightningModule):
             ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
             all_outputs = [main_output] + ds_outputs
 
+            # Check if multi-task learning is configured
+            is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
+
             for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
                 # Match target to output size
                 target = self._match_target_to_output(labels, output)
 
                 # Compute loss for this scale
                 scale_loss = 0.0
-                for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                    loss = loss_fn(output, target)
-                    scale_loss += loss * weight
+
+                if is_multi_task:
+                    # Multi-task learning with deep supervision:
+                    # Apply specific losses to specific channels at each scale
+                    for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
+                        start_ch, end_ch, task_name, loss_indices = task_config
+
+                        # Extract channels for this task
+                        task_output = output[:, start_ch:end_ch, ...]
+                        task_target = target[:, start_ch:end_ch, ...]
+
+                        # Apply specified losses for this task
+                        for loss_idx in loss_indices:
+                            loss_fn = self.loss_functions[loss_idx]
+                            weight = self.loss_weights[loss_idx]
+
+                            loss = loss_fn(task_output, task_target)
+                            scale_loss += loss * weight
+                else:
+                    # Standard deep supervision: apply all losses to all outputs
+                    for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                        loss = loss_fn(output, target)
+                        scale_loss += loss * weight
 
                 total_loss += scale_loss * ds_weight
                 loss_dict[f'val_loss_scale_{scale_idx}'] = scale_loss.item()
@@ -1367,6 +1429,10 @@ class ConnectomicsModule(pl.LightningModule):
         For segmentation masks, uses nearest-neighbor interpolation to preserve labels.
         For continuous targets, uses trilinear interpolation.
 
+        IMPORTANT: For continuous targets in range [-1, 1] (e.g., tanh-normalized SDT),
+        trilinear interpolation can cause overshooting beyond bounds. We clamp the
+        resized targets back to [-1, 1] to prevent loss explosion.
+
         Args:
             target: Target tensor of shape (B, C, D, H, W)
             output: Output tensor of shape (B, C, D', H', W')
@@ -1395,6 +1461,18 @@ class ConnectomicsModule(pl.LightningModule):
                 mode=mode,
                 align_corners=False,
             )
+
+            # CRITICAL FIX: Clamp resized targets to prevent interpolation overshooting
+            # For targets in range [-1, 1] (e.g., tanh-normalized SDT), trilinear interpolation
+            # can produce values outside this range (e.g., -1.2, 1.3) which causes loss explosion
+            # when used with tanh-activated predictions.
+            # Check if targets are in typical normalized ranges:
+            if target.min() >= -1.5 and target.max() <= 1.5:
+                # Likely normalized to [-1, 1] (with some tolerance for existing overshoots)
+                target_resized = torch.clamp(target_resized, -1.0, 1.0)
+            elif target.min() >= 0.0 and target.max() <= 1.5:
+                # Likely normalized to [0, 1]
+                target_resized = torch.clamp(target_resized, 0.0, 1.0)
 
         return target_resized
 

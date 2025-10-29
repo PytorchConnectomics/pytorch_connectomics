@@ -15,6 +15,7 @@ from .hydra_utils import (
     validate_config,
     get_config_hash,
     create_experiment_name,
+    resolve_data_paths,
 )
 
 # Auto-configuration system
@@ -47,6 +48,7 @@ __all__ = [
     'validate_config',
     'get_config_hash',
     'create_experiment_name',
+    'resolve_data_paths',
     # Auto-configuration
     'auto_plan_config',
     'AutoConfigPlanner',
