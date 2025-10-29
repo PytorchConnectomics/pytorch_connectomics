@@ -156,6 +156,15 @@ class ConnectomicsModule(pl.LightningModule):
         if not hasattr(self.cfg, 'inference'):
             return
 
+        # For 2D models with do_2d=True, disable sliding window inference
+        if getattr(self.cfg.data, 'do_2d', False):
+            warnings.warn(
+                "Sliding-window inference disabled for 2D models with do_2d=True. "
+                "Using direct inference instead.",
+                UserWarning,
+            )
+            return
+
         roi_size = self._resolve_inferer_roi_size()
         if roi_size is None:
             warnings.warn(
@@ -200,12 +209,20 @@ class ConnectomicsModule(pl.LightningModule):
         if hasattr(self.cfg, 'model') and hasattr(self.cfg.model, 'output_size'):
             output_size = getattr(self.cfg.model, 'output_size', None)
             if output_size:
-                return tuple(int(v) for v in output_size)
+                roi_size = tuple(int(v) for v in output_size)
+                # For 2D models with do_2d=True, convert to 3D ROI size
+                if getattr(self.cfg.data, 'do_2d', False) and len(roi_size) == 2:
+                    roi_size = (1,) + roi_size  # Add depth dimension
+                return roi_size
 
         if hasattr(self.cfg, 'data') and hasattr(self.cfg.data, 'patch_size'):
             patch_size = getattr(self.cfg.data, 'patch_size', None)
             if patch_size:
-                return tuple(int(v) for v in patch_size)
+                roi_size = tuple(int(v) for v in patch_size)
+                # For 2D models with do_2d=True, convert to 3D ROI size
+                if getattr(self.cfg.data, 'do_2d', False) and len(roi_size) == 2:
+                    roi_size = (1,) + roi_size  # Add depth dimension
+                return roi_size
 
         return None
 
@@ -367,6 +384,10 @@ class ConnectomicsModule(pl.LightningModule):
                 f"Expected shapes: (D, H, W), (B, D, H, W), or (B, C, D, H, W)"
             )
 
+        # For 2D models with do_2d=True, squeeze the depth dimension if present
+        if getattr(self.cfg.data, 'do_2d', False) and images.size(2) == 1:  # [B, C, 1, H, W] -> [B, C, H, W]
+            images = images.squeeze(2)
+
         # Get TTA configuration (default to no augmentation if not configured)
         if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation'):
             tta_flip_axes_config = getattr(self.cfg.inference.test_time_augmentation, 'flip_axes', None)
@@ -385,23 +406,21 @@ class ConnectomicsModule(pl.LightningModule):
             ensemble_result = self._apply_tta_preprocessing(pred)
         else:
             if tta_flip_axes_config == 'all' or tta_flip_axes_config == []:
-                # "all" or []: All 8 flips (all combinations of Z, Y, X)
-                # IMPORTANT: MONAI Flip spatial_axis behavior for (B, C, D, H, W) tensors:
-                #   spatial_axis=[0] flips C (channel) - WRONG for TTA!
-                #   spatial_axis=[1] flips D (depth/Z) - CORRECT
-                #   spatial_axis=[2] flips H (height/Y) - CORRECT
-                #   spatial_axis=[3] flips W (width/X) - CORRECT
-                # Must use [1, 2, 3] for [D, H, W] flips, NOT [0, 1, 2]!
-                tta_flip_axes = [
-                    [],           # No flip
-                    [1],          # Flip Z (depth)
-                    [2],          # Flip Y (height)
-                    [3],          # Flip X (width)
-                    [1, 2],       # Flip Z+Y
-                    [1, 3],       # Flip Z+X
-                    [2, 3],       # Flip Y+X
-                    [1, 2, 3],    # Flip Z+Y+X
-                ]
+                # "all" or []: All flips (all combinations of spatial axes)
+                # Determine spatial axes based on data dimensions
+                if images.dim() == 5:  # 3D data: [B, C, D, H, W]
+                    spatial_axes = [1, 2, 3]  # [D, H, W]
+                elif images.dim() == 4:  # 2D data: [B, C, H, W]
+                    spatial_axes = [1, 2]  # [H, W]
+                else:
+                    raise ValueError(f"Unsupported data dimensions: {images.dim()}")
+                
+                # Generate all combinations of spatial axes
+                tta_flip_axes = [[]]  # No flip baseline
+                for r in range(1, len(spatial_axes) + 1):
+                    from itertools import combinations
+                    for combo in combinations(spatial_axes, r):
+                        tta_flip_axes.append(list(combo))
             elif isinstance(tta_flip_axes_config, (list, tuple)):
                 # Custom list: Add no-flip baseline + user-specified flips
                 tta_flip_axes = [[]] + list(tta_flip_axes_config)

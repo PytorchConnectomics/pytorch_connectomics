@@ -58,6 +58,9 @@ model:
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:
+  # 2D data support
+  do_2d: true                     # Enable 2D data processing (extract 2D slices from 3D volumes)
+  
   # Volume configuration
   train_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/*.tif
   train_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/*.tif
@@ -152,8 +155,9 @@ monitor:
 # Inference - MONAI SlidingWindowInferer
 inference:
   data:
-    test_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/Image96_00002_0000.tif
-    test_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/Image96_00002.tif
+    do_2d: true                     # Enable 2D data processing for inference
+    test_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTs/*.tif
+    test_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTs/*.tif
     test_resolution: [5, 5]
     output_path: outputs/monai2d_worm/results/
 
@@ -188,7 +192,7 @@ inference:
   # Evaluation
   evaluation:
     enabled: true                        # Use eval mode for BatchNorm
-    metrics: [jaccard]             # Metrics to compute
+    metrics: [adapted_rand]        # Metrics to compute (adapted_rand for instance segmentation)
 
   # NOTE: batch_size=1 for inference
   #   During training: batch_size controls how many random patches to load

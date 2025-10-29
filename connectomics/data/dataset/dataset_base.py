@@ -70,7 +70,11 @@ class MonaiConnectomicsDataset(Dataset):
         super().__init__(data=data_dicts, transform=transforms)
 
         # Store connectomics-specific parameters
-        self.sample_size = ensure_tuple_rep(sample_size, 3)
+        # For 2D data, use 2D dimensions; otherwise use 3D
+        if do_2d:
+            self.sample_size = ensure_tuple_rep(sample_size, 2)
+        else:
+            self.sample_size = ensure_tuple_rep(sample_size, 3)
         self.mode = mode
         self.iter_num = iter_num
         self.valid_ratio = valid_ratio
