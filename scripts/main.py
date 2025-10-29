@@ -468,19 +468,20 @@ def create_datamodule(
                 try:
                     from pathlib import Path
                     import json
+
                     json_path = Path(cfg.data.train_json)
                     if not json_path.exists():
                         train_json_empty = True
                     else:
                         # Check if JSON file is empty or has no images
-                        with open(json_path, 'r') as f:
+                        with open(json_path, "r") as f:
                             json_data = json.load(f)
                         image_files = json_data.get(cfg.data.train_image_key, [])
                         if not image_files:
                             train_json_empty = True
                 except (FileNotFoundError, json.JSONDecodeError, KeyError):
                     train_json_empty = True
-            
+
             if train_json_empty:
                 # Fallback to volume-based dataset when train_json is empty
                 print(f"  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
@@ -497,7 +498,7 @@ def create_datamodule(
                 # Here we just need placeholder dicts
                 train_data_dicts = [{"dataset_type": "filename"}]
                 val_data_dicts = None  # Handled by train_val_split in DataModule
-        
+
         if dataset_type != "filename":
             # Standard mode: separate train and val files (supports glob patterns)
             if cfg.data.train_image is None:
@@ -1014,16 +1015,18 @@ def create_trainer(
         # Multi-GPU training: configure DDP
         deep_supervision_enabled = getattr(cfg.model, "deep_supervision", False)
         ddp_find_unused_params = getattr(cfg.model, "ddp_find_unused_parameters", False)
-        
+
         if deep_supervision_enabled or ddp_find_unused_params:
             # Deep supervision or explicit config requires find_unused_parameters=True
             # because auxiliary heads at different scales may not all be used
             from pytorch_lightning.strategies import DDPStrategy
+
             strategy = DDPStrategy(find_unused_parameters=True)
             reason = "deep supervision" if deep_supervision_enabled else "explicit config"
             print(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
         else:
             from pytorch_lightning.strategies import DDPStrategy
+
             strategy = DDPStrategy(find_unused_parameters=False)
             print("  Strategy: DDP (standard)")
 
@@ -1099,6 +1102,7 @@ def main():
 
         # Check if this is a DDP re-launch (LOCAL_RANK is set by PyTorch Lightning)
         import os
+
         is_ddp_subprocess = "LOCAL_RANK" in os.environ
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
 
@@ -1107,6 +1111,7 @@ def main():
         if not is_ddp_subprocess:
             # First invocation (main process) - create new timestamp
             from datetime import datetime
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_dir = output_base / timestamp
 
@@ -1127,6 +1132,7 @@ def main():
         else:
             # DDP subprocess - read existing timestamp
             import time
+
             max_wait = 30  # Maximum 30 seconds
             waited = 0
             while not timestamp_file.exists() and waited < max_wait:
@@ -1139,7 +1145,9 @@ def main():
                 cfg.monitor.checkpoint.dirpath = str(run_dir / "checkpoints")
                 print(f"📁 [DDP Rank {local_rank}] Using run directory: {run_dir}")
             else:
-                raise RuntimeError(f"DDP subprocess (LOCAL_RANK={local_rank}) timed out waiting for timestamp file")
+                raise RuntimeError(
+                    f"DDP subprocess (LOCAL_RANK={local_rank}) timed out waiting for timestamp file"
+                )
     else:
         # For test/predict mode, use a dummy run_dir (won't be created)
         output_base = Path(cfg.monitor.checkpoint.dirpath).parent
@@ -1325,8 +1333,9 @@ def main():
         # Cleanup: Remove timestamp file (only in main process, not DDP subprocesses)
         if args.mode == "train":
             import os
+
             is_ddp_subprocess = "LOCAL_RANK" in os.environ
-            if not is_ddp_subprocess and 'output_base' in locals():
+            if not is_ddp_subprocess and "output_base" in locals():
                 timestamp_file = output_base / ".latest_timestamp"
                 if timestamp_file.exists():
                     try:
