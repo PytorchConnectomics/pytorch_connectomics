@@ -15,7 +15,6 @@ import pytest
 from connectomics.decoding.segmentation import decode_affinity_cc
 
 try:
-    from numba import jit
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
@@ -311,7 +310,6 @@ class TestAffinityCC3DIntegration:
         )
 
         # Step 2: Manual small object removal
-        from scipy.ndimage import label
         unique_labels, counts = np.unique(segm, return_counts=True)
         small_labels = unique_labels[counts < 100]
 

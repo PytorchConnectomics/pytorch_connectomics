@@ -51,8 +51,11 @@ except ImportError:
     _MEDNEXT_AVAILABLE = False
 
 # Import RSUNet models (always available - pure PyTorch)
-from . import rsunet
-_RSUNET_AVAILABLE = True
+try:
+    from . import rsunet
+    _RSUNET_AVAILABLE = True
+except ImportError:
+    _RSUNET_AVAILABLE = False
 
 # Check what's available
 def get_available_architectures() -> dict:

@@ -7,8 +7,6 @@ from scipy.ndimage import grey_dilation, grey_erosion
 from skimage.morphology import erosion, dilation, disk
 import cc3d
 import fastremap
-from .blend import *
-from .distance import *
 from .flow import seg2d_to_flows
 from .distance import edt_instance, edt_semantic
 
@@ -173,38 +171,34 @@ def seg_to_instance_bd(
                     bd_slice[:, :-1] |= slice_2d[:, :-1] != slice_2d[:, 1:]
                     bd_slice[:, 1:] |= slice_2d[:, 1:] != slice_2d[:, :-1]
                 elif edge_mode == "seg-all":
-                    # Check Y-axis neighbors
-                    bd_slice[:-1] |= (
-                        (slice_2d[:-1] != slice_2d[1:]) & (slice_2d[:-1] > 0) & (slice_2d[1:] > 0)
-                    )
-                    bd_slice[1:] |= (
-                        (slice_2d[1:] != slice_2d[:-1]) & (slice_2d[1:] > 0) & (slice_2d[:-1] > 0)
-                    )
-                    # Check X-axis neighbors
-                    bd_slice[:, :-1] |= (
-                        (slice_2d[:, :-1] != slice_2d[:, 1:])
-                        & (slice_2d[:, :-1] > 0)
-                        & (slice_2d[:, 1:] > 0)
-                    )
-                    bd_slice[:, 1:] |= (
-                        (slice_2d[:, 1:] != slice_2d[:, :-1])
-                        & (slice_2d[:, 1:] > 0)
-                        & (slice_2d[:, :-1] > 0)
-                    )
-                elif edge_mode == "seg-no-bg":
-                    # Check Y-axis neighbors
+                    # Check Y-axis neighbors (row direction)
                     bd_slice[:-1] |= (slice_2d[:-1] != slice_2d[1:]) & (
                         (slice_2d[:-1] > 0) | (slice_2d[1:] > 0)
                     )
                     bd_slice[1:] |= (slice_2d[1:] != slice_2d[:-1]) & (
                         (slice_2d[1:] > 0) | (slice_2d[:-1] > 0)
                     )
-                    # Check X-axis neighbors
+                    # Check X-axis neighbors (column direction)
                     bd_slice[:, :-1] |= (slice_2d[:, :-1] != slice_2d[:, 1:]) & (
                         (slice_2d[:, :-1] > 0) | (slice_2d[:, 1:] > 0)
                     )
                     bd_slice[:, 1:] |= (slice_2d[:, 1:] != slice_2d[:, :-1]) & (
                         (slice_2d[:, 1:] > 0) | (slice_2d[:, :-1] > 0)
+                    )
+                elif edge_mode == "seg-no-bg":
+                    # Check Y-axis neighbors (row direction) - both must be foreground
+                    bd_slice[:-1] |= (slice_2d[:-1] != slice_2d[1:]) & (
+                        (slice_2d[:-1] > 0) & (slice_2d[1:] > 0)
+                    )
+                    bd_slice[1:] |= (slice_2d[1:] != slice_2d[:-1]) & (
+                        (slice_2d[1:] > 0) & (slice_2d[:-1] > 0)
+                    )
+                    # Check X-axis neighbors (column direction) - both must be foreground
+                    bd_slice[:, :-1] |= (slice_2d[:, :-1] != slice_2d[:, 1:]) & (
+                        (slice_2d[:, :-1] > 0) & (slice_2d[:, 1:] > 0)
+                    )
+                    bd_slice[:, 1:] |= (slice_2d[:, 1:] != slice_2d[:, :-1]) & (
+                        (slice_2d[:, 1:] > 0) & (slice_2d[:, :-1] > 0)
                     )
                 bd[z] = bd_slice.astype(np.uint8)
         else:

@@ -15,7 +15,7 @@ Functions:
 """
 
 from __future__ import print_function, division
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 import numpy as np
 import cc3d
 import fastremap

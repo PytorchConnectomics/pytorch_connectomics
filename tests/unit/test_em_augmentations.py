@@ -7,8 +7,6 @@ to ensure they work correctly with Lightning and MONAI.
 
 import pytest
 import torch
-import numpy as np
-from omegaconf import OmegaConf
 
 from connectomics.data.augment.monai_transforms import (
     RandMisAlignmentd,
@@ -179,7 +177,7 @@ class TestRandMissingPartsd:
 
         # Count zeros
         num_zeros = (result["image"] == 0).sum()
-        total_pixels = result["image"].numel()
+        result["image"].numel()
 
         # Hole should be approximately 20% of one section
         # (exact size depends on section size)

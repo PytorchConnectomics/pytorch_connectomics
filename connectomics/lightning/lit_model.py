@@ -949,7 +949,7 @@ class ConnectomicsModule(pl.LightningModule):
 
             # Extract channels for this task from outputs
             task_output = outputs[:, start_ch:end_ch, ...]
-            num_output_channels = end_ch - start_ch
+            end_ch - start_ch
 
             # Determine number of label channels needed
             # For softmax-based losses (2+ output channels), label has 1 channel

@@ -50,8 +50,16 @@ tensorboard-run experiment timestamp port='6006':
     tensorboard --logdir outputs/{{experiment}}/{{timestamp}}/logs --port {{port}}
 
 # Launch any just command on SLURM (e.g., just slurm weilab 8 4 "train lucchi")
+# Automatically uses srun for distributed training when num_gpu > 1
 slurm partition num_cpu num_gpu cmd:
     #!/usr/bin/env bash
+    # Use srun for multi-GPU training (PyTorch Lightning DDP)
+    if [[ {{num_gpu}} -gt 1 ]]; then
+        cmd_with_srun="srun just {{cmd}}"
+    else
+        cmd_with_srun="just {{cmd}}"
+    fi
+    
     sbatch --job-name="pytc_{{cmd}}" \
            --partition={{partition}} \
            --output=slurm_outputs/slurm-%j.out \
@@ -61,7 +69,7 @@ slurm partition num_cpu num_gpu cmd:
            --cpus-per-task={{num_cpu}} \
            --mem=32G \
            --time=48:00:00 \
-           --wrap="source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && just {{cmd}}"
+           --wrap="source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && $cmd_with_srun"
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:

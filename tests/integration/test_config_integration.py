@@ -2,7 +2,6 @@
 """Simple integration test for config system."""
 
 import pytest
-import torch
 from connectomics.config import load_config, Config, from_dict
 from connectomics.lightning import ConnectomicsModule, create_trainer
 

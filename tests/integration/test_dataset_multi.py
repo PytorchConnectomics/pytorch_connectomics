@@ -9,7 +9,6 @@ Tests cover:
 """
 
 import pytest
-import numpy as np
 from torch.utils.data import Dataset
 
 from connectomics.data.dataset import (

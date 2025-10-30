@@ -24,7 +24,7 @@ def get_valid_pos_torch(mask, vol_sz, valid_ratio):
     # torch version
     # bug: out of memory
     valid_thres = valid_ratio * np.prod(vol_sz)
-    data_sz = mask.shape
+    mask.shape
     if len(vol_sz) == 3:
         mask_sum = conv3d(torch.from_numpy(mask[None,None].astype(int)), torch.ones(tuple(vol_sz))[None,None], padding='valid')[0,0].numpy()>= valid_thres 
         zz, yy, xx = np.meshgrid(np.arange(mask_sum.shape[0]), \

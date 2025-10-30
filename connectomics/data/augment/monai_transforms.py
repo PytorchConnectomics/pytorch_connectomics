@@ -13,7 +13,6 @@ import torch
 import cv2
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform
-from monai.utils import ensure_tuple_rep
 
 
 class RandMisAlignmentd(RandomizableTransform, MapTransform):
@@ -807,7 +806,6 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
         label_flipped: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Find best rotation and position with minimal overlap."""
-        import torchvision.transforms.functional as tf
         from scipy.ndimage import binary_dilation
 
         labels = torch.stack([label_orig, label_flipped])

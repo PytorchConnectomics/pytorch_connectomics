@@ -17,7 +17,7 @@ See .claude/MEDNEXT.md for detailed documentation.
 
 import torch
 import torch.nn as nn
-from typing import Union, Dict, List
+from typing import Union, Dict
 
 try:
     from nnunet_mednext import create_mednext_v1, MedNeXt as MedNeXtBase

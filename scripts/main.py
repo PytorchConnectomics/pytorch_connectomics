@@ -27,7 +27,6 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -70,7 +69,6 @@ from connectomics.config import (
     load_config,
     save_config,
     update_from_cli,
-    print_config,
     validate_config,
     resolve_data_paths,
     Config,
@@ -81,7 +79,6 @@ from connectomics.data.dataset import create_data_dicts_from_paths
 from connectomics.lightning import (
     ConnectomicsDataModule,
     ConnectomicsModule,
-    create_trainer as create_lightning_trainer,
 )
 from connectomics.data.augment.build import (
     build_train_transforms,
@@ -269,7 +266,6 @@ def expand_file_paths(path_or_pattern) -> List[str]:
         List of expanded file paths, sorted alphabetically
     """
     from glob import glob
-    from pathlib import Path
 
     # If already a list, return it (may have been expanded by resolve_data_paths)
     if isinstance(path_or_pattern, list):
@@ -392,7 +388,6 @@ def create_datamodule(
         print("🔀 Using automatic train/val split (DeepEM-style)")
         from connectomics.data.utils.split import (
             split_volume_train_val,
-            apply_volumetric_split,
         )
 
         # Load full volume
@@ -413,7 +408,7 @@ def create_datamodule(
 
         # Calculate split ranges
         train_ratio = cfg.data.split_train_range[1] - cfg.data.split_train_range[0]
-        split_point = cfg.data.split_train_range[1]
+        cfg.data.split_train_range[1]
 
         train_slices, val_slices = split_volume_train_val(
             volume_shape=volume_shape,

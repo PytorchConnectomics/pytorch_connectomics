@@ -44,6 +44,7 @@ classifiers = [
 dependencies = [
     # Deep learning frameworks
     "torch>=1.8.0",
+    "torchvision>=0.9.0",
     "numpy>=1.21.0,<2.0",
     # PyTorch Lightning & MONAI (PRIMARY frameworks)
     "pytorch-lightning>=2.0.0",
@@ -69,6 +70,8 @@ dependencies = [
     # Post-processing
     "connected-components-3d>=3.0.0",
     "fastremap>=1.10.0",
+    "kimimaro>=1.0.0",
+    "crackle-codec>=0.1.0",
     # Build tools
     "Cython>=0.29.22",
 ]

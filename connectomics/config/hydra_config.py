@@ -614,11 +614,22 @@ class MonitorConfig:
 # Augmentation configurations
 @dataclass
 class FlipConfig:
-    """Random flip augmentation."""
+    """Random flipping augmentation."""
 
     enabled: bool = True
     prob: float = 0.5
     spatial_axis: Optional[List[int]] = None  # None = all axes
+
+
+@dataclass
+class AffineConfig:
+    """Affine transformation augmentation (rotation, scaling, shearing)."""
+
+    enabled: bool = False  # Disabled by default (can be combined with Rotate90d)
+    prob: float = 0.5
+    rotate_range: Tuple[float, float, float] = (0.2, 0.2, 0.2)  # Rotation range in radians (~11°)
+    scale_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)   # Scaling range (±10%)
+    shear_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)   # Shearing range (±10%)
 
 
 @dataclass
@@ -628,6 +639,7 @@ class RotateConfig:
     enabled: bool = True
     prob: float = 0.5
     max_angle: float = 90.0
+    spatial_axes: Tuple[int, int] = (1, 2)  # Axes to rotate: (1, 2) = Y-X plane (preserves Z)
 
 
 @dataclass
@@ -736,10 +748,12 @@ class CopyPasteConfig:
 class AugmentationConfig:
     """Complete augmentation configuration."""
 
+    preset: str = "some"  # "all", "some", or "none" - controls how enabled flags are interpreted
     enabled: bool = False
 
     # Standard augmentations
     flip: FlipConfig = field(default_factory=FlipConfig)
+    affine: AffineConfig = field(default_factory=AffineConfig) # Added AffineConfig
     rotate: RotateConfig = field(default_factory=RotateConfig)
     elastic: ElasticConfig = field(default_factory=ElasticConfig)
     intensity: IntensityConfig = field(default_factory=IntensityConfig)
@@ -1022,6 +1036,7 @@ __all__ = [
     # Augmentation configuration
     "AugmentationConfig",
     "FlipConfig",
+    "AffineConfig", # Added AffineConfig
     "RotateConfig",
     "ElasticConfig",
     "IntensityConfig",

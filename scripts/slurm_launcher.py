@@ -5,7 +5,6 @@ Reference: BANIS slurm_job_scheduler.py
 """
 
 import argparse
-import os
 import itertools
 import subprocess
 from pathlib import Path

@@ -17,12 +17,10 @@ from monai.utils import ensure_tuple_rep
 # Import processing functions with correct names
 from .target import seg_to_binary, seg_to_affinity, seg_to_instance_bd
 from .target import seg_to_instance_edt, seg_to_semantic_edt, seg_to_polarity, seg_to_small_seg
-from .target import seg_erosion_dilation
 from .segment import seg_selection
 from .quantize import energy_quantize, decode_quantize
 from .weight import seg_to_weights
 from .distance import skeleton_aware_distance_transform
-from .misc import *
 
 
 class SegToBinaryMaskd(MapTransform):

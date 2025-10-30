@@ -16,7 +16,6 @@ __all__ = [
 
 # Add MONAI transform if available
 try:
-    from .split import ApplyVolumetricSplitd
     __all__.append('ApplyVolumetricSplitd')
 except ImportError:
     pass

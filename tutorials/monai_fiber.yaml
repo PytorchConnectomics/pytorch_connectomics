@@ -40,8 +40,8 @@ model:
   out_channels: 4                      # 4 outputs: Binary (2ch softmax) + Contour (1ch) + SDT (1ch)
   
   architecture: monai_unet
-  input_size: [64, 128, 128]
-  output_size: [64, 128, 128]
+  input_size: [48, 128, 128]
+  output_size: [48, 128, 128]
   filters: [28, 36, 48, 64, 80]      # Standard UNet channel progression
   num_res_units: 2                     # Residual units per block
   kernel_size: 3                       # Convolution kernel size
@@ -53,7 +53,7 @@ model:
   # Contour channel: DiceLoss + BCEWithLogitsLoss with sigmoid (weights: 1.0, 0.5)
   # SDT channel: WeightedMSE (weight: 4.0)
   loss_functions: [DiceLoss, CrossEntropyLoss, DiceLoss, BCEWithLogitsLoss, WeightedMSE]
-  loss_weights: [1.0, 0.5, 1.0, 0.5, 1.0]
+  loss_weights: [1.0, 0.5, 1.0, 0.5, 4.0]
   loss_kwargs:
     - {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with softmax for binary
     - {label_smoothing: 0.1}             # CrossEntropyLoss for binary
@@ -91,7 +91,7 @@ data:
   persistent_workers: true            # Keep workers alive between epochs
 
   # Patch configuration (matches barcode-R-Base.yaml)
-  patch_size: [64, 128, 128]            # Training patch size
+  patch_size: [48, 128, 128]            # Training patch size
   
   iter_num_per_epoch: 1000            # Iterations per epoch
   
@@ -111,33 +111,68 @@ data:
       - name: instance_boundary        # Channel 1: Contour map (4-0-1)
         kwargs:
           thickness: 1                 # thickness=1 (from "4-0-1")
-          edge_mode: "seg-no-bg"             # edge_mode="all" (from "4-0-1")
-          mode: "3d"                   # 3D mode for volumetric data
+          edge_mode: "seg-all"             # edge_mode="all" (from "4-0-1")
+          mode: "2d"                   # 3D mode for volumetric data
       - name: skeleton_aware_edt       # Channel 2: Skeleton-aware EDT (a-0-40-16-16)
         kwargs:
           resolution: [40, 16, 16]     # Physical voxel resolution (z, y, x) from train_resolution
           alpha: 1                     # linear distance ratio
-          smooth: true                 # Smooth distance transform
-          smooth_skeleton_only: true   # Only smooth skeleton regions
+          smooth: false                 # Smooth distance transform
+          smooth_skeleton_only: false   # Only smooth skeleton regions
           bg_value: -1.0               # Background value for distance map
           relabel: true                # Relabel connected components
           padding: false               # No padding
 
-  # Augmentation
-  # Note: When enabled, augmentations (rotation, flip, etc.) are applied to:
-  #   - image: geometric + intensity transforms
-  #   - label: same geometric transforms as image
-  #   - mask: same geometric transforms as image and label
-  # This ensures spatial consistency across image/label/mask triplets
+  # Augmentation Configuration with Presets
+  # 
+  # Choose a preset mode and set individual augmentations below:
+  # 
+  # Preset modes:
+  #   - "all":  Start with ALL augmentations enabled by default
+  #            (Manually set enabled: false to disable specific ones)
+  #            WARNING: Requires use_preloaded_cache: true
+  #   
+  #   - "some": Start with NO augmentations, ONLY respect manually enabled ones
+  #            (Manually set enabled: true to enable specific ones)
+  #            RECOMMENDED: Safe and flexible
+  #   
+  #   - "none": Disable all augmentations completely
+  #            (Individual settings ignored)
+  #
   augmentation:
-    enabled: true
+    preset: "some"  # Choose: "all", "some", or "none"
+    flip:
+      enabled: true
+    rotate:
+      enabled: true
+      spatial_axes: [1, 2]  # Rotate only in Y-X plane (preserves Z-axis)
+    affine:
+      enabled: true                   # Affine transform (rotation + scaling + shearing)
+      prob: 0.5                        # Probability of applying affine (0-1)
+      rotate_range: [0.2, 0.2, 0.2]   # Rotation range in radians (~11° per axis)
+      scale_range: [0.1, 0.1, 0.1]    # Scaling range (±10% per axis)
+      shear_range: [0.1, 0.1, 0.1]    # Shearing range (±10° per axis)
+    elastic:
+      enabled: true
+      prob: 0.3                      # Probability of applying elastic deformation (0-1)
+      sigma_range: [8.0, 10.0]        # Gaussian filter sigma range for deformation field (in pixels)
+      magnitude_range: [20.0, 50.0] # Deformation magnitude range (in pixels)
+    intensity:
+      enabled: true
+      # Grayscale intensity augmentations (applied only to image, not labels)
+      gaussian_noise_prob: 0             # Probability of adding Gaussian noise (0-1)      
+      shift_intensity_prob: 0.3            # Probability of shifting intensity values (0-1)
+      shift_intensity_offset: 0.1          # Intensity shift range as fraction of image range
+      contrast_prob: 0.3                   # Probability of adjusting contrast (0-1)
+      contrast_range: [0.7, 1.4]           # Contrast adjustment range (0.7 = darker, 1.4 = brighter)
+
 
 # Optimizer - AdamW with cosine annealing (based on barcode-R-Base.yaml)
 optimization:
   max_epochs: 1000                     # ~100k iterations / (1000 iters/epoch) = 100 epochs
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
-  precision: "32"                      # FP32 (debug: check if FP16 causes NaN)
+  precision: "16-mixed"                      # FP32 (debug: check if FP16 causes NaN)
 
   optimizer:
     name: AdamW

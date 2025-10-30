@@ -1,13 +1,11 @@
 from __future__ import print_function, division
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 
-import torch
-import scipy
 import numpy as np
+import kimimaro
 from scipy.ndimage import distance_transform_edt, binary_fill_holes
 from skimage.morphology import (
     remove_small_holes,
-    skeletonize,
     binary_erosion,
     disk,
     ball,
@@ -15,8 +13,7 @@ from skimage.morphology import (
 from skimage.measure import label as label_cc  # avoid namespace conflict
 from skimage.filters import gaussian
 
-from .bbox import compute_bbox_all, bbox_relax
-from .misc import get_padsize, array_unpad
+from .bbox_processor import BBoxProcessorConfig, BBoxInstanceProcessor
 from .quantize import energy_quantize
 
 __all__ = [
@@ -120,102 +117,76 @@ def distance_transform(
     resolution: Tuple[float] = (1.0, 1.0),
     erosion: int = 0,
 ):
-    """Euclidean distance transform (DT or EDT) for instance masks.
+    """Euclidean distance transform (EDT) for instance masks.
 
-    Optimizations:
-    - Preallocate arrays with correct dtype
-    - Avoid repeated dtype conversions
-    - Cache footprint creation outside loop
-    - Use in-place operations where possible
+    Refactored to use BBoxInstanceProcessor for cleaner code and consistency.
+
+    Args:
+        label: Instance segmentation (H, W) or (D, H, W)
+        bg_value: Background value for non-instance regions
+        relabel: Whether to relabel connected components
+        padding: Whether to pad before computing EDT
+        resolution: Pixel/voxel resolution for anisotropic data
+        erosion: Erosion kernel size (0 = no erosion)
+
+    Returns:
+        Normalized distance map with same shape as input
     """
     eps = 1e-6
-    pad_size = 2
 
-    if relabel:
-        label = label_cc(label)
+    # Configure bbox processor
+    config = BBoxProcessorConfig(
+        bg_value=bg_value,
+        relabel=relabel,
+        padding=padding,
+        pad_size=2,
+        bbox_relax=1,
+        combine_mode="max"
+    )
 
-    if padding:
-        label = np.pad(label, pad_size, mode="constant", constant_values=0)
+    # Precompute erosion footprint (shared across instances)
+    footprint = None
+    if erosion > 0:
+        footprint = disk(erosion) if label.ndim == 2 else ball(erosion)
 
-    label_shape = label.shape
+    # Define per-instance EDT computation
+    def compute_instance_edt(
+        label_crop: np.ndarray,
+        instance_id: int,
+        bbox: Tuple[slice, ...],
+        context: Dict
+    ) -> Optional[np.ndarray]:
+        """Compute normalized EDT for a single instance within bbox."""
+        # Extract instance mask
+        mask = binary_fill_holes((label_crop == instance_id))
 
-    # Preallocate with correct dtypes
-    distance = np.zeros(label_shape, dtype=np.float32)
+        # Apply erosion if requested
+        if context['footprint'] is not None:
+            mask = binary_erosion(mask, context['footprint'])
 
-    if label.max() > 0:
-        # Cache footprint creation (expensive operation)
-        footprint = None
-        if erosion > 0:
-            footprint = disk(erosion) if label.ndim == 2 else ball(erosion)
+        # Skip empty masks
+        if not mask.any():
+            return None
 
-        # Compute all bounding boxes at once and process each instance
-        bbox_array = compute_bbox_all(label, do_count=False)
+        # Compute EDT only within bbox
+        boundary_edt = distance_transform_edt(mask, context['resolution'])
+        edt_max = boundary_edt.max()
 
-        # Process each instance with EDT computation
-        if bbox_array is not None:
-            for i in range(bbox_array.shape[0]):
-                idx = int(bbox_array[i, 0])
+        if edt_max < eps:
+            return None
 
-                # Extract bbox coords and apply 1-pixel relaxation (for EDT smoothness)
-                if label.ndim == 2:
-                    # 2D: [id, y_min, y_max, x_min, x_max]
-                    bbox_coords = [
-                        bbox_array[i, 1],
-                        bbox_array[i, 2] + 1,  # +1 for exclusive max
-                        bbox_array[i, 3],
-                        bbox_array[i, 4] + 1,
-                    ]
-                    relaxed = bbox_relax(bbox_coords, label_shape, relax=1)
-                    bbox = (
-                        slice(relaxed[0], relaxed[1]),
-                        slice(relaxed[2], relaxed[3]),
-                    )
-                else:  # 3D
-                    # 3D: [id, z_min, z_max, y_min, y_max, x_min, x_max]
-                    bbox_coords = [
-                        bbox_array[i, 1],
-                        bbox_array[i, 2] + 1,  # +1 for exclusive max
-                        bbox_array[i, 3],
-                        bbox_array[i, 4] + 1,
-                        bbox_array[i, 5],
-                        bbox_array[i, 6] + 1,
-                    ]
-                    relaxed = bbox_relax(bbox_coords, label_shape, relax=1)
-                    bbox = (
-                        slice(relaxed[0], relaxed[1]),
-                        slice(relaxed[2], relaxed[3]),
-                        slice(relaxed[4], relaxed[5]),
-                    )
+        # Normalize and return
+        energy = boundary_edt / (edt_max + eps)
+        return energy * mask
 
-                # Extract instance mask within bounding box
-                temp2 = binary_fill_holes((label[bbox] == idx))
-
-                if erosion > 0:
-                    temp2 = binary_erosion(temp2, footprint)
-
-                # Skip empty masks
-                if not temp2.any():
-                    continue
-
-                # Compute EDT only within bounding box (MAJOR SPEEDUP)
-                boundary_edt = distance_transform_edt(temp2, resolution)
-                edt_max = boundary_edt.max()
-
-                if edt_max > eps:  # Avoid division by zero
-                    # Normalize and update distance map (only within bbox)
-                    energy = boundary_edt / (edt_max + eps)
-                    # Direct multiplication (avoid intermediate array)
-                    distance[bbox] = np.maximum(distance[bbox], energy * temp2)
-
-    # Apply background value
-    if bg_value != 0:
-        distance[distance == 0] = bg_value
-
-    if padding:
-        pad_tuple = get_padsize(pad_size, ndim=distance.ndim)
-        distance = array_unpad(distance, pad_tuple)
-
-    return distance
+    # Process all instances with bbox optimization
+    processor = BBoxInstanceProcessor(config)
+    return processor.process(
+        label,
+        compute_instance_edt,
+        resolution=resolution,
+        footprint=footprint
+    )
 
 
 def smooth_edge(binary, smooth_sigma: float = 2.0, smooth_threshold: float = 0.5):
@@ -242,58 +213,153 @@ def skeleton_aware_distance_transform(
     Lin, Zudi, et al. "Structure-Preserving Instance Segmentation via Skeleton-Aware
     Distance Transform." International Conference on Medical Image Computing and
     Computer-Assisted Intervention. Cham: Springer Nature Switzerland, 2023.
+
+    Refactored to use BBoxInstanceProcessor for cleaner code and consistency.
+    Uses kimimaro for fast skeletonization (10-100x faster than scikit-image).
+
+    Args:
+        label: Instance segmentation (H, W) or (D, H, W)
+        bg_value: Background value for non-instance regions
+        relabel: Whether to relabel connected components
+        padding: Whether to pad before computing distance
+        resolution: Voxel resolution for anisotropic data (z, y, x)
+        alpha: Skeleton influence exponent (higher = stronger skeleton influence)
+        smooth: Whether to smooth edges before skeletonization
+        smooth_skeleton_only: Only smooth skeleton mask (not entire object)
+
+    Returns:
+        Skeleton-aware distance map with same shape as input
     """
     eps = 1e-6
-    pad_size = 2
 
-    if relabel:
-        label = label_cc(label)
+    # Configure bbox processor
+    config = BBoxProcessorConfig(
+        bg_value=bg_value,
+        relabel=relabel,
+        padding=padding,
+        pad_size=2,
+        bbox_relax=2,
+        combine_mode="max"
+    )
 
-    if padding:
-        # The distance_transform_edt function does not treat image border
-        # as background. If image border needs to be considered as background
-        # in distance calculation, set padding to True.
-        label = np.pad(label, pad_size, mode="constant", constant_values=0)
+    # Define per-instance skeleton EDT computation
+    def compute_skeleton_edt(
+        label_crop: np.ndarray,
+        instance_id: int,
+        bbox: Tuple[slice, ...],
+        context: Dict
+    ) -> Optional[np.ndarray]:
+        """Compute skeleton-aware EDT for a single instance within bbox."""
+        # Extract and clean mask
+        temp2 = remove_small_holes(label_crop == instance_id, 16, connectivity=1)
 
-    label_shape = label.shape
+        if not temp2.any():
+            return None
 
-    skeleton = np.zeros(label_shape, dtype=np.uint8)
-    distance = np.zeros(label_shape, dtype=np.float32)
+        binary = temp2
 
-    indices = np.unique(label)
-    if len(indices) > 1:
-        for idx in indices[indices > 0]:
-            temp2 = remove_small_holes(label == idx, 16, connectivity=1)
-            binary = temp2.copy()
-
-            if smooth:
-                binary = smooth_edge(binary)
-                if binary.astype(int).sum() <= 32:
-                    # Reverse the smoothing operation if it makes
-                    # the output mask empty (or very small).
-                    binary = temp2.copy()
+        # Smooth if requested
+        if context['smooth']:
+            binary_smooth = smooth_edge(binary.astype(np.uint8))
+            if binary_smooth.astype(int).sum() > 32:
+                if context['smooth_skeleton_only']:
+                    binary = binary_smooth.astype(bool) & temp2
                 else:
-                    if smooth_skeleton_only:
-                        binary = binary * temp2
-                    else:
-                        temp2 = binary.copy()
+                    binary = binary_smooth.astype(bool)
+                    temp2 = binary
 
-            skeleton_mask = skeletonize(binary)
-            skeleton_mask = (skeleton_mask != 0).astype(np.uint8)
-            skeleton += skeleton_mask
+        # Skeletonize using kimimaro
+        skeleton_mask = _skeletonize_instance(
+            label_crop,
+            instance_id,
+            context['resolution']
+        )
 
-            skeleton_edt = distance_transform_edt(1 - skeleton_mask, resolution)
-            boundary_edt = distance_transform_edt(temp2, resolution)
+        # Fallback to regular EDT if skeletonization fails
+        if skeleton_mask is None or not skeleton_mask.any():
+            boundary_edt = distance_transform_edt(temp2, context['resolution'])
+            edt_max = boundary_edt.max()
+            if edt_max > eps:
+                energy = (boundary_edt / (edt_max + eps)) ** context['alpha']
+                return energy * temp2.astype(np.float32)
+            return None
 
-            energy = boundary_edt / (skeleton_edt + boundary_edt + eps)  # normalize
-            energy = energy**alpha
-            distance = np.maximum(distance, energy * temp2.astype(np.float32))
+        # Compute skeleton-aware EDT
+        skeleton_edt = distance_transform_edt(~skeleton_mask, context['resolution'])
+        boundary_edt = distance_transform_edt(temp2, context['resolution'])
 
-    if bg_value != 0:
-        distance[distance == 0] = bg_value
+        # Normalized energy
+        energy = boundary_edt / (skeleton_edt + boundary_edt + eps)
+        energy = energy ** context['alpha']
 
-    if padding:
-        # Unpad the output array to preserve original shape.
-        distance = array_unpad(distance, get_padsize(pad_size, ndim=distance.ndim))
+        return energy * temp2.astype(np.float32)
 
-    return distance
+    # Process all instances
+    processor = BBoxInstanceProcessor(config)
+    return processor.process(
+        label,
+        compute_skeleton_edt,
+        resolution=resolution,
+        alpha=alpha,
+        smooth=smooth,
+        smooth_skeleton_only=smooth_skeleton_only
+    )
+
+
+def _skeletonize_instance(
+    label_crop: np.ndarray,
+    instance_id: int,
+    resolution: Tuple[float, ...]
+) -> Optional[np.ndarray]:
+    """Helper function to skeletonize a single instance using kimimaro.
+
+    Args:
+        label_crop: Cropped label array containing the instance
+        instance_id: ID of the instance to skeletonize
+        resolution: Voxel resolution for anisotropic data
+
+    Returns:
+        Binary skeleton mask, or None if skeletonization fails
+    """
+    instance_label = np.where(label_crop == instance_id, 1, 0).astype(np.uint32)
+
+    try:
+        skeletons = kimimaro.skeletonize(
+            instance_label,
+            anisotropy=resolution,
+            fix_branching=False,
+            fix_borders=False,
+            dust_threshold=5,
+            parallel=1,
+            progress=False
+        )
+
+        if 1 in skeletons and len(skeletons[1].vertices) > 0:
+            skeleton_mask = np.zeros(label_crop.shape, dtype=bool)
+            vertices = skeletons[1].vertices.astype(int)
+
+            # Filter valid vertices
+            valid_mask = np.all(
+                (vertices >= 0) & (vertices < np.array(skeleton_mask.shape)),
+                axis=1
+            )
+            valid_vertices = vertices[valid_mask]
+
+            if len(valid_vertices) > 0:
+                if label_crop.ndim == 3:
+                    skeleton_mask[
+                        valid_vertices[:, 0],
+                        valid_vertices[:, 1],
+                        valid_vertices[:, 2]
+                    ] = True
+                else:
+                    skeleton_mask[
+                        valid_vertices[:, 0],
+                        valid_vertices[:, 1]
+                    ] = True
+                return skeleton_mask
+
+    except Exception:
+        pass
+
+    return None

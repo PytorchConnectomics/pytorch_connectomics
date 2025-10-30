@@ -1,6 +1,6 @@
 from __future__ import division, print_function
 from collections import OrderedDict
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, Tuple
 
 import itertools
 import numpy as np

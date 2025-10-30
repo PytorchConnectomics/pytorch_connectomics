@@ -1,5 +1,5 @@
 from __future__ import print_function, division
-from typing import Optional, Tuple, List, Union
+from typing import Tuple, List, Union
 import numpy as np
 
 # Optional matplotlib imports

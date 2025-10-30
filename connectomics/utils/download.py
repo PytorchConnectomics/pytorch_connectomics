@@ -4,7 +4,6 @@ Data download utilities for PyTorch Connectomics.
 Provides automatic download of tutorial datasets from HuggingFace.
 """
 
-import os
 import urllib.request
 import zipfile
 from pathlib import Path

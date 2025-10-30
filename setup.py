@@ -7,6 +7,7 @@ from setuptools import setup, Extension, find_packages
 requirements = [
     # Deep learning frameworks
     "torch>=1.8.0",
+    "torchvision>=0.9.0",
     "numpy>=1.21.0,<2.0",  # Pin to 1.x for GCC 4.8.5 compatibility (NumPy 2.x requires GCC 9.3+)
     # PyTorch Lightning & MONAI (PRIMARY frameworks)
     "pytorch-lightning>=2.0.0",
@@ -32,6 +33,8 @@ requirements = [
     # Post-processing (required for segmentation)
     "connected-components-3d>=3.0.0",  # imports as 'cc3d'
     "fastremap>=1.10.0",  # Fast remapping for segmentation labels
+    "kimimaro>=1.0.0",  # Skeletonization library
+    "crackle-codec>=0.1.0",  # Required by kimimaro for compression
     # Build tools
     "Cython>=0.29.22",
 ]

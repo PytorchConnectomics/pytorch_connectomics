@@ -6,18 +6,15 @@ infrastructure for large-scale connectomics data that cannot fit in memory.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union, Sequence, Tuple
-import numpy as np
+from typing import Dict, List, Any, Optional, Tuple
 import json
-import random
 
-import torch
-from monai.data import Dataset, CacheDataset
-from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
+from monai.data import CacheDataset
+from monai.transforms import Compose, EnsureChannelFirstd
 from monai.utils import ensure_tuple_rep
 
 from .dataset_base import MonaiConnectomicsDataset
-from ..io import create_tile_metadata, reconstruct_volume_from_tiles, TileLoaderd
+from ..io import TileLoaderd
 
 
 class MonaiTileDataset(MonaiConnectomicsDataset):

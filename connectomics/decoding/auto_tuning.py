@@ -9,7 +9,7 @@ Reference: BANIS baseline (threshold sweep utilities)
 """
 
 from __future__ import annotations
-from typing import Dict, Any, Callable, Optional, Union, List
+from typing import Dict, Any, Callable, Optional, Union
 from pathlib import Path
 import pickle
 import warnings

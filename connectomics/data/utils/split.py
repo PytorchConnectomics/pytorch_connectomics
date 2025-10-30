@@ -190,7 +190,6 @@ def pad_volume_to_size(
         )
 
         # Map mode names
-        torch_mode = mode
         if mode == 'constant':
             padded = torch.nn.functional.pad(volume, padding, mode='constant', value=constant_value)
         elif mode == 'reflect':

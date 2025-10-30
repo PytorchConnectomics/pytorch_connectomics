@@ -11,9 +11,8 @@ optimal hyperparameters based on:
 Users can manually override any auto-determined parameters.
 """
 
-import torch
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from omegaconf import OmegaConf, DictConfig
 import warnings

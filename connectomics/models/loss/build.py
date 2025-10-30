@@ -8,7 +8,7 @@ Design pattern inspired by transforms/augment/monai_compose.py.
 """
 
 from __future__ import annotations
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional
 import torch
 import torch.nn as nn
 
@@ -20,7 +20,6 @@ from monai.losses import (
     FocalLoss,
     TverskyLoss,
     GeneralizedDiceLoss,
-    GeneralizedWassersteinDiceLoss,
 )
 
 # Import custom connectomics losses

@@ -15,8 +15,6 @@ import h5py
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import torch
-from monai.transforms import Compose
 
 # Import our refactored MONAI-native datasets
 from connectomics.data.dataset import (

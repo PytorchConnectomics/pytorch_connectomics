@@ -6,15 +6,13 @@ datasets, enabling seamless integration with PyTorch Lightning training workflow
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union, Callable, Tuple
-import os
+from typing import Dict, List, Any, Optional, Union, Tuple
 import numpy as np
 
 import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from monai.transforms import Compose
-from monai.data import decollate_batch
 
 from connectomics.data.dataset import (
     MonaiConnectomicsDataset,

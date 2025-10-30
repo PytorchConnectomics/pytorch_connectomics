@@ -5,7 +5,7 @@ Provides centralized registration and discovery of model architectures.
 Makes it easy to add new models and validate architecture names.
 """
 
-from typing import Dict, Callable, List, Optional
+from typing import Dict, Callable, List
 import warnings
 
 

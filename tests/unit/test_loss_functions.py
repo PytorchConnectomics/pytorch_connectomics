@@ -1,7 +1,6 @@
 """Test loss functions (migrated to MONAI)."""
 import unittest
 import torch
-import pytest
 
 from connectomics.models.loss import create_loss
 

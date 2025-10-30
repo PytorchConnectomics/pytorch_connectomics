@@ -8,12 +8,9 @@ Uses Hydra/OmegaConf configuration.
 """
 
 import torch
-import torch.nn as nn
-from typing import Optional
 
 from .arch import (
     get_architecture_builder,
-    list_architectures,
     print_available_architectures,
 )
 

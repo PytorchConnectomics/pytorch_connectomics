@@ -7,8 +7,7 @@ and estimate memory requirements for training.
 
 import torch
 import psutil
-from typing import Dict, Optional, Tuple
-import warnings
+from typing import Dict, Tuple
 
 
 def get_gpu_info() -> Dict[str, any]:

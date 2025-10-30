@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.sparse as sparse
-import h5py
 from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
 from collections import namedtuple
@@ -723,7 +722,7 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion='iou', report_matche
 
 def wrapper_matching_dataset_lazy(stats_all, thresh, criterion='iou', by_image=False):
 
-    expected_keys = set(('fp', 'tp', 'fn', 'precision', 'recall', 'accuracy', 'f1', 'criterion', 'thresh', 'n_true', 'n_pred', 'mean_true_score', 'mean_matched_score', 'panoptic_quality'))
+    set(('fp', 'tp', 'fn', 'precision', 'recall', 'accuracy', 'f1', 'criterion', 'thresh', 'n_true', 'n_pred', 'mean_true_score', 'mean_matched_score', 'panoptic_quality'))
 
     # accumulate results over all images for each threshold separately
     n_images, n_threshs = len(stats_all), len(thresh)

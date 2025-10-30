@@ -7,22 +7,17 @@ The legacy dataset creation functions have been removed to keep the codebase cle
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union, Callable, Sequence, Tuple
-from abc import ABC, abstractmethod
-import os
+from typing import Dict, Any, Optional, Sequence, Tuple
 import numpy as np
 
 import torch
 import torch.utils.data
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader
 
 # MONAI imports
 from monai.data import Dataset, CacheDataset, PersistentDataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
 
-from ..io import read_volume
 
 
 class MonaiConnectomicsDataset(Dataset):

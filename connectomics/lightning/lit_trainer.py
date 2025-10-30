@@ -9,8 +9,7 @@ This module provides Lightning trainer factory functions with:
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union
-import os
+from typing import List, Optional, Union
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import (

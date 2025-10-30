@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import Dict, List, Any, Optional, Tuple
 import numpy as np
 import random  # Use random (not np.random) for thread safety
-import torch
 from monai.data import Dataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep

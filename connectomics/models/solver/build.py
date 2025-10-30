@@ -5,11 +5,11 @@ Supports Hydra/OmegaConf configurations.
 Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 """
 
-from typing import Any, Dict, List, Set, Union
+from typing import Any, Dict, List, Set
 import torch
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, StepLR
 
-from .lr_scheduler import WarmupCosineLR, WarmupMultiStepLR
+from .lr_scheduler import WarmupCosineLR
 
 
 __all__ = ['build_optimizer', 'build_lr_scheduler']

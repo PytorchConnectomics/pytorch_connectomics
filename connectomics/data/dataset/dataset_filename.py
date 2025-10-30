@@ -7,19 +7,16 @@ MitoLab, CEM500K, etc.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union, Sequence, Tuple
+from typing import Dict, Any, Optional, Tuple
 import json
 import random
 from pathlib import Path
 import warnings
 
-import numpy as np
 import torch
 from monai.data import Dataset
-from monai.transforms import Compose, LoadImaged, EnsureChannelFirstd
-from monai.utils import ensure_tuple_rep
+from monai.transforms import Compose
 
-from .dataset_base import MonaiConnectomicsDataset
 
 
 class MonaiFilenameDataset(Dataset):

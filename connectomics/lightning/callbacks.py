@@ -5,7 +5,7 @@ Provides callbacks for visualization, checkpointing, and monitoring.
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import pdb
 import torch
 from pytorch_lightning import Callback
@@ -279,7 +279,6 @@ class NaNDetectionCallback(Callback):
     ):
         """Check for NaN/Inf after each training step (backup check)."""
         # This is a backup check - on_after_backward should catch it first
-        pass
 
     def _handle_nan_detection(
         self,

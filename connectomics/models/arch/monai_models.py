@@ -9,7 +9,6 @@ Uses Hydra/OmegaConf configuration.
 
 import torch
 import torch.nn as nn
-from typing import Union, Dict
 
 try:
     from monai.networks.nets import BasicUNet, UNet, UNETR, SwinUNETR

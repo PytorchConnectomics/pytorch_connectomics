@@ -10,7 +10,7 @@ Tests cover:
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 import pickle
 import tempfile
 from pathlib import Path
@@ -29,7 +29,6 @@ def test_imports():
 def test_optuna_availability():
     """Test Optuna availability check."""
     try:
-        import optuna
         assert True
     except ImportError:
         pytest.skip("Optuna not installed")
@@ -38,7 +37,6 @@ def test_optuna_availability():
 def test_funlib_availability():
     """Test funlib availability check."""
     try:
-        from funlib.evaluate import rand_voi, expected_run_length
         assert True
     except ImportError:
         pytest.skip("funlib.evaluate not installed")

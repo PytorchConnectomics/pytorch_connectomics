@@ -6,19 +6,13 @@ infrastructure with connectomics-specific sampling and augmentation strategies.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union, Callable, Sequence, Tuple
-import numpy as np
-import random
-import warnings
+from typing import List, Optional, Tuple
 
-import torch
-from monai.data import Dataset, CacheDataset
-from monai.transforms import Compose, RandSpatialCropd, CenterSpatialCropd, LoadImaged, EnsureChannelFirstd
+from monai.data import CacheDataset
+from monai.transforms import Compose, RandSpatialCropd, CenterSpatialCropd
 from monai.utils import ensure_tuple_rep
 
 from .dataset_base import MonaiConnectomicsDataset
-from monai.config import KeysCollection
-from monai.transforms import MapTransform
 from ..io.monai_transforms import LoadVolumed
 
 
@@ -210,8 +204,8 @@ class MonaiCachedVolumeDataset(CacheDataset):
         sample_size = kwargs.get('sample_size', (32, 256, 256))
         mode = kwargs.get('mode', 'train')
         do_2d = kwargs.get('do_2d', False)
-        data_mean = kwargs.get('data_mean', 0.5)
-        data_std = kwargs.get('data_std', 0.5)
+        kwargs.get('data_mean', 0.5)
+        kwargs.get('data_std', 0.5)
         transpose_axes = kwargs.get('transpose_axes', None)
 
         # Create data dictionaries

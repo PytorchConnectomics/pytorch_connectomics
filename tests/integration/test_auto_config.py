@@ -11,9 +11,7 @@ Tests cover:
 
 import pytest
 import torch
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock
-from omegaconf import OmegaConf
+from unittest.mock import patch
 
 
 # Test imports
@@ -470,7 +468,6 @@ class TestIntegration:
     def test_end_to_end_planning(self):
         """Test complete planning workflow from config to planned values."""
         from connectomics.config import Config, auto_plan_config
-        from connectomics.config.auto_config import AutoConfigPlanner
         from omegaconf import OmegaConf
 
         # Create config

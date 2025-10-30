@@ -9,30 +9,22 @@ and PyTorch Lightning DataModules work correctly end-to-end.
 import os
 import sys
 import tempfile
-import shutil
 import numpy as np
-from skimage import io
 import h5py
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import torch
-import pytorch_lightning as pl
 from monai.transforms import Compose
 
 # Import our refactored MONAI-native datasets and DataModules
 from connectomics.data.dataset import (
-    MonaiVolumeDataset,
-    MonaiCachedVolumeDataset,
     create_volume_dataset,
     create_data_dicts_from_paths,
 )
 from connectomics.lightning.lit_data import (
     VolumeDataModule,
-    create_volume_datamodule,
 )
-from connectomics.data.process import create_label_transform_pipeline
 
 
 def create_dummy_lucchi_data(base_path):
@@ -212,7 +204,7 @@ def test_lightning_datamodule(data_paths):
         # Test 3: Create DataLoaders
         print("3. Creating DataLoaders...")
         train_loader = datamodule.train_dataloader()
-        val_loader = datamodule.val_dataloader()
+        datamodule.val_dataloader()
         print(f"   ✅ Created train DataLoader")
         print(f"   ✅ Created val DataLoader")
 

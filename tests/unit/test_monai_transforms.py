@@ -7,11 +7,9 @@ expected outputs for common connectomics processing tasks.
 """
 
 import sys
-import os
 from pathlib import Path
 import numpy as np
 import torch
-from monai.transforms import Compose
 from monai.data import MetaTensor
 
 # Add the package to Python path
@@ -23,12 +21,7 @@ from connectomics.data.process import (
     SegToAffinityMapd,
     SegToInstanceBoundaryMaskd,
     SegToInstanceEDTd,
-    SegToSemanticEDTd,
     SegToFlowFieldd,
-    SegToSynapticPolarityd,
-    SegToSmallObjectd,
-    ComputeBinaryRatioWeightd,
-    MultiTaskLabelTransformd,
     create_label_transform_pipeline,
 )
 

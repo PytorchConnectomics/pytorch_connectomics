@@ -6,7 +6,6 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 
 from __future__ import annotations
 from typing import Dict
-import numpy as np
 import torch
 from monai.transforms import (
     Compose,
@@ -41,11 +40,10 @@ from .monai_transforms import (
     RandCutBlurd,
     RandMixupd,
     RandCopyPasted,
-    SqueezeLabeld,
     NormalizeLabelsd,
     SmartNormalizeIntensityd,
 )
-from ...config.hydra_config import Config, AugmentationConfig, LabelTransformConfig
+from ...config.hydra_config import Config, AugmentationConfig
 
 
 def build_train_transforms(
@@ -522,23 +520,59 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
         List of MONAI transforms
     """
     transforms = []
-
+    
+    # Get preset mode (default to "some" for backward compatibility)
+    preset = getattr(aug_cfg, "preset", "some")
+    
+    # Helper function to check if augmentation should be applied
+    def should_augment(aug_name: str, aug_enabled: bool) -> bool:
+        """
+        Determine if augmentation should be applied based on preset mode.
+        
+        - "all": enabled = True by default, set to False to disable
+        - "some": enabled = False by default, set to True to enable
+        - "none": always False (no augmentations)
+        """
+        if preset == "none":
+            return False
+        elif preset == "all":
+            # All enabled by default, respect False overrides
+            return aug_enabled
+        else:  # preset == "some"
+            # None enabled by default, only use True values
+            return aug_enabled
+    
     # Standard geometric augmentations
-    if aug_cfg.flip.enabled:
+    if should_augment("flip", aug_cfg.flip.enabled):
         transforms.append(
             RandFlipd(keys=keys, prob=aug_cfg.flip.prob, spatial_axis=aug_cfg.flip.spatial_axis)
         )
 
-    if aug_cfg.rotate.enabled:
+    if should_augment("rotate", aug_cfg.rotate.enabled):
+        # Use spatial_axes from config if available
+        spatial_axes = getattr(aug_cfg.rotate, "spatial_axes", (1, 2))
         transforms.append(
             RandRotate90d(
                 keys=keys,
                 prob=aug_cfg.rotate.prob,
-                spatial_axes=(1, 2),  # Rotate in Y-X plane to preserve anisotropic Z
+                spatial_axes=spatial_axes,  # Rotate in specified plane
             )
         )
 
-    if aug_cfg.elastic.enabled:
+    if should_augment("affine", aug_cfg.affine.enabled):
+        transforms.append(
+            RandAffined(
+                keys=keys,
+                prob=aug_cfg.affine.prob,
+                rotate_range=aug_cfg.affine.rotate_range,
+                scale_range=aug_cfg.affine.scale_range,
+                shear_range=aug_cfg.affine.shear_range,
+                mode="bilinear",
+                padding_mode="reflection",
+            )
+        )
+
+    if should_augment("elastic", aug_cfg.elastic.enabled):
         transforms.append(
             Rand3DElasticd(
                 keys=keys,
@@ -549,7 +583,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
         )
 
     # Intensity augmentations (only for images)
-    if aug_cfg.intensity.enabled:
+    if should_augment("intensity", aug_cfg.intensity.enabled):
         if aug_cfg.intensity.gaussian_noise_prob > 0:
             transforms.append(
                 RandGaussianNoised(
@@ -578,7 +612,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             )
 
     # EM-specific augmentations
-    if aug_cfg.misalignment.enabled:
+    if should_augment("misalignment", aug_cfg.misalignment.enabled):
         transforms.append(
             RandMisAlignmentd(
                 keys=keys,
@@ -588,7 +622,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             )
         )
 
-    if aug_cfg.missing_section.enabled:
+    if should_augment("missing_section", aug_cfg.missing_section.enabled):
         transforms.append(
             RandMissingSectiond(
                 keys=keys,
@@ -597,7 +631,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             )
         )
 
-    if aug_cfg.motion_blur.enabled:
+    if should_augment("motion_blur", aug_cfg.motion_blur.enabled):
         transforms.append(
             RandMotionBlurd(
                 keys=["image"],
@@ -607,7 +641,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             )
         )
 
-    if aug_cfg.cut_noise.enabled:
+    if should_augment("cut_noise", aug_cfg.cut_noise.enabled):
         transforms.append(
             RandCutNoised(
                 keys=["image"],
@@ -617,7 +651,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             )
         )
 
-    if aug_cfg.cut_blur.enabled:
+    if should_augment("cut_blur", aug_cfg.cut_blur.enabled):
         transforms.append(
             RandCutBlurd(
                 keys=["image"],
@@ -628,7 +662,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
             )
         )
 
-    if aug_cfg.missing_parts.enabled:
+    if should_augment("missing_parts", aug_cfg.missing_parts.enabled):
         transforms.append(
             RandMissingPartsd(
                 keys=keys,
@@ -638,14 +672,14 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
         )
 
     # Advanced augmentations
-    if aug_cfg.mixup.enabled:
+    if should_augment("mixup", aug_cfg.mixup.enabled):
         transforms.append(
             RandMixupd(
                 keys=["image"], prob=aug_cfg.mixup.prob, alpha_range=aug_cfg.mixup.alpha_range
             )
         )
 
-    if aug_cfg.copy_paste.enabled:
+    if should_augment("copy_paste", aug_cfg.copy_paste.enabled):
         transforms.append(
             RandCopyPasted(
                 keys=["image"],

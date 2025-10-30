@@ -8,7 +8,6 @@ Provides TensorBoard visualization of training progress, predictions, and metric
 from __future__ import annotations
 from typing import Optional, Dict, Any, List
 import torch
-import torch.nn as nn
 import torchvision.utils as vutils
 import numpy as np
 from skimage.color import label2rgb

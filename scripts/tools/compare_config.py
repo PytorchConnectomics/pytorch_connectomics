@@ -1,5 +1,4 @@
 # Based on https://stackoverflow.com/questions/19120489/compare-two-files-report-difference-in-python
-import sys
 import argparse
 from difflib import unified_diff
 
