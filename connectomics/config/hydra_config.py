@@ -313,6 +313,8 @@ class ImageTransformConfig:
     clip_percentile_high: float = (
         1.0  # Upper percentile for clipping (1.0 = no clip, 0.95 = 95th percentile)
     )
+    pad_size: Optional[List[int]] = None  # Reflection padding for context [D, H, W] or [H, W]
+    pad_mode: str = "reflect"  # Padding mode: 'reflect', 'replicate', 'constant'
 
 
 @dataclass

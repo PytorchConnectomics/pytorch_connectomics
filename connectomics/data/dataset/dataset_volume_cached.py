@@ -79,6 +79,8 @@ class CachedVolumeDataset(Dataset):
         iter_num: int = 500,
         transforms: Optional[Compose] = None,
         mode: str = "train",
+        pad_size: Optional[Tuple[int, ...]] = None,
+        pad_mode: str = "reflect",
     ):
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
@@ -97,6 +99,8 @@ class CachedVolumeDataset(Dataset):
         self.iter_num = iter_num if iter_num > 0 else len(image_paths)
         self.transforms = transforms
         self.mode = mode
+        self.pad_size = pad_size
+        self.pad_mode = pad_mode
 
         # Load all volumes into memory
         print(f"  Loading {len(image_paths)} volumes into memory...")
@@ -116,6 +120,11 @@ class CachedVolumeDataset(Dataset):
                 img = img[None, ...]  # Add channel for 2D
             elif img.ndim == 3:
                 img = img[None, ...]  # Add channel for 3D
+
+            # Apply padding if specified
+            if self.pad_size is not None:
+                img = self._apply_padding(img)
+
             self.cached_images.append(img)
 
             # Load label if available
@@ -126,6 +135,11 @@ class CachedVolumeDataset(Dataset):
                     lbl = lbl[None, ...]  # Add channel for 2D
                 elif lbl.ndim == 3:
                     lbl = lbl[None, ...]  # Add channel for 3D
+
+                # Apply padding if specified (same padding as image)
+                if self.pad_size is not None:
+                    lbl = self._apply_padding(lbl, mode='constant', constant_values=0)  # Use constant 0 for labels
+
                 self.cached_labels.append(lbl)
             else:
                 self.cached_labels.append(None)
@@ -135,6 +149,11 @@ class CachedVolumeDataset(Dataset):
                 mask = read_volume(mask_path)
                 if mask.ndim == 3:
                     mask = mask[None, ...]
+
+                # Apply padding if specified (same padding as label)
+                if self.pad_size is not None:
+                    mask = self._apply_padding(mask, mode='constant', constant_values=0)
+
                 self.cached_masks.append(mask)
             else:
                 self.cached_masks.append(None)
@@ -147,6 +166,40 @@ class CachedVolumeDataset(Dataset):
         # Support both 2D and 3D: get last N dimensions matching patch_size
         ndim = len(self.patch_size)
         self.volume_sizes = [img.shape[-ndim:] for img in self.cached_images]  # (Z, Y, X) or (Y, X)
+
+    def _apply_padding(
+        self, volume: np.ndarray, mode: Optional[str] = None, constant_values: float = 0
+    ) -> np.ndarray:
+        """
+        Apply padding to a volume using np.pad.
+
+        Args:
+            volume: Input volume with channel dimension (C, D, H, W) or (C, H, W)
+            mode: Padding mode ('reflect', 'constant', etc.). If None, uses self.pad_mode
+            constant_values: Value for constant padding
+
+        Returns:
+            Padded volume
+        """
+        if self.pad_size is None:
+            return volume
+
+        mode = mode if mode is not None else self.pad_mode
+
+        # Build padding tuple for np.pad: ((before, after), ...)
+        # For channel dimension: no padding (0, 0)
+        # For spatial dimensions: pad according to pad_size
+        pad_width = [(0, 0)]  # No padding on channel dimension
+        for p in self.pad_size:
+            pad_width.append((p, p))
+
+        # Apply padding using np.pad
+        if mode == 'constant':
+            padded = np.pad(volume, pad_width, mode=mode, constant_values=constant_values)
+        else:
+            padded = np.pad(volume, pad_width, mode=mode)
+
+        return padded
 
     def __len__(self) -> int:
         return self.iter_num

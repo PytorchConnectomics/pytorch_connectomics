@@ -13,7 +13,7 @@ system:
   training:
     num_gpus: 1
     num_cpus: 1
-    num_workers: 1                     # Parallel data loading
+    num_workers: 0                     # DEBUG: Disable parallel data loading to debug
     batch_size: 16                     # Larger batch for 2D (21,871 samples total)
   inference:
     num_gpus: 1
@@ -67,8 +67,9 @@ data:
   
   # Patch configuration (2D images are already tiles, no cropping needed)
   # MitoLab images vary in size but are typically 224x224 or similar
-  patch_size: [1, 224, 224]            # 2D patch size in 3D format (Z=1, H, W)
-  pad_size: [0, 0, 0]                  # No padding needed (images are pre-tiled)
+  # For 2D filename datasets: patch_size should be [H, W] not [Z, H, W]
+  patch_size: [224, 224]               # 2D patch size (H, W)
+  pad_size: [0, 0]                     # No padding needed (images are pre-tiled)
   iter_num_per_epoch: -1               # Use all samples per epoch
   use_preloaded_cache: false           # Images loaded on-demand
   

@@ -25,6 +25,8 @@ from monai.transforms import (
     CenterSpatialCropd,
     SpatialPadd,
     Resized,
+    LoadImaged,  # For filename-based datasets (PNG, JPG, etc.)
+    EnsureChannelFirstd,  # Ensure channel-first format for 2D/3D images
 )
 
 # Import custom loader for HDF5/TIFF volumes
@@ -71,11 +73,20 @@ def build_train_transforms(
 
     # Load images first (unless using pre-cached dataset)
     if not skip_loading:
-        # Get transpose axes for training data
-        train_transpose = cfg.data.train_transpose if cfg.data.train_transpose else []
-        transforms.append(
-            LoadVolumed(keys=keys, transpose_axes=train_transpose if train_transpose else None)
-        )
+        # Use appropriate loader based on dataset type
+        dataset_type = getattr(cfg.data, "dataset_type", "volume")  # Default to volume for backward compatibility
+
+        if dataset_type == "filename":
+            # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
+            transforms.append(LoadImaged(keys=keys, image_only=False))
+            # Ensure channel-first format [C, H, W] or [C, D, H, W]
+            transforms.append(EnsureChannelFirstd(keys=keys))
+        else:
+            # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
+            train_transpose = cfg.data.train_transpose if cfg.data.train_transpose else []
+            transforms.append(
+                LoadVolumed(keys=keys, transpose_axes=train_transpose if train_transpose else None)
+            )
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
@@ -212,12 +223,20 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     transforms = []
 
-    # Load images first
-    # Get transpose axes for validation data
-    val_transpose = cfg.data.val_transpose if cfg.data.val_transpose else []
-    transforms.append(
-        LoadVolumed(keys=keys, transpose_axes=val_transpose if val_transpose else None)
-    )
+    # Load images first - use appropriate loader based on dataset type
+    dataset_type = getattr(cfg.data, "dataset_type", "volume")  # Default to volume for backward compatibility
+
+    if dataset_type == "filename":
+        # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
+        transforms.append(LoadImaged(keys=keys, image_only=False))
+        # Ensure channel-first format [C, H, W] or [C, D, H, W]
+        transforms.append(EnsureChannelFirstd(keys=keys))
+    else:
+        # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
+        val_transpose = cfg.data.val_transpose if cfg.data.val_transpose else []
+        transforms.append(
+            LoadVolumed(keys=keys, transpose_axes=val_transpose if val_transpose else None)
+        )
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
@@ -342,20 +361,29 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 
     transforms = []
 
-    # Load images first
-    # Get transpose axes for test data (check both data.test_transpose and inference.data.test_transpose)
-    test_transpose = []
-    if cfg.data.test_transpose:
-        test_transpose = cfg.data.test_transpose
-    if (
-        hasattr(cfg, "inference")
-        and hasattr(cfg.inference, "data")
-        and hasattr(cfg.inference.data, "test_transpose")
-        and cfg.inference.data.test_transpose
-    ):
-        test_transpose = cfg.inference.data.test_transpose  # inference takes precedence
-    transforms.append(
-        LoadVolumed(keys=keys, transpose_axes=test_transpose if test_transpose else None)
+    # Load images first - use appropriate loader based on dataset type
+    dataset_type = getattr(cfg.data, "dataset_type", "volume")  # Default to volume for backward compatibility
+
+    if dataset_type == "filename":
+        # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
+        transforms.append(LoadImaged(keys=keys, image_only=False))
+        # Ensure channel-first format [C, H, W] or [C, D, H, W]
+        transforms.append(EnsureChannelFirstd(keys=keys))
+    else:
+        # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
+        # Get transpose axes for test data (check both data.test_transpose and inference.data.test_transpose)
+        test_transpose = []
+        if cfg.data.test_transpose:
+            test_transpose = cfg.data.test_transpose
+        if (
+            hasattr(cfg, "inference")
+            and hasattr(cfg.inference, "data")
+            and hasattr(cfg.inference.data, "test_transpose")
+            and cfg.inference.data.test_transpose
+        ):
+            test_transpose = cfg.inference.data.test_transpose  # inference takes precedence
+        transforms.append(
+            LoadVolumed(keys=keys, transpose_axes=test_transpose if test_transpose else None)
     )
 
     # Apply volumetric split if enabled (though typically not used for test)

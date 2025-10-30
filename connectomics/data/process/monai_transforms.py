@@ -718,23 +718,56 @@ class MultiTaskLabelTransformd(MapTransform):
             label = d[key]
             label_np, had_batch_dim = self._prepare_label(label)
 
-            # Remove channel dimension if it's 1 (target functions expect [D, H, W] not [1, D, H, W])
-            if label_np.ndim == 4 and label_np.shape[0] == 1:
-                label_np = label_np[0]
+            # Determine if input is 2D or 3D based on original dimensions
+            # After EnsureChannelFirstd: 2D images are [1, H, W], 3D volumes are [1, D, H, W]
+            is_2d_input = label_np.ndim == 3 and label_np.shape[0] == 1
+            is_3d_input = label_np.ndim == 4 and label_np.shape[0] == 1
+
+            # Remove channel dimension (target functions don't expect it)
+            if is_3d_input:
+                label_np = label_np[0]  # [1, D, H, W] -> [D, H, W]
+            elif is_2d_input:
+                # For 2D, keep as [1, H, W] since some functions (boundary, edt) expect 3D input
+                # even in 2D mode (they treat first dim as Z=1)
+                pass  # Keep [1, H, W]
 
             outputs: List[np.ndarray] = []
             for spec in self.task_specs:
-                result = spec["fn"](label_np, **spec["kwargs"])
+                try:
+                    result = spec["fn"](label_np, **spec["kwargs"])
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Task '{spec['name']}' failed with error: {e}\n"
+                        f"Label shape: {label_np.shape}, dtype: {label_np.dtype}\n"
+                        f"Task kwargs: {spec['kwargs']}"
+                    ) from e
                 if result is None:
-                    raise RuntimeError(f"Task '{spec['name']}' returned None.")
+                    raise RuntimeError(
+                        f"Task '{spec['name']}' returned None.\n"
+                        f"Label shape: {label_np.shape}, dtype: {label_np.dtype}\n"
+                        f"Task kwargs: {spec['kwargs']}"
+                    )
                 result_arr = np.asarray(
                     result, dtype=np.float32
                 )  # Convert to float32 (handles bool->float)
 
-                # Ensure each output has a channel dimension [C, D, H, W]
-                # If output is [D, H, W], expand to [1, D, H, W]
-                if result_arr.ndim == 3:
-                    result_arr = result_arr[np.newaxis, ...]  # Add channel dimension
+                # Normalize output dimensions:
+                # For 2D images (input [1, H, W]): functions return [H, W] or [1, H, W]
+                # For 3D volumes (input [D, H, W]): functions return [D, H, W]
+                # Goal: Add channel dimension to get [1, H, W] for 2D or [1, D, H, W] for 3D
+
+                if is_2d_input:
+                    # 2D case: some functions return [H, W], others return [1, H, W]
+                    if result_arr.ndim == 3 and result_arr.shape[0] == 1:
+                        # Function returned [1, H, W], squeeze Z dimension
+                        result_arr = result_arr[0]  # [1, H, W] -> [H, W]
+                    # Now result_arr is [H, W], add channel dimension
+                    if result_arr.ndim == 2:
+                        result_arr = result_arr[np.newaxis, ...]  # [H, W] -> [1, H, W]
+                elif is_3d_input:
+                    # 3D case: functions return [D, H, W], add channel dimension
+                    if result_arr.ndim == 3:
+                        result_arr = result_arr[np.newaxis, ...]  # [D, H, W] -> [1, D, H, W]
 
                 outputs.append(result_arr)
 

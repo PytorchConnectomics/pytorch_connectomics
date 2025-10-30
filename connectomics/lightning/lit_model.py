@@ -941,12 +941,25 @@ class ConnectomicsModule(pl.LightningModule):
         
         # Parse multi-task configuration
         # Format: [[start_ch, end_ch, "task_name", [loss_indices]], ...]
+        # Track label channel offset (starts at 0)
+        label_ch_offset = 0
+
         for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
             start_ch, end_ch, task_name, loss_indices = task_config
-            
-            # Extract channels for this task
+
+            # Extract channels for this task from outputs
             task_output = outputs[:, start_ch:end_ch, ...]
-            task_label = labels[:, start_ch:end_ch, ...]
+            num_output_channels = end_ch - start_ch
+
+            # Determine number of label channels needed
+            # For softmax-based losses (2+ output channels), label has 1 channel
+            # For sigmoid-based losses (1 output channel), label has 1 channel
+            # So labels always use 1 channel per task
+            num_label_channels = 1
+
+            # Extract label channels
+            task_label = labels[:, label_ch_offset:label_ch_offset + num_label_channels, ...]
+            label_ch_offset += num_label_channels
             
             # Apply specified losses for this task
             task_loss = 0.0
@@ -1044,6 +1057,12 @@ class ConnectomicsModule(pl.LightningModule):
                         task_output = output[:, start_ch:end_ch, ...]
                         task_target = target[:, start_ch:end_ch, ...]
 
+                        # CRITICAL: Clamp outputs to prevent numerical instability
+                        # At coarser scales (especially with mixed precision), logits can explode
+                        # BCEWithLogitsLoss: clamp to [-20, 20] (sigmoid maps to [2e-9, 1-2e-9])
+                        # MSELoss with tanh: clamp to [-10, 10] (tanh maps to [-0.9999, 0.9999])
+                        task_output = torch.clamp(task_output, min=-20.0, max=20.0)
+
                         # Apply specified losses for this task
                         for loss_idx in loss_indices:
                             loss_fn = self.loss_functions[loss_idx]
@@ -1069,8 +1088,11 @@ class ConnectomicsModule(pl.LightningModule):
                             scale_loss += loss * weight
                 else:
                     # Standard deep supervision: apply all losses to all outputs
+                    # Clamp outputs to prevent numerical instability at coarser scales
+                    output_clamped = torch.clamp(output, min=-20.0, max=20.0)
+
                     for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                        loss = loss_fn(output, target)
+                        loss = loss_fn(output_clamped, target)
 
                         # Check for NaN/Inf immediately after computing loss
                         if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
@@ -1178,6 +1200,12 @@ class ConnectomicsModule(pl.LightningModule):
                         task_output = output[:, start_ch:end_ch, ...]
                         task_target = target[:, start_ch:end_ch, ...]
 
+                        # CRITICAL: Clamp outputs to prevent numerical instability
+                        # At coarser scales (especially with mixed precision), logits can explode
+                        # BCEWithLogitsLoss: clamp to [-20, 20] (sigmoid maps to [2e-9, 1-2e-9])
+                        # MSELoss with tanh: clamp to [-10, 10] (tanh maps to [-0.9999, 0.9999])
+                        task_output = torch.clamp(task_output, min=-20.0, max=20.0)
+
                         # Apply specified losses for this task
                         for loss_idx in loss_indices:
                             loss_fn = self.loss_functions[loss_idx]
@@ -1187,8 +1215,11 @@ class ConnectomicsModule(pl.LightningModule):
                             scale_loss += loss * weight
                 else:
                     # Standard deep supervision: apply all losses to all outputs
+                    # Clamp outputs to prevent numerical instability at coarser scales
+                    output_clamped = torch.clamp(output, min=-20.0, max=20.0)
+
                     for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                        loss = loss_fn(output, target)
+                        loss = loss_fn(output_clamped, target)
                         scale_loss += loss * weight
 
                 total_loss += scale_loss * ds_weight

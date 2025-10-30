@@ -129,7 +129,12 @@ class VisualizationCallback(Callback):
 
             print(f"✓ Saved visualization for epoch {trainer.current_epoch}")
         except Exception as e:
+            import traceback
             print(f"Epoch-end visualization failed: {e}")
+            print(f"Error type: {type(e).__name__}")
+            if hasattr(e, '__traceback__'):
+                print("Traceback:")
+                traceback.print_exception(type(e), e, e.__traceback__)
 
     def on_validation_epoch_end(self, trainer, pl_module):
         """Visualize at end of validation epoch based on log_every_n_epochs."""
@@ -172,7 +177,12 @@ class VisualizationCallback(Callback):
                     prefix='val'  # Single tab name (no epoch prefix)
                 )
         except Exception as e:
+            import traceback
             print(f"Validation epoch-end visualization failed: {e}")
+            print(f"Error type: {type(e).__name__}")
+            if hasattr(e, '__traceback__'):
+                print("Traceback:")
+                traceback.print_exception(type(e), e, e.__traceback__)
 
 
 class NaNDetectionCallback(Callback):

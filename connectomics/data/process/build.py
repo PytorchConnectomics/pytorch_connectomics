@@ -123,9 +123,16 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> Compose:
     cfg = _coerce_config(cfg, kwargs)
 
     # Keys configuration
-    keys_attr = getattr(cfg, 'keys', None)
-    if keys_attr is None:
-        keys_option = [getattr(cfg, 'input_key', 'label')]
+    # Note: Must check if 'keys' exists in config to avoid getting dict.keys() method
+    if hasattr(cfg, '__dict__') and 'keys' in cfg.__dict__:
+        keys_attr = cfg.keys
+    elif hasattr(cfg, '__contains__') and 'keys' in cfg:
+        keys_attr = cfg['keys'] if isinstance(cfg, dict) else getattr(cfg, 'keys')
+    else:
+        keys_attr = None
+
+    if keys_attr is None or callable(keys_attr):  # Protect against dict.keys() method
+        keys_option = [getattr(cfg, 'input_key', None) or cfg.get('input_key', 'label') if isinstance(cfg, dict) else 'label']
     elif isinstance(keys_attr, str):
         keys_option = [keys_attr]
     else:

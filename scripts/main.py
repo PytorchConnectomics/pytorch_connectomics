@@ -16,7 +16,8 @@ Usage:
     python scripts/main.py --config tutorials/lucchi.yaml --mode test --checkpoint path/to/checkpoint.ckpt
 
     # Fast dev run (1 batch for debugging, auto-sets num_gpus=1, num_cpus=1, num_workers=1)
-    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run=1
+    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run
+    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run 2  # Run 2 batches
 
     # Override config parameters
     python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=8 optimization.max_epochs=200
@@ -148,8 +149,10 @@ def parse_args():
     parser.add_argument(
         "--fast-dev-run",
         type=int,
+        nargs='?',
+        const=1,
         default=0,
-        help="Run N batches for quick debugging (default: 0, use 1 for single batch)",
+        help="Run N batches for quick debugging (default: 0, no argument defaults to 1)",
     )
     parser.add_argument(
         "overrides",
@@ -677,6 +680,10 @@ def create_datamodule(
         # Build transforms without loading/cropping (handled by dataset)
         augment_only_transforms = build_train_transforms(cfg, skip_loading=True)
 
+        # Get padding parameters from config
+        pad_size = getattr(cfg.data.image_transform, 'pad_size', None)
+        pad_mode = getattr(cfg.data.image_transform, 'pad_mode', 'reflect')
+
         # Create optimized cached datasets
         train_dataset = CachedVolumeDataset(
             image_paths=[d["image"] for d in train_data_dicts],
@@ -685,6 +692,8 @@ def create_datamodule(
             iter_num=iter_num,
             transforms=augment_only_transforms,
             mode="train",
+            pad_size=tuple(pad_size) if pad_size else None,
+            pad_mode=pad_mode,
         )
 
         # Use fewer workers since we're loading from memory
@@ -1016,14 +1025,23 @@ def create_trainer(
         # Multi-GPU training: configure DDP
         deep_supervision_enabled = getattr(cfg.model, "deep_supervision", False)
         ddp_find_unused_params = getattr(cfg.model, "ddp_find_unused_parameters", False)
+        architecture = getattr(cfg.model, "architecture", "")
+        is_mednext = architecture.startswith("mednext")
 
-        if deep_supervision_enabled or ddp_find_unused_params:
-            # Deep supervision or explicit config requires find_unused_parameters=True
-            # because auxiliary heads at different scales may not all be used
+        # MedNeXt always creates deep supervision layers internally (even when disabled)
+        # so it always needs find_unused_parameters=True
+        if is_mednext or deep_supervision_enabled or ddp_find_unused_params:
             from pytorch_lightning.strategies import DDPStrategy
 
             strategy = DDPStrategy(find_unused_parameters=True)
-            reason = "deep supervision" if deep_supervision_enabled else "explicit config"
+
+            # Determine reason for using find_unused_parameters
+            if is_mednext and not deep_supervision_enabled:
+                reason = "MedNeXt (has unused DS layers)"
+            elif deep_supervision_enabled:
+                reason = "deep supervision enabled"
+            else:
+                reason = "explicit config"
             print(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
         else:
             from pytorch_lightning.strategies import DDPStrategy

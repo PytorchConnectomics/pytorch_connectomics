@@ -256,20 +256,13 @@ def skeleton_aware_distance_transform(
         label = np.pad(label, pad_size, mode="constant", constant_values=0)
 
     label_shape = label.shape
-    all_bg_sample = False
 
     skeleton = np.zeros(label_shape, dtype=np.uint8)
     distance = np.zeros(label_shape, dtype=np.float32)
 
     indices = np.unique(label)
-    if indices[0] == 0:
-        if len(indices) > 1:  # exclude background
-            indices = indices[1:]
-        else:  # all-background sample
-            all_bg_sample = True
-
-    if not all_bg_sample:
-        for idx in indices:
+    if len(indices) > 1:
+        for idx in indices[indices > 0]:
             temp2 = remove_small_holes(label == idx, 16, connectivity=1)
             binary = temp2.copy()
 
