@@ -257,14 +257,14 @@ def apply_binary_postprocessing(
     """Apply binary segmentation postprocessing pipeline.
 
     Pipeline order:
-        1. Threshold predictions to binary mask using threshold_range
+        1. Ensure input is binary (convert if needed)
         2. Apply median filter (optional)
         3. Apply morphological opening (erosion + dilation)
         4. Apply morphological closing (dilation + erosion)
         5. Extract connected components and filter by size/keep top-k
 
     Args:
-        pred (numpy.ndarray): Predicted foreground probability in range [0, 1].
+        pred (numpy.ndarray): Binary mask (values 0 or 1) or predicted probabilities in range [0, 1].
                              Shape can be 2D (H, W) or 3D (D, H, W).
         config (BinaryPostprocessingConfig): Configuration for postprocessing pipeline.
 
@@ -276,7 +276,6 @@ def apply_binary_postprocessing(
         >>> from connectomics.config import BinaryPostprocessingConfig, ConnectedComponentsConfig
         >>> config = BinaryPostprocessingConfig(
         ...     enabled=True,
-        ...     threshold_range=(0.8, 1.0),
         ...     opening_iterations=2,
         ...     connected_components=ConnectedComponentsConfig(top_k=1)
         ... )
@@ -284,13 +283,23 @@ def apply_binary_postprocessing(
         >>> binary_mask = apply_binary_postprocessing(pred, config)
     """
     if not config or not config.enabled:
-        # Just threshold at 0.5 if postprocessing is disabled
-        return (pred > 0.5).astype(np.uint8)
+        # If no postprocessing, ensure binary output
+        if pred.max() <= 1:
+            return (pred > 0.5).astype(np.uint8)
+        else:
+            return (pred > 0).astype(np.uint8)
 
-    # Step 1: Threshold to binary using threshold_range
-    # Use the minimum threshold from the range
-    threshold = config.threshold_range[0]
-    binary = (pred > threshold).astype(np.uint8)
+    # Step 1: Ensure input is binary
+    # Check if input is already binary (0/1) or needs thresholding
+    if np.all((pred == 0) | (pred == 1)):
+        # Already binary
+        binary = pred.astype(np.uint8)
+    elif pred.max() <= 1.0:
+        # Probability values in [0, 1], threshold at 0.5
+        binary = (pred > 0.5).astype(np.uint8)
+    else:
+        # Assume already thresholded but not scaled to 0/1
+        binary = (pred > 0).astype(np.uint8)
 
     # Step 2: Apply median filter (optional noise reduction)
     if config.median_filter_size is not None:

@@ -220,7 +220,7 @@ inference:
       connected_components:
         enabled: true                    # Enable connected components filtering
         top_k: 1                         # Keep only the largest component
-        connectivity: 1                  # Face connectivity (1=6-connected for 3D, 4-connected for 2D)
+        connectivity: 4                  # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
 
     # Output format (intensity scaling and dtype conversion)
     intensity_scale: 255                 # Scale predictions to [0, 255] for saving
