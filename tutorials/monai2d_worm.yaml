@@ -86,7 +86,28 @@ data:
 
   # Augmentation - Enabled for better generalization
   augmentation:
-    enabled: true                        # Enable data augmentation
+    preset: some                        # Enable data augmentation
+    flip:
+      enabled: true
+    rotate:
+      enabled: true
+      spatial_axes: [0, 1]
+    affine:
+      enabled: true
+      prob: 0.5
+      rotate_range: [0.2, 0.2]
+    intensity:
+      enabled: true
+      shift_intensity_prob: 0.8
+      shift_intensity_offset: 0.3
+    stripe: 
+      enabled: true
+      prob: 0.5
+      num_stripes_range: [1, 2]
+      thickness_range: [20, 30]
+      intensity_range: [0, 0.2]
+      angle_range: [0, 180]
+      mode: replace
 
 
 # Optimizer - AdamW with optimized hyperparameters

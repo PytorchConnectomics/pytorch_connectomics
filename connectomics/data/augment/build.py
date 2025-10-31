@@ -5,7 +5,7 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 """
 
 from __future__ import annotations
-from typing import Dict
+from typing import Dict, Optional
 import torch
 from monai.transforms import (
     Compose,
@@ -15,7 +15,6 @@ from monai.transforms import (
     RandZoomd,
     RandGaussianNoised,
     RandShiftIntensityd,
-    Rand3DElasticd,
     RandGaussianSmoothd,
     RandAdjustContrastd,
     RandSpatialCropd,
@@ -40,8 +39,10 @@ from .monai_transforms import (
     RandCutBlurd,
     RandMixupd,
     RandCopyPasted,
+    RandStriped,
     NormalizeLabelsd,
     SmartNormalizeIntensityd,
+    RandElasticd,
 )
 from ...config.hydra_config import Config, AugmentationConfig
 
@@ -155,19 +156,16 @@ def build_train_transforms(
         )
 
     # Add augmentations if enabled
-    # Support both new data.augmentation_enabled and old augmentation.enabled
-    augmentation_enabled = getattr(
-        cfg.data,
-        "augmentation_enabled",
-        (
-            getattr(cfg.augmentation, "enabled", False)
-            if hasattr(cfg, "augmentation") and cfg.augmentation
-            else False
-        ),
-    )
+    # Check if augmentation is configured and preset is not "none"
+    augmentation_enabled = False
+    if hasattr(cfg.data, "augmentation") and cfg.data.augmentation is not None:
+        preset = getattr(cfg.data.augmentation, "preset", "some")
+        augmentation_enabled = preset != "none"
 
-    if augmentation_enabled and hasattr(cfg, "augmentation") and cfg.augmentation is not None:
-        transforms.extend(_build_augmentations(cfg.augmentation, keys))
+    if augmentation_enabled:
+        # Pass do_2d flag to augmentation builder
+        do_2d = getattr(cfg.data, "do_2d", False)
+        transforms.extend(_build_augmentations(cfg.data.augmentation, keys, do_2d=do_2d))
 
     # Normalize labels to 0-1 range if enabled
     if getattr(cfg.data, "normalize_labels", False):
@@ -508,13 +506,14 @@ def build_inference_transforms(cfg: Config) -> Compose:
     return Compose(transforms)
 
 
-def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
+def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bool = False) -> list:
     """
     Build augmentation transforms from config.
 
     Args:
         aug_cfg: AugmentationConfig object
         keys: Keys to augment
+        do_2d: Whether data is 2D (True) or 3D (False)
 
     Returns:
         List of MONAI transforms
@@ -525,22 +524,60 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
     preset = getattr(aug_cfg, "preset", "some")
     
     # Helper function to check if augmentation should be applied
-    def should_augment(aug_name: str, aug_enabled: bool) -> bool:
+    def should_augment(aug_name: str, aug_enabled: Optional[bool]) -> bool:
         """
-        Determine if augmentation should be applied based on preset mode.
+        Determine if augmentation should be applied based on preset mode and enabled flag.
         
-        - "all": enabled = True by default, set to False to disable
-        - "some": enabled = False by default, set to True to enable
-        - "none": always False (no augmentations)
+        All augmentations default to enabled=None (use preset default). The preset mode controls
+        the behavior:
+        
+        - "none": Disable all augmentations
+        - "some": Disable all by default (only True enables)
+        - "all": Enable all by default (only False disables)
+        
+        The enabled field can be:
+        - None: Use preset default (not specified in YAML)
+        - True: Explicitly enable (overrides preset)
+        - False: Explicitly disable (overrides preset)
+        
+        Examples:
+            preset="some" with enabled=None:
+                → Disabled (default off, must opt-in)
+                → User enables in YAML: flip.enabled: true
+            
+            preset="some" with enabled=true:
+                → Enabled
+            
+            preset="all" with enabled=None:
+                → Enabled (default on)
+                → User can disable: flip.enabled: false
+            
+            preset="all" with enabled=false:
+                → Disabled (explicit override)
+            
+            preset="none":
+                → Always disabled
         """
         if preset == "none":
             return False
         elif preset == "all":
-            # All enabled by default, respect False overrides
-            return aug_enabled
+            # Enable all by default, unless explicitly disabled (False)
+            # None (default) → True
+            # True (explicit) → True
+            # False (explicit disable) → False
+            if aug_enabled is False:
+                return False
+            else:  # None or True
+                return True
         else:  # preset == "some"
-            # None enabled by default, only use True values
-            return aug_enabled
+            # Disable all by default, unless explicitly enabled (True)
+            # None (default) → False
+            # True (explicit enable) → True
+            # False (explicit) → False
+            if aug_enabled is True:
+                return True
+            else:  # None or False
+                return False
     
     # Standard geometric augmentations
     if should_augment("flip", aug_cfg.flip.enabled):
@@ -549,33 +586,53 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
         )
 
     if should_augment("rotate", aug_cfg.rotate.enabled):
-        # Use spatial_axes from config if available
-        spatial_axes = getattr(aug_cfg.rotate, "spatial_axes", (1, 2))
+        # Determine spatial_axes based on data dimensionality
+        # MONAI transforms work on (C, *spatial) tensors (no batch dimension)
+        # - 2D data: (C, H, W) → spatial_axes=(0, 1) rotates H-W plane
+        # - 3D data: (C, D, H, W) → spatial_axes=(1, 2) rotates H-W plane
+
+        # Auto-detect based on do_2d flag (default behavior for 2D/3D)
+        spatial_axes = (0, 1) if do_2d else (1, 2)
+
         transforms.append(
             RandRotate90d(
                 keys=keys,
                 prob=aug_cfg.rotate.prob,
-                spatial_axes=spatial_axes,  # Rotate in specified plane
+                spatial_axes=spatial_axes,
             )
         )
 
     if should_augment("affine", aug_cfg.affine.enabled):
+        # Adjust affine parameters for 2D vs 3D data
+        # For 2D: use only the first element of each range
+        # For 3D: use all three elements
+        if do_2d:
+            rotate_range = (aug_cfg.affine.rotate_range[0],)
+            scale_range = (aug_cfg.affine.scale_range[0],)
+            shear_range = (aug_cfg.affine.shear_range[0],)
+        else:
+            rotate_range = aug_cfg.affine.rotate_range
+            scale_range = aug_cfg.affine.scale_range
+            shear_range = aug_cfg.affine.shear_range
+
         transforms.append(
             RandAffined(
                 keys=keys,
                 prob=aug_cfg.affine.prob,
-                rotate_range=aug_cfg.affine.rotate_range,
-                scale_range=aug_cfg.affine.scale_range,
-                shear_range=aug_cfg.affine.shear_range,
+                rotate_range=rotate_range,
+                scale_range=scale_range,
+                shear_range=shear_range,
                 mode="bilinear",
                 padding_mode="reflection",
             )
         )
 
     if should_augment("elastic", aug_cfg.elastic.enabled):
+        # Unified elastic deformation that supports both 2D and 3D
         transforms.append(
-            Rand3DElasticd(
+            RandElasticd(
                 keys=keys,
+                do_2d=do_2d,
                 prob=aug_cfg.elastic.prob,
                 sigma_range=aug_cfg.elastic.sigma_range,
                 magnitude_range=aug_cfg.elastic.magnitude_range,
@@ -668,6 +725,20 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str]) -> list:
                 keys=keys,
                 prob=aug_cfg.missing_parts.prob,
                 hole_range=aug_cfg.missing_parts.hole_range,
+            )
+        )
+
+    if should_augment("stripe", aug_cfg.stripe.enabled):
+        transforms.append(
+            RandStriped(
+                keys=["image"],
+                prob=aug_cfg.stripe.prob,
+                num_stripes_range=aug_cfg.stripe.num_stripes_range,
+                thickness_range=aug_cfg.stripe.thickness_range,
+                intensity_range=aug_cfg.stripe.intensity_range,
+                angle_range=aug_cfg.stripe.angle_range,
+                orientation=aug_cfg.stripe.orientation,
+                mode=aug_cfg.stripe.mode,
             )
         )
 

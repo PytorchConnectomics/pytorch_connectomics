@@ -336,7 +336,7 @@ class DataConfig:
 
     # Dataset type
     dataset_type: Optional[str] = None  # Type of dataset: None (volume), 'filename', 'tile', etc.
-    
+
     # 2D data support
     do_2d: bool = False  # Enable 2D data processing (extract 2D slices from 3D volumes)
 
@@ -616,7 +616,7 @@ class MonitorConfig:
 class FlipConfig:
     """Random flipping augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None  # None=use preset default, True/False=explicit
     prob: float = 0.5
     spatial_axis: Optional[List[int]] = None  # None = all axes
 
@@ -625,7 +625,7 @@ class FlipConfig:
 class AffineConfig:
     """Affine transformation augmentation (rotation, scaling, shearing)."""
 
-    enabled: bool = False  # Disabled by default (can be combined with Rotate90d)
+    enabled: Optional[bool] = None
     prob: float = 0.5
     rotate_range: Tuple[float, float, float] = (0.2, 0.2, 0.2)  # Rotation range in radians (~11°)
     scale_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)   # Scaling range (±10%)
@@ -636,7 +636,7 @@ class AffineConfig:
 class RotateConfig:
     """Random rotation augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.5
     max_angle: float = 90.0
     spatial_axes: Tuple[int, int] = (1, 2)  # Axes to rotate: (1, 2) = Y-X plane (preserves Z)
@@ -646,7 +646,7 @@ class RotateConfig:
 class ElasticConfig:
     """Elastic deformation augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.3
     sigma_range: Tuple[float, float] = (5.0, 8.0)
     magnitude_range: Tuple[float, float] = (50.0, 150.0)
@@ -656,7 +656,7 @@ class ElasticConfig:
 class IntensityConfig:
     """Intensity augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     gaussian_noise_prob: float = 0.3
     gaussian_noise_std: float = 0.05
     shift_intensity_prob: float = 0.3
@@ -669,7 +669,7 @@ class IntensityConfig:
 class MisalignmentConfig:
     """Misalignment augmentation for EM data."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.5
     displacement: int = 16
     rotate_ratio: float = 0.0
@@ -679,7 +679,7 @@ class MisalignmentConfig:
 class MissingSectionConfig:
     """Missing section augmentation for EM data."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.3
     num_sections: int = 2
 
@@ -688,7 +688,7 @@ class MissingSectionConfig:
 class MotionBlurConfig:
     """Motion blur augmentation for EM data."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.3
     sections: int = 2
     kernel_size: int = 11
@@ -698,7 +698,7 @@ class MotionBlurConfig:
 class CutNoiseConfig:
     """CutNoise augmentation."""
 
-    enabled: bool = False
+    enabled: Optional[bool] = None
     prob: float = 0.5
     length_ratio: float = 0.25
     noise_scale: float = 0.2
@@ -708,7 +708,7 @@ class CutNoiseConfig:
 class CutBlurConfig:
     """CutBlur augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.3
     length_ratio: float = 0.25
     down_ratio_range: Tuple[float, float] = (2.0, 8.0)
@@ -719,7 +719,7 @@ class CutBlurConfig:
 class MissingPartsConfig:
     """Missing parts augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.5
     hole_range: Tuple[float, float] = (0.1, 0.3)
 
@@ -728,7 +728,7 @@ class MissingPartsConfig:
 class MixupConfig:
     """Mixup augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.5
     alpha_range: Tuple[float, float] = (0.7, 0.9)
 
@@ -737,7 +737,7 @@ class MixupConfig:
 class CopyPasteConfig:
     """Copy-Paste augmentation."""
 
-    enabled: bool = True
+    enabled: Optional[bool] = None
     prob: float = 0.5
     max_obj_ratio: float = 0.7
     rotation_angles: List[int] = field(default_factory=lambda: list(range(30, 360, 30)))
@@ -745,15 +745,56 @@ class CopyPasteConfig:
 
 
 @dataclass
+class StripeConfig:
+    """Random stripe augmentation for EM artifacts.
+
+    Simulates horizontal, vertical, or diagonal stripe artifacts common in
+    electron microscopy, such as curtaining or scan line artifacts.
+
+    Attributes:
+        enabled: Whether to enable stripe augmentation (None=use preset default)
+        prob: Probability of applying the augmentation
+        num_stripes_range: Range for number of stripes as (min, max)
+        thickness_range: Range for stripe thickness in pixels as (min, max)
+        intensity_range: Range for stripe intensity values as (min, max)
+        angle_range: Optional range for stripe angles in degrees as (min, max)
+            0° = horizontal, 90° = vertical, 45° = diagonal
+            Use None for predefined orientations (horizontal/vertical/random)
+        orientation: Stripe orientation when angle_range is None
+            - 'horizontal': 0° stripes
+            - 'vertical': 90° stripes
+            - 'random': randomly choose between horizontal and vertical
+        mode: How to apply stripes - 'add' (additive) or 'replace' (replacement)
+    """
+
+    enabled: Optional[bool] = None
+    prob: float = 0.3
+    num_stripes_range: Tuple[int, int] = (2, 10)
+    thickness_range: Tuple[int, int] = (1, 5)
+    intensity_range: Tuple[float, float] = (-0.2, 0.2)
+    angle_range: Optional[Tuple[float, float]] = None
+    orientation: str = "random"
+    mode: str = "add"
+
+
+@dataclass
 class AugmentationConfig:
-    """Complete augmentation configuration."""
+    """Complete augmentation configuration.
+
+    All augmentations default to enabled=False for safety. Choose a preset mode:
+
+    - "none": Disable all augmentations (no changes to data)
+    - "some": Enable only augmentations explicitly set to enabled=True in YAML
+    - "all": Enable all augmentations by default (set to True in config)
+
+    For preset="all", users should set enabled=True for augmentations they want.
+    """
 
     preset: str = "some"  # "all", "some", or "none" - controls how enabled flags are interpreted
-    enabled: bool = False
 
     # Standard augmentations
     flip: FlipConfig = field(default_factory=FlipConfig)
-    affine: AffineConfig = field(default_factory=AffineConfig) # Added AffineConfig
+    affine: AffineConfig = field(default_factory=AffineConfig)
     rotate: RotateConfig = field(default_factory=RotateConfig)
     elastic: ElasticConfig = field(default_factory=ElasticConfig)
     intensity: IntensityConfig = field(default_factory=IntensityConfig)
@@ -765,6 +806,7 @@ class AugmentationConfig:
     cut_noise: CutNoiseConfig = field(default_factory=CutNoiseConfig)
     cut_blur: CutBlurConfig = field(default_factory=CutBlurConfig)
     missing_parts: MissingPartsConfig = field(default_factory=MissingPartsConfig)
+    stripe: StripeConfig = field(default_factory=StripeConfig)
 
     # Advanced augmentations
     mixup: MixupConfig = field(default_factory=MixupConfig)
@@ -785,7 +827,7 @@ class InferenceDataConfig:
         default_factory=list
     )  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
     output_path: str = "results/"
-    
+
     # 2D data support
     do_2d: bool = False  # Enable 2D data processing for inference
 
@@ -1036,7 +1078,7 @@ __all__ = [
     # Augmentation configuration
     "AugmentationConfig",
     "FlipConfig",
-    "AffineConfig", # Added AffineConfig
+    "AffineConfig",  # Added AffineConfig
     "RotateConfig",
     "ElasticConfig",
     "IntensityConfig",
@@ -1046,6 +1088,7 @@ __all__ = [
     "CutNoiseConfig",
     "CutBlurConfig",
     "MissingPartsConfig",
+    "StripeConfig",
     "MixupConfig",
     "CopyPasteConfig",
     # Utility functions

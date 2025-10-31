@@ -137,9 +137,7 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
         idx = self.R.choice(np.arange(1, img.shape[0] - 1))
         mode = "slip" if self.R.rand() < 0.5 else "translation"
 
-        interpolation = (
-            cv2.INTER_LINEAR if img.dtype == np.float32 else cv2.INTER_NEAREST
-        )
+        interpolation = cv2.INTER_LINEAR if img.dtype == np.float32 else cv2.INTER_NEAREST
 
         if mode == "slip":
             img[idx] = cv2.warpAffine(
@@ -550,13 +548,9 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
             # 4D case: (C, Z, Y, X)
             temp = img[:, zl:zh, yl:yh, xl:xh].copy()
             if self.downsample_z:
-                out_shape = np.array(temp.shape) / np.array(
-                    [1, down_ratio, down_ratio, down_ratio]
-                )
+                out_shape = np.array(temp.shape) / np.array([1, down_ratio, down_ratio, down_ratio])
             else:
-                out_shape = np.array(temp.shape) / np.array(
-                    [1, 1, down_ratio, down_ratio]
-                )
+                out_shape = np.array(temp.shape) / np.array([1, 1, down_ratio, down_ratio])
         elif img.ndim == 3:
             # 3D case: (Z, Y, X)
             temp = img[zl:zh, yl:yh, xl:xh].copy()
@@ -574,19 +568,14 @@ class RandCutBlurd(RandomizableTransform, MapTransform):
         out_shape = np.maximum(out_shape, 1)
 
         # Downsample with linear interpolation and anti-aliasing
-        zoom_factors = [
-            out_size / in_size for out_size, in_size in zip(out_shape, temp.shape)
-        ]
+        zoom_factors = [out_size / in_size for out_size, in_size in zip(out_shape, temp.shape)]
         downsampled = zoom(temp, zoom_factors, order=1, mode="reflect", prefilter=True)
 
         # Upsample with nearest neighbor (no anti-aliasing to preserve sharp edges)
         zoom_factors = [
-            out_size / in_size
-            for out_size, in_size in zip(temp.shape, downsampled.shape)
+            out_size / in_size for out_size, in_size in zip(temp.shape, downsampled.shape)
         ]
-        upsampled = zoom(
-            downsampled, zoom_factors, order=0, mode="reflect", prefilter=False
-        )
+        upsampled = zoom(downsampled, zoom_factors, order=0, mode="reflect", prefilter=False)
 
         # Put back into original image
         if img.ndim == 4:
@@ -766,9 +755,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
 
         # Check dimensions
         if label.ndim != 3 or volume.ndim not in [3, 4]:
-            return volume.numpy() if is_numpy else volume, (
-                label.numpy() if is_numpy else label
-            )
+            return volume.numpy() if is_numpy else volume, (label.numpy() if is_numpy else label)
 
         # Create flipped version for pasting
         label_flipped = label.flip(0)  # Flip along z-axis
@@ -780,9 +767,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
             neuron_tensor = volume * label
 
         # Find best rotation and position
-        neuron_tensor, label_paste = self._find_best_paste(
-            neuron_tensor, label, label_flipped
-        )
+        neuron_tensor, label_paste = self._find_best_paste(neuron_tensor, label, label_flipped)
 
         # Paste into image
         if volume.ndim == 4:
@@ -793,9 +778,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
 
         if is_numpy:
             return volume.numpy(), (
-                label_paste.squeeze().numpy()
-                if label_paste.ndim > 3
-                else label_paste.numpy()
+                label_paste.squeeze().numpy() if label_paste.ndim > 3 else label_paste.numpy()
             )
         return volume, label_paste.squeeze() if label_paste.ndim > 3 else label_paste
 
@@ -832,9 +815,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
         # Apply best transformation
         if best_idx == 1:
             neuron_tensor = (
-                neuron_tensor.flip(0)
-                if neuron_tensor.ndim == 3
-                else neuron_tensor.flip(1)
+                neuron_tensor.flip(0) if neuron_tensor.ndim == 3 else neuron_tensor.flip(1)
             )
 
         label_paste = labels[best_idx : best_idx + 1]
@@ -842,21 +823,15 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
         if best_angle != 0:
             label_paste = self._rotate_3d(label_paste, best_angle)
             if neuron_tensor.ndim == 4:
-                neuron_tensor = self._rotate_3d(
-                    neuron_tensor.unsqueeze(0), best_angle
-                ).squeeze(0)
+                neuron_tensor = self._rotate_3d(neuron_tensor.unsqueeze(0), best_angle).squeeze(0)
             else:
-                neuron_tensor = self._rotate_3d(
-                    neuron_tensor.unsqueeze(0), best_angle
-                ).squeeze(0)
+                neuron_tensor = self._rotate_3d(neuron_tensor.unsqueeze(0), best_angle).squeeze(0)
 
         label_paste = label_paste.squeeze(0)
 
         # Crop overlapping regions
         gt_dilated = torch.tensor(
-            binary_dilation(
-                label_orig.numpy(), structure=self.dil_struct, iterations=self.border
-            )
+            binary_dilation(label_orig.numpy(), structure=self.dil_struct, iterations=self.border)
         )
         overlap_mask = torch.logical_and(label_paste, gt_dilated)
         label_paste[overlap_mask] = False
@@ -922,9 +897,7 @@ class ConvertToFloatd(MapTransform):
                 if isinstance(d[key], np.ndarray):
                     d[key] = d[key].astype(self.dtype)
                 elif isinstance(d[key], torch.Tensor):
-                    d[key] = d[key].to(
-                        dtype=torch.from_numpy(np.array([], dtype=self.dtype)).dtype
-                    )
+                    d[key] = d[key].to(dtype=torch.from_numpy(np.array([], dtype=self.dtype)).dtype)
         return d
 
 
@@ -1046,9 +1019,7 @@ class SmartNormalizeIntensityd(MapTransform):
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         if mode not in ["none", "normal", "0-1"]:
-            raise ValueError(
-                f"Invalid mode '{mode}'. Must be 'none', 'normal', or '0-1'"
-            )
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'none', 'normal', or '0-1'")
         self.mode = mode
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
@@ -1105,11 +1076,216 @@ __all__ = [
     "RandCutBlurd",
     "RandMixupd",
     "RandCopyPasted",
+    "RandStriped",
     "ConvertToFloatd",
     "NormalizeLabelsd",
     "SmartNormalizeIntensityd",
     "ResizeByFactord",
 ]
+
+
+class RandStriped(RandomizableTransform, MapTransform):
+    """
+    Random stripe augmentation for connectomics data.
+
+    Adds random stripes at arbitrary angles to simulate imaging artifacts
+    common in electron microscopy, such as curtaining or scan line artifacts.
+
+    Args:
+        keys: Keys to apply stripe augmentation to
+        prob: Probability of applying the augmentation
+        num_stripes_range: Range for number of stripes as (min, max)
+        thickness_range: Range for stripe thickness in pixels as (min, max)
+        intensity_range: Range for stripe intensity values as (min, max)
+            For grayscale: single value added/multiplied
+            For color: can be per-channel or uniform
+        angle_range: Range for stripe angles in degrees as (min, max)
+            0° = horizontal, 90° = vertical, 45° = diagonal
+            Use None for predefined orientations (horizontal/vertical/random)
+        orientation: Stripe orientation when angle_range is None
+            - 'horizontal': 0° stripes
+            - 'vertical': 90° stripes
+            - 'random': randomly choose between horizontal and vertical
+            Ignored if angle_range is specified
+        mode: How to apply stripes - 'add' (additive) or 'replace' (replacement)
+        allow_missing_keys: Whether to allow missing keys
+
+    Examples:
+        # Horizontal curtaining artifacts (typical in EM)
+        RandStriped(keys=['image'], prob=0.3, num_stripes_range=(2, 5),
+                   thickness_range=(1, 3), intensity_range=(-0.2, 0.2),
+                   orientation='horizontal', mode='add')
+
+        # Vertical scan line artifacts
+        RandStriped(keys=['image'], prob=0.3, num_stripes_range=(5, 15),
+                   thickness_range=(1, 2), intensity_range=(-0.15, 0.15),
+                   orientation='vertical', mode='add')
+
+        # Random angle stripes (diagonal artifacts)
+        RandStriped(keys=['image'], prob=0.5, num_stripes_range=(3, 10),
+                   thickness_range=(1, 5), intensity_range=(0, 0.5),
+                   angle_range=(0, 180), mode='add')
+
+        # Diagonal stripes only (45° to 135°)
+        RandStriped(keys=['image'], prob=0.4, num_stripes_range=(5, 8),
+                   thickness_range=(2, 4), intensity_range=(-0.1, 0.1),
+                   angle_range=(45, 135), mode='add')
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.3,
+        num_stripes_range: Tuple[int, int] = (2, 10),
+        thickness_range: Tuple[int, int] = (1, 5),
+        intensity_range: Tuple[float, float] = (-0.2, 0.2),
+        angle_range: Optional[Tuple[float, float]] = None,
+        orientation: str = "random",
+        mode: str = "add",
+        allow_missing_keys: bool = False,
+    ) -> None:
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.num_stripes_range = num_stripes_range
+        self.thickness_range = thickness_range
+        self.intensity_range = intensity_range
+        self.angle_range = angle_range
+
+        if orientation not in ["horizontal", "vertical", "random"]:
+            raise ValueError(
+                f"Invalid orientation '{orientation}'. Must be 'horizontal', 'vertical', or 'random'"
+            )
+        self.orientation = orientation
+
+        if mode not in ["add", "replace"]:
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'add' or 'replace'")
+        self.mode = mode
+
+    def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            return d
+
+        for key in self.key_iterator(d):
+            if key in d:
+                d[key] = self._apply_stripes(d[key])
+        return d
+
+    def _apply_stripes(
+        self, img: Union[np.ndarray, torch.Tensor]
+    ) -> Union[np.ndarray, torch.Tensor]:
+        """Apply random stripe artifacts to image."""
+        if img.ndim < 2:
+            return img
+
+        # Handle both numpy and torch tensors
+        is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            device = img.device
+            img = img.clone().cpu().numpy()
+        else:
+            img = img.copy()
+
+        # Determine angle
+        if self.angle_range is not None:
+            # Random angle from range
+            angle = self.R.uniform(*self.angle_range)
+        else:
+            # Use predefined orientation
+            if self.orientation == "random":
+                angle = 0.0 if self.R.rand() > 0.5 else 90.0
+            elif self.orientation == "horizontal":
+                angle = 0.0
+            else:  # vertical
+                angle = 90.0
+
+        # Generate number of stripes
+        if self.num_stripes_range[0] == self.num_stripes_range[1]:
+            num_stripes = self.num_stripes_range[0]
+        else:
+            num_stripes = self.R.randint(self.num_stripes_range[0], self.num_stripes_range[1] + 1)
+
+        # Apply stripes to all sections if 3D, or to single image if 2D
+        if img.ndim == 3:  # 3D volume (Z, Y, X)
+            for z in range(img.shape[0]):
+                img[z] = self._add_stripes_to_slice(img[z], num_stripes, angle)
+        elif img.ndim == 4:  # 4D with channels (C, Z, Y, X)
+            for c in range(img.shape[0]):
+                for z in range(img.shape[1]):
+                    img[c, z] = self._add_stripes_to_slice(img[c, z], num_stripes, angle)
+        else:  # 2D image (Y, X)
+            img = self._add_stripes_to_slice(img, num_stripes, angle)
+
+        if is_tensor:
+            img = torch.from_numpy(img).to(device)
+
+        return img
+
+    def _add_stripes_to_slice(
+        self, slice_2d: np.ndarray, num_stripes: int, angle: float
+    ) -> np.ndarray:
+        """Add stripes at arbitrary angle to a single 2D slice."""
+        if slice_2d.ndim != 2:
+            return slice_2d
+
+        height, width = slice_2d.shape
+
+        # Convert angle to radians
+        angle_rad = np.deg2rad(angle)
+
+        # Create coordinate grids
+        y_coords, x_coords = np.ogrid[:height, :width]
+
+        # For horizontal stripes (angle=0), we use y coordinates
+        # For vertical stripes (angle=90), we use x coordinates
+        # For arbitrary angles, we rotate the coordinate system
+        # Stripe equation: x*sin(θ) - y*cos(θ) = constant
+        rotated_coords = x_coords * np.sin(angle_rad) - y_coords * np.cos(angle_rad)
+
+        # Determine the range of rotated coordinates
+        coord_min = rotated_coords.min()
+        coord_max = rotated_coords.max()
+        coord_range = coord_max - coord_min
+
+        if coord_range == 0:
+            return slice_2d
+
+        # Generate random stripe positions
+        stripe_positions = []
+        for _ in range(num_stripes):
+            # Random position along the perpendicular direction
+            stripe_center = self.R.uniform(coord_min, coord_max)
+
+            # Random stripe thickness
+            if self.thickness_range[0] == self.thickness_range[1]:
+                thickness = self.thickness_range[0]
+            else:
+                thickness = self.R.randint(self.thickness_range[0], self.thickness_range[1] + 1)
+
+            # Random stripe intensity
+            intensity = self.R.uniform(*self.intensity_range)
+
+            stripe_positions.append((stripe_center, thickness, intensity))
+
+        # Apply each stripe
+        for stripe_center, thickness, intensity in stripe_positions:
+            # Create mask for this stripe
+            half_thickness = thickness / 2.0
+            stripe_mask = np.abs(rotated_coords - stripe_center) <= half_thickness
+
+            # Apply stripe
+            if self.mode == "add":
+                slice_2d[stripe_mask] = np.clip(slice_2d[stripe_mask] + intensity, 0, 1)
+            else:  # replace
+                # For replace mode, use absolute intensity value
+                if intensity < 0:
+                    intensity = 0
+                elif intensity > 1:
+                    intensity = 1
+                slice_2d[stripe_mask] = intensity
+
+        return slice_2d
 
 
 class ResizeByFactord(MapTransform):
@@ -1156,9 +1332,7 @@ class ResizeByFactord(MapTransform):
                     spatial_shape = input_array.shape[1:]  # Same for numpy
 
                 # Compute target size
-                target_size = [
-                    int(s * f) for s, f in zip(spatial_shape, self.scale_factors)
-                ]
+                target_size = [int(s * f) for s, f in zip(spatial_shape, self.scale_factors)]
 
                 # Apply resize using MONAI's Resized
                 resizer = Resized(
@@ -1170,3 +1344,106 @@ class ResizeByFactord(MapTransform):
                 d = resizer(d)
 
         return d
+
+
+class RandElasticd(MapTransform, RandomizableTransform):
+    """
+    Unified elastic deformation transform that supports both 2D and 3D data.
+
+    Automatically selects between Rand2DElasticd and Rand3DElasticd based on the do_2d flag
+    and input data shape. This provides a consistent API for both 2D and 3D elastic deformations.
+
+    Args:
+        keys: Keys of the corresponding items to be transformed (e.g., ["image", "label"])
+        do_2d: Whether to apply 2D (True) or 3D (False) elastic deformation.
+               Defaults to False (3D behavior).
+        prob: Probability of applying the transform. Default: 0.5
+        sigma_range: Range for Gaussian smoothing sigma (for 3D) or spacing (for 2D).
+                     For 3D: tuple of (min, max) for sigma values
+                     For 2D: tuple of (min, max) for pixel spacing
+                     Default: (5.0, 8.0)
+        magnitude_range: Range for deformation magnitude (displacement in voxels).
+                        Tuple of (min, max). Default: (50.0, 150.0)
+        allow_missing_keys: Don't raise exception if key is missing. Default: False
+        mode: Interpolation mode for image deformation. Default: "bilinear"
+        padding_mode: Padding mode for out-of-bounds voxels. Default: "reflection"
+
+    Example:
+        >>> # 3D elastic deformation
+        >>> elastic_3d = RandElasticd(
+        ...     keys=["image", "label"],
+        ...     do_2d=False,
+        ...     prob=0.5,
+        ...     sigma_range=(5.0, 8.0),
+        ...     magnitude_range=(50.0, 150.0)
+        ... )
+        >>>
+        >>> # 2D elastic deformation (slice-by-slice)
+        >>> elastic_2d = RandElasticd(
+        ...     keys=["image", "label"],
+        ...     do_2d=True,
+        ...     prob=0.5,
+        ...     sigma_range=(1.0, 2.0),
+        ...     magnitude_range=(10.0, 30.0)
+        ... )
+
+    Note:
+        - For 3D: Input should have shape (C, D, H, W)
+        - For 2D: Input should have shape (C, H, W)
+        - The transform automatically adapts based on do_2d flag
+    """
+
+    def __init__(
+        self,
+        keys,
+        do_2d: bool = False,
+        prob: float = 0.5,
+        sigma_range: tuple = (5.0, 8.0),
+        magnitude_range: tuple = (50.0, 150.0),
+        allow_missing_keys: bool = False,
+        mode: str = "bilinear",
+        padding_mode: str = "reflection",
+    ):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.do_2d = do_2d
+        self.sigma_range = sigma_range
+        self.magnitude_range = magnitude_range
+        self.mode = mode
+        self.padding_mode = padding_mode
+
+    def __call__(self, data):
+        from monai.transforms import Rand2DElasticd, Rand3DElasticd
+
+        d = dict(data)
+        self.randomize(None)
+
+        if not self._do_transform:
+            return d
+
+        # Select appropriate transform based on do_2d flag
+        if self.do_2d:
+            # For 2D elastic deformation
+            transform = Rand2DElasticd(
+                keys=self.keys,
+                prob=1.0,  # Already randomized above
+                spacing=self.sigma_range,  # sigma_range used as spacing for 2D
+                magnitude_range=self.magnitude_range,
+                mode=self.mode,
+                padding_mode=self.padding_mode,
+                allow_missing_keys=self.allow_missing_keys,
+            )
+        else:
+            # For 3D elastic deformation
+            transform = Rand3DElasticd(
+                keys=self.keys,
+                prob=1.0,  # Already randomized above
+                sigma_range=self.sigma_range,
+                magnitude_range=self.magnitude_range,
+                mode=self.mode,
+                padding_mode=self.padding_mode,
+                allow_missing_keys=self.allow_missing_keys,
+            )
+
+        return transform(d)

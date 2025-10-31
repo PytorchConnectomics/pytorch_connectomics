@@ -141,7 +141,7 @@ def distance_transform(
         padding=padding,
         pad_size=2,
         bbox_relax=1,
-        combine_mode="max"
+        combine_mode="max",
     )
 
     # Precompute erosion footprint (shared across instances)
@@ -151,25 +151,22 @@ def distance_transform(
 
     # Define per-instance EDT computation
     def compute_instance_edt(
-        label_crop: np.ndarray,
-        instance_id: int,
-        bbox: Tuple[slice, ...],
-        context: Dict
+        label_crop: np.ndarray, instance_id: int, bbox: Tuple[slice, ...], context: Dict
     ) -> Optional[np.ndarray]:
         """Compute normalized EDT for a single instance within bbox."""
         # Extract instance mask
         mask = binary_fill_holes((label_crop == instance_id))
 
         # Apply erosion if requested
-        if context['footprint'] is not None:
-            mask = binary_erosion(mask, context['footprint'])
+        if context["footprint"] is not None:
+            mask = binary_erosion(mask, context["footprint"])
 
         # Skip empty masks
         if not mask.any():
             return None
 
         # Compute EDT only within bbox
-        boundary_edt = distance_transform_edt(mask, context['resolution'])
+        boundary_edt = distance_transform_edt(mask, context["resolution"])
         edt_max = boundary_edt.max()
 
         if edt_max < eps:
@@ -182,10 +179,7 @@ def distance_transform(
     # Process all instances with bbox optimization
     processor = BBoxInstanceProcessor(config)
     return processor.process(
-        label,
-        compute_instance_edt,
-        resolution=resolution,
-        footprint=footprint
+        label, compute_instance_edt, resolution=resolution, footprint=footprint
     )
 
 
@@ -239,15 +233,12 @@ def skeleton_aware_distance_transform(
         padding=padding,
         pad_size=2,
         bbox_relax=2,
-        combine_mode="max"
+        combine_mode="max",
     )
 
     # Define per-instance skeleton EDT computation
     def compute_skeleton_edt(
-        label_crop: np.ndarray,
-        instance_id: int,
-        bbox: Tuple[slice, ...],
-        context: Dict
+        label_crop: np.ndarray, instance_id: int, bbox: Tuple[slice, ...], context: Dict
     ) -> Optional[np.ndarray]:
         """Compute skeleton-aware EDT for a single instance within bbox."""
         # Extract and clean mask
@@ -259,38 +250,34 @@ def skeleton_aware_distance_transform(
         binary = temp2
 
         # Smooth if requested
-        if context['smooth']:
+        if context["smooth"]:
             binary_smooth = smooth_edge(binary.astype(np.uint8))
             if binary_smooth.astype(int).sum() > 32:
-                if context['smooth_skeleton_only']:
+                if context["smooth_skeleton_only"]:
                     binary = binary_smooth.astype(bool) & temp2
                 else:
                     binary = binary_smooth.astype(bool)
                     temp2 = binary
 
         # Skeletonize using kimimaro
-        skeleton_mask = _skeletonize_instance(
-            label_crop,
-            instance_id,
-            context['resolution']
-        )
+        skeleton_mask = _skeletonize_instance(label_crop, instance_id, context["resolution"])
 
         # Fallback to regular EDT if skeletonization fails
         if skeleton_mask is None or not skeleton_mask.any():
-            boundary_edt = distance_transform_edt(temp2, context['resolution'])
+            boundary_edt = distance_transform_edt(temp2, context["resolution"])
             edt_max = boundary_edt.max()
             if edt_max > eps:
-                energy = (boundary_edt / (edt_max + eps)) ** context['alpha']
+                energy = (boundary_edt / (edt_max + eps)) ** context["alpha"]
                 return energy * temp2.astype(np.float32)
             return None
 
         # Compute skeleton-aware EDT
-        skeleton_edt = distance_transform_edt(~skeleton_mask, context['resolution'])
-        boundary_edt = distance_transform_edt(temp2, context['resolution'])
+        skeleton_edt = distance_transform_edt(~skeleton_mask, context["resolution"])
+        boundary_edt = distance_transform_edt(temp2, context["resolution"])
 
         # Normalized energy
         energy = boundary_edt / (skeleton_edt + boundary_edt + eps)
-        energy = energy ** context['alpha']
+        energy = energy ** context["alpha"]
 
         return energy * temp2.astype(np.float32)
 
@@ -302,14 +289,12 @@ def skeleton_aware_distance_transform(
         resolution=resolution,
         alpha=alpha,
         smooth=smooth,
-        smooth_skeleton_only=smooth_skeleton_only
+        smooth_skeleton_only=smooth_skeleton_only,
     )
 
 
 def _skeletonize_instance(
-    label_crop: np.ndarray,
-    instance_id: int,
-    resolution: Tuple[float, ...]
+    label_crop: np.ndarray, instance_id: int, resolution: Tuple[float, ...]
 ) -> Optional[np.ndarray]:
     """Helper function to skeletonize a single instance using kimimaro.
 
@@ -331,7 +316,7 @@ def _skeletonize_instance(
             fix_borders=False,
             dust_threshold=5,
             parallel=1,
-            progress=False
+            progress=False,
         )
 
         if 1 in skeletons and len(skeletons[1].vertices) > 0:
@@ -340,23 +325,17 @@ def _skeletonize_instance(
 
             # Filter valid vertices
             valid_mask = np.all(
-                (vertices >= 0) & (vertices < np.array(skeleton_mask.shape)),
-                axis=1
+                (vertices >= 0) & (vertices < np.array(skeleton_mask.shape)), axis=1
             )
             valid_vertices = vertices[valid_mask]
 
             if len(valid_vertices) > 0:
                 if label_crop.ndim == 3:
                     skeleton_mask[
-                        valid_vertices[:, 0],
-                        valid_vertices[:, 1],
-                        valid_vertices[:, 2]
+                        valid_vertices[:, 0], valid_vertices[:, 1], valid_vertices[:, 2]
                     ] = True
                 else:
-                    skeleton_mask[
-                        valid_vertices[:, 0],
-                        valid_vertices[:, 1]
-                    ] = True
+                    skeleton_mask[valid_vertices[:, 0], valid_vertices[:, 1]] = True
                 return skeleton_mask
 
     except Exception:
