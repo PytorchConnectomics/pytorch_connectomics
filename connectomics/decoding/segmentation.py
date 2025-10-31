@@ -43,6 +43,7 @@ except ImportError:
 
 
 __all__ = [
+    "decode_binary_thresholding",
     "decode_binary_cc",
     "decode_binary_watershed",
     "decode_binary_contour_cc",
@@ -50,6 +51,80 @@ __all__ = [
     "decode_binary_contour_distance_watershed",
     "decode_affinity_cc",
 ]
+
+
+def decode_binary_thresholding(
+    predictions: np.ndarray,
+    threshold_range: Tuple[float, float] = (0.8, 1.0),
+) -> np.ndarray:
+    r"""Convert binary foreground probability maps to binary mask via simple thresholding.
+
+    This is a lightweight decoding function that applies thresholding to convert
+    probability predictions to binary segmentation masks. Unlike instance segmentation
+    methods, this produces a semantic segmentation (no individual instance IDs).
+
+    The function uses the minimum threshold from threshold_range to binarize predictions.
+    This is useful for simple binary segmentation tasks where instance separation is not needed.
+
+    Args:
+        predictions (numpy.ndarray): foreground probability of shape :math:`(C, Z, Y, X)` or :math:`(C, Y, X)`.
+            The first channel (predictions[0]) is used as the foreground probability.
+            Values should be in range [0, 1] (normalized) or [0, 255] (uint8).
+        threshold_range (tuple): Tuple of (min_threshold, max_threshold) for binarization.
+            Only the minimum threshold is used. Values >= min_threshold become foreground (1).
+            Default: (0.8, 1.0)
+
+    Returns:
+        numpy.ndarray: Binary segmentation mask with shape matching input spatial dimensions.
+            Values: 0 (background) or 1 (foreground).
+            For 3D input: shape :math:`(Z, Y, X)`
+            For 2D input: shape :math:`(Y, X)`
+
+    Examples:
+        >>> # 3D predictions (normalized [0, 1])
+        >>> predictions = np.random.rand(2, 64, 128, 128)  # (C, Z, Y, X)
+        >>> binary_mask = decode_binary_thresholding(predictions, threshold_range=(0.8, 1.0))
+        >>> print(binary_mask.shape)  # (64, 128, 128)
+        >>> print(np.unique(binary_mask))  # [0, 1]
+
+        >>> # 3D predictions (uint8 [0, 255])
+        >>> predictions = np.random.randint(0, 256, (2, 64, 128, 128), dtype=np.uint8)
+        >>> binary_mask = decode_binary_thresholding(predictions, threshold_range=(0.8, 1.0))
+
+        >>> # 2D predictions
+        >>> predictions = np.random.rand(2, 512, 512)  # (C, Y, X)
+        >>> binary_mask = decode_binary_thresholding(predictions, threshold_range=(0.5, 1.0))
+        >>> print(binary_mask.shape)  # (512, 512)
+
+    Note:
+        - **Auto-detection of value range**: Automatically handles both normalized [0, 1]
+          and uint8 [0, 255] predictions
+        - **2D/3D support**: Works with both 2D (C, Y, X) and 3D (C, Z, Y, X) inputs
+        - **Channel 0 usage**: Uses first channel (predictions[0]) as foreground probability
+        - **Simple thresholding**: No morphological operations or connected components
+        - **Post-processing**: Use binary postprocessing config for refinement (opening/closing/CC filtering)
+
+    See Also:
+        - :func:`decode_binary_cc`: Binary threshold + connected components (instance segmentation)
+        - :func:`decode_binary_watershed`: Binary threshold + watershed (instance segmentation)
+        - :class:`connectomics.config.BinaryPostprocessingConfig`: For morphological refinement
+    """
+    # Extract foreground probability (first channel)
+    semantic = predictions[0]
+
+    # Auto-detect if predictions are in [0, 1] or [0, 255] range
+    max_value = np.max(semantic)
+    if max_value > 1.0:
+        # Assume uint8 range [0, 255]
+        threshold = threshold_range[0] * 255
+    else:
+        # Assume normalized range [0, 1]
+        threshold = threshold_range[0]
+
+    # Apply thresholding
+    binary_mask = (semantic > threshold).astype(np.uint8)
+
+    return binary_mask
 
 
 def decode_binary_cc(

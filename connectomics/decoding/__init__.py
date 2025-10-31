@@ -19,6 +19,7 @@ Import patterns:
 """
 
 from .segmentation import (
+    decode_binary_thresholding,
     decode_binary_cc,
     decode_binary_watershed,
     decode_binary_contour_cc,
@@ -58,6 +59,7 @@ from .utils import (
 
 __all__ = [
     # Segmentation decoding
+    'decode_binary_thresholding',
     'decode_binary_cc',
     'decode_binary_watershed',
     'decode_binary_contour_cc',

@@ -495,143 +495,78 @@ class ConnectomicsModule(pl.LightningModule):
 
         return ensemble_result
 
-    def _apply_postprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
-        """
-        Apply postprocessing to predictions: activation and channel selection.
-
-        Args:
-            tensor: Raw predictions (B, C, D, H, W)
-
-        Returns:
-            Postprocessed tensor with activation and/or channel selection applied
-        """
-        if not hasattr(self.cfg, 'inference'):
-            return tensor
-
-        # Apply activation function
-        output_act = getattr(self.cfg.inference, 'output_act', None)
-        if output_act == 'softmax':
-            tensor = torch.softmax(tensor, dim=1)
-        elif output_act == 'sigmoid':
-            tensor = torch.sigmoid(tensor)
-        elif output_act is not None and output_act.lower() != 'none':
-            warnings.warn(
-                f"Unknown activation function '{output_act}'. Supported: 'softmax', 'sigmoid', None",
-                UserWarning,
-            )
-
-        # Apply channel selection
-        output_channel = getattr(self.cfg.inference, 'output_channel', None)
-        if output_channel is not None:
-            if isinstance(output_channel, int):
-                if output_channel == -1:
-                    # -1 means all channels
-                    pass
-                else:
-                    # Single channel selection
-                    tensor = tensor[:, output_channel:output_channel+1, ...]
-            elif isinstance(output_channel, (list, tuple)):
-                # Multiple channel selection
-                tensor = tensor[:, list(output_channel), ...]
-
-        return tensor
-
-    def _apply_output_scale(self, tensor: torch.Tensor) -> torch.Tensor:
-        """Apply optional per-channel scaling before saving."""
-        if not hasattr(self.cfg, 'inference'):
-            return tensor
-
-        # Access output_scale from nested postprocessing config
-        scale = None
-        if hasattr(self.cfg.inference, 'postprocessing'):
-            scale = getattr(self.cfg.inference.postprocessing, 'output_scale', None)
-        if not scale:
-            return tensor
-
-        scale_tensor = torch.tensor(scale, dtype=tensor.dtype, device=tensor.device)
-        if scale_tensor.numel() == 1:
-            return tensor * scale_tensor.view(1, 1, 1, 1, 1)
-
-        if scale_tensor.numel() == tensor.shape[1]:
-            return tensor * scale_tensor.view(1, -1, 1, 1, 1)
-
-        warnings.warn(
-            "inference.output_scale length does not match output channels; skipping scaling.",
-            UserWarning,
-        )
-        return tensor
-
-    def _apply_output_dtype(self, tensor: torch.Tensor) -> torch.Tensor:
-        """Apply output dtype conversion."""
-        if not hasattr(self.cfg, 'inference'):
-            return tensor
-
-        # Access output_dtype from nested postprocessing config
-        output_dtype = None
-        if hasattr(self.cfg.inference, 'postprocessing'):
-            output_dtype = getattr(self.cfg.inference.postprocessing, 'output_dtype', None)
-        if not output_dtype or output_dtype == 'float32':
-            return tensor
-
-        # Map string dtype to numpy dtype
-        dtype_map = {
-            'uint8': torch.uint8,
-            'int8': torch.int8,
-            'int16': torch.int16,
-            'int32': torch.int32,
-            'int64': torch.int64,
-            'float16': torch.float16,
-            'float32': torch.float32,
-            'float64': torch.float64,
-        }
-
-        if output_dtype not in dtype_map:
-            warnings.warn(
-                f"Unknown output_dtype '{output_dtype}'. Supported: {list(dtype_map.keys())}. "
-                f"Keeping float32.",
-                UserWarning,
-            )
-            return tensor
-
-        target_dtype = dtype_map[output_dtype]
-
-        # Clamp to valid range before conversion for integer types
-        if output_dtype == 'uint8':
-            tensor = torch.clamp(tensor, 0, 255)
-        elif output_dtype == 'int8':
-            tensor = torch.clamp(tensor, -128, 127)
-        elif output_dtype == 'int16':
-            tensor = torch.clamp(tensor, -32768, 32767)
-
-        return tensor.to(target_dtype)
-
     def _apply_postprocessing(self, data: np.ndarray) -> np.ndarray:
         """
-        Apply postprocessing transformations (scaling and dtype conversion) to predictions.
+        Apply postprocessing transformations to predictions.
 
-        This method applies:
-        1. Scaling (output_scale): Multiply predictions by scale factor
-        2. Dtype conversion (output_dtype): Convert to target dtype with clamping
+        This method applies (in order):
+        1. Binary postprocessing (morphological operations, connected components filtering)
+        2. Scaling (intensity_scale or output_scale): Multiply predictions by scale factor
+        3. Dtype conversion (intensity_dtype or output_dtype): Convert to target dtype with clamping
 
         Args:
             data: Numpy array of predictions (B, C, D, H, W) or (B, D, H, W)
 
         Returns:
-            Postprocessed predictions with applied scaling and dtype conversion
+            Postprocessed predictions with applied transformations
         """
         if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'postprocessing'):
             return data
 
         postprocessing = self.cfg.inference.postprocessing
 
-        # Apply scaling if configured
-        output_scale = getattr(postprocessing, 'output_scale', None)
-        if output_scale is not None:
-            data = data * output_scale
+        # Step 1: Apply binary postprocessing if configured
+        binary_config = getattr(postprocessing, 'binary', None)
+        if binary_config is not None and getattr(binary_config, 'enabled', False):
+            from connectomics.decoding.postprocess import apply_binary_postprocessing
 
-        # Apply dtype conversion if configured
+            # Process each sample in batch
+            batch_size = data.shape[0] if data.ndim >= 4 else 1
+
+            # Handle different input shapes
+            if data.ndim == 2:  # (H, W) -> (1, 1, H, W)
+                data = data[np.newaxis, np.newaxis, ...]
+            elif data.ndim == 3:  # (D, H, W) or (C, H, W) -> assume (D, H, W) and add batch dim
+                data = data[np.newaxis, ...]  # (1, D, H, W)
+
+            # Ensure we have at least 4D: (B, ...) where ... can be (D, H, W) or (C, D, H, W)
+            results = []
+            for batch_idx in range(batch_size):
+                sample = data[batch_idx]  # (C, D, H, W) or (D, H, W)
+
+                # Extract foreground probability (handle both 3D and 4D)
+                if sample.ndim == 4:  # (C, D, H, W)
+                    foreground_prob = sample[0]  # Use first channel
+                else:  # (D, H, W) - already single channel
+                    foreground_prob = sample
+
+                # Apply binary postprocessing
+                processed = apply_binary_postprocessing(foreground_prob, binary_config)
+
+                # Expand dims to maintain shape consistency
+                if sample.ndim == 4:
+                    processed = processed[np.newaxis, ...]  # (1, D, H, W)
+                else:
+                    processed = processed  # Keep (D, H, W)
+
+                results.append(processed)
+
+            # Stack results back into batch
+            data = np.stack(results, axis=0)
+
+        # Step 2: Apply scaling if configured (support both new and legacy names)
+        intensity_scale = getattr(postprocessing, 'intensity_scale', None)
+        output_scale = getattr(postprocessing, 'output_scale', None)
+        scale = intensity_scale if intensity_scale is not None else output_scale
+        if scale is not None:
+            data = data * scale
+
+        # Step 3: Apply dtype conversion if configured (support both new and legacy names)
+        intensity_dtype = getattr(postprocessing, 'intensity_dtype', None)
         output_dtype = getattr(postprocessing, 'output_dtype', None)
-        if output_dtype is not None and output_dtype != 'float32':
+        target_dtype_str = intensity_dtype if intensity_dtype is not None else output_dtype
+
+        if target_dtype_str is not None and target_dtype_str != 'float32':
             # Map string dtype to numpy dtype
             dtype_map = {
                 'uint8': np.uint8,
@@ -645,28 +580,28 @@ class ConnectomicsModule(pl.LightningModule):
                 'float64': np.float64,
             }
 
-            if output_dtype not in dtype_map:
+            if target_dtype_str not in dtype_map:
                 warnings.warn(
-                    f"Unknown output_dtype '{output_dtype}'. Supported: {list(dtype_map.keys())}. "
-                    f"Keeping current dtype.",
+                    f"Unknown dtype '{target_dtype_str}'. Supported: {list(dtype_map.keys())}. "
+                    f"Keeping float32.",
                     UserWarning,
                 )
                 return data
 
-            target_dtype = dtype_map[output_dtype]
+            target_dtype = dtype_map[target_dtype_str]
 
             # Clamp to valid range before conversion for integer types
-            if output_dtype == 'uint8':
+            if target_dtype_str == 'uint8':
                 data = np.clip(data, 0, 255)
-            elif output_dtype == 'int8':
+            elif target_dtype_str == 'int8':
                 data = np.clip(data, -128, 127)
-            elif output_dtype == 'uint16':
+            elif target_dtype_str == 'uint16':
                 data = np.clip(data, 0, 65535)
-            elif output_dtype == 'int16':
+            elif target_dtype_str == 'int16':
                 data = np.clip(data, -32768, 32767)
-            elif output_dtype == 'uint32':
+            elif target_dtype_str == 'uint32':
                 data = np.clip(data, 0, 4294967295)
-            elif output_dtype == 'int32':
+            elif target_dtype_str == 'int32':
                 data = np.clip(data, -2147483648, 2147483647)
 
             data = data.astype(target_dtype)
@@ -694,6 +629,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Import decoding functions
         from connectomics.decoding import (
+            decode_binary_thresholding,
             decode_binary_cc,
             decode_binary_watershed,
             decode_binary_contour_cc,
@@ -704,6 +640,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Map function names to actual functions
         decode_fn_map = {
+            'binary_thresholding': decode_binary_thresholding,
+            'decode_binary_thresholding': decode_binary_thresholding,
             'decode_binary_cc': decode_binary_cc,
             'decode_binary_watershed': decode_binary_watershed,
             'decode_binary_contour_cc': decode_binary_contour_cc,

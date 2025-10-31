@@ -32,6 +32,7 @@ __all__ = [
     "watershed_split",
     "stitch_3d",
     "intersection_over_union",
+    "apply_binary_postprocessing",
 ]
 
 
@@ -248,3 +249,108 @@ def _label_overlap(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     for i in range(len(x)):
         overlap[x[i], y[i]] += 1
     return overlap
+
+
+def apply_binary_postprocessing(
+    pred: np.ndarray, config: 'BinaryPostprocessingConfig'
+) -> np.ndarray:
+    """Apply binary segmentation postprocessing pipeline.
+
+    Pipeline order:
+        1. Threshold predictions to binary mask using threshold_range
+        2. Apply median filter (optional)
+        3. Apply morphological opening (erosion + dilation)
+        4. Apply morphological closing (dilation + erosion)
+        5. Extract connected components and filter by size/keep top-k
+
+    Args:
+        pred (numpy.ndarray): Predicted foreground probability in range [0, 1].
+                             Shape can be 2D (H, W) or 3D (D, H, W).
+        config (BinaryPostprocessingConfig): Configuration for postprocessing pipeline.
+
+    Returns:
+        numpy.ndarray: Postprocessed binary mask (same shape as input).
+                       Values: 0 (background) or 1 (foreground).
+
+    Example:
+        >>> from connectomics.config import BinaryPostprocessingConfig, ConnectedComponentsConfig
+        >>> config = BinaryPostprocessingConfig(
+        ...     enabled=True,
+        ...     threshold_range=(0.8, 1.0),
+        ...     opening_iterations=2,
+        ...     connected_components=ConnectedComponentsConfig(top_k=1)
+        ... )
+        >>> pred = np.random.rand(128, 128)  # Random probabilities
+        >>> binary_mask = apply_binary_postprocessing(pred, config)
+    """
+    if not config or not config.enabled:
+        # Just threshold at 0.5 if postprocessing is disabled
+        return (pred > 0.5).astype(np.uint8)
+
+    # Step 1: Threshold to binary using threshold_range
+    # Use the minimum threshold from the range
+    threshold = config.threshold_range[0]
+    binary = (pred > threshold).astype(np.uint8)
+
+    # Step 2: Apply median filter (optional noise reduction)
+    if config.median_filter_size is not None:
+        binary = ndimage.median_filter(binary, size=config.median_filter_size)
+
+    # Step 3: Morphological opening (erosion + dilation) - removes small objects
+    if config.opening_iterations > 0:
+        binary = ndimage.binary_opening(
+            binary, iterations=config.opening_iterations
+        ).astype(np.uint8)
+
+    # Step 4: Morphological closing (dilation + erosion) - fills small holes
+    if config.closing_iterations > 0:
+        binary = ndimage.binary_closing(
+            binary, iterations=config.closing_iterations
+        ).astype(np.uint8)
+
+    # Step 5: Connected components filtering
+    if config.connected_components is not None and config.connected_components.enabled:
+        cc_config = config.connected_components
+
+        # Extract connected components
+        connectivity = cc_config.connectivity
+        labels = cc3d.connected_components(binary, connectivity=connectivity)
+
+        # Get component sizes
+        component_sizes = np.bincount(labels.ravel())
+        # Skip background (label 0)
+        component_sizes[0] = 0
+
+        # Filter by minimum size
+        if cc_config.min_size > 0:
+            small_components = np.where(component_sizes < cc_config.min_size)[0]
+            for label_id in small_components:
+                labels[labels == label_id] = 0
+
+        # Keep only top-k largest components
+        if cc_config.top_k is not None and cc_config.top_k > 0:
+            # Get sizes (excluding background)
+            sizes = component_sizes[1:]  # Skip background
+            label_ids = np.arange(1, len(component_sizes))
+
+            if len(sizes) > cc_config.top_k:
+                # Get indices of top-k largest components
+                top_k_indices = np.argsort(sizes)[-cc_config.top_k:]
+                top_k_labels = label_ids[top_k_indices]
+
+                # Create mask keeping only top-k
+                keep_mask = np.zeros_like(labels, dtype=bool)
+                for label_id in top_k_labels:
+                    keep_mask |= (labels == label_id)
+
+                labels = keep_mask.astype(np.uint8)
+            else:
+                # Convert labels back to binary (0/1)
+                labels = (labels > 0).astype(np.uint8)
+        else:
+            # Convert labels back to binary (0/1)
+            labels = (labels > 0).astype(np.uint8)
+
+        binary = labels
+
+    return binary

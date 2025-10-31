@@ -205,15 +205,32 @@ inference:
     # NOTE: If tta_channel selects specific channels, loss computation will be skipped (loss needs all class channels)
 
 
-  # Postprocessing configuration (applied AFTER TTA if enabled)
+# Decoding: predicted feature maps to segmetnation mask (semantic or instance segmentation)
+  decoding:
+    - name: binary_thresholding
+      kwargs:
+        threshold_range: [0.8, 1]
+  # Postprocessing configuration (applied AFTER decoding)
   postprocessing:
-    output_scale: 255                    # Scale predictions to [0, 255] for saving
-    output_dtype: uint8                  # Save as uint8
+    # Binary segmentation refinement (applied after binary_thresholding decoding)
+    binary:
+      enabled: true                      # Enable binary postprocessing
+      threshold_range: [0.5, 1.0]        # Not used (already thresholded by decoding)
+      opening_iterations: 2              # Morphological opening (erosion + dilation) to remove small noise
+      connected_components:
+        enabled: true                    # Enable connected components filtering
+        top_k: 1                         # Keep only the largest component
+        connectivity: 1                  # Face connectivity (1=6-connected for 3D, 4-connected for 2D)
+
+    # Output format (intensity scaling and dtype conversion)
+    intensity_scale: 255                 # Scale predictions to [0, 255] for saving
+    intensity_dtype: uint8               # Save as uint8
+
 
   # Evaluation
   evaluation:
     enabled: true                        # Use eval mode for BatchNorm
-    metrics: [adapted_rand]        # Metrics to compute (adapted_rand for instance segmentation)
+    metrics: [adapted_rand]              # Metrics to compute (adapted_rand for instance segmentation)
 
   # NOTE: batch_size=1 for inference
   #   During training: batch_size controls how many random patches to load

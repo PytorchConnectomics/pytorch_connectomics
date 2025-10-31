@@ -261,8 +261,8 @@ inference:
 
   # Postprocessing
   postprocessing:
-    output_scale: 255
-    output_dtype: uint8
+    intensity_scale: 255
+    intensity_dtype: uint8
 
   # Evaluation
   evaluation:

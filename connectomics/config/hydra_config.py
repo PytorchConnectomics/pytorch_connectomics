@@ -628,8 +628,8 @@ class AffineConfig:
     enabled: Optional[bool] = None
     prob: float = 0.5
     rotate_range: Tuple[float, float, float] = (0.2, 0.2, 0.2)  # Rotation range in radians (~11°)
-    scale_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)   # Scaling range (±10%)
-    shear_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)   # Shearing range (±10%)
+    scale_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)  # Scaling range (±10%)
+    shear_range: Tuple[float, float, float] = (0.1, 0.1, 0.1)  # Shearing range (±10%)
 
 
 @dataclass
@@ -914,15 +914,63 @@ class DecodeModeConfig:
 
 
 @dataclass
-class PostprocessingConfig:
-    """Postprocessing configuration."""
+class BinaryPostprocessingConfig:
+    """Binary segmentation postprocessing configuration.
 
-    output_scale: Optional[float] = (
+    Applies morphological operations and connected components filtering to binary predictions.
+    Pipeline order:
+        1. Threshold predictions to binary mask (handled by decoding)
+        2. Apply morphological opening (erosion + dilation)
+        3. Extract connected components
+        4. Keep top-k largest components
+    """
+
+    enabled: bool = False  # Enable binary postprocessing pipeline
+    median_filter_size: Optional[Tuple[int, ...]] = (
+        None  # Median filter kernel size (e.g., (3, 3) for 2D)
+    )
+    opening_iterations: int = 0  # Number of morphological opening iterations
+    closing_iterations: int = 0  # Number of morphological closing iterations
+    connected_components: Optional["ConnectedComponentsConfig"] = None  # CC filtering config
+
+
+@dataclass
+class ConnectedComponentsConfig:
+    """Connected components filtering configuration."""
+
+    enabled: bool = True  # Enable connected components filtering
+    top_k: Optional[int] = None  # Keep only top-k largest components (None = keep all)
+    min_size: int = 0  # Minimum component size in voxels
+    connectivity: int = 1  # Connectivity for CC (1=face, 2=face+edge, 3=face+edge+corner)
+
+
+@dataclass
+class PostprocessingConfig:
+    """Postprocessing configuration for inference output.
+
+    Controls how predictions are transformed before saving:
+    - Thresholding: Binarize predictions using threshold_range
+    - Scaling: Multiply intensity values (e.g., 255 for uint8)
+    - Dtype conversion: Convert to target data type with proper clamping
+    - Transpose: Reorder axes (e.g., [2,1,0] for zyx->xyz)
+    """
+
+    # Thresholding configuration
+    binary: Optional[Dict[str, Any]] = field(
+        default_factory=dict
+    )  # Binary thresholding config (e.g., {'threshold_range': [0.5, 1.0]})
+
+    # Intensity scaling
+    intensity_scale: Optional[float] = (
         None  # Scale predictions for saving (e.g., 255.0 for uint8). None = no scaling
     )
-    output_dtype: Optional[str] = (
+
+    # Data type conversion
+    intensity_dtype: Optional[str] = (
         None  # Output data type: 'uint8', 'uint16', 'float32'. None = no conversion (keep as-is)
     )
+
+    # Axis permutation
     output_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for output (e.g., [2,1,0] for zyx->xyz)
@@ -1072,6 +1120,8 @@ __all__ = [
     "SlidingWindowConfig",
     "TestTimeAugmentationConfig",
     "PostprocessingConfig",
+    "BinaryPostprocessingConfig",
+    "ConnectedComponentsConfig",
     "EvaluationConfig",
     "DecodeModeConfig",
     "DecodeBinaryContourDistanceWatershedConfig",
