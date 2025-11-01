@@ -518,7 +518,6 @@ class CheckpointConfig:
     save_top_k: int = 1
     save_last: bool = True
     save_every_n_epochs: int = 10
-    dirpath: str = "checkpoints/"
     checkpoint_filename: Optional[str] = None  # Auto-generated from monitor if None
     use_timestamp: bool = True  # Create timestamped subdirectories (YYYYMMDD_HHMMSS)
 
@@ -815,8 +814,14 @@ class AugmentationConfig:
 
 @dataclass
 class InferenceDataConfig:
-    """Inference data configuration."""
+    """Inference data configuration.
 
+    Output path is automatically computed from checkpoint directory:
+    - Checkpoint: outputs/experiment_name/YYYYMMDD_HHMMSS/checkpoints/last.ckpt
+    - Inference: outputs/experiment_name/YYYYMMDD_HHMMSS/inference/last.ckpt/{output_name}
+    """
+
+    test_path: str = ""  # Base path for test data (e.g., "/path/to/dataset/test/")
     test_image: Any = None  # str, List[str], or None - Can be single file or list of files
     test_label: Any = None  # str, List[str], or None - Can be single file or list of files
     test_mask: Any = None  # str, List[str], or None - Optional mask for inference
@@ -826,7 +831,9 @@ class InferenceDataConfig:
     test_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
-    output_path: str = "results/"
+    output_name: str = (
+        "predictions.h5"  # Output filename (auto-pathed to inference/{checkpoint}/{output_name})
+    )
 
     # 2D data support
     do_2d: bool = False  # Enable 2D data processing for inference
@@ -838,8 +845,7 @@ class SlidingWindowConfig:
 
     window_size: Optional[List[int]] = None
     sw_batch_size: Optional[int] = None  # If None, will use system.inference.batch_size
-    overlap: Optional[float] = 0.5  # Overlap ratio (0-1), or None to use stride instead
-    stride: Optional[List[int]] = None  # Explicit stride (overrides overlap if set)
+    stride: Optional[List[int]] = None  # Explicit stride for controlling window movement
     blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
     sigma_scale: float = (
         0.125  # Gaussian sigma scale (only for blending='gaussian'); larger = smoother blending
@@ -860,7 +866,7 @@ class TestTimeAugmentationConfig:
         None  # Single activation for all channels: 'softmax', 'sigmoid', 'tanh', None (deprecated, use channel_activations)
     )
     channel_activations: Optional[List[Any]] = (
-        None  # Per-channel activations: [[0, 'sigmoid'], [1, 'sigmoid'], [2, 'tanh']]
+        None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...] e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
     )
     select_channel: Any = (
         None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)

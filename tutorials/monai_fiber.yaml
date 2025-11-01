@@ -23,15 +23,15 @@ description: Fiber segmentation with MedNeXt and multi-task learning (Binary + C
 # System
 system:
   training:
-    num_gpus: 4                        # 4 GPU (matches barcode-R-Base.yaml)
+    num_gpus: 4                        # 4 GPU (
     num_cpus: 8                       # 16 CPUs for data loading
     num_workers: 8                     # Parallel data loading workers
-    batch_size: 16                      # Batch size (matches barcode-R-Base.yaml)
+    batch_size: 16                      # Batch size
   inference:
     num_gpus: 1
-    num_cpus: 16
+    num_cpus: 1
     num_workers: 1
-    batch_size: 8                      # Inference batch size (matches barcode-R-Base.yaml)
+    batch_size: 8                      # Inference batch size
   seed: 42
 
 # Model - MedNeXt for multi-task fiber segmentation
@@ -73,18 +73,17 @@ model:
 
 # Data - Fiber dataset configuration (based on barcode-R-Base.yaml)
 data:
-  # Base paths (NEW: will be combined with train_image/train_label/test_image)
+  # Base paths (NEW: will be combined with train_image/train_label)
   train_path: '/projects/weilab/dataset/barcode/train_r2/'
-  test_path: "/projects/weilab/dataset/barcode/test_r2/"
 
   # Volume configuration - TIFF files (barcode fiber structure)
   # Matches barcode-R dataset structure: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif"]
   # These paths will be combined with train_path above
   
-  #train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
-  #train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
-  train_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
-  train_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
+  train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
+  train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
+  #train_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
+  #train_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
    
   train_resolution: [40, 16, 16]   # Isotropic resolution (adjust based on actual data)
   use_preloaded_cache: true  
@@ -215,7 +214,6 @@ monitor:
     save_top_k: 3
     save_last: true
     save_every_n_epochs: 50           # Save every 50 epochs (~50k iterations)
-    dirpath: outputs/fiber_mednext_bcs/checkpoints/
     use_timestamp: true
 
   # Early stopping
@@ -234,25 +232,17 @@ inference:
   data:
     # Test on all available volumes (matches barcode INFERENCE IMAGE_NAME)
     # Note: test_path will be combined with these relative paths
-    test_image:
-      - 1-xri_deconvolved.tif
-      - 2-xri_deconvolved.tif
-      - 3-xri_deconvolved.tif
-      - 4_1-xri_deconvolved.tif
-      - 4_2-xri_deconvolved.tif
-      - 4_3-xri_deconvolved.tif
-      - 5_1-xri_deconvolved.tif
-      - 5_2-xri_deconvolved.tif
-      - 6_1-xri_deconvolved.tif
-      - 6_2-xri_deconvolved.tif
-    test_resolution: [1.0, 1.0, 1.0]   # Isotropic resolution
-    output_path: outputs/fiber_mednext_bcs/test/
+    test_path: "/projects/weilab/dataset/barcode/train_r2/"
+    test_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
+    test_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
+    test_resolution: [40, 16, 16]   # Isotropic resolution
+    # Output filename (auto-pathed based on the checkpoint folder)
+    output_name: DG_train.h5
 
   # MONAI SlidingWindowInferer parameters (matches barcode INFERENCE)
   sliding_window:
-    window_size: [33, 257, 257]        # INPUT_SIZE/OUTPUT_SIZE (barcode-R-Base.yaml)
-    stride: [26, 128, 128]             # STRIDE (barcode-R-Base.yaml)
-    overlap: null                      # Use stride instead of overlap
+    window_size: [48, 128, 128]        # INPUT_SIZE/OUTPUT_SIZE (barcode-R-Base.yaml)
+    stride: [24, 64, 64]             # STRIDE (barcode-R-Base.yaml)
     blending: gaussian                 # Gaussian weighting for smooth blending
     sigma_scale: 0.25
     padding_mode: reflect              # Reflection-padding at volume boundaries
@@ -263,14 +253,14 @@ inference:
     enabled: true
     flip_axes: null                    # Use all flip augmentations (AUG_NUM: None)
     # Per-channel activations (aligned with barcode-R-BCS.yaml OUTPUT_ACT)
-    # OUTPUT_ACT: ["sigmoid", "sigmoid", "tanh"]
+    # OUTPUT_ACT: ["softmax", "sigmoid", "tanh"]
+    # Format: [[start_ch, end_ch, activation], ...]
     channel_activations:
-      - [0, sigmoid]                   # Channel 0: binary fiber mask
-      - [1, sigmoid]                   # Channel 1: contour
-      - [2, tanh]                      # Channel 2: SDT
-    select_channel: all
+      - [0, 2, softmax]                # Channels 0-1: binary fiber mask (softmax over 2 classes)
+      - [2, 3, sigmoid]                # Channel 2: contour
+      - [3, 4, tanh]                   # Channel 3: SDT
+    select_channel: [1,2,3]
     ensemble_mode: mean                # AUG_MODE: "mean"
-    apply_mask: false                  # No test mask for fiber data
 
   # Decoding configuration (instance segmentation postprocessing)
   decoding:
@@ -280,7 +270,7 @@ inference:
         contour_threshold: [0.8, 1.1]
         distance_threshold: [0.5, -0.5]
         min_instance_size: 100         # Larger fibers (adjust based on data)
-        min_seed_size: 50
+        min_seed_size: 20
         prediction_scale: 1
 
   # Evaluation

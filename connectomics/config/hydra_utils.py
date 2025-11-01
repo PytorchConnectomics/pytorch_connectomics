@@ -241,6 +241,12 @@ def resolve_data_paths(cfg: Config) -> Config:
     2. Expanding glob patterns to actual file lists
     3. Flattening nested lists from glob expansion
 
+    Supported paths:
+    - Training: cfg.data.train_path + cfg.data.train_image/train_label/train_mask
+    - Validation: cfg.data.val_path + cfg.data.val_image/val_label/val_mask
+    - Testing (legacy): cfg.data.test_path + cfg.data.test_image/test_label/test_mask
+    - Inference (primary): cfg.inference.data.test_path + cfg.inference.data.test_image/test_label/test_mask
+
     Args:
         cfg: Config object to resolve paths for
 
@@ -253,6 +259,12 @@ def resolve_data_paths(cfg: Config) -> Config:
         >>> resolve_data_paths(cfg)
         >>> print(cfg.data.train_image)
         ['/data/barcode/PT37/img1_raw.tif', '/data/barcode/PT37/img2_raw.tif', '/data/barcode/file.tif']
+
+        >>> cfg.inference.data.test_path = "/data/test/"
+        >>> cfg.inference.data.test_image = ["volume_*.tif"]
+        >>> resolve_data_paths(cfg)
+        >>> print(cfg.inference.data.test_image)
+        ['/data/test/volume_1.tif', '/data/test/volume_2.tif']
     """
     import os
     from glob import glob
@@ -304,18 +316,18 @@ def resolve_data_paths(cfg: Config) -> Config:
         cfg.data.val_mask = _combine_path(cfg.data.val_path, cfg.data.val_mask)
         cfg.data.val_json = _combine_path(cfg.data.val_path, cfg.data.val_json)
 
-    # Resolve test paths
+    # Resolve test paths (legacy support for cfg.data.test_path)
     if cfg.data.test_path:
         cfg.data.test_image = _combine_path(cfg.data.test_path, cfg.data.test_image)
         cfg.data.test_label = _combine_path(cfg.data.test_path, cfg.data.test_label)
         cfg.data.test_mask = _combine_path(cfg.data.test_path, cfg.data.test_mask)
         cfg.data.test_json = _combine_path(cfg.data.test_path, cfg.data.test_json)
 
-    # Also resolve inference data paths
-    if cfg.data.test_path and cfg.inference.data:
-        cfg.inference.data.test_image = _combine_path(cfg.data.test_path, cfg.inference.data.test_image)
-        cfg.inference.data.test_label = _combine_path(cfg.data.test_path, cfg.inference.data.test_label)
-        cfg.inference.data.test_mask = _combine_path(cfg.data.test_path, cfg.inference.data.test_mask)
+    # Resolve inference data paths (primary location for test_path)
+    if hasattr(cfg.inference.data, 'test_path') and cfg.inference.data.test_path:
+        cfg.inference.data.test_image = _combine_path(cfg.inference.data.test_path, cfg.inference.data.test_image)
+        cfg.inference.data.test_label = _combine_path(cfg.inference.data.test_path, cfg.inference.data.test_label)
+        cfg.inference.data.test_mask = _combine_path(cfg.inference.data.test_path, cfg.inference.data.test_mask)
 
     return cfg
 

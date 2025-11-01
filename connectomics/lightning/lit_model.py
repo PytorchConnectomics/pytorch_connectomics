@@ -268,9 +268,12 @@ class ConnectomicsModule(pl.LightningModule):
     def _apply_tta_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
         Apply activation and channel selection before TTA ensemble.
-        
+
         Supports per-channel activations via channel_activations config:
-        channel_activations: [[0, 'sigmoid'], [1, 'sigmoid'], [2, None]]
+        Format: [[start_ch, end_ch, 'activation'], ...]
+        Examples:
+          - [[0, 2, 'softmax'], [2, 3, 'sigmoid']]  # Softmax over channels 0-1, sigmoid for channel 2
+          - [[0, 1, 'sigmoid'], [1, 2, 'sigmoid']]  # Sigmoid for channels 0 and 1 separately
 
         Args:
             tensor: Raw predictions (B, C, D, H, W)
@@ -283,34 +286,46 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Check for per-channel activations first (new approach)
         channel_activations = getattr(self.cfg.inference.test_time_augmentation, 'channel_activations', None)
-        
+
         if channel_activations is not None:
             # Apply different activations to different channels
             activated_channels = []
-            for channel_idx, act in channel_activations:
-                channel_tensor = tensor[:, channel_idx:channel_idx+1, ...]
-                
+            for config_entry in channel_activations:
+                # Only support new format: [start_ch, end_ch, activation]
+                if len(config_entry) != 3:
+                    raise ValueError(
+                        f"Invalid channel_activations entry: {config_entry}. "
+                        f"Expected [start_ch, end_ch, activation] with 3 elements. "
+                        f"Example: [[0, 2, 'softmax'], [2, 3, 'sigmoid']]"
+                    )
+
+                start_ch, end_ch, act = config_entry
+                channel_tensor = tensor[:, start_ch:end_ch, ...]
+
                 if act == 'sigmoid':
                     channel_tensor = torch.sigmoid(channel_tensor)
                 elif act == 'tanh':
                     channel_tensor = torch.tanh(channel_tensor)
                 elif act == 'softmax':
-                    # Softmax doesn't make sense for single channel, skip
-                    warnings.warn(
-                        f"Softmax activation for single channel {channel_idx} is not supported. Skipping.",
-                        UserWarning,
-                    )
+                    # Apply softmax across the channel dimension
+                    if end_ch - start_ch > 1:
+                        channel_tensor = torch.softmax(channel_tensor, dim=1)
+                    else:
+                        warnings.warn(
+                            f"Softmax activation for single channel ({start_ch}:{end_ch}) is not meaningful. Skipping.",
+                            UserWarning,
+                        )
                 elif act is None or (isinstance(act, str) and act.lower() == 'none'):
                     # No activation (keep as is)
                     pass
                 else:
-                    warnings.warn(
-                        f"Unknown activation '{act}' for channel {channel_idx}. Supported: 'sigmoid', 'tanh', None",
-                        UserWarning,
+                    raise ValueError(
+                        f"Unknown activation '{act}' for channels {start_ch}:{end_ch}. "
+                        f"Supported: 'sigmoid', 'softmax', 'tanh', None"
                     )
-                
+
                 activated_channels.append(channel_tensor)
-            
+
             # Concatenate all channels back together
             tensor = torch.cat(activated_channels, dim=1)
         else:
@@ -844,11 +859,20 @@ class ConnectomicsModule(pl.LightningModule):
             # Remove channel dimension if present
             if pred.ndim == 4:
                 pred = pred[0]  # Take first channel
-            gt = labels[idx].astype(np.uint32)
-            if gt.ndim == 4:
-                gt = gt[0]  # Remove channel dimension
 
+            # Handle label indexing - labels might be a dict (multi-task) or ndarray
             try:
+                if isinstance(labels, dict):
+                    # Multi-task labels - use the first task (typically 'label')
+                    label_key = list(labels.keys())[0]
+                    gt = labels[label_key][idx]
+                else:
+                    gt = labels[idx]
+
+                gt = gt.astype(np.uint32)
+                if gt.ndim == 4:
+                    gt = gt[0]  # Remove channel dimension
+
                 are, prec, rec = adapted_rand(pred, gt, all_stats=True)
                 self.test_adapted_rand_results.append({
                     'are': are,

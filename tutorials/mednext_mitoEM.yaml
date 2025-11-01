@@ -185,11 +185,11 @@ inference:
     enabled: true
     flip_axes: null                     # Use all 8 flip augmentations
     # Per-channel activations (aligned with multi_task_config)
-    # Format: [[channel_idx, activation], ...]
+    # Format: [[start_ch, end_ch, activation], ...]
     channel_activations:
-      - [0, sigmoid]                   # Channel 0: binary segmentation (sigmoid)
-      - [1, sigmoid]                   # Channel 1: boundary (sigmoid)
-      - [2, tanh]                      # Channel 2: EDT distance (no activation)
+      - [0, 1, sigmoid]                # Channel 0: binary segmentation (sigmoid)
+      - [1, 2, sigmoid]                # Channel 1: boundary (sigmoid)
+      - [2, 3, tanh]                   # Channel 2: EDT distance (tanh)
     select_channel: all               # Use all channels
     ensemble_mode: mean
     apply_mask: true                   # Multiply predictions by test_mask after ensemble

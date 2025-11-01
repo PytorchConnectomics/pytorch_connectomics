@@ -47,6 +47,37 @@ pip install -e .
 
 ---
 
+### ❌ "AttributeError: module 'numpy' has no attribute 'float'"
+
+**Cause:** Mahotas version incompatibility with NumPy 2.0+. This occurs with older mahotas versions (< 1.4.18).
+
+**Solution 1 - Upgrade packages (recommended):**
+```bash
+pip install --upgrade numpy mahotas
+```
+
+**Solution 2 - Pin compatible versions:**
+```bash
+pip install numpy>=1.23.0 mahotas>=1.4.18
+```
+
+**Why?** Mahotas 1.4.18+ is compatible with NumPy 2.x. The deprecated `np.float` alias was removed in NumPy 2.0.
+
+---
+
+### ❌ "Matplotlib requires numpy>=1.23"
+
+**Cause:** Matplotlib requires NumPy 1.23 or higher for compatibility.
+
+**Solution:**
+```bash
+conda activate pytc
+conda install -c conda-forge matplotlib -y
+pip install -e . --no-build-isolation
+```
+
+---
+
 ### ❌ "Could not find a version that satisfies connected-components-3d"
 
 **Cause:** Python version incompatibility (cc3d requires Python 3.10).

@@ -54,7 +54,7 @@ conda create -n pytc python=3.10 -y
 conda activate pytc
 
 # Install pre-built packages (avoids compilation)
-conda install -c conda-forge numpy h5py cython connected-components-3d -y
+conda install -c conda-forge numpy=1.23 h5py cython connected-components-3d mahotas -y
 
 # Install PyTorch (adjust for your CUDA version)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121

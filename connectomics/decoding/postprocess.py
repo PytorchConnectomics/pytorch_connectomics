@@ -139,7 +139,8 @@ def watershed_split(
     mask = np.zeros(distance.shape, dtype=bool)
     mask[tuple(coords.T)] = True
     markers = cc3d.connected_components(mask)
-    split_objects = mahotas.cwatershed(-distance, markers, mask=cropped)
+    split_objects = mahotas.cwatershed(-distance, markers)
+    split_objects[~cropped] = 0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
 
     seg_id = np.unique(split_objects)
     new_id = []
