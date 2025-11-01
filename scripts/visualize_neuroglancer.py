@@ -218,7 +218,7 @@ Interactive mode (with -i flag):
 
 
 def load_volumes_from_config(
-    config_path: str, mode: str = "train"
+    config_path: str, mode: str = "train", prediction_base_name: Optional[str] = None
 ) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]]:
     """
     Load volumes from a config file.
@@ -343,8 +343,42 @@ def load_volumes_from_config(
             and hasattr(cfg.inference.data, "test_image")
             and cfg.inference.data.test_image
         ):
-            print(f"Loading test image: {cfg.inference.data.test_image}")
-            data = read_volume(cfg.inference.data.test_image)
+            test_image_path = cfg.inference.data.test_image
+            print(f"Loading test image: {test_image_path}")
+            
+            # If prediction_base_name is provided and test_image_path contains glob pattern,
+            # find the specific matching file
+            if prediction_base_name and ("*" in test_image_path or "?" in test_image_path):
+                print(f"  🔍 Auto-matching specific test_image for prediction base name: {prediction_base_name}")
+                import glob
+                test_path_obj = Path(test_image_path)
+                test_dir = test_path_obj.parent
+                print(f"  Search directory: {test_dir}")
+                
+                # Search for files with matching base name (any extension)
+                extensions_to_try = ['.tif', '.tiff', '.h5', '.hdf5', '.png', '.jpg', '.jpeg']
+                matched_file = None
+                for ext in extensions_to_try:
+                    potential_file = test_dir / f"{prediction_base_name}{ext}"
+                    if potential_file.exists():
+                        matched_file = str(potential_file)
+                        print(f"  ✓ Found matching test_image: {matched_file}")
+                        break
+                
+                # If not found, search for any file with matching base name
+                if not matched_file:
+                    matching_files = sorted(test_dir.glob(f"{prediction_base_name}.*"))
+                    if matching_files:
+                        matched_file = str(matching_files[0])
+                        print(f"  ✓ Found matching test_image: {matched_file}")
+                
+                if matched_file:
+                    test_image_path = matched_file
+                else:
+                    print(f"  ⚠ No matching test_image found for base name: {prediction_base_name}")
+                    print(f"  Falling back to loading all files from glob pattern")
+            
+            data = read_volume(test_image_path)
             # Convert 2D to 3D if needed
             if data.ndim == 2:
                 data = data[None, :, :]  # (H, W) -> (1, H, W)
@@ -629,10 +663,32 @@ def main():
     volumes = {}
     cfg = None
 
+    # Extract prediction base name from --volumes if provided (for auto-matching test_image)
+    prediction_base_name = None
+    if args.volumes:
+        for spec in args.volumes:
+            parts = spec.split(":")
+            # Find the path (could be in different positions depending on format)
+            if len(parts) >= 3:
+                path = parts[2]  # Format: name:type:path
+            elif len(parts) == 2:
+                path = parts[1]  # Format: name:path
+            else:
+                path = parts[0]  # Format: path
+            
+            # Check if this is a prediction file
+            path_obj = Path(path)
+            if "_prediction" in path_obj.stem:
+                # Extract base name by removing "_prediction" and extension
+                prediction_base_name = path_obj.stem.replace("_prediction", "")
+                print(f"📋 Detected prediction file: {path_obj.name}")
+                print(f"   Extracted base name for auto-matching: {prediction_base_name}")
+                break
+
     # Load from config first (if provided)
     if args.config:
         cfg = load_config(args.config)  # Store config for interactive access
-        volumes.update(load_volumes_from_config(args.config, args.mode))
+        volumes.update(load_volumes_from_config(args.config, args.mode, prediction_base_name=prediction_base_name))
 
     # Add image/label (if provided and not empty strings)
     if args.image and args.image.strip():

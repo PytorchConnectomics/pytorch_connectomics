@@ -281,7 +281,31 @@ def read_volume(
     if image_suffix in ["h5", "hdf5"]:
         data = read_hdf5(filename, dataset)
     elif "tif" in image_suffix:
-        data = imageio.volread(filename).squeeze()
+        # Check if filename contains glob patterns
+        if "*" in filename or "?" in filename:
+            # Expand glob pattern to get matching files
+            file_list = sorted(glob.glob(filename))
+            if len(file_list) == 0:
+                raise FileNotFoundError(f"No TIFF files found matching pattern: {filename}")
+            
+            # Read each file and stack along depth dimension
+            volumes = []
+            for filepath in file_list:
+                vol = imageio.volread(filepath).squeeze()
+                # imageio.volread can return multi-page TIFF as (D, H, W) or single page as (H, W)
+                # Ensure all volumes have at least 3D (D, H, W)
+                if vol.ndim == 2:
+                    vol = vol[np.newaxis, ...]  # Add depth dimension: (H, W) -> (1, H, W)
+                # vol.ndim == 3 means (D, H, W), which is what we want
+                volumes.append(vol)
+            
+            # Stack all volumes along depth dimension
+            # Each volume is (D_i, H, W), result will be (sum(D_i), H, W)
+            data = np.concatenate(volumes, axis=0)  # Stack along depth (first dimension)
+        else:
+            # Single file or multi-page TIFF
+            data = imageio.volread(filename).squeeze()
+        
         if data.ndim == 4:
             # Convert (D, C, H, W) to (C, D, H, W) order
             data = data.transpose(1, 0, 2, 3)
