@@ -184,7 +184,9 @@ def decode_binary_watershed(
     seed = cc3d.connected_components(seed_map)
     seed = remove_small_objects(seed, min_seed_size)
     segmentation = mahotas.cwatershed(-semantic.astype(np.float64), seed)
-    segmentation[~foreground] = 0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    segmentation[~foreground] = (
+        0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    )
     segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
 
     return fastremap.refit(segmentation)
@@ -284,7 +286,9 @@ def decode_binary_contour_watershed(
         seed = remove_small_objects(seed, min_seed_size)
 
     segmentation = mahotas.cwatershed(-semantic.astype(np.float64), seed)
-    segmentation[~foreground] = 0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    segmentation[~foreground] = (
+        0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    )
     segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
 
     segmentation = fastremap.refit(segmentation)
@@ -359,7 +363,9 @@ def decode_binary_contour_distance_watershed(
     )
 
     segmentation = mahotas.cwatershed(-distance.astype(np.float64), seed)
-    segmentation[~foreground] = 0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    segmentation[~foreground] = (
+        0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    )
     segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
 
     segmentation = fastremap.refit(segmentation)
