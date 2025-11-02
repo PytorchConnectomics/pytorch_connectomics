@@ -151,3 +151,4 @@ Thumbs.db
 
 # Development logs and documentation
 .claude/
+.CLAUDE.md

@@ -67,6 +67,18 @@ extras_require = {
         "sphinxcontrib-qthelp==1.0.3",
         "sphinxcontrib-serializinghtml==1.1.5",
     ],
+    # Documentation build
+    "docs": [
+        "sphinx==3.4.3",
+        "pytorch-sphinx-theme>=0.0.19",
+        "sphinxcontrib-katex",
+        "jinja2==3.0.3",
+        "sphinxcontrib-applehelp==1.0.4",
+        "sphinxcontrib-devhelp==1.0.2",
+        "sphinxcontrib-htmlhelp==2.0.1",
+        "sphinxcontrib-qthelp==1.0.3",
+        "sphinxcontrib-serializinghtml==1.1.5",
+    ],
     # Command-line tools and utilities
     "cli": [
         # Note: just is not available via pip, install separately:
