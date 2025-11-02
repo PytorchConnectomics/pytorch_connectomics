@@ -178,7 +178,7 @@ inference:
   data:
     do_2d: true                     # Enable 2D data processing for inference
     test_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTs/*.tif
-    test_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTs/*.tif
+    test_label:
     test_resolution: [5, 5]
     output_path: outputs/monai2d_worm/results/
 
