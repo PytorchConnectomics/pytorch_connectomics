@@ -514,6 +514,7 @@ class CheckpointConfig:
     """Model checkpointing configuration."""
 
     monitor: str = "train_loss_total_epoch"
+    dirpath: Optional[str] = None
     mode: str = "min"
     save_top_k: int = 1
     save_last: bool = True
@@ -831,6 +832,7 @@ class InferenceDataConfig:
     test_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
+    output_path: Optional[str] = None  # Optional explicit directory for inference outputs
     output_name: str = (
         "predictions.h5"  # Output filename (auto-pathed to inference/{checkpoint}/{output_name})
     )
@@ -845,6 +847,7 @@ class SlidingWindowConfig:
 
     window_size: Optional[List[int]] = None
     sw_batch_size: Optional[int] = None  # If None, will use system.inference.batch_size
+    overlap: Optional[Any] = None  # Overlap between window passes (float or sequence)
     stride: Optional[List[int]] = None  # Explicit stride for controlling window movement
     blending: str = "gaussian"  # 'gaussian' or 'constant' - blending mode for overlapping patches
     sigma_scale: float = (

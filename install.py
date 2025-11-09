@@ -431,6 +431,17 @@ def install_pytorch_connectomics(
         print_success(f"Core packages installed: {', '.join(to_install)}")
     else:
         print_success("All core packages already installed")
+    print_info("Ensuring numpy and h5py are installed from conda-forge (force reinstall)...")
+    code, _, stderr = run_command(
+        f"conda install -n {env_name} -c conda-forge numpy h5py -y --force-reinstall",
+        check=False,
+    )
+    if code != 0:
+        print_warning("conda reinstall of numpy/h5py failed; please verify the environment manually")
+        if stderr.strip():
+            print_warning(stderr.strip())
+    else:
+        print_success("numpy and h5py verified via conda-forge")
 
     # Group 2: Optional scientific packages (nice to have, but slow to install)
     optional_packages = ["scipy", "scikit-learn", "scikit-image", "opencv"]
