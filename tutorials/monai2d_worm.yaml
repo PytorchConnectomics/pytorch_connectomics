@@ -62,8 +62,8 @@ data:
   do_2d: true                     # Enable 2D data processing (extract 2D slices from 3D volumes)
   
   # Volume configuration
-  train_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/*.tif
-  train_label: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/*.tif
+  train_image: /orcd/data/<lab>/002/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/*.tif
+  train_label: /orcd/data/<lab>/002/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/*.tif
   train_resolution: [5, 5]        # Lucchi EM: 5nm isotropic resolution
   use_preloaded_cache: true            # Load volumes into memory for fast training
 
@@ -158,7 +158,7 @@ monitor:
     save_top_k: 1
     save_last: true
     save_every_n_epochs: 10
-    dirpath: checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
+    dirpath: outputs/monai2d_worm/checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
     # checkpoint_filename: auto-generated from monitor metric (epoch={epoch:03d}-{monitor}={value:.4f})
     use_timestamp: true       # Enable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
@@ -177,7 +177,7 @@ monitor:
 inference:
   data:
     do_2d: true                     # Enable 2D data processing for inference
-    test_image: /projects/weilab/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTs/*.tif
+    test_image: /orcd/data/<lab>/002/shenb/wormbehavior/13/*.tif
     test_label:
     test_resolution: [5, 5]
     output_path: outputs/monai2d_worm/results/

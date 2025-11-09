@@ -182,17 +182,24 @@ def setup_config(args) -> Config:
     config_name = config_path.stem  # Get filename without extension
     output_folder = f"outputs/{config_name}/"
 
-    # Update checkpoint dirpath to use the new output folder
-    cfg.monitor.checkpoint.dirpath = f"{output_folder}checkpoints/"
+    # Update checkpoint dirpath only if not provided by the user
+    if not getattr(cfg.monitor.checkpoint, "dirpath", None):
+        cfg.monitor.checkpoint.dirpath = str(Path(output_folder) / "checkpoints")
+    else:
+        cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
 
-    # Update inference output path to use the new output folder
-    cfg.inference.data.output_path = f"{output_folder}results/"
+    # Update inference output path only if not provided by the user
+    if not getattr(cfg.inference.data, "output_path", None):
+        cfg.inference.data.output_path = str(Path(output_folder) / "results")
+    else:
+        cfg.inference.data.output_path = str(Path(cfg.inference.data.output_path))
 
     # Note: We handle timestamping manually in main() to create run directories
     # Set this to False to prevent PyTorch Lightning from adding its own timestamp
     cfg.monitor.checkpoint.use_timestamp = False
 
-    print(f"📁 Output folder set to: {output_folder}")
+    print(f"📁 Checkpoints base directory: {cfg.monitor.checkpoint.dirpath}")
+    print(f"📂 Inference output directory: {cfg.inference.data.output_path}")
 
     # Apply CLI overrides
     if args.overrides:
@@ -1111,8 +1118,9 @@ def main():
     # Subsequent invocations (with LOCAL_RANK set) reuse the existing timestamp.
     if args.mode == "train":
         # Extract output folder from checkpoint dirpath (remove /checkpoints suffix)
-        checkpoint_dirpath = cfg.monitor.checkpoint.dirpath
-        output_base = Path(checkpoint_dirpath).parent  # This gives us outputs/experiment_name/
+        checkpoint_dir = Path(cfg.monitor.checkpoint.dirpath)
+        checkpoint_subdir = checkpoint_dir.name or "checkpoints"
+        output_base = checkpoint_dir.parent  # Base directory containing timestamped runs
 
         # Check if this is a DDP re-launch (LOCAL_RANK is set by PyTorch Lightning)
         import os
@@ -1129,10 +1137,11 @@ def main():
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             run_dir = output_base / timestamp
 
-            # Update checkpoint dirpath to use the timestamped directory
-            cfg.monitor.checkpoint.dirpath = str(run_dir / "checkpoints")
+            # Update checkpoint dirpath to use the timestamped directory (preserve leaf name)
+            checkpoint_path = run_dir / checkpoint_subdir
+            cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
 
-            run_dir.mkdir(parents=True, exist_ok=True)
+            checkpoint_path.mkdir(parents=True, exist_ok=True)
             print(f"📁 Run directory: {run_dir}")
 
             # Save config to run directory
@@ -1156,7 +1165,8 @@ def main():
             if timestamp_file.exists():
                 timestamp = timestamp_file.read_text().strip()
                 run_dir = output_base / timestamp
-                cfg.monitor.checkpoint.dirpath = str(run_dir / "checkpoints")
+                checkpoint_path = run_dir / checkpoint_subdir
+                cfg.monitor.checkpoint.dirpath = str(checkpoint_path)
                 print(f"📁 [DDP Rank {local_rank}] Using run directory: {run_dir}")
             else:
                 raise RuntimeError(

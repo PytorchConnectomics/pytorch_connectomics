@@ -69,7 +69,7 @@ slurm partition num_cpu num_gpu cmd:
            --cpus-per-task={{num_cpu}} \
            --mem=32G \
            --time=48:00:00 \
-           --wrap="source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && $cmd_with_srun"
+           --wrap="source /orcd/data/<lab>/002/shenb/miniconda/bin/activate pytc && cd $PWD && $cmd_with_srun"
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:
