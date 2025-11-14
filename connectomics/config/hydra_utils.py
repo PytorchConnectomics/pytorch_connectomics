@@ -244,8 +244,8 @@ def resolve_data_paths(cfg: Config) -> Config:
     Supported paths:
     - Training: cfg.data.train_path + cfg.data.train_image/train_label/train_mask
     - Validation: cfg.data.val_path + cfg.data.val_image/val_label/val_mask
-    - Testing (legacy): cfg.data.test_path + cfg.data.test_image/test_label/test_mask
-    - Inference (primary): cfg.inference.data.test_path + cfg.inference.data.test_image/test_label/test_mask
+    - Testing: cfg.data.test_path + cfg.data.test_image/test_label/test_mask
+    - Inference: cfg.inference.data.test_path + cfg.inference.data.test_image/test_label/test_mask
 
     Args:
         cfg: Config object to resolve paths for
@@ -316,7 +316,7 @@ def resolve_data_paths(cfg: Config) -> Config:
         cfg.data.val_mask = _combine_path(cfg.data.val_path, cfg.data.val_mask)
         cfg.data.val_json = _combine_path(cfg.data.val_path, cfg.data.val_json)
 
-    # Resolve test paths (legacy support for cfg.data.test_path)
+    # Resolve test paths
     if cfg.data.test_path:
         cfg.data.test_image = _combine_path(cfg.data.test_path, cfg.data.test_image)
         cfg.data.test_label = _combine_path(cfg.data.test_path, cfg.data.test_label)

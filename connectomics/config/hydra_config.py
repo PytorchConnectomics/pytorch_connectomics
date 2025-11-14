@@ -392,9 +392,7 @@ class DataConfig:
         default_factory=list
     )  # Axis permutation for training data (e.g., [2,1,0] for xyz->zyx)
     val_transpose: List[int] = field(default_factory=list)  # Axis permutation for validation data
-    test_transpose: List[int] = field(
-        default_factory=list
-    )  # Axis permutation for test data (deprecated, use inference.data.test_transpose)
+    test_transpose: List[int] = field(default_factory=list)  # Axis permutation for test data
 
     # Dataset statistics (for auto-planning)
     target_spacing: Optional[List[float]] = None  # Target voxel spacing [z, y, x] in mm
@@ -868,9 +866,7 @@ class TestTimeAugmentationConfig:
     flip_axes: Any = (
         None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
     )
-    act: Optional[str] = (
-        None  # Single activation for all channels: 'softmax', 'sigmoid', 'tanh', None (deprecated, use channel_activations)
-    )
+    act: Optional[str] = None  # Single activation for all channels: 'softmax', 'sigmoid', 'tanh', None
     channel_activations: Optional[List[Any]] = (
         None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...] e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
     )

@@ -428,25 +428,7 @@ def create_callbacks(cfg) -> list:
         callbacks.append(vis_callback)
 
     # Model checkpoint callback
-    # Support both new unified config (training.checkpoint_*) and old separate config (checkpoint.*)
-    if hasattr(cfg, 'checkpoint') and cfg.checkpoint is not None:
-        # Old config style (backward compatibility)
-        monitor = getattr(cfg.checkpoint, 'monitor', 'val/loss')
-        default_filename = f'epoch={{epoch:03d}}-{monitor}={{{monitor}:.4f}}'
-        filename = getattr(cfg.checkpoint, 'filename', default_filename)
-
-        checkpoint_callback = ModelCheckpoint(
-            monitor=monitor,
-            mode=getattr(cfg.checkpoint, 'mode', 'min'),
-            save_top_k=getattr(cfg.checkpoint, 'save_top_k', 3),
-            save_last=getattr(cfg.checkpoint, 'save_last', True),
-            dirpath=getattr(cfg.checkpoint, 'dirpath', 'checkpoints'),
-            filename=filename,
-            verbose=True
-        )
-        callbacks.append(checkpoint_callback)
-    elif hasattr(cfg, 'monitor') and hasattr(cfg.monitor, 'checkpoint'):
-        # New unified config style (monitor.checkpoint.*)
+    if hasattr(cfg, 'monitor') and hasattr(cfg.monitor, 'checkpoint'):
         monitor = getattr(cfg.monitor.checkpoint, 'monitor', 'val/loss')
         filename = getattr(cfg.monitor.checkpoint, 'filename', None)
         if filename is None:
@@ -465,19 +447,7 @@ def create_callbacks(cfg) -> list:
         callbacks.append(checkpoint_callback)
 
     # Early stopping callback
-    # Support both new unified config (training.early_stopping_*) and old separate config (early_stopping.*)
-    if hasattr(cfg, 'early_stopping') and cfg.early_stopping is not None and cfg.early_stopping.enabled:
-        # Old config style (backward compatibility)
-        early_stop_callback = EarlyStopping(
-            monitor=getattr(cfg.early_stopping, 'monitor', 'val/loss'),
-            patience=getattr(cfg.early_stopping, 'patience', 10),
-            mode=getattr(cfg.early_stopping, 'mode', 'min'),
-            min_delta=getattr(cfg.early_stopping, 'min_delta', 0.0),
-            verbose=True
-        )
-        callbacks.append(early_stop_callback)
-    elif hasattr(cfg, 'monitor') and hasattr(cfg.monitor, 'early_stopping') and getattr(cfg.monitor.early_stopping, 'enabled', False):
-        # New unified config style (monitor.early_stopping.*)
+    if hasattr(cfg, 'monitor') and hasattr(cfg.monitor, 'early_stopping') and getattr(cfg.monitor.early_stopping, 'enabled', False):
         early_stop_callback = EarlyStopping(
             monitor=getattr(cfg.monitor.early_stopping, 'monitor', 'val/loss'),
             patience=getattr(cfg.monitor.early_stopping, 'patience', 10),

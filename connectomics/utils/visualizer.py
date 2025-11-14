@@ -590,9 +590,3 @@ class LightningVisualizer:
         log_every_n_steps = getattr(self.cfg.optimization, "vis_every_n_steps", 100)
 
         return trainer.global_step % log_every_n_steps == 0 and batch_idx == 0
-
-
-# Legacy compatibility
-def create_visualizer(cfg, **kwargs):
-    """Factory function for creating visualizer (backward compatible)."""
-    return Visualizer(cfg, **kwargs)

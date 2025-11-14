@@ -597,17 +597,13 @@ class ConnectomicsModule(pl.LightningModule):
             data = np.stack(results, axis=0)
             print(f"  DEBUG: _apply_postprocessing - after stacking, data shape: {data.shape}")
 
-        # Step 2: Apply scaling if configured (support both new and legacy names)
+        # Step 2: Apply scaling if configured
         intensity_scale = getattr(postprocessing, 'intensity_scale', None)
-        output_scale = getattr(postprocessing, 'output_scale', None)
-        scale = intensity_scale if intensity_scale is not None else output_scale
-        if scale is not None:
-            data = data * scale
+        if intensity_scale is not None:
+            data = data * intensity_scale
 
-        # Step 3: Apply dtype conversion if configured (support both new and legacy names)
-        intensity_dtype = getattr(postprocessing, 'intensity_dtype', None)
-        output_dtype = getattr(postprocessing, 'output_dtype', None)
-        target_dtype_str = intensity_dtype if intensity_dtype is not None else output_dtype
+        # Step 3: Apply dtype conversion if configured
+        target_dtype_str = getattr(postprocessing, 'intensity_dtype', None)
 
         if target_dtype_str is not None and target_dtype_str != 'float32':
             # Map string dtype to numpy dtype
@@ -738,27 +734,6 @@ class ConnectomicsModule(pl.LightningModule):
                     continue
 
                 decode_fn = decode_fn_map[fn_name]
-
-                # Backward compatibility: convert old parameter format to new tuple format
-                # for decode_binary_contour_distance_watershed
-                if fn_name == 'decode_binary_contour_distance_watershed':
-                    if 'seed_threshold' in kwargs or 'foreground_threshold' in kwargs:
-                        warnings.warn(
-                            "Detected legacy parameters (seed_threshold, contour_threshold, foreground_threshold) "
-                            "for decode_binary_contour_distance_watershed. Converting to new tuple format "
-                            "(binary_threshold, contour_threshold, distance_threshold). "
-                            "Please update your config files to use the new format.",
-                            DeprecationWarning,
-                        )
-                        # Convert old parameters to new tuple format
-                        seed_thresh = kwargs.pop('seed_threshold', 0.9)
-                        contour_thresh = kwargs.pop('contour_threshold', 0.8)
-                        foreground_thresh = kwargs.pop('foreground_threshold', 0.85)
-                        
-                        # Map old parameters to new tuple format
-                        kwargs['binary_threshold'] = (seed_thresh, foreground_thresh)
-                        kwargs['contour_threshold'] = (contour_thresh, 1.1)
-                        kwargs['distance_threshold'] = (0.5, -0.5)
 
                 try:
                     # Apply decoding function

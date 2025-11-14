@@ -294,14 +294,6 @@ class NonOverlapRegularization(nn.Module):
         return loss.mean()
 
 
-# Aliases for backward compatibility (if needed in configs)
-BinaryReg = BinaryRegularization
-FgDTConsistency = ForegroundDistanceConsistency
-ContourDTConsistency = ContourDistanceConsistency
-FgContourConsistency = ForegroundContourConsistency
-NonoverlapReg = NonOverlapRegularization
-
-
 __all__ = [
     'BinaryRegularization',
     'ForegroundDistanceConsistency',
