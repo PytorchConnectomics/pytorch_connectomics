@@ -328,24 +328,6 @@ class ConnectomicsModule(pl.LightningModule):
 
             # Concatenate all channels back together
             tensor = torch.cat(activated_channels, dim=1)
-        else:
-            # Fall back to single activation for all channels (old approach)
-            tta_act = getattr(self.cfg.inference.test_time_augmentation, 'act', None)
-            if tta_act is None:
-                tta_act = getattr(self.cfg.inference, 'output_act', None)
-
-            # Apply activation function
-            if tta_act == 'softmax':
-                tensor = torch.softmax(tensor, dim=1)
-            elif tta_act == 'sigmoid':
-                tensor = torch.sigmoid(tensor)
-            elif tta_act == 'tanh':
-                tensor = torch.tanh(tensor)
-            elif tta_act is not None and tta_act.lower() != 'none':
-                warnings.warn(
-                    f"Unknown TTA activation function '{tta_act}'. Supported: 'softmax', 'sigmoid', 'tanh', None",
-                    UserWarning,
-                )
 
         # Get TTA-specific channel selection or fall back to output_channel
         tta_channel = getattr(self.cfg.inference.test_time_augmentation, 'select_channel', None)

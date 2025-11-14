@@ -257,17 +257,15 @@ def _build_eval_transforms_impl(
         if mode == "val":
             transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
         else:  # mode == "test"
-            # Check both data.test_transpose and inference.data.test_transpose
+            # Use inference.data.test_transpose
             transpose_axes = []
-            if cfg.data.test_transpose:
-                transpose_axes = cfg.data.test_transpose
             if (
                 hasattr(cfg, "inference")
                 and hasattr(cfg.inference, "data")
                 and hasattr(cfg.inference.data, "test_transpose")
                 and cfg.inference.data.test_transpose
             ):
-                transpose_axes = cfg.inference.data.test_transpose  # inference takes precedence
+                transpose_axes = cfg.inference.data.test_transpose
 
         transforms.append(
             LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
