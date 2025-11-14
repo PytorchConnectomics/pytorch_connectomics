@@ -197,25 +197,52 @@ def build_train_transforms(
     return Compose(transforms)
 
 
-def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+def _build_eval_transforms_impl(
+    cfg: Config, mode: str = "val", keys: list[str] = None
+) -> Compose:
     """
-    Build validation transforms from Hydra config.
+    Internal implementation for building evaluation transforms (validation or test).
+
+    This function contains the shared logic between validation and test transforms,
+    with mode-specific branching for key differences.
 
     Args:
         cfg: Hydra Config object
-        keys: Keys to transform (default: ['image', 'label'] or ['image', 'label', 'mask'] if masks are used)
+        mode: 'val' or 'test' mode
+        keys: Keys to transform (default: auto-detected based on mode)
 
     Returns:
         Composed MONAI transforms (no augmentation)
     """
     if keys is None:
-        # Auto-detect keys based on config
-        keys = ["image", "label"]
-        # Add mask to keys if it's specified in the config (check both train and val masks)
-        if (hasattr(cfg.data, "val_mask") and cfg.data.val_mask is not None) or (
-            hasattr(cfg.data, "train_mask") and cfg.data.train_mask is not None
-        ):
-            keys.append("mask")
+        # Auto-detect keys based on mode
+        if mode == "val":
+            # Validation: default to image+label
+            keys = ["image", "label"]
+            # Add mask if val_mask or train_mask exists
+            if (hasattr(cfg.data, "val_mask") and cfg.data.val_mask is not None) or (
+                hasattr(cfg.data, "train_mask") and cfg.data.train_mask is not None
+            ):
+                keys.append("mask")
+        else:  # mode == "test"
+            # Test/inference: default to image only
+            keys = ["image"]
+            # Only add label if test_label is explicitly specified
+            if (
+                hasattr(cfg, "inference")
+                and hasattr(cfg.inference, "data")
+                and hasattr(cfg.inference.data, "test_label")
+                and cfg.inference.data.test_label is not None
+            ):
+                keys.append("label")
+            # Add mask if test_mask is explicitly specified
+            if (
+                hasattr(cfg, "inference")
+                and hasattr(cfg.inference, "data")
+                and hasattr(cfg.inference.data, "test_mask")
+                and cfg.inference.data.test_mask is not None
+            ):
+                keys.append("mask")
 
     transforms = []
 
@@ -229,9 +256,24 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
         transforms.append(EnsureChannelFirstd(keys=keys))
     else:
         # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
-        val_transpose = cfg.data.val_transpose if cfg.data.val_transpose else []
+        # Get transpose axes based on mode
+        if mode == "val":
+            transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
+        else:  # mode == "test"
+            # Check both data.test_transpose and inference.data.test_transpose
+            transpose_axes = []
+            if cfg.data.test_transpose:
+                transpose_axes = cfg.data.test_transpose
+            if (
+                hasattr(cfg, "inference")
+                and hasattr(cfg.inference, "data")
+                and hasattr(cfg.inference.data, "test_transpose")
+                and cfg.inference.data.test_transpose
+            ):
+                transpose_axes = cfg.inference.data.test_transpose  # inference takes precedence
+
         transforms.append(
-            LoadVolumed(keys=keys, transpose_axes=val_transpose if val_transpose else None)
+            LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
         )
 
     # Apply volumetric split if enabled
@@ -270,155 +312,18 @@ def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
             )
         )
 
-    # Add spatial cropping to prevent loading full volumes (OOM fix)
-    # NOTE: If split is enabled with padding, this crop will be applied AFTER padding
-    if patch_size and all(size > 0 for size in patch_size):
-        transforms.append(
-            CenterSpatialCropd(
-                keys=keys,
-                roi_size=patch_size,
-            )
-        )
-
-    # Normalization - use smart normalization
-    if cfg.data.image_transform.normalize != "none":
-        transforms.append(
-            SmartNormalizeIntensityd(
-                keys=["image"],
-                mode=cfg.data.image_transform.normalize,
-                clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
-                clip_percentile_high=cfg.data.image_transform.clip_percentile_high,
-            )
-        )
-
-    # Normalize labels to 0-1 range if enabled
-    if getattr(cfg.data, "normalize_labels", False):
-        transforms.append(NormalizeLabelsd(keys=["label"]))
-
-    # Label transformations (affinity, distance transform, etc.)
-    if hasattr(cfg.data, "label_transform"):
-        from ..process.build import create_label_transform_pipeline
-        from ..process.monai_transforms import SegErosionInstanced
-
-        label_cfg = cfg.data.label_transform
-
-        # Apply instance erosion first if specified
-        if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
-            transforms.append(SegErosionInstanced(keys=["label"], tsz_h=label_cfg.erosion))
-
-        # Build label transform pipeline directly from label_transform config
-        label_pipeline = create_label_transform_pipeline(label_cfg)
-        transforms.extend(label_pipeline.transforms)
-
-    # NOTE: Do NOT squeeze labels here!
-    # - DiceLoss needs (B, 1, H, W) with to_onehot_y=True
-    # - CrossEntropyLoss needs (B, H, W)
-    # Squeezing is handled in the loss wrapper instead
-
-    # Final conversion to tensor with float32 dtype
-    transforms.append(ToTensord(keys=keys, dtype=torch.float32))
-
-    return Compose(transforms)
-
-
-def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
-    """
-    Build test/inference transforms from Hydra config.
-
-    Similar to validation transforms but WITHOUT cropping to enable
-    sliding window inference on full volumes.
-
-    Args:
-        cfg: Hydra Config object
-        keys: Keys to transform (default: ['image', 'label'] or ['image', 'label', 'mask'] if masks are used)
-
-    Returns:
-        Composed MONAI transforms (no augmentation, no cropping)
-    """
-    if keys is None:
-        # Auto-detect keys based on config
-        keys = ["image"]
-        # Only add label if test_label is specified in the config
-        if (
-            hasattr(cfg, "inference")
-            and hasattr(cfg.inference, "data")
-            and hasattr(cfg.inference.data, "test_label")
-            and cfg.inference.data.test_label is not None
-        ):
-            keys.append("label")
-        # Add mask to keys if it's specified in the config (check test mask)
-        if (
-            hasattr(cfg, "inference")
-            and hasattr(cfg.inference, "data")
-            and hasattr(cfg.inference.data, "test_mask")
-            and cfg.inference.data.test_mask is not None
-        ):
-            keys.append("mask")
-
-    transforms = []
-
-    # Load images first - use appropriate loader based on dataset type
-    dataset_type = getattr(cfg.data, "dataset_type", "volume")  # Default to volume for backward compatibility
-
-    if dataset_type == "filename":
-        # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
-        transforms.append(LoadImaged(keys=keys, image_only=False))
-        # Ensure channel-first format [C, H, W] or [C, D, H, W]
-        transforms.append(EnsureChannelFirstd(keys=keys))
-    else:
-        # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
-        # Get transpose axes for test data (check both data.test_transpose and inference.data.test_transpose)
-        test_transpose = []
-        if cfg.data.test_transpose:
-            test_transpose = cfg.data.test_transpose
-        if (
-            hasattr(cfg, "inference")
-            and hasattr(cfg.inference, "data")
-            and hasattr(cfg.inference.data, "test_transpose")
-            and cfg.inference.data.test_transpose
-        ):
-            test_transpose = cfg.inference.data.test_transpose  # inference takes precedence
-        transforms.append(
-            LoadVolumed(keys=keys, transpose_axes=test_transpose if test_transpose else None)
-    )
-
-    # Apply volumetric split if enabled (though typically not used for test)
-    if cfg.data.split_enabled:
-        from connectomics.data.utils import ApplyVolumetricSplitd
-
-        transforms.append(ApplyVolumetricSplitd(keys=keys))
-
-    # Apply resize if configured (before padding)
-    if hasattr(cfg.data.image_transform, "resize") and cfg.data.image_transform.resize is not None:
-        resize_factors = cfg.data.image_transform.resize
-        if resize_factors:
-            # Use bilinear for images, nearest for labels/masks
+    # Add spatial cropping - MODE-SPECIFIC
+    # Validation: Apply center crop for patch-based validation
+    # Test: Skip cropping to enable sliding window inference on full volumes
+    if mode == "val":
+        if patch_size and all(size > 0 for size in patch_size):
             transforms.append(
-                Resized(keys=["image"], scale=resize_factors, mode="bilinear", align_corners=True)
-            )
-            # Resize labels and masks with nearest-neighbor
-            label_mask_keys = [k for k in keys if k in ["label", "mask"]]
-            if label_mask_keys:
-                transforms.append(
-                    Resized(
-                        keys=label_mask_keys,
-                        scale=resize_factors,
-                        mode="nearest",
-                        align_corners=None,
-                    )
+                CenterSpatialCropd(
+                    keys=keys,
+                    roi_size=patch_size,
                 )
-
-    patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, "patch_size") else None
-    if patch_size and all(size > 0 for size in patch_size):
-        transforms.append(
-            SpatialPadd(
-                keys=keys,
-                spatial_size=patch_size,
-                constant_values=0.0,
             )
-        )
-
-    # NOTE: No CenterSpatialCropd here - we want full volumes for sliding window inference!
+    # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
     if cfg.data.image_transform.normalize != "none":
@@ -431,25 +336,25 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
             )
         )
 
-    # Only apply label transforms if 'label' is in keys
+    # Only process labels if 'label' is in keys
     if "label" in keys:
         # Normalize labels to 0-1 range if enabled
         if getattr(cfg.data, "normalize_labels", False):
             transforms.append(NormalizeLabelsd(keys=["label"]))
 
-        # Check if any evaluation metric is enabled (requires original instance labels)
+        # Check if we should skip label transforms (test mode with evaluation metrics)
         skip_label_transform = False
-        if hasattr(cfg, "inference") and hasattr(cfg.inference, "evaluation"):
-            evaluation_enabled = getattr(cfg.inference.evaluation, "enabled", False)
-            metrics = getattr(cfg.inference.evaluation, "metrics", [])
-            if evaluation_enabled and metrics:
-                skip_label_transform = True
-                print(
-                    f"  ⚠️  Skipping label transforms for metric evaluation (keeping original labels for {metrics})"
-                )
+        if mode == "test":
+            if hasattr(cfg, "inference") and hasattr(cfg.inference, "evaluation"):
+                evaluation_enabled = getattr(cfg.inference.evaluation, "enabled", False)
+                metrics = getattr(cfg.inference.evaluation, "metrics", [])
+                if evaluation_enabled and metrics:
+                    skip_label_transform = True
+                    print(
+                        f"  ⚠️  Skipping label transforms for metric evaluation (keeping original labels for {metrics})"
+                    )
 
         # Label transformations (affinity, distance transform, etc.)
-        # Skip if evaluation metrics are enabled (need original labels for metric computation)
         if hasattr(cfg.data, "label_transform") and not skip_label_transform:
             from ..process.build import create_label_transform_pipeline
             from ..process.monai_transforms import SegErosionInstanced
@@ -473,6 +378,37 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
     transforms.append(ToTensord(keys=keys, dtype=torch.float32))
 
     return Compose(transforms)
+
+
+def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+    """
+    Build validation transforms from Hydra config.
+
+    Args:
+        cfg: Hydra Config object
+        keys: Keys to transform (default: auto-detected as ['image', 'label'])
+
+    Returns:
+        Composed MONAI transforms (no augmentation, center cropping)
+    """
+    return _build_eval_transforms_impl(cfg, mode="val", keys=keys)
+
+
+def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+    """
+    Build test/inference transforms from Hydra config.
+
+    Similar to validation transforms but WITHOUT cropping to enable
+    sliding window inference on full volumes.
+
+    Args:
+        cfg: Hydra Config object
+        keys: Keys to transform (default: auto-detected as ['image'] only)
+
+    Returns:
+        Composed MONAI transforms (no augmentation, no cropping)
+    """
+    return _build_eval_transforms_impl(cfg, mode="test", keys=keys)
 
 
 def build_inference_transforms(cfg: Config) -> Compose:

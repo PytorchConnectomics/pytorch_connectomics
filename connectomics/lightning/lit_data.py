@@ -7,8 +7,9 @@ datasets, enabling seamless integration with PyTorch Lightning training workflow
 
 from __future__ import annotations
 from typing import Dict, List, Any, Optional, Union, Tuple
-import numpy as np
+import warnings
 
+import numpy as np
 import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
@@ -179,29 +180,16 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             return []
 
         dataloader = self._create_dataloader(self.val_dataset, shuffle=False)
+
+        # If validation dataset exists but dataloader creation failed,
+        # skip validation rather than using dummy data
         if dataloader is None:
-            from torch.utils.data import Dataset
-
-            class DummyDataset(Dataset):
-                def __len__(self):
-                    return 1
-
-                def __getitem__(self, idx):
-                    zero = torch.zeros(1, dtype=torch.float32)
-                    return {
-                        "image": zero,
-                        "label": zero,
-                    }
-
-            return DataLoader(
-                dataset=DummyDataset(),
-                batch_size=1,
-                shuffle=False,
-                num_workers=0,
-                pin_memory=False,
-                persistent_workers=False,
-                collate_fn=self._collate_fn,
+            warnings.warn(
+                "Validation dataloader creation failed despite validation dataset being provided. "
+                "Skipping validation. Check your data configuration.",
+                UserWarning
             )
+            return []
 
         return dataloader
 
