@@ -398,30 +398,48 @@ class DataConfig:
 
 ---
 
-### 2.4 Consolidate Redundant CachedVolumeDataset (MEDIUM)
+### 2.4 Consolidate Redundant CachedVolumeDataset ✅ **NOT A DUPLICATE**
 
 **Files:**
 - `connectomics/data/dataset/dataset_volume.py:MonaiCachedVolumeDataset`
-- `connectomics/data/dataset/dataset_volume_cached.py` (291 lines, duplicate)
+- `connectomics/data/dataset/dataset_volume_cached.py:CachedVolumeDataset`
 
-**Issue:** Two implementations of cached volume dataset
-**Impact:** Code duplication, confusion about which to use
-**Effort:** 2-3 hours
+**Issue:** ~~Two implementations of cached volume dataset~~ **Analysis shows NOT duplicates**
+**Impact:** ~~Code duplication, confusion~~ **Complementary approaches with different use cases**
+**Effort:** ~~2-3 hours~~ **0.5 hours (documentation only)**
 
-**Recommended Solution:**
-1. Audit both implementations to find differences
-2. Merge best features into single implementation
-3. Deprecate old implementation with warning
-4. Update imports throughout codebase
-5. Update documentation
+**Analysis Results:**
+
+These are **NOT duplicates** - they serve different purposes:
+
+**CachedVolumeDataset** (dataset_volume_cached.py):
+- Custom implementation that loads **full volumes** into memory
+- Performs random crops from cached volumes during iteration
+- Optimized for **high-iteration training** (iter_num >> num_volumes)
+- Use when: You want to cache full volumes and do many random crops
+- 291 lines, pure PyTorch Dataset
+
+**MonaiCachedVolumeDataset** (dataset_volume.py):
+- Thin wrapper around MONAI's CacheDataset
+- Caches **transformed data** (patches after cropping/augmentation)
+- Uses MONAI's built-in caching mechanism
+- Use when: You want standard MONAI caching behavior
+- ~100 lines, delegates to MONAI
+
+**Recommended Action:**
+1. ✅ Document the differences clearly (done in this analysis)
+2. Add docstring clarifications to both classes
+3. Update tutorials to show when to use each
+4. No consolidation needed - keep both
 
 **Action Items:**
-- [ ] Compare both implementations
-- [ ] Identify unique features of each
-- [ ] Create unified implementation
-- [ ] Add deprecation warning to old version
-- [ ] Update all imports
-- [ ] Remove deprecated file in next major version
+- [x] Compare both implementations
+- [x] Identify unique features of each
+- [x] Document differences in refactoring plan
+- [ ] Add clarifying docstrings to both classes
+- [ ] Update CLAUDE.md with usage guidance
+
+**Status:** ✅ Analysis complete. These are complementary implementations, not duplicates.
 
 ---
 
