@@ -73,7 +73,7 @@ def build_train_transforms(
     # Load images first (unless using pre-cached dataset)
     if not skip_loading:
         # Use appropriate loader based on dataset type
-        dataset_type = getattr(cfg.data, "dataset_type", "volume")  # Default to volume for backward compatibility
+        dataset_type = getattr(cfg.data, "dataset_type", "volume")
 
         if dataset_type == "filename":
             # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
@@ -94,12 +94,9 @@ def build_train_transforms(
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
     # Apply resize if configured (before cropping)
-    # Check data_transform first (new), then fall back to image_transform.resize (legacy)
     resize_size = None
     if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "resize") and cfg.data.data_transform.resize is not None:
         resize_size = cfg.data.data_transform.resize
-    elif hasattr(cfg.data.image_transform, "resize") and cfg.data.image_transform.resize is not None:
-        resize_size = cfg.data.image_transform.resize
 
     if resize_size:
         # Use bilinear for images, nearest for labels/masks
@@ -247,7 +244,7 @@ def _build_eval_transforms_impl(
     transforms = []
 
     # Load images first - use appropriate loader based on dataset type
-    dataset_type = getattr(cfg.data, "dataset_type", "volume")  # Default to volume for backward compatibility
+    dataset_type = getattr(cfg.data, "dataset_type", "volume")
 
     if dataset_type == "filename":
         # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
@@ -260,17 +257,15 @@ def _build_eval_transforms_impl(
         if mode == "val":
             transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
         else:  # mode == "test"
-            # Check both data.test_transpose and inference.data.test_transpose
+            # Use inference.data.test_transpose
             transpose_axes = []
-            if cfg.data.test_transpose:
-                transpose_axes = cfg.data.test_transpose
             if (
                 hasattr(cfg, "inference")
                 and hasattr(cfg.inference, "data")
                 and hasattr(cfg.inference.data, "test_transpose")
                 and cfg.inference.data.test_transpose
             ):
-                transpose_axes = cfg.inference.data.test_transpose  # inference takes precedence
+                transpose_axes = cfg.inference.data.test_transpose
 
         transforms.append(
             LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
@@ -455,8 +450,8 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
         List of MONAI transforms
     """
     transforms = []
-    
-    # Get preset mode (default to "some" for backward compatibility)
+
+    # Get preset mode
     preset = getattr(aug_cfg, "preset", "some")
     
     # Helper function to check if augmentation should be applied
