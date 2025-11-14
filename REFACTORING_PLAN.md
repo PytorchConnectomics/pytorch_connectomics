@@ -82,12 +82,12 @@ def create_tile_data_dicts_from_json(json_path: str) -> List[Dict]:
 
 ---
 
-### 1.2 Fix Code Duplication in Lightning Module (HIGH)
+### 1.2 Fix Code Duplication in Lightning Module ✅ **COMPLETED**
 
-**File:** `connectomics/lightning/lit_model.py:1100-1240` (training_step) and lines 1280-1420 (validation_step)
-**Issue:** ~140 lines of deep supervision logic duplicated
-**Impact:** Maintenance burden, risk of divergence between train/val logic
-**Effort:** 3-4 hours
+**File:** `connectomics/lightning/lit_model.py`
+**Issue:** ~~~140 lines of deep supervision logic duplicated~~ **FIXED**
+**Impact:** ~~Maintenance burden, risk of divergence between train/val logic~~ **RESOLVED**
+**Effort:** 3-4 hours ✅
 
 **Duplicated Logic:**
 - Deep supervision loss computation (5 scales)
@@ -602,18 +602,20 @@ def predict_step(self, batch, batch_idx, dataloader_idx=0):
 
 ## Code Cleanup Tasks
 
-### 5.1 Archive Legacy YACS Configs
+### 5.1 Archive Legacy YACS Configs ✅ **COMPLETED**
 
-**Files:** `configs/barcode/*.yaml` (3 files)
-**Action:** Move to `configs/legacy/` or remove entirely
-**Effort:** 15 minutes
+**Files:** ~~`configs/barcode/*.yaml` (3 files)~~ **REMOVED**
+**Action:** ~~Move to `configs/legacy/` or~~ remove entirely ✅
+**Effort:** 15 minutes ✅
 
-**Steps:**
-1. Create `configs/legacy/` directory
-2. Move `configs/barcode/*.yaml` to legacy folder
-3. Add `README.md` explaining these are deprecated
-4. Update any references in documentation
-5. Add deprecation notice in release notes
+**Completed Steps:**
+1. ✅ Removed `configs/barcode/` directory entirely
+2. ✅ All 3 legacy YACS config files deleted
+3. ✅ Updated CLAUDE.md to remove references
+4. ✅ Updated codebase metrics (100% migration complete)
+5. ✅ Updated overall assessment score (8.1 → 8.3)
+
+**Status:** No YACS code remains in the codebase
 
 ---
 
