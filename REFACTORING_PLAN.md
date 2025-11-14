@@ -263,15 +263,13 @@ connectomics/lightning/
 1. Create new module files
 2. Move functionality in logical chunks
 3. Update imports in `lit_model.py`
-4. Maintain backward compatibility (public API unchanged)
-5. Add integration tests for each module
-6. Update documentation
+4. Add integration tests for each module
+5. Update documentation
 
 **Success Criteria:**
 - [ ] Each file < 500 lines
 - [ ] Clear separation of concerns
 - [ ] All existing tests pass
-- [ ] Public API unchanged (backward compatible)
 - [ ] Documentation updated
 
 ---
@@ -398,7 +396,6 @@ class DataConfig:
   - [x] `deep_supervision_clamp_min: float` (default: -20.0)
   - [x] `deep_supervision_clamp_max: float` (default: 20.0)
 - [x] Validation logic with warning for insufficient weights
-- [x] Backward compatible (defaults match old behavior)
 - [ ] Other hardcoded values (target interpolation, rejection sampling) - Future work
 
 **Status:** ✅ Phase 2.3 (Deep Supervision) completed. Users can now customize deep supervision weights and clamping ranges via config.
@@ -490,14 +487,12 @@ def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:
 - File size reduced from 791 to 727 lines (-64 lines, ~8% reduction)
 - Eliminated ~80% code duplication
 - Single source of truth for shared transform logic
-- Backward compatible (same public API)
 
 **Action Items:**
 - [x] Extract shared logic into `_build_eval_transforms_impl()`
 - [x] Identify val/test-specific differences (4 key differences)
 - [x] Create mode-specific branching with clear comments
 - [x] Keep wrapper functions for API compatibility
-- [x] Backward compatible (public API unchanged)
 
 **Status:** ✅ Phase 2.5 complete. Code duplication eliminated while preserving all functionality.
 
@@ -986,10 +981,8 @@ See Priority 1.3 above for full details.
 
 ### Mitigation Strategies
 1. **Comprehensive testing** before and after each change
-2. **Feature flags** for backward compatibility
-3. **Deprecation warnings** before removal
-4. **Rollback plan** for each phase
-5. **User communication** via release notes
+2. **Rollback plan** for each phase
+3. **User communication** via release notes
 
 ---
 
