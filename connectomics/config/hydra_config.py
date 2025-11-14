@@ -182,6 +182,9 @@ class ModelConfig:
 
     # Deep supervision (supported by MedNeXt, RSUNet, and some MONAI models)
     deep_supervision: bool = False
+    deep_supervision_weights: Optional[List[float]] = None  # None = auto: [1.0, 0.5, 0.25, 0.125, 0.0625]
+    deep_supervision_clamp_min: float = -20.0  # Clamp logits to prevent numerical instability
+    deep_supervision_clamp_max: float = 20.0   # Especially important at coarser scales
 
     # Loss configuration
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])

@@ -1114,7 +1114,9 @@ class ConnectomicsModule(pl.LightningModule):
                 # At coarser scales (especially with mixed precision), logits can explode
                 # BCEWithLogitsLoss: clamp to [-20, 20] (sigmoid maps to [2e-9, 1-2e-9])
                 # MSELoss with tanh: clamp to [-10, 10] (tanh maps to [-0.9999, 0.9999])
-                task_output = torch.clamp(task_output, min=-20.0, max=20.0)
+                clamp_min = getattr(self.cfg.model, 'deep_supervision_clamp_min', -20.0)
+                clamp_max = getattr(self.cfg.model, 'deep_supervision_clamp_max', 20.0)
+                task_output = torch.clamp(task_output, min=clamp_min, max=clamp_max)
 
                 # Apply specified losses for this task
                 for loss_idx in loss_indices:
@@ -1142,7 +1144,9 @@ class ConnectomicsModule(pl.LightningModule):
         else:
             # Standard deep supervision: apply all losses to all outputs
             # Clamp outputs to prevent numerical instability at coarser scales
-            output_clamped = torch.clamp(output, min=-20.0, max=20.0)
+            clamp_min = getattr(self.cfg.model, 'deep_supervision_clamp_min', -20.0)
+            clamp_max = getattr(self.cfg.model, 'deep_supervision_clamp_max', 20.0)
+            output_clamped = torch.clamp(output, min=clamp_min, max=clamp_max)
 
             for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
                 loss = loss_fn(output_clamped, target)
@@ -1191,7 +1195,19 @@ class ConnectomicsModule(pl.LightningModule):
         main_output = outputs['output']
         ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
 
-        ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+        # Use configured weights or default exponential decay
+        if hasattr(self.cfg.model, 'deep_supervision_weights') and self.cfg.model.deep_supervision_weights is not None:
+            ds_weights = self.cfg.model.deep_supervision_weights
+            # Ensure we have enough weights for all outputs
+            if len(ds_weights) < len(ds_outputs) + 1:
+                warnings.warn(
+                    f"deep_supervision_weights has {len(ds_weights)} weights but "
+                    f"{len(ds_outputs) + 1} outputs. Using exponential decay for missing weights."
+                )
+                ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+        else:
+            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+
         all_outputs = [main_output] + ds_outputs
 
         total_loss = 0.0
