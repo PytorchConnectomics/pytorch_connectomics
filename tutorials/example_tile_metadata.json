@@ -1,0 +1,33 @@
+{
+  "depth": 1000,
+  "height": 2048,
+  "width": 2048,
+  "tiles": [
+    {
+      "file": "tile_000_000_000.tif",
+      "z_start": 0,
+      "z_end": 100,
+      "y_start": 0,
+      "y_end": 512,
+      "x_start": 0,
+      "x_end": 512
+    },
+    {
+      "file": "tile_000_000_001.tif",
+      "z_start": 0,
+      "z_end": 100,
+      "y_start": 0,
+      "y_end": 512,
+      "x_start": 512,
+      "x_end": 1024
+    }
+  ],
+  "tile_size": [100, 512, 512],
+  "overlap": [10, 64, 64],
+  "format": "tif",
+  "metadata": {
+    "voxel_size": [30, 4, 4],
+    "source": "Example EM dataset",
+    "description": "Large-scale tiled EM volume for mitochondria segmentation"
+  }
+}

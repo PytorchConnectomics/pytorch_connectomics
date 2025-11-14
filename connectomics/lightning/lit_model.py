@@ -1075,6 +1075,202 @@ class ConnectomicsModule(pl.LightningModule):
         loss_dict['train_loss_total'] = total_loss.item()
         return total_loss, loss_dict
 
+    def _compute_loss_for_scale(
+        self,
+        output: torch.Tensor,
+        target: torch.Tensor,
+        scale_idx: int,
+        stage: str = "train"
+    ) -> Tuple[torch.Tensor, Dict[str, float]]:
+        """
+        Compute loss for a single scale with multi-task or standard loss.
+
+        Args:
+            output: Model output at this scale (B, C, D, H, W)
+            target: Target labels (B, C, D, H, W)
+            scale_idx: Scale index for logging (0 = full resolution)
+            stage: 'train' or 'val' for logging prefix
+
+        Returns:
+            Tuple of (scale_loss, loss_dict) where loss_dict contains individual loss components
+        """
+        scale_loss = 0.0
+        loss_dict = {}
+
+        # Check if multi-task learning is configured
+        is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
+
+        if is_multi_task:
+            # Multi-task learning with deep supervision:
+            # Apply specific losses to specific channels at each scale
+            for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
+                start_ch, end_ch, task_name, loss_indices = task_config
+
+                # Extract channels for this task
+                task_output = output[:, start_ch:end_ch, ...]
+                task_target = target[:, start_ch:end_ch, ...]
+
+                # CRITICAL: Clamp outputs to prevent numerical instability
+                # At coarser scales (especially with mixed precision), logits can explode
+                # BCEWithLogitsLoss: clamp to [-20, 20] (sigmoid maps to [2e-9, 1-2e-9])
+                # MSELoss with tanh: clamp to [-10, 10] (tanh maps to [-0.9999, 0.9999])
+                task_output = torch.clamp(task_output, min=-20.0, max=20.0)
+
+                # Apply specified losses for this task
+                for loss_idx in loss_indices:
+                    loss_fn = self.loss_functions[loss_idx]
+                    weight = self.loss_weights[loss_idx]
+
+                    loss = loss_fn(task_output, task_target)
+
+                    # Check for NaN/Inf (only in training mode)
+                    if stage == "train" and self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                        print(f"\n{'='*80}")
+                        print(f"⚠️  NaN/Inf detected in deep supervision multi-task loss!")
+                        print(f"{'='*80}")
+                        print(f"Scale: {scale_idx}, Task: {task_name} (channels {start_ch}:{end_ch})")
+                        print(f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})")
+                        print(f"Loss value: {loss.item()}")
+                        print(f"Output shape: {task_output.shape}, range: [{task_output.min():.4f}, {task_output.max():.4f}]")
+                        print(f"Target shape: {task_target.shape}, range: [{task_target.min():.4f}, {task_target.max():.4f}]")
+                        if self.debug_on_nan:
+                            print(f"\nEntering debugger...")
+                            pdb.set_trace()
+                        raise ValueError(f"NaN/Inf in deep supervision loss at scale {scale_idx}, task {task_name}")
+
+                    scale_loss += loss * weight
+        else:
+            # Standard deep supervision: apply all losses to all outputs
+            # Clamp outputs to prevent numerical instability at coarser scales
+            output_clamped = torch.clamp(output, min=-20.0, max=20.0)
+
+            for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
+                loss = loss_fn(output_clamped, target)
+
+                # Check for NaN/Inf (only in training mode)
+                if stage == "train" and self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                    print(f"\n{'='*80}")
+                    print(f"⚠️  NaN/Inf detected in loss computation!")
+                    print(f"{'='*80}")
+                    print(f"Loss function: {loss_fn.__class__.__name__}")
+                    print(f"Loss value: {loss.item()}")
+                    print(f"Scale: {scale_idx}, Weight: {weight}")
+                    print(f"Output shape: {output.shape}, range: [{output.min():.4f}, {output.max():.4f}]")
+                    print(f"Target shape: {target.shape}, range: [{target.min():.4f}, {target.max():.4f}]")
+                    print(f"Output contains NaN: {torch.isnan(output).any()}")
+                    print(f"Target contains NaN: {torch.isnan(target).any()}")
+                    if self.debug_on_nan:
+                        print(f"\nEntering debugger...")
+                        pdb.set_trace()
+                    raise ValueError(f"NaN/Inf in loss at scale {scale_idx}")
+
+                scale_loss += loss * weight
+
+        loss_dict[f'{stage}_loss_scale_{scale_idx}'] = scale_loss.item()
+        return scale_loss, loss_dict
+
+    def _compute_deep_supervision_loss(
+        self,
+        outputs: Dict[str, torch.Tensor],
+        labels: torch.Tensor,
+        stage: str = "train"
+    ) -> Tuple[torch.Tensor, Dict[str, float]]:
+        """
+        Compute multi-scale loss with deep supervision.
+
+        Args:
+            outputs: Dictionary with 'output' and 'ds_i' keys for deep supervision
+            labels: Ground truth labels
+            stage: 'train' or 'val' for logging prefix
+
+        Returns:
+            Tuple of (total_loss, loss_dict)
+        """
+        # Multi-scale loss with deep supervision
+        # Weights decrease for smaller scales: [1.0, 0.5, 0.25, 0.125, 0.0625]
+        main_output = outputs['output']
+        ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
+
+        ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
+        all_outputs = [main_output] + ds_outputs
+
+        total_loss = 0.0
+        loss_dict = {}
+
+        for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
+            # Match target to output size
+            target = self._match_target_to_output(labels, output)
+
+            # Compute loss for this scale
+            scale_loss, scale_loss_dict = self._compute_loss_for_scale(
+                output, target, scale_idx, stage
+            )
+
+            # Accumulate with deep supervision weight
+            total_loss += scale_loss * ds_weight
+            loss_dict.update(scale_loss_dict)
+
+        loss_dict[f'{stage}_loss_total'] = total_loss.item()
+        return total_loss, loss_dict
+
+    def _compute_standard_loss(
+        self,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        stage: str = "train"
+    ) -> Tuple[torch.Tensor, Dict[str, float]]:
+        """
+        Compute standard single-scale loss.
+
+        Args:
+            outputs: Model outputs (B, C, D, H, W)
+            labels: Ground truth labels (B, C, D, H, W)
+            stage: 'train' or 'val' for logging prefix
+
+        Returns:
+            Tuple of (total_loss, loss_dict)
+        """
+        total_loss = 0.0
+        loss_dict = {}
+
+        # Check if multi-task learning is configured
+        if hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None:
+            # Multi-task learning: apply specific losses to specific channels
+            total_loss, loss_dict = self._compute_multitask_loss(outputs, labels)
+            # Rename keys for stage
+            if stage == "val":
+                loss_dict = {k.replace('train_', 'val_'): v for k, v in loss_dict.items()}
+        else:
+            # Standard single-scale loss: apply all losses to all outputs
+            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
+                loss = loss_fn(outputs, labels)
+
+                # Check for NaN/Inf (only in training mode)
+                if stage == "train" and self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
+                    print(f"\n{'='*80}")
+                    print(f"⚠️  NaN/Inf detected in loss computation!")
+                    print(f"{'='*80}")
+                    print(f"Loss function: {loss_fn.__class__.__name__}")
+                    print(f"Loss value: {loss.item()}")
+                    print(f"Loss index: {i}, Weight: {weight}")
+                    print(f"Output shape: {outputs.shape}, range: [{outputs.min():.4f}, {outputs.max():.4f}]")
+                    print(f"Label shape: {labels.shape}, range: [{labels.min():.4f}, {labels.max():.4f}]")
+                    print(f"Output contains NaN: {torch.isnan(outputs).any()}")
+                    print(f"Label contains NaN: {torch.isnan(labels).any()}")
+                    if self.debug_on_nan:
+                        print(f"\nEntering debugger...")
+                        pdb.set_trace()
+                    raise ValueError(f"NaN/Inf in loss at index {i}")
+
+                weighted_loss = loss * weight
+                total_loss += weighted_loss
+
+                loss_dict[f'{stage}_loss_{i}'] = loss.item()
+
+            loss_dict[f'{stage}_loss_total'] = total_loss.item()
+
+        return total_loss, loss_dict
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the model."""
         output = self.model(x)
@@ -1092,140 +1288,19 @@ class ConnectomicsModule(pl.LightningModule):
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
         images = batch['image']
-        labels = batch['label']        
+        labels = batch['label']
+
         # Forward pass
         outputs = self(images)
 
         # Check if model outputs deep supervision
         is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
 
-        # Compute loss
-        total_loss = 0.0
-        loss_dict = {}
-
+        # Compute loss using helper methods
         if is_deep_supervision:
-            # Multi-scale loss with deep supervision
-            # Weights decrease for smaller scales: [1.0, 0.5, 0.25, 0.125, 0.0625]
-            main_output = outputs['output']
-            ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
-
-            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
-            all_outputs = [main_output] + ds_outputs
-
-            # Check if multi-task learning is configured
-            is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
-
-            for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
-                # Match target to output size
-                target = self._match_target_to_output(labels, output)
-
-                # Compute loss for this scale
-                scale_loss = 0.0
-
-                if is_multi_task:
-                    # Multi-task learning with deep supervision:
-                    # Apply specific losses to specific channels at each scale
-                    for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
-                        start_ch, end_ch, task_name, loss_indices = task_config
-
-                        # Extract channels for this task
-                        task_output = output[:, start_ch:end_ch, ...]
-                        task_target = target[:, start_ch:end_ch, ...]
-
-                        # CRITICAL: Clamp outputs to prevent numerical instability
-                        # At coarser scales (especially with mixed precision), logits can explode
-                        # BCEWithLogitsLoss: clamp to [-20, 20] (sigmoid maps to [2e-9, 1-2e-9])
-                        # MSELoss with tanh: clamp to [-10, 10] (tanh maps to [-0.9999, 0.9999])
-                        task_output = torch.clamp(task_output, min=-20.0, max=20.0)
-
-                        # Apply specified losses for this task
-                        for loss_idx in loss_indices:
-                            loss_fn = self.loss_functions[loss_idx]
-                            weight = self.loss_weights[loss_idx]
-
-                            loss = loss_fn(task_output, task_target)
-
-                            # Check for NaN/Inf
-                            if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
-                                print(f"\n{'='*80}")
-                                print(f"⚠️  NaN/Inf detected in deep supervision multi-task loss!")
-                                print(f"{'='*80}")
-                                print(f"Scale: {scale_idx}, Task: {task_name} (channels {start_ch}:{end_ch})")
-                                print(f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})")
-                                print(f"Loss value: {loss.item()}")
-                                print(f"Output shape: {task_output.shape}, range: [{task_output.min():.4f}, {task_output.max():.4f}]")
-                                print(f"Target shape: {task_target.shape}, range: [{task_target.min():.4f}, {task_target.max():.4f}]")
-                                if self.debug_on_nan:
-                                    print(f"\nEntering debugger...")
-                                    pdb.set_trace()
-                                raise ValueError(f"NaN/Inf in deep supervision loss at scale {scale_idx}, task {task_name}")
-
-                            scale_loss += loss * weight
-                else:
-                    # Standard deep supervision: apply all losses to all outputs
-                    # Clamp outputs to prevent numerical instability at coarser scales
-                    output_clamped = torch.clamp(output, min=-20.0, max=20.0)
-
-                    for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                        loss = loss_fn(output_clamped, target)
-
-                        # Check for NaN/Inf immediately after computing loss
-                        if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
-                            print(f"\n{'='*80}")
-                            print(f"⚠️  NaN/Inf detected in loss computation!")
-                            print(f"{'='*80}")
-                            print(f"Loss function: {loss_fn.__class__.__name__}")
-                            print(f"Loss value: {loss.item()}")
-                            print(f"Scale: {scale_idx}, Weight: {weight}")
-                            print(f"Output shape: {output.shape}, range: [{output.min():.4f}, {output.max():.4f}]")
-                            print(f"Target shape: {target.shape}, range: [{target.min():.4f}, {target.max():.4f}]")
-                            print(f"Output contains NaN: {torch.isnan(output).any()}")
-                            print(f"Target contains NaN: {torch.isnan(target).any()}")
-                            if self.debug_on_nan:
-                                print(f"\nEntering debugger...")
-                                pdb.set_trace()
-                            raise ValueError(f"NaN/Inf in loss at scale {scale_idx}")
-
-                        scale_loss += loss * weight
-
-                total_loss += scale_loss * ds_weight
-                loss_dict[f'train_loss_scale_{scale_idx}'] = scale_loss.item()
-
-            loss_dict['train_loss_total'] = total_loss.item()
-
+            total_loss, loss_dict = self._compute_deep_supervision_loss(outputs, labels, stage="train")
         else:
-            # Check if multi-task learning is configured
-            if hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None:
-                # Multi-task learning: apply specific losses to specific channels
-                total_loss, loss_dict = self._compute_multitask_loss(outputs, labels)
-            else:
-                # Standard single-scale loss: apply all losses to all outputs
-                for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                    loss = loss_fn(outputs, labels)
-
-                    # Check for NaN/Inf immediately after computing loss
-                    if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
-                        print(f"\n{'='*80}")
-                        print(f"⚠️  NaN/Inf detected in loss computation!")
-                        print(f"{'='*80}")
-                        print(f"Loss function: {loss_fn.__class__.__name__}")
-                        print(f"Loss value: {loss.item()}")
-                        print(f"Loss index: {i}, Weight: {weight}")
-                        print(f"Output shape: {outputs.shape}, range: [{outputs.min():.4f}, {outputs.max():.4f}]")
-                        print(f"Label shape: {labels.shape}, range: [{labels.min():.4f}, {labels.max():.4f}]")
-                        print(f"Output contains NaN: {torch.isnan(outputs).any()}")
-                        print(f"Label contains NaN: {torch.isnan(labels).any()}")
-                        if self.debug_on_nan:
-                            print(f"\nEntering debugger...")
-                            pdb.set_trace()
-                        raise ValueError(f"NaN/Inf in loss at index {i}")
-
-                    weighted_loss = loss * weight
-                    total_loss += weighted_loss
-
-                    loss_dict[f'train_loss_{i}'] = loss.item()
-
-                loss_dict['train_loss_total'] = total_loss.item()
+            total_loss, loss_dict = self._compute_standard_loss(outputs, labels, stage="train")
 
         # Log losses (sync across GPUs for distributed training)
         self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
@@ -1243,75 +1318,11 @@ class ConnectomicsModule(pl.LightningModule):
         # Check if model outputs deep supervision
         is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
 
-        # Compute loss
-        total_loss = 0.0
-        loss_dict = {}
-
+        # Compute loss using helper methods
         if is_deep_supervision:
-            # Multi-scale loss with deep supervision
-            main_output = outputs['output']
-            ds_outputs = [outputs[f'ds_{i}'] for i in range(1, 5) if f'ds_{i}' in outputs]
-
-            ds_weights = [1.0] + [0.5 ** i for i in range(1, len(ds_outputs) + 1)]
-            all_outputs = [main_output] + ds_outputs
-
-            # Check if multi-task learning is configured
-            is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
-
-            for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
-                # Match target to output size
-                target = self._match_target_to_output(labels, output)
-
-                # Compute loss for this scale
-                scale_loss = 0.0
-
-                if is_multi_task:
-                    # Multi-task learning with deep supervision:
-                    # Apply specific losses to specific channels at each scale
-                    for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
-                        start_ch, end_ch, task_name, loss_indices = task_config
-
-                        # Extract channels for this task
-                        task_output = output[:, start_ch:end_ch, ...]
-                        task_target = target[:, start_ch:end_ch, ...]
-
-                        # CRITICAL: Clamp outputs to prevent numerical instability
-                        # At coarser scales (especially with mixed precision), logits can explode
-                        # BCEWithLogitsLoss: clamp to [-20, 20] (sigmoid maps to [2e-9, 1-2e-9])
-                        # MSELoss with tanh: clamp to [-10, 10] (tanh maps to [-0.9999, 0.9999])
-                        task_output = torch.clamp(task_output, min=-20.0, max=20.0)
-
-                        # Apply specified losses for this task
-                        for loss_idx in loss_indices:
-                            loss_fn = self.loss_functions[loss_idx]
-                            weight = self.loss_weights[loss_idx]
-
-                            loss = loss_fn(task_output, task_target)
-                            scale_loss += loss * weight
-                else:
-                    # Standard deep supervision: apply all losses to all outputs
-                    # Clamp outputs to prevent numerical instability at coarser scales
-                    output_clamped = torch.clamp(output, min=-20.0, max=20.0)
-
-                    for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                        loss = loss_fn(output_clamped, target)
-                        scale_loss += loss * weight
-
-                total_loss += scale_loss * ds_weight
-                loss_dict[f'val_loss_scale_{scale_idx}'] = scale_loss.item()
-
-            loss_dict['val_loss_total'] = total_loss.item()
-
+            total_loss, loss_dict = self._compute_deep_supervision_loss(outputs, labels, stage="val")
         else:
-            # Standard single-scale loss
-            for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                loss = loss_fn(outputs, labels)
-                weighted_loss = loss * weight
-                total_loss += weighted_loss
-
-                loss_dict[f'val_loss_{i}'] = loss.item()
-
-            loss_dict['val_loss_total'] = total_loss.item()
+            total_loss, loss_dict = self._compute_standard_loss(outputs, labels, stage="val")
 
         # Compute evaluation metrics if enabled
         if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
