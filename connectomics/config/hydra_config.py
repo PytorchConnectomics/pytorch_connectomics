@@ -182,9 +182,11 @@ class ModelConfig:
 
     # Deep supervision (supported by MedNeXt, RSUNet, and some MONAI models)
     deep_supervision: bool = False
-    deep_supervision_weights: Optional[List[float]] = None  # None = auto: [1.0, 0.5, 0.25, 0.125, 0.0625]
+    deep_supervision_weights: Optional[List[float]] = (
+        None  # None = auto: [1.0, 0.5, 0.25, 0.125, 0.0625]
+    )
     deep_supervision_clamp_min: float = -20.0  # Clamp logits to prevent numerical instability
-    deep_supervision_clamp_max: float = 20.0   # Especially important at coarser scales
+    deep_supervision_clamp_max: float = 20.0  # Especially important at coarser scales
 
     # Loss configuration
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
@@ -925,13 +927,16 @@ class BinaryPostprocessingConfig:
 
     Applies morphological operations and connected components filtering to binary predictions.
     Pipeline order:
-        1. Threshold predictions to binary mask (handled by decoding)
+        1. Threshold predictions to binary mask (using threshold_range if provided)
         2. Apply morphological opening (erosion + dilation)
         3. Extract connected components
         4. Keep top-k largest components
     """
 
     enabled: bool = False  # Enable binary postprocessing pipeline
+    threshold_range: Optional[List[float]] = (
+        None  # Threshold range [min, max] for binarization. If None, uses 0.5 for [0,1] or 0 for >1
+    )
     median_filter_size: Optional[Tuple[int, ...]] = (
         None  # Median filter kernel size (e.g., (3, 3) for 2D)
     )
@@ -944,7 +949,7 @@ class BinaryPostprocessingConfig:
 class ConnectedComponentsConfig:
     """Connected components filtering configuration."""
 
-    enabled: bool = True  # Enable connected components filtering
+    enabled: bool = False  # Enable connected components filtering
     top_k: Optional[int] = None  # Keep only top-k largest components (None = keep all)
     min_size: int = 0  # Minimum component size in voxels
     connectivity: int = 1  # Connectivity for CC (1=face, 2=face+edge, 3=face+edge+corner)

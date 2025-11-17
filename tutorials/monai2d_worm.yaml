@@ -24,8 +24,8 @@ description: 2D worm segmentation using MONAI Residual UNet with paired data tra
 system:
   training:
     num_gpus: 1                          # Single GPU
-    num_cpus: 4                          # Increase for better data loading
-    num_workers: 4                       # Parallel data loading (2D slices are lighter)
+    num_cpus: 1                          # Increase for better data loading
+    num_workers: 1                        # Parallel data loading (2D slices are lighter)
     batch_size: 32                        # Higher batch size for 2D (vs 4 for 3D)
   inference:
     num_gpus: 1
@@ -198,7 +198,7 @@ inference:
     #tta_flip_axes: [[1]]                   # Flip Z-axis only (MUST use [1] for depth in BCDHW, NOT [0]!)
     # Example custom TTA: [[1], [2], [3]] for single-axis flips only (Z, Y, X) - 4x inference
     # Example custom TTA: [[1, 2], [1, 3], [2, 3]] for two-axis flips only - 4x inference
-    act: softmax                     # Activation: 'sigmoid' for single-channel binary segmentation
+    channel_activations: [[0, 2, 'softmax']]  # Per-channel activations: apply softmax to all channels (0-1)
     select_channel: [1]                    # Channel selection: null (use all channels for single-channel output)
     ensemble_mode: mean              # Ensemble strategy: 'mean' (average), 'min' (conservative), 'max' (aggressive)
     # NOTE: tta_act and tta_channel are applied even with null flip_axes (no ensemble, just activation + channel selection)

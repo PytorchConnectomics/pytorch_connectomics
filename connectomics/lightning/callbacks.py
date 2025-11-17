@@ -99,17 +99,27 @@ class VisualizationCallback(Callback):
             # Generate predictions for stored batch
             with torch.no_grad():
                 pl_module.eval()
-                pred = pl_module(self._last_train_batch['image'])
+                # Move batch to model's device before inference
+                image = self._last_train_batch['image'].to(pl_module.device)
+                pred = pl_module(image)
                 pl_module.train()
 
+                # Move all tensors to CPU for visualization to avoid device mismatch
+                image_cpu = image.cpu()
+                label_cpu = self._last_train_batch['label'].cpu()
+                pred_cpu = pred.cpu()
+                mask_cpu = self._last_train_batch.get('mask', None)
+                if mask_cpu is not None:
+                    mask_cpu = mask_cpu.cpu()
+
             # Visualize - use epoch number as step for slider
-            if self._last_train_batch['image'].ndim == 5 and self.num_slices > 1:
+            if image_cpu.ndim == 5 and self.num_slices > 1:
                 # Use consecutive slices for 3D volumes
                 self.visualizer.visualize_consecutive_slices(
-                    volume=self._last_train_batch['image'],
-                    label=self._last_train_batch['label'],
-                    mask=self._last_train_batch.get('mask', None),  # Include mask if present
-                    output=pred,
+                    volume=image_cpu,
+                    label=label_cpu,
+                    mask=mask_cpu,
+                    output=pred_cpu,
                     writer=writer,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
                     prefix='train',
@@ -118,10 +128,10 @@ class VisualizationCallback(Callback):
             else:
                 # Use single slice for 2D or when num_slices=1
                 self.visualizer.visualize(
-                    volume=self._last_train_batch['image'],
-                    label=self._last_train_batch['label'],
-                    mask=self._last_train_batch.get('mask', None),  # Include mask if present
-                    output=pred,
+                    volume=image_cpu,
+                    label=label_cpu,
+                    mask=mask_cpu,
+                    output=pred_cpu,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
                     writer=writer,
                     prefix='train'  # Single tab name (no epoch prefix)
@@ -150,16 +160,26 @@ class VisualizationCallback(Callback):
 
             # Generate predictions for stored batch
             with torch.no_grad():
-                pred = pl_module(self._last_val_batch['image'])
+                # Move batch to model's device before inference
+                image = self._last_val_batch['image'].to(pl_module.device)
+                pred = pl_module(image)
+
+                # Move all tensors to CPU for visualization to avoid device mismatch
+                image_cpu = image.cpu()
+                label_cpu = self._last_val_batch['label'].cpu()
+                pred_cpu = pred.cpu()
+                mask_cpu = self._last_val_batch.get('mask', None)
+                if mask_cpu is not None:
+                    mask_cpu = mask_cpu.cpu()
 
             # Visualize - use epoch number as step for slider
-            if self._last_val_batch['image'].ndim == 5 and self.num_slices > 1:
+            if image_cpu.ndim == 5 and self.num_slices > 1:
                 # Use consecutive slices for 3D volumes
                 self.visualizer.visualize_consecutive_slices(
-                    volume=self._last_val_batch['image'],
-                    label=self._last_val_batch['label'],
-                    mask=self._last_val_batch.get('mask', None),  # Include mask if present
-                    output=pred,
+                    volume=image_cpu,
+                    label=label_cpu,
+                    mask=mask_cpu,
+                    output=pred_cpu,
                     writer=writer,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
                     prefix='val',
@@ -168,10 +188,10 @@ class VisualizationCallback(Callback):
             else:
                 # Use single slice for 2D or when num_slices=1
                 self.visualizer.visualize(
-                    volume=self._last_val_batch['image'],
-                    label=self._last_val_batch['label'],
-                    mask=self._last_val_batch.get('mask', None),  # Include mask if present
-                    output=pred,
+                    volume=image_cpu,
+                    label=label_cpu,
+                    mask=mask_cpu,
+                    output=pred_cpu,
                     iteration=trainer.current_epoch,  # Use epoch as step for slider
                     writer=writer,
                     prefix='val'  # Single tab name (no epoch prefix)

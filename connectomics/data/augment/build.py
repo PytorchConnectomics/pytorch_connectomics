@@ -454,6 +454,15 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
     # Get preset mode
     preset = getattr(aug_cfg, "preset", "some")
     
+    # Validate preset choice
+    valid_presets = {"none", "some", "all"}
+    if preset not in valid_presets:
+        raise ValueError(
+            f"Invalid augmentation preset: '{preset}'. "
+            f"Valid choices are: {', '.join(sorted(valid_presets))}. "
+            f"Got: '{preset}'. Please use one of the valid options."
+        )
+    
     # Helper function to check if augmentation should be applied
     def should_augment(aug_name: str, aug_enabled: Optional[bool]) -> bool:
         """

@@ -542,25 +542,20 @@ class ConnectomicsModule(pl.LightningModule):
 
             # Process each sample in batch
             # Handle both 4D (B, C, H, W) for 2D data and 5D (B, C, D, H, W) for 3D data
-            print(f"  DEBUG: _apply_postprocessing - input data shape: {data.shape}, ndim: {data.ndim}")
             if data.ndim == 4:
                 # 2D data: (B, C, H, W)
                 batch_size = data.shape[0]
-                print(f"  DEBUG: _apply_postprocessing - detected 2D data, batch_size: {batch_size}")
             elif data.ndim == 5:
                 # 3D data: (B, C, D, H, W)
                 batch_size = data.shape[0]
-                print(f"  DEBUG: _apply_postprocessing - detected 3D data, batch_size: {batch_size}")
             elif data.ndim == 3:
                 # Single 3D volume: (C, D, H, W) or (D, H, W) - add batch dimension
                 batch_size = 1
                 data = data[np.newaxis, ...]  # (1, C, D, H, W) or (1, D, H, W)
-                print(f"  DEBUG: _apply_postprocessing - single 3D sample, added batch dimension")
             elif data.ndim == 2:
                 # Single 2D image: (H, W) - add batch and channel dimensions
                 batch_size = 1
                 data = data[np.newaxis, np.newaxis, ...]  # (1, 1, H, W)
-                print(f"  DEBUG: _apply_postprocessing - single 2D sample, added batch and channel dimensions")
             else:
                 batch_size = 1
 
@@ -568,7 +563,6 @@ class ConnectomicsModule(pl.LightningModule):
             results = []
             for batch_idx in range(batch_size):
                 sample = data[batch_idx]  # (C, H, W) for 2D or (C, D, H, W) for 3D
-                print(f"  DEBUG: _apply_postprocessing - processing batch_idx {batch_idx}, sample shape: {sample.shape}")
 
                 # Extract foreground probability (always use first channel if channel dimension exists)
                 if sample.ndim == 4:  # (C, D, H, W) - 3D with channel
@@ -598,9 +592,7 @@ class ConnectomicsModule(pl.LightningModule):
                 results.append(processed)
 
             # Stack results back into batch
-            print(f"  DEBUG: _apply_postprocessing - stacking {len(results)} results, shapes: {[r.shape for r in results]}")
             data = np.stack(results, axis=0)
-            print(f"  DEBUG: _apply_postprocessing - after stacking, data shape: {data.shape}")
 
         # Step 2: Apply scaling if configured
         intensity_scale = getattr(postprocessing, 'intensity_scale', None)
@@ -696,19 +688,15 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Process each sample in batch
         # Handle both 4D (B, C, H, W) for 2D data and 5D (B, C, D, H, W) for 3D data
-        print(f"  DEBUG: _apply_decode_mode - input data shape: {data.shape}, ndim: {data.ndim}")
         if data.ndim == 4:
             # 2D data: (B, C, H, W)
             batch_size = data.shape[0]
-            print(f"  DEBUG: _apply_decode_mode - detected 2D data, batch_size: {batch_size}")
         elif data.ndim == 5:
             # 3D data: (B, C, D, H, W)
             batch_size = data.shape[0]
-            print(f"  DEBUG: _apply_decode_mode - detected 3D data, batch_size: {batch_size}")
         else:
             # Single sample: add batch dimension
             batch_size = 1
-            print(f"  DEBUG: _apply_decode_mode - single sample, adding batch dimension")
             if data.ndim == 3:
                 data = data[np.newaxis, ...]  # (C, H, W) -> (1, C, H, W)
             elif data.ndim == 2:
@@ -717,7 +705,6 @@ class ConnectomicsModule(pl.LightningModule):
         results = []
         for batch_idx in range(batch_size):
             sample = data[batch_idx]  # (C, H, W) for 2D or (C, D, H, W) for 3D
-            print(f"  DEBUG: _apply_decode_mode - processing batch_idx {batch_idx}, sample shape: {sample.shape}")
 
             # Apply each decode mode sequentially
             for decode_cfg in decode_modes:
@@ -758,9 +745,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Stack results back into batch
         # Always preserve batch dimension, even for batch_size=1
-        print(f"  DEBUG: _apply_decode_mode - stacking {len(results)} results, shapes: {[r.shape for r in results]}")
         decoded = np.stack(results, axis=0)
-        print(f"  DEBUG: _apply_decode_mode - final decoded shape: {decoded.shape}")
         return decoded
 
     def _resolve_output_filenames(self, batch: Dict[str, Any]) -> List[str]:
@@ -783,28 +768,19 @@ class ConnectomicsModule(pl.LightningModule):
 
         meta = batch.get('image_meta_dict')
         filenames: List[Optional[str]] = []
-        
-        print(f"  DEBUG: _resolve_output_filenames - meta type: {type(meta)}, batch_size: {batch_size}")
 
         # Handle different metadata structures
         if isinstance(meta, list):
             # Multiple metadata dicts (one per sample in batch)
-            print(f"  DEBUG: _resolve_output_filenames - meta is list with {len(meta)} items")
             for idx, meta_item in enumerate(meta):
                 if isinstance(meta_item, dict):
                     filename = meta_item.get('filename_or_obj')
                     if filename is not None:
                         filenames.append(filename)
-                    else:
-                        print(f"  DEBUG: _resolve_output_filenames - meta_item[{idx}] has no filename_or_obj")
-                else:
-                    print(f"  DEBUG: _resolve_output_filenames - meta_item[{idx}] is not a dict: {type(meta_item)}")
             # Update batch_size from metadata if we have a list
             batch_size = max(batch_size, len(filenames))
-            print(f"  DEBUG: _resolve_output_filenames - extracted {len(filenames)} filenames from list")
         elif isinstance(meta, dict):
             # Single metadata dict
-            print(f"  DEBUG: _resolve_output_filenames - meta is dict")
             meta_filenames = meta.get('filename_or_obj')
             if isinstance(meta_filenames, (list, tuple)):
                 filenames = [f for f in meta_filenames if f is not None]
@@ -813,13 +789,6 @@ class ConnectomicsModule(pl.LightningModule):
             # Update batch_size from metadata
             if len(filenames) > 0:
                 batch_size = max(batch_size, len(filenames))
-            print(f"  DEBUG: _resolve_output_filenames - extracted {len(filenames)} filenames from dict")
-        else:
-            # Handle case where meta might be None or other types
-            # This can happen if metadata wasn't preserved through transforms
-            # We'll use fallback filenames based on batch_size
-            print(f"  DEBUG: _resolve_output_filenames - meta is None or unexpected type: {type(meta)}")
-            pass
 
         resolved_names: List[str] = []
         for idx in range(batch_size):
@@ -828,8 +797,6 @@ class ConnectomicsModule(pl.LightningModule):
             else:
                 # Generate fallback filename - this shouldn't happen if metadata is preserved correctly
                 resolved_names.append(f"volume_{self.global_step}_{idx}")
-        
-        print(f"  DEBUG: _resolve_output_filenames - returning {len(resolved_names)} resolved names: {resolved_names[:3]}...")
         
         # Always return exactly batch_size filenames
         if len(resolved_names) < batch_size:
@@ -875,8 +842,6 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Determine actual batch size from predictions
         # Handle both batched (B, ...) and unbatched (...) predictions
-        print(f"  DEBUG: _write_outputs - predictions shape: {predictions.shape}, ndim: {predictions.ndim}, filenames count: {len(filenames)}")
-        
         if predictions.ndim >= 4:
             # Has batch dimension: (B, C, D, H, W) or (B, C, H, W) or (B, D, H, W)
             actual_batch_size = predictions.shape[0]
@@ -886,12 +851,10 @@ class ConnectomicsModule(pl.LightningModule):
             if len(filenames) > 0 and predictions.shape[0] == len(filenames):
                 # Batched 2D data: (B, H, W) where B matches number of filenames
                 actual_batch_size = predictions.shape[0]
-                print(f"  DEBUG: _write_outputs - detected batched 2D data (B, H, W) with batch_size={actual_batch_size}")
             else:
                 # Single 3D volume: (D, H, W) - treat as batch_size=1
                 actual_batch_size = 1
                 predictions = predictions[np.newaxis, ...]  # Add batch dimension
-                print(f"  DEBUG: _write_outputs - detected single 3D volume, added batch dimension")
         elif predictions.ndim == 2:
             # Single 2D image: (H, W) - treat as batch_size=1
             actual_batch_size = 1
@@ -904,7 +867,6 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Ensure we don't exceed the actual batch size
         batch_size = min(actual_batch_size, len(filenames))
-        print(f"  DEBUG: _write_outputs - actual_batch_size: {actual_batch_size}, batch_size: {batch_size}, will save {batch_size} predictions")
 
         # Save predictions
         for idx in range(batch_size):
@@ -920,6 +882,9 @@ class ConnectomicsModule(pl.LightningModule):
                     # 4D volume (C, D, H, W): keep channel first, transpose spatial dims
                     spatial_transpose = [i + 1 for i in output_transpose]
                     prediction = np.transpose(prediction, [0] + spatial_transpose)
+
+            # Squeeze singleton dimensions (e.g., (1, 1, D, H, W) -> (D, H, W))
+            prediction = np.squeeze(prediction)
 
             destination = output_dir / f"{name}_{suffix}.h5"
             write_hdf5(str(destination), prediction, dataset="prediction")
@@ -1168,52 +1133,158 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Get batch size from images
         actual_batch_size = images.shape[0]
-        print(f"  DEBUG: test_step - images shape: {images.shape}, batch_size: {actual_batch_size}")
 
-        # Always use TTA (handles no-transform case) + sliding window
-        # TTA preprocessing (activation, masking) is applied regardless of flip augmentation
-        # Note: TTA always returns a simple tensor, not a dict (deep supervision not supported in test mode)
-        predictions = self.inference_manager.predict_with_tta(images, mask=mask)
-
-        # Convert predictions to numpy for saving/decoding
-        predictions_np = predictions.detach().cpu().float().numpy()
-        print(f"  DEBUG: test_step - predictions_np shape: {predictions_np.shape}")
-
-        # Resolve filenames once for all saving operations
+        # Resolve filenames once for all operations
         filenames = resolve_output_filenames(self.cfg, batch, self.global_step)
-        print(f"  DEBUG: test_step - filenames count: {len(filenames)}, filenames: {filenames[:5]}...")
 
         # Ensure filenames list matches actual batch size
         # If we don't have enough filenames, generate default ones
         while len(filenames) < actual_batch_size:
             filenames.append(f"volume_{self.global_step}_{len(filenames)}")
-        print(f"  DEBUG: test_step - after padding, filenames count: {len(filenames)}")
 
+        # Check if prediction files already exist
+        from connectomics.data.io import read_hdf5
+        from pathlib import Path
+        
+        output_dir_value = None
+        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'data') and hasattr(self.cfg.inference.data, 'output_path'):
+            output_dir_value = self.cfg.inference.data.output_path
+        
+        predictions_np = None
+        if output_dir_value:
+            output_dir = Path(output_dir_value)
+            # Check if all prediction files exist
+            all_exist = True
+            existing_predictions = []
+            
+            for filename in filenames[:actual_batch_size]:
+                pred_file = output_dir / f"{filename}_prediction.h5"
+                if pred_file.exists():
+                    print(f"  ✓ Found existing prediction: {pred_file}")
+                    try:
+                        pred = read_hdf5(str(pred_file), dataset="main")
+                        existing_predictions.append(pred)
+                    except Exception as e:
+                        print(f"  ⚠️  Failed to load {pred_file}: {e}, will re-run inference")
+                        all_exist = False
+                        break
+                else:
+                    print(f"  ✗ Prediction file not found: {pred_file}, will run inference")
+                    all_exist = False
+                    break
+            
+            if all_exist and len(existing_predictions) == actual_batch_size:
+                print(f"  ✅ All prediction files exist! Loading {len(existing_predictions)} predictions and skipping inference.")
+                # Stack predictions into batch format
+                if actual_batch_size == 1:
+                    predictions_np = existing_predictions[0]
+                    # Add batch dimension if needed
+                    if predictions_np.ndim < 4:
+                        predictions_np = predictions_np[np.newaxis, ...]
+                else:
+                    # Stack multiple predictions
+                    predictions_np = np.stack([p[np.newaxis, ...] if p.ndim < 4 else p for p in existing_predictions], axis=0)
+                
+                # Reverse postprocessing to get back to [0,1] range for evaluation
+                # The saved predictions are postprocessed (scaled, dtype converted)
+                if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'postprocessing'):
+                    postprocessing = self.cfg.inference.postprocessing
+                    # Reverse intensity scaling
+                    intensity_scale = getattr(postprocessing, 'intensity_scale', None)
+                    output_scale = getattr(postprocessing, 'output_scale', None)
+                    scale = intensity_scale if intensity_scale is not None else output_scale
+                    if scale is not None:
+                        predictions_np = predictions_np.astype(np.float32) / float(scale)
+                    else:
+                        # Convert to float if it was converted to uint8/int
+                        if predictions_np.dtype in [np.uint8, np.int8, np.uint16, np.int16]:
+                            predictions_np = predictions_np.astype(np.float32) / 255.0
+
+        # Run inference only if predictions don't exist
+        if predictions_np is None:
+            print(f"  🔄 Running inference (predictions not found or incomplete)")
+            # Always use TTA (handles no-transform case) + sliding window
+            # TTA preprocessing (activation, masking) is applied regardless of flip augmentation
+            # Note: TTA always returns a simple tensor, not a dict (deep supervision not supported in test mode)
+            predictions = self.inference_manager.predict_with_tta(images, mask=mask)
+
+            # Convert predictions to numpy for saving/decoding
+            predictions_np = predictions.detach().cpu().float().numpy()
+
+        # Track if we loaded existing predictions (skip decode/postprocess if already done)
+        loaded_from_file = (predictions_np is not None and output_dir_value and all_exist)
+        
         # Check if we should save intermediate predictions (before decoding)
         save_intermediate = False
         if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation'):
             save_intermediate = getattr(self.cfg.inference.test_time_augmentation, 'save_predictions', False)
 
-        # Save intermediate TTA predictions (before decoding) if requested
-        if save_intermediate:
+        # Save intermediate TTA predictions (before decoding) if requested (only if we ran inference)
+        if save_intermediate and not loaded_from_file:
             write_outputs(self.cfg, predictions_np, filenames, suffix="tta_prediction")
 
-        # Apply decode mode (instance segmentation decoding)
-        print(f"  DEBUG: test_step - before decode, predictions_np shape: {predictions_np.shape}")
-        decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
-        print(f"  DEBUG: test_step - after decode, decoded_predictions shape: {decoded_predictions.shape}")
+        # Apply decode mode (instance segmentation decoding) - skip if loaded from file
+        if loaded_from_file:
+            decoded_predictions = predictions_np  # Already decoded and reversed from postprocessing
+        else:
+            decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
 
-        # Apply postprocessing (scaling and dtype conversion) if configured
-        postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
-        print(f"  DEBUG: test_step - after postprocess, postprocessed_predictions shape: {postprocessed_predictions.shape}")
+            # Apply postprocessing (scaling and dtype conversion) if configured
+            postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
 
-        # Save final decoded and postprocessed predictions
-        write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction")
+            # Save final decoded and postprocessed predictions
+            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction")
 
         # Compute adapted_rand if enabled and labels available
         if labels is not None:
             labels_np = labels.detach().cpu().numpy()
             self._compute_adapted_rand(decoded_predictions, labels_np, filenames)
+
+        # Compute evaluation metrics if enabled and labels are available
+        if labels is not None and hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
+            evaluation_enabled = getattr(self.cfg.inference.evaluation, 'enabled', False)
+            if evaluation_enabled:
+                # Convert predictions back to torch tensor for metrics (before postprocessing)
+                # Use decoded_predictions (after decoding, before postprocessing scaling)
+                pred_tensor = torch.from_numpy(decoded_predictions).float().to(self.device)
+                labels_tensor = labels.float()
+                
+                # Squeeze singleton dimensions for metrics
+                pred_tensor = pred_tensor.squeeze()
+                labels_tensor = labels_tensor.squeeze()
+                
+                # Ensure same number of dimensions
+                if pred_tensor.ndim != labels_tensor.ndim:
+                    # Add channel dimension if needed
+                    if pred_tensor.ndim == labels_tensor.ndim - 1:
+                        pred_tensor = pred_tensor.unsqueeze(0)
+                    elif labels_tensor.ndim == pred_tensor.ndim - 1:
+                        labels_tensor = labels_tensor.unsqueeze(0)
+                
+                # Binarize predictions for binary metrics (threshold at 0.5)
+                if pred_tensor.max() <= 1.0:  # Already in [0, 1] range
+                    pred_binary = (pred_tensor > 0.5).long()
+                else:
+                    # Normalize first if needed
+                    pred_binary = (torch.sigmoid(pred_tensor) > 0.5).long()
+                
+                labels_binary = (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
+                
+                # Update metrics
+                if hasattr(self, 'test_jaccard') and self.test_jaccard is not None:
+                    self.test_jaccard.update(pred_binary, labels_binary)
+                    self.log('test_jaccard', self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                
+                if hasattr(self, 'test_dice') and self.test_dice is not None:
+                    self.test_dice.update(pred_binary, labels_binary)
+                    self.log('test_dice', self.test_dice, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                
+                if hasattr(self, 'test_accuracy') and self.test_accuracy is not None:
+                    self.test_accuracy.update(pred_binary, labels_binary)
+                    self.log('test_accuracy', self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                
+                # Return dummy value (metrics are logged separately)
+                return torch.tensor(0.0, device=self.device)
 
         # Determine if we should skip loss computation
         skip_loss = False
@@ -1247,7 +1318,7 @@ class ConnectomicsModule(pl.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""
-        optimizer = build_optimizer(self.cfg, self.model.parameters())
+        optimizer = build_optimizer(self.cfg, self.model)
 
         # Build scheduler if configured
         if hasattr(self.cfg, 'scheduler') and self.cfg.scheduler is not None:

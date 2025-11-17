@@ -400,34 +400,60 @@ class RandCutNoised(RandomizableTransform, MapTransform):
         else:
             img = img.copy()
 
-        # Generate cuboid dimensions and position
-        if img.ndim == 3:
-            z_len = int(self.length_ratio * img.shape[0])
-            z_start = self.R.randint(0, img.shape[0] - z_len + 1)
-        else:
-            z_len = z_start = 0
+        # Skip if any dimension is 0 (empty tensor)
+        if any(s == 0 for s in img.shape):
+            return torch.from_numpy(img).to(device) if is_tensor else img
 
-        y_len = int(self.length_ratio * img.shape[-2])
-        x_len = int(self.length_ratio * img.shape[-1])
-        y_start = self.R.randint(0, img.shape[-2] - y_len + 1)
-        x_start = self.R.randint(0, img.shape[-1] - x_len + 1)
+        # Calculate spatial dimensions (last 2 or 3 dims)
+        y_len = max(1, int(self.length_ratio * img.shape[-2]))  # Ensure at least 1
+        x_len = max(1, int(self.length_ratio * img.shape[-1]))  # Ensure at least 1
+        y_start = self.R.randint(0, max(1, img.shape[-2] - y_len + 1))
+        x_start = self.R.randint(0, max(1, img.shape[-1] - x_len + 1))
 
-        # Generate noise (numpy operations)
-        if img.ndim == 3:
-            noise_shape = (z_len, y_len, x_len)
-            noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-            region = img[
-                z_start : z_start + z_len,
-                y_start : y_start + y_len,
-                x_start : x_start + x_len,
-            ]
-            noisy_region = np.clip(region + noise, 0, 1)
-            img[
-                z_start : z_start + z_len,
-                y_start : y_start + y_len,
-                x_start : x_start + x_len,
-            ] = noisy_region
+        # Generate noise and apply based on dimensionality
+        if img.ndim == 4:
+            # 4D case: (C, Z, Y, X) for 3D with channels or (C, H, W) for 2D with channels
+            # Heuristic: if second dim is large (>10), assume it's depth (3D with channels)
+            # Otherwise assume it's 2D with channels
+            if img.shape[1] > 10:
+                # (C, Z, Y, X) - 3D with channels
+                z_len = int(self.length_ratio * img.shape[1])
+                z_len = max(1, z_len)  # Ensure at least 1
+                z_start = self.R.randint(0, max(1, img.shape[1] - z_len + 1))
+                noise_shape = (img.shape[0], z_len, y_len, x_len)
+                noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
+                region = img[:, z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len]
+                noisy_region = np.clip(region + noise, 0, 1)
+                img[:, z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+            else:
+                # (C, H, W) - 2D with channels
+                noise_shape = (img.shape[0], y_len, x_len)
+                noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
+                region = img[:, y_start : y_start + y_len, x_start : x_start + x_len]
+                noisy_region = np.clip(region + noise, 0, 1)
+                img[:, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+        elif img.ndim == 3:
+            # 3D case: (Z, Y, X) or (C, H, W)
+            # Heuristic: if first dim is small (<=4), assume it's channel (2D with channels)
+            # Otherwise assume it's depth (3D)
+            if img.shape[0] <= 4:
+                # (C, H, W) - 2D with channels
+                noise_shape = (img.shape[0], y_len, x_len)
+                noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
+                region = img[:, y_start : y_start + y_len, x_start : x_start + x_len]
+                noisy_region = np.clip(region + noise, 0, 1)
+                img[:, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+            else:
+                # (Z, Y, X) - 3D
+                z_len = max(1, int(self.length_ratio * img.shape[0]))  # Ensure at least 1
+                z_start = self.R.randint(0, max(1, img.shape[0] - z_len + 1))
+                noise_shape = (z_len, y_len, x_len)
+                noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
+                region = img[z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len]
+                noisy_region = np.clip(region + noise, 0, 1)
+                img[z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
         else:
+            # 2D case: (H, W)
             noise_shape = (y_len, x_len)
             noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
             region = img[y_start : y_start + y_len, x_start : x_start + x_len]

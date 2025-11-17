@@ -558,12 +558,7 @@ def create_datamodule(
 
     # Create test data dicts if in test/predict mode
     test_data_dicts = None
-    print(f"  DEBUG: mode = '{mode}'")
-    print(f"  DEBUG: mode in ['test', 'predict'] = {mode in ['test', 'predict']}")
     if mode in ["test", "predict"]:
-        print(f"  DEBUG: hasattr(cfg, 'inference') = {hasattr(cfg, 'inference')}")
-        if hasattr(cfg, "inference") and hasattr(cfg.inference, "data"):
-            print(f"  DEBUG: cfg.inference.data.test_image = '{cfg.inference.data.test_image}'")
         if (
             not hasattr(cfg, "inference")
             or not hasattr(cfg.inference, "data")
@@ -605,7 +600,6 @@ def create_datamodule(
             label_paths=test_label_paths,
             mask_paths=test_mask_paths,
         )
-        print(f"  DEBUG: test_data_dicts created = {test_data_dicts}")
         print(f"  Test dataset size: {len(test_data_dicts)}")
 
     if mode == "train":
@@ -1280,16 +1274,8 @@ def main():
             print("🧪 RUNNING TEST")
             print("=" * 60)
 
-            # Debug test dataset
-            print(f"DEBUG: datamodule.test_dataset = {datamodule.test_dataset}")
-            print(f"DEBUG: datamodule.test_data_dicts = {datamodule.test_data_dicts}")
-
             # Check if test dataset exists
             test_loader = datamodule.test_dataloader()
-            print(f"DEBUG: test_loader = {test_loader}")
-            print(f"DEBUG: test_loader is None = {test_loader is None}")
-            if test_loader is not None:
-                print(f"DEBUG: len(test_loader) = {len(test_loader)}")
 
             if test_loader is None or len(test_loader) == 0:
                 print("⚠️  No test dataset found!")

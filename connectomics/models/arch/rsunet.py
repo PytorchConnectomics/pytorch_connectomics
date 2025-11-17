@@ -470,12 +470,12 @@ def build_rsunet(cfg) -> RSUNet:
 
     # Parse down factors
     down_factors = None
-    if hasattr(cfg.model, 'rsunet_down_factors'):
+    if hasattr(cfg.model, 'rsunet_down_factors') and cfg.model.rsunet_down_factors is not None:
         down_factors = [tuple(f) for f in cfg.model.rsunet_down_factors]
 
     # Parse kernel for 2D
     kernel_2d = (1, 3, 3)
-    if hasattr(cfg.model, 'rsunet_kernel_2d'):
+    if hasattr(cfg.model, 'rsunet_kernel_2d') and cfg.model.rsunet_kernel_2d is not None:
         kernel_2d = tuple(cfg.model.rsunet_kernel_2d)
 
     # Activation kwargs
