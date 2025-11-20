@@ -147,6 +147,7 @@ class ModelConfig:
     kernel_size: int = 3  # Convolution kernel size
     strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
     act: str = "relu"  # Activation function: 'relu', 'prelu', 'elu', etc.
+    upsample: str = "deconv"  # Upsampling mode for MONAI BasicUNet: 'deconv' (transposed conv), 'nontrainable' (interpolation + conv), or 'pixelshuffle'
 
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
@@ -926,17 +927,15 @@ class BinaryPostprocessingConfig:
     """Binary segmentation postprocessing configuration.
 
     Applies morphological operations and connected components filtering to binary predictions.
+    Input should already be binary (from binary_thresholding decoding).
     Pipeline order:
-        1. Threshold predictions to binary mask (using threshold_range if provided)
+        1. Ensure input is binary (auto-threshold if needed: 0.5 for [0,1], 0 for >1)
         2. Apply morphological opening (erosion + dilation)
         3. Extract connected components
         4. Keep top-k largest components
     """
 
     enabled: bool = False  # Enable binary postprocessing pipeline
-    threshold_range: Optional[List[float]] = (
-        None  # Threshold range [min, max] for binarization. If None, uses 0.5 for [0,1] or 0 for >1
-    )
     median_filter_size: Optional[Tuple[int, ...]] = (
         None  # Median filter kernel size (e.g., (3, 3) for 2D)
     )
@@ -960,16 +959,16 @@ class PostprocessingConfig:
     """Postprocessing configuration for inference output.
 
     Controls how predictions are transformed before saving:
-    - Thresholding: Binarize predictions using threshold_range
+    - Binary refinement: Morphological operations and connected components filtering
     - Scaling: Multiply intensity values (e.g., 255 for uint8)
     - Dtype conversion: Convert to target data type with proper clamping
     - Transpose: Reorder axes (e.g., [2,1,0] for zyx->xyz)
     """
 
-    # Thresholding configuration
+    # Binary segmentation refinement (morphological ops, connected components)
     binary: Optional[Dict[str, Any]] = field(
         default_factory=dict
-    )  # Binary thresholding config (e.g., {'threshold_range': [0.5, 1.0]})
+    )  # Binary postprocessing config (e.g., {'opening_iterations': 2})
 
     # Intensity scaling
     intensity_scale: Optional[float] = (

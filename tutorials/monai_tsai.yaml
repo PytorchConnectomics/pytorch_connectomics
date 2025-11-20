@@ -17,16 +17,16 @@
 #   image_transform → Applied to image ONLY (intensity/normalization)
 #                     Example: normalize to [0,1], clip percentiles
 
-experiment_name: monai2d_worm  # Will be overridden by YAML filename
-description: 2D worm segmentation using MONAI Residual UNet with paired data transforms
+experiment_name: monai_tsai  # Will be overridden by YAML filename
+description: 3D axon segmentation using MONAI Residual UNet with paired data transforms
 
 # System - Optimized for 2D training
 system:
   training:
-    num_gpus: 1                          # Single GPU
-    num_cpus: 1                          # Increase for better data loading
-    num_workers: 1                        # Parallel data loading (2D slices are lighter)
-    batch_size: 32                        # Higher batch size for 2D (vs 4 for 3D)
+    num_gpus: 4                          # Single GPU
+    num_cpus: 8                          # Increase for better data loading
+    num_workers: 8                        # Parallel data loading (2D slices are lighter)
+    batch_size: 8                        # Higher batch size for 2D (vs 4 for 3D)
   inference:
     num_gpus: 1
     num_cpus: 4
@@ -37,78 +37,70 @@ system:
 # Model - MONAI UNet with residual units (2D)
 model:
   architecture: monai_unet
-  input_size: [384, 384]               # 2D input (spatial_dims auto-inferred from input_size length)
-  output_size: [384, 384]
+  input_size: [64, 64, 64]               # 3D input (spatial_dims auto-inferred from input_size length)
+  output_size: [64, 64, 64]
   in_channels: 1
-  out_channels: 2                      # 2 channels for binary segmentation with sigmoid activation
+  out_channels: 1                      
 
   # UNet architecture configuration
-  filters: [28, 36, 48, 64, 80]      # Standard UNet channel progression
+  filters: [28, 36, 48, 64]      # Standard UNet channel progression
   num_res_units: 2                     # Residual units per block
   kernel_size: 3                       # Convolution kernel size
   norm: batch                          # Batch normalization
   dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration - Dice for overlap, BCE for pixel-wise accuracy
-  loss_functions: [DiceLoss, CrossEntropyLoss]
-  loss_weights: [1.0, 0.5]             # Prioritize Dice (overlap) over BCE
+  loss_functions: [WeightedBCE, DiceLoss]
+  loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
   loss_kwargs:
-    - {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with smoothing
-    - {label_smoothing: 0.1}  # CrossEntropyLoss with label smoothing
+  - {reduction: mean}
+  - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
-data:
-  # 2D data support
-  do_2d: true                     # Enable 2D data processing (extract 2D slices from 3D volumes)
-  
+data:  
   # Volume configuration
-  train_image: /orcd/data/<lab>/002/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/*.tif
-  train_label: /orcd/data/<lab>/002/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/*.tif
+  train_image: datasets/axon_data_30pc_subset/training/training-original/volumes/*.tiff
+  train_label: datasets/axon_data_30pc_subset/training/training-original/labels/*.tiff
   train_resolution: [5, 5]        # Lucchi EM: 5nm isotropic resolution
   use_preloaded_cache: true            # Load volumes into memory for fast training
 
   # Patch configuration
-  patch_size: [384, 384]          # Larger patches for better context
-  pad_size: [0, 0]                 # Padding for valid convolutions
+  patch_size: [64, 64, 64]          # Larger patches for better context
+  pad_size: [0, 0, 0]                 # Padding for valid convolutions
   pad_mode: reflect                    # Reflection padding at boundaries
   iter_num_per_epoch: 1280             # 1280 random crops per epoch
 
   # Data transformation (applied to image/label/mask for spatial alignment)
   # NEW: Paired transforms ensure image and label stay aligned
-  data_transform:
-    resize: [512, 512]                   # Resize to 512x512 (bilinear for image, nearest for label)
+  
 
   # Image normalization (applied to image only)
   image_transform:
     normalize: "0-1"                     # Min-max normalization to [0, 1]
-    clip_percentile_low: 0.0             # No intensity clipping
-    clip_percentile_high: 1.0
-
+    clip_percentile_low: 0.05             # 5th percentile intensity clipping
+    clip_percentile_high: 0.95             # 95th percentile intensity clipping
+  label_transform:
+    targets:
+      - name: binary  # Ensures labels are {0, 1}
+  
   # Augmentation - Enabled for better generalization
   augmentation:
     preset: some                        # Enable data augmentation
     flip:
-      enabled: true
+      enabled: true      
+      spatial_axis: [0, 1, 2]  # Flip x/y/z
     rotate:
       enabled: true
-      spatial_axes: [0, 1]
+      spatial_axes: [0, 1, 2]
     affine:
       enabled: true
       prob: 0.5
-      rotate_range: [0.2, 0.2]
+      rotate_range: [0.2, 0.2, 0.2]
     intensity:
       enabled: true
       shift_intensity_prob: 0.8
       shift_intensity_offset: 0.3
-    stripe: 
-      enabled: true
-      prob: 0.5
-      num_stripes_range: [1, 2]
-      thickness_range: [20, 30]
-      intensity_range: [0, 0.2]
-      angle_range: [0, 180]
-      mode: replace
-
+    
 
 # Optimizer - AdamW with optimized hyperparameters
 optimization:
@@ -119,18 +111,19 @@ optimization:
   
   optimizer:
     name: AdamW
-    lr: 0.002                            # Higher initial LR (will use warmup)
+    lr: 0.001                            # Higher initial LR (will use warmup)
     weight_decay: 0.01                   # L2 regularization
     betas: [0.9, 0.999]                  # Standard Adam betas (momentum terms)
     eps: 1.0e-8                          # Numerical stability
 
   # Scheduler - Cosine annealing with warmup for smooth convergence
   scheduler:
-    name: CosineAnnealingLR
-    warmup_epochs: 10                    # Longer warmup for stability with higher LR
-    warmup_start_lr: 1.0e-4              # Start very small to avoid early instability
-    min_lr: 1.0e-6                       # Minimum LR (same as warmup start for symmetry)
-    t_max: 950                           # 1000 - 50 = 950 epochs for cosine decay
+    name: ReduceLROnPlateau           # Reduce LR when validation loss plateaus
+    mode: min                         # Monitor minimum loss
+    factor: 0.5                       # Reduce LR by 50%
+    patience: 50                      # Wait 50 epochs before reducing
+    threshold: 1.0e-4                 # Minimum change to qualify as improvement
+    min_lr: 1.0e-6                    # Don't go below 1e-6
 
 monitor:
   # Loss monitoring and validation frequency  
@@ -158,7 +151,7 @@ monitor:
     save_top_k: 1
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/monai2d_worm/checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
+    dirpath: outputs/monai_tsai/checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
     # checkpoint_filename: auto-generated from monitor metric (epoch={epoch:03d}-{monitor}={value:.4f})
     use_timestamp: true       # Enable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
@@ -176,11 +169,10 @@ monitor:
 # Inference - MONAI SlidingWindowInferer
 inference:
   data:
-    do_2d: true                     # Enable 2D data processing for inference
-    test_image: /orcd/data/<lab>/002/shenb/wormbehavior/13/*.tif
-    test_label:
+    test_image: datasets/axon_data_30pc_subset/validation/validation-original/volumes/*.tiff
+    test_label: datasets/axon_data_30pc_subset/validation/validation-original/labels/*.tiff
     test_resolution: [5, 5]
-    output_path: outputs/monai2d_worm/results/
+    output_path: outputs/monai_tsai/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
@@ -198,8 +190,7 @@ inference:
     #tta_flip_axes: [[1]]                   # Flip Z-axis only (MUST use [1] for depth in BCDHW, NOT [0]!)
     # Example custom TTA: [[1], [2], [3]] for single-axis flips only (Z, Y, X) - 4x inference
     # Example custom TTA: [[1, 2], [1, 3], [2, 3]] for two-axis flips only - 4x inference
-    channel_activations: [[0, 2, 'softmax']]  # Per-channel activations: apply softmax to all channels (0-1)
-    select_channel: [1]                    # Channel selection: null (use all channels for single-channel output)
+    channel_activations: [[0, 1, 'sigmoid']]  # Per-channel activations: apply softmax to all channels (0-1)
     ensemble_mode: mean              # Ensemble strategy: 'mean' (average), 'min' (conservative), 'max' (aggressive)
     # NOTE: tta_act and tta_channel are applied even with null flip_axes (no ensemble, just activation + channel selection)
     # NOTE: If tta_channel selects specific channels, loss computation will be skipped (loss needs all class channels)
@@ -209,17 +200,16 @@ inference:
   decoding:
     - name: binary_thresholding
       kwargs:
-        threshold_range: [0.8, 1]
+        threshold_range: [0.5, 1]          # binary thresholding range
+        opening_iterations: 2              # Morphological opening (erosion + dilation) to remove small noise
+        connected_components:
+          enabled: true                    # Enable connected components filtering
+          remove_small: 10                 # Remove small objects with size less than 10 pixels
+          connectivity: 26                 # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
+
+
   # Postprocessing configuration (applied AFTER decoding)
   postprocessing:
-    # Binary segmentation refinement (applied after binary_thresholding decoding)
-    binary:
-      enabled: true                      # Enable binary postprocessing
-      opening_iterations: 2              # Morphological opening (erosion + dilation) to remove small noise
-      connected_components:
-        enabled: true                    # Enable connected components filtering
-        top_k: 1                         # Keep only the largest component
-        connectivity: 4                  # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
 
     # Output format (intensity scaling and dtype conversion)
     intensity_scale: 255                 # Scale predictions to [0, 255] for saving

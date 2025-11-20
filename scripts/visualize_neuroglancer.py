@@ -150,6 +150,10 @@ Examples:
     --config tutorials/monai_lucchi.yaml --mode test \\
     --volumes prediction:image:outputs/lucchi_monai_unet/results/test_im_prediction.h5:5-5-5
 
+  # Select from glob pattern by index or filename
+  python -i scripts/visualize_neuroglancer.py \\
+    --volumes "image:datasets/*.tiff[0]" "label:datasets/*.tiff[train_label]"
+
   # Custom server settings
   python -i scripts/visualize_neuroglancer.py \\
     --config tutorials/monai_lucchi.yaml \\
@@ -175,7 +179,8 @@ Interactive mode (with -i flag):
         help='Volume paths in format "name:type:path[:resolution[:offset]]" where type is "image" or "seg", '
         'resolution is "z-y-x" in nm, and offset is "z-y-x" in voxels. '
         "Type can be omitted for backward compatibility (inferred from name). "
-        'Examples: "pred:image:path.h5:5-5-5" or "label:seg:path.h5"',
+        "Glob patterns supported with selectors: path/*.tiff[0] (index), path/*.tiff[name] (filename). "
+        'Examples: "pred:image:path.h5:5-5-5", "label:seg:data/*.tiff[0]"',
     )
     parser.add_argument("--image", type=str, help="Path to image volume")
     parser.add_argument("--label", type=str, help="Path to label volume")
@@ -213,12 +218,20 @@ Interactive mode (with -i flag):
         default="train",
         help="Which data to load from config (default: train)",
     )
+    parser.add_argument(
+        "--select",
+        type=str,
+        default="0",
+        help="Select specific file from glob patterns by index (e.g., '0', '-1') or filename (e.g., 'volume_001'). "
+        "Default: '0' (first file). Use 'all' to load all files.",
+    )
 
     return parser.parse_args()
 
 
 def load_volumes_from_config(
-    config_path: str, mode: str = "train", prediction_base_name: Optional[str] = None
+    config_path: str, mode: str = "train", prediction_base_name: Optional[str] = None,
+    select: str = "0"
 ) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], None]]:
     """
     Load volumes from a config file.
@@ -226,6 +239,8 @@ def load_volumes_from_config(
     Args:
         config_path: Path to YAML config file
         mode: Which data to load ('train', 'test', 'both')
+        prediction_base_name: Base name for auto-matching prediction files
+        select: Select file by index ('0', '-1'), filename ('volume_001'), or 'all' for all files
 
     Returns:
         Dictionary mapping volume names to (data, type, resolution, offset) tuples
@@ -234,6 +249,38 @@ def load_volumes_from_config(
     cfg = load_config(config_path)
     cfg = resolve_data_paths(cfg)  # Resolve paths and expand globs
     volumes = {}
+
+    def apply_selection(files_list, selector):
+        """Apply selector to list of files."""
+        if not isinstance(files_list, list) or len(files_list) <= 1:
+            return files_list
+
+        # Handle 'all' selector
+        if selector.lower() == "all":
+            print(f"  Found {len(files_list)} files, loading all...")
+            return files_list
+
+        try:
+            # Try numeric index
+            index = int(selector)
+            if index < -len(files_list) or index >= len(files_list):
+                print(f"  Warning: Index {index} out of range for {len(files_list)} files, using first")
+                return [files_list[0]]
+            selected = files_list[index]
+            print(f"  Found {len(files_list)} files, selected index [{index}]: {Path(selected).name}")
+            return [selected]
+        except ValueError:
+            # Not a number, try filename match
+            matching = [f for f in files_list if Path(f).name == selector or Path(f).stem == selector]
+            if not matching:
+                # Try partial match
+                matching = [f for f in files_list if selector in Path(f).name]
+            if matching:
+                print(f"  Found {len(files_list)} files, selected by name '{selector}': {Path(matching[0]).name}")
+                return [matching[0]]
+            else:
+                print(f"  Warning: No file matches selector '{selector}', using first of {len(files_list)} files")
+                return [files_list[0]]
 
     # Get resolution from config
     train_resolution = None
@@ -260,11 +307,11 @@ def load_volumes_from_config(
         if hasattr(cfg.data, "train_image") and cfg.data.train_image:
             print(f"Loading train images: {cfg.data.train_image}")
 
-            # Handle list of files (load all volumes)
+            # Handle list of files (apply selection)
             if isinstance(cfg.data.train_image, list):
-                print(f"  Found {len(cfg.data.train_image)} volumes, loading all...")
-                for idx, img_file in enumerate(cfg.data.train_image):
-                    print(f"  [{idx+1}/{len(cfg.data.train_image)}] Loading: {img_file}")
+                files_to_load = apply_selection(cfg.data.train_image, select)
+                for idx, img_file in enumerate(files_to_load):
+                    print(f"  [{idx+1}/{len(files_to_load)}] Loading: {img_file}")
                     try:
                         data = read_volume(img_file)
 
@@ -277,7 +324,7 @@ def load_volumes_from_config(
                         data = apply_image_transform(data, cfg)
 
                         # Create unique name for this volume
-                        vol_name = f"train_image_{idx}" if len(cfg.data.train_image) > 1 else "train_image"
+                        vol_name = f"train_image_{idx}" if len(files_to_load) > 1 else "train_image"
                         volumes[vol_name] = (data, "image", train_resolution, None)
                         print(f"      Loaded: {data.shape}, dtype={data.dtype}")
                     except Exception as e:
@@ -302,11 +349,11 @@ def load_volumes_from_config(
         if hasattr(cfg.data, "train_label") and cfg.data.train_label:
             print(f"Loading train labels: {cfg.data.train_label}")
 
-            # Handle list of files (load all volumes)
+            # Handle list of files (apply selection)
             if isinstance(cfg.data.train_label, list):
-                print(f"  Found {len(cfg.data.train_label)} volumes, loading all...")
-                for idx, lbl_file in enumerate(cfg.data.train_label):
-                    print(f"  [{idx+1}/{len(cfg.data.train_label)}] Loading: {lbl_file}")
+                files_to_load = apply_selection(cfg.data.train_label, select)
+                for idx, lbl_file in enumerate(files_to_load):
+                    print(f"  [{idx+1}/{len(files_to_load)}] Loading: {lbl_file}")
                     try:
                         data = read_volume(lbl_file)
 
@@ -316,7 +363,7 @@ def load_volumes_from_config(
                             print(f"      Converted 2D to 3D: {data.shape}")
 
                         # Create unique name for this volume
-                        vol_name = f"train_label_{idx}" if len(cfg.data.train_label) > 1 else "train_label"
+                        vol_name = f"train_label_{idx}" if len(files_to_load) > 1 else "train_label"
                         volumes[vol_name] = (data, "segmentation", train_resolution, None)
                         print(f"      Loaded: {data.shape}, dtype={data.dtype}")
                     except Exception as e:
@@ -344,11 +391,18 @@ def load_volumes_from_config(
             and cfg.inference.data.test_image
         ):
             test_image_path = cfg.inference.data.test_image
+
+            # Apply selection if it's a list (from glob expansion)
+            if isinstance(test_image_path, list):
+                test_image_path = apply_selection(test_image_path, select)
+                if isinstance(test_image_path, list):
+                    test_image_path = test_image_path[0]  # Get single file
+
             print(f"Loading test image: {test_image_path}")
-            
+
             # If prediction_base_name is provided and test_image_path contains glob pattern,
             # find the specific matching file
-            if prediction_base_name and ("*" in test_image_path or "?" in test_image_path):
+            if prediction_base_name and isinstance(test_image_path, str) and ("*" in test_image_path or "?" in test_image_path):
                 print(f"  🔍 Auto-matching specific test_image for prediction base name: {prediction_base_name}")
                 import glob
                 test_path_obj = Path(test_image_path)
@@ -395,8 +449,16 @@ def load_volumes_from_config(
             and hasattr(cfg.inference.data, "test_label")
             and cfg.inference.data.test_label
         ):
-            print(f"Loading test label: {cfg.inference.data.test_label}")
-            data = read_volume(cfg.inference.data.test_label)
+            test_label_path = cfg.inference.data.test_label
+
+            # Apply selection if it's a list (from glob expansion)
+            if isinstance(test_label_path, list):
+                test_label_path = apply_selection(test_label_path, select)
+                if isinstance(test_label_path, list):
+                    test_label_path = test_label_path[0]  # Get single file
+
+            print(f"Loading test label: {test_label_path}")
+            data = read_volume(test_label_path)
             # Convert 2D to 3D if needed
             if data.ndim == 2:
                 data = data[None, :, :]  # (H, W) -> (1, H, W)
@@ -413,8 +475,81 @@ def load_volumes_from_config(
     return volumes
 
 
+def resolve_glob_with_selector(path: str, default_selector: str = "0") -> str:
+    """
+    Resolve a glob pattern with an optional selector.
+
+    Supports:
+        - path/*.tiff[0] - select by index (0-based)
+        - path/*.tiff[-1] - select last file
+        - path/*.tiff[filename.tiff] - select by filename
+        - path/*.tiff with default_selector - use default selector
+
+    Args:
+        path: Path that may contain glob pattern and selector
+        default_selector: Default selector to use if path doesn't have inline selector
+
+    Returns:
+        Resolved single file path
+    """
+    import glob as glob_module
+    import re
+
+    # Check for selector pattern: path[selector]
+    match = re.match(r'^(.+)\[(.+)\]$', path)
+    if match:
+        glob_pattern = match.group(1)
+        selector = match.group(2)
+    elif '*' in path or '?' in path:
+        # No inline selector, use default
+        glob_pattern = path
+        selector = default_selector
+    else:
+        # Not a glob pattern
+        return path
+
+    # Expand glob pattern
+    files = sorted(glob_module.glob(glob_pattern))
+    if not files:
+        raise FileNotFoundError(f"No files match pattern: {glob_pattern}")
+
+    # Handle single file
+    if len(files) == 1:
+        return files[0]
+
+    # Handle 'all' selector - return first but warn
+    if selector.lower() == "all":
+        print(f"  Found {len(files)} files, 'all' not supported for --volumes, using first: {Path(files[0]).name}")
+        return files[0]
+
+    # Select file based on selector
+    try:
+        # Try numeric index
+        index = int(selector)
+        if index < -len(files) or index >= len(files):
+            print(f"  Warning: Index {index} out of range for {len(files)} files, using first")
+            return files[0]
+        selected = files[index]
+        print(f"  Found {len(files)} files, selected index [{index}]: {Path(selected).name}")
+    except ValueError:
+        # Not a number, try filename match
+        matching = [f for f in files if Path(f).name == selector or Path(f).stem == selector]
+        if not matching:
+            # Try partial match
+            matching = [f for f in files if selector in Path(f).name]
+        if not matching:
+            available = [Path(f).name for f in files]
+            print(f"  Warning: No file matches selector '{selector}'. Available: {available[:5]}{'...' if len(available) > 5 else ''}")
+            return files[0]
+        selected = matching[0]
+        print(f"  Found {len(files)} files, selected by name '{selector}': {Path(selected).name}")
+
+    return selected
+
+
 def load_volumes_from_paths(
     volume_specs: List[str],
+    select: str = "0",
 ) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], Optional[Tuple]]]:
     """
     Load volumes from path specifications.
@@ -426,6 +561,12 @@ def load_volumes_from_paths(
             - "name:type:path" - name, type (image/seg), and path
             - "name:type:path:resolution" - with resolution (e.g., "30-6-6")
             - "name:type:path:resolution:offset" - with resolution and offset (e.g., "0-0-0")
+
+        Paths can include glob patterns with selectors:
+            - "name:type:path/*.tiff[0]" - select first file
+            - "name:type:path/*.tiff[-1]" - select last file
+            - "name:type:path/*.tiff[filename]" - select by name
+        select: Default selector for glob patterns without inline selector
 
     Returns:
         Dictionary mapping volume names to (data, type, resolution, offset) tuples
@@ -485,13 +626,16 @@ def load_volumes_from_paths(
             else:
                 offset = None
 
-        print(f"Loading {name}: {path}")
+        # Resolve glob patterns with selectors
+        resolved_path = resolve_glob_with_selector(path, select)
+
+        print(f"Loading {name}: {resolved_path}")
         if resolution:
             print(f"  Custom resolution: {resolution}")
         if offset:
             print(f"  Custom offset: {offset}")
 
-        data = read_volume(path).squeeze()
+        data = read_volume(resolved_path).squeeze()
         
         # Convert 2D to 3D if needed
         if data.ndim == 2:
@@ -688,7 +832,7 @@ def main():
     # Load from config first (if provided)
     if args.config:
         cfg = load_config(args.config)  # Store config for interactive access
-        volumes.update(load_volumes_from_config(args.config, args.mode, prediction_base_name=prediction_base_name))
+        volumes.update(load_volumes_from_config(args.config, args.mode, prediction_base_name=prediction_base_name, select=args.select))
 
     # Add image/label (if provided and not empty strings)
     if args.image and args.image.strip():
@@ -710,7 +854,7 @@ def main():
 
     # Add additional volumes (if provided) - these can override config volumes
     if args.volumes:
-        volumes.update(load_volumes_from_paths(args.volumes))
+        volumes.update(load_volumes_from_paths(args.volumes, select=args.select))
 
     if not volumes:
         print("ERROR: No volumes loaded. Check your input paths.")

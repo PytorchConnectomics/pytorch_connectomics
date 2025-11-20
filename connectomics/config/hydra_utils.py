@@ -291,8 +291,43 @@ def resolve_data_paths(cfg: Config) -> Config:
         if base_path and not os.path.isabs(file_path):
             file_path = os.path.join(base_path, file_path)
 
-        # Expand glob patterns
-        if "*" in file_path or "?" in file_path:
+        # Expand glob patterns with optional selector support
+        # Format: path/*.tiff[0] or path/*.tiff[filename]
+        import re
+        selector_match = re.match(r'^(.+)\[(.+)\]$', file_path)
+
+        if selector_match:
+            # Has selector - extract glob pattern and selector
+            glob_pattern = selector_match.group(1)
+            selector = selector_match.group(2)
+
+            expanded = sorted(glob(glob_pattern))
+            if not expanded:
+                return file_path  # No matches - return original
+
+            # Select file based on selector
+            try:
+                # Try numeric index
+                index = int(selector)
+                if index < -len(expanded) or index >= len(expanded):
+                    print(f"Warning: Index {index} out of range for {len(expanded)} files, using first")
+                    return expanded[0]
+                return expanded[index]
+            except ValueError:
+                # Not a number, try filename match
+                from pathlib import Path
+                matching = [f for f in expanded if Path(f).name == selector or Path(f).stem == selector]
+                if not matching:
+                    # Try partial match
+                    matching = [f for f in expanded if selector in Path(f).name]
+                if matching:
+                    return matching[0]
+                else:
+                    print(f"Warning: No file matches selector '{selector}', using first of {len(expanded)} files")
+                    return expanded[0]
+
+        elif "*" in file_path or "?" in file_path:
+            # Standard glob without selector
             expanded = sorted(glob(file_path))
             if expanded:
                 return expanded
@@ -302,32 +337,34 @@ def resolve_data_paths(cfg: Config) -> Config:
 
         return file_path
 
-    # Resolve training paths
-    if cfg.data.train_path:
-        cfg.data.train_image = _combine_path(cfg.data.train_path, cfg.data.train_image)
-        cfg.data.train_label = _combine_path(cfg.data.train_path, cfg.data.train_label)
-        cfg.data.train_mask = _combine_path(cfg.data.train_path, cfg.data.train_mask)
-        cfg.data.train_json = _combine_path(cfg.data.train_path, cfg.data.train_json)
+    # Resolve training paths (always expand globs, use train_path as base if available)
+    train_base = cfg.data.train_path if cfg.data.train_path else ""
+    cfg.data.train_image = _combine_path(train_base, cfg.data.train_image)
+    cfg.data.train_label = _combine_path(train_base, cfg.data.train_label)
+    cfg.data.train_mask = _combine_path(train_base, cfg.data.train_mask)
+    cfg.data.train_json = _combine_path(train_base, cfg.data.train_json)
 
-    # Resolve validation paths
-    if cfg.data.val_path:
-        cfg.data.val_image = _combine_path(cfg.data.val_path, cfg.data.val_image)
-        cfg.data.val_label = _combine_path(cfg.data.val_path, cfg.data.val_label)
-        cfg.data.val_mask = _combine_path(cfg.data.val_path, cfg.data.val_mask)
-        cfg.data.val_json = _combine_path(cfg.data.val_path, cfg.data.val_json)
+    # Resolve validation paths (always expand globs, use val_path as base if available)
+    val_base = cfg.data.val_path if cfg.data.val_path else ""
+    cfg.data.val_image = _combine_path(val_base, cfg.data.val_image)
+    cfg.data.val_label = _combine_path(val_base, cfg.data.val_label)
+    cfg.data.val_mask = _combine_path(val_base, cfg.data.val_mask)
+    cfg.data.val_json = _combine_path(val_base, cfg.data.val_json)
 
-    # Resolve test paths
-    if cfg.data.test_path:
-        cfg.data.test_image = _combine_path(cfg.data.test_path, cfg.data.test_image)
-        cfg.data.test_label = _combine_path(cfg.data.test_path, cfg.data.test_label)
-        cfg.data.test_mask = _combine_path(cfg.data.test_path, cfg.data.test_mask)
-        cfg.data.test_json = _combine_path(cfg.data.test_path, cfg.data.test_json)
+    # Resolve test paths (always expand globs, use test_path as base if available)
+    test_base = cfg.data.test_path if cfg.data.test_path else ""
+    cfg.data.test_image = _combine_path(test_base, cfg.data.test_image)
+    cfg.data.test_label = _combine_path(test_base, cfg.data.test_label)
+    cfg.data.test_mask = _combine_path(test_base, cfg.data.test_mask)
+    cfg.data.test_json = _combine_path(test_base, cfg.data.test_json)
 
     # Resolve inference data paths (primary location for test_path)
+    inference_test_base = ""
     if hasattr(cfg.inference.data, 'test_path') and cfg.inference.data.test_path:
-        cfg.inference.data.test_image = _combine_path(cfg.inference.data.test_path, cfg.inference.data.test_image)
-        cfg.inference.data.test_label = _combine_path(cfg.inference.data.test_path, cfg.inference.data.test_label)
-        cfg.inference.data.test_mask = _combine_path(cfg.inference.data.test_path, cfg.inference.data.test_mask)
+        inference_test_base = cfg.inference.data.test_path
+    cfg.inference.data.test_image = _combine_path(inference_test_base, cfg.inference.data.test_image)
+    cfg.inference.data.test_label = _combine_path(inference_test_base, cfg.inference.data.test_label)
+    cfg.inference.data.test_mask = _combine_path(inference_test_base, cfg.inference.data.test_mask)
 
     return cfg
 

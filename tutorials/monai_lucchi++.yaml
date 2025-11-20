@@ -26,22 +26,18 @@ system:
 
 # Model - RSUNet (Residual Symmetric U-Net)
 model:
-  architecture: rsunet
+  architecture: monai_basic_unet3d
   input_size: [112, 112, 112]
   output_size: [112, 112, 112]
   in_channels: 1
   out_channels: 1                      # Single channel with BCE loss (standard for EM)
 
-  # RSUNet architecture - NO CHECKERBOARD ARTIFACTS
-  # Uses bilinear/trilinear upsampling + conv instead of transposed conv
-  # RSUNet always uses residual blocks (no block_type option needed)
   filters: [32, 64, 128, 256]          # 4-level encoder (standard for RSUNet)
-  rsunet_norm: batch                    # Batch normalization (RSUNet-specific)
-
-  # Anisotropic convolutions (optimized for EM with different Z/XY resolution)
-  # RSUNet uses (1,3,3) and (3,3,3) kernels to handle anisotropy
-  # This is handled automatically by the model based on input_size
-
+  dropout: 0.1
+  activation: leakyrelu
+  norm: batch
+  upsample: nontrainable  # upsampling + convolution instead of transposed convolution
+  
   # Loss configuration - WeightedBCE + Dice for mitochondria segmentation
   loss_functions: [WeightedBCE, DiceLoss]
   loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
@@ -134,7 +130,7 @@ optimization:
 
   optimizer:
     name: Adam                         # Standard Adam (not AdamW for EM tasks)
-    lr: 0.001                         # Conservative LR (1e-4 is standard for EM)
+    lr: 0.0001                         # Conservative LR (1e-4 is standard for EM)
     weight_decay: 0.0                  # No weight decay (not beneficial for EM)
     betas: [0.9, 0.999]                # Standard Adam betas
     eps: 1.0e-8                        # Numerical stability

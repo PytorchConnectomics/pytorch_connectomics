@@ -75,6 +75,10 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         - model.dropout: Dropout rate (default: 0.0)
         - model.activation: Activation function (default: 'relu')
         - model.norm: Normalization type (default: 'batch')
+        - model.upsample: Upsampling mode (default: 'deconv')
+            - 'deconv': Transposed convolution (default)
+            - 'nontrainable': Interpolation + Conv (upsample then conv)
+            - 'pixelshuffle': Pixel shuffle upsampling
 
     Args:
         cfg: Hydra config object
@@ -111,6 +115,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         dropout=getattr(cfg.model, 'dropout', 0.0),
         act=getattr(cfg.model, 'activation', 'relu'),
         norm=getattr(cfg.model, 'norm', 'batch'),
+        upsample=getattr(cfg.model, 'upsample', 'deconv'),
     )
 
     return MONAIModelWrapper(model)

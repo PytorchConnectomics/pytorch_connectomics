@@ -55,6 +55,9 @@ __all__ = [
 def decode_binary_thresholding(
     predictions: np.ndarray,
     threshold_range: Tuple[float, float] = (0.8, 1.0),
+    opening_iterations: int = 0,
+    closing_iterations: int = 0,
+    connected_components: Optional[dict] = None,
 ) -> np.ndarray:
     r"""Convert binary foreground probability maps to binary mask via simple thresholding.
 
@@ -72,6 +75,14 @@ def decode_binary_thresholding(
         threshold_range (tuple): Tuple of (min_threshold, max_threshold) for binarization.
             Only the minimum threshold is used. Values >= min_threshold become foreground (1).
             Default: (0.8, 1.0)
+        opening_iterations (int): Number of morphological opening iterations (erosion + dilation).
+            Removes small objects/noise. Default: 0 (no opening)
+        closing_iterations (int): Number of morphological closing iterations (dilation + erosion).
+            Fills small holes. Default: 0 (no closing)
+        connected_components (dict, optional): Connected components filtering config with keys:
+            - enabled (bool): Enable CC filtering. Default: False
+            - remove_small (int): Remove objects smaller than this size in pixels. Default: 0
+            - connectivity (int): Connectivity for CC (4/8 for 2D, 6/18/26 for 3D). Default: 26
 
     Returns:
         numpy.ndarray: Binary segmentation mask with shape matching input spatial dimensions.
@@ -86,9 +97,12 @@ def decode_binary_thresholding(
         >>> print(binary_mask.shape)  # (64, 128, 128)
         >>> print(np.unique(binary_mask))  # [0, 1]
 
-        >>> # 3D predictions (uint8 [0, 255])
-        >>> predictions = np.random.randint(0, 256, (2, 64, 128, 128), dtype=np.uint8)
-        >>> binary_mask = decode_binary_thresholding(predictions, threshold_range=(0.8, 1.0))
+        >>> # With morphological operations
+        >>> binary_mask = decode_binary_thresholding(
+        ...     predictions, threshold_range=(0.5, 1.0),
+        ...     opening_iterations=2,
+        ...     connected_components={'enabled': True, 'remove_small': 10, 'connectivity': 26}
+        ... )
 
         >>> # 2D predictions
         >>> predictions = np.random.rand(2, 512, 512)  # (C, Y, X)
@@ -100,14 +114,15 @@ def decode_binary_thresholding(
           and uint8 [0, 255] predictions
         - **2D/3D support**: Works with both 2D (C, Y, X) and 3D (C, Z, Y, X) inputs
         - **Channel 0 usage**: Uses first channel (predictions[0]) as foreground probability
-        - **Simple thresholding**: No morphological operations or connected components
-        - **Post-processing**: Use binary postprocessing config for refinement (opening/closing/CC filtering)
+        - **Morphological ops**: Opening removes small noise, closing fills small holes
+        - **CC filtering**: Remove small objects by size using connected components
 
     See Also:
         - :func:`decode_binary_cc`: Binary threshold + connected components (instance segmentation)
         - :func:`decode_binary_watershed`: Binary threshold + watershed (instance segmentation)
-        - :class:`connectomics.config.BinaryPostprocessingConfig`: For morphological refinement
     """
+    from scipy import ndimage
+
     # Extract foreground probability (first channel)
     semantic = predictions[0]
 
@@ -122,6 +137,41 @@ def decode_binary_thresholding(
 
     # Apply thresholding
     binary_mask = (semantic > threshold).astype(np.uint8)
+
+    # Apply morphological opening (erosion + dilation) - removes small objects
+    if opening_iterations > 0:
+        binary_mask = ndimage.binary_opening(
+            binary_mask, iterations=opening_iterations
+        ).astype(np.uint8)
+
+    # Apply morphological closing (dilation + erosion) - fills small holes
+    if closing_iterations > 0:
+        binary_mask = ndimage.binary_closing(
+            binary_mask, iterations=closing_iterations
+        ).astype(np.uint8)
+
+    # Apply connected components filtering
+    if connected_components and connected_components.get('enabled', False):
+        remove_small = connected_components.get('remove_small', 0)
+        connectivity = connected_components.get('connectivity', 26)
+
+        if remove_small > 0:
+            # Label connected components
+            labeled, num_features = cc3d.connected_components(
+                binary_mask, connectivity=connectivity, return_N=True
+            )
+
+            if num_features > 0:
+                # Get component sizes
+                component_sizes = np.bincount(labeled.ravel())
+
+                # Create mask of components to keep (size >= remove_small)
+                # Note: component 0 is background
+                keep_mask = component_sizes >= remove_small
+                keep_mask[0] = False  # Always exclude background
+
+                # Apply mask
+                binary_mask = keep_mask[labeled].astype(np.uint8)
 
     return binary_mask
 

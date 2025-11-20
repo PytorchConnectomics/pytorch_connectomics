@@ -78,6 +78,7 @@ sweep config:
 
 # Visualize volumes with Neuroglancer from config (e.g., just visualize tutorials/monai_lucchi.yaml test --volumes prediction:path.h5)
 # Port defaults to 9999. Override with: just visualize config mode --port 8080 --volumes ...
+# Default selects first file from globs. Use --select to change: --select 1, --select filename, --select all
 visualize config mode *ARGS='':
     #!/usr/bin/env bash
     args="--config {{config}} --mode {{mode}}"

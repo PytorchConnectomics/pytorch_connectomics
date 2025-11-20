@@ -1284,21 +1284,11 @@ def main():
 
             print(f"Test batches: {len(test_loader)}")
 
-            results = trainer.test(
+            trainer.test(
                 model,
                 datamodule=datamodule,
                 ckpt_path=args.checkpoint,
             )
-
-            print("\n" + "=" * 60)
-            print("📊 TEST RESULTS")
-            print("=" * 60)
-            if results:
-                for key, value in results[0].items():
-                    print(f"  {key}: {value:.6f}")
-            else:
-                print("  No metrics returned (check logs above for test metrics)")
-            print("=" * 60)
 
         elif args.mode == "predict":
             print("Running prediction...")

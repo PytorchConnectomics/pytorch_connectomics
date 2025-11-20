@@ -296,17 +296,14 @@ def apply_binary_postprocessing(
         # Already binary
         binary = pred.astype(np.uint8)
     else:
-        # Determine threshold value
-        if config.threshold_range is not None and len(config.threshold_range) >= 1:
-            # Use minimum threshold from threshold_range
-            threshold = float(config.threshold_range[0])
-        elif pred.max() <= 1.0:
+        # Determine threshold value based on value range
+        if pred.max() <= 1.0:
             # Probability values in [0, 1], default threshold at 0.5
             threshold = 0.5
         else:
             # Values > 1, default threshold at 0
             threshold = 0.0
-        
+
         # Apply threshold
         binary = (pred >= threshold).astype(np.uint8)
 
