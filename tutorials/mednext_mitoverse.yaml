@@ -74,12 +74,17 @@ inference:
     test_image: "imagesTs/high_c2_0000.nii.gz"   # Update this path
     test_label: "instancesTs/high_c2.nii.gz"   # Optional: for evaluation
     test_resolution: [16, 16, 16]               # Typical resolution (nm)
-    #test_image: "datasets/Lucchi++/test_im.h5"   # Update this path
-    #test_label: "datasets/Lucchi++/test_mito.h5"   # Optional: for evaluation
-    #test_resolution: [5, 5, 5]               # Typical resolution (nm)
+
+    # test_image: "datasets/Lucchi++/test_im.h5"   # Update this path
+    # test_label: "datasets/Lucchi++/test_mito.h5"   # Optional: for evaluation
+    # test_resolution: [5, 5, 5]               # Typical resolution (nm)
 
     output_path: outputs/mednext_mitoverse/results/
     output_name: "predictions.nii.gz"
+
+    image_transform:
+      normalize: "divide-255"            # Divide by 255 (matches BANIS normalization)
+
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
@@ -89,42 +94,46 @@ inference:
     blending: gaussian               # Gaussian weighting at boundaries
     sigma_scale: 0.25
     padding_mode: reflect
-    # save_channels: null            # Save all 7 channels
+    save_channels: [0, 1, 6]         # Save affinity x, y, and SDT only
 
   # Test-Time Augmentation
   test_time_augmentation:
     enabled: false                   # Disable for faster inference
     flip_axes: null
     # Channel activations for affinity prediction
-    # Note: After save_channels filtering, indices change:
-    #   Original ch 0 → New ch 0, Original ch 6 → New ch 1
+    # After save_channels [0,1,6] filtering, new indices are:
+    #   Original ch 0 → New ch 0 (affinity x)
+    #   Original ch 1 → New ch 1 (affinity y)
+    #   Original ch 6 → New ch 2 (SDT)
+    # Note: BANIS uses scale_sigmoid = sigmoid(0.2 * x) for numerical stability in fp16
     channel_activations:
-      - [0, 2, sigmoid]              # Foreground affinity (original ch 0)      
-      - [2, 3, tanh]                 # SDT (original ch 6)
+      - [0, 2, scale_sigmoid]        # Affinities x,y with scaled sigmoid
+      - [2, 3, tanh]                 # SDT (new ch 2)
     select_channel: all
     ensemble_mode: mean
     apply_mask: false
     save_predictions: true
+    save_dtype: float16                # Save as float16 (or uint8, float32)
 
   # BANIS two-stage watershed post-processing for instance segmentation
-  # Uses affinity channel 0 (foreground) + SDT channel 6 (seeds/distance)
+  # Uses affinity channels (foreground) + SDT channel (seeds/distance)
   #
   # This matches the original BANIS inference script with:
   #   --apply_watershed --skeleton_threshold 0 --binary_threshold 0.5
   #
-  # Note: Predictions must be prepared as 2-channel array [binary, distance]
-  #   - binary: affinity channel 0 after sigmoid (foreground probability)
-  #   - distance: SDT channel 6 after tanh (signed distance transform)
+  # After save_channels [0,1,6] filtering, predictions are 3-channel:
+  #   - ch 0: affinity x after sigmoid
+  #   - ch 1: affinity y after sigmoid
+  #   - ch 2: SDT after tanh
   decoding:
     - name: decode_binary_contour_distance_watershed
       kwargs:
-        # Channel selection from all 7 channels:
-        # [0,1,2] = short-range affinities (x,y,z), [3,4,5] = long-range, [6] = SDT
+        # Channel indices after save_channels filtering (3 channels total)
         binary_channels: [0, 1]          # Average affinity x and y for binary mask
         contour_channels: null           # No contour channels
         distance_channels: [2]           # SDT channel for distance
         # BANIS-style parameters (matching original inference script)
-        binary_threshold: [1, 0.5]       # seed_thr=1, fg_thr=0.5 for affinity ch0
+        binary_threshold: [1, 0.5]       # seed_thr=1, fg_thr=0.5 for affinities
         contour_threshold: null          # Disable contour (BANIS doesn't use contour)
         distance_threshold: [0.0, -1.0]  # seed_thr=0, fg_thr=-1 (SDT seeds where > 0)
         min_instance_size: 100           # Minimum voxels per instance

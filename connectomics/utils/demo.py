@@ -80,8 +80,8 @@ def create_demo_config():
     from connectomics.config import Config
     from connectomics.config.hydra_config import (
         SystemConfig,
-        TrainingSystemConfig,
-        InferenceSystemConfig,
+        SystemTrainingConfig,
+        SystemInferenceConfig,
         ModelConfig,
         DataConfig,
         OptimizationConfig,
@@ -97,13 +97,13 @@ def create_demo_config():
     cfg = Config(
         system=SystemConfig(
             seed=42,
-            training=TrainingSystemConfig(
+            training=SystemTrainingConfig(
                 num_gpus=1 if torch.cuda.is_available() else 0,
                 num_cpus=2,
                 batch_size=2,
                 num_workers=0,  # 0 for demo to avoid multiprocessing issues
             ),
-            inference=InferenceSystemConfig(
+            inference=SystemInferenceConfig(
                 num_gpus=1 if torch.cuda.is_available() else 0,
                 num_cpus=2,
                 batch_size=2,

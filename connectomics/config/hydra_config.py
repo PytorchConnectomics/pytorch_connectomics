@@ -845,6 +845,9 @@ class InferenceDataConfig:
         "predictions.h5"  # Output filename (auto-pathed to inference/{checkpoint}/{output_name})
     )
 
+    # Image transformation (applied to test images during inference)
+    image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+
     # 2D data support
     do_2d: bool = False  # Enable 2D data processing for inference
 
@@ -884,6 +887,9 @@ class TestTimeAugmentationConfig:
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
     save_predictions: bool = (
         False  # Save intermediate TTA predictions (before decoding) to disk (default: False)
+    )
+    save_dtype: Optional[str] = (
+        None  # Data type for saving predictions: "float16", "float32", "uint8", "uint16", or None (keep original)
     )
 
 
