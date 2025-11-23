@@ -869,6 +869,49 @@ def main():
         offset=tuple(args.offset),
     )
 
+    # Helper function for interactive mode: create neuroglancer layer from data and resolution
+    def ngLayer(data, res, oo=[0, 0, 0], tt='segmentation'):
+        """
+        Create a Neuroglancer layer from volume data.
+        
+        Args:
+            data: Volume data (3D or 4D numpy array)
+            res: Resolution as list/tuple [z, y, x] in nm, or CoordinateSpace object
+            oo: Offset as list/tuple [z, y, x] (default: [0, 0, 0])
+            tt: Volume type 'image' or 'segmentation' (default: 'segmentation')
+        
+        Returns:
+            Neuroglancer LocalVolume layer
+        """
+        # Handle 4D data (C, Z, Y, X) -> use first channel
+        if data.ndim == 4:
+            data = data[0]
+        
+        # Ensure 3D
+        if data.ndim != 3:
+            raise ValueError(f"Expected 3D volume, got shape {data.shape}")
+        
+        # Create coordinate space from resolution if it's a list/tuple
+        if isinstance(res, (list, tuple)):
+            coord_space = neuroglancer.CoordinateSpace(
+                names=["z", "y", "x"],
+                units=["nm", "nm", "nm"],
+                scales=res
+            )
+        else:
+            # Assume it's already a CoordinateSpace object
+            coord_space = res
+        
+        return neuroglancer.LocalVolume(
+            data,
+            dimensions=coord_space,
+            volume_type=tt,
+            voxel_offset=oo
+        )
+    
+    # Make ngLayer available in interactive mode
+    globals()['ngLayer'] = ngLayer
+
     # Return viewer for interactive mode
     return viewer
 

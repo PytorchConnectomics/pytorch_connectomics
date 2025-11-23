@@ -60,6 +60,7 @@ dependencies = [
     "opencv-python>=4.3.0",
     "h5py>=2.10.0",
     "imageio>=2.9.0",
+    "nibabel>=3.0.0",
     # Visualization & logging
     "matplotlib>=3.3.0",
     "tensorboard>=2.2.2",

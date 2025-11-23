@@ -152,6 +152,12 @@ def parse_args():
         help="Run N batches for quick debugging (default: 0, no argument defaults to 1)",
     )
     parser.add_argument(
+        "--external-prefix",
+        type=str,
+        default=None,
+        help="Prefix to strip from external checkpoint keys (e.g., 'model.' for BANIS checkpoints)",
+    )
+    parser.add_argument(
         "overrides",
         nargs="*",
         help="Config overrides in key=value format (e.g., data.batch_size=8)",
@@ -210,6 +216,12 @@ def setup_config(args) -> Config:
     if args.reset_max_epochs is not None:
         print(f"⚙️  Overriding max_epochs: {cfg.optimization.max_epochs} → {args.reset_max_epochs}")
         cfg.optimization.max_epochs = args.reset_max_epochs
+
+    # Handle external weights loading (when --external-prefix is specified with --checkpoint)
+    if args.external_prefix is not None and args.checkpoint:
+        print(f"🔧 Loading external weights from checkpoint with prefix '{args.external_prefix}'")
+        cfg.model.external_weights_path = args.checkpoint
+        cfg.model.external_weights_key_prefix = args.external_prefix
 
     # Override config for fast-dev-run mode
     if args.fast_dev_run:
@@ -390,8 +402,12 @@ def create_datamodule(
             f"  Test transforms: {len(test_transforms.transforms)} steps (no cropping for sliding window)"
         )
 
+    # For test/predict mode, skip training data setup entirely
+    if mode in ["test", "predict"]:
+        train_data_dicts = []
+        val_data_dicts = None
     # Check if automatic train/val split is enabled
-    if cfg.data.split_enabled and not cfg.data.val_image:
+    elif cfg.data.split_enabled and not cfg.data.val_image:
         print("🔀 Using automatic train/val split (DeepEM-style)")
         from connectomics.data.utils.split import (
             split_volume_train_val,
@@ -607,50 +623,52 @@ def create_datamodule(
         if val_data_dicts:
             print(f"  Val dataset size: {len(val_data_dicts)}")
 
-    # Auto-compute iter_num from volume size if not specified
-    iter_num = cfg.data.iter_num_per_epoch
-    if iter_num == -1 and dataset_type != "filename":
-        # For filename datasets, iter_num is determined by the number of files
-        print("📊 Auto-computing iter_num from volume size...")
-        from connectomics.data.utils import compute_total_samples
-        import h5py
-        import tifffile
+    # Auto-compute iter_num from volume size if not specified (only for training)
+    iter_num = None
+    if mode == "train":
+        iter_num = cfg.data.iter_num_per_epoch
+        if iter_num == -1 and dataset_type != "filename":
+            # For filename datasets, iter_num is determined by the number of files
+            print("📊 Auto-computing iter_num from volume size...")
+            from connectomics.data.utils import compute_total_samples
+            import h5py
+            import tifffile
 
-        # Get volume sizes
-        volume_sizes = []
-        for data_dict in train_data_dicts:
-            img_path = Path(data_dict["image"])
-            if img_path.suffix in [".h5", ".hdf5"]:
-                with h5py.File(img_path, "r") as f:
-                    vol_shape = f[list(f.keys())[0]].shape
-            elif img_path.suffix in [".tif", ".tiff"]:
-                vol = tifffile.imread(img_path)
-                vol_shape = vol.shape
-            else:
-                raise ValueError(f"Unsupported file format: {img_path.suffix}")
+            # Get volume sizes
+            volume_sizes = []
+            for data_dict in train_data_dicts:
+                img_path = Path(data_dict["image"])
+                if img_path.suffix in [".h5", ".hdf5"]:
+                    with h5py.File(img_path, "r") as f:
+                        vol_shape = f[list(f.keys())[0]].shape
+                elif img_path.suffix in [".tif", ".tiff"]:
+                    vol = tifffile.imread(img_path)
+                    vol_shape = vol.shape
+                else:
+                    raise ValueError(f"Unsupported file format: {img_path.suffix}")
 
-            # Handle both (z, y, x) and (c, z, y, x)
-            if len(vol_shape) == 4:
-                vol_shape = vol_shape[1:]  # Skip channel dim
-            volume_sizes.append(vol_shape)
+                # Handle both (z, y, x) and (c, z, y, x)
+                if len(vol_shape) == 4:
+                    vol_shape = vol_shape[1:]  # Skip channel dim
+                volume_sizes.append(vol_shape)
 
-        # Compute total possible samples
-        total_samples, samples_per_vol = compute_total_samples(
-            volume_sizes=volume_sizes,
-            patch_size=tuple(cfg.data.patch_size),
-            stride=tuple(cfg.data.stride),
-        )
+            # Compute total possible samples
+            total_samples, samples_per_vol = compute_total_samples(
+                volume_sizes=volume_sizes,
+                patch_size=tuple(cfg.data.patch_size),
+                stride=tuple(cfg.data.stride),
+            )
 
-        iter_num = total_samples
-        print(f"  Volume sizes: {volume_sizes}")
-        print(f"  Patch size: {cfg.data.patch_size}")
-        print(f"  Stride: {cfg.data.stride}")
-        print(f"  Samples per volume: {samples_per_vol}")
-        print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
-        print(f"  ✅ Batches per epoch: {iter_num // cfg.system.training.batch_size:,}")
-    elif iter_num == -1 and dataset_type == "filename":
-        # For filename datasets, iter_num will be determined by dataset length
-        print("  Filename dataset: iter_num will be determined by number of files in JSON")
+            iter_num = total_samples
+            print(f"  Volume sizes: {volume_sizes}")
+            print(f"  Patch size: {cfg.data.patch_size}")
+            print(f"  Stride: {cfg.data.stride}")
+            print(f"  Samples per volume: {samples_per_vol}")
+            print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
+            print(f"  ✅ Batches per epoch: {iter_num // cfg.system.training.batch_size:,}")
+        elif iter_num == -1 and dataset_type == "filename":
+            # For filename datasets, iter_num will be determined by dataset length
+            print("  Filename dataset: iter_num will be determined by number of files in JSON")
 
     # Create DataModule
     print("Creating data loaders...")
@@ -664,6 +682,7 @@ def create_datamodule(
     # Use optimized pre-loaded cache when iter_num > 0 (only for training mode and volume datasets)
     use_preloaded = (
         cfg.data.use_preloaded_cache
+        and iter_num is not None
         and iter_num > 0
         and mode == "train"
         and dataset_type != "filename"
@@ -1284,18 +1303,22 @@ def main():
 
             print(f"Test batches: {len(test_loader)}")
 
+            # Don't pass ckpt_path if using external weights (already loaded into model)
+            test_ckpt_path = None if args.external_prefix else args.checkpoint
             trainer.test(
                 model,
                 datamodule=datamodule,
-                ckpt_path=args.checkpoint,
+                ckpt_path=test_ckpt_path,
             )
 
         elif args.mode == "predict":
             print("Running prediction...")
+            # Don't pass ckpt_path if using external weights (already loaded into model)
+            predict_ckpt_path = None if args.external_prefix else args.checkpoint
             predictions = trainer.predict(
                 model,
                 datamodule=datamodule,
-                ckpt_path=args.checkpoint,
+                ckpt_path=predict_ckpt_path,
             )
 
             # Save predictions
@@ -1324,7 +1347,8 @@ def main():
             print(f"Predictions saved to: {output_dir}")
 
     except Exception as e:
-        print(f"\n❌ Training failed: {e}")
+        mode_name = args.mode.capitalize() if args.mode else "Operation"
+        print(f"\n❌ {mode_name} failed: {e}")
         import traceback
 
         traceback.print_exc()

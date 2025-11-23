@@ -202,6 +202,11 @@ class ModelConfig:
         None  # None = single task (apply all losses to all channels)
     )
 
+    # External model weights loading
+    # For loading pretrained weights from external checkpoints (e.g., BANIS, nnUNet)
+    external_weights_path: Optional[str] = None  # Path to external checkpoint file
+    external_weights_key_prefix: str = "model."  # Prefix to strip from state_dict keys
+
 
 # Label transformation configurations
 @dataclass
@@ -858,6 +863,7 @@ class SlidingWindowConfig:
     )
     padding_mode: str = "constant"  # Padding mode at volume boundaries
     pad_size: Optional[List[int]] = None  # Padding size for context (e.g., [16, 32, 32])
+    save_channels: Optional[List[int]] = None  # Channel indices to save (None = all channels)
 
 
 @dataclass

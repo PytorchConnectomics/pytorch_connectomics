@@ -16,6 +16,7 @@ import pickle
 import h5py
 import numpy as np
 import imageio
+import nibabel as nib
 
 # Avoid PIL "IOError: image file truncated"
 from PIL import ImageFile
@@ -263,7 +264,7 @@ def write_pickle_file(filename: str, data: object) -> None:
 def read_volume(
     filename: str, dataset: Optional[str] = None, drop_channel: bool = False
 ) -> np.ndarray:
-    """Load volumetric data in HDF5, TIFF or PNG formats.
+    """Load volumetric data in HDF5, TIFF, PNG, or NIfTI formats.
 
     Args:
         filename: Path to the volume file
@@ -276,7 +277,11 @@ def read_volume(
     Raises:
         ValueError: If file format is not recognized
     """
-    image_suffix = filename[filename.rfind(".") + 1 :].lower()
+    # Handle .nii.gz files specially
+    if filename.endswith('.nii.gz'):
+        image_suffix = 'nii.gz'
+    else:
+        image_suffix = filename[filename.rfind(".") + 1 :].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         data = read_hdf5(filename, dataset)
@@ -314,9 +319,23 @@ def read_volume(
         if data.ndim == 4:
             # Convert (D, H, W, C) to (C, D, H, W) order
             data = data.transpose(3, 0, 1, 2)
+    elif image_suffix in ["nii", "nii.gz"]:
+        # NIfTI format (.nii or .nii.gz)
+        nii_img = nib.load(filename)
+        data = np.asarray(nii_img.dataobj)
+        # NIfTI is typically (X, Y, Z) or (X, Y, Z, C)
+        # Convert to our (D, H, W) or (C, D, H, W) format
+        # X=W (width), Y=H (height), Z=D (depth)
+        if data.ndim == 3:
+            # (X, Y, Z) -> (Z, Y, X) = (D, H, W)
+            data = data.transpose(2, 1, 0)
+        elif data.ndim == 4:
+            # (X, Y, Z, C) -> (C, Z, Y, X) = (C, D, H, W)
+            data = data.transpose(3, 2, 1, 0)
     else:
         raise ValueError(
-            f"Unrecognizable file format for {filename}. " f"Expected: h5, hdf5, tif, tiff, or png"
+            f"Unrecognizable file format for {filename}. "
+            f"Expected: h5, hdf5, tif, tiff, png, nii, or nii.gz"
         )
 
     # if data.ndim not in [3, 4]:
@@ -342,7 +361,7 @@ def save_volume(
         filename: Output filename or directory path
         volume: Volume data to save
         dataset: Dataset name for HDF5 format
-        file_format: Output format ('h5' or 'png')
+        file_format: Output format ('h5', 'png', 'nii', or 'nii.gz')
 
     Raises:
         ValueError: If file format is not supported
@@ -351,8 +370,21 @@ def save_volume(
         write_hdf5(filename, volume, dataset=dataset)
     elif file_format == "png":
         save_images(filename, volume)
+    elif file_format in ["nii", "nii.gz"]:
+        # NIfTI format
+        # Convert from our (D, H, W) or (C, D, H, W) to NIfTI (X, Y, Z) or (X, Y, Z, C)
+        if volume.ndim == 3:
+            # (D, H, W) -> (W, H, D) = (X, Y, Z)
+            nii_data = volume.transpose(2, 1, 0)
+        elif volume.ndim == 4:
+            # (C, D, H, W) -> (W, H, D, C) = (X, Y, Z, C)
+            nii_data = volume.transpose(3, 2, 1, 0)
+        else:
+            nii_data = volume
+        nii_img = nib.Nifti1Image(nii_data, affine=np.eye(4))
+        nib.save(nii_img, filename)
     else:
-        raise ValueError(f"Unsupported format: {file_format}. " f"Supported formats: h5, png")
+        raise ValueError(f"Unsupported format: {file_format}. " f"Supported formats: h5, png, nii, nii.gz")
 
 
 def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
@@ -382,7 +414,11 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File not found: {filename}")
 
-    image_suffix = filename[filename.rfind(".") + 1 :].lower()
+    # Handle .nii.gz files specially
+    if filename.endswith('.nii.gz'):
+        image_suffix = 'nii.gz'
+    else:
+        image_suffix = filename[filename.rfind(".") + 1 :].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         # HDF5: Read shape from metadata (no data loading)
@@ -424,9 +460,24 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
         else:
             raise ValueError(f"Unsupported PNG dimensions: {first_image.ndim}D")
 
+    elif image_suffix in ["nii", "nii.gz"]:
+        # NIfTI: Read shape from header (no data loading)
+        nii_img = nib.load(filename)
+        nii_shape = nii_img.header.get_data_shape()
+        # Convert from NIfTI (X, Y, Z) or (X, Y, Z, C) to our (D, H, W) or (C, D, H, W)
+        if len(nii_shape) == 3:
+            # (X, Y, Z) -> (Z, Y, X) = (D, H, W)
+            return (nii_shape[2], nii_shape[1], nii_shape[0])
+        elif len(nii_shape) == 4:
+            # (X, Y, Z, C) -> (C, D, H, W)
+            return (nii_shape[3], nii_shape[2], nii_shape[1], nii_shape[0])
+        else:
+            return nii_shape
+
     else:
         raise ValueError(
-            f"Unrecognizable file format for {filename}. " f"Expected: h5, hdf5, tif, tiff, or png"
+            f"Unrecognizable file format for {filename}. "
+            f"Expected: h5, hdf5, tif, tiff, png, nii, or nii.gz"
         )
 
 
