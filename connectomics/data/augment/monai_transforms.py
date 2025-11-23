@@ -1010,12 +1010,13 @@ class SmartNormalizeIntensityd(MapTransform):
     - "none": No normalization
     - "normal": Z-score normalization (x - mean) / std
     - "0-1": Min-max scaling to [0, 1] (default)
+    - "divide-K": Simple divide by K (e.g., "divide-255" for uint8 images)
 
     Percentile clipping is applied BEFORE normalization when low > 0.0 or high < 1.0.
 
     Args:
         keys: Keys to normalize
-        mode: Normalization mode ("none", "normal", "0-1")
+        mode: Normalization mode ("none", "normal", "0-1", or "divide-K")
         clip_percentile_low: Lower percentile (0.0 = no clip, 0.05 = 5th percentile)
         clip_percentile_high: Upper percentile (1.0 = no clip, 0.95 = 95th percentile)
         allow_missing_keys: Whether to allow missing keys
@@ -1044,9 +1045,20 @@ class SmartNormalizeIntensityd(MapTransform):
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        if mode not in ["none", "normal", "0-1"]:
-            raise ValueError(f"Invalid mode '{mode}'. Must be 'none', 'normal', or '0-1'")
-        self.mode = mode
+
+        # Parse mode - support "divide-K" format where K is a number
+        self.divide_value = None
+        if mode.startswith("divide-"):
+            try:
+                self.divide_value = float(mode.split("-", 1)[1])
+                self.mode = "divide"
+            except ValueError:
+                raise ValueError(f"Invalid divide mode '{mode}'. Format should be 'divide-K' where K is a number (e.g., 'divide-255')")
+        elif mode not in ["none", "normal", "0-1"]:
+            raise ValueError(f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', or 'divide-K'")
+        else:
+            self.mode = mode
+
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
 
@@ -1088,6 +1100,9 @@ class SmartNormalizeIntensityd(MapTransform):
             max_val = volume.max()
             if max_val > min_val:
                 volume = (volume - min_val) / (max_val - min_val)
+        elif self.mode == "divide":
+            # Simple divide by K (e.g., divide-255 for uint8 images)
+            volume = volume / self.divide_value
 
         return volume if is_numpy else torch.from_numpy(volume)
 

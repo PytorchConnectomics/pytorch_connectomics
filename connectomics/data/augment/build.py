@@ -321,13 +321,19 @@ def _build_eval_transforms_impl(
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
-    if cfg.data.image_transform.normalize != "none":
+    # For test mode, check inference.data.image_transform first, then fall back to data.image_transform
+    if mode == "test" and hasattr(cfg, "inference") and hasattr(cfg.inference, "data") and hasattr(cfg.inference.data, "image_transform"):
+        image_transform = cfg.inference.data.image_transform
+    else:
+        image_transform = cfg.data.image_transform
+
+    if image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=["image"],
-                mode=cfg.data.image_transform.normalize,
-                clip_percentile_low=cfg.data.image_transform.clip_percentile_low,
-                clip_percentile_high=cfg.data.image_transform.clip_percentile_high,
+                mode=image_transform.normalize,
+                clip_percentile_low=getattr(image_transform, 'clip_percentile_low', 0.0),
+                clip_percentile_high=getattr(image_transform, 'clip_percentile_high', 1.0),
             )
         )
 

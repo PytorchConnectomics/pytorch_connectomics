@@ -337,6 +337,10 @@ class ConnectomicsModule(pl.LightningModule):
 
                 if act == 'sigmoid':
                     channel_tensor = torch.sigmoid(channel_tensor)
+                elif act == 'scale_sigmoid':
+                    # Scaled sigmoid for BANIS: sigmoid(0.2 * x)
+                    # This avoids numerical issues with high-confidence fp16 predictions
+                    channel_tensor = torch.sigmoid(0.2 * channel_tensor)
                 elif act == 'tanh':
                     channel_tensor = torch.tanh(channel_tensor)
                 elif act == 'softmax':
@@ -354,7 +358,7 @@ class ConnectomicsModule(pl.LightningModule):
                 else:
                     raise ValueError(
                         f"Unknown activation '{act}' for channels {start_ch}:{end_ch}. "
-                        f"Supported: 'sigmoid', 'softmax', 'tanh', None"
+                        f"Supported: 'sigmoid', 'scale_sigmoid', 'softmax', 'tanh', None"
                     )
 
                 activated_channels.append(channel_tensor)

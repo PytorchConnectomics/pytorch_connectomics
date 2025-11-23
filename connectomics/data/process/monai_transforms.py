@@ -67,7 +67,17 @@ class SegToAffinityMapd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_affinity(d[key], self.offsets)
+                label = d[key]
+                # Convert tensor to numpy if needed
+                if isinstance(label, torch.Tensor):
+                    label = label.detach().cpu().numpy()
+                # Handle channel dimension: input may be [C, D, H, W] or [D, H, W]
+                if label.ndim == 4 and label.shape[0] == 1:
+                    label = label[0]  # Remove channel dim: [1, D, H, W] -> [D, H, W]
+                elif label.ndim == 3 and label.shape[0] == 1:
+                    # 2D case: [1, H, W] -> keep as is for 2D affinity
+                    pass
+                d[key] = seg_to_affinity(label, self.offsets)
         return d
 
 
@@ -700,6 +710,17 @@ class MultiTaskLabelTransformd(MapTransform):
         return np.asarray(label), False
 
     def _to_tensor(self, array: np.ndarray, *, add_batch_dim: bool) -> torch.Tensor:
+        # Ensure array is a proper numpy array (not a numpy scalar type like numpy.uint8)
+        # torch.as_tensor cannot infer dtype from numpy scalar types
+        if not isinstance(array, np.ndarray):
+            array = np.asarray(array)
+        # Convert to a supported dtype if needed (torch doesn't support all numpy dtypes)
+        if array.dtype == np.uint8:
+            array = array.astype(np.float32)
+        elif array.dtype == np.uint16:
+            array = array.astype(np.float32)
+        elif array.dtype == np.int8:
+            array = array.astype(np.int32)
         tensor = torch.as_tensor(array)
         if self.output_dtype is not None:
             tensor = tensor.to(self.output_dtype)

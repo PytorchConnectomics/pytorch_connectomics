@@ -176,8 +176,9 @@ class InferenceManager:
 
     def sliding_window_predict(self, inputs: torch.Tensor) -> torch.Tensor:
         """Wrapper used by MONAI inferer to obtain primary model predictions."""
-        outputs = self.forward_fn(inputs)
-        return self.extract_main_output(outputs)
+        with torch.no_grad():
+            outputs = self.forward_fn(inputs)
+            return self.extract_main_output(outputs)
 
     def apply_tta_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -220,6 +221,10 @@ class InferenceManager:
 
                 if act == "sigmoid":
                     channel_tensor = torch.sigmoid(channel_tensor)
+                elif act == "scale_sigmoid":
+                    # Scaled sigmoid for BANIS: sigmoid(0.2 * x)
+                    # This avoids numerical issues with high-confidence fp16 predictions
+                    channel_tensor = torch.sigmoid(0.2 * channel_tensor)
                 elif act == "tanh":
                     channel_tensor = torch.tanh(channel_tensor)
                 elif act == "softmax":
@@ -237,7 +242,7 @@ class InferenceManager:
                 else:
                     raise ValueError(
                         f"Unknown activation '{act}' for channels {start_ch}:{end_ch}. "
-                        f"Supported: 'sigmoid', 'softmax', 'tanh', None"
+                        f"Supported: 'sigmoid', 'scale_sigmoid', 'softmax', 'tanh', None"
                     )
 
                 activated_channels.append(channel_tensor)
@@ -334,13 +339,14 @@ class InferenceManager:
         # Handle different tta_flip_axes configurations
         if tta_flip_axes_config is None:
             # null: No augmentation, but still apply tta_act and tta_channel (no ensemble)
-            if self.sliding_inferer is not None:
-                pred = self.sliding_inferer(inputs=images, network=self.sliding_window_predict)
-            else:
-                pred = self.sliding_window_predict(images)
+            with torch.no_grad():
+                if self.sliding_inferer is not None:
+                    pred = self.sliding_inferer(inputs=images, network=self.sliding_window_predict)
+                else:
+                    pred = self.sliding_window_predict(images)
 
-            # Apply TTA preprocessing (activation + channel selection) even without augmentation
-            ensemble_result = self.apply_tta_preprocessing(pred)
+                # Apply TTA preprocessing (activation + channel selection) even without augmentation
+                ensemble_result = self.apply_tta_preprocessing(pred)
         else:
             if tta_flip_axes_config == "all" or tta_flip_axes_config == []:
                 # "all" or []: All flips (all combinations of spatial axes)
@@ -369,7 +375,13 @@ class InferenceManager:
                 )
 
             # Apply TTA with flips, preprocessing, and ensembling
-            predictions = []
+            # Use running average to reduce memory usage instead of accumulating all predictions
+            ensemble_mode = getattr(
+                self.cfg.inference.test_time_augmentation, "ensemble_mode", "mean"
+            )
+
+            ensemble_result = None
+            num_predictions = 0
 
             for flip_axes in tta_flip_axes:
                 # Apply flip augmentation
@@ -379,40 +391,52 @@ class InferenceManager:
                     x_aug = images
 
                 # Inference with sliding window
-                if self.sliding_inferer is not None:
-                    pred = self.sliding_inferer(
-                        inputs=x_aug,
-                        network=self.sliding_window_predict,
-                    )
-                else:
-                    pred = self.sliding_window_predict(x_aug)
+                with torch.no_grad():
+                    if self.sliding_inferer is not None:
+                        pred = self.sliding_inferer(
+                            inputs=x_aug,
+                            network=self.sliding_window_predict,
+                        )
+                    else:
+                        pred = self.sliding_window_predict(x_aug)
 
-                # Invert flip for prediction
-                if flip_axes:
-                    pred = Flip(spatial_axis=flip_axes)(pred)
+                    # Invert flip for prediction
+                    if flip_axes:
+                        pred = Flip(spatial_axis=flip_axes)(pred)
 
-                # Apply TTA preprocessing (activation + channel selection) if configured
-                # Note: This is applied BEFORE ensembling for probability-space averaging
-                pred_processed = self.apply_tta_preprocessing(pred)
+                    # Apply TTA preprocessing (activation + channel selection) if configured
+                    # Note: This is applied BEFORE ensembling for probability-space averaging
+                    pred_processed = self.apply_tta_preprocessing(pred)
 
-                predictions.append(pred_processed)
+                    # Free intermediate memory
+                    del pred
+                    if flip_axes:
+                        del x_aug
 
-            # Ensemble predictions based on configured mode
-            ensemble_mode = getattr(
-                self.cfg.inference.test_time_augmentation, "ensemble_mode", "mean"
-            )
-            stacked_preds = torch.stack(predictions, dim=0)
+                    # Update running ensemble to reduce memory usage
+                    if ensemble_result is None:
+                        ensemble_result = pred_processed.clone()
+                    else:
+                        if ensemble_mode == "mean":
+                            # Running average: new_avg = old_avg + (new_val - old_avg) / n
+                            ensemble_result = ensemble_result + (pred_processed - ensemble_result) / (num_predictions + 1)
+                        elif ensemble_mode == "min":
+                            ensemble_result = torch.minimum(ensemble_result, pred_processed)
+                        elif ensemble_mode == "max":
+                            ensemble_result = torch.maximum(ensemble_result, pred_processed)
+                        else:
+                            raise ValueError(
+                                f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'."
+                            )
 
-            if ensemble_mode == "mean":
-                ensemble_result = stacked_preds.mean(dim=0)
-            elif ensemble_mode == "min":
-                ensemble_result = stacked_preds.min(dim=0)[0]  # min returns (values, indices)
-            elif ensemble_mode == "max":
-                ensemble_result = stacked_preds.max(dim=0)[0]  # max returns (values, indices)
-            else:
-                raise ValueError(
-                    f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'."
-                )
+                    num_predictions += 1
+
+                    # Free processed prediction memory
+                    del pred_processed
+
+                    # Force CUDA cache clear periodically to prevent OOM
+                    if torch.cuda.is_available() and num_predictions % 4 == 0:
+                        torch.cuda.empty_cache()
 
         # Apply mask after ensemble if requested
         apply_mask = getattr(self.cfg.inference.test_time_augmentation, "apply_mask", False)
@@ -868,9 +892,40 @@ def write_outputs(
         # Squeeze singleton dimensions (e.g., (1, 1, D, H, W) -> (D, H, W))
         sample = np.squeeze(sample)
 
+        # Convert to specified dtype if save_dtype is set
+        save_dtype = None
+        if hasattr(cfg.inference, "test_time_augmentation"):
+            save_dtype = getattr(cfg.inference.test_time_augmentation, "save_dtype", None)
+
+        if save_dtype is not None:
+            original_dtype = sample.dtype
+            if save_dtype == "float16":
+                sample = sample.astype(np.float16)
+            elif save_dtype == "float32":
+                sample = sample.astype(np.float32)
+            elif save_dtype == "uint8":
+                # For uint8, detect value range and scale appropriately
+                if sample.min() < 0:
+                    # [-1, 1] to [0, 255]
+                    sample = ((sample + 1) * 127.5).clip(0, 255).astype(np.uint8)
+                elif sample.max() <= 1.0:
+                    # [0, 1] to [0, 255]
+                    sample = (sample * 255).clip(0, 255).astype(np.uint8)
+                else:
+                    sample = sample.clip(0, 255).astype(np.uint8)
+            elif save_dtype == "uint16":
+                # For uint16, scale from [0, 1] to [0, 65535]
+                if sample.max() <= 1.0:
+                    sample = (sample * 65535).clip(0, 65535).astype(np.uint16)
+                else:
+                    sample = sample.clip(0, 65535).astype(np.uint16)
+            else:
+                print(f"  WARNING: Unknown save_dtype '{save_dtype}', keeping original dtype")
+
         # Write HDF5 file
         try:
             write_hdf5(str(output_path), sample, dataset="main")
-            print(f"  Saved prediction: {output_path} (shape: {sample.shape})")
+            dtype_info = f", dtype: {sample.dtype}" if save_dtype else ""
+            print(f"  Saved prediction: {output_path} (shape: {sample.shape}{dtype_info})")
         except Exception as e:
             print(f"  ERROR: write_outputs - failed to write {output_path}: {e}")
