@@ -15,7 +15,7 @@ Functions:
 """
 
 from __future__ import print_function, division
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import numpy as np
 import cc3d
 import fastremap
@@ -352,7 +352,7 @@ def decode_binary_contour_watershed(
 def decode_binary_contour_distance_watershed(
     predictions: np.ndarray,
     binary_threshold: Tuple[float, float] = (0.9, 0.85),
-    contour_threshold: Tuple[float, float] = (0.8, 1.1),
+    contour_threshold: Optional[Tuple[float, float]] = (0.8, 1.1),
     distance_threshold: Tuple[float, float] = (0.5, 0),
     min_instance_size: int = 128,
     remove_small_mode: str = "background",
@@ -360,6 +360,9 @@ def decode_binary_contour_distance_watershed(
     return_seed: bool = False,
     precomputed_seed: Optional[np.ndarray] = None,
     prediction_scale: int = 255,
+    binary_channels: Optional[List[int]] = None,
+    contour_channels: Optional[List[int]] = None,
+    distance_channels: Optional[List[int]] = None,
 ):
     r"""Convert binary foreground probability maps, instance contours and signed distance
     transform to instance masks via watershed segmentation algorithm.
@@ -369,11 +372,13 @@ def decode_binary_contour_distance_watershed(
         function that converts the input image into ``np.float64`` data type for processing. Therefore please make sure enough memory is allocated when handling large arrays.
 
     Args:
-        predictions (numpy.ndarray): foreground, contour, and distance probability of shape :math:`(3, Z, Y, X)`.
+        predictions (numpy.ndarray): foreground, contour, and distance probability of shape :math:`(3, Z, Y, X)`
+            or :math:`(2, Z, Y, X)` if contour is disabled.
         binary_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for binary mask.
             The first value is used for seed generation, the second for foreground mask. Default: (0.9, 0.85)
-        contour_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for instance contours.
-            The first value is used for seed generation, the second for foreground mask. Default: (0.8, 1.1)
+        contour_threshold (tuple or None): tuple of two floats (seed_threshold, foreground_threshold) for instance contours.
+            The first value is used for seed generation, the second for foreground mask.
+            Set to None to disable contour constraints (for BANIS-style binary+distance only). Default: (0.8, 1.1)
         distance_threshold (tuple): tuple of two floats (seed_threshold, foreground_threshold) for signed distance.
             The first value is used for seed generation, the second for foreground mask. Default: (0.5, -0.5)
         min_instance_size (int): minimum size threshold for instances to keep. Default: 128
@@ -381,36 +386,131 @@ def decode_binary_contour_distance_watershed(
         min_seed_size (int): minimum size of seed objects. Default: 32
         return_seed (bool): whether to return the seed map. Default: False
         precomputed_seed (numpy.ndarray, optional): precomputed seed map. Default: None
-        prediction_scale (int): scale of input predictions (255 for uint8 range). Default: 255
+        prediction_scale (int): scale of input predictions (255 for uint8 range, 1 for 0-1 range). Default: 255
+        binary_channels (list of int, optional): channel indices for binary mask. If multiple, they are averaged.
+            Default: None (uses position-based assignment)
+        contour_channels (list of int, optional): channel indices for contour. If multiple, they are averaged.
+            Default: None (uses position-based assignment)
+        distance_channels (list of int, optional): channel indices for distance. If multiple, they are averaged.
+            Default: None (uses position-based assignment)
 
     Returns:
         numpy.ndarray or tuple: Instance segmentation mask, or (mask, seed) if return_seed=True.
-    """
-    assert predictions.shape[0] == 3
-    binary, contour, distance = predictions[0], predictions[1], predictions[2]
 
+    Example:
+        >>> # Standard 3-channel (binary, contour, distance)
+        >>> seg = decode_binary_contour_distance_watershed(predictions)
+
+        >>> # BANIS-style 2-channel (binary, distance) - no contour
+        >>> seg = decode_binary_contour_distance_watershed(
+        ...     predictions,  # shape (2, Z, Y, X)
+        ...     binary_threshold=(0.5, 0.5),
+        ...     contour_threshold=None,  # Disable contour
+        ...     distance_threshold=(0.0, -1.0),
+        ...     prediction_scale=1,
+        ... )
+
+        >>> # Explicit channel selection with averaging
+        >>> seg = decode_binary_contour_distance_watershed(
+        ...     predictions,  # shape (3, Z, Y, X) with channels [aff_x, aff_y, SDT]
+        ...     binary_channels=[0, 1],  # Average channels 0 and 1 for binary
+        ...     contour_channels=None,   # No contour
+        ...     distance_channels=[2],   # Channel 2 for distance
+        ...     contour_threshold=None,
+        ...     prediction_scale=1,
+        ... )
+    """
+    # Check if contour is disabled
+    use_contour = contour_threshold is not None
+
+    # Extract channels using explicit selection or position-based fallback
+    if binary_channels is not None or distance_channels is not None:
+        # Explicit channel selection mode
+        if binary_channels is not None:
+            if len(binary_channels) > 1:
+                binary = predictions[binary_channels].mean(axis=0)
+            else:
+                binary = predictions[binary_channels[0]]
+        else:
+            binary = predictions[0]
+
+        if distance_channels is not None:
+            if len(distance_channels) > 1:
+                distance = predictions[distance_channels].mean(axis=0)
+            else:
+                distance = predictions[distance_channels[0]]
+        else:
+            distance = predictions[-1]
+
+        if use_contour:
+            if contour_channels is not None:
+                if len(contour_channels) > 1:
+                    contour = predictions[contour_channels].mean(axis=0)
+                else:
+                    contour = predictions[contour_channels[0]]
+            else:
+                # Default: assume contour is second-to-last if using contour
+                contour = predictions[-2]
+        else:
+            contour = None
+    else:
+        # Position-based fallback (legacy behavior)
+        if use_contour:
+            assert predictions.shape[0] >= 3, f"Expected at least 3 channels (binary, contour, distance), got {predictions.shape[0]}"
+            # If more than 3 channels, first N-2 channels are binary (average them)
+            if predictions.shape[0] > 3:
+                binary = predictions[:-2].mean(axis=0)
+                contour, distance = predictions[-2], predictions[-1]
+            else:
+                binary, contour, distance = predictions[0], predictions[1], predictions[2]
+        else:
+            assert predictions.shape[0] >= 2, f"Expected at least 2 channels (binary, distance) when contour disabled, got {predictions.shape[0]}"
+            # If more than 2 channels, first N-1 channels are binary (average them)
+            if predictions.shape[0] > 2:
+                binary = predictions[:-1].mean(axis=0)
+                distance = predictions[-1]
+            else:
+                binary, distance = predictions[0], predictions[1]
+            contour = None
+
+    # Convert thresholds based on prediction scale
     if prediction_scale == 255:
         distance = (distance / prediction_scale) * 2.0 - 1.0
-        binary_threshold = binary_threshold * prediction_scale
-        contour_threshold = contour_threshold * prediction_scale
-        distance_threshold = distance_threshold * prediction_scale
+        binary_threshold = (binary_threshold[0] * prediction_scale, binary_threshold[1] * prediction_scale)
+        if use_contour:
+            contour_threshold = (contour_threshold[0] * prediction_scale, contour_threshold[1] * prediction_scale)
+        distance_threshold = (distance_threshold[0] * prediction_scale, distance_threshold[1] * prediction_scale)
 
     if precomputed_seed is not None:
         seed = precomputed_seed
     else:  # compute the instance seeds
-        seed_map = (
-            (binary > binary_threshold[0])
-            * (contour < contour_threshold[0])
-            * (distance > distance_threshold[0])
-        )
+        if use_contour:
+            seed_map = (
+                (binary > binary_threshold[0])
+                * (contour < contour_threshold[0])
+                * (distance > distance_threshold[0])
+            )
+        else:
+            # No contour constraint - only binary and distance
+            seed_map = (
+                (binary > binary_threshold[0])
+                * (distance > distance_threshold[0])
+            )
         seed = cc3d.connected_components(seed_map)
         seed = remove_small_objects(seed, min_seed_size)
 
-    foreground = (
-        (binary > binary_threshold[1])
-        * (contour < contour_threshold[1])
-        * (distance > distance_threshold[1])
-    )
+    if use_contour:
+        foreground = (
+            (binary > binary_threshold[1])
+            * (contour < contour_threshold[1])
+            * (distance > distance_threshold[1])
+        )
+    else:
+        # No contour constraint - only binary and distance
+        foreground = (
+            (binary > binary_threshold[1])
+            * (distance > distance_threshold[1])
+        )
 
     segmentation = mahotas.cwatershed(-distance.astype(np.float64), seed)
     segmentation[~foreground] = (

@@ -286,7 +286,17 @@ class ConnectomicsModule(pl.LightningModule):
     def _sliding_window_predict(self, inputs: torch.Tensor) -> torch.Tensor:
         """Wrapper used by MONAI inferer to obtain primary model predictions."""
         outputs = self.forward(inputs)
-        return self._extract_main_output(outputs)
+        result = self._extract_main_output(outputs)
+
+        # Filter channels during inference to reduce memory during accumulation
+        # This is applied before the sliding window aggregates results
+        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'sliding_window'):
+            save_channels = getattr(self.cfg.inference.sliding_window, 'save_channels', None)
+            if save_channels is not None:
+                # Select only specified channels (e.g., [0, 6] for foreground + SDT)
+                result = result[:, save_channels, ...]
+
+        return result
 
     def _apply_tta_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """

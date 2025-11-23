@@ -802,6 +802,11 @@ def write_outputs(
     if hasattr(cfg.inference, "postprocessing"):
         output_transpose = getattr(cfg.inference.postprocessing, "output_transpose", [])
 
+    # Get save_channels from sliding_window config (to reduce memory/storage)
+    save_channels = None
+    if hasattr(cfg.inference, "sliding_window"):
+        save_channels = getattr(cfg.inference.sliding_window, "save_channels", None)
+
     # Determine actual batch size from predictions
     # Handle both batched (B, ...) and unbatched (...) predictions
     if predictions.ndim >= 4:
@@ -838,6 +843,20 @@ def write_outputs(
         sample = predictions[idx]
         filename = filenames[idx]
         output_path = output_dir / f"{filename}_{suffix}.h5"
+
+        # Select specific channels if save_channels is specified
+        # save_channels can be a list of indices like [0, 6] to save only channels 0 and 6
+        # Skip if channels were already filtered during inference (check if num_channels matches)
+        if save_channels is not None and sample.ndim >= 4:
+            channel_indices = list(save_channels)
+            num_channels = sample.shape[0]
+            # Only filter if not already filtered (channels > len(save_channels))
+            if num_channels > len(channel_indices):
+                try:
+                    sample = sample[channel_indices]
+                    print(f"  Selected channels {channel_indices} from {predictions[idx].shape[0]} channels")
+                except Exception as e:
+                    print(f"  WARNING: write_outputs - channel selection failed: {e}, keeping all channels")
 
         # Transpose if needed (output_transpose: list of axis permutation)
         if output_transpose and len(output_transpose) > 0:
