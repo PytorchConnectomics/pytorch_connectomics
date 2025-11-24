@@ -31,9 +31,7 @@ PyTorch Connectomics (PyTC) helps neuroscientists:
 - ✅ **Train models** without deep ML expertise
 - ✅ **Process** large-scale connectomics datasets efficiently
 
-**Built on:** [PyTorch Lightning](https://lightning.ai/) + [MONAI](https://monai.io/) for modern, scalable deep learning.
-
-**Used by:** Harvard, MIT, Janelia Research Campus, and 100+ labs worldwide.
+**Built on:** [PyTorch Lightning](https://lightning.ai/) + [MONAI](https://monai.io/) + [nnU-Net](https://github.com/MIC-DKFZ/nnUNet) for modern, scalable deep learning.
 
 ---
 
@@ -105,22 +103,29 @@ python scripts/main.py --demo
 Train on real mitochondria segmentation data:
 
 ```bash
-# Download tutorial data (~100 MB)
-mkdir -p datasets/
-wget https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip
-unzip Lucchi++.zip -d datasets/
-rm Lucchi++.zip
+# Download tutorial data (~50 MB)
+just download lucchi++
 
 # Quick test (1 batch)
-python scripts/main.py --config tutorials/monai_lucchi++.yaml --fast-dev-run
+just train lucchi++ monai_unet --fast-dev-run
 
-# Full training
-python scripts/main.py --config tutorials/monai_lucchi++.yaml
+# Full training on a single GPU (choose your architecture: monai_unet, rsunet, mednext)
+just train lucchi++ monai_unet -- system.training.num_gpus=1
 ```
 
 **Monitor progress:**
 ```bash
-tensorboard --logdir outputs/lucchi++_monai_unet
+just tensorboard lucchi++_monai_unet
+```
+
+**Resume training from checkpoint:**
+```bash
+just resume lucchi++ monai_unet outputs/lucchi++_monai_unet/*/checkpoints/last.ckpt
+```
+
+**Run inference:**
+```bash
+just test lucchi++ monai_unet outputs/lucchi++_monai_unet/*/checkpoints/best.ckpt
 ```
 
 ---

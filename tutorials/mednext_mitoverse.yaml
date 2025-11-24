@@ -107,7 +107,7 @@ inference:
     #   Original ch 6 → New ch 2 (SDT)
     # Note: BANIS uses scale_sigmoid = sigmoid(0.2 * x) for numerical stability in fp16
     channel_activations:
-      - [0, 2, scale_sigmoid]        # Affinities x,y with scaled sigmoid
+      - [0, 2, sigmoid]        # Affinities x,y with scaled sigmoid
       - [2, 3, tanh]                 # SDT (new ch 2)
     select_channel: all
     ensemble_mode: mean
