@@ -102,9 +102,10 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         )
 
     # BasicUNet requires exactly 6 feature levels
-    base_features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
+    # Pad with last value repeated (not doubled) to keep memory usage low
+    base_features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512, 1024]
     while len(base_features) < 6:
-        base_features.append(base_features[-1] * 2)
+        base_features.append(base_features[-1])  # Repeat last value instead of doubling
     features = tuple(base_features[:6])
 
     model = BasicUNet(
@@ -157,8 +158,7 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
             "Use [H, W] for 2D or [D, H, W] for 3D. "
             "spatial_dims will be automatically inferred from input_size length."
         )
-    features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
-    channels = features[:5]  # Limit to 5 levels
+    channels = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
     strides = [2] * (len(channels) - 1)  # 2x downsampling at each level
 
     # Handle normalization type and parameters

@@ -85,6 +85,8 @@ def create_demo_config():
         ModelConfig,
         DataConfig,
         OptimizationConfig,
+        OptimizerConfig,
+        SchedulerConfig,
         MonitorConfig,
         CheckpointConfig,
         EarlyStoppingConfig,
@@ -111,14 +113,15 @@ def create_demo_config():
             ),
         ),
         model=ModelConfig(
-            architecture="monai_basic_unet3d",
+            architecture="monai_unet",
             in_channels=1,
-            out_channels=2,
+            out_channels=1,  # Single channel binary segmentation
             spatial_dims=3,
             filters=[16, 32, 64, 128],  # Smaller for demo
             dropout=0.1,
             loss_functions=["DiceLoss"],
             loss_weights=[1.0],
+            loss_kwargs=[{"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5}],
         ),
         data=DataConfig(
             train_image=None,  # Will be generated
@@ -142,9 +145,9 @@ def create_demo_config():
             log_every_n_steps=1,
             deterministic=False,
             benchmark=True,
+            optimizer=OptimizerConfig(name="AdamW", lr=1e-3, weight_decay=1e-4),
+            scheduler=SchedulerConfig(name="ConstantLR", warmup_epochs=0),
         ),
-        optimizer={"name": "AdamW", "lr": 1e-3, "weight_decay": 1e-4},
-        scheduler={"name": "ConstantLR", "warmup_epochs": 0},
         monitor=MonitorConfig(
             checkpoint=CheckpointConfig(
                 dirpath="outputs/demo/checkpoints",
@@ -323,13 +326,18 @@ def run_demo():
     except (ImportError, ModuleNotFoundError):
         pass
 
+    # Use TensorBoard logger to avoid "no logger" warnings
+    from pytorch_lightning.loggers import TensorBoardLogger
+    demo_logger = TensorBoardLogger(save_dir=str(temp_dir), name="demo_logs", version="")
+
     trainer = pl.Trainer(
         max_epochs=cfg.optimization.max_epochs,
         accelerator="gpu" if cfg.system.training.num_gpus > 0 else "cpu",
         devices=cfg.system.training.num_gpus if cfg.system.training.num_gpus > 0 else 1,
         precision=cfg.optimization.precision,
         callbacks=callbacks,
-        logger=False,  # Disable logging for demo
+        logger=demo_logger,
+        log_every_n_steps=cfg.optimization.log_every_n_steps,
         enable_checkpointing=True,
         enable_progress_bar=True,
         enable_model_summary=True,
@@ -352,13 +360,18 @@ def run_demo():
         print("=" * 60)
         print("\nYour installation is working correctly! 🎉")
         print("\n📚 Next steps:")
-        print("  1. Try a tutorial:")
-        print("     python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run")
-        print("\n  2. Download tutorial data:")
-        print("     just download-data lucchi  # Or see README for manual download")
+        print("  1. Download tutorial data:")
+        print("     just download lucchi++")
+        print("     just download-list  # See all available datasets")
+        print("\n  2. Try a fast dev run:")
+        print("     just train lucchi++ monai_unet -- --fast-dev-run")
         print("\n  3. Train on real data:")
-        print("     python scripts/main.py --config tutorials/lucchi.yaml")
-        print("\n  4. Read the documentation:")
+        print("     just train lucchi++ monai_unet")
+        print("     just train lucchi++ rsunet")
+        print("     just train lucchi++ mednext")
+        print("\n  4. Monitor training:")
+        print("     just tensorboard lucchi++_monai_unet")
+        print("\n  5. Read the documentation:")
         print("     https://connectomics.readthedocs.io")
         print("\n" + "=" * 60 + "\n")
 

@@ -184,9 +184,11 @@ def setup_config(args) -> Config:
     cfg = resolve_data_paths(cfg)
 
     # Extract config file name and set output folder
+    # Include architecture name for unified configs (e.g., lucchi++_rsunet)
     config_path = Path(args.config)
     config_name = config_path.stem  # Get filename without extension
-    output_folder = f"outputs/{config_name}/"
+    arch_name = cfg.model.architecture
+    output_folder = f"outputs/{config_name}_{arch_name}/"
 
     # Update checkpoint dirpath only if not provided by the user
     if not getattr(cfg.monitor.checkpoint, "dirpath", None):
@@ -1013,12 +1015,22 @@ def create_trainer(
         pass  # Use default progress bar
 
     # Setup logger (training only - in run_dir/logs/)
+    # Always create a logger for training to avoid warnings about missing logger
     logger = None
     if mode == "train":
         logger = TensorBoardLogger(
             save_dir=str(run_dir),
             name="",  # No name subdirectory
             version="logs",  # Logs go directly to run_dir/logs/
+        )
+        print(f"  Logger: TensorBoard (logs saved to {run_dir}/logs/)")
+    else:
+        # For test/predict mode, create a minimal logger to avoid warnings
+        # if validation metrics are logged
+        logger = TensorBoardLogger(
+            save_dir=str(run_dir),
+            name="",
+            version="logs",
         )
 
     # Create trainer

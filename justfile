@@ -6,28 +6,38 @@ default:
     @just --list
 
 # ============================================================================
-# SLURM/HPC Setup
+# Setup & Data
 # ============================================================================
 
 # Setup SLURM environment: detect CUDA/cuDNN and install PyTorch with correct versions
 setup-slurm:
     bash connectomics/utils/setup_slurm.sh
 
+# Download dataset(s) (e.g., just download lucchi++, just download all)
+# Available: lucchi++, snemi, mitoem, cremi
+download +datasets:
+    python scripts/download_data.py {{datasets}}
+
+# List available datasets
+download-list:
+    python scripts/download_data.py --list
+
 # ============================================================================
 # Training Commands
 # ============================================================================
 
-# Train on Lucchi dataset (use '+' to pass extra args: just train monai lucchi++ -- data.batch_size=8, --fast-dev-run)
-train model dataset *ARGS='':
-    python scripts/main.py --config tutorials/{{model}}_{{dataset}}.yaml {{ARGS}}
+# Train with unified config (e.g., just train lucchi++ rsunet -- data.batch_size=8)
+# Architecture options: monai_basic_unet3d, rsunet, mednext
+train dataset arch *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch}} {{ARGS}}
 
-# Continue training from checkpoint (use '+' for extra args: just resume monai lucchi++ ckpt.pt -- --reset-optimizer)
-resume model dataset checkpoint *ARGS='':
-    python scripts/main.py --config tutorials/{{model}}_{{dataset}}.yaml --checkpoint {{checkpoint}} {{ARGS}}
+# Continue training from checkpoint (e.g., just resume lucchi++ rsunet ckpt.pt -- --reset-optimizer)
+resume dataset arch checkpoint *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch}} --checkpoint {{checkpoint}} {{ARGS}}
 
-# Test on Lucchi++ dataset (provide path to checkpoint)
-test model dataset checkpoint *ARGS='':
-    python scripts/main.py --config tutorials/{{model}}_{{dataset}}.yaml --mode test --checkpoint {{checkpoint}} {{ARGS}}
+# Test model (e.g., just test lucchi++ rsunet ckpt.pt)
+test dataset arch checkpoint *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch}} --mode test --checkpoint {{checkpoint}} {{ARGS}}
 
 # ============================================================================
 # Monitoring Commands
