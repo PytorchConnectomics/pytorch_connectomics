@@ -56,6 +56,26 @@ test dataset arch_or_ckpt ckpt_or_args='' *ARGS='':
         python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch_or_ckpt}} --mode test --checkpoint {{ckpt_or_args}} {{ARGS}}
     fi
 
+# Tune decoding parameters on validation set (e.g., just tune hydra-lv ckpt.pt)
+tune dataset ckpt *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode tune --checkpoint {{ckpt}} {{ARGS}}
+
+# Tune parameters then test (recommended for optimal results)
+tune-test dataset ckpt *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode tune+test --checkpoint {{ckpt}} {{ARGS}}
+
+# Quick tuning with 20 trials (for testing)
+tune-quick dataset ckpt *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode tune --checkpoint {{ckpt}} --tune-trials 20 {{ARGS}}
+
+# Test with specific parameter file
+test-with-params dataset ckpt params *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode test --checkpoint {{ckpt}} --params {{params}} {{ARGS}}
+
+# Inference (alias for test, clearer naming)
+infer dataset ckpt *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode infer --checkpoint {{ckpt}} {{ARGS}}
+
 # ============================================================================
 # Monitoring Commands
 # ============================================================================

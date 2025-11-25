@@ -15,26 +15,26 @@ from tqdm import tqdm
 DATASETS = {
     "lucchi": {
         "name": "Lucchi++ Mitochondria Segmentation",
-        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip",
+        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/lucchi%2B%2B.zip",
         "size_mb": 100,
         "description": "EM images with mitochondria annotations from Lucchi et al.",
         "files": [
-            "datasets/Lucchi++/train_image.h5",
-            "datasets/Lucchi++/train_label.h5",
-            "datasets/Lucchi++/test_image.h5",
-            "datasets/Lucchi++/test_label.h5",
+            "datasets/lucchi++/train_image.h5",
+            "datasets/lucchi++/train_label.h5",
+            "datasets/lucchi++/test_image.h5",
+            "datasets/lucchi++/test_label.h5",
         ],
     },
     "lucchi++": {  # Alias
         "name": "Lucchi++ Mitochondria Segmentation",
-        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip",
+        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/lucchi%2B%2B.zip",
         "size_mb": 100,
         "description": "EM images with mitochondria annotations from Lucchi et al.",
         "files": [
-            "datasets/Lucchi++/train_image.h5",
-            "datasets/Lucchi++/train_label.h5",
-            "datasets/Lucchi++/test_image.h5",
-            "datasets/Lucchi++/test_label.h5",
+            "datasets/lucchi++/train_image.h5",
+            "datasets/lucchi++/train_label.h5",
+            "datasets/lucchi++/test_image.h5",
+            "datasets/lucchi++/test_label.h5",
         ],
     },
 }

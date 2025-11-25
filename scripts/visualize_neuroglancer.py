@@ -11,9 +11,11 @@ Usage:
     python -i scripts/visualize_neuroglancer.py --volumes image:path/img.tif label:path/lbl.h5 seg:path/seg.h5
 
 Interactive mode variables:
-    viewer   - Neuroglancer viewer instance
-    volumes  - Dictionary of loaded volumes {name: (data, type, resolution, offset)}
-    cfg      - Config object (if loaded from --config)
+    viewer      - Neuroglancer viewer instance
+    volumes     - Dictionary of loaded volumes {name: (data, type, resolution, offset)}
+    cfg         - Config object (if loaded from --config)
+    add_layer() - Helper function to add new layers from files or data
+    ngLayer()   - Helper function to create Neuroglancer layers
 
 Examples:
     # Examine volume data
@@ -23,6 +25,16 @@ Examples:
     # Access raw numpy arrays
     >>> img = volumes['train_image'][0]
     >>> lbl = volumes['train_label'][0]
+
+    # Add new layer from file
+    >>> add_layer('prediction', file_path='outputs/pred.h5', res=[5, 5, 5], tt='seg')
+
+    # Add layer from existing data
+    >>> add_layer('filtered', data=my_array, res=[30, 6, 6], tt='image')
+
+    # Manual layer creation (advanced)
+    >>> with viewer.txn() as s:
+    ...     s.layers.append(name='custom', layer=ngLayer(data, [5, 5, 5], tt='image'))
 """
 
 import argparse
@@ -130,8 +142,8 @@ Examples:
 
   # Specify files directly
   python -i scripts/visualize_neuroglancer.py \\
-    --image datasets/Lucchi/img/train_im.tif \\
-    --label datasets/Lucchi/label/train_label.tif
+    --image datasets/lucchi/img/train_im.tif \\
+    --label datasets/lucchi/label/train_label.tif
 
   # Multiple volumes with custom names (type inferred from name)
   python -i scripts/visualize_neuroglancer.py \\
@@ -757,10 +769,15 @@ def visualize_volumes(
     print(f"\nServer: {ip}:{port}")
     print(f"Volumes: {list(volumes.keys())}")
     print("\n" + "=" * 70)
-    print("Interactive Python session - examine variables:")
-    print("  viewer   - Neuroglancer viewer instance")
-    print("  volumes  - Dictionary of loaded volumes")
-    print("  For volume data: volumes['name'][0] (numpy array)")
+    print("Interactive Python session - available variables and functions:")
+    print("  viewer      - Neuroglancer viewer instance")
+    print("  volumes     - Dictionary of loaded volumes")
+    print("  cfg         - Config object (if --config used)")
+    print("  add_layer() - Add new layer: add_layer('name', file_path='path.h5', res=[5,5,5], tt='image')")
+    print("  ngLayer()   - Create layer: ngLayer(data, [5,5,5], tt='image')")
+    print("\nExamples:")
+    print("  volumes['name'][0]  # Access numpy array")
+    print("  add_layer('pred', file_path='outputs/pred.h5', res=[5,5,5], tt='seg')")
     print("\nExit with: exit() or Ctrl+D")
     print("=" * 70 + "\n")
 
@@ -873,24 +890,24 @@ def main():
     def ngLayer(data, res, oo=[0, 0, 0], tt='segmentation'):
         """
         Create a Neuroglancer layer from volume data.
-        
+
         Args:
             data: Volume data (3D or 4D numpy array)
             res: Resolution as list/tuple [z, y, x] in nm, or CoordinateSpace object
             oo: Offset as list/tuple [z, y, x] (default: [0, 0, 0])
             tt: Volume type 'image' or 'segmentation' (default: 'segmentation')
-        
+
         Returns:
             Neuroglancer LocalVolume layer
         """
         # Handle 4D data (C, Z, Y, X) -> use first channel
         if data.ndim == 4:
             data = data[0]
-        
+
         # Ensure 3D
         if data.ndim != 3:
             raise ValueError(f"Expected 3D volume, got shape {data.shape}")
-        
+
         # Create coordinate space from resolution if it's a list/tuple
         if isinstance(res, (list, tuple)):
             coord_space = neuroglancer.CoordinateSpace(
@@ -901,16 +918,67 @@ def main():
         else:
             # Assume it's already a CoordinateSpace object
             coord_space = res
-        
+
         return neuroglancer.LocalVolume(
             data,
             dimensions=coord_space,
             volume_type=tt,
             voxel_offset=oo
         )
-    
-    # Make ngLayer available in interactive mode
+
+    def add_layer(name, file_path=None, data=None, res=None, oo=[0, 0, 0], tt='image'):
+        """
+        Add a layer to the viewer (convenience function for interactive mode).
+
+        Args:
+            name: Display name for the layer
+            file_path: Path to volume file (alternative to data parameter)
+            data: Volume data as numpy array (alternative to file_path parameter)
+            res: Resolution as list/tuple [z, y, x] in nm (default: uses args.resolution)
+            oo: Offset as list/tuple [z, y, x] (default: [0, 0, 0])
+            tt: Volume type 'image' or 'segmentation' (default: 'image')
+
+        Example usage:
+            # Load from file with custom resolution
+            add_layer('prediction', file_path='outputs/pred.h5', res=[5, 5, 5], tt='seg')
+
+            # Load from existing numpy array
+            add_layer('my_volume', data=volumes['test_image'][0], res=[30, 6, 6], tt='image')
+        """
+        # Load data from file if file_path is provided
+        if file_path is not None:
+            if data is not None:
+                print("Warning: Both file_path and data provided, using file_path")
+            print(f"Loading {name} from: {file_path}")
+            data = read_volume(file_path)
+
+            # Convert 2D to 3D if needed
+            if data.ndim == 2:
+                data = data[None, :, :]
+                print(f"  Converted 2D to 3D: {data.shape}")
+        elif data is None:
+            raise ValueError("Either file_path or data must be provided")
+
+        # Use default resolution if not provided
+        if res is None:
+            res = list(args.resolution)
+            print(f"  Using default resolution: {res}")
+
+        # Create and add layer
+        print(f"  Adding layer '{name}': shape={data.shape}, type={tt}, resolution={res}")
+        layer = ngLayer(data, res, oo, tt)
+
+        with viewer.txn() as s:
+            s.layers.append(name=name, layer=layer)
+
+        print(f"  ✓ Layer '{name}' added successfully")
+
+        # Store in volumes dict for future reference
+        volumes[name] = (data, 'segmentation' if tt == 'seg' else tt, tuple(res), tuple(oo))
+
+    # Make helper functions available in interactive mode
     globals()['ngLayer'] = ngLayer
+    globals()['add_layer'] = add_layer
 
     # Return viewer for interactive mode
     return viewer

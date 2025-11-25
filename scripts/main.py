@@ -107,9 +107,9 @@ def parse_args():
     )
     parser.add_argument(
         "--mode",
-        choices=["train", "test", "predict"],
+        choices=["train", "test", "predict", "tune", "tune+test", "infer"],
         default="train",
-        help="Mode: train, test, or predict (default: train)",
+        help="Mode: train, test, predict, tune, tune+test, or infer (default: train)",
     )
     parser.add_argument(
         "--checkpoint",
@@ -156,6 +156,25 @@ def parse_args():
         type=str,
         default=None,
         help="Prefix to strip from external checkpoint keys (e.g., 'model.' for BANIS checkpoints)",
+    )
+    # Parameter tuning arguments
+    parser.add_argument(
+        "--params",
+        type=str,
+        default=None,
+        help="Path to parameter file (overrides config parameter_source)",
+    )
+    parser.add_argument(
+        "--param-source",
+        choices=["fixed", "tuned", "optuna"],
+        default=None,
+        help="Parameter source: fixed, tuned, or optuna (overrides config)",
+    )
+    parser.add_argument(
+        "--tune-trials",
+        type=int,
+        default=None,
+        help="Number of Optuna trials (overrides config, use with --mode tune or tune+test)",
     )
     parser.add_argument(
         "overrides",
@@ -242,7 +261,7 @@ def setup_config(args) -> Config:
         cfg.system.inference.num_workers = 1
 
     # Apply inference-specific overrides if in test/predict mode
-    if args.mode in ["test", "predict"]:
+    if args.mode in ["test", "predict", "tune", "tune+test", "infer"]:
         if cfg.inference.num_gpus >= 0:
             print(f"🔧 Inference override: num_gpus={cfg.inference.num_gpus}")
             cfg.system.training.num_gpus = cfg.inference.num_gpus
@@ -1128,6 +1147,29 @@ def main():
     print("=" * 60)
     cfg = setup_config(args)
 
+    # Early exit for tune modes (under development)
+    if args.mode in ["tune", "tune+test"]:
+        print("\n" + "=" * 80)
+        print(f"🎯 {args.mode.upper().replace('+', ' + ')} MODE")
+        print("=" * 80)
+        print("\n⚠️  This mode is under development.")
+        print("\nTo use Optuna parameter tuning:")
+        print("  1. Install dependencies: pip install -e .[optim]")
+        print("  2. See: tutorials/optuna_decoding_tuning.yaml")
+        print("  3. See: tutorials/unified_inference_tuning.yaml")
+        print("  4. See: .claude/MODE_INTEGRATION_DESIGN.md")
+        print("\nFor now, use:")
+        if args.mode == "tune":
+            print("  • --mode test with manual parameters in config")
+        else:
+            print("  1. Run parameter tuning separately")
+            print("  2. Then run --mode test with optimized parameters")
+        print("\n💡 Implementation tracked in:")
+        print("  • .claude/MODE_INTEGRATION_DESIGN.md")
+        print("  • .claude/OPTUNA_DECODING_DESIGN.md")
+        print("=" * 80)
+        return
+
     # Run preflight checks for training mode
     if args.mode == "train":
         from connectomics.utils.errors import preflight_check, print_preflight_issues
@@ -1300,9 +1342,9 @@ def main():
             )
             print("\n✅ Training completed successfully!")
 
-        elif args.mode == "test":
+        elif args.mode in ["test", "infer"]:
             print("\n" + "=" * 60)
-            print("🧪 RUNNING TEST")
+            print("🧪 RUNNING TEST" if args.mode == "test" else "🔍 RUNNING INFERENCE")
             print("=" * 60)
 
             # Check if test dataset exists
@@ -1322,6 +1364,32 @@ def main():
                 datamodule=datamodule,
                 ckpt_path=test_ckpt_path,
             )
+
+        elif args.mode == "tune":
+            print("\n" + "=" * 80)
+            print("🎯 PARAMETER TUNING MODE")
+            print("=" * 80)
+            print("\n⚠️  This mode is under development.")
+            print("\nTo use Optuna parameter tuning:")
+            print("  1. Install dependencies: pip install optuna")
+            print("  2. See: tutorials/optuna_decoding_tuning.yaml")
+            print("  3. See: .claude/MODE_INTEGRATION_DESIGN.md")
+            print("\nFor now, use --mode test with manual parameters.")
+            sys.exit(1)
+
+        elif args.mode == "tune+test":
+            print("\n" + "=" * 80)
+            print("🎯 TUNE + TEST MODE")
+            print("=" * 80)
+            print("\n⚠️  This mode is under development.")
+            print("\nTo use Optuna parameter tuning + testing:")
+            print("  1. Install dependencies: pip install optuna")
+            print("  2. See: tutorials/unified_inference_tuning.yaml")
+            print("  3. See: .claude/MODE_INTEGRATION_DESIGN.md")
+            print("\nFor now, use:")
+            print("  1. Run tuning separately")
+            print("  2. Then run --mode test with tuned parameters")
+            sys.exit(1)
 
         elif args.mode == "predict":
             print("Running prediction...")

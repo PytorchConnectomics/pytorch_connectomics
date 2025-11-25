@@ -109,12 +109,12 @@ model:
   #   - Increased boundary weight: 0.5 → 1.0 (clearer boundaries)
   #   - Increased distance weight: 2.0 → 3.0 (better watershed)
   #   - Expected improvement: +1-2% instance segmentation accuracy
-  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSE]
+  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSELoss]
   loss_weights: [1.0, 1.0, 3.0]       # Binary: Dice+BCE, Boundary: Dice+BCE, Distance: MSE (OPTION 5)
   loss_kwargs:
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
     - {}                                 # BCEWithLogitsLoss for binary
-    - {tanh: true}                       # WeightedMSE for distance (with tanh activation)
+    - {tanh: true}                       # WeightedMSELoss for distance (with tanh activation)
 
   # Multi-task configuration
   # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
@@ -298,8 +298,8 @@ inference:
 
   # Test-Time Augmentation (TTA)
   test_time_augmentation:
-    enabled: true        # Enable TTA for improved predictions
-    flip_axes: all      # Use all flip augmentations
+    enabled: false        # Enable TTA for improved predictions
+    flip_axes: null      # Use all flip augmentations
     # Per-channel activations (aligned with multi_task_config)
     # Format: [[start_ch, end_ch, activation], ...]
     channel_activations:
@@ -320,7 +320,6 @@ inference:
         distance_threshold: [0.5, 0]
         min_instance_size: 16
         min_seed_size: 8
-        prediction_scale: 1
 
   # Postprocessing configuration (applied AFTER TTA if enabled)
   postprocessing:

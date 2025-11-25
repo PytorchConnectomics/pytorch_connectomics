@@ -1,0 +1,303 @@
+# Unified Inference and Parameter Tuning Configuration
+#
+# This config supports multiple workflows in a single file:
+#   1. Standard inference on test data with fixed parameters
+#   2. Parameter tuning on validation data with Optuna
+#   3. Combined: tune on val, then apply best params to test
+#
+# Usage:
+#   # Standard inference only
+#   python scripts/main.py --config unified_inference_tuning.yaml --mode test
+#
+#   # Parameter tuning only
+#   python scripts/main.py --config unified_inference_tuning.yaml --mode tune
+#
+#   # Combined: tune then test
+#   python scripts/main.py --config unified_inference_tuning.yaml --mode tune+test
+
+experiment_name: hydra_lv_unified
+description: Unified config for inference and parameter tuning
+
+# ============================================================================
+# SYSTEM CONFIGURATION
+# ============================================================================
+system:
+  num_gpus: 1
+  num_cpus: 8
+  seed: 42
+
+# ============================================================================
+# DATA CONFIGURATION
+# ============================================================================
+data:
+  # Training data (for model info only, not used during inference)
+  train_image: "datasets/hydra/train_image.h5"
+  train_label: "datasets/hydra/train_label.h5"
+  train_resolution: [30, 6, 6]
+
+  # Data dimensions
+  patch_size: [128, 128, 128]
+  batch_size: 2
+  num_workers: 4
+
+# ============================================================================
+# MODEL CONFIGURATION
+# ============================================================================
+model:
+  architecture: rsunet
+  in_channels: 1
+  out_channels: 3  # Binary + Boundary + Distance
+
+  checkpoint: "outputs/hydra_lv_rsunet/checkpoints/best_model.ckpt"
+
+# ============================================================================
+# INFERENCE CONFIGURATION
+# ============================================================================
+inference:
+  # -------------------------------------------------------------------------
+  # Data Split Strategy
+  # -------------------------------------------------------------------------
+  # Define different datasets for different purposes
+  data:
+    # Validation set (for parameter tuning)
+    validation:
+      test_image: "datasets/hydra/val_image.h5"
+      test_label: "datasets/hydra/val_label.h5"
+      test_resolution: [30, 6, 6]
+      description: "Held-out validation set for parameter optimization"
+
+    # Test set (for final evaluation with optimized parameters)
+    test:
+      test_image: "datasets/hydra/test_image.h5"
+      test_label: "datasets/hydra/test_label.h5"  # Optional (may not exist)
+      test_resolution: [30, 6, 6]
+      description: "Final test set for evaluation"
+
+    # Optional: Multiple test sets
+    test_sets:
+      # Dataset 1: Main test set
+      - name: "test_main"
+        test_image: "datasets/hydra/test_image.h5"
+        test_label: "datasets/hydra/test_label.h5"
+        test_resolution: [30, 6, 6]
+
+      # Dataset 2: Another test volume
+      - name: "test_volume2"
+        test_image: "datasets/hydra/test_volume2.h5"
+        test_label: null  # No ground truth
+        test_resolution: [30, 6, 6]
+
+  # -------------------------------------------------------------------------
+  # Test-Time Augmentation (TTA)
+  # -------------------------------------------------------------------------
+  test_time_augmentation:
+    enabled: true
+    flip_axes: null  # Use all flip augmentations
+    channel_activations:
+      - [0, 1, sigmoid]  # Binary
+      - [1, 2, sigmoid]  # Boundary
+      - [2, 3, tanh]     # Distance
+    select_channel: all
+    ensemble_mode: mean
+    apply_mask: true
+    save_predictions: true
+
+  # -------------------------------------------------------------------------
+  # Decoding Configuration (with tuning support)
+  # -------------------------------------------------------------------------
+  decoding:
+    # Main decoder configuration
+    decoder_name: decode_binary_contour_distance_watershed
+
+    # Parameter mode: 'fixed', 'tuned', or 'optuna'
+    parameter_mode: optuna
+
+    # ========================================================================
+    # MODE 1: Fixed Parameters (Traditional)
+    # ========================================================================
+    fixed_params:
+      binary_threshold: 0.85
+      contour_threshold: 0.95
+      distance_threshold: 0.40
+      min_instance_size: 32
+      min_seed_size: 8
+      use_numba: true
+
+    # ========================================================================
+    # MODE 2: Use Previously Tuned Parameters
+    # ========================================================================
+    tuned_params:
+      # Path to saved best parameters from previous tuning run
+      params_file: "outputs/optuna_tuning/best_params.yaml"
+      # Or load from Optuna study
+      study_db: "sqlite:///outputs/optuna_studies/hydra_lv.db"
+      study_name: "hydra_lv_decoding_optimization"
+      trial_number: null  # null = best trial, or specify trial number
+
+    # ========================================================================
+    # MODE 3: Optuna Parameter Tuning (Automatic)
+    # ========================================================================
+    optuna_tuning:
+      # Enable/disable tuning
+      enabled: true
+
+      # Use validation set for tuning
+      tune_on_data: "validation"
+
+      # Optuna study configuration
+      study_name: "hydra_lv_decoding_optimization"
+      storage: "sqlite:///outputs/optuna_studies/hydra_lv.db"
+      load_if_exists: true  # Resume if exists
+
+      # Optimization settings
+      n_trials: 50
+      timeout: null  # No timeout
+
+      # Sampler
+      sampler:
+        name: TPE
+        kwargs:
+          n_startup_trials: 10
+          multivariate: true
+
+      # Optimization objective
+      optimization:
+        mode: single
+        single_objective:
+          metric: adapted_rand
+          direction: maximize
+
+      # Parameter search space
+      parameter_space:
+        binary_threshold:
+          type: float
+          range: [0.5, 0.95]
+          step: 0.05
+
+        contour_threshold:
+          type: float
+          range: [0.6, 1.2]
+          step: 0.05
+
+        distance_threshold:
+          type: float
+          range: [0.0, 0.8]
+          step: 0.05
+
+        min_instance_size:
+          type: int
+          range: [8, 128]
+          step: 8
+
+        min_seed_size:
+          type: int
+          range: [4, 64]
+          step: 4
+
+      # Evaluation metrics during tuning
+      evaluation:
+        metrics:
+          - adapted_rand
+          - voi_sum
+          - voi_split
+          - voi_merge
+
+        foreground_only: true
+        ignore_background: true
+
+      # Output configuration for tuning
+      output:
+        output_dir: "outputs/optuna_tuning"
+        save_best_params: true
+        save_all_trials: true
+        save_study: true
+
+        visualizations:
+          enabled: true
+          plot_optimization_history: true
+          plot_param_importance: true
+          plot_parallel_coordinate: true
+
+      # After tuning: apply to test set?
+      apply_to_test:
+        enabled: true
+        test_datasets: ["test_main"]  # Which test sets to run
+
+  # -------------------------------------------------------------------------
+  # Postprocessing
+  # -------------------------------------------------------------------------
+  postprocessing:
+    intensity_scale: 255
+    intensity_dtype: uint8
+
+  # -------------------------------------------------------------------------
+  # Evaluation (for both validation and test)
+  # -------------------------------------------------------------------------
+  evaluation:
+    enabled: true
+    metrics: [adapted_rand, voi_sum]
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  base_dir: "outputs/hydra_lv_unified"
+
+  # Separate directories for different stages
+  validation_dir: "outputs/hydra_lv_unified/validation"
+  tuning_dir: "outputs/hydra_lv_unified/tuning"
+  test_dir: "outputs/hydra_lv_unified/test"
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  verbose: true
+  log_dir: "outputs/hydra_lv_unified/logs"
+
+# ============================================================================
+# WORKFLOW MODES
+# ============================================================================
+# These are used by the CLI to determine what to do
+
+workflows:
+  # Mode 1: Standard inference with fixed parameters
+  inference_only:
+    description: "Run inference on test set with fixed parameters"
+    steps:
+      - load_model
+      - run_inference: [test]
+      - decode: fixed_params
+      - evaluate
+      - save_results
+
+  # Mode 2: Parameter tuning only
+  tuning_only:
+    description: "Optimize parameters on validation set"
+    steps:
+      - load_model
+      - run_inference: [validation]
+      - optuna_tuning
+      - save_best_params
+
+  # Mode 3: Combined workflow (RECOMMENDED)
+  tune_then_test:
+    description: "Tune on validation, then apply to test"
+    steps:
+      - load_model
+      - run_inference: [validation, test]
+      - optuna_tuning: validation
+      - apply_best_params: test
+      - evaluate
+      - save_results
+
+  # Mode 4: Use previously tuned parameters
+  use_tuned:
+    description: "Load tuned parameters and run inference"
+    steps:
+      - load_model
+      - load_tuned_params
+      - run_inference: [test]
+      - decode: tuned_params
+      - evaluate
+      - save_results

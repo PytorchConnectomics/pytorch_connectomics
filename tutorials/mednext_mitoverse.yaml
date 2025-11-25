@@ -75,8 +75,8 @@ inference:
     test_label: "instancesTs/high_c2.nii.gz"   # Optional: for evaluation
     test_resolution: [16, 16, 16]               # Typical resolution (nm)
 
-    # test_image: "datasets/Lucchi++/test_im.h5"   # Update this path
-    # test_label: "datasets/Lucchi++/test_mito.h5"   # Optional: for evaluation
+    # test_image: "datasets/lucchi++/test_im.h5"   # Update this path
+    # test_label: "datasets/lucchi++/test_mito.h5"   # Optional: for evaluation
     # test_resolution: [5, 5, 5]               # Typical resolution (nm)
 
     output_path: outputs/mednext_mitoverse/results/

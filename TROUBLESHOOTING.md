@@ -321,8 +321,8 @@ data:
 **Solution - Manual download:**
 ```bash
 # Download from HuggingFace
-wget https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip
-unzip Lucchi++.zip -d datasets/
+wget https://huggingface.co/datasets/pytc/tutorial/resolve/main/lucchi%2B%2B.zip
+unzip lucchi++.zip -d datasets/
 
 # Or use git-lfs
 git lfs install

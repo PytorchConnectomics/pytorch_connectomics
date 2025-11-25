@@ -73,11 +73,11 @@ model:
   mednext_kernel_size: 3                # 3, 5, or 7
   deep_supervision: false                # Enable deep supervision for MedNeXt
 
-  # Loss configuration - WeightedBCE + Dice for mitochondria segmentation
-  loss_functions: [WeightedBCE, DiceLoss]
+  # Loss configuration - WeightedBCEWithLogitsLoss + Dice for mitochondria segmentation
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss]
   loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
   loss_kwargs:
-    - {reduction: mean}                            # WeightedBCE: average over batch
+    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background ignored for single channel)
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)

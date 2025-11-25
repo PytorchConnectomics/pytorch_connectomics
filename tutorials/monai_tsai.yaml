@@ -50,11 +50,11 @@ model:
   dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration - Dice for overlap, BCE for pixel-wise accuracy
-  loss_functions: [WeightedBCE, DiceLoss]
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss]
   loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
   loss_kwargs:
-  - {reduction: mean}
-  - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:  
