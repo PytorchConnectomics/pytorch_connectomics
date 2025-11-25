@@ -1,109 +1,158 @@
-# Evaluation scripts for curvilinear structures based on
-# correctness, completness, quality (Mosinska et al. https://arxiv.org/abs/1712.02190)
-# and foreground IoU. Support multi-cpu paralellism with Python multiprocessing.
+#!/usr/bin/env python
+"""
+Evaluation script for curvilinear structures.
 
-import os
-import imageio
+This script provides command-line interface for evaluating segmentation
+of curvilinear structures (neurons, blood vessels) using skeleton-based metrics.
+
+Metrics computed:
+    - Correctness: Precision on skeletonized predictions
+    - Completeness: Recall on skeletonized predictions
+    - Quality: F-measure combining correctness and completeness
+    - Foreground IoU: Intersection over Union of foreground regions
+
+Based on:
+    Mosinska et al., "Beyond the Pixel-Wise Loss for Topology-Aware Delineation"
+    https://arxiv.org/abs/1712.02190
+
+Usage:
+    python scripts/tools/eval_curvilinear.py \
+        --gt-path path/to/groundtruth/ \
+        --pd-path path/to/predictions/ \
+        --thres 128 \
+        --max-index 200
+
+    # Or use as module:
+    from connectomics.metrics import evaluate_directory
+    results = evaluate_directory(pred_dir, gt_dir)
+"""
+
 import argparse
-import numpy as np
-import multiprocessing
+from connectomics.metrics import evaluate_directory
 
-from skimage.morphology import skeletonize, dilation, square
 
 def get_args():
-    parser = argparse.ArgumentParser(description='Curvilinear structure evaluation.')
-    parser.add_argument('--gt-path',  type=str, help='path to groundtruth mask')
-    parser.add_argument('--pd-path',  type=str, help='path to predicted structures')
-    parser.add_argument('--thres', type=int, default=128, help='threshold for prediction [0, 255]')
-    parser.add_argument('--max-index', type=int, default=200, help='maximum image index')
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description='Curvilinear structure evaluation using skeleton metrics.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Evaluate predictions in directory
+  python scripts/tools/eval_curvilinear.py \
+      --gt-path data/groundtruth/ \
+      --pd-path results/predictions/ \
+      --max-index 100
+
+  # Custom threshold and pattern
+  python scripts/tools/eval_curvilinear.py \
+      --gt-path data/gt/ \
+      --pd-path results/pred/ \
+      --thres 150 \
+      --pred-pattern "pred_%04d.png" \
+      --gt-pattern "gt_%04d.png"
+        """
+    )
+
+    parser.add_argument(
+        '--gt-path',
+        type=str,
+        required=True,
+        help='Path to directory containing ground truth masks'
+    )
+    parser.add_argument(
+        '--pd-path',
+        type=str,
+        required=True,
+        help='Path to directory containing predicted structures'
+    )
+    parser.add_argument(
+        '--thres',
+        type=int,
+        default=128,
+        help='Threshold for binarizing predictions [0, 255]. Default: 128'
+    )
+    parser.add_argument(
+        '--max-index',
+        type=int,
+        default=200,
+        help='Maximum image index to evaluate. Default: 200'
+    )
+    parser.add_argument(
+        '--pred-pattern',
+        type=str,
+        default='%03d_pred.png',
+        help='Filename pattern for predictions (use %%d for index). Default: %%03d_pred.png'
+    )
+    parser.add_argument(
+        '--gt-pattern',
+        type=str,
+        default='%03d.png',
+        help='Filename pattern for ground truth (use %%d for index). Default: %%03d.png'
+    )
+    parser.add_argument(
+        '--dilation-size',
+        type=int,
+        default=5,
+        help='Size of square structuring element for skeleton dilation. Default: 5'
+    )
+    parser.add_argument(
+        '--num-workers',
+        type=int,
+        default=None,
+        help='Number of parallel workers (default: all CPUs)'
+    )
+    parser.add_argument(
+        '--quiet',
+        action='store_true',
+        help='Suppress per-image output'
+    )
+
     args = parser.parse_args()
     return args
 
-args = get_args()
-print(args)
-# ---------------------------------------------------------------------------------------
-
-def compute_metrics(skeleton_output, skeleton_gt, skeleton_output_dil, skeleton_gt_dil):
-
-    """
-    inputs:
-    skeleton_output - list containing skeletonized network probability maps after binarization at 0.5
-    skeleton_gt - list containing skeletonized groun-truth images
-    skeleton_output_dil - list containing skeletonized outputs dilated by the factor N
-    skeleton_gt_dil - list containing skeletonized ground truth images dilated by the factor N
-    """
-    
-    tpcor = 0
-    tpcom = 0
-    fn = 0
-    fp = 0
-
-    for i in range(0, len(skeleton_output)):
-        tpcor += ((skeleton_output[i] == skeleton_gt_dil[i]) & (skeleton_output[i] == 1)).sum()
-        tpcom += ((skeleton_gt[i]==skeleton_output_dil[i]) & (skeleton_gt[i]==1)).sum()
-        fn += (skeleton_gt[i]==1).sum() - ((skeleton_gt[i]==skeleton_output_dil[i]) & (skeleton_gt[i]==1)).sum()
-        fp += (skeleton_output[i]==1).sum() - ((skeleton_output[i] == skeleton_gt_dil[i]) & (skeleton_output[i] == 1)).sum()
-
-    correctness = tpcor/(tpcor+fp)
-    completness = tpcom/(tpcom+fn)
-    if (completness - completness*correctness + correctness) == 0.0:
-        quality = 0.0
-    else:    
-        quality = completness*correctness/(completness - completness*correctness + correctness)
-
-    return correctness, completness, quality
-
-def compute_precision_recall(pred, gt):
-    pred_skel = skeletonize(pred)
-    pred_dil = dilation(pred_skel, square(5))
-    gt_skel = skeletonize(gt)
-    gt_dil = dilation(gt_skel, square(5))
-    return compute_metrics([pred_skel], [gt_skel], [pred_dil], [gt_dil])
-
-def calc_iou(pred, gt):
-    # Both the pred and gt are binarized.
-    # Calculate foreground iou:
-    inter = np.logical_and(pred, gt).astype(np.float32)
-    union = np.logical_or(pred, gt).astype(np.float32)
-    if union.sum() == 0:
-        foreground_iou = 0.0
-    else:
-        foreground_iou = inter.sum() / union.sum()
-    return foreground_iou
-
-def binarize(pred, gt):
-    pred = (pred > args.thres).astype(np.uint8)
-    gt = (gt!=0).astype(np.uint8) * (gt!=255).astype(np.uint8)
-    return pred, gt
-
-def evaluate(i):
-    
-    pd_file = args.pd_path + '%03d_pred.png' % i
-    gt_file = args.gt_path + '%03d.png' % i
-    if os.path.exists(pd_file):
-        pred = imageio.imread(pd_file)
-        gt = imageio.imread(gt_file)
-        pred, gt = binarize(pred, gt)
-        num_gt = gt.sum()
-        if num_gt == 0:
-            return 1.0, 1.0, 1.0, 1.0
-        else:
-            foreground_iou = calc_iou(pred, gt)
-            correctness, completness, quality = compute_precision_recall(pred, gt)
-            print(i, foreground_iou, correctness, completness, quality)
-            return foreground_iou, correctness, completness, quality
-    else:
-        return []
 
 def main():
-    num_cores = multiprocessing.cpu_count()
-    print('num_cores: ', num_cores)
+    """Main evaluation function."""
+    args = get_args()
 
-    p = multiprocessing.Pool(num_cores)
-    results = p.map(evaluate, list(range(0, args.max_index)))
-    results = [x for x in results if x != []]
-    results = np.array(results)
-    print(results.shape[0], results.mean(0))
+    print("="*70)
+    print("Curvilinear Structure Evaluation")
+    print("="*70)
+    print(f"Ground truth path:    {args.gt_path}")
+    print(f"Prediction path:      {args.pd_path}")
+    print(f"Prediction pattern:   {args.pred_pattern}")
+    print(f"Ground truth pattern: {args.gt_pattern}")
+    print(f"Threshold:            {args.thres}")
+    print(f"Max index:            {args.max_index}")
+    print(f"Dilation size:        {args.dilation_size}")
+    print(f"Num workers:          {args.num_workers or 'auto'}")
+    print("="*70)
+
+    # Run evaluation
+    results = evaluate_directory(
+        pred_dir=args.pd_path,
+        gt_dir=args.gt_path,
+        pred_pattern=args.pred_pattern,
+        gt_pattern=args.gt_pattern,
+        max_index=args.max_index,
+        threshold=args.thres,
+        dilation_size=args.dilation_size,
+        num_workers=args.num_workers,
+        verbose=not args.quiet,
+    )
+
+    # Print summary
+    print("\n" + "="*70)
+    print("EVALUATION SUMMARY")
+    print("="*70)
+    print(f"Images evaluated:     {results['num_evaluated']}")
+    print(f"Mean IoU:             {results['mean_iou']:.6f}")
+    print(f"Mean Correctness:     {results['mean_correctness']:.6f}")
+    print(f"Mean Completeness:    {results['mean_completeness']:.6f}")
+    print(f"Mean Quality:         {results['mean_quality']:.6f}")
+    print("="*70)
+
 
 if __name__ == "__main__":
     main()

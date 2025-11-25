@@ -244,74 +244,111 @@ def seg_to_binary(label, segment_id=[]):
     return fg_mask
 
 
-def seg_to_affinity(seg: np.ndarray, target_opt: List[str]) -> np.ndarray:
+def seg_to_affinity(
+    seg: np.ndarray,
+    offsets: List[str] = None,
+    long_range: int = None,
+) -> np.ndarray:
     """
-    Compute affinities from a segmentation based on target options.
+    Compute affinity maps from segmentation.
+
+    Supports two modes:
+    1. DeepEM/SNEMI style: Provide `offsets` as list of strings (e.g., ["0-0-1", "0-1-0", "1-0-0"])
+    2. BANIS style: Provide `long_range` as int for 6-channel output (3 short + 3 long range)
 
     Args:
         seg: The segmentation to compute affinities from. Shape: (z, y, x).
-        target_opt: List of strings defining affinity offsets.
-            Can be either:
-            - Legacy format: ['1', '0-0-1', '0-1-0', ...] (first element is type indicator)
-            - Modern format: ['0-0-1', '0-1-0', ...] (direct offset list)
+             0 indicates background.
+        offsets: List of offset strings in "z-y-x" format (e.g., ["0-0-1", "0-1-0", "1-0-0"]).
+                 Each string defines one affinity channel.
+        long_range: BANIS-style: offset for long-range affinities. Produces 6 channels:
+                    - Channel 0-2: Short-range (offset 1) for z, y, x
+                    - Channel 3-5: Long-range (offset long_range) for z, y, x
 
     Returns:
-        The affinities. Shape: (num_offsets, z, y, x).
+        The affinities. Shape: (num_channels, z, y, x).
     """
-    if len(target_opt) == 0:
-        # Default short-range affinities
-        offsets = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    else:
-        # Detect format: check if first element is a type indicator or an offset
-        start_idx = 0
-        if len(target_opt) > 0 and "-" not in target_opt[0]:
-            # Legacy format: first element is type indicator (e.g., '1')
-            start_idx = 1
+    # BANIS mode: use long_range parameter (takes precedence if specified)
+    if long_range is not None:
+        affinities = np.zeros((6, *seg.shape), dtype=np.float32)
 
-        # Parse offsets from target_opt
-        offsets = []
-        for opt_str in target_opt[start_idx:]:
-            if "-" in opt_str:
-                offset = [int(x) for x in opt_str.split("-")]
-                offsets.append(offset)
+        # Short range affinities (offset 1)
+        affinities[0, :-1] = (seg[:-1] == seg[1:]) & (seg[1:] > 0)
+        affinities[1, :, :-1] = (seg[:, :-1] == seg[:, 1:]) & (seg[:, 1:] > 0)
+        affinities[2, :, :, :-1] = (seg[:, :, :-1] == seg[:, :, 1:]) & (seg[:, :, 1:] > 0)
 
-        # Fallback to default if no valid offsets found
-        if len(offsets) == 0:
-            offsets = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        # Long range affinities
+        affinities[3, :-long_range] = (seg[:-long_range] == seg[long_range:]) & (seg[long_range:] > 0)
+        affinities[4, :, :-long_range] = (seg[:, :-long_range] == seg[:, long_range:]) & (seg[:, long_range:] > 0)
+        affinities[5, :, :, :-long_range] = (seg[:, :, :-long_range] == seg[:, :, long_range:]) & (seg[:, :, long_range:] > 0)
 
-    num_offsets = len(offsets)
-    affinities = np.zeros((num_offsets, *seg.shape), dtype=np.float32)
+        return affinities
 
-    for i, offset in enumerate(offsets):
-        dz, dy, dx = offset
+    # DeepEM/SNEMI mode: use offsets parameter
+    if offsets is None:
+        # Default: short-range affinities for z, y, x
+        offsets = ["1-0-0", "0-1-0", "0-0-1"]
 
-        # Create slices for the offset
-        if dz > 0:
-            src_slice = (slice(None, -dz), slice(None), slice(None))
-            dst_slice = (slice(dz, None), slice(None), slice(None))
-        elif dz < 0:
-            src_slice = (slice(-dz, None), slice(None), slice(None))
-            dst_slice = (slice(None, dz), slice(None), slice(None))
+    # Parse offsets from strings
+    parsed_offsets = []
+    for offset_str in offsets:
+        parts = offset_str.split("-")
+        if len(parts) == 3:
+            parsed_offsets.append([int(parts[0]), int(parts[1]), int(parts[2])])
         else:
-            src_slice = (slice(None), slice(None), slice(None))
-            dst_slice = (slice(None), slice(None), slice(None))
+            raise ValueError(f"Invalid offset format: {offset_str}. Expected 'z-y-x' format.")
+
+    num_channels = len(parsed_offsets)
+    affinities = np.zeros((num_channels, *seg.shape), dtype=np.float32)
+
+    for i, (dz, dy, dx) in enumerate(parsed_offsets):
+        # Handle each axis independently
+        # For positive offset: compare seg[:-offset] with seg[offset:]
+        # For negative offset: compare seg[-offset:] with seg[:offset]
+
+        if dz == 0 and dy == 0 and dx == 0:
+            # Zero offset: all foreground pixels are 1
+            affinities[i] = (seg > 0).astype(np.float32)
+            continue
+
+        # Build source and destination slices for each axis
+        if dz > 0:
+            z_src = slice(None, -dz)
+            z_dst = slice(dz, None)
+        elif dz < 0:
+            z_src = slice(-dz, None)
+            z_dst = slice(None, dz)
+        else:
+            z_src = slice(None)
+            z_dst = slice(None)
 
         if dy > 0:
-            src_slice = (src_slice[0], slice(None, -dy), src_slice[2])
-            dst_slice = (dst_slice[0], slice(dy, None), dst_slice[2])
+            y_src = slice(None, -dy)
+            y_dst = slice(dy, None)
         elif dy < 0:
-            src_slice = (src_slice[0], slice(-dy, None), src_slice[2])
-            dst_slice = (dst_slice[0], slice(None, dy), dst_slice[2])
+            y_src = slice(-dy, None)
+            y_dst = slice(None, dy)
+        else:
+            y_src = slice(None)
+            y_dst = slice(None)
 
         if dx > 0:
-            src_slice = (src_slice[0], src_slice[1], slice(None, -dx))
-            dst_slice = (dst_slice[0], dst_slice[1], slice(dx, None))
+            x_src = slice(None, -dx)
+            x_dst = slice(dx, None)
         elif dx < 0:
-            src_slice = (src_slice[0], src_slice[1], slice(-dx, None))
-            dst_slice = (dst_slice[0], dst_slice[1], slice(None, dx))
+            x_src = slice(-dx, None)
+            x_dst = slice(None, dx)
+        else:
+            x_src = slice(None)
+            x_dst = slice(None)
 
-        # Compute affinity
-        affinities[i][dst_slice] = (seg[src_slice] == seg[dst_slice]) & (seg[dst_slice] > 0)
+        src_slice = (z_src, y_src, x_src)
+        dst_slice = (z_dst, y_dst, x_dst)
+
+        # Compute affinity: same segment ID and not background
+        affinities[i][dst_slice] = (
+            (seg[src_slice] == seg[dst_slice]) & (seg[dst_slice] > 0)
+        ).astype(np.float32)
 
     return affinities
 

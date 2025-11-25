@@ -40,7 +40,7 @@ system:
     num_gpus: 4
     num_cpus: 8
     num_workers: 8           # Set to 0 to avoid /dev/shm space issues (use in-process loading)
-    batch_size: 1
+    batch_size: 16
   inference:
     num_gpus: 1
     num_cpus: 1
@@ -78,7 +78,7 @@ model:
   loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
   loss_kwargs:
     - {reduction: mean}                            # WeightedBCE: average over batch
-    - {include_background: false, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background ignored for single channel)
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
 data:
@@ -238,7 +238,7 @@ inference:
   # Test-Time Augmentation (TTA)
   test_time_augmentation:
     enabled: true        # Enable TTA for improved predictions
-    flip_axes: null      # No flip augmentation (set to null to disable flips)
+    flip_axes: all      # No flip augmentation (set to null to disable flips)
     # XY flips are safe for isotropic XY resolution, Z-flip avoided due to anisotropy
     channel_activations: [[0, 1, 'sigmoid']]  # Sigmoid activation for single-channel output
     select_channel: null                   # Keep all channels (single channel output)

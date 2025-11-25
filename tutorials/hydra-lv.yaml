@@ -1,0 +1,333 @@
+# Hydra Large Vesicle Segmentation with MONAI Residual UNet
+# Multi-task learning: Binary + Boundary + Distance
+#
+# ============================================================================
+# ARCHITECTURE SELECTION - Change 'architecture' to switch models:
+# ============================================================================
+#
+# monai_unet (recommended for MONAI)
+#   - MONAI's UNet with residual units
+#   - Supports any number of levels (uses filters directly)
+#   - No deep supervision
+#   - Recommended for: MONAI baseline, flexible architecture
+#
+# monai_basic_unet3d
+#   - MONAI's BasicUNet (always 6 levels, pads filters if < 6)
+#   - Simple, fast
+#   - Recommended for: Quick experiments
+#
+# rsunet
+#   - Residual Symmetric U-Net (EM-optimized)
+#   - No checkerboard artifacts (uses upsample+conv instead of transposed conv)
+#   - Anisotropic convolutions for EM data
+#   - Recommended for: Production EM segmentation, anisotropic data
+#
+# mednext
+#   - MedNeXt (MICCAI 2023, ConvNeXt-based)
+#   - State-of-the-art performance
+#   - Deep supervision for better training
+#   - Sizes: S (5.6M), B (10.5M), M (17.6M), L (61.8M) params
+#   - Recommended for: Best accuracy, sufficient GPU memory
+#
+# ============================================================================
+#
+# This config uses multi-task learning to predict:
+#   - Channel 0: Binary masks (sigmoid activation)
+#   - Channel 1: Boundary maps (sigmoid activation)
+#   - Channel 2: Distance transforms (tanh activation)
+#
+# Multi-task setup uses different loss functions for each channel:
+#   - Binary & Boundary: DiceLoss + BCEWithLogitsLoss
+#   - Distance: WeightedMSELoss
+#
+# Valid region masks (train_mask, val_mask):
+#   - Masks define valid regions for loss computation
+#   - Applied after same augmentation as labels (spatial consistency)
+#   - Loss is only computed in valid (mask=1) regions
+
+experiment_name: hydra_lv_rsunet
+description: Hydra large vesicle segmentation with RSUNet (EM-optimized) and multi-task learning
+
+# System
+system:
+  training:
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8                     # More workers for parallel data loading (6x speedup)
+    batch_size: 4                      # Reduced from 32 for larger patches (OPTION 3)
+  inference:
+    num_gpus: 1
+    num_cpus: 1
+    num_workers: 1
+    batch_size: 1
+  seed: 42
+
+# Model Configuration
+model:
+  # ========== CHANGE THIS LINE TO SWITCH ARCHITECTURES ==========
+  architecture: rsunet  # Options: monai_unet, monai_basic_unet3d, rsunet, mednext
+  # ==============================================================
+  # OPTION 2: Using RSUNet (EM-optimized architecture)
+  #   - Optimized for anisotropic EM data (30nm Z, 8nm XY)
+  #   - No checkerboard artifacts (cleaner boundaries)
+  #   - Better gradient flow with residual connections
+  #   - Expected improvement: +2-3% accuracy over monai_unet
+  #
+  # OPTION 3: Larger patch size for better context
+  #   - Increased from [24, 96, 96] to [32, 128, 128]
+  #   - Better spatial context for large vesicles
+  #   - Expected improvement: +2-4% accuracy
+  #   - Note: Requires more GPU memory, batch size reduced
+
+  # Common settings (used by all architectures)
+  input_size: [32, 128, 128]           # 32x128x128 input patches (OPTION 3)
+  output_size: [32, 128, 128]          # 32x128x128 output patches
+  in_channels: 1
+  out_channels: 3                      # 3 channels: binary, boundary, distance
+
+  # UNet architecture configuration (optimized for 32x128x128)
+  filters: [32, 64, 128, 256, 512]     # 5 filter stages (4 encoder + 1 bottleneck)
+  strides: [2, 2, 2]                   # 3×2 downsampling → minimum dimension: 4×16×16
+  num_res_units: 2                     # Residual units per block
+  kernel_size: 3                       # Convolution kernel size
+  norm: batch
+  dropout: 0.1                         # Dropout for regularization
+
+  # MONAI BasicUNet-specific settings (ignored by other architectures)
+  upsample: nontrainable                # Use trilinear upsampling (no transposed conv)
+
+  # RSUNet-specific settings (ignored by other architectures)
+  rsunet_norm: batch                    # Batch normalization for RSUNet
+
+  # MedNeXt-specific settings (ignored by other architectures)
+  mednext_size: S                       # S (5.6M), B (10.5M), M (17.6M), L (61.8M)
+  mednext_kernel_size: 3                # 3, 5, or 7
+  deep_supervision: false               # Enable deep supervision for MedNeXt
+
+  # Multi-task loss configuration
+  # OPTION 5: Optimized loss weights for large vesicles
+  #   - Increased boundary weight: 0.5 → 1.0 (clearer boundaries)
+  #   - Increased distance weight: 2.0 → 3.0 (better watershed)
+  #   - Expected improvement: +1-2% instance segmentation accuracy
+  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSE]
+  loss_weights: [1.0, 1.0, 3.0]       # Binary: Dice+BCE, Boundary: Dice+BCE, Distance: MSE (OPTION 5)
+  loss_kwargs:
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
+    - {}                                 # BCEWithLogitsLoss for binary
+    - {tanh: true}                       # WeightedMSE for distance (with tanh activation)
+
+  # Multi-task configuration
+  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
+  multi_task_config:
+    - [0, 1, "label", [0, 1]]          # Original labels: Dice + BCE
+    - [1, 2, "boundary", [0, 1]]       # Boundary channel: Dice + BCE  
+    - [2, 3, "edt", [2]]               # Distance channel: MSE
+
+# Data - Hydra large vesicle dataset (multiple volumes)
+data:
+  # Volume configuration - supports multiple files via glob pattern or list
+  train_image: "datasets/hydra-lv/vol*_im.h5"     # Training volumes
+  train_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"     # Training labels
+  train_mask: "datasets/hydra-lv/vol*_mask.h5"     # Training masks
+  train_resolution: [30, 8, 8]   # Hydra: 30nm (Z) x 8nm (XY) anisotropic resolution
+  use_preloaded_cache: true           # Pre-load raw volumes into RAM for fast random cropping
+  cache_rate: 0.0                     # No MONAI caching (augmentation is on-the-fly, random crops change)
+  persistent_workers: true            # Keep workers alive between epochs (avoid restart overhead)
+
+  # Patch configuration
+  patch_size: [32, 128, 128]           # 32x128x128 training patches (OPTION 3 - larger for better context)
+  pad_size: [8, 24, 24]                # Reflection padding for context (scaled proportionally)
+  pad_mode: reflect                    # Reflection padding at boundaries
+  iter_num_per_epoch: 1280              # More iterations for smaller patches
+  
+  # Image normalization
+  image_transform:
+    normalize: "0-1"                   # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.0           # No clipping
+    clip_percentile_high: 1.0
+
+  # Label transformation for multi-task learning
+  label_transform:
+    targets:
+      - name: binary                # Channel 0: foreground mask
+      - name: instance_boundary     # Channel 1: contour map
+        kwargs:
+          thickness: 1
+          edge_mode: "all"
+          mode: "2d"
+      - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
+        kwargs:
+          mode: "3d"              # 2D EDT with per-instance bounding box optimization
+          quantize: false
+
+  # Augmentation - comprehensive set for large vesicle segmentation
+  # Note: When enabled, augmentations (rotation, flip, etc.) are applied to:
+  #   - image: geometric + intensity transforms
+  #   - label: same geometric transforms as image
+  #   - mask: same geometric transforms as image and label
+  # This ensures spatial consistency across image/label/mask triplets
+  augmentation:
+    preset: "some"  # Enable only augmentations explicitly set to enabled=True
+
+    # Standard geometric augmentations (safe for 3D EM)
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis: [0, 1, 2]  # Flip x/y/z
+
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes: [1, 2]  # Rotate Y-X plane (preserves Z-axis)
+
+    affine:
+      enabled: true
+      prob: 0.3  # Lower prob to avoid too aggressive transforms
+      rotate_range: [0.1, 0.1, 0.1]  # Small rotations (~6°)
+      scale_range: [0.05, 0.05, 0.05]  # Small scaling (±5%)
+      shear_range: [0.05, 0.05, 0.05]  # Small shearing
+
+    # Intensity augmentations (important for EM data variability)
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.2  # Moderate noise
+      gaussian_noise_std: 0.03
+      shift_intensity_prob: 0.4
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.4
+      contrast_range: [0.8, 1.2]  # Moderate contrast variation
+
+    # EM-specific augmentations (highly recommended for EM data)
+    misalignment:
+      enabled: true
+      prob: 0.4
+      displacement: 8  # Moderate displacement
+      rotate_ratio: 0.3  # Mix of translation and rotation
+
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 2  # 1-2 missing sections (common in EM)
+
+    motion_blur:
+      enabled: true
+      prob: 0.3
+      sections: 2
+      kernel_size: 9  # Moderate blur
+
+# Optimizer - AdamW with improved hyperparameters
+optimization:
+  max_epochs: 10000
+  gradient_clip_val: 0.5               # Conservative gradient clipping (from lucchi++)
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"              # BFloat16 mixed precision
+
+  optimizer:
+    name: AdamW
+    lr: 0.001                          # Standard learning rate
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+
+  # Scheduler - ReduceLROnPlateau for adaptive learning (from lucchi++)
+  scheduler:
+    name: ReduceLROnPlateau           # Reduce LR when validation loss plateaus
+    mode: min                         # Monitor minimum loss
+    factor: 0.5                       # Reduce LR by 50%
+    patience: 50                      # Wait 50 epochs before reducing
+    threshold: 1.0e-4                 # Minimum change to qualify as improvement
+    min_lr: 1.0e-6                    # Don't go below 1e-6
+
+monitor:
+  # Loss monitoring and validation frequency  
+  detect_anomaly: false
+  logging:
+    # scalar loss
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+      benchmark: true
+    
+    # visualization
+    images:
+      enabled: true
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 1
+      channel_mode: all                 # Show all 3 channels for multi-task
+      selected_channels: null
+  
+  # Checkpointing
+  checkpoint:
+    mode: min
+    save_top_k: 3
+    save_last: true
+    save_every_n_epochs: 10
+    dirpath: outputs/hydra_lv_rsunet/checkpoints/
+    use_timestamp: true
+
+  # Early stopping - Patient for convergence (improved from lucchi++)
+  early_stopping:
+    enabled: true
+    monitor: train_loss_total_epoch
+    patience: 100        # Reduced from 300 for faster convergence detection
+    mode: min
+    min_delta: 1.0e-4    # Minimum delta for improvement
+    check_finite: true   # Stop if monitored metric becomes NaN/inf
+    threshold: 0.02      # Stop if loss gets this low (excellent convergence)
+    divergence_threshold: 100.0  # Stop if loss exceeds this (training collapse - very high value)
+
+# Inference - MONAI SlidingWindowInferer for Hydra Large Vesicle
+inference:
+  data:
+    test_image: datasets/hydra-lv/vol*_im.h5
+    test_label: datasets/hydra-lv/vol*_vesicle_ins.h5
+    test_mask: datasets/hydra-lv/vol*_mask.h5
+    test_resolution: [30, 8, 8]
+    output_path: outputs/hydra_lv_rsunet/results/
+
+  # MONAI SlidingWindowInferer parameters
+  sliding_window:
+    window_size: [32, 128, 128]        # Match training patch size (OPTION 3)
+    sw_batch_size: 1                   # Process 1 patch at a time (memory optimization)
+    overlap: 0.25                      # 25% overlap (reduced from 0.5 to save memory)
+    blending: gaussian                 # Gaussian weighting for smooth blending
+    sigma_scale: 0.25                  # Larger sigma = smoother blending at boundaries
+    padding_mode: replicate            # Replicate edge values (better than reflect for z=0)
+
+  # Test-Time Augmentation (TTA)
+  test_time_augmentation:
+    enabled: true        # Enable TTA for improved predictions
+    flip_axes: all      # Use all flip augmentations
+    # Per-channel activations (aligned with multi_task_config)
+    # Format: [[start_ch, end_ch, activation], ...]
+    channel_activations:
+      - [0, 1, sigmoid]                # Channel 0: binary segmentation (sigmoid)
+      - [1, 2, sigmoid]                # Channel 1: boundary (sigmoid)
+      - [2, 3, tanh]                   # Channel 2: EDT distance (tanh)
+    select_channel: all               # Use all channels
+    ensemble_mode: mean              # Mean ensemble (smooth predictions)
+    apply_mask: true                   # Multiply predictions by test_mask after ensemble
+    save_predictions: true             # Save intermediate predictions (before decoding)
+
+  # Decoding configuration (instance segmentation postprocessing)
+  decoding:
+    - name: decode_binary_contour_distance_watershed
+      kwargs:
+        binary_threshold: [0.9, 0.85]
+        contour_threshold: [0.8, 1.1]
+        distance_threshold: [0.5, 0]
+        min_instance_size: 16
+        min_seed_size: 8
+        prediction_scale: 1
+
+  # Postprocessing configuration (applied AFTER TTA if enabled)
+  postprocessing:
+    intensity_scale: 255                    # Scale predictions to [0, 255] for saving
+    intensity_dtype: uint8                  # Save as uint8
+
+  # Evaluation
+  evaluation:
+    enabled: true                        # Use eval mode for BatchNorm
+    metrics: [adapted_rand]             # Metrics to compute
