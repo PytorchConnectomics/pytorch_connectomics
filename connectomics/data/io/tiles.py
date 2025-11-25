@@ -12,7 +12,7 @@ import numpy as np
 from scipy.ndimage import zoom
 
 from .io import read_image
-from .utils import vast_to_segmentation
+from .utils import rgb_to_seg
 
 
 def create_tile_metadata(
@@ -170,8 +170,8 @@ def reconstruct_volume_from_tiles(
                         result[z - z0,
                                y_actual_start - y0:y_actual_end - y0,
                                x_actual_start - x0:x_actual_end - x0] = \
-                            vast_to_segmentation(patch[y_actual_start - y_patch_start:y_actual_end - y_patch_start,
-                                                        x_actual_start - x_patch_start:x_actual_end - x_patch_start])
+                            rgb_to_seg(patch[y_actual_start - y_patch_start:y_actual_end - y_patch_start,
+                                             x_actual_start - x_patch_start:x_actual_end - x_patch_start])
 
     # Apply padding for chunks touching the border of the large input volume
     if max(boundary_diffs) > 0:

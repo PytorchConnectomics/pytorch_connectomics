@@ -602,7 +602,7 @@ class MultiTaskLabelTransformd(MapTransform):
     }
     _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "binary": {},
-        "affinity": {"offsets": ["1-1-0", "1-0-0", "0-1-0", "0-0-1"]},
+        "affinity": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},  # Default: 3 short-range affinities (z, y, x)
         "instance_boundary": {"thickness": 1, "edge_mode": "seg-all", "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},
         "skeleton_aware_edt": {

@@ -9,7 +9,24 @@ from __future__ import annotations
 import numpy as np
 
 
-def vast_to_segmentation(segmentation_data: np.ndarray) -> np.ndarray:
+def seg_to_rgb(seg):
+    """
+    Convert a segmentation map to an RGB image.
+
+    Args:
+        seg (numpy.ndarray): The input segmentation map.
+
+    Returns:
+        numpy.ndarray: The RGB image representation of the segmentation map.
+
+    Notes:
+        - The function converts a segmentation map to an RGB image, where each unique segment ID is assigned a unique color.
+        - The RGB image is represented as a numpy array.
+    """
+    return np.stack([seg // 65536, seg // 256, seg % 256], axis=2).astype(np.uint8)
+
+
+def rgb_to_seg(rgb: np.ndarray) -> np.ndarray:
     """Convert VAST segmentation format to standard format.
 
     VAST format uses RGB encoding where each pixel's RGB values are combined
@@ -22,20 +39,25 @@ def vast_to_segmentation(segmentation_data: np.ndarray) -> np.ndarray:
         Converted segmentation with proper ID encoding
     """
     # Convert to 24 bits
-    if segmentation_data.ndim == 2 or segmentation_data.shape[-1] == 1:
-        return np.squeeze(segmentation_data)
-    elif segmentation_data.ndim == 3:  # Single RGB image
-        return (segmentation_data[:, :, 0].astype(np.uint32) * 65536 +
-                segmentation_data[:, :, 1].astype(np.uint32) * 256 +
-                segmentation_data[:, :, 2].astype(np.uint32))
-    elif segmentation_data.ndim == 4:  # Multiple RGB images
-        return (segmentation_data[:, :, :, 0].astype(np.uint32) * 65536 +
-                segmentation_data[:, :, :, 1].astype(np.uint32) * 256 +
-                segmentation_data[:, :, :, 2].astype(np.uint32))
+    if rgb.ndim == 2 or rgb.shape[-1] == 1:
+        return np.squeeze(rgb)
+    elif rgb.ndim == 3:  # Single RGB image
+        return (
+            rgb[:, :, 0].astype(np.uint32) * 65536
+            + rgb[:, :, 1].astype(np.uint32) * 256
+            + rgb[:, :, 2].astype(np.uint32)
+        )
+    elif rgb.ndim == 4:  # Multiple RGB images
+        return (
+            rgb[:, :, :, 0].astype(np.uint32) * 65536
+            + rgb[:, :, :, 1].astype(np.uint32) * 256
+            + rgb[:, :, :, 2].astype(np.uint32)
+        )
 
 
-def normalize_data_range(data: np.ndarray, target_min: float = 0.0,
-                        target_max: float = 1.0, ignore_uint8: bool = True) -> np.ndarray:
+def normalize_data_range(
+    data: np.ndarray, target_min: float = 0.0, target_max: float = 1.0, ignore_uint8: bool = True
+) -> np.ndarray:
     """Normalize array values to a target range.
 
     Args:
@@ -119,9 +141,10 @@ def squeeze_arrays(*arrays):
 
 
 __all__ = [
-    'vast_to_segmentation',
-    'normalize_data_range',
-    'convert_to_uint8',
-    'split_multichannel_mask',
-    'squeeze_arrays',
+    "seg_to_rgb",
+    "rgb_to_seg",
+    "normalize_data_range",
+    "convert_to_uint8",
+    "split_multichannel_mask",
+    "squeeze_arrays",
 ]

@@ -14,17 +14,23 @@ Organization:
 # Core I/O functions
 from .io import (
     # HDF5 I/O
-    read_hdf5, write_hdf5, list_hdf5_datasets,
-
+    read_hdf5,
+    write_hdf5,
+    list_hdf5_datasets,
     # Image I/O
-    read_image, read_images, read_image_as_volume,
-    save_image, save_images, SUPPORTED_IMAGE_FORMATS,
-
+    read_image,
+    read_images,
+    read_image_as_volume,
+    save_image,
+    save_images,
+    SUPPORTED_IMAGE_FORMATS,
     # Pickle I/O
-    read_pickle_file, write_pickle_file,
-
+    read_pickle_file,
+    write_pickle_file,
     # High-level volume I/O
-    read_volume, save_volume, get_vol_shape,
+    read_volume,
+    save_volume,
+    get_vol_shape,
 )
 
 # Tile operations
@@ -35,7 +41,8 @@ from .tiles import (
 
 # Utilities
 from .utils import (
-    vast_to_segmentation,
+    seg_to_rgb,
+    rgb_to_seg,
     normalize_data_range,
     convert_to_uint8,
     split_multichannel_mask,
@@ -51,25 +58,35 @@ from .monai_transforms import (
 
 __all__ = [
     # HDF5 I/O
-    'read_hdf5', 'write_hdf5', 'list_hdf5_datasets',
-
+    "read_hdf5",
+    "write_hdf5",
+    "list_hdf5_datasets",
     # Image I/O
-    'read_image', 'read_images', 'read_image_as_volume',
-    'save_image', 'save_images', 'SUPPORTED_IMAGE_FORMATS',
-
+    "read_image",
+    "read_images",
+    "read_image_as_volume",
+    "save_image",
+    "save_images",
+    "SUPPORTED_IMAGE_FORMATS",
     # Pickle I/O
-    'read_pickle_file', 'write_pickle_file',
-
+    "read_pickle_file",
+    "write_pickle_file",
     # High-level volume I/O
-    'read_volume', 'save_volume', 'get_vol_shape',
-
+    "read_volume",
+    "save_volume",
+    "get_vol_shape",
     # Tile operations
-    'create_tile_metadata', 'reconstruct_volume_from_tiles',
-
+    "create_tile_metadata",
+    "reconstruct_volume_from_tiles",
     # Utilities
-    'vast_to_segmentation', 'normalize_data_range', 'convert_to_uint8',
-    'split_multichannel_mask', 'squeeze_arrays',
-
+    "seg_to_rgb",
+    "rgb_to_seg",
+    "normalize_data_range",
+    "convert_to_uint8",
+    "split_multichannel_mask",
+    "squeeze_arrays",
     # MONAI transforms
-    'LoadVolumed', 'SaveVolumed', 'TileLoaderd',
+    "LoadVolumed",
+    "SaveVolumed",
+    "TileLoaderd",
 ]

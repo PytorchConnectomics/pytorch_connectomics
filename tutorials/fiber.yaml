@@ -6,16 +6,15 @@
 #   - Channel 1: Fiber contour/boundary maps (sigmoid activation)
 #   - Channel 2: Signed distance transforms (tanh activation)
 #
-# Multi-task setup uses different loss functions for each channel:
-#   - Binary: DiceLoss + BCEWithLogitsLoss
-#   - Contour: DiceLoss + BCEWithLogitsLoss
-#   - Distance: WeightedMSELoss (with tanh activation)
+# Based on barcode-R-BCS.yaml (legacy v1.0 config):
+#   TARGET_OPT: ["0", "4-0-1", "a-0-40-16-16"]
+#   - Channel 0: Binary mask (target "0")
+#   - Channel 1: Contour (target "4-0-1" = instance boundary, thickness=1, edge_mode=0)
+#   - Channel 2: SDT (target "a-0-40-16-16" = affinity-based distance, resolution=[40,16,16])
 #
-# Based on barcode-R-BCS.yaml configuration:
-#   - 3 output channels (Binary + Contour + SDT)
-#   - Loss weights: [1.0, 0.5] for Binary, [1.0, 0.5] for Contour, [4.0] for SDT
-#   - Contour: instance boundary with thickness=1, edge_mode="all"
-#   - SDT: affinity-based signed distance (a-0-40-16-16)
+#   LOSS_OPTION: [[WeightedBCE, Dice], [WeightedBCE, Dice], [WeightedMSE]]
+#   LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [4.0]]
+#   OUTPUT_ACT: [["none", "sigmoid"], ["none", "sigmoid"], ["tanh"]]
 
 experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
@@ -23,10 +22,10 @@ description: Fiber segmentation with MedNeXt and multi-task learning (Binary + C
 # System
 system:
   training:
-    num_gpus: 4                        # 4 GPU (
-    num_cpus: 8                       # 16 CPUs for data loading
-    num_workers: 8                     # Parallel data loading workers
-    batch_size: 16                      # Batch size
+    num_gpus: 4                        # 4 GPU
+    num_cpus: 8                        # 8 CPUs for data loading
+    num_workers: 8                     # Use main process (avoids /dev/shm issues)
+    batch_size: 4                      # Batch size
   inference:
     num_gpus: 1
     num_cpus: 1
@@ -35,41 +34,39 @@ system:
   seed: 42
 
 # Model - MedNeXt for multi-task fiber segmentation
-model:  
+model:
   in_channels: 1                       # Single-channel grayscale EM images
-  out_channels: 4                      # 4 outputs: Binary (2ch softmax) + Contour (1ch) + SDT (1ch)
-  
-  architecture: monai_unet
-  input_size: [48, 128, 128]
-  output_size: [48, 128, 128]
-  filters: [28, 36, 48, 64, 80]      # Standard UNet channel progression
-  num_res_units: 2                     # Residual units per block
-  kernel_size: 3                       # Convolution kernel size
-  norm: batch                          # Batch normalization
-  dropout: 0.1                         # Dropout for regularization
+  out_channels: 3                      # 3 outputs: Binary + Contour + SDT (matching barcode-R-BCS.yaml)
 
-  # Multi-task loss configuration (aligned with barcode-R-BCS.yaml)
-  # Binary channel: DiceLoss + CrossEntropy with softmax (weights: 1.0, 0.5)
-  # Contour channel: DiceLoss + BCEWithLogitsLoss with sigmoid (weights: 1.0, 0.5)
-  # SDT channel: WeightedMSE (weight: 4.0)
-  loss_functions: [DiceLoss, CrossEntropyLoss, DiceLoss, BCEWithLogitsLoss, WeightedMSE]
-  loss_weights: [1.0, 0.5, 1.0, 0.5, 4.0]
+  architecture: mednext
+  input_size: [32, 96, 96]             # Training input size
+  output_size: [32, 96, 96]            # Training output size
+
+  # MedNeXt-specific settings
+  mednext_size: S                      # S (5.6M), B (10.5M), M (17.6M), L (61.8M)
+  mednext_kernel_size: 3               # 3, 5, or 7
+  deep_supervision: false              # Disable deep supervision
+
+  # Loss configuration matching barcode-R-BCS.yaml
+  # LOSS_OPTION: [[WeightedBCE, Dice], [WeightedBCE, Dice], [WeightedMSE]]
+  # LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [4.0]]
+  # Using 5 separate loss function instances to avoid gradient accumulation issues
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedMSE]
+  loss_weights: [1.0, 0.5, 1.0, 0.5, 4.0]       # Weights for each loss: [BCE1, Dice1, BCE2, Dice2, MSE]
   loss_kwargs:
-    - {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with softmax for binary
-    - {label_smoothing: 0.1}             # CrossEntropyLoss for binary
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid for contour
-    - {}                                 # BCEWithLogitsLoss for contour
-    - {tanh: true}                       # WeightedMSE for SDT (with tanh activation)
+    - {}                                 # WeightedBCE for Binary (channel 0)
+    - {}                                 # Dice for Binary (channel 0)
+    - {}                                 # WeightedBCE for Contour (channel 1)
+    - {}                                 # Dice for Contour (channel 1)
+    - {tanh: true}                       # WeightedMSE for SDT (channel 2, with tanh activation)
 
-  # Multi-task configuration (matches barcode-R-BCS.yaml)
-  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
-  # Note: Output channels != Label channels for softmax tasks!
-  # - Outputs use channels as specified below
-  # - Labels always use 1 channel per task (label slicing handled automatically)
+  # Multi-task configuration matching barcode-R-BCS.yaml
+  # Format: [[start_ch, end_ch, target_name, [loss_indices]], ...]
+  # Target names must match label_transform target names
   multi_task_config:
-    - [0, 2, "label", [0, 1]]          # Channels 0-1 (2 output channels): Binary with softmax (Dice + CrossEntropy)
-    - [2, 3, "boundary", [2, 3]]       # Channel 2 (1 output channel): Contour with sigmoid (Dice + BCE)
-    - [3, 4, "sdt", [4]]               # Channel 3 (1 output channel): SDT (WeightedMSE)
+    - [0, 1, "binary", [0, 1]]                # Channel 0: Binary (loss #0 weight=1.0 + loss #1 weight=0.5)
+    - [1, 2, "instance_boundary", [2, 3]]     # Channel 1: Contour (loss #2 weight=1.0 + loss #3 weight=0.5)
+    - [2, 3, "skeleton_aware_edt", [4]]       # Channel 2: SDT (loss #4 weight=4.0)
 
 # Data - Fiber dataset configuration (based on barcode-R-Base.yaml)
 data:
@@ -80,17 +77,17 @@ data:
   # Matches barcode-R dataset structure: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif"]
   # These paths will be combined with train_path above
   
-  train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
-  train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
-  #train_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
-  #train_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
+  #train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
+  #train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
+  train_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
+  train_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
    
   train_resolution: [40, 16, 16]   # Isotropic resolution (adjust based on actual data)
-  use_preloaded_cache: true  
-  persistent_workers: true            # Keep workers alive between epochs
+  use_preloaded_cache: true           # Pre-load raw volumes into RAM for fast random cropping
+  persistent_workers: false            # Disable persistent workers (avoids /dev/shm space issues)
 
-  # Patch configuration (matches barcode-R-Base.yaml)
-  patch_size: [48, 128, 128]            # Training patch size
+  # Patch configuration
+  patch_size: [32, 96, 96]              # Training patch size (matching INPUT_SIZE/OUTPUT_SIZE)
   
   iter_num_per_epoch: 1000            # Iterations per epoch
   
@@ -102,25 +99,25 @@ data:
     pad_size: [8, 16, 16]              # Reflection padding for context
     pad_mode: reflect                   # Reflection padding at boundaries
 
-  # Label transformation for multi-task learning (aligned with barcode-R-BCS.yaml)
+  # Label transformation for multi-task learning (matching barcode-R-BCS.yaml)
   # TARGET_OPT: ["0", "4-0-1", "a-0-40-16-16"]
+  #   - "0": Binary mask (channel 0)
+  #   - "4-0-1": Instance boundary (channel 1) - thickness=1, edge_mode=0
+  #   - "a-0-40-16-16": Affinity-based distance (channel 2) - resolution=[40,16,16]
   label_transform:
     targets:
-      - name: binary                   # Channel 0: Binary fiber mask
-      - name: instance_boundary        # Channel 1: Contour map (4-0-1)
+      - name: binary                   # Channel 0: Binary mask ("0")
+        kwargs: {}
+      - name: instance_boundary        # Channel 1: Instance boundary ("4-0-1")
         kwargs:
-          thickness: 1                 # thickness=1 (from "4-0-1")
-          edge_mode: "seg-all"             # edge_mode="all" (from "4-0-1")
-          mode: "2d"                   # 3D mode for volumetric data
-      - name: skeleton_aware_edt       # Channel 2: Skeleton-aware EDT (a-0-40-16-16)
+          thickness: 1                 # Boundary thickness in pixels
+          edge_mode: all               # edge_mode=0 → "all" edges
+      - name: skeleton_aware_edt       # Channel 2: Signed distance transform ("a-0-40-16-16")
         kwargs:
-          resolution: [40, 16, 16]     # Physical voxel resolution (z, y, x) from train_resolution
-          alpha: 1                     # linear distance ratio
-          smooth: false                 # Smooth distance transform
-          smooth_skeleton_only: false   # Only smooth skeleton regions
+          resolution: [40, 16, 16]     # Physical voxel resolution (z, y, x)
+          alpha: 0                     # Affinity-based (alpha=0 for affinity distance)
           bg_value: -1.0               # Background value for distance map
           relabel: true                # Relabel connected components
-          padding: false               # No padding
 
   # Augmentation Configuration with Presets
   # 
@@ -168,14 +165,14 @@ data:
 
 # Optimizer - AdamW with cosine annealing (based on barcode-R-Base.yaml)
 optimization:
-  max_epochs: 1000                     # ~100k iterations / (1000 iters/epoch) = 100 epochs
+  max_epochs: 100                      # 100k iterations / (1000 iters/epoch) = 100 epochs
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
-  precision: "16-mixed"                      # FP32 (debug: check if FP16 causes NaN)
+  precision: "16-mixed"                # Mixed precision training
 
   optimizer:
     name: AdamW
-    lr: 0.002                           # BASE_LR: 0.02 (matches barcode-R-Base.yaml)
+    lr: 0.02                           # BASE_LR: 0.02 (matches barcode-R-Base.yaml)
     weight_decay: 0.01
     betas: [0.9, 0.999]
     eps: 1.0e-8
@@ -186,7 +183,7 @@ optimization:
     warmup_epochs: 5
     warmup_start_lr: 1.0e-5
     min_lr: 1.0e-6
-    t_max: 995                         # max_epochs - warmup_epochs
+    t_max: 95                          # max_epochs - warmup_epochs
 
 monitor:
   # Loss monitoring and validation frequency
@@ -208,12 +205,12 @@ monitor:
       channel_mode: all                # Show all 3 channels for multi-task
       selected_channels: null
 
-  # Checkpointing (matches barcode ITERATION_SAVE: 5000)
+  # Checkpointing (matches barcode-R-Base.yaml ITERATION_SAVE: 5000)
   checkpoint:
     mode: min
     save_top_k: 3
     save_last: true
-    save_every_n_epochs: 50           # Save every 50 epochs (~50k iterations)
+    save_every_n_epochs: 5            # Save every 5 epochs (5000 iterations)
     use_timestamp: true
 
   # Early stopping
@@ -239,27 +236,26 @@ inference:
     # Output filename (auto-pathed based on the checkpoint folder)
     output_name: DG_train.h5
 
-  # MONAI SlidingWindowInferer parameters (matches barcode INFERENCE)
+  # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [48, 128, 128]        # INPUT_SIZE/OUTPUT_SIZE (barcode-R-Base.yaml)
-    stride: [24, 64, 64]             # STRIDE (barcode-R-Base.yaml)
+    window_size: [32, 256, 256]        # Inference window size
+    stride: [16, 128, 128]             # Stride for sliding window
     blending: gaussian                 # Gaussian weighting for smooth blending
     sigma_scale: 0.25
     padding_mode: reflect              # Reflection-padding at volume boundaries
     pad_size: [16, 32, 32]             # PAD_SIZE (matches barcode-R-Base.yaml)
 
-  # Test-Time Augmentation (TTA) - matches barcode AUG_MODE: "mean"
+  # Test-Time Augmentation (TTA) - matches barcode-R-BCS.yaml
   test_time_augmentation:
     enabled: true
     flip_axes: null                    # Use all flip augmentations (AUG_NUM: None)
-    # Per-channel activations (aligned with barcode-R-BCS.yaml OUTPUT_ACT)
-    # OUTPUT_ACT: ["softmax", "sigmoid", "tanh"]
+    # Per-channel activations (aligned with barcode-R-BCS.yaml)
+    # OUTPUT_ACT: ["sigmoid", "sigmoid", "tanh"]
     # Format: [[start_ch, end_ch, activation], ...]
     channel_activations:
-      - [0, 2, softmax]                # Channels 0-1: binary fiber mask (softmax over 2 classes)
-      - [2, 3, sigmoid]                # Channel 2: contour
-      - [3, 4, tanh]                   # Channel 3: SDT
-    select_channel: [1,2,3]
+      - [0, 1, sigmoid]                # Channel 0: Binary mask (sigmoid)
+      - [1, 2, sigmoid]                # Channel 1: Contour (sigmoid)
+      - [2, 3, tanh]                   # Channel 2: SDT (tanh)
     ensemble_mode: mean                # AUG_MODE: "mean"
 
   # Decoding configuration (instance segmentation postprocessing)
