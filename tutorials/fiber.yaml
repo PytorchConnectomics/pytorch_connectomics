@@ -48,17 +48,17 @@ model:
   deep_supervision: false              # Disable deep supervision
 
   # Loss configuration matching barcode-R-BCS.yaml
-  # LOSS_OPTION: [[WeightedBCE, Dice], [WeightedBCE, Dice], [WeightedMSE]]
+  # LOSS_OPTION: [[WeightedBCEWithLogitsLoss, DiceLoss], [WeightedBCEWithLogitsLoss, DiceLoss], [WeightedMSELoss]]
   # LOSS_WEIGHT: [[1.0, 0.5], [1.0, 0.5], [4.0]]
   # Using 5 separate loss function instances to avoid gradient accumulation issues
-  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedMSE]
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedMSELoss]
   loss_weights: [1.0, 0.5, 1.0, 0.5, 4.0]       # Weights for each loss: [BCE1, Dice1, BCE2, Dice2, MSE]
   loss_kwargs:
-    - {}                                 # WeightedBCE for Binary (channel 0)
-    - {}                                 # Dice for Binary (channel 0)
-    - {}                                 # WeightedBCE for Contour (channel 1)
-    - {}                                 # Dice for Contour (channel 1)
-    - {tanh: true}                       # WeightedMSE for SDT (channel 2, with tanh activation)
+    - {reduction: mean}                  # WeightedBCEWithLogitsLoss for Binary (channel 0): average over batch
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background ignored for single channel)
+    - {reduction: mean}                  # WeightedBCEWithLogitsLoss for Contour (channel 1): average over batch
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background ignored for single channel)
+    - {tanh: true}                       # WeightedMSELoss for SDT (channel 2, with tanh activation)
 
   # Multi-task configuration matching barcode-R-BCS.yaml
   # Format: [[start_ch, end_ch, target_name, [loss_indices]], ...]
@@ -77,10 +77,10 @@ data:
   # Matches barcode-R dataset structure: ["1-xri_deconvolved.tif", "2-xri_deconvolved.tif"]
   # These paths will be combined with train_path above
   
-  #train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
-  #train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
-  train_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
-  train_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
+  train_image: ["PT37/*_raw.tif", "CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif", "DG_LZ58/*-raw.tif"]
+  train_label: ["PT37/*-mask.tif", "CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif", "DG_LZ58/*-mask.tif"]
+  #train_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
+  #train_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
    
   train_resolution: [40, 16, 16]   # Isotropic resolution (adjust based on actual data)
   use_preloaded_cache: true           # Pre-load raw volumes into RAM for fast random cropping
@@ -112,10 +112,11 @@ data:
         kwargs:
           thickness: 1                 # Boundary thickness in pixels
           edge_mode: all               # edge_mode=0 → "all" edges
+          mode: "2d"
       - name: skeleton_aware_edt       # Channel 2: Signed distance transform ("a-0-40-16-16")
         kwargs:
           resolution: [40, 16, 16]     # Physical voxel resolution (z, y, x)
-          alpha: 0                     # Affinity-based (alpha=0 for affinity distance)
+          alpha: 1                     # Affinity-based (alpha=1 for skeleton-aware distance)
           bg_value: -1.0               # Background value for distance map
           relabel: true                # Relabel connected components
 
@@ -172,7 +173,7 @@ optimization:
 
   optimizer:
     name: AdamW
-    lr: 0.02                           # BASE_LR: 0.02 (matches barcode-R-Base.yaml)
+    lr: 0.001                         # Reduced from 0.02 to prevent NaN (will use warmup)
     weight_decay: 0.01
     betas: [0.9, 0.999]
     eps: 1.0e-8

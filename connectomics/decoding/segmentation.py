@@ -140,20 +140,20 @@ def decode_binary_thresholding(
 
     # Apply morphological opening (erosion + dilation) - removes small objects
     if opening_iterations > 0:
-        binary_mask = ndimage.binary_opening(
-            binary_mask, iterations=opening_iterations
-        ).astype(np.uint8)
+        binary_mask = ndimage.binary_opening(binary_mask, iterations=opening_iterations).astype(
+            np.uint8
+        )
 
     # Apply morphological closing (dilation + erosion) - fills small holes
     if closing_iterations > 0:
-        binary_mask = ndimage.binary_closing(
-            binary_mask, iterations=closing_iterations
-        ).astype(np.uint8)
+        binary_mask = ndimage.binary_closing(binary_mask, iterations=closing_iterations).astype(
+            np.uint8
+        )
 
     # Apply connected components filtering
-    if connected_components and connected_components.get('enabled', False):
-        remove_small = connected_components.get('remove_small', 0)
-        connectivity = connected_components.get('connectivity', 26)
+    if connected_components and connected_components.get("enabled", False):
+        remove_small = connected_components.get("remove_small", 0)
+        connectivity = connected_components.get("connectivity", 26)
 
         if remove_small > 0:
             # Label connected components
@@ -359,7 +359,7 @@ def decode_binary_contour_distance_watershed(
     min_seed_size: int = 32,
     return_seed: bool = False,
     precomputed_seed: Optional[np.ndarray] = None,
-    prediction_scale: int = 255,
+    prediction_scale: int = 1,
     binary_channels: Optional[List[int]] = None,
     contour_channels: Optional[List[int]] = None,
     distance_channels: Optional[List[int]] = None,
@@ -456,7 +456,9 @@ def decode_binary_contour_distance_watershed(
     else:
         # Position-based fallback (legacy behavior)
         if use_contour:
-            assert predictions.shape[0] >= 3, f"Expected at least 3 channels (binary, contour, distance), got {predictions.shape[0]}"
+            assert (
+                predictions.shape[0] >= 3
+            ), f"Expected at least 3 channels (binary, contour, distance), got {predictions.shape[0]}"
             # If more than 3 channels, first N-2 channels are binary (average them)
             if predictions.shape[0] > 3:
                 binary = predictions[:-2].mean(axis=0)
@@ -464,7 +466,9 @@ def decode_binary_contour_distance_watershed(
             else:
                 binary, contour, distance = predictions[0], predictions[1], predictions[2]
         else:
-            assert predictions.shape[0] >= 2, f"Expected at least 2 channels (binary, distance) when contour disabled, got {predictions.shape[0]}"
+            assert (
+                predictions.shape[0] >= 2
+            ), f"Expected at least 2 channels (binary, distance) when contour disabled, got {predictions.shape[0]}"
             # If more than 2 channels, first N-1 channels are binary (average them)
             if predictions.shape[0] > 2:
                 binary = predictions[:-1].mean(axis=0)
@@ -476,10 +480,19 @@ def decode_binary_contour_distance_watershed(
     # Convert thresholds based on prediction scale
     if prediction_scale == 255:
         distance = (distance / prediction_scale) * 2.0 - 1.0
-        binary_threshold = (binary_threshold[0] * prediction_scale, binary_threshold[1] * prediction_scale)
+        binary_threshold = (
+            binary_threshold[0] * prediction_scale,
+            binary_threshold[1] * prediction_scale,
+        )
         if use_contour:
-            contour_threshold = (contour_threshold[0] * prediction_scale, contour_threshold[1] * prediction_scale)
-        distance_threshold = (distance_threshold[0] * prediction_scale, distance_threshold[1] * prediction_scale)
+            contour_threshold = (
+                contour_threshold[0] * prediction_scale,
+                contour_threshold[1] * prediction_scale,
+            )
+        distance_threshold = (
+            distance_threshold[0] * prediction_scale,
+            distance_threshold[1] * prediction_scale,
+        )
 
     if precomputed_seed is not None:
         seed = precomputed_seed
@@ -492,10 +505,7 @@ def decode_binary_contour_distance_watershed(
             )
         else:
             # No contour constraint - only binary and distance
-            seed_map = (
-                (binary > binary_threshold[0])
-                * (distance > distance_threshold[0])
-            )
+            seed_map = (binary > binary_threshold[0]) * (distance > distance_threshold[0])
         seed = cc3d.connected_components(seed_map)
         seed = remove_small_objects(seed, min_seed_size)
 
@@ -507,10 +517,7 @@ def decode_binary_contour_distance_watershed(
         )
     else:
         # No contour constraint - only binary and distance
-        foreground = (
-            (binary > binary_threshold[1])
-            * (distance > distance_threshold[1])
-        )
+        foreground = (binary > binary_threshold[1]) * (distance > distance_threshold[1])
 
     segmentation = mahotas.cwatershed(-distance.astype(np.float64), seed)
     segmentation[~foreground] = (

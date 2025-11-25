@@ -21,9 +21,9 @@ from urllib.error import URLError
 # Dataset registry with download information
 DATASETS = {
     "lucchi++": {
-        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/Lucchi%2B%2B.zip",
-        "filename": "Lucchi++.zip",
-        "archive_dir": "Lucchi++",  # Directory name inside the archive
+        "url": "https://huggingface.co/datasets/pytc/tutorial/resolve/main/lucchi%2B%2B.zip",
+        "filename": "lucchi++.zip",
+        "archive_dir": "lucchi++",  # Directory name inside the archive
         "extract_dir": "lucchi++",   # Target directory name (lowercase)
         "description": "Lucchi++ mitochondria segmentation (EM, 5nm isotropic)",
         "size": "~50 MB",

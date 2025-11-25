@@ -64,51 +64,32 @@ def create_loss(
     loss_registry = {
         # MONAI Dice variants
         'DiceLoss': DiceLoss,
-        'Dice': DiceLoss,  # Alias
         'DiceCELoss': DiceCELoss,
-        'DiceCE': DiceCELoss,  # Alias
         'DiceFocalLoss': DiceFocalLoss,
-        'DiceFocal': DiceFocalLoss,  # Alias
         'GeneralizedDiceLoss': GeneralizedDiceLoss,
-        'GDiceLoss': GeneralizedDiceLoss,  # Alias
 
         # MONAI other losses
         'FocalLoss': FocalLoss,
-        'Focal': FocalLoss,  # Alias
         'TverskyLoss': TverskyLoss,
-        'Tversky': TverskyLoss,  # Alias
 
         # PyTorch standard losses (for convenience)
         'BCEWithLogitsLoss': nn.BCEWithLogitsLoss,
-        'BCE': nn.BCEWithLogitsLoss,  # Alias
         'CrossEntropyLoss': CrossEntropyLossWrapper,  # Use wrapper for shape handling
-        'CE': CrossEntropyLossWrapper,  # Alias
         'MSELoss': nn.MSELoss,
-        'MSE': nn.MSELoss,  # Alias
         'L1Loss': nn.L1Loss,
-        'L1': nn.L1Loss,  # Alias
 
         # Custom connectomics losses
         'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
-        'WeightedBCE': WeightedBCEWithLogitsLoss,  # Alias
         'WeightedMSELoss': WeightedMSELoss,
-        'WeightedMSE': WeightedMSELoss,  # Alias
         'WeightedMAELoss': WeightedMAELoss,
-        'WeightedMAE': WeightedMAELoss,  # Alias
         'GANLoss': GANLoss,
-        'GAN': GANLoss,  # Alias
 
         # Regularization losses
         'BinaryRegularization': BinaryRegularization,
-        'BinaryReg': BinaryRegularization,  # Alias
         'ForegroundDistanceConsistency': ForegroundDistanceConsistency,
-        'FgDTConsistency': ForegroundDistanceConsistency,  # Alias
         'ContourDistanceConsistency': ContourDistanceConsistency,
-        'ContourDTConsistency': ContourDistanceConsistency,  # Alias
         'ForegroundContourConsistency': ForegroundContourConsistency,
-        'FgContourConsistency': ForegroundContourConsistency,  # Alias
         'NonOverlapRegularization': NonOverlapRegularization,
-        'NonoverlapReg': NonOverlapRegularization,  # Alias
     }
 
     if loss_name not in loss_registry:

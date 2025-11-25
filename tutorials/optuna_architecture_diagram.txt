@@ -1,0 +1,299 @@
+# Optuna Parameter Tuning Architecture
+
+## System Overview
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         USER INTERFACE LAYER                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌───────────────────────────┐  ┌─────────────────────────────────┐   │
+│  │  Standalone Tuning        │  │  Unified Config                 │   │
+│  │                           │  │                                 │   │
+│  │  optuna_decoding_tuning   │  │  unified_inference_tuning       │   │
+│  │  .yaml                    │  │  .yaml                          │   │
+│  │                           │  │                                 │   │
+│  │  ┌─────────────────────┐  │  │  ┌──────────────────────────┐  │   │
+│  │  │ • Parameter space   │  │  │  │ • Multiple datasets      │  │   │
+│  │  │ • Optuna settings   │  │  │  │   - validation           │  │   │
+│  │  │ • Evaluation metrics│  │  │  │   - test                 │  │   │
+│  │  └─────────────────────┘  │  │  │   - production           │  │   │
+│  │                           │  │  │ • Parameter modes        │  │   │
+│  │  Use: Simple tuning      │  │  │   - fixed                │  │   │
+│  │       workflow           │  │  │   - tuned                │  │   │
+│  └───────────────────────────┘  │  │   - optuna               │  │   │
+│                                 │  │ • Workflow modes         │  │   │
+│                                 │  │   - tune_only            │  │   │
+│                                 │  │   - test_only            │  │   │
+│                                 │  │   - tune+test            │  │   │
+│                                 │  └──────────────────────────┘  │   │
+│                                 │                                 │   │
+│                                 │  Use: Complex workflows         │   │
+│                                 └─────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          CLI ENTRY POINTS                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────────┐  ┌─────────────────────────────────────┐│
+│  │ tune_decoding.py         │  │ main.py (extended)                  ││
+│  │                          │  │                                     ││
+│  │ • Load config            │  │ • Mode-based dispatch               ││
+│  │ • Create tuner           │  │   --mode test                       ││
+│  │ • Run optimization       │  │   --mode tune                       ││
+│  │ • Save results           │  │   --mode tune+test                  ││
+│  │ • Generate reports       │  │ • Load appropriate data             ││
+│  └──────────────────────────┘  │ • Execute workflow                  ││
+│                                │                                     ││
+│  python scripts/tune_decoding  │ python scripts/main.py --mode       ││
+│  .py --config config.yaml      │   tune+test --config unified.yaml   ││
+│  └─────────────────────────────┴─────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     OPTIMIZATION CONTROLLER                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  OptunaDecodingTuner                                                   │
+│  ══════════════════════════════════════════════════════                │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │ 1. Study Creation                                             │    │
+│  │    • Sampler (TPE, Random, CmaEs, NSGA-III)                  │    │
+│  │    • Pruner (MedianPruner, HyperbandPruner)                  │    │
+│  │    • Storage (in-memory, SQLite, PostgreSQL)                 │    │
+│  │    • Direction (maximize/minimize/multi-objective)           │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │ 2. Parameter Sampling                                         │    │
+│  │    • trial.suggest_float()    (continuous parameters)         │    │
+│  │    • trial.suggest_int()      (integer parameters)           │    │
+│  │    • trial.suggest_categorical() (discrete choices)          │    │
+│  │    • trial.suggest_loguniform() (log-scale parameters)       │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │ 3. Objective Function                                         │    │
+│  │    def _objective(trial):                                     │    │
+│  │        params = sample_parameters(trial)                      │    │
+│  │        segmentation = decode(predictions, **params)           │    │
+│  │        metrics = evaluate(segmentation, ground_truth)         │    │
+│  │        return metrics[objective_metric]                       │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │ 4. Optimization Loop                                          │    │
+│  │    study.optimize(objective, n_trials=50)                     │    │
+│  │                                                               │    │
+│  │    Trial 1 → params₁ → decode → eval → score₁                │    │
+│  │    Trial 2 → params₂ → decode → eval → score₂                │    │
+│  │      ...                                                       │    │
+│  │    Trial N → paramsₙ → decode → eval → scoreₙ                │    │
+│  │                                                               │    │
+│  │    best_trial = max(score₁, score₂, ..., scoreₙ)            │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        INFERENCE PIPELINE                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌────────────────────┐     ┌────────────────────┐                    │
+│  │ Model + Data       │ ──→ │ Predictions Cache  │                    │
+│  │                    │     │                    │                    │
+│  │ • Load checkpoint  │     │ • Avoid redundant  │                    │
+│  │ • Load validation  │     │   inference        │                    │
+│  │   or test data     │     │ • Memory-efficient │                    │
+│  │ • Run inference    │     │   handling         │                    │
+│  │ • Apply TTA        │     │                    │                    │
+│  └────────────────────┘     └────────────────────┘                    │
+│                                     ↓                                   │
+│  ┌────────────────────────────────────────────────────────────────┐   │
+│  │ Decoder Registry                                               │   │
+│  │                                                                │   │
+│  │ • decode_binary_contour_distance_watershed                     │   │
+│  │ • decode_binary_watershed                                      │   │
+│  │ • decode_affinity_cc                                           │   │
+│  │ • ... (custom decoders)                                        │   │
+│  └────────────────────────────────────────────────────────────────┘   │
+│                                     ↓                                   │
+│  ┌────────────────────────────────────────────────────────────────┐   │
+│  │ Decoding with Sampled Parameters                              │   │
+│  │                                                                │   │
+│  │ segmentation = decoder(                                        │   │
+│  │     predictions,                                               │   │
+│  │     binary_threshold=0.87,     # Sampled by Optuna            │   │
+│  │     contour_threshold=0.94,    # Sampled by Optuna            │   │
+│  │     distance_threshold=0.42,   # Sampled by Optuna            │   │
+│  │     min_instance_size=28,      # Sampled by Optuna            │   │
+│  │     min_seed_size=12           # Sampled by Optuna            │   │
+│  │ )                                                              │   │
+│  └────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      EVALUATION METRICS                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────┐  ┌──────────────────────────────────────┐   │
+│  │ Volume Metrics       │  │ Skeleton Metrics (Optional)          │   │
+│  │                      │  │                                      │   │
+│  │ • Adapted Rand       │  │ • NERL (Normalized Expected Run      │   │
+│  │   (0-1, ↑ better)   │  │   Length)                            │   │
+│  │                      │  │ • ERL (Expected Run Length)          │   │
+│  │ • VOI Sum            │  │ • N_mergers (merge errors)           │   │
+│  │   (↓ better)        │  │ • N_splits (split errors)            │   │
+│  │   - VOI Split        │  │                                      │   │
+│  │   - VOI Merge        │  │ Requires:                            │   │
+│  │                      │  │ • Skeleton file (.pkl)               │   │
+│  │ • Precision          │  │ • funlib.evaluate                    │   │
+│  │ • Recall             │  │                                      │   │
+│  │ • F1 Score           │  │                                      │   │
+│  │ • IoU                │  │                                      │   │
+│  └──────────────────────┘  └──────────────────────────────────────┘   │
+│                                                                         │
+│  Return: metrics = {                                                   │
+│      "adapted_rand": 0.912,                                            │
+│      "voi_sum": 0.324,                                                 │
+│      "voi_split": 0.162,                                               │
+│      "voi_merge": 0.162,                                               │
+│      "nerl": 0.895  # if skeleton available                            │
+│  }                                                                     │
+└─────────────────────────────────────────────────────────────────────────┘
+                                     ↓
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    OUTPUT AND VISUALIZATION                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────┐  ┌──────────────────────────────────────┐   │
+│  │ Results              │  │ Visualizations                       │   │
+│  │                      │  │                                      │   │
+│  │ • best_params.yaml   │  │ • optimization_history.png           │   │
+│  │ • all_trials.csv     │  │   (score vs trial number)           │   │
+│  │ • optuna_study.db    │  │                                      │   │
+│  │ • best_segmentation  │  │ • param_importance.png               │   │
+│  │   .h5                │  │   (which params matter most)        │   │
+│  │ • metrics.json       │  │                                      │   │
+│  └──────────────────────┘  │ • parallel_coordinate.png            │   │
+│                            │   (parameter interactions)           │   │
+│                            │                                      │   │
+│                            │ • contour.png                        │   │
+│                            │   (2D parameter space)               │   │
+│                            │                                      │   │
+│                            │ • pareto_front.png                   │   │
+│                            │   (multi-objective)                  │   │
+│                            └──────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+## Data Flow Example: Tune + Test Workflow
+
+1. Start
+   └→ Load unified_inference_tuning.yaml
+
+2. Data Loading
+   ├→ Validation: val_image.h5, val_label.h5 (for tuning)
+   └→ Test: test_image.h5, test_label.h5 (for final eval)
+
+3. Model Inference
+   ├→ Run inference on validation set → val_predictions.h5
+   └→ Run inference on test set → test_predictions.h5
+
+4. Parameter Tuning (on validation)
+   ├→ Trial 1: params₁ → decode → eval → score₁ = 0.823
+   ├→ Trial 2: params₂ → decode → eval → score₂ = 0.856
+   ├→ ...
+   └→ Trial 50: params₅₀ → decode → eval → score₅₀ = 0.912 ✓ BEST
+
+5. Save Best Parameters
+   └→ outputs/tuning/best_params.yaml
+       binary_threshold: 0.87
+       contour_threshold: 0.94
+       distance_threshold: 0.42
+       min_instance_size: 28
+       min_seed_size: 12
+
+6. Apply to Test Set
+   └→ Decode test_predictions.h5 with best_params
+       → test_segmentation.h5
+
+7. Final Evaluation
+   └→ Compute metrics on test_segmentation vs test_label
+       → metrics.json
+
+8. Done!
+   └→ Results saved in outputs/hydra_lv_unified/
+
+
+## Parameter Space Exploration
+
+Visual representation of how Optuna explores parameter space:
+
+Grid Search (Exhaustive):          Optuna TPE (Intelligent):
+────────────────────────────        ────────────────────────────
+
+Contour                             Contour
+  1.0│ X   X   X   X   X             1.0│       o
+  0.9│ X   X   X   X   X             0.9│   o   ●   ●   o
+  0.8│ X   X   X   X   X             0.8│       ●   ●   ●
+  0.7│ X   X   X   X   X             0.7│   o           o
+  0.6│ X   X   X   X   X             0.6│
+     └───────────────────                └───────────────────
+     0.5 0.6 0.7 0.8 0.9                 0.5 0.6 0.7 0.8 0.9
+           Binary                              Binary
+
+Tests all grid points              o = Early exploration
+25 tests for 5x5 grid              ● = Focused on promising region
+                                   15 tests, better result!
+
+
+## Multi-Objective Optimization
+
+Single-Objective:                  Multi-Objective:
+─────────────────                  ────────────────
+
+Maximize adapted_rand              Maximize adapted_rand AND
+       ↓                           Minimize voi_sum
+Find single best:                         ↓
+  params = {                       Find Pareto front:
+    binary: 0.87,                    Point A: rand=0.95, voi=0.35
+    contour: 0.94                    Point B: rand=0.91, voi=0.28
+  }                                  Point C: rand=0.88, voi=0.22
+
+                                   Choose based on priority!
+
+
+## Implementation Checklist
+
+Core Components:
+□ connectomics/decoding/optuna_tuner.py
+  □ OptunaDecodingTuner class
+  □ Parameter sampling
+  □ Objective function
+  □ Study management
+
+□ scripts/tune_decoding.py
+  □ CLI entry point
+  □ Config loading
+  □ Result reporting
+
+□ connectomics/config/hydra_config.py
+  □ Optuna config dataclasses
+  □ Parameter space schema
+
+Integration:
+□ Decoder registry
+□ Metric computation
+□ Prediction caching
+□ Multi-dataset support
+
+Testing:
+□ Unit tests
+□ Integration tests
+□ End-to-end workflows
+
+Documentation:
+□ API documentation
+□ Tutorial notebooks
+□ Update CLAUDE.md

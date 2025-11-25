@@ -41,12 +41,12 @@ model:
   deep_supervision: true               # STRONGLY RECOMMENDED for MedNeXt
 
   # Multi-task loss configuration
-  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSE]
+  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSELoss]
   loss_weights: [1.0, 0.5, 2.0]       # Binary: Dice+BCE, Contour: Dice+BCE, Distance: MSE
   loss_kwargs:
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
     - {}                                 # BCEWithLogitsLoss for binary
-    - {tanh: true}                       # WeightedMSE for distance (with tanh activation)
+    - {tanh: true}                       # WeightedMSELoss for distance (with tanh activation)
 
   # Multi-task configuration
   # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
