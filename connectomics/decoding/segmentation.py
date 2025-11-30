@@ -202,9 +202,6 @@ def decode_instance_binary_contour_distance(
             seed = remove_small_objects(seed, min_seed_size)
 
         # step 3: compute the segmentation mask
-        import pdb
-
-        pdb.set_trace()
         distance[distance < 0] = 0
         segmentation = mahotas.cwatershed(-distance.astype(np.float64), seed)
         segmentation[~foreground] = (

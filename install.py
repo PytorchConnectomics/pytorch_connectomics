@@ -12,7 +12,7 @@ Features:
 Usage:
     python install.py                           # Interactive mode
     conda activate my_env && python install.py  # Use current environment
-    python install.py --env-name my_env --python 3.10
+    python install.py --env-name my_env --python 3.11
     python install.py --cuda 12.4
     python install.py --cpu-only
     python install.py --yes                     # CI mode (no prompts)
@@ -250,7 +250,7 @@ def get_current_conda_env() -> Optional[str]:
 
 def install_pytorch_connectomics(
     env_name: str = "pytc",
-    python_version: str = "3.10",
+    python_version: str = "3.11",
     cuda_version: Optional[str] = None,
     cpu_only: bool = False,
     skip_prompts: bool = False,
@@ -266,22 +266,14 @@ def install_pytorch_connectomics(
 
     print_success("conda found")
 
-    # Validate Python version (cc3d requires Python 3.10)
+    # Validate Python version
     py_major, py_minor = map(int, python_version.split(".")[:2])
     if py_major != 3 or py_minor < 8 or py_minor >= 13:
         print_error(f"Python {python_version} is not supported")
         print_error("Supported versions: 3.8 to 3.12")
-        print_error("Recommended: 3.10 (required for connected-components-3d)")
         return False
-
-    if py_minor != 10:
-        print_warning(
-            f"Python {python_version} specified, but cc3d (connected-components-3d) requires Python 3.10"
-        )
-        print_warning("Installation may fail. Recommended: Use Python 3.10")
-        if not skip_prompts and not prompt_yes_no("Continue anyway?", default=False):
-            print_info("Installation cancelled. Use --python 3.10 for best compatibility.")
-            return False
+    else:
+        print_info(f"Python {python_version} detected (recommended: 3.11)")
 
     # Check if already in a conda environment
     current_env = get_current_conda_env()
@@ -611,8 +603,8 @@ Examples:
     parser.add_argument("--env-name", default="pytc", help="Conda environment name (default: pytc)")
     parser.add_argument(
         "--python",
-        default="3.10",
-        help="Python version (default: 3.10, required for cc3d)",
+        default="3.11",
+        help="Python version (default: 3.11)",
     )
     parser.add_argument("--cuda", help="CUDA version (e.g., 11.8, 12.1, 12.4)")
     parser.add_argument("--cpu-only", action="store_true", help="Install CPU-only PyTorch")

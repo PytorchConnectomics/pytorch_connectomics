@@ -96,7 +96,7 @@ Quick Start
 .. code-block:: python
 
     from connectomics.config import load_config
-    from connectomics.lightning import ConnectomicsModule, ConnectomicsDataModule, create_trainer
+    from connectomics.training.lit import ConnectomicsModule, ConnectomicsDataModule, create_trainer
 
     # Load configuration
     cfg = load_config("tutorials/lucchi.yaml")

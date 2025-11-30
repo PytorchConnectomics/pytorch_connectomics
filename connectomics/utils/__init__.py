@@ -14,7 +14,7 @@ Import patterns:
     from connectomics.utils.download import download_dataset
 
 Note: Legacy system.py utilities (get_args, init_devices) have been moved to legacy/
-      and replaced by Hydra config system. See connectomics.lightning for modern alternatives.
+      and replaced by Hydra config system. See connectomics.training.lit for modern alternatives.
 """
 
 from .visualizer import *

@@ -14,8 +14,14 @@ This directory contains standalone scripts for training PyTorch Connectomics mod
 # Activate PyTC environment
 source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
 
-# Install CellMap packages
-pip install cellmap-data cellmap-segmentation-challenge
+# Install CellMap data helper (available on PyPI)
+pip install cellmap-data
+
+# Install CellMap segmentation challenge code from source (no PyPI wheel)
+git clone https://github.com/janelia-cellmap/cellmap-segmentation-challenge.git
+cd cellmap-segmentation-challenge
+pip install -e .
+cd ..
 
 # Verify installation
 python -c "from cellmap_segmentation_challenge.utils import TEST_CROPS; print(f'{len(TEST_CROPS)} test crops loaded')"

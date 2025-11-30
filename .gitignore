@@ -149,6 +149,10 @@ build/
 .DS_Store
 Thumbs.db
 
+# external libraries
+lib/
+
 # Development logs and documentation
 .claude/
+.codex/
 .CLAUDE.md

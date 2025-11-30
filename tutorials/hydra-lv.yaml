@@ -319,8 +319,8 @@ inference:
 
   # Test-Time Augmentation (TTA)
   test_time_augmentation:
-    enabled: false        # Enable TTA for improved predictions
-    flip_axes: null      # Use all flip augmentations
+    enabled: true        # Enable TTA for improved predictions
+    flip_axes: all      # Use all flip augmentations
     # Per-channel activations (aligned with multi_task_config)
     # Format: [[start_ch, end_ch, activation], ...]
     channel_activations:
@@ -331,7 +331,7 @@ inference:
     ensemble_mode: mean              # Mean ensemble (smooth predictions)
     apply_mask: true                   # Multiply predictions by test_mask after ensemble
     save_predictions: true             # Save intermediate predictions (before decoding)
-
+  
 
 # ============================================================================
 # PARAMETER TUNING CONFIGURATION (STAGE 1)
@@ -549,7 +549,7 @@ test:
   decoding:
     - name: decode_instance_binary_contour_distance
       kwargs:
-        binary_threshold: [0.9, 0.85]
+        binary_threshold: [0.9, 0.1]
         contour_threshold: [0.8, 1.1]
         distance_threshold: [0.5, 0]
         min_seed_size: 8

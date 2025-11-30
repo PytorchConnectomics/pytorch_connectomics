@@ -221,11 +221,6 @@ monitor:
 
 # Inference - MONAI SlidingWindowInferer
 inference:
-  data:
-    test_image: datasets/lucchi++/test_im.h5
-    test_label: datasets/lucchi++/test_mito.h5
-    test_resolution: [5, 5, 5]
-
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [112, 112, 112]          # Patch size (matches training patches)
@@ -245,11 +240,16 @@ inference:
     ensemble_mode: mean              # Mean ensemble (smooth predictions)
     # NOTE: Reduced TTA compared to original (4x instead of 8x) for faster inference
 
-
   # Postprocessing configuration (applied AFTER TTA if enabled)
   postprocessing:
     intensity_scale: 255                    # Scale predictions to [0, 255] for saving
     intensity_dtype: uint8                  # Save as uint8
+
+test:
+  data:
+    test_image: datasets/lucchi++/test_im.h5
+    test_label: datasets/lucchi++/test_mito.h5
+    test_resolution: [5, 5, 5]
 
   # Evaluation
   evaluation:

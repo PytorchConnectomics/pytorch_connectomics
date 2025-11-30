@@ -29,7 +29,7 @@ Integration tests have been **fully modernized** for Lightning 2.0 and Hydra con
 
 **Status:**
 - Uses: `from connectomics.config import load_config, Config, from_dict`
-- Uses: `from connectomics.lightning import ConnectomicsModule, create_trainer`
+- Uses: `from connectomics.training.lit import ConnectomicsModule, create_trainer`
 - **No YACS imports** ✅
 - **Modern API** ✅
 
@@ -186,7 +186,7 @@ Integration tests have been **fully modernized** for Lightning 2.0 and Hydra con
 
 - [x] All tests use modern Hydra config API
 - [x] No YACS imports in any integration test
-- [x] Modern import paths (`connectomics.config`, `connectomics.lightning`)
+- [x] Modern import paths (`connectomics.config`, `connectomics.training.lit`)
 - [x] Comprehensive coverage of data utilities
 - [x] Comprehensive coverage of post-processing
 

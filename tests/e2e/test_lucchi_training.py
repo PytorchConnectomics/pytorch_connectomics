@@ -22,9 +22,7 @@ from connectomics.data.dataset import (
     create_volume_dataset,
     create_data_dicts_from_paths,
 )
-from connectomics.lightning.lit_data import (
-    VolumeDataModule,
-)
+from connectomics.training.lit.data import VolumeDataModule
 
 
 def create_dummy_lucchi_data(base_path):

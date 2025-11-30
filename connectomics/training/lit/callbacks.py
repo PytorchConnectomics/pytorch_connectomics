@@ -11,7 +11,7 @@ import torch
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
 
-from ..utils.visualizer import Visualizer
+from ...utils.visualizer import Visualizer
 
 __all__ = [
     'VisualizationCallback',

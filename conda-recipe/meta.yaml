@@ -55,7 +55,7 @@ test:
     - connectomics
     - connectomics.config
     - connectomics.data
-    - connectomics.lightning
+    - connectomics.training.lit
     - connectomics.models
     - connectomics.utils
   commands:

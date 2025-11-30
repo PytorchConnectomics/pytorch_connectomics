@@ -191,7 +191,7 @@ PyTorch Lightning Integration
 .. code-block:: python
 
     from connectomics.config import load_config
-    from connectomics.lightning import (
+    from connectomics.training.lit import (
         ConnectomicsModule,
         ConnectomicsDataModule,
         create_trainer
@@ -245,7 +245,7 @@ You can still use custom models by wrapping them:
 
 .. code-block:: python
 
-    from connectomics.lightning import ConnectomicsModule
+    from connectomics.training.lit import ConnectomicsModule
     import torch.nn as nn
 
     class MyCustomModel(nn.Module):
@@ -286,7 +286,7 @@ Data Loading Migration
 
 .. code-block:: python
 
-    from connectomics.lightning import ConnectomicsDataModule
+    from connectomics.training.lit import ConnectomicsDataModule
 
     # Create data module (handles all splits)
     datamodule = ConnectomicsDataModule(cfg)

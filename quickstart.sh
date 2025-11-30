@@ -3,8 +3,8 @@
 # Works on most systems with CUDA 11+ or CPU-only
 #
 # Usage:
-#   bash quickstart.sh
-#   curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/refs/heads/master/quickstart.sh | bash
+#   bash quickstart.sh [env_name]
+#   curl -fsSL https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/refs/heads/master/quickstart.sh | bash -s -- myenv
 
 set -e
 
@@ -38,6 +38,9 @@ print_warning() {
 print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
+
+# Capture optional env name argument (default: pytc)
+ENV_NAME=${1:-pytc}
 
 # Main installation
 main() {
@@ -77,8 +80,8 @@ main() {
     fi
 
     # Run automated installer (non-interactive, basic mode)
-    print_info "Running automated installation..."
-    python install.py --install-type basic
+    print_info "Running automated installation (Python 3.11) into env '${ENV_NAME}'..."
+    python install.py --install-type basic --python 3.11 --env-name "${ENV_NAME}"
 
     # Print completion message
     print_header "✅ Installation Complete!"
@@ -87,7 +90,7 @@ main() {
 
     echo -e "${BOLD}Next steps:${NC}"
     echo -e "  1. Activate the environment:"
-    echo -e "     ${BOLD}conda activate pytc${NC}\n"
+    echo -e "     ${BOLD}conda activate ${ENV_NAME}${NC}\n"
 
     echo -e "  2. Run a quick demo (30 seconds):"
     echo -e "     ${BOLD}python scripts/main.py --demo${NC}\n"
