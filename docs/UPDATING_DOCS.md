@@ -125,7 +125,7 @@ Then open http://127.0.0.1:8000 in your browser.
 
 5. **API Reference** (`source/modules/*.rst`)
    - Add new modules:
-     - `connectomics.lightning` (LightningModule, LightningDataModule, Trainer)
+     - `connectomics.training.lit` (LightningModule, LightningDataModule, Trainer)
      - `connectomics.config` (Hydra configs)
      - `connectomics.models.architectures` (Architecture registry)
    - Mark legacy modules (engine) as deprecated
@@ -205,7 +205,7 @@ Internal references:
 API references:
 :class:`connectomics.models.build.build_model`
 :func:`connectomics.config.load_config`
-:mod:`connectomics.lightning`
+:mod:`connectomics.training.lit`
 ```
 
 ### Adding New Pages

@@ -24,7 +24,7 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from pytorch_lightning.strategies import DDPStrategy
 from omegaconf import DictConfig
 
-from ..config import Config
+from ...config import Config
 from .callbacks import VisualizationCallback
 
 

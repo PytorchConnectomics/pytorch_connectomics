@@ -1,7 +1,7 @@
 Lightning Module API
 ====================
 
-.. currentmodule:: connectomics.lightning
+.. currentmodule:: connectomics.training.lit
 
 PyTorch Lightning integration for training orchestration and distributed computing.
 
@@ -20,7 +20,7 @@ Quick Example
 .. code-block:: python
 
     from connectomics.config import load_config
-    from connectomics.lightning import (
+    from connectomics.training.lit import (
         ConnectomicsModule,
         ConnectomicsDataModule,
         create_trainer
@@ -50,7 +50,7 @@ Module Reference
 ConnectomicsModule
 ^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: connectomics.lightning.ConnectomicsModule
+.. autoclass:: connectomics.training.lit.ConnectomicsModule
    :members:
    :undoc-members:
    :show-inheritance:
@@ -72,7 +72,7 @@ ConnectomicsModule
    .. code-block:: python
 
        from connectomics.config import load_config
-       from connectomics.lightning import ConnectomicsModule
+       from connectomics.training.lit import ConnectomicsModule
 
        cfg = load_config("tutorials/lucchi.yaml")
        model = ConnectomicsModule(cfg)
@@ -88,7 +88,7 @@ ConnectomicsModule
    .. code-block:: python
 
        import torch.nn as nn
-       from connectomics.lightning import ConnectomicsModule
+       from connectomics.training.lit import ConnectomicsModule
 
        class MyModel(nn.Module):
            def __init__(self):
@@ -104,7 +104,7 @@ ConnectomicsModule
 ConnectomicsDataModule
 ^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: connectomics.lightning.ConnectomicsDataModule
+.. autoclass:: connectomics.training.lit.ConnectomicsDataModule
    :members:
    :undoc-members:
    :show-inheritance:
@@ -123,7 +123,7 @@ ConnectomicsDataModule
    .. code-block:: python
 
        from connectomics.config import load_config
-       from connectomics.lightning import ConnectomicsDataModule
+       from connectomics.training.lit import ConnectomicsDataModule
 
        cfg = load_config("tutorials/lucchi.yaml")
        datamodule = ConnectomicsDataModule(cfg)
@@ -142,7 +142,7 @@ ConnectomicsDataModule
 create_trainer
 ^^^^^^^^^^^^^^
 
-.. autofunction:: connectomics.lightning.create_trainer
+.. autofunction:: connectomics.training.lit.create_trainer
 
    Create PyTorch Lightning Trainer with appropriate callbacks.
 
@@ -151,7 +151,7 @@ create_trainer
    .. code-block:: python
 
        from connectomics.config import load_config
-       from connectomics.lightning import create_trainer
+       from connectomics.training.lit import create_trainer
 
        cfg = load_config("tutorials/lucchi.yaml")
        trainer = create_trainer(cfg)
@@ -348,7 +348,7 @@ Custom Training Step
 
 .. code-block:: python
 
-    from connectomics.lightning import ConnectomicsModule
+    from connectomics.training.lit import ConnectomicsModule
 
     class CustomModule(ConnectomicsModule):
         def training_step(self, batch, batch_idx):

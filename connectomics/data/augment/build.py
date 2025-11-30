@@ -376,12 +376,26 @@ def _build_eval_transforms_impl(
         if getattr(cfg.data, "normalize_labels", False):
             transforms.append(NormalizeLabelsd(keys=["label"]))
 
-        # Check if we should skip label transforms (test mode with evaluation metrics)
+        # Check if we should skip label transforms (test/tune mode)
+        # Skip label transforms if test.data or tune.data has evaluation.enabled=True
+        # This preserves original instance labels for metric computation
         skip_label_transform = False
         if mode == "test":
-            if hasattr(cfg, "inference") and hasattr(cfg.inference, "evaluation"):
-                evaluation_enabled = getattr(cfg.inference.evaluation, "enabled", False)
-                metrics = getattr(cfg.inference.evaluation, "metrics", [])
+            # Check if test.evaluation or tune.evaluation is enabled (for adapted_rand, etc.)
+            evaluation_config = None
+            if hasattr(cfg, "test") and hasattr(cfg.test, "evaluation"):
+                evaluation_config = cfg.test.evaluation
+            elif hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "optimization"):
+                # For tune mode, check if we're optimizing metrics that need instance labels
+                if hasattr(cfg.tune.optimization, "single_objective"):
+                    metric = getattr(cfg.tune.optimization.single_objective, "metric", None)
+                    if metric == "adapted_rand":
+                        skip_label_transform = True
+                        print(f"  ⚠️  Skipping label transforms for Optuna tuning (keeping original labels for {metric})")
+
+            if evaluation_config:
+                evaluation_enabled = getattr(evaluation_config, "enabled", False)
+                metrics = getattr(evaluation_config, "metrics", [])
                 if evaluation_enabled and metrics:
                     skip_label_transform = True
                     print(
@@ -389,6 +403,7 @@ def _build_eval_transforms_impl(
                     )
 
         # Label transformations (affinity, distance transform, etc.)
+        # Only apply if not skipped AND label_transform is configured
         if hasattr(cfg.data, "label_transform") and not skip_label_transform:
             from ..process.build import create_label_transform_pipeline
             from ..process.monai_transforms import SegErosionInstanced

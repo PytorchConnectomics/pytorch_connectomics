@@ -156,11 +156,16 @@ connectomics/                    # Main Python package (77 files, ~23K lines)
 │       ├── build.py             # Optimizer/scheduler factory
 │       └── lr_scheduler.py      # Custom LR schedulers
 │
-├── lightning/                   # PyTorch Lightning integration (PRIMARY)
-│   ├── lit_data.py              # LightningDataModule (Volume/Tile/Cloud datasets)
-│   ├── lit_model.py             # LightningModule (1.8K lines - deep supervision, TTA)
-│   ├── lit_trainer.py           # Trainer creation utilities
-│   └── callbacks.py             # Custom Lightning callbacks
+├── training/                    # Training utilities
+│   ├── lit/                     # PyTorch Lightning integration (PRIMARY)
+│   │   ├── data.py              # LightningDataModule (Volume/Tile/Cloud datasets)
+│   │   ├── model.py             # LightningModule (deep supervision, TTA)
+│   │   ├── trainer.py           # Trainer creation utilities
+│   │   ├── callbacks.py         # Custom Lightning callbacks
+│   │   ├── config.py            # Factory functions for training setup
+│   │   └── utils.py             # CLI/config helpers
+│   ├── deep_supervision.py      # Deep supervision utilities
+│   └── debugging.py             # NaN detection and debugging utilities
 │
 ├── data/                        # Data loading and preprocessing
 │   ├── dataset/                 # Dataset classes (HDF5, TIFF, Zarr, Cloud)
@@ -399,7 +404,7 @@ Multiple losses can be combined with weights in the config.
 
 ## PyTorch Lightning Integration
 
-### LightningModule (`lightning/lit_model.py`)
+### LightningModule (`training/lit/model.py`)
 Wraps models with automatic training features:
 - Distributed training (DDP)
 - Mixed precision training (AMP)
@@ -410,7 +415,7 @@ Wraps models with automatic training features:
 - **Deep supervision**: Multi-scale loss computation with automatic target resizing
 
 ```python
-from connectomics.lightning import ConnectomicsModule
+from connectomics.training.lit import ConnectomicsModule
 
 # Create Lightning module
 lit_model = ConnectomicsModule(cfg)
@@ -419,7 +424,7 @@ lit_model = ConnectomicsModule(cfg)
 lit_model = ConnectomicsModule(cfg, model=custom_model)
 ```
 
-### LightningDataModule (`lightning/lit_data.py`)
+### LightningDataModule (`training/lit/data.py`)
 Handles data loading with MONAI transforms:
 - Train/val/test splits
 - MONAI CacheDataset for fast loading
@@ -427,15 +432,15 @@ Handles data loading with MONAI transforms:
 - Persistent workers for efficiency
 
 ```python
-from connectomics.lightning import ConnectomicsDataModule
+from connectomics.training.lit import ConnectomicsDataModule
 
 datamodule = ConnectomicsDataModule(cfg)
 ```
 
-### Trainer (`lightning/lit_trainer.py`)
+### Trainer (`training/lit/trainer.py`)
 Convenience function for creating Lightning Trainer:
 ```python
-from connectomics.lightning import create_trainer
+from connectomics.training.lit import create_trainer
 
 trainer = create_trainer(cfg)
 trainer.fit(lit_model, datamodule=datamodule)
@@ -475,15 +480,15 @@ from pytorch_lightning import seed_everything
 seed_everything(cfg.system.seed)
 
 # 3. Create data module
-from connectomics.lightning import ConnectomicsDataModule
+from connectomics.training.lit import ConnectomicsDataModule
 datamodule = ConnectomicsDataModule(cfg)
 
 # 4. Create model
-from connectomics.lightning import ConnectomicsModule
+from connectomics.training.lit import ConnectomicsModule
 model = ConnectomicsModule(cfg)
 
 # 5. Create trainer
-from connectomics.lightning import create_trainer
+from connectomics.training.lit import create_trainer
 trainer = create_trainer(cfg)
 
 # 6. Train
@@ -555,9 +560,9 @@ scheduler:
 - `connectomics/models/solver/build.py`: Optimizer/scheduler factory
 
 ### Lightning
-- `connectomics/lightning/lit_model.py`: Lightning module wrapper
-- `connectomics/lightning/lit_data.py`: Data module
-- `connectomics/lightning/lit_trainer.py`: Trainer utilities
+- `connectomics/training/lit/model.py`: Lightning module wrapper
+- `connectomics/training/lit/data.py`: Data module
+- `connectomics/training/lit/trainer.py`: Trainer utilities
 
 ### Entry Points
 - `scripts/main.py`: Primary training script (Lightning + Hydra)
@@ -635,7 +640,7 @@ The codebase has **fully migrated** from legacy systems:
 
 **Current development stack:**
 - Hydra/OmegaConf configs (`tutorials/*.yaml`)
-- PyTorch Lightning modules (`connectomics/lightning/`)
+- PyTorch Lightning modules (`connectomics/training/lit/`)
 - `scripts/main.py` entry point
 - MONAI models and transforms
 - Type-safe dataclass configurations
@@ -687,7 +692,7 @@ Install via `pip install -e .[extra_name]` where `extra_name` is:
 
 #### `[wandb]` - Weights & Biases Integration
 - **wandb** (>=0.13.0): Experiment tracking and monitoring
-- Used in: `connectomics.lightning.lit_trainer` (optional logger)
+- Used in: `connectomics.training.lit.trainer` (optional logger)
 
 #### `[tiff]` - TIFF File Support
 - **tifffile** (>=2021.11.2): Advanced TIFF reading/writing

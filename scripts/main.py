@@ -38,7 +38,7 @@ import torch
 from connectomics.config import save_config
 
 # Import Lightning components and utilities
-from connectomics.lightning import (
+from connectomics.training.lit import (
     ConnectomicsModule,
     cleanup_run_directory,
     create_datamodule,

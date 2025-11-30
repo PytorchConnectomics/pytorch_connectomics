@@ -114,7 +114,7 @@ slurm partition num_cpu num_gpu cmd:
            --cpus-per-task={{num_cpu}} \
            --mem=32G \
            --time=48:00:00 \
-           --wrap="source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_gpu}} --ntasks-per-node={{num_gpu}} just {{cmd}}"
+           --wrap="export JUST_RUNTIME_DIR=\$HOME/.just && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_gpu}} --ntasks-per-node={{num_gpu}} just {{cmd}}"
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:

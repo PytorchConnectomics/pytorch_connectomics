@@ -16,7 +16,7 @@ from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
-from ..config import (
+from ...config import (
     Config,
     load_config,
     save_config,
@@ -218,7 +218,7 @@ def setup_config(args) -> Config:
     # Auto-planning (if enabled)
     if hasattr(cfg.system, "auto_plan") and cfg.system.auto_plan:
         print("🤖 Running automatic configuration planning...")
-        from ..config import auto_plan_config
+        from ...config import auto_plan_config
 
         print_results = (
             cfg.system.print_auto_plan if hasattr(cfg.system, "print_auto_plan") else True

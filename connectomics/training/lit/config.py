@@ -15,14 +15,14 @@ from typing import List, Optional
 import torch
 
 # Import data and model utilities
-from ..config import Config
-from ..data.dataset import create_data_dicts_from_paths
-from ..data.augment.build import (
+from ...config import Config
+from ...data.dataset import create_data_dicts_from_paths
+from ...data.augment.build import (
     build_train_transforms,
     build_val_transforms,
     build_test_transforms,
 )
-from .lit_data import ConnectomicsDataModule
+from .data import ConnectomicsDataModule
 
 
 def setup_seed_everything():
@@ -120,7 +120,7 @@ def create_datamodule(
             print(f"\n⚠️  Training data not found: {cfg.data.train_image}")
 
             # Try to infer dataset name from path
-            from ..utils.download import DATASETS, download_dataset
+            from ...utils.download import DATASETS, download_dataset
 
             path_str = str(cfg.data.train_image).lower()
             dataset_name = None
@@ -159,7 +159,7 @@ def create_datamodule(
                     raise FileNotFoundError(f"Training data not found: {cfg.data.train_image}")
             else:
                 print("💡 Available datasets:")
-                from ..utils.download import list_datasets
+                from ...utils.download import list_datasets
 
                 list_datasets()
                 raise FileNotFoundError(f"Training data not found: {cfg.data.train_image}")
@@ -186,7 +186,7 @@ def create_datamodule(
     # Check if automatic train/val split is enabled
     elif cfg.data.split_enabled and not cfg.data.val_image:
         print("🔀 Using automatic train/val split (DeepEM-style)")
-        from ..data.utils.split import split_volume_train_val
+        from ...data.utils.split import split_volume_train_val
 
         # Load full volume
         import h5py
@@ -434,7 +434,7 @@ def create_datamodule(
         if iter_num == -1 and dataset_type != "filename":
             # For filename datasets, iter_num is determined by the number of files
             print("📊 Auto-computing iter_num from volume size...")
-            from ..data.utils import compute_total_samples
+            from ...data.utils import compute_total_samples
             import h5py
             import tifffile
 
@@ -494,7 +494,7 @@ def create_datamodule(
 
     if use_preloaded:
         print("  ⚡ Using pre-loaded volume cache (loads once, crops in memory)")
-        from ..data.dataset.dataset_volume_cached import CachedVolumeDataset
+        from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
         from torch.utils.data import DataLoader
         import pytorch_lightning as pl
 
@@ -554,7 +554,7 @@ def create_datamodule(
     elif dataset_type == "filename":
         # Filename-based dataset using JSON file lists
         print("  Creating filename-based datamodule...")
-        from ..data.dataset.dataset_filename import create_filename_datasets
+        from ...data.dataset.dataset_filename import create_filename_datasets
         from torch.utils.data import DataLoader
         import pytorch_lightning as pl
 
@@ -682,7 +682,7 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
     """
     import os
     from datetime import datetime
-    from ..config import save_config
+    from ...config import save_config
 
     checkpoint_dir = Path(checkpoint_dirpath)
     checkpoint_subdir = checkpoint_dir.name or "checkpoints"

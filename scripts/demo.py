@@ -267,7 +267,7 @@ def run_demo():
 
     # Create datamodule
     print("\n📊 Creating data loaders...")
-    from connectomics.lightning import ConnectomicsDataModule
+    from connectomics.training.lit import ConnectomicsDataModule
     from connectomics.data.augment.build import (
         build_train_transforms,
         build_val_transforms,
@@ -300,7 +300,7 @@ def run_demo():
 
     # Create model
     print(f"\n🏗️  Building model: {cfg.model.architecture}")
-    from connectomics.lightning import ConnectomicsModule
+    from connectomics.training.lit import ConnectomicsModule
 
     model = ConnectomicsModule(cfg)
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

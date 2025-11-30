@@ -3,7 +3,7 @@
 
 import pytest
 from connectomics.config import load_config, Config, from_dict
-from connectomics.lightning import ConnectomicsModule, create_trainer
+from connectomics.training.lit import ConnectomicsModule, create_trainer
 
 
 def test_config_creation():
