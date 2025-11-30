@@ -278,15 +278,36 @@ monitor:
     threshold: 0.02      # Stop if loss gets this low (excellent convergence)
     divergence_threshold: 100.0  # Stop if loss exceeds this (training collapse - very high value)
 
-# Inference - MONAI SlidingWindowInferer for Hydra Large Vesicle
-inference:
-  data:
-    test_image: datasets/hydra-lv/vol*_im.h5
-    test_label: datasets/hydra-lv/vol*_vesicle_ins.h5
-    test_mask: datasets/hydra-lv/vol*_mask.h5
-    test_resolution: [30, 8, 8]
-    output_path: outputs/hydra_lv_rsunet/results/
+# ============================================================================
+# INFERENCE CONFIGURATION
+# ============================================================================
+#
+# TWO-STAGE INFERENCE WORKFLOW:
+#
+# STAGE 1: Parameter Tuning (Optuna on hydra-lv test data with ground truth)
+#   - Run: python scripts/tune_decoding.py --config tutorials/hydra-lv.yaml
+#   - Uses: datasets/hydra-lv/vol*_*.h5 (current test data with ground truth)
+#   - Optimizes: Decoding parameters (thresholds, min_instance_size, etc.)
+#   - Metric: adapted_rand (higher is better)
+#   - Output: outputs/optuna_hydra_lv_tuning/best_params.yaml
+#
+# STAGE 2: Final Testing (on bouton-lv train data with optimized parameters)
+#   - Run: python scripts/main.py --config tutorials/hydra-lv.yaml --mode test
+#   - Uses: datasets/bouton-lv/train/vol0_*.h5 (final test set)
+#   - Applies: Optimized parameters from Stage 1
+#   - Metric: adapted_rand evaluation
+#
+# ============================================================================
 
+# ============================================================================
+# SHARED INFERENCE CONFIGURATION
+# ============================================================================
+# This section contains inference settings that are shared by:
+# 1. STAGE 1 (Optuna tuning on hydra-lv data)
+# 2. STAGE 2 (Final testing on bouton-lv data)
+# Both stages use the same sliding window and TTA settings for consistency.
+# ============================================================================
+inference:
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [32, 128, 128]        # Match training patch size (OPTION 3)
@@ -311,22 +332,229 @@ inference:
     apply_mask: true                   # Multiply predictions by test_mask after ensemble
     save_predictions: true             # Save intermediate predictions (before decoding)
 
+
+# ============================================================================
+# PARAMETER TUNING CONFIGURATION (STAGE 1)
+# ============================================================================
+tune:
+  # Enable/disable parameter tuning
+  enabled: true
+
+  # -------------------------------------------------------------------------
+  # General Settings
+  # -------------------------------------------------------------------------
+  n_trials: 100                         # Number of optimization trials
+  timeout: null                         # Timeout in seconds (null = no timeout)
+  study_name: "hydra_lv_decoding_optimization"
+  storage: "sqlite:///outputs/optuna_studies/hydra_lv_decoding_tuning.db"
+  load_if_exists: true                  # Resume existing study if interrupted
+
+  # -------------------------------------------------------------------------
+  # Sampler Configuration (Bayesian Optimization)
+  # -------------------------------------------------------------------------
+  sampler:
+    name: TPE                           # Tree-structured Parzen Estimator
+    kwargs:
+      n_startup_trials: 10              # Random trials before TPE
+      n_ei_candidates: 24               # Candidates for expected improvement
+      multivariate: true                # Consider parameter interactions
+
+  # -------------------------------------------------------------------------
+  # Pruner Configuration (Early Stopping)
+  # -------------------------------------------------------------------------
+  pruner:
+    enabled: false                      # Disabled for post-processing
+
+  # -------------------------------------------------------------------------
+  # Optimization Objective
+  # -------------------------------------------------------------------------
+  optimization:
+    mode: single
+    single_objective:
+      metric: adapted_rand              # Primary metric to optimize
+      direction: minimize               # Lower is better
+
+  # -------------------------------------------------------------------------
+  # Data Configuration (tuning data with ground truth)
+  # -------------------------------------------------------------------------
+  data:
+    tune_image: "datasets/hydra-lv/vol*_im.h5"
+    tune_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"
+    tune_mask: "datasets/hydra-lv/vol*_mask.h5"
+    tune_resolution: [30, 8, 8]         # [z, y, x] in nm      
+    # Image normalization
+    image_transform:
+      normalize: "0-1"                   # Min-max normalization to [0, 1]
+      clip_percentile_low: 0.0           # No clipping
+      clip_percentile_high: 1.0
+
+
+  # -------------------------------------------------------------------------
+  # Output Configuration
+  # -------------------------------------------------------------------------
+  output:
+    output_dir: "outputs/hydra_lv_rsunet/tuning"
+    save_all_trials: false
+    save_best_segmentation: true
+    save_study: true
+
+    # Visualizations
+    visualizations:
+      enabled: false
+
+    # Report generation
+    report:
+      enabled: true
+      top_n_trials: 10
+      format: markdown
+
+  # -------------------------------------------------------------------------
+  # Logging
+  # -------------------------------------------------------------------------
+  logging:
+    verbose: true
+    log_file: "outputs/hydra_lv_rsunet/optuna_hydra_lv_tuning/tuning.log"
+    optuna_log_level: INFO
+    show_progress_bar: true
+
+  # -------------------------------------------------------------------------
+  # Parameter Search Space
+  # -------------------------------------------------------------------------
+  parameter_space:
+    # You can optimize parameters for multiple functions:
+    # 1. Decoding function parameters
+    # 2. Post-processing function parameters
+
+    # -------------------------------------------------------------------------
+    # Decoding Function Configuration
+    # -------------------------------------------------------------------------
+    decoding:
+      function_name: decode_instance_binary_contour_distance
+
+      # Default/fixed parameter values (used unless overridden by optimization)
+      defaults:
+        binary_threshold: [0.9, 0.85]
+        contour_threshold: [0.8, 1.1]
+        distance_threshold: [0.5, 0.0]
+        min_seed_size: 8
+        min_instance_size: 16
+        remove_small_mode: "background"
+
+      # Parameters to optimize (only these will be searched by Optuna)
+      # Note: Each threshold is a tuple (seed_threshold, foreground_threshold)
+      # The tuning script will reconstruct tuples from _seed and _foreground parameters
+      parameters:
+        # Binary threshold tuple: (seed_threshold, foreground_threshold)
+        binary_threshold_seed:
+          type: float
+          range: [0, 1.0]
+          step: 0.1
+          param_group: binary_threshold
+          tuple_index: 0
+          description: "Binary threshold for seed generation (first value in tuple)"
+
+        binary_threshold_foreground:
+          type: float
+          range: [0, 1.0]
+          step: 0.1
+          param_group: binary_threshold
+          tuple_index: 1
+          description: "Binary threshold for foreground mask (second value in tuple)"
+
+        # Contour threshold tuple: (seed_threshold, foreground_threshold)
+        contour_threshold_seed:
+          type: float
+          range: [0, 1]
+          step: 0.1
+          param_group: contour_threshold
+          tuple_index: 0
+          description: "Contour threshold for seed generation (first value in tuple)"
+
+        contour_threshold_foreground:
+          type: float
+          range: [0, 1]
+          step: 0.1
+          param_group: contour_threshold
+          tuple_index: 1
+          description: "Contour threshold for foreground mask (second value in tuple)"
+
+        # Distance threshold tuple: (seed_threshold, foreground_threshold)
+        distance_threshold_seed:
+          type: float
+          range: [0.0, 1.0]
+          step: 0.1
+          param_group: distance_threshold
+          tuple_index: 0
+          description: "Distance threshold for seed generation (first value in tuple)"
+
+        distance_threshold_foreground:
+          type: float
+          range: [0, 1.0]
+          step: 0.1
+          param_group: distance_threshold
+          tuple_index: 1
+          description: "Distance threshold for foreground mask (second value in tuple)"
+
+        # Minimum seed size (not a tuple)
+        min_seed_size:
+          type: int
+          range: [4, 24]
+          step: 4
+          description: "Minimum size for watershed seeds (voxels)"
+
+    # -------------------------------------------------------------------------
+    # Post-Processing Function Configuration (Optional)
+    # -------------------------------------------------------------------------
+    postprocessing:
+      enabled: true
+      function_name: remove_small_instances
+
+      # Default/fixed parameter values
+      defaults:        
+        remove_small_mode: "background"  # Options: "background", "neighbor", "none"
+
+      # Parameters to optimize (only these will be searched by Optuna)
+      parameters:
+        min_instance_size:
+          type: int
+          range: [4, 16]
+          step: 4
+          description: "Minimum size for instance objects after watershed (voxels)"
+
+
+# ============================================================================
+# INFERENCE (STAGE 2 - Final Testing on Bouton-LV Train Data)
+# ============================================================================
+test:
+  data:
+    # Final test data (bouton-lv train volumes with ground truth)
+    # test_image: datasets/bouton-lv/train/vol0_im.h5
+    # test_label: datasets/bouton-lv/train/vol0_lv.h5
+    # test_mask: datasets/bouton-lv/train/vol0_mask.h5    
+    test_image: "datasets/hydra-lv/vol*_im.h5"
+    test_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"
+    test_mask: "datasets/hydra-lv/vol*_mask.h5"
+    
+    test_resolution: [30, 8, 8]
+    # Image normalization
+    image_transform:
+      normalize: "0-1"                   # Min-max normalization to [0, 1]
+      clip_percentile_low: 0.0           # No clipping
+      clip_percentile_high: 1.0
+
+
+  
   # Decoding configuration (instance segmentation postprocessing)
+  # NOTE: These are initial values - will be replaced by Optuna optimized values
   decoding:
-    - name: decode_binary_contour_distance_watershed
+    - name: decode_instance_binary_contour_distance
       kwargs:
         binary_threshold: [0.9, 0.85]
         contour_threshold: [0.8, 1.1]
         distance_threshold: [0.5, 0]
-        min_instance_size: 16
         min_seed_size: 8
-
-  # Postprocessing configuration (applied AFTER TTA if enabled)
-  postprocessing:
-    intensity_scale: 255                    # Scale predictions to [0, 255] for saving
-    intensity_dtype: uint8                  # Save as uint8
 
   # Evaluation
   evaluation:
-    enabled: true                        # Use eval mode for BatchNorm
+    enabled: true                        # Enable evaluation with ground truth
     metrics: [adapted_rand]             # Metrics to compute

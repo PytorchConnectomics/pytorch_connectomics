@@ -9,8 +9,10 @@ This module provides Lightning trainer factory functions with:
 """
 
 from __future__ import annotations
+from pathlib import Path
 from typing import List, Optional, Union
 
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
@@ -23,234 +25,203 @@ from pytorch_lightning.strategies import DDPStrategy
 from omegaconf import DictConfig
 
 from ..config import Config
-from .callbacks import NaNDetectionCallback
+from .callbacks import VisualizationCallback
 
 
 def create_trainer(
-    cfg: Union[Config, DictConfig],
-    callbacks: Optional[List] = None,
-    logger: Optional[Union[pl.loggers.Logger, bool]] = None,
-    **trainer_kwargs
+    cfg: Config,
+    run_dir: Optional[Path] = None,
+    fast_dev_run: bool = False,
+    ckpt_path: Optional[str] = None,
+    mode: str = "train",
 ) -> pl.Trainer:
     """
-    Create a PyTorch Lightning Trainer from configuration.
-    
+    Create PyTorch Lightning Trainer.
+
     Args:
-        cfg: Hydra Config object or OmegaConf DictConfig
-        callbacks: Optional list of callbacks (if None, creates default callbacks)
-        logger: Optional logger (if None, creates TensorBoard logger)
-        **trainer_kwargs: Additional arguments to pass to pl.Trainer
-        
+        cfg: Hydra Config object
+        run_dir: Directory for this training run (required for mode='train')
+        fast_dev_run: Whether to run quick debug mode
+        ckpt_path: Path to checkpoint for resuming (used to extract best_score)
+        mode: 'train' or 'test' - determines which system config to use
+
     Returns:
-        pl.Trainer instance
-        
-    Examples:
-        >>> from connectomics.config import load_config
-        >>> from connectomics.lightning import create_trainer
-        >>> cfg = load_config('config.yaml')
-        >>> trainer = create_trainer(cfg, max_epochs=100)
+        Configured Trainer instance
     """
-    # Create default callbacks if not provided
-    if callbacks is None:
-        callbacks = _create_default_callbacks(cfg)
-    
-    # Create logger if not provided
-    if logger is None:
-        logger = _create_default_logger(cfg)
-    
-    # Get training configuration
-    training_cfg = cfg.optimization if hasattr(cfg, 'optimization') else None
+    print(f"Creating Lightning trainer (mode={mode})...")
 
-    # Check if deep supervision is enabled (requires DDP with find_unused_parameters=True)
-    deep_supervision_enabled = False
-    ddp_find_unused_params = False
-    if hasattr(cfg, 'model'):
-        if hasattr(cfg.model, 'deep_supervision'):
-            deep_supervision_enabled = cfg.model.deep_supervision
-        if hasattr(cfg.model, 'ddp_find_unused_parameters'):
-            ddp_find_unused_params = cfg.model.ddp_find_unused_parameters
-
-    # Configure DDP strategy for multi-GPU training
-    strategy = 'auto'  # Default strategy
-
-    # Get number of GPUs (handle both system.num_gpus and system.training.num_gpus)
-    if hasattr(cfg, 'system'):
-        if hasattr(cfg.system, 'training') and hasattr(cfg.system.training, 'num_gpus'):
-            num_gpus = cfg.system.training.num_gpus
-        elif hasattr(cfg.system, 'num_gpus'):
-            num_gpus = cfg.system.num_gpus
-        else:
-            num_gpus = 1
-    else:
-        num_gpus = 1
-
-    if num_gpus > 1:
-        # Multi-GPU training: use DDP
-        if deep_supervision_enabled or ddp_find_unused_params:
-            # Deep supervision or explicit config requires find_unused_parameters=True
-            # because auxiliary heads at different scales may not all be used
-            strategy = DDPStrategy(find_unused_parameters=True)
-        else:
-            # Standard DDP (more efficient)
-            strategy = DDPStrategy(find_unused_parameters=False)
-
-    # Build trainer arguments
-    trainer_args = {
-        'max_epochs': training_cfg.max_epochs if training_cfg else 100,
-        'callbacks': callbacks,
-        'logger': logger,
-        'accelerator': 'gpu' if num_gpus > 0 else 'cpu',
-        'devices': num_gpus,
-        'strategy': strategy,
-        'precision': training_cfg.precision if training_cfg and hasattr(training_cfg, 'precision') else 32,
-        'gradient_clip_val': training_cfg.gradient_clip_val if training_cfg and hasattr(training_cfg, 'gradient_clip_val') else 0.0,
-        'accumulate_grad_batches': training_cfg.accumulate_grad_batches if training_cfg and hasattr(training_cfg, 'accumulate_grad_batches') else 1,
-        'log_every_n_steps': training_cfg.log_every_n_steps if training_cfg and hasattr(training_cfg, 'log_every_n_steps') else 50,
-        'enable_progress_bar': True,
-        'enable_model_summary': True,
-    }
-
-    # Override with any additional kwargs
-    trainer_args.update(trainer_kwargs)
-
-    return pl.Trainer(**trainer_args)
-
-
-def _create_default_callbacks(cfg: Union[Config, DictConfig]) -> List:
-    """Create default callbacks from configuration."""
+    # Setup callbacks (only for training mode)
     callbacks = []
 
-    # NaN detection callback (enabled by default for debugging)
-    nan_detection_cfg = cfg.nan_detection if hasattr(cfg, 'nan_detection') else None
-    if nan_detection_cfg is not None:
-        # User explicitly configured NaN detection
-        if hasattr(nan_detection_cfg, 'enabled') and nan_detection_cfg.enabled:
-            nan_callback = NaNDetectionCallback(
-                check_grads=getattr(nan_detection_cfg, 'check_grads', True),
-                check_inputs=getattr(nan_detection_cfg, 'check_inputs', True),
-                debug_on_nan=getattr(nan_detection_cfg, 'debug_on_nan', True),
-                terminate_on_nan=getattr(nan_detection_cfg, 'terminate_on_nan', False),
-                print_diagnostics=getattr(nan_detection_cfg, 'print_diagnostics', True),
-            )
-            callbacks.append(nan_callback)
-    else:
-        # Default: enable NaN detection with debugging
-        nan_callback = NaNDetectionCallback(
-            check_grads=True,
-            check_inputs=True,
-            debug_on_nan=True,
-            terminate_on_nan=False,
-            print_diagnostics=True,
-        )
-        callbacks.append(nan_callback)
+    if mode == "train":
+        if run_dir is None:
+            raise ValueError("run_dir is required when mode='train'")
 
-    # Model checkpoint callback
-    checkpoint_cfg = cfg.checkpoint if hasattr(cfg, 'checkpoint') else None
-    if checkpoint_cfg and hasattr(checkpoint_cfg, 'save_top_k'):
+        # Setup checkpoint directory
+        checkpoint_dir = run_dir / "checkpoints"
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        # Model checkpoint (in run_dir/checkpoints/)
         checkpoint_callback = ModelCheckpoint(
-            dirpath=checkpoint_cfg.dirpath if hasattr(checkpoint_cfg, 'dirpath') else 'checkpoints/',
-            filename=checkpoint_cfg.filename if hasattr(checkpoint_cfg, 'filename') else 'model-{epoch:02d}-{val_loss_total:.4f}',
-            monitor=checkpoint_cfg.monitor if hasattr(checkpoint_cfg, 'monitor') else 'val_loss_total',
-            mode=checkpoint_cfg.mode if hasattr(checkpoint_cfg, 'mode') else 'min',
-            save_top_k=checkpoint_cfg.save_top_k,
-            save_last=checkpoint_cfg.save_last if hasattr(checkpoint_cfg, 'save_last') else True,
-            every_n_epochs=checkpoint_cfg.save_every_n_epochs if hasattr(checkpoint_cfg, 'save_every_n_epochs') else 1,
-            sync_dist=True,  # CRITICAL: Synchronize metric across all GPUs
+            dirpath=str(checkpoint_dir),
+            filename=cfg.monitor.checkpoint.checkpoint_filename,
+            monitor=cfg.monitor.checkpoint.monitor,
+            mode=cfg.monitor.checkpoint.mode,
+            save_top_k=cfg.monitor.checkpoint.save_top_k,
+            save_last=cfg.monitor.checkpoint.save_last,
+            every_n_epochs=cfg.monitor.checkpoint.save_every_n_epochs,
+            verbose=True,
+            save_on_train_epoch_end=True,  # Save based on training metrics
         )
         callbacks.append(checkpoint_callback)
-    else:
-        # Default checkpoint callback
-        callbacks.append(ModelCheckpoint(
-            dirpath='checkpoints/',
-            filename='model-{epoch:02d}-{val_loss_total:.4f}',
-            monitor='val_loss_total',
-            mode='min',
-            save_top_k=3,
-            save_last=True,
-            sync_dist=True,  # CRITICAL: Synchronize metric across all GPUs
-        ))
-    
-    # Early stopping callback
-    early_stopping_cfg = cfg.early_stopping if hasattr(cfg, 'early_stopping') else None
-    if early_stopping_cfg and hasattr(early_stopping_cfg, 'enabled') and early_stopping_cfg.enabled:
-        early_stopping_callback = EarlyStopping(
-            monitor=early_stopping_cfg.monitor if hasattr(early_stopping_cfg, 'monitor') else 'val_loss_total',
-            patience=early_stopping_cfg.patience if hasattr(early_stopping_cfg, 'patience') else 10,
-            mode=early_stopping_cfg.mode if hasattr(early_stopping_cfg, 'mode') else 'min',
-            min_delta=early_stopping_cfg.min_delta if hasattr(early_stopping_cfg, 'min_delta') else 0.0,
-            check_finite=early_stopping_cfg.check_finite if hasattr(early_stopping_cfg, 'check_finite') else True,
-        )
-        callbacks.append(early_stopping_callback)
-    
-    # Learning rate monitor
-    callbacks.append(LearningRateMonitor(logging_interval='epoch'))
-    
-    # Rich progress bar (if available)
+
+        # Early stopping (training only)
+        if cfg.monitor.early_stopping.enabled:
+            # Import here to avoid circular dependency
+            from .utils import extract_best_score_from_checkpoint
+
+            # Extract best_score from checkpoint filename if resuming
+            best_score = None
+            if ckpt_path:
+                best_score = extract_best_score_from_checkpoint(
+                    ckpt_path, cfg.monitor.early_stopping.monitor
+                )
+                if best_score is not None:
+                    print(
+                        f"  Early stopping: Extracted best_score={best_score:.6f} from checkpoint"
+                    )
+
+            early_stop_callback = EarlyStopping(
+                monitor=cfg.monitor.early_stopping.monitor,
+                patience=cfg.monitor.early_stopping.patience,
+                mode=cfg.monitor.early_stopping.mode,
+                min_delta=cfg.monitor.early_stopping.min_delta,
+                verbose=True,
+                check_on_train_epoch_end=True,  # Check at end of train epoch (not validation)
+                check_finite=cfg.monitor.early_stopping.check_finite,  # Stop on NaN/inf
+                stopping_threshold=cfg.monitor.early_stopping.threshold,
+                divergence_threshold=cfg.monitor.early_stopping.divergence_threshold,
+                strict=False,  # Don't crash if metric not available (wait for it)
+            )
+
+            # Manually set best_score if extracted from checkpoint
+            if best_score is not None:
+                early_stop_callback.best_score = torch.tensor(best_score)
+
+            callbacks.append(early_stop_callback)
+
+        # Learning rate monitor (training only)
+        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
+
+        # Visualization callback (training only, end-of-epoch only)
+        if cfg.monitor.logging.images.enabled:
+            vis_callback = VisualizationCallback(
+                cfg=cfg,
+                max_images=cfg.monitor.logging.images.max_images,
+                num_slices=cfg.monitor.logging.images.num_slices,
+                log_every_n_epochs=cfg.monitor.logging.images.log_every_n_epochs,
+            )
+            callbacks.append(vis_callback)
+            print(
+                f"  Visualization: Enabled (every {cfg.monitor.logging.images.log_every_n_epochs} epoch(s))"
+            )
+        else:
+            print(f"  Visualization: Disabled")
+
+    # Progress bar (optional - requires rich package)
     try:
         callbacks.append(RichProgressBar())
-    except Exception:
-        pass  # Fall back to default progress bar
-    
-    return callbacks
+    except (ImportError, ModuleNotFoundError):
+        pass  # Use default progress bar
 
+    # Setup logger (training only - in run_dir/logs/)
+    # Always create a logger for training to avoid warnings about missing logger
+    logger = None
+    if mode == "train":
+        if run_dir is None:
+            raise ValueError("run_dir is required when mode='train'")
 
-def _create_default_logger(cfg: Union[Config, DictConfig]) -> pl.loggers.Logger:
-    """Create default logger from configuration."""
-    # Check if wandb is configured
-    if hasattr(cfg, 'wandb') and hasattr(cfg.wandb, 'project'):
-        try:
-            return WandbLogger(
-                project=cfg.wandb.project,
-                name=cfg.wandb.name if hasattr(cfg.wandb, 'name') else None,
-                save_dir=cfg.wandb.save_dir if hasattr(cfg.wandb, 'save_dir') else 'logs/',
+        logger = TensorBoardLogger(
+            save_dir=str(run_dir),
+            name="",  # No name subdirectory
+            version="logs",  # Logs go directly to run_dir/logs/
+        )
+        print(f"  Logger: TensorBoard (logs saved to {run_dir}/logs/)")
+    else:
+        # For test/predict mode, create a minimal logger to avoid warnings
+        # if validation metrics are logged
+        if run_dir is not None:
+            logger = TensorBoardLogger(
+                save_dir=str(run_dir),
+                name="",
+                version="logs",
             )
-        except ImportError:
-            pass  # Fall back to TensorBoard
-    
-    # Default to TensorBoard
-    return TensorBoardLogger(
-        save_dir='logs/',
-        name='connectomics',
+
+    # Create trainer
+    # Select system config based on mode
+    system_cfg = cfg.system.training if mode == "train" else cfg.system.inference
+
+    # Check if GPU is actually available
+    use_gpu = system_cfg.num_gpus > 0 and torch.cuda.is_available()
+
+    # Check if anomaly detection is enabled (useful for debugging NaN)
+    detect_anomaly = getattr(cfg.monitor, "detect_anomaly", False)
+    if detect_anomaly:
+        print("  ⚠️  PyTorch anomaly detection ENABLED (training will be slower)")
+        print("      This helps pinpoint the exact operation causing NaN in backward pass")
+
+    # Configure DDP strategy for multi-GPU training with deep supervision
+    strategy = "auto"  # Default strategy
+    if system_cfg.num_gpus > 1:
+        # Multi-GPU training: configure DDP
+        deep_supervision_enabled = getattr(cfg.model, "deep_supervision", False)
+        ddp_find_unused_params = getattr(cfg.model, "ddp_find_unused_parameters", False)
+        architecture = getattr(cfg.model, "architecture", "")
+        is_mednext = architecture.startswith("mednext")
+
+        # MedNeXt always creates deep supervision layers internally (even when disabled)
+        # so it always needs find_unused_parameters=True
+        if is_mednext or deep_supervision_enabled or ddp_find_unused_params:
+            strategy = DDPStrategy(find_unused_parameters=True)
+
+            # Determine reason for using find_unused_parameters
+            if is_mednext and not deep_supervision_enabled:
+                reason = "MedNeXt (has unused DS layers)"
+            elif deep_supervision_enabled:
+                reason = "deep supervision enabled"
+            else:
+                reason = "explicit config"
+            print(f"  Strategy: DDP with find_unused_parameters=True ({reason})")
+        else:
+            strategy = DDPStrategy(find_unused_parameters=False)
+            print("  Strategy: DDP (standard)")
+
+    trainer = pl.Trainer(
+        max_epochs=cfg.optimization.max_epochs,
+        max_steps=getattr(cfg.optimization, "max_steps", None) or -1,
+        accelerator="gpu" if use_gpu else "cpu",
+        devices=system_cfg.num_gpus if use_gpu else 1,
+        strategy=strategy,
+        precision=cfg.optimization.precision,
+        gradient_clip_val=cfg.optimization.gradient_clip_val,
+        accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
+        val_check_interval=cfg.optimization.val_check_interval,
+        log_every_n_steps=cfg.optimization.log_every_n_steps,
+        callbacks=callbacks,
+        logger=logger,
+        deterministic=cfg.optimization.deterministic,
+        benchmark=cfg.optimization.benchmark,
+        fast_dev_run=bool(fast_dev_run),
+        detect_anomaly=detect_anomaly,
     )
 
+    print(f"  Max epochs: {cfg.optimization.max_epochs}")
+    print(f"  Devices: {system_cfg.num_gpus if system_cfg.num_gpus > 0 else 1} ({mode} mode)")
+    print(f"  Precision: {cfg.optimization.precision}")
 
-class ConnectomicsTrainer:
-    """
-    High-level trainer wrapper for connectomics tasks.
-    
-    This class provides a convenient interface for training with sensible defaults.
-    For more control, use create_trainer() directly.
-    
-    Args:
-        cfg: Hydra Config object or OmegaConf DictConfig
-        **trainer_kwargs: Additional arguments to pass to pl.Trainer
-        
-    Examples:
-        >>> from connectomics.config import load_config
-        >>> from connectomics.lightning import ConnectomicsTrainer
-        >>> cfg = load_config('config.yaml')
-        >>> trainer = ConnectomicsTrainer(cfg)
-        >>> trainer.fit(model, datamodule)
-    """
-    
-    def __init__(self, cfg: Union[Config, DictConfig], **trainer_kwargs):
-        self.cfg = cfg
-        self.trainer = create_trainer(cfg, **trainer_kwargs)
-    
-    def fit(self, model: pl.LightningModule, datamodule: pl.LightningDataModule):
-        """Fit the model."""
-        return self.trainer.fit(model, datamodule)
-    
-    def test(self, model: pl.LightningModule, datamodule: pl.LightningDataModule):
-        """Test the model."""
-        return self.trainer.test(model, datamodule)
-    
-    def predict(self, model: pl.LightningModule, datamodule: pl.LightningDataModule):
-        """Generate predictions."""
-        return self.trainer.predict(model, datamodule)
+    return trainer
 
 
 __all__ = [
     'create_trainer',
-    'ConnectomicsTrainer',
 ]

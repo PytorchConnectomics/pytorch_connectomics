@@ -42,7 +42,7 @@ just tune hydra-lv checkpoints/best.ckpt
 | `predict` | Prediction without labels | ✅ Existing |
 | `infer` | Alias for test | ✅ Implemented |
 | `tune` | Optimize parameters | 🚧 Foundation complete |
-| `tune+test` | Optimize then test | 🚧 Foundation complete |
+| `tune-test` | Optimize then test | 🚧 Foundation complete |
 
 ### Parameter Sources
 
@@ -132,7 +132,7 @@ just infer <dataset> <ckpt>             # Inference (alias for test)
 
 ```bash
 # Mode selection
---mode {train,test,predict,tune,tune+test,infer}
+--mode {train,test,predict,tune,tune-test,infer}
 
 # Parameter tuning arguments
 --params PATH                  # Load parameters from file
@@ -142,7 +142,7 @@ just infer <dataset> <ckpt>             # Inference (alias for test)
 # Examples
 python scripts/main.py --config config.yaml --mode tune --tune-trials 50
 python scripts/main.py --config config.yaml --mode test --params best_params.yaml
-python scripts/main.py --config config.yaml --mode tune+test --checkpoint best.ckpt
+python scripts/main.py --config config.yaml --mode tune-test --checkpoint best.ckpt
 ```
 
 ## Workflow Examples
@@ -290,7 +290,7 @@ inference:
 
 ### Phase 1: Foundation ✅ COMPLETE
 
-- ✅ Extended `--mode` with tune/tune+test/infer
+- ✅ Extended `--mode` with tune/tune-test/infer
 - ✅ Added CLI arguments for parameter tuning
 - ✅ Updated main.py with mode handling
 - ✅ Added justfile commands

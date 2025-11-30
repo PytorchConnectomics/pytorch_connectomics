@@ -301,15 +301,15 @@ def load_volumes_from_config(
         print(f"Using train resolution from config: {train_resolution} nm (z, y, x)")
 
     test_resolution = None
-    # Check inference.data.test_resolution first, then fall back to data.test_resolution
+    # Check test.data.test_resolution first, then fall back to data.test_resolution
     if (
-        hasattr(cfg, "inference")
-        and hasattr(cfg.inference, "data")
-        and hasattr(cfg.inference.data, "test_resolution")
-        and cfg.inference.data.test_resolution
+        hasattr(cfg, "test")
+        and hasattr(cfg.test, "data")
+        and hasattr(cfg.test.data, "test_resolution")
+        and cfg.test.data.test_resolution
     ):
-        test_resolution = tuple(cfg.inference.data.test_resolution)
-        print(f"Using test resolution from inference config: {test_resolution} nm (z, y, x)")
+        test_resolution = tuple(cfg.test.data.test_resolution)
+        print(f"Using test resolution from test config: {test_resolution} nm (z, y, x)")
     elif hasattr(cfg.data, "test_resolution") and cfg.data.test_resolution:
         test_resolution = tuple(cfg.data.test_resolution)
         print(f"Using test resolution from data config: {test_resolution} nm (z, y, x)")
@@ -397,12 +397,12 @@ def load_volumes_from_config(
     # Test data
     if mode in ["test", "both"]:
         if (
-            hasattr(cfg, "inference")
-            and hasattr(cfg.inference, "data")
-            and hasattr(cfg.inference.data, "test_image")
-            and cfg.inference.data.test_image
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "test_image")
+            and cfg.test.data.test_image
         ):
-            test_image_path = cfg.inference.data.test_image
+            test_image_path = cfg.test.data.test_image
 
             # Apply selection if it's a list (from glob expansion)
             if isinstance(test_image_path, list):
@@ -456,12 +456,12 @@ def load_volumes_from_config(
             volumes["test_image"] = (data, "image", test_resolution, None)
 
         if (
-            hasattr(cfg, "inference")
-            and hasattr(cfg.inference, "data")
-            and hasattr(cfg.inference.data, "test_label")
-            and cfg.inference.data.test_label
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "test_label")
+            and cfg.test.data.test_label
         ):
-            test_label_path = cfg.inference.data.test_label
+            test_label_path = cfg.test.data.test_label
 
             # Apply selection if it's a list (from glob expansion)
             if isinstance(test_label_path, list):

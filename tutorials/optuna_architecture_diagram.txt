@@ -24,7 +24,7 @@
 │                                 │  │ • Workflow modes         │  │   │
 │                                 │  │   - tune_only            │  │   │
 │                                 │  │   - test_only            │  │   │
-│                                 │  │   - tune+test            │  │   │
+│                                 │  │   - tune-test            │  │   │
 │                                 │  └──────────────────────────┘  │   │
 │                                 │                                 │   │
 │                                 │  Use: Complex workflows         │   │
@@ -41,12 +41,12 @@
 │  │ • Load config            │  │ • Mode-based dispatch               ││
 │  │ • Create tuner           │  │   --mode test                       ││
 │  │ • Run optimization       │  │   --mode tune                       ││
-│  │ • Save results           │  │   --mode tune+test                  ││
+│  │ • Save results           │  │   --mode tune-test                  ││
 │  │ • Generate reports       │  │ • Load appropriate data             ││
 │  └──────────────────────────┘  │ • Execute workflow                  ││
 │                                │                                     ││
 │  python scripts/tune_decoding  │ python scripts/main.py --mode       ││
-│  .py --config config.yaml      │   tune+test --config unified.yaml   ││
+│  .py --config config.yaml      │   tune-test --config unified.yaml   ││
 │  └─────────────────────────────┴─────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────────────┘
                                      ↓

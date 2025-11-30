@@ -197,6 +197,10 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         """Create test data loader."""
         return self._create_dataloader(self.test_dataset, shuffle=False)
 
+    def predict_dataloader(self) -> DataLoader:
+        """Create predict data loader (same as test dataloader)."""
+        return self.test_dataloader()
+
     def _create_dataloader(
         self,
         dataset: Optional[torch.utils.data.Dataset],

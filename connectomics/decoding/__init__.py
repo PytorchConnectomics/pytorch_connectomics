@@ -19,13 +19,8 @@ Import patterns:
 """
 
 from .segmentation import (
-    decode_binary_thresholding,
-    decode_binary_cc,
-    decode_binary_watershed,
-    decode_binary_contour_cc,
-    decode_binary_contour_watershed,
-    decode_binary_contour_distance_watershed,
-    decode_affinity_cc,
+    decode_instance_binary_contour_distance,
+    decode_instance_affinity_cc,
 )
 
 from .auto_tuning import (
@@ -33,6 +28,12 @@ from .auto_tuning import (
     optimize_parameters,
     grid_search_threshold,
     SkeletonMetrics,
+)
+
+from .optuna_tuner import (
+    OptunaDecodingTuner,
+    run_tuning,
+    load_and_apply_best_params,
 )
 
 from .synapse import (
@@ -59,19 +60,17 @@ from .utils import (
 
 __all__ = [
     # Segmentation decoding
-    'decode_binary_thresholding',
-    'decode_binary_cc',
-    'decode_binary_watershed',
-    'decode_binary_contour_cc',
-    'decode_binary_contour_watershed',
-    'decode_binary_contour_distance_watershed',
-    'decode_affinity_cc',
+    'decode_instance_binary_contour_distance',
+    'decode_instance_affinity_cc',
 
     # Auto-tuning
     'optimize_threshold',
     'optimize_parameters',
     'grid_search_threshold',
     'SkeletonMetrics',
+    'OptunaDecodingTuner',
+    'run_tuning',
+    'load_and_apply_best_params',
 
     # Synapse decoding
     'polarity2instance',

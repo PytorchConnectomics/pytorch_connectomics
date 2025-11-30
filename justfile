@@ -11,7 +11,7 @@ default:
 
 # Setup SLURM environment: detect CUDA/cuDNN and install PyTorch with correct versions
 setup-slurm:
-    bash connectomics/utils/setup_slurm.sh
+    bash scripts/setup_slurm.sh
 
 # Download dataset(s) (e.g., just download lucchi++, just download all)
 # Available: lucchi++, snemi, mitoem, cremi
@@ -62,7 +62,7 @@ tune dataset ckpt *ARGS='':
 
 # Tune parameters then test (recommended for optimal results)
 tune-test dataset ckpt *ARGS='':
-    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode tune+test --checkpoint {{ckpt}} {{ARGS}}
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode tune-test --checkpoint {{ckpt}} {{ARGS}}
 
 # Quick tuning with 20 trials (for testing)
 tune-quick dataset ckpt *ARGS='':

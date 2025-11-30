@@ -13,7 +13,7 @@
 #   python scripts/main.py --config unified_inference_tuning.yaml --mode tune
 #
 #   # Combined: tune then test
-#   python scripts/main.py --config unified_inference_tuning.yaml --mode tune+test
+#   python scripts/main.py --config unified_inference_tuning.yaml --mode tune-test
 
 experiment_name: hydra_lv_unified
 description: Unified config for inference and parameter tuning
