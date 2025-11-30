@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Outputs
+outputs/
+submission.zarr
+submission.zip
+datasplit.csv
+*.ckpt
+*.pth
+
+# Logs
+tensorboard/
+lightning_logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

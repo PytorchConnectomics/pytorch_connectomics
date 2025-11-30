@@ -2,25 +2,25 @@
 Utility functions for PyTorch Connectomics.
 
 This package provides lightweight helpers:
-- system.py: Argument parsing, device initialization, seeding
 - visualizer.py: Visualization utilities for TensorBoard
-- process.py: Processing utilities
-- analysis.py: Analysis tools
-- debug.py: Debugging helpers
+- analysis.py: Analysis tools for instance segmentation
+- debug_hooks.py: Debugging helpers for NaN detection
+- download.py: Dataset download utilities
+- errors.py: Error handling and preflight checks
 
 Import patterns:
-    from connectomics.utils import get_args, init_devices
     from connectomics.utils.visualizer import Visualizer
+    from connectomics.utils.errors import preflight_check
+    from connectomics.utils.download import download_dataset
+
+Note: Legacy system.py utilities (get_args, init_devices) have been moved to legacy/
+      and replaced by Hydra config system. See connectomics.lightning for modern alternatives.
 """
 
-from .system import *
 from .visualizer import *
 
 __all__ = [
-    # System utilities
-    'get_args',
-    'init_devices',
-    
     # Visualizer
     'Visualizer',
+    'LightningVisualizer',
 ]

@@ -419,7 +419,9 @@ class InferenceManager:
                     else:
                         if ensemble_mode == "mean":
                             # Running average: new_avg = old_avg + (new_val - old_avg) / n
-                            ensemble_result = ensemble_result + (pred_processed - ensemble_result) / (num_predictions + 1)
+                            ensemble_result = ensemble_result + (
+                                pred_processed - ensemble_result
+                            ) / (num_predictions + 1)
                         elif ensemble_mode == "min":
                             ensemble_result = torch.minimum(ensemble_result, pred_processed)
                         elif ensemble_mode == "max":
@@ -608,36 +610,29 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
     Returns:
         Decoded segmentation mask(s)
     """
-    if not hasattr(cfg, "inference"):
-        return data
-
-    # Access decoding config directly from inference
-    decode_modes = getattr(cfg.inference, "decoding", None)
+    # Check test.decoding first (for test mode), then fall back to inference.decoding
+    decode_modes = None
+    if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding"):
+        decode_modes = cfg.test.decoding
+        print(f"  🔧 Using test.decoding: {decode_modes}")
+    elif hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding"):
+        decode_modes = cfg.inference.decoding
+        print(f"  🔧 Using inference.decoding: {decode_modes}")
 
     if not decode_modes:
+        print(f"  ⚠️  No decoding configuration found (test.decoding or inference.decoding)")
         return data
 
     # Import decoding functions
     from connectomics.decoding import (
-        decode_binary_thresholding,
-        decode_binary_cc,
-        decode_binary_watershed,
-        decode_binary_contour_cc,
-        decode_binary_contour_watershed,
-        decode_binary_contour_distance_watershed,
-        decode_affinity_cc,
+        decode_instance_binary_contour_distance,
+        decode_instance_affinity_cc,
     )
 
     # Map function names to actual functions
     decode_fn_map = {
-        "binary_thresholding": decode_binary_thresholding,
-        "decode_binary_thresholding": decode_binary_thresholding,
-        "decode_binary_cc": decode_binary_cc,
-        "decode_binary_watershed": decode_binary_watershed,
-        "decode_binary_contour_cc": decode_binary_contour_cc,
-        "decode_binary_contour_watershed": decode_binary_contour_watershed,
-        "decode_binary_contour_distance_watershed": decode_binary_contour_distance_watershed,
-        "decode_affinity_cc": decode_affinity_cc,
+        "decode_instance_binary_contour_distance": decode_instance_binary_contour_distance,
+        "decode_instance_affinity_cc": decode_instance_affinity_cc,
     }
 
     # Process each sample in batch
@@ -674,35 +669,12 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
                 kwargs = {}
 
             if fn_name not in decode_fn_map:
-                warnings.warn(
-                    f"Unknown decode function '{fn_name}'. Available: {list(decode_fn_map.keys())}. "
-                    f"Skipping this decode mode.",
-                    UserWarning,
+                raise ValueError(
+                    f"Unknown decode function '{fn_name}'. Available functions: {list(decode_fn_map.keys())}. "
+                    f"Please update your config to use one of the available functions."
                 )
-                continue
 
             decode_fn = decode_fn_map[fn_name]
-
-            # Backward compatibility: convert old parameter format to new tuple format
-            # for decode_binary_contour_distance_watershed
-            if fn_name == "decode_binary_contour_distance_watershed":
-                if "seed_threshold" in kwargs or "foreground_threshold" in kwargs:
-                    warnings.warn(
-                        "Detected legacy parameters (seed_threshold, contour_threshold, foreground_threshold) "
-                        "for decode_binary_contour_distance_watershed. Converting to new tuple format "
-                        "(binary_threshold, contour_threshold, distance_threshold). "
-                        "Please update your config files to use the new format.",
-                        DeprecationWarning,
-                    )
-                    # Convert old parameters to new tuple format
-                    seed_thresh = kwargs.pop("seed_threshold", 0.9)
-                    contour_thresh = kwargs.pop("contour_threshold", 0.8)
-                    foreground_thresh = kwargs.pop("foreground_threshold", 0.85)
-
-                    # Map old parameters to new tuple format
-                    kwargs["binary_threshold"] = (seed_thresh, foreground_thresh)
-                    kwargs["contour_threshold"] = (contour_thresh, 1.1)
-                    kwargs["distance_threshold"] = (0.5, -0.5)
 
             try:
                 # Apply decoding function
@@ -711,12 +683,10 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
                 if sample.ndim == 3:
                     sample = sample[np.newaxis, ...]  # (1, D, H, W)
             except Exception as e:
-                warnings.warn(
+                raise RuntimeError(
                     f"Error applying decode function '{fn_name}': {e}. "
-                    f"Skipping this decode mode.",
-                    UserWarning,
-                )
-                continue
+                    f"Please check your decode configuration and parameters."
+                ) from e
 
         results.append(sample)
 
@@ -796,6 +766,7 @@ def write_outputs(
     predictions: np.ndarray,
     filenames: List[str],
     suffix: str = "prediction",
+    mode: str = "test",
 ) -> None:
     """
     Persist predictions to disk.
@@ -805,14 +776,26 @@ def write_outputs(
         predictions: Numpy array of predictions to save (B, C, D, H, W) or (B, D, H, W)
         filenames: List of filenames (without extension) for each sample in batch
         suffix: Suffix for output filename (default: "prediction")
+        mode: Mode for determining output path ('test' or 'tune')
     """
     if not hasattr(cfg, "inference"):
         return
 
-    # Access output_path from nested data config
+    # Get output path based on mode
     output_dir_value = None
-    if hasattr(cfg.inference, "data") and hasattr(cfg.inference.data, "output_path"):
-        output_dir_value = cfg.inference.data.output_path
+    if mode == "tune":
+        # Tune mode: use tune.output.output_pred
+        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "output"):
+            output_dir_value = cfg.tune.output.output_pred
+    else:  # mode == "test"
+        # Test mode: use test.data.output_path
+        if (
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "output_path")
+        ):
+            output_dir_value = cfg.test.data.output_path
+
     if not output_dir_value:
         return
 
@@ -878,9 +861,13 @@ def write_outputs(
             if num_channels > len(channel_indices):
                 try:
                     sample = sample[channel_indices]
-                    print(f"  Selected channels {channel_indices} from {predictions[idx].shape[0]} channels")
+                    print(
+                        f"  Selected channels {channel_indices} from {predictions[idx].shape[0]} channels"
+                    )
                 except Exception as e:
-                    print(f"  WARNING: write_outputs - channel selection failed: {e}, keeping all channels")
+                    print(
+                        f"  WARNING: write_outputs - channel selection failed: {e}, keeping all channels"
+                    )
 
         # Transpose if needed (output_transpose: list of axis permutation)
         if output_transpose and len(output_transpose) > 0:

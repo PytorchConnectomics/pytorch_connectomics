@@ -354,7 +354,6 @@ class DataConfig:
     # Base path (prepended to train_image, train_label, etc. if set)
     train_path: str = ""  # Base path for training data (e.g., "/path/to/dataset/")
     val_path: str = ""  # Base path for validation data
-    test_path: str = ""  # Base path for test data
 
     # Paths - Volume-based datasets
     # These can be strings (single file), lists (multiple files), or None
@@ -365,20 +364,14 @@ class DataConfig:
     val_image: Any = None  # str, List[str], or None
     val_label: Any = None  # str, List[str], or None
     val_mask: Any = None  # str, List[str], or None (Valid region mask for validation)
-    test_image: Any = None  # str, List[str], or None
-    test_label: Any = None  # str, List[str], or None
-    test_mask: Any = None  # str, List[str], or None (Valid region mask for testing)
 
     # Paths - JSON/filename-based datasets
     train_json: Optional[str] = None  # JSON file with image/label file lists
     val_json: Optional[str] = None
-    test_json: Optional[str] = None
     train_image_key: str = "images"  # Key in JSON for image files
     train_label_key: str = "masks"  # Key in JSON for label files
     val_image_key: str = "images"
     val_label_key: str = "masks"
-    test_image_key: str = "images"
-    test_label_key: str = "masks"
     train_val_split: Optional[float] = None  # Auto split ratio (e.g., 0.9 = 90% train, 10% val)
 
     # Data properties
@@ -390,9 +383,6 @@ class DataConfig:
     # Voxel resolution (physical dimensions in nm)
     train_resolution: Optional[List[float]] = (
         None  # Training data resolution [z, y, x] in nm (e.g., [30, 6, 6])
-    )
-    test_resolution: Optional[List[float]] = (
-        None  # Test data resolution [z, y, x] in nm (e.g., [30, 6, 6])
     )
 
     # Axis transposition (empty list = no transpose)
@@ -840,6 +830,17 @@ class InferenceDataConfig:
     test_transpose: List[int] = field(
         default_factory=list
     )  # Axis permutation for test data (e.g., [2,1,0] for xyz->zyx)
+
+    # Tuning data (for parameter optimization)
+    tune_image: Any = None  # str, List[str], or None - Data for parameter tuning
+    tune_label: Any = None  # str, List[str], or None - Labels for tuning evaluation
+    tune_mask: Any = None  # str, List[str], or None - Valid region mask for tuning
+    tune_resolution: Optional[List[float]] = (
+        None  # Tuning data resolution [z, y, x] in nm (e.g., [30, 8, 8])
+    )
+    tune_transpose: List[int] = field(
+        default_factory=list
+    )  # Axis permutation for tuning data
     output_path: Optional[str] = None  # Optional explicit directory for inference outputs
     output_name: str = (
         "predictions.h5"  # Output filename (auto-pathed to inference/{checkpoint}/{output_name})
@@ -1010,9 +1011,8 @@ class EvaluationConfig:
 class InferenceConfig:
     """Inference configuration.
 
-    Comprehensive configuration for model inference including test-time augmentation,
-    sliding window inference, postprocessing, and evaluation. Supports advanced
-    inference strategies for medical imaging tasks.
+    Shared inference settings for sliding window and test-time augmentation.
+    Data paths are specified in separate 'test' and 'tune' sections.
 
     Key Features:
     - Sliding window inference for large volumes
@@ -1020,9 +1020,10 @@ class InferenceConfig:
     - Multiple decoding strategies
     - Postprocessing and evaluation
     - System resource overrides for inference
+
+    Note: Test data is in 'test.data', tuning data is in 'tune.data'
     """
 
-    data: InferenceDataConfig = field(default_factory=InferenceDataConfig)
     sliding_window: SlidingWindowConfig = field(default_factory=SlidingWindowConfig)
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
@@ -1040,6 +1041,109 @@ class InferenceConfig:
 
 
 @dataclass
+class TestDataConfig:
+    """Test data configuration."""
+    test_image: Optional[str] = None
+    test_label: Optional[str] = None
+    test_mask: Optional[str] = None
+    test_resolution: Optional[List[int]] = None
+    test_transpose: Optional[List[int]] = None
+    output_path: Optional[str] = None
+    cache_suffix: str = "_prediction.h5"
+    # Image transformation (applied to test images during inference)
+    image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+
+
+@dataclass
+class TestConfig:
+    """Test-specific configuration (data paths, decoding, evaluation)."""
+    data: TestDataConfig = field(default_factory=TestDataConfig)
+    decoding: Optional[List[Dict[str, Any]]] = None
+    evaluation: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class TuneDataConfig:
+    """Tuning data configuration."""
+    tune_image: Optional[str] = None
+    tune_label: Optional[str] = None
+    tune_mask: Optional[str] = None
+    tune_resolution: Optional[List[int]] = None
+    # Image transformation (applied to tune images during inference)
+    image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+
+
+@dataclass
+class TuneOutputConfig:
+    """Tuning output configuration."""
+    output_dir: str = "outputs/tuning"
+    output_pred: Optional[str] = None
+    cache_suffix: str = "_tta_prediction.h5"
+    save_all_trials: bool = False
+    save_best_segmentation: bool = True
+    save_study: bool = True
+    visualizations: Optional[Dict[str, Any]] = None
+    report: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class ParameterConfig:
+    """Single parameter configuration for optimization."""
+    type: str  # "float", "int", "categorical"
+    range: List[Any]  # [min, max] for numeric, [options...] for categorical
+    step: Optional[float] = None
+    log: bool = False
+    param_group: Optional[str] = None  # For tuple parameters
+    tuple_index: Optional[int] = None  # Position in tuple
+    description: Optional[str] = None
+
+
+@dataclass
+class DecodingParameterSpace:
+    """Decoding function parameter space configuration."""
+    function_name: str = "decode_binary_contour_distance_watershed"
+    defaults: Dict[str, Any] = field(default_factory=dict)
+    parameters: Dict[str, Any] = field(default_factory=dict)  # Dict[str, ParameterConfig]
+
+
+@dataclass
+class PostprocessingParameterSpace:
+    """Post-processing function parameter space configuration."""
+    enabled: bool = False
+    function_name: str = "remove_small_instances"
+    defaults: Dict[str, Any] = field(default_factory=dict)
+    parameters: Dict[str, Any] = field(default_factory=dict)  # Dict[str, ParameterConfig]
+
+
+@dataclass
+class ParameterSpaceConfig:
+    """Parameter space configuration for Optuna optimization."""
+    decoding: DecodingParameterSpace = field(default_factory=DecodingParameterSpace)
+    postprocessing: PostprocessingParameterSpace = field(default_factory=PostprocessingParameterSpace)
+
+
+@dataclass
+class TuneConfig:
+    """Parameter tuning configuration (Optuna settings)."""
+    enabled: bool = True
+    n_trials: int = 100
+    timeout: Optional[int] = None
+    study_name: str = "parameter_optimization"
+    storage: Optional[str] = None
+    load_if_exists: bool = True
+    sampler: Dict[str, Any] = field(default_factory=lambda: {"name": "TPE"})
+    pruner: Optional[Dict[str, Any]] = None
+    optimization: Dict[str, Any] = field(default_factory=lambda: {
+        "mode": "single",
+        "single_objective": {"metric": "adapted_rand", "direction": "minimize"}
+    })
+    data: TuneDataConfig = field(default_factory=TuneDataConfig)
+    output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
+    logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})
+    parameter_space: ParameterSpaceConfig = field(default_factory=ParameterSpaceConfig)
+
+
+@dataclass
 class Config:
     """Main configuration for PyTorch Connectomics.
 
@@ -1050,20 +1154,24 @@ class Config:
     Configuration Sections:
         system: Hardware and parallelization settings
         model: Neural network architecture and loss functions
-        data: Dataset loading and preprocessing
+        data: Training dataset loading and preprocessing
         optimization: Training parameters and schedulers
         monitor: Logging, checkpointing, and monitoring
-        inference: Test-time augmentation and postprocessing
+        inference: Shared inference settings (sliding window, TTA, decoding, postprocessing)
+        test: Test-specific configuration (test data paths, decoding, evaluation)
+        tune: Parameter tuning configuration (tuning data paths, optimization settings)
 
     Attributes:
         experiment_name: Name of the experiment for organization
         description: Optional description of the experiment
         system: System configuration for hardware and parallelization
         model: Model architecture and loss configuration
-        data: Data loading and preprocessing configuration
+        data: Training data loading and preprocessing configuration
         optimization: Training optimization configuration
         monitor: Monitoring and logging configuration
-        inference: Inference and postprocessing configuration
+        inference: Shared inference settings (no data paths)
+        test: Test-specific configuration (includes test.data with test_image, test_label, etc.)
+        tune: Parameter tuning configuration (includes tune.data with tune_image, tune_label, etc.)
     """
 
     # Metadata
@@ -1077,6 +1185,12 @@ class Config:
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
+
+    # Optional: Test-specific configuration (test data paths, decoding, evaluation)
+    test: Optional[TestConfig] = None
+
+    # Optional: Parameter tuning configuration (tuning data paths, optimization settings)
+    tune: Optional[TuneConfig] = None
 
 
 # Utility functions for common configuration tasks
@@ -1147,6 +1261,17 @@ __all__ = [
     "EvaluationConfig",
     "DecodeModeConfig",
     "DecodeBinaryContourDistanceWatershedConfig",
+    # Test configuration
+    "TestDataConfig",
+    "TestConfig",
+    # Tuning configuration
+    "TuneDataConfig",
+    "TuneOutputConfig",
+    "ParameterConfig",
+    "DecodingParameterSpace",
+    "PostprocessingParameterSpace",
+    "ParameterSpaceConfig",
+    "TuneConfig",
     # Augmentation configuration
     "AugmentationConfig",
     "FlipConfig",

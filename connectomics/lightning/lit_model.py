@@ -130,15 +130,23 @@ class ConnectomicsModule(pl.LightningModule):
         return losses
 
     def _setup_test_metrics(self):
-        """Initialize test metrics based on inference config."""
-        if not hasattr(self.cfg, 'inference') or not hasattr(self.cfg.inference, 'evaluation'):
+        """Initialize test metrics based on test or inference config."""
+        # Check test.evaluation first, then fall back to inference.evaluation
+        evaluation_config = None
+        if hasattr(self.cfg, 'test') and self.cfg.test and hasattr(self.cfg.test, 'evaluation'):
+            evaluation_config = self.cfg.test.evaluation
+        elif hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
+            evaluation_config = self.cfg.inference.evaluation
+        
+        if not evaluation_config:
             return
 
         # Check if evaluation is enabled
-        if not getattr(self.cfg.inference.evaluation, 'enabled', False):
+        enabled = evaluation_config.get('enabled', False) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'enabled', False)
+        if not enabled:
             return
 
-        metrics = getattr(self.cfg.inference.evaluation, 'metrics', None)
+        metrics = evaluation_config.get('metrics', None) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'metrics', None)
         if metrics is None:
             return
 
@@ -837,10 +845,10 @@ class ConnectomicsModule(pl.LightningModule):
         if not hasattr(self.cfg, 'inference'):
             return
 
-        # Access output_path from nested data config
+        # Access output_path from test.data config
         output_dir_value = None
-        if hasattr(self.cfg.inference, 'data') and hasattr(self.cfg.inference.data, 'output_path'):
-            output_dir_value = self.cfg.inference.data.output_path
+        if hasattr(self.cfg, 'test') and hasattr(self.cfg.test, 'data') and hasattr(self.cfg.test.data, 'output_path'):
+            output_dir_value = self.cfg.test.data.output_path
         if not output_dir_value:
             return
 
@@ -1160,19 +1168,46 @@ class ConnectomicsModule(pl.LightningModule):
         from connectomics.data.io import read_hdf5
         from pathlib import Path
         
+        # Determine mode based on which output config is set
+        # Check tune.output.output_pred first (if it's set, we're in tune mode)
+        mode = "test"
         output_dir_value = None
-        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'data') and hasattr(self.cfg.inference.data, 'output_path'):
-            output_dir_value = self.cfg.inference.data.output_path
+        cache_suffix = "_prediction.h5"
+        
+        if (hasattr(self.cfg, 'tune') and self.cfg.tune and 
+            hasattr(self.cfg.tune, 'output') and 
+            self.cfg.tune.output.output_pred is not None):
+            # Tune mode: tune.output.output_pred is explicitly set
+            mode = "tune"
+            output_dir_value = self.cfg.tune.output.output_pred
+            cache_suffix = self.cfg.tune.output.cache_suffix
+        elif hasattr(self.cfg, 'test') and hasattr(self.cfg.test, 'data'):
+            # Test mode: use test.data
+            output_dir_value = getattr(self.cfg.test.data, 'output_path', None)
+            cache_suffix = getattr(self.cfg.test.data, 'cache_suffix', "_prediction.h5")
+        
+        print(f"🔍 test_step: mode={mode}, output_dir={output_dir_value}, cache_suffix={cache_suffix}")
         
         predictions_np = None
         if output_dir_value:
             output_dir = Path(output_dir_value)
             # Check if all prediction files exist
+            # Try cache_suffix first, then fallback to _tta_prediction.h5 if in test mode
             all_exist = True
             existing_predictions = []
+            loaded_suffix = cache_suffix
             
             for filename in filenames[:actual_batch_size]:
-                pred_file = output_dir / f"{filename}_prediction.h5"
+                pred_file = output_dir / f"{filename}{cache_suffix}"
+                
+                # If primary cache file doesn't exist and we're in test mode, try TTA predictions
+                if not pred_file.exists() and mode == "test" and cache_suffix != "_tta_prediction.h5":
+                    tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
+                    if tta_pred_file.exists():
+                        pred_file = tta_pred_file
+                        loaded_suffix = "_tta_prediction.h5"
+                        print(f"  💡 Final prediction not found, using TTA prediction: {pred_file}")
+                
                 if pred_file.exists():
                     print(f"  ✓ Found existing prediction: {pred_file}")
                     try:
@@ -1199,20 +1234,21 @@ class ConnectomicsModule(pl.LightningModule):
                     # Stack multiple predictions
                     predictions_np = np.stack([p[np.newaxis, ...] if p.ndim < 4 else p for p in existing_predictions], axis=0)
                 
-                # Reverse postprocessing to get back to [0,1] range for evaluation
-                # The saved predictions are postprocessed (scaled, dtype converted)
-                if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'postprocessing'):
-                    postprocessing = self.cfg.inference.postprocessing
-                    # Reverse intensity scaling
-                    intensity_scale = getattr(postprocessing, 'intensity_scale', None)
-                    output_scale = getattr(postprocessing, 'output_scale', None)
-                    scale = intensity_scale if intensity_scale is not None else output_scale
-                    if scale is not None:
-                        predictions_np = predictions_np.astype(np.float32) / float(scale)
-                    else:
-                        # Convert to float if it was converted to uint8/int
-                        if predictions_np.dtype in [np.uint8, np.int8, np.uint16, np.int16]:
-                            predictions_np = predictions_np.astype(np.float32) / 255.0
+                # Reverse postprocessing ONLY if we loaded final predictions (already postprocessed)
+                # TTA predictions are not postprocessed yet, so don't reverse them
+                if loaded_suffix == "_prediction.h5":
+                    if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'postprocessing'):
+                        postprocessing = self.cfg.inference.postprocessing
+                        # Reverse intensity scaling
+                        intensity_scale = getattr(postprocessing, 'intensity_scale', None)
+                        output_scale = getattr(postprocessing, 'output_scale', None)
+                        scale = intensity_scale if intensity_scale is not None else output_scale
+                        if scale is not None:
+                            predictions_np = predictions_np.astype(np.float32) / float(scale)
+                        else:
+                            # Convert to float if it was converted to uint8/int
+                            if predictions_np.dtype in [np.uint8, np.int8, np.uint16, np.int16]:
+                                predictions_np = predictions_np.astype(np.float32) / 255.0
 
         # Run inference only if predictions don't exist
         if predictions_np is None:
@@ -1225,8 +1261,10 @@ class ConnectomicsModule(pl.LightningModule):
             # Convert predictions to numpy for saving/decoding
             predictions_np = predictions.detach().cpu().float().numpy()
 
-        # Track if we loaded existing predictions (skip decode/postprocess if already done)
+        # Track if we loaded existing predictions
         loaded_from_file = (predictions_np is not None and output_dir_value and all_exist)
+        # Track if loaded predictions are final (already decoded) or TTA (need decoding)
+        loaded_final_predictions = loaded_from_file and loaded_suffix == "_prediction.h5"
         
         # Check if we should save intermediate predictions (before decoding)
         save_intermediate = False
@@ -1235,19 +1273,29 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Save intermediate TTA predictions (before decoding) if requested (only if we ran inference)
         if save_intermediate and not loaded_from_file:
-            write_outputs(self.cfg, predictions_np, filenames, suffix="tta_prediction")
+            write_outputs(self.cfg, predictions_np, filenames, suffix="tta_prediction", mode=mode)
 
-        # Apply decode mode (instance segmentation decoding) - skip if loaded from file
-        if loaded_from_file:
-            decoded_predictions = predictions_np  # Already decoded and reversed from postprocessing
+        # Apply decode mode (instance segmentation decoding)
+        # Skip decoding only if we loaded final predictions (already decoded)
+        print(f"  📊 Before decode: shape={predictions_np.shape}, loaded_final={loaded_final_predictions}")
+        if loaded_final_predictions:
+            decoded_predictions = predictions_np  # Already decoded and postprocessed
         else:
+            # Need to decode: either ran inference, or loaded TTA predictions
             decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
+        print(f"  📊 After decode: shape={decoded_predictions.shape}")
 
-            # Apply postprocessing (scaling and dtype conversion) if configured
+        # Apply postprocessing (scaling and dtype conversion) if configured
+        # Skip if already postprocessed (loaded final predictions)
+        if loaded_final_predictions:
+            postprocessed_predictions = decoded_predictions  # Already postprocessed
+        else:
             postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
+        print(f"  📊 After postprocess: shape={postprocessed_predictions.shape}")
 
-            # Save final decoded and postprocessed predictions
-            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction")
+        # Save final decoded and postprocessed predictions (skip if already done)
+        if not loaded_final_predictions:
+            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
 
         # Compute adapted_rand if enabled and labels available
         if labels is not None:
@@ -1255,8 +1303,15 @@ class ConnectomicsModule(pl.LightningModule):
             self._compute_adapted_rand(decoded_predictions, labels_np, filenames)
 
         # Compute evaluation metrics if enabled and labels are available
-        if labels is not None and hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
-            evaluation_enabled = getattr(self.cfg.inference.evaluation, 'enabled', False)
+        # Check test.evaluation for test mode, inference.evaluation for tune mode
+        evaluation_config = None
+        if mode == "test" and hasattr(self.cfg, 'test') and self.cfg.test and hasattr(self.cfg.test, 'evaluation'):
+            evaluation_config = self.cfg.test.evaluation
+        elif hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
+            evaluation_config = self.cfg.inference.evaluation
+        
+        if labels is not None and evaluation_config:
+            evaluation_enabled = evaluation_config.get('enabled', False) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'enabled', False)
             if evaluation_enabled:
                 # Convert predictions back to torch tensor for metrics (before postprocessing)
                 # Use decoded_predictions (after decoding, before postprocessing scaling)

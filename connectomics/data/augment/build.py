@@ -224,21 +224,36 @@ def _build_eval_transforms_impl(
         else:  # mode == "test"
             # Test/inference: default to image only
             keys = ["image"]
-            # Only add label if test_label is explicitly specified
-            if (
-                hasattr(cfg, "inference")
-                and hasattr(cfg.inference, "data")
-                and hasattr(cfg.inference.data, "test_label")
-                and cfg.inference.data.test_label is not None
-            ):
+            # Only add label if test_label or tune_label is explicitly specified
+            has_test_label = (
+                hasattr(cfg, "test")
+                and hasattr(cfg.test, "data")
+                and hasattr(cfg.test.data, "test_label")
+                and cfg.test.data.test_label is not None
+            )
+            has_tune_label = (
+                hasattr(cfg, "tune")
+                and cfg.tune is not None
+                and hasattr(cfg.tune, "data")
+                and cfg.tune.data.tune_label is not None
+            )
+            if has_test_label or has_tune_label:
                 keys.append("label")
-            # Add mask if test_mask is explicitly specified
-            if (
-                hasattr(cfg, "inference")
-                and hasattr(cfg.inference, "data")
-                and hasattr(cfg.inference.data, "test_mask")
-                and cfg.inference.data.test_mask is not None
-            ):
+            
+            # Add mask if test_mask or tune_mask is explicitly specified
+            has_test_mask = (
+                hasattr(cfg, "test")
+                and hasattr(cfg.test, "data")
+                and hasattr(cfg.test.data, "test_mask")
+                and cfg.test.data.test_mask is not None
+            )
+            has_tune_mask = (
+                hasattr(cfg, "tune")
+                and cfg.tune is not None
+                and hasattr(cfg.tune, "data")
+                and cfg.tune.data.tune_mask is not None
+            )
+            if has_test_mask or has_tune_mask:
                 keys.append("mask")
 
     transforms = []
@@ -257,15 +272,15 @@ def _build_eval_transforms_impl(
         if mode == "val":
             transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
         else:  # mode == "test"
-            # Use inference.data.test_transpose
+            # Use test.data.test_transpose
             transpose_axes = []
             if (
-                hasattr(cfg, "inference")
-                and hasattr(cfg.inference, "data")
-                and hasattr(cfg.inference.data, "test_transpose")
-                and cfg.inference.data.test_transpose
+                hasattr(cfg, "test")
+                and hasattr(cfg.test, "data")
+                and hasattr(cfg.test.data, "test_transpose")
+                and cfg.test.data.test_transpose
             ):
-                transpose_axes = cfg.inference.data.test_transpose
+                transpose_axes = cfg.test.data.test_transpose
 
         transforms.append(
             LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
@@ -278,8 +293,22 @@ def _build_eval_transforms_impl(
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
     # Apply resize if configured (before cropping)
-    if hasattr(cfg.data.image_transform, "resize") and cfg.data.image_transform.resize is not None:
-        resize_factors = cfg.data.image_transform.resize
+    # For test/tune mode, only use test.data.image_transform or tune.data.image_transform (no fallback)
+    # For val mode, use data.image_transform
+    resize_factors = None
+    if mode == "test":
+        if hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "image_transform"):
+            if hasattr(cfg.test.data.image_transform, "resize") and cfg.test.data.image_transform.resize is not None:
+                resize_factors = cfg.test.data.image_transform.resize
+    elif mode == "tune":
+        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data") and hasattr(cfg.tune.data, "image_transform"):
+            if hasattr(cfg.tune.data.image_transform, "resize") and cfg.tune.data.image_transform.resize is not None:
+                resize_factors = cfg.tune.data.image_transform.resize
+    else:  # mode == "val"
+        if hasattr(cfg.data.image_transform, "resize") and cfg.data.image_transform.resize is not None:
+            resize_factors = cfg.data.image_transform.resize
+    
+    if resize_factors is not None:
         if resize_factors:
             # Use bilinear for images, nearest for labels/masks
             transforms.append(
@@ -321,13 +350,17 @@ def _build_eval_transforms_impl(
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
-    # For test mode, check inference.data.image_transform first, then fall back to data.image_transform
-    if mode == "test" and hasattr(cfg, "inference") and hasattr(cfg.inference, "data") and hasattr(cfg.inference.data, "image_transform"):
-        image_transform = cfg.inference.data.image_transform
-    else:
+    # For test/tune mode, only use test.data.image_transform or tune.data.image_transform (no fallback)
+    # For val mode, use data.image_transform
+    image_transform = None
+    if mode == "test" and hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "image_transform"):
+        image_transform = cfg.test.data.image_transform
+    elif mode == "tune" and hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data") and hasattr(cfg.tune.data, "image_transform"):
+        image_transform = cfg.tune.data.image_transform
+    elif mode == "val":
         image_transform = cfg.data.image_transform
 
-    if image_transform.normalize != "none":
+    if image_transform is not None and image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=["image"],

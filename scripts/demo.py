@@ -1,12 +1,23 @@
+#!/usr/bin/env python3
 """
-Demo utilities for PyTorch Connectomics.
+Demo script for PyTorch Connectomics.
 
 Provides synthetic data generation and quick demo runs for testing installation.
+This is a standalone script that orchestrates a complete demo training workflow.
+
+Usage:
+    python scripts/main.py --demo
+    python scripts/demo.py  # Can also be run directly
 """
+
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 import torch
-from pathlib import Path
 from typing import Tuple
 
 
@@ -93,7 +104,6 @@ def create_demo_config():
         LoggingConfig,
         ImageLoggingConfig,
         InferenceConfig,
-        InferenceDataConfig,
     )
 
     cfg = Config(
@@ -180,11 +190,6 @@ def create_demo_config():
             num_cpus=-1,
             batch_size=-1,
             num_workers=-1,
-            data=InferenceDataConfig(
-                test_image=None,
-                test_label=None,
-                output_path="outputs/demo/predictions",
-            ),
         ),
     )
 
@@ -394,3 +399,8 @@ def run_demo():
             shutil.rmtree(temp_dir)
         except Exception as e:
             print(f"   Warning: Could not remove temp dir: {e}")
+
+
+if __name__ == "__main__":
+    run_demo()
+

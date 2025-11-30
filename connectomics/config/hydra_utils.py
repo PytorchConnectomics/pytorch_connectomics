@@ -233,7 +233,7 @@ def create_experiment_name(cfg: Config) -> str:
 
 def resolve_data_paths(cfg: Config) -> Config:
     """
-    Resolve data paths by combining base paths (train_path, val_path, test_path)
+    Resolve data paths by combining base paths (train_path, val_path)
     with relative file paths (train_image, train_label, etc.).
 
     This function modifies the config in-place by:
@@ -244,8 +244,10 @@ def resolve_data_paths(cfg: Config) -> Config:
     Supported paths:
     - Training: cfg.data.train_path + cfg.data.train_image/train_label/train_mask
     - Validation: cfg.data.val_path + cfg.data.val_image/val_label/val_mask
-    - Testing: cfg.data.test_path + cfg.data.test_image/test_label/test_mask
-    - Inference: cfg.inference.data.test_path + cfg.inference.data.test_image/test_label/test_mask
+    - Testing: cfg.test.data.test_path + cfg.test.data.test_image/test_label/test_mask
+    - Tuning: cfg.tune.data.test_path + cfg.tune.data.tune_image/tune_label/tune_mask
+
+    Note: Test data belongs in cfg.test.data, tuning data in cfg.tune.data
 
     Args:
         cfg: Config object to resolve paths for
@@ -260,10 +262,10 @@ def resolve_data_paths(cfg: Config) -> Config:
         >>> print(cfg.data.train_image)
         ['/data/barcode/PT37/img1_raw.tif', '/data/barcode/PT37/img2_raw.tif', '/data/barcode/file.tif']
 
-        >>> cfg.inference.data.test_path = "/data/test/"
-        >>> cfg.inference.data.test_image = ["volume_*.tif"]
+        >>> cfg.test.data.test_path = "/data/test/"
+        >>> cfg.test.data.test_image = ["volume_*.tif"]
         >>> resolve_data_paths(cfg)
-        >>> print(cfg.inference.data.test_image)
+        >>> print(cfg.test.data.test_image)
         ['/data/test/volume_1.tif', '/data/test/volume_2.tif']
     """
     import os
@@ -351,20 +353,25 @@ def resolve_data_paths(cfg: Config) -> Config:
     cfg.data.val_mask = _combine_path(val_base, cfg.data.val_mask)
     cfg.data.val_json = _combine_path(val_base, cfg.data.val_json)
 
-    # Resolve test paths (always expand globs, use test_path as base if available)
-    test_base = cfg.data.test_path if cfg.data.test_path else ""
-    cfg.data.test_image = _combine_path(test_base, cfg.data.test_image)
-    cfg.data.test_label = _combine_path(test_base, cfg.data.test_label)
-    cfg.data.test_mask = _combine_path(test_base, cfg.data.test_mask)
-    cfg.data.test_json = _combine_path(test_base, cfg.data.test_json)
-
-    # Resolve inference data paths (primary location for test_path)
-    inference_test_base = ""
-    if hasattr(cfg.inference.data, 'test_path') and cfg.inference.data.test_path:
-        inference_test_base = cfg.inference.data.test_path
-    cfg.inference.data.test_image = _combine_path(inference_test_base, cfg.inference.data.test_image)
-    cfg.inference.data.test_label = _combine_path(inference_test_base, cfg.inference.data.test_label)
-    cfg.inference.data.test_mask = _combine_path(inference_test_base, cfg.inference.data.test_mask)
+    # Resolve test data paths (cfg.test.data.test_*)
+    if hasattr(cfg, 'test') and hasattr(cfg.test, 'data'):
+        test_base = cfg.test.data.test_path if hasattr(cfg.test.data, 'test_path') and cfg.test.data.test_path else ""
+        if hasattr(cfg.test.data, 'test_image'):
+            cfg.test.data.test_image = _combine_path(test_base, cfg.test.data.test_image)
+        if hasattr(cfg.test.data, 'test_label'):
+            cfg.test.data.test_label = _combine_path(test_base, cfg.test.data.test_label)
+        if hasattr(cfg.test.data, 'test_mask'):
+            cfg.test.data.test_mask = _combine_path(test_base, cfg.test.data.test_mask)
+    
+    # Resolve tuning data paths (cfg.tune.data.tune_*)
+    if hasattr(cfg, 'tune') and hasattr(cfg.tune, 'data'):
+        tune_base = cfg.tune.data.test_path if hasattr(cfg.tune.data, 'test_path') and cfg.tune.data.test_path else ""
+        if hasattr(cfg.tune.data, 'tune_image'):
+            cfg.tune.data.tune_image = _combine_path(tune_base, cfg.tune.data.tune_image)
+        if hasattr(cfg.tune.data, 'tune_label'):
+            cfg.tune.data.tune_label = _combine_path(tune_base, cfg.tune.data.tune_label)
+        if hasattr(cfg.tune.data, 'tune_mask'):
+            cfg.tune.data.tune_mask = _combine_path(tune_base, cfg.tune.data.tune_mask)
 
     return cfg
 
