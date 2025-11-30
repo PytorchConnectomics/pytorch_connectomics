@@ -37,6 +37,7 @@ from cellmap_segmentation_challenge.utils import (
     get_tested_classes,             # Official class list
     CellMapLossWrapper,             # NaN-aware loss
 )
+from cellmap_segmentation_challenge import config as cellmap_cfg
 
 # PyTC model building (import only, no modification)
 from connectomics.models import build_model
@@ -53,16 +54,39 @@ class CellMapLightningModule(pl.LightningModule):
     Uses PyTC models as-is, no modifications needed.
     """
 
-    def __init__(self, model, criterion, optimizer_config, scheduler_config=None, classes=None):
+    def __init__(
+        self,
+        model,
+        criterion,
+        optimizer_config,
+        scheduler_config=None,
+        classes=None,
+        target_shape=None,
+    ):
         super().__init__()
         self.model = model
         self.criterion = criterion
         self.optimizer_config = optimizer_config
         self.scheduler_config = scheduler_config
         self.classes = classes or []
+        self.target_shape = target_shape
 
         # Save hyperparameters
         self.save_hyperparameters(ignore=['model', 'criterion'])
+
+    def _maybe_resample(self, images: torch.Tensor, labels: torch.Tensor):
+        """Optionally resample images/labels to a fixed shape to avoid scale filtering."""
+        if self.target_shape is None:
+            return images, labels
+        # Expect 5D tensors (B, C, D, H, W). Use nearest for labels.
+        target = tuple(self.target_shape)
+        images_rs = torch.nn.functional.interpolate(
+            images, size=target, mode="trilinear", align_corners=False
+        )
+        labels_rs = torch.nn.functional.interpolate(
+            labels, size=target, mode="nearest"
+        )
+        return images_rs, labels_rs
 
     def forward(self, x):
         return self.model(x)
@@ -71,6 +95,7 @@ class CellMapLightningModule(pl.LightningModule):
         images = batch['input']
         labels = batch['output']
 
+        images, labels = self._maybe_resample(images, labels)
         predictions = self(images)
         loss = self.criterion(predictions, labels)
 
@@ -81,6 +106,7 @@ class CellMapLightningModule(pl.LightningModule):
         images = batch['input']
         labels = batch['output']
 
+        images, labels = self._maybe_resample(images, labels)
         predictions = self(images)
         loss = self.criterion(predictions, labels)
 
@@ -137,16 +163,23 @@ class CellMapLightningModule(pl.LightningModule):
         }
 
 
-def train_cellmap(config_path: str):
+def train_cellmap(config_path: str, data_root: str | None = None, target_shape=None):
     """
     Main training function using CellMap's official tools + PyTC models.
 
     Args:
         config_path: Path to Python config file (CellMap style)
+        data_root: Optional override for the CellMap dataset root
     """
     # Load config (CellMap's safe config loader)
     print(f"Loading config from: {config_path}")
     config = load_safe_config(config_path)
+
+    # Allow CLI overrides
+    if data_root:
+        setattr(config, "data_root", data_root)
+    if target_shape:
+        setattr(config, "target_shape", target_shape)
 
     # Extract config values
     model_name = getattr(config, 'model_name', 'mednext')
@@ -180,16 +213,33 @@ def train_cellmap(config_path: str):
     print(f"  Max epochs: {max_epochs}")
     print(f"  GPUs: {num_gpus}")
     print(f"  Precision: {precision}")
+    if target_shape:
+        print(f"  Target resample shape: {target_shape}")
+
+    # Resolve data root override (defaults to package SEARCH_PATH under repo/data)
+    data_root = getattr(config, "data_root", None)
+    target_shape = getattr(config, "target_shape", target_shape)
+    search_path = cellmap_cfg.SEARCH_PATH
+    if data_root:
+        search_path = os.path.normpath(
+            os.path.join(data_root, "{dataset}/{dataset}.zarr/recon-1/{name}")
+        )
+        print(f"Using data root: {data_root}")
+    else:
+        print(f"Using default CellMap search path: {search_path}")
 
     # Generate datasplit CSV if doesn't exist (CellMap's official utility)
     if not os.path.exists(datasplit_path):
         print(f"Generating datasplit CSV: {datasplit_path}")
+        # If resampling is enabled, allow all scales (skip filtering)
+        scale_filter = None if target_shape else input_array_info.get('scale')
         make_datasplit_csv(
             classes=classes,
             csv_path=datasplit_path,
             validation_prob=0.15,
-            scale=input_array_info.get('scale'),
+            scale=scale_filter,
             force_all_classes='validate',
+            search_path=search_path,
         )
     else:
         print(f"Using existing datasplit: {datasplit_path}")
@@ -238,6 +288,7 @@ def train_cellmap(config_path: str):
         optimizer_config={'lr': learning_rate, 'weight_decay': 1e-5},
         scheduler_config=getattr(config, 'scheduler_config', {'name': 'constant'}),
         classes=classes,
+        target_shape=target_shape,
     )
 
     # Setup callbacks
@@ -296,6 +347,21 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Train PyTC models on CellMap data')
     parser.add_argument('config', type=str, help='Path to config file')
+    parser.add_argument(
+        '--data-root',
+        type=str,
+        help='Override dataset root (e.g., /projects/weilab/dataset/cellmap)',
+        default=None,
+    )
+    parser.add_argument(
+        '--target-shape',
+        nargs=3,
+        metavar=('D', 'H', 'W'),
+        type=int,
+        help='Resample input/label to this shape (e.g., --target-shape 128 128 128) to include all scales',
+        default=None,
+    )
     args = parser.parse_args()
 
-    train_cellmap(args.config)
+    target_shape = tuple(args.target_shape) if args.target_shape else None
+    train_cellmap(args.config, data_root=args.data_root, target_shape=target_shape)

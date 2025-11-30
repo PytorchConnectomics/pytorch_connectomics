@@ -25,6 +25,12 @@ cd ..
 
 # Verify installation
 python -c "from cellmap_segmentation_challenge.utils import TEST_CROPS; print(f'{len(TEST_CROPS)} test crops loaded')"
+
+# Point to your dataset location via CLI (preferred)
+# Example:
+#   python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/mednext_cos7.py --data-root /projects/weilab/dataset/cellmap
+# If your crops are at mixed resolutions, you can resample to a fixed shape to include all scales:
+#   python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/mednext_cos7.py --data-root /projects/weilab/dataset/cellmap --target-shape 128 128 128
 ```
 
 ### 2. Quick Test (10 epochs)
