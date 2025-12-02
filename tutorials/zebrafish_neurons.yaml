@@ -33,9 +33,11 @@ model:
   dropout: 0.15
 
   # Loss configuration - WeightedBCEWithLogitsLoss + Dice for small touching objects
-  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss]
-  loss_weights: [1.0, 2.0, 1.0, 2.0]
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss]
+  loss_weights: [1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
   loss_kwargs:
+    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
     - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
     - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
     - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
@@ -44,8 +46,9 @@ model:
   # Multi-task configuration
   # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
   multi_task_config:
-    - [0, 1, "binary", [0, 1]]          # Original labels: Dice + BCE
+    - [0, 1, "binary", [0, 1]]         # Original labels: Dice + BCE
     - [1, 2, "boundary", [2, 3]]       # Boundary channel: Dice + BCE  
+    - [2, 3, "edt", [4, 5]]            # Distance channel: Dice + BCE  
 
 
 # Data - 2D fluorescence microscopy
@@ -182,7 +185,7 @@ inference:
     padding_mode: reflect
 
   test_time_augmentation:
-    enabled: false
+    enabled: true
     flip_axes: [[0], [1], [0, 1]]
     channel_activations: [[0, 2, 'sigmoid']]  # Sigmoid activation for both channels (foreground + contour)
     ensemble_mode: mean
@@ -213,7 +216,7 @@ test:
       kwargs:
         binary_threshold: [0.5, 0.3]
         contour_threshold: [0.7, 1.1]                
-        distance_channels: null
+        distance_threshold: [0.5, 0]
         min_seed_size: 4
 
   # Evaluation
