@@ -19,6 +19,7 @@ import fastremap
 from skimage.morphology import dilation, remove_small_objects
 from scipy.ndimage import zoom
 import mahotas
+from connectomics.data.process.target import seg_to_semantic_edt
 
 try:
     from numba import jit
@@ -175,10 +176,7 @@ def decode_instance_binary_contour_distance(
     elif mode == "watershed":
         # Watershed mode requires distance channel
         if distance is None:
-            raise ValueError(
-                "Watershed mode requires distance channel. "
-                "Please specify distance_channels in your decode configuration."
-            )
+            distance = seg_to_semantic_edt(foreground, mode="3d")
         # step 2: compute the instance seeds
         if precomputed_seed is not None:
             seed = precomputed_seed

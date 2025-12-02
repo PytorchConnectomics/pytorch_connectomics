@@ -911,8 +911,8 @@ class SavePredictionConfig:
     """
 
     enabled: bool = True  # Enable saving intermediate predictions
-    intensity_scale: float = 255.0  # Scale predictions to [0, 255] for saving
-    intensity_dtype: str = "uint8"  # Save as uint8 for visualization
+    intensity_scale: float = -1.0  # If < 0, keep raw predictions (no normalization/scaling). If > 0, normalize to [0,1] then scale.
+    intensity_dtype: str = "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
 
 
 @dataclass
@@ -999,6 +999,8 @@ class PostprocessingConfig:
     Note: Intensity scaling and dtype conversion are handled by SavePredictionConfig.
     """
 
+    enabled: bool = False  # Enable postprocessing pipeline
+
     # Binary segmentation refinement (morphological ops, connected components)
     binary: Optional[Dict[str, Any]] = field(
         default_factory=dict
@@ -1059,7 +1061,7 @@ class TestDataConfig:
     test_image: Optional[str] = None
     test_label: Optional[str] = None
     test_mask: Optional[str] = None
-    test_resolution: Optional[List[int]] = None
+    test_resolution: Optional[List[float]] = None
     test_transpose: Optional[List[int]] = None
     output_path: Optional[str] = None
     cache_suffix: str = "_prediction.h5"

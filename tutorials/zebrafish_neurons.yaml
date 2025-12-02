@@ -1,0 +1,222 @@
+# Zebrafish Neuron Instance Segmentation (2D Fluorescence)
+# Small circular neurons (12-18 px diameter) with low SNR uint16 images (~180 max).
+# MONAI Residual UNet with contour channel + watershed decoding for instance IDs.
+
+experiment_name: zebrafish_neurons
+description: 2D zebrafish neuron instance segmentation with MONAI UNet and watershed decoding
+
+# System
+system:
+  training:
+    num_gpus: 1
+    num_cpus: 16
+    num_workers: 16
+    batch_size: 128
+  inference:
+    num_gpus: 1
+    num_cpus: 4
+    num_workers: 4
+    batch_size: 64
+  seed: 42
+
+# Model Configuration
+model:
+  architecture: monai_unet
+  input_size: [256, 256]
+  output_size: [256, 256]
+  in_channels: 1
+  out_channels: 2                        # foreground + contour
+  filters: [24, 48, 96, 192]
+  num_res_units: 2
+  kernel_size: 3
+  norm: batch
+  dropout: 0.15
+
+  # Loss configuration - WeightedBCEWithLogitsLoss + Dice for small touching objects
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss]
+  loss_weights: [1.0, 2.0, 1.0, 2.0]
+  loss_kwargs:
+    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
+    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
+
+  # Multi-task configuration
+  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
+  multi_task_config:
+    - [0, 1, "binary", [0, 1]]          # Original labels: Dice + BCE
+    - [1, 2, "boundary", [2, 3]]       # Boundary channel: Dice + BCE  
+
+
+# Data - 2D fluorescence microscopy
+data:
+  do_2d: true
+
+  # Image/label locations
+  train_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/train/images/*.tif
+  train_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/train/labels/*.tif
+  train_resolution: [0.365, 0.365]        # micrometers: y, x
+  val_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/val/images/*.tif
+  val_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/val/labels/*.tif
+  use_preloaded_cache: false              # Dataset too large for full in-memory cache
+  use_cache: true                         # Partial cache for faster IO
+  cache_rate: 0.1
+  pin_memory: true
+  persistent_workers: true
+
+  # Patch sampling
+  patch_size: [256, 256]
+  pad_size: [0, 0]
+  pad_mode: reflect
+  iter_num_per_epoch: 25600
+
+  # Image normalization
+  image_transform:
+    normalize: "0-1"
+    clip_percentile_low: 0.01
+    clip_percentile_high: 0.99
+
+  # Label processing: binary + contour channel for instance separation
+  label_transform:
+    targets:
+      - name: binary
+      - name: instance_boundary
+        kwargs:
+          thickness: 1
+          edge_mode: seg-all
+          mode: 2d
+
+  # Augmentation - soft geometric + conservative intensity tweaks for low SNR
+  augmentation:
+    preset: some
+    flip:
+      enabled: true
+      spatial_axis: [0, 1]
+    rotate:
+      enabled: true
+    affine:
+      enabled: false
+    elastic:
+      enabled: false
+    intensity:
+      enabled: true
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      gaussian_noise_prob: 0.0
+      gaussian_noise_std: 0.0
+      contrast_prob: 0.3
+      contrast_range: [0.95, 1.05]
+
+# Optimizer - AdamW with ReduceLROnPlateau
+optimization:
+  max_epochs: 500
+  val_check_interval: 1.0
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"
+
+  optimizer:
+    name: AdamW
+    lr: 0.001
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+
+  # Scheduler - ReduceLROnPlateau for adaptive learning
+  scheduler:
+    name: ReduceLROnPlateau
+    monitor: val_loss_total
+    mode: min
+    factor: 0.5
+    patience: 30
+    threshold: 1.0e-4
+    min_lr: 1.0e-6
+
+monitor:
+  detect_anomaly: false
+  logging:
+    # Scalar loss logging
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+      benchmark: true
+
+    # Visualization
+    images:
+      enabled: true
+      max_images: 8
+      num_slices: 1                      # 2D visualization
+      log_every_n_epochs: 5
+      channel_mode: argmax
+      selected_channels: null
+
+  # Checkpointing
+  checkpoint:
+    monitor: val_loss_total
+    mode: min
+    save_top_k: 1
+    save_last: true
+    save_every_n_epochs: 10
+    dirpath: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/monai_zebrafish_neurons/checkpoints/
+    use_timestamp: true                  # Timestamped subdirectories (YYYYMMDD_HHMMSS)
+
+  # Early stopping - patient for small objects
+  early_stopping:
+    enabled: true
+    monitor: val_loss_total
+    patience: 100
+    mode: min
+    min_delta: 1.0e-5
+    check_finite: true
+    threshold: 0.005
+    divergence_threshold: 5.0
+
+# Inference - Sliding window for full 1216x2048 images
+inference:
+  sliding_window:
+    window_size: [256, 256]
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: reflect
+
+  test_time_augmentation:
+    enabled: false
+    flip_axes: [[0], [1], [0, 1]]
+    channel_activations: [[0, 2, 'sigmoid']]  # Sigmoid activation for both channels (foreground + contour)
+    ensemble_mode: mean
+
+  # Save intermediate predictions (pre-decoding)
+  save_prediction:
+    enabled: true
+    intensity_scale: -1.0    
+
+# Postprocessing - keep instance IDs
+  postprocessing:
+    enabled: false
+
+test:
+  data:
+    test_image: datasets/zebrafish_neurons/image_124313.tif
+    test_label: datasets/zebrafish_neurons/label_124313.tif
+    test_resolution: [0.365, 0.365]
+    output_path: outputs/zebrafish_neurons_monai_unet/results/
+    image_transform:
+      normalize: "0-1"                     # Min-max normalization to [0, 1]
+      clip_percentile_low: 0.01            # Clip bottom 1% (remove dark noise outliers)
+      clip_percentile_high: 0.99           # Clip top 1% (remove bright outliers)
+
+  # Decoding: foreground + contour -> instance labels
+  decoding:
+    - name: decode_instance_binary_contour_distance
+      kwargs:
+        binary_threshold: [0.5, 0.3]
+        contour_threshold: [0.7, 1.1]                
+        distance_channels: null
+        min_seed_size: 4
+
+  # Evaluation
+  evaluation:
+    enabled: false
+    metrics: [adapted_rand]

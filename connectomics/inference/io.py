@@ -22,6 +22,15 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
 
     This is used when saving intermediate predictions (before decoding).
 
+    Default behavior (no config):
+    - Normalizes predictions to [0, 1] using min-max normalization
+    - Keeps dtype as float32
+
+    Config options:
+    - intensity_scale: If < 0, disables normalization (raw values)
+                       If > 0, normalize to [0, 1] then multiply by scale
+    - intensity_dtype: Target dtype for conversion (uint8, float32, etc.)
+
     Args:
         cfg: Configuration object
         data: Predictions array to transform
@@ -29,18 +38,43 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
     Returns:
         Transformed predictions with applied scaling and dtype conversion
     """
-    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "save_prediction"):
+    # Default: keep raw predictions if no config
+    intensity_scale = -1.0  # Default: keep raw predictions
+
+    if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
+        save_pred_cfg = cfg.inference.save_prediction
+        intensity_scale = getattr(save_pred_cfg, "intensity_scale", -1.0)
+
+    # Apply intensity scaling (if intensity_scale >= 0, normalize to [0, 1] then scale)
+    if intensity_scale >= 0:
+        # Convert to float32 for normalization
+        data = data.astype(np.float32)
+
+        # Min-max normalization to [0, 1]
+        data_min = data.min()
+        data_max = data.max()
+
+        if data_max > data_min:
+            data = (data - data_min) / (data_max - data_min)
+            print(f"  Normalized predictions to [0, 1] (min={data_min:.4f}, max={data_max:.4f})")
+        else:
+            print(f"  Warning: data_min == data_max ({data_min:.4f}), skipping normalization")
+
+        # Apply scaling factor
+        if intensity_scale != 1.0:
+            data = data * float(intensity_scale)
+            print(f"  Scaled predictions by {intensity_scale} -> range [{data.min():.4f}, {data.max():.4f}]")
+    else:
+        print(f"  Intensity scaling disabled (scale={intensity_scale} < 0), keeping raw predictions")
+        # Skip dtype conversion when intensity_scale < 0 to preserve raw predictions
         return data
 
-    save_pred_cfg = cfg.inference.save_prediction
-
-    # Apply intensity scaling
-    intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
-    if intensity_scale is not None and intensity_scale != 1.0:
-        data = data * float(intensity_scale)
-
     # Apply dtype conversion
-    target_dtype_str = getattr(save_pred_cfg, "intensity_dtype", None)
+    target_dtype_str = None
+    if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
+        save_pred_cfg = cfg.inference.save_prediction
+        target_dtype_str = getattr(save_pred_cfg, "intensity_dtype", None)
+
     if target_dtype_str is not None:
         dtype_map = {
             "uint8": np.uint8,
@@ -68,6 +102,7 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
         if np.issubdtype(target_dtype, np.integer):
             info = np.iinfo(target_dtype)
             data = np.clip(data, info.min, info.max)
+            print(f"  Converting to {target_dtype_str} (clipped to [{info.min}, {info.max}])")
 
         data = data.astype(target_dtype)
 
@@ -88,6 +123,10 @@ def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarr
         return data
 
     postprocessing = cfg.inference.postprocessing
+
+    # Check if postprocessing is enabled
+    if not getattr(postprocessing, "enabled", False):
+        return data
 
     binary_config = getattr(postprocessing, "binary", None)
     if binary_config is not None and getattr(binary_config, "enabled", False):

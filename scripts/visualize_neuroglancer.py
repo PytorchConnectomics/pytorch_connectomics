@@ -57,6 +57,47 @@ else:
     neuroglancer = None  # Will be imported in main() after arg parsing
 
 
+def apply_default_scaling(data: np.ndarray, scale: float, is_image: bool = True) -> np.ndarray:
+    """
+    Apply default intensity scaling for visualization.
+
+    Args:
+        data: Input array
+        scale: Scaling factor. If < 0, no scaling. If > 0, normalize to [0, 1] then scale
+        is_image: If True, apply scaling. If False (label/seg), return as-is
+
+    Returns:
+        Scaled array (float32)
+    """
+    if not is_image or scale < 0:
+        # No scaling for segmentation or when scale < 0
+        return data
+
+    original_dtype = data.dtype
+    data = data.astype(np.float32)
+
+    print(f"  Applying default intensity scaling (scale={scale}):")
+    print(f"    Original range: [{data.min():.2f}, {data.max():.2f}]")
+
+    # Min-max normalization to [0, 1]
+    data_min = data.min()
+    data_max = data.max()
+    if data_max > data_min:
+        data = (data - data_min) / (data_max - data_min)
+        print(f"    Normalized to [0, 1] (min-max)")
+    else:
+        print(f"    Warning: data_min == data_max, skipping normalization")
+        return data
+
+    # Apply scaling
+    if scale != 1.0:
+        data = data * scale
+        print(f"    Scaled by {scale}")
+
+    print(f"    Final range: [{data.min():.2f}, {data.max():.2f}]")
+    return data
+
+
 def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
     """
     Apply image transformations from config (normalization and clipping).
@@ -75,7 +116,7 @@ def apply_image_transform(data: np.ndarray, cfg) -> np.ndarray:
     original_dtype = data.dtype
     data = data.astype(np.float32)  # Work in float32
 
-    print(f"  Applying image transformations:")
+    print(f"  Applying image transformations from config:")
     print(f"    Original range: [{data.min():.2f}, {data.max():.2f}]")
 
     # Percentile clipping
@@ -153,9 +194,17 @@ Examples:
   python -i scripts/visualize_neuroglancer.py \\
     --volumes output:image:outputs/pred.h5 ground_truth:seg:datasets/label.h5
 
-  # Volumes with resolution and offset (format: name:type:path:resolution:offset)
+  # Volumes with channel selection (format: name:type:path:channel)
   python -i scripts/visualize_neuroglancer.py \\
-    --volumes prediction:image:outputs/pred.h5:5-5-5:0-0-0
+    --volumes prediction:image:outputs/pred.h5:0 multi_channel:seg:outputs/multi.h5:2
+
+  # Volumes with channel and resolution (format: name:type:path:channel:resolution)
+  python -i scripts/visualize_neuroglancer.py \\
+    --volumes prediction:image:outputs/pred.h5:0:5-5-5 label:seg:datasets/label.h5:0:30-6-6
+
+  # Volumes with channel, resolution, and offset (format: name:type:path:channel:resolution:offset)
+  python -i scripts/visualize_neuroglancer.py \\
+    --volumes prediction:image:outputs/pred.h5:0:5-5-5:100-200-300
 
   # Mix config with additional volumes
   python -i scripts/visualize_neuroglancer.py \\
@@ -170,7 +219,23 @@ Examples:
   python -i scripts/visualize_neuroglancer.py \\
     --config tutorials/monai_lucchi.yaml \\
     --ip 0.0.0.0 --port 8080 \\
-    --resolution 30 6 6
+    --resolution 30-6-6
+
+  # 2D images with 2D resolution (automatically padded to 3D)
+  python -i scripts/visualize_neuroglancer.py \\
+    --image datasets/2d_image.tif \\
+    --label datasets/2d_label.tif \\
+    --resolution 0.365-0.365
+
+  # Disable intensity scaling
+  python -i scripts/visualize_neuroglancer.py \\
+    --image datasets/image.tif \\
+    --scale -1
+
+  # Custom intensity scaling factor
+  python -i scripts/visualize_neuroglancer.py \\
+    --image datasets/image.tif \\
+    --scale 255
 
 Interactive mode (with -i flag):
   Access loaded variables:
@@ -188,11 +253,13 @@ Interactive mode (with -i flag):
         "--volumes",
         type=str,
         nargs="+",
-        help='Volume paths in format "name:type:path[:resolution[:offset]]" where type is "image" or "seg", '
+        help='Volume paths in format "name:type:path[:channel[:resolution[:offset]]]" where type is "image" or "seg", '
+        'channel is an optional channel index (serves as --select for this volume), '
         'resolution is "z-y-x" in nm, and offset is "z-y-x" in voxels. '
         "Type can be omitted for backward compatibility (inferred from name). "
         "Glob patterns supported with selectors: path/*.tiff[0] (index), path/*.tiff[name] (filename). "
-        'Examples: "pred:image:path.h5:5-5-5", "label:seg:data/*.tiff[0]"',
+        'Examples: "pred:image:path.h5", "label:seg:data/*.tiff[0]", "multi:image:path.h5:2", '
+        '"pred:image:path.h5:0:5-5-5", "pred:image:path.h5:0:5-5-5:100-200-300"',
     )
     parser.add_argument("--image", type=str, help="Path to image volume")
     parser.add_argument("--label", type=str, help="Path to label volume")
@@ -209,17 +276,25 @@ Interactive mode (with -i flag):
     # Volume metadata
     parser.add_argument(
         "--resolution",
-        type=float,
-        nargs=3,
-        default=[30, 6, 6],
-        help="Voxel resolution in nm as [z, y, x] (default: 30 6 6 for EM data)",
+        type=str,
+        default="30-6-6",
+        help='Voxel resolution in nm as "z-y-x" or "y-x" for 2D (default: 30-6-6 for EM data). '
+        '2D resolution will be padded to 3D with z=1.0',
     )
     parser.add_argument(
         "--offset",
-        type=int,
-        nargs=3,
-        default=[0, 0, 0],
-        help="Volume offset as [z, y, x] (default: 0 0 0)",
+        type=str,
+        default="0-0-0",
+        help='Volume offset as "z-y-x" or "y-x" for 2D in voxels (default: 0-0-0). '
+        '2D offset will be padded to 3D with z=0',
+    )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help='Intensity scaling factor for image normalization (default: 1.0). '
+        'If scale < 0, no intensity scaling is applied. '
+        'If scale > 0, image is normalized to [0, 1] then scaled by this factor',
     )
 
     # Display options
@@ -562,6 +637,8 @@ def resolve_glob_with_selector(path: str, default_selector: str = "0") -> str:
 def load_volumes_from_paths(
     volume_specs: List[str],
     select: str = "0",
+    scale: float = 1.0,
+    global_resolution: Optional[Tuple[Tuple, bool]] = None,
 ) -> Dict[str, Tuple[np.ndarray, str, Optional[Tuple], Optional[Tuple]]]:
     """
     Load volumes from path specifications.
@@ -571,20 +648,29 @@ def load_volumes_from_paths(
             - "path" - just path (type inferred from name)
             - "name:path" - name and path (type inferred from name)
             - "name:type:path" - name, type (image/seg), and path
-            - "name:type:path:resolution" - with resolution (e.g., "30-6-6")
-            - "name:type:path:resolution:offset" - with resolution and offset (e.g., "0-0-0")
+            - "name:type:path:channel" - with channel index (e.g., "0", "2")
+            - "name:type:path:channel:resolution" - with channel and resolution (e.g., "0:5-5-5")
+            - "name:type:path:channel:resolution:offset" - with channel, resolution, and offset (e.g., "0:5-5-5:100-200-300")
 
         Paths can include glob patterns with selectors:
             - "name:type:path/*.tiff[0]" - select first file
             - "name:type:path/*.tiff[-1]" - select last file
             - "name:type:path/*.tiff[filename]" - select by name
         select: Default selector for glob patterns without inline selector
+        scale: Intensity scaling factor (< 0 disables scaling)
+        global_resolution: Tuple of (resolution_tuple, is_2d_flag) from --resolution flag
+                          Used for 2D detection when per-volume resolution not specified
 
     Returns:
         Dictionary mapping volume names to (data, type, resolution, offset) tuples
         where resolution and offset can be None (use defaults)
     """
     volumes = {}
+
+    # Extract global resolution info
+    global_is_2d = False
+    if global_resolution is not None:
+        _, global_is_2d = global_resolution
 
     for spec in volume_specs:
         parts = spec.split(":")
@@ -598,43 +684,109 @@ def load_volumes_from_paths(
             name = Path(parts[0]).stem
             path = parts[0]
             vol_type = None  # Infer later
+            channel = None
             resolution = None
             offset = None
+            is_2d_resolution = global_is_2d  # Use global 2D flag
         elif len(parts) == 2:
             # name:path
             name, path = parts
             vol_type = None  # Infer later
+            channel = None
             resolution = None
             offset = None
+            is_2d_resolution = global_is_2d  # Use global 2D flag
         elif has_explicit_type:
-            # Format: name:type:path[:resolution[:offset]]
+            # Format: name:type:path[:channel[:resolution[:offset]]]
             name = parts[0]
             vol_type = "segmentation" if parts[1] in ["seg", "segmentation"] else "image"
             path = parts[2]
 
-            # Parse optional resolution and offset
+            # Parse optional channel
             if len(parts) >= 4:
-                resolution = tuple(float(x) for x in parts[3].split("-"))
+                try:
+                    channel = int(parts[3])
+                except ValueError:
+                    print(f"  Warning: Invalid channel '{parts[3]}', ignoring")
+                    channel = None
             else:
-                resolution = None
+                channel = None
 
+            # Parse optional resolution
+            is_2d_resolution = False
             if len(parts) >= 5:
-                offset = tuple(int(x) for x in parts[4].split("-"))
+                try:
+                    resolution = tuple(float(x) for x in parts[4].split("-"))
+                    # Detect 2D resolution (will pad to 3D later)
+                    if len(resolution) == 2:
+                        is_2d_resolution = True
+                        resolution = (1.0,) + resolution
+                        print(f"  2D resolution detected, padded to 3D: {resolution}")
+                except ValueError:
+                    print(f"  Warning: Invalid resolution '{parts[4]}', ignoring")
+                    resolution = None
+            else:
+                # No per-volume resolution, use global 2D flag
+                resolution = None
+                is_2d_resolution = global_is_2d
+
+            # Parse optional offset
+            if len(parts) >= 6:
+                try:
+                    offset = tuple(int(x) for x in parts[5].split("-"))
+                    # Handle 2D offset: pad with z=0
+                    if len(offset) == 2:
+                        offset = (0,) + offset
+                        print(f"  2D offset detected, padded to 3D: {offset}")
+                except ValueError:
+                    print(f"  Warning: Invalid offset '{parts[5]}', ignoring")
+                    offset = None
             else:
                 offset = None
         else:
-            # Legacy format: name:path:resolution[:offset]
+            # Legacy format: name:path[:channel[:resolution[:offset]]]
             name = parts[0]
             path = parts[1]
             vol_type = None  # Infer later
 
             if len(parts) >= 3:
-                resolution = tuple(float(x) for x in parts[2].split("-"))
+                try:
+                    channel = int(parts[2])
+                except ValueError:
+                    print(f"  Warning: Invalid channel '{parts[2]}', ignoring")
+                    channel = None
             else:
-                resolution = None
+                channel = None
 
+            # Parse optional resolution
+            is_2d_resolution = False
             if len(parts) >= 4:
-                offset = tuple(int(x) for x in parts[3].split("-"))
+                try:
+                    resolution = tuple(float(x) for x in parts[3].split("-"))
+                    # Detect 2D resolution (will pad to 3D later)
+                    if len(resolution) == 2:
+                        is_2d_resolution = True
+                        resolution = (1.0,) + resolution
+                        print(f"  2D resolution detected, padded to 3D: {resolution}")
+                except ValueError:
+                    print(f"  Warning: Invalid resolution '{parts[3]}', ignoring")
+                    resolution = None
+            else:
+                # No per-volume resolution, use global 2D flag
+                resolution = None
+                is_2d_resolution = global_is_2d
+
+            # Parse optional offset
+            if len(parts) >= 5:
+                try:
+                    offset = tuple(int(x) for x in parts[4].split("-"))
+                    # Handle 2D offset: pad with z=0
+                    if len(offset) == 2:
+                        offset = (0,) + offset
+                        print(f"  2D offset detected, padded to 3D: {offset}")
+                except ValueError:
+                    print(f"  Warning: Invalid offset '{parts[4]}', ignoring")
+                    offset = None
             else:
                 offset = None
 
@@ -642,21 +794,59 @@ def load_volumes_from_paths(
         resolved_path = resolve_glob_with_selector(path, select)
 
         print(f"Loading {name}: {resolved_path}")
+        if channel is not None:
+            print(f"  Channel selection: {channel}")
         if resolution:
             print(f"  Custom resolution: {resolution}")
         if offset:
             print(f"  Custom offset: {offset}")
 
-        data = read_volume(resolved_path).squeeze()
-        
+        data = read_volume(resolved_path)
+        print(f"  Loaded data shape: {data.shape}, dtype: {data.dtype}")
+
+        # Handle channel selection for multi-channel data
+        if channel is not None:
+            if data.ndim == 4:  # (C, Z, Y, X) - 3D multi-channel
+                if channel >= data.shape[0]:
+                    print(f"  Warning: Channel {channel} out of range (max: {data.shape[0]-1}), using channel 0")
+                    data = data[0]
+                else:
+                    print(f"  Selected channel {channel} from 4D shape {data.shape}")
+                    data = data[channel]
+            elif data.ndim == 3:
+                # Could be (C, H, W) for 2D multi-channel OR (Z, H, W) for 3D single-channel
+                if is_2d_resolution:
+                    # Treat as (C, H, W) - 2D multi-channel
+                    if channel >= data.shape[0]:
+                        print(f"  Warning: Channel {channel} out of range (max: {data.shape[0]-1}), using channel 0")
+                        data = data[0]
+                    else:
+                        print(f"  Selected channel {channel} from 2D multi-channel shape {data.shape}")
+                        data = data[channel]
+                else:
+                    # Treat as (Z, H, W) - 3D single-channel, ignore channel selection
+                    print(f"  Warning: Channel {channel} specified but data is 3D {data.shape} (single-channel), ignoring")
+            else:
+                print(f"  Warning: Unexpected data shape {data.shape}, ignoring channel selection")
+        else:
+            # Squeeze to remove singleton dimensions if no channel specified
+            data = data.squeeze()
+
         # Convert 2D to 3D if needed
         if data.ndim == 2:
-            data = data[None, :, :]  # (H, W) -> (1, H, W)
-            print(f"  Converted 2D to 3D: {data.shape}")
-            # Update resolution from 2D to 3D if it exists
-            if resolution and len(resolution) == 2:
-                resolution = (1.0,) + resolution  # Add z=1.0
-                print(f"  Updated resolution to 3D: {resolution}")
+            if is_2d_resolution:
+                # For 2D data, add singleton z dimension: (H, W) -> (1, H, W)
+                data = data[None, :, :]
+                print(f"  Converted 2D to 3D (single-channel): {data.shape}")
+            else:
+                # Shouldn't happen, but handle it
+                data = data[None, :, :]
+                print(f"  Converted 2D to 3D: {data.shape}")
+        elif data.ndim == 3 and is_2d_resolution and channel is None:
+            # Multi-channel 2D data (C, H, W) that wasn't explicitly channel-selected
+            # Insert singleton dimension in middle: (C, H, W) -> (C, 1, H, W)
+            data = data[:, None, :, :]
+            print(f"  Converted 2D multi-channel to 3D: {data.shape}")
 
         # Infer type if not explicitly specified
         if vol_type is None:
@@ -666,7 +856,11 @@ def load_volumes_from_paths(
             else:
                 vol_type = "image"
 
-        print(f"  Volume type: {vol_type}")
+        # Apply default intensity scaling (only for images, not segmentations)
+        is_image = (vol_type == "image")
+        data = apply_default_scaling(data, scale, is_image=is_image)
+
+        print(f"  Volume type: {vol_type}, final shape: {data.shape}")
         volumes[name] = (data, vol_type, resolution, offset)
 
     return volumes
@@ -846,6 +1040,22 @@ def main():
                 print(f"   Extracted base name for auto-matching: {prediction_base_name}")
                 break
 
+    # Parse resolution early - needed for 2D detection in volume loading
+    # Parse resolution and offset from string format "z-y-x" or "y-x" (for 2D)
+    is_global_2d = False
+    try:
+        resolution = tuple(float(x) for x in args.resolution.split("-"))
+        # Detect 2D resolution BEFORE padding
+        if len(resolution) == 2:
+            is_global_2d = True
+            resolution = (1.0,) + resolution  # [y, x] -> [1, y, x]
+            print(f"2D resolution detected, padded to 3D: {resolution}")
+        elif len(resolution) != 3:
+            raise ValueError(f"Resolution must have 2 or 3 components, got {len(resolution)}")
+    except (ValueError, AttributeError) as e:
+        print(f"ERROR: Invalid resolution format '{args.resolution}'. Expected format: 'z-y-x' or 'y-x' for 2D (e.g., '30-6-6' or '0.365-0.365')")
+        sys.exit(1)
+
     # Load from config first (if provided)
     if args.config:
         cfg = load_config(args.config)  # Store config for interactive access
@@ -859,6 +1069,8 @@ def main():
         if data.ndim == 2:
             data = data[None, :, :]  # (H, W) -> (1, H, W)
             print(f"  Converted 2D image to 3D: {data.shape}")
+        # Apply default intensity scaling
+        data = apply_default_scaling(data, args.scale, is_image=True)
         volumes["image"] = (data, "image", None, None)
     if args.label and args.label.strip():
         print(f"Loading label: {args.label}")
@@ -867,14 +1079,27 @@ def main():
         if data.ndim == 2:
             data = data[None, :, :]  # (H, W) -> (1, H, W)
             print(f"  Converted 2D label to 3D: {data.shape}")
+        # No scaling for labels (they are segmentation)
         volumes["label"] = (data, "segmentation", None, None)
 
     # Add additional volumes (if provided) - these can override config volumes
     if args.volumes:
-        volumes.update(load_volumes_from_paths(args.volumes, select=args.select))
+        volumes.update(load_volumes_from_paths(args.volumes, select=args.select, scale=args.scale, global_resolution=(resolution, is_global_2d)))
 
     if not volumes:
         print("ERROR: No volumes loaded. Check your input paths.")
+        sys.exit(1)
+
+    try:
+        offset = tuple(int(x) for x in args.offset.split("-"))
+        # Handle 2D offset: pad with z=0 to make it 3D
+        if len(offset) == 2:
+            offset = (0,) + offset  # [y, x] -> [0, y, x]
+            print(f"2D offset detected, padded to 3D: {offset}")
+        elif len(offset) != 3:
+            raise ValueError(f"Offset must have 2 or 3 components, got {len(offset)}")
+    except (ValueError, AttributeError) as e:
+        print(f"ERROR: Invalid offset format '{args.offset}'. Expected format: 'z-y-x' or 'y-x' for 2D (e.g., '0-0-0' or '0-0')")
         sys.exit(1)
 
     # Start visualization (returns viewer for interactive access)
@@ -882,8 +1107,8 @@ def main():
         volumes=volumes,
         ip=args.ip,
         port=args.port,
-        resolution=tuple(args.resolution),
-        offset=tuple(args.offset),
+        resolution=resolution,
+        offset=offset,
     )
 
     # Helper function for interactive mode: create neuroglancer layer from data and resolution
@@ -961,7 +1186,7 @@ def main():
 
         # Use default resolution if not provided
         if res is None:
-            res = list(args.resolution)
+            res = list(resolution)  # Use parsed resolution, not args.resolution
             print(f"  Using default resolution: {res}")
 
         # Create and add layer
