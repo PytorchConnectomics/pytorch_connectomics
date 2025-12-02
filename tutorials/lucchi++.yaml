@@ -63,7 +63,7 @@ model:
   dropout: 0.1
 
   # MONAI BasicUNet-specific settings (ignored by other architectures)
-  upsample: nontrainable                # Use trilinear upsampling (no transposed conv)
+  upsample: deconv                # Use trilinear upsampling (no transposed conv)
 
   # RSUNet-specific settings (ignored by other architectures)
   rsunet_norm: batch                    # Batch normalization for RSUNet
@@ -240,8 +240,9 @@ inference:
     ensemble_mode: mean              # Mean ensemble (smooth predictions)
     # NOTE: Reduced TTA compared to original (4x instead of 8x) for faster inference
 
-  # Postprocessing configuration (applied AFTER TTA if enabled)
-  postprocessing:
+  # Save intermediate predictions (before decoding/postprocessing)
+  save_prediction:
+    enabled: true                           # Save intermediate predictions
     intensity_scale: 255                    # Scale predictions to [0, 255] for saving
     intensity_dtype: uint8                  # Save as uint8
 

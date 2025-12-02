@@ -12,9 +12,12 @@ import torch.nn as nn
 
 try:
     from monai.networks.nets import BasicUNet, UNet, UNETR, SwinUNETR
+    from monai.networks.blocks import UpSample, ResidualUnit
     MONAI_AVAILABLE = True
 except ImportError:
     MONAI_AVAILABLE = False
+    UpSample = None  # type: ignore
+    ResidualUnit = None  # type: ignore
 
 from .base import ConnectomicsModel
 from .registry import register_architecture
@@ -56,6 +59,62 @@ def _check_monai_available():
             "MONAI is not installed. Install with: pip install monai\n"
             "Or: pip install 'monai[all]' for full functionality"
         )
+
+
+class UpsampleModeUNet(UNet):
+    """
+    MONAI UNet with configurable upsampling mode.
+
+    Allows swapping the default transposed conv upsample for MONAI's UpSample
+    (e.g., nontrainable interpolation) to avoid checkerboard artifacts.
+    """
+
+    def __init__(
+        self,
+        upsample_mode: str = "deconv",
+        upsample_interp_mode: str = "linear",
+        upsample_align_corners: bool = True,
+        **kwargs,
+    ):
+        self.upsample_mode = upsample_mode
+        self.upsample_interp_mode = upsample_interp_mode
+        self.upsample_align_corners = upsample_align_corners
+        super().__init__(**kwargs)
+
+    def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
+        """Override to optionally use interpolation-based upsampling instead of deconv."""
+        if self.upsample_mode and self.upsample_mode != "deconv":
+            conv: nn.Module = UpSample(
+                spatial_dims=self.dimensions,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                scale_factor=strides,
+                mode=self.upsample_mode,
+                interp_mode=self.upsample_interp_mode,
+                align_corners=self.upsample_align_corners,
+                bias=self.bias,
+            )
+
+            if self.num_res_units > 0:
+                ru = ResidualUnit(
+                    self.dimensions,
+                    out_channels,
+                    out_channels,
+                    strides=1,
+                    kernel_size=self.kernel_size,
+                    subunits=1,
+                    act=self.act,
+                    norm=self.norm,
+                    dropout=self.dropout,
+                    bias=self.bias,
+                    last_conv_only=is_top,
+                    adn_ordering=self.adn_ordering,
+                )
+                conv = nn.Sequential(conv, ru)
+
+            return conv
+
+        return super()._get_up_layer(in_channels, out_channels, strides, is_top)
 
 
 @register_architecture('monai_basic_unet3d')
@@ -140,6 +199,9 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         - model.kernel_size: Kernel size for convolutions (default: 3)
         - model.norm: Normalization type (default: 'batch')
         - model.dropout: Dropout rate (default: 0.0)
+        - model.upsample_mode: Upsampling mode ('deconv' default, or 'nontrainable'/'pixelshuffle'/'deconvgroup')
+        - model.upsample_interp_mode: Interpolation mode when upsample_mode='nontrainable' (default: 'linear')
+        - model.upsample_align_corners: align_corners flag for nontrainable upsample (default: True)
 
     Args:
         cfg: Hydra config object
@@ -170,7 +232,11 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     else:
         norm = norm_type
 
-    model = UNet(
+    upsample_mode = getattr(cfg.model, 'upsample_mode', 'deconv')
+    upsample_interp_mode = getattr(cfg.model, 'upsample_interp_mode', 'linear')
+    upsample_align_corners = getattr(cfg.model, 'upsample_align_corners', True)
+
+    model = UpsampleModeUNet(
         spatial_dims=spatial_dims,
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
@@ -180,6 +246,9 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         kernel_size=getattr(cfg.model, 'kernel_size', 3),
         norm=norm,
         dropout=getattr(cfg.model, 'dropout', 0.0),
+        upsample_mode=upsample_mode,
+        upsample_interp_mode=upsample_interp_mode,
+        upsample_align_corners=upsample_align_corners,
     )
 
     return MONAIModelWrapper(model)

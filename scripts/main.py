@@ -35,7 +35,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import torch
 
 # Import Hydra config system
-from connectomics.config import save_config
+from connectomics.config import Config, save_config
+import connectomics.config.hydra_config as hydra_config
+
+# Register safe globals for PyTorch 2.6+ checkpoint loading
+# Allowlist all Config dataclasses used inside Lightning checkpoints
+try:
+    _config_classes = [
+        obj
+        for obj in hydra_config.__dict__.values()
+        if isinstance(obj, type) and obj.__name__.endswith("Config")
+    ]
+    torch.serialization.add_safe_globals(_config_classes)
+except AttributeError:
+    # PyTorch < 2.6 doesn't have add_safe_globals
+    pass
 
 # Import Lightning components and utilities
 from connectomics.training.lit import (

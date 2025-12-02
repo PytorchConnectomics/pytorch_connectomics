@@ -195,6 +195,11 @@ inference:
     # NOTE: tta_act and tta_channel are applied even with null flip_axes (no ensemble, just activation + channel selection)
     # NOTE: If tta_channel selects specific channels, loss computation will be skipped (loss needs all class channels)
 
+  # Save intermediate predictions (before decoding/postprocessing)
+  save_prediction:
+    enabled: true
+    intensity_scale: 255                 # Scale predictions to [0, 255] for saving
+    intensity_dtype: uint8               # Save as uint8
 
 # Decoding: predicted feature maps to segmetnation mask (semantic or instance segmentation)
   decoding:
@@ -206,15 +211,6 @@ inference:
           enabled: true                    # Enable connected components filtering
           remove_small: 10                 # Remove small objects with size less than 10 pixels
           connectivity: 26                 # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
-
-
-  # Postprocessing configuration (applied AFTER decoding)
-  postprocessing:
-
-    # Output format (intensity scaling and dtype conversion)
-    intensity_scale: 255                 # Scale predictions to [0, 255] for saving
-    intensity_dtype: uint8               # Save as uint8
-
 
   # Evaluation
   evaluation:

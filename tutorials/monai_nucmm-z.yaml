@@ -185,8 +185,9 @@ inference:
     select_channel: null               # Use all channels
     ensemble_mode: mean
 
-  # Postprocessing configuration
-  postprocessing:
+  # Save intermediate predictions
+  save_prediction:
+    enabled: true
     intensity_scale: 255
     intensity_dtype: uint8
 

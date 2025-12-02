@@ -37,6 +37,7 @@ from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
 from ..debugging import DebugManager
 from ...inference import (
     InferenceManager,
+    apply_save_prediction_transform,
     apply_postprocessing,
     apply_decode_mode,
     resolve_output_filenames,
@@ -184,6 +185,40 @@ class ConnectomicsModule(pl.LightningModule):
         if 'adapted_rand' in metrics:
             from ...metrics.metrics_seg import AdaptedRandError
             self.test_adapted_rand = AdaptedRandError().to(self.device)
+
+    def _invert_save_prediction_transform(self, data: np.ndarray) -> np.ndarray:
+        """
+        Invert the save_prediction transform to convert saved predictions back to [0,1] range.
+
+        This is needed when loading intermediate predictions that were saved with
+        intensity_scale and intensity_dtype applied. We need to convert them back
+        to the original [0,1] float range for decoding.
+
+        Args:
+            data: Saved predictions (e.g., uint8 in [0, 255])
+
+        Returns:
+            Predictions in original [0,1] float range
+        """
+        if not hasattr(self.cfg, "inference") or not hasattr(self.cfg.inference, "save_prediction"):
+            # No save_prediction config, assume data is already in correct format
+            return data.astype(np.float32)
+
+        save_pred_cfg = self.cfg.inference.save_prediction
+
+        # Get the scale and dtype that were used for saving
+        intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
+        intensity_dtype = getattr(save_pred_cfg, "intensity_dtype", None)
+
+        # Convert to float first
+        data = data.astype(np.float32)
+
+        # Invert the scaling if it was applied
+        if intensity_scale is not None and intensity_scale != 1.0:
+            data = data / float(intensity_scale)
+            print(f"  🔄 Inverted intensity scaling by {intensity_scale}")
+
+        return data
 
     def _resolve_test_output_config(self, batch: Dict[str, Any]) -> tuple[str, Optional[str], str, List[str]]:
         """Determine mode, output dir, cache suffix, and filenames for test/tune."""
@@ -431,7 +466,14 @@ class ConnectomicsModule(pl.LightningModule):
                 warnings.warn(f"Could not compute adapted rand metric: {e}", UserWarning)
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
-        """Test step with optional sliding-window inference and metrics computation."""
+        """
+        Test step with optional sliding-window inference and metrics computation.
+
+        Workflow:
+        1. If final prediction exists → directly do evaluation
+        2. If intermediate prediction exists → apply decoding → postprocessing → evaluation
+        3. Else → run inference (using cfg.test for data loading/transform) → save → decode → evaluate
+        """
         images = batch["image"]
         labels = batch.get("label")
         mask = batch.get("mask")
@@ -441,56 +483,66 @@ class ConnectomicsModule(pl.LightningModule):
             output_dir_value, filenames, cache_suffix, mode
         )
 
-        if predictions_np is None:
-            predictions = self.inference_manager.predict_with_tta(images, mask=mask)
-            predictions_np = predictions.detach().cpu().float().numpy()
-            loaded_from_file = False
-            loaded_suffix = cache_suffix
-
+        # Determine what type of prediction was loaded
         loaded_final_predictions = loaded_from_file and loaded_suffix == "_prediction.h5"
+        loaded_intermediate_predictions = loaded_from_file and loaded_suffix == "_tta_prediction.h5"
 
-        save_intermediate = False
-        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation"):
-            save_intermediate = getattr(self.cfg.inference.test_time_augmentation, "save_predictions", False)
-        if save_intermediate and not loaded_from_file:
-            write_outputs(self.cfg, predictions_np, filenames, suffix="tta_prediction", mode=mode)
-
-        decoded_predictions = predictions_np if loaded_final_predictions else apply_decode_mode(
-            self.cfg, predictions_np
-        )
-        postprocessed_predictions = (
-            decoded_predictions
-            if loaded_final_predictions
-            else apply_postprocessing(self.cfg, decoded_predictions)
-        )
-
-        if not loaded_final_predictions:
-            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
-
-        if labels is not None and hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "evaluation"):
-            evaluation_config = self.cfg.inference.evaluation
-            evaluation_enabled = getattr(evaluation_config, "enabled", False)
-            if evaluation_enabled:
-                self._compute_test_metrics(decoded_predictions, labels)
-                return torch.tensor(0.0, device=self.device)
-
-        if labels is None:
+        # CASE 1: Final predictions exist → directly evaluate
+        if loaded_final_predictions:
+            print(f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing")
+            if labels is not None:
+                self._compute_test_metrics(predictions_np, labels)
             return torch.tensor(0.0, device=self.device)
 
-        outputs = self(images)
-        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+        # CASE 2: Intermediate predictions exist → decode and postprocess
+        if loaded_intermediate_predictions:
+            print(f"  ✅ Loaded intermediate predictions from disk, skipping inference")
+            # Convert back from saved format to [0,1] predictions if needed
+            predictions_np = self._invert_save_prediction_transform(predictions_np)
 
-        if is_deep_supervision:
-            total_loss, loss_dict = self.deep_supervision_handler.compute_deep_supervision_loss(
-                outputs, labels, stage="test"
-            )
-        else:
-            total_loss, loss_dict = self.deep_supervision_handler.compute_standard_loss(
-                outputs, labels, stage="test"
-            )
+            # Decode and postprocess
+            decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
+            postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
 
-        self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        return total_loss
+            # Save final predictions
+            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
+
+            # Evaluate if labels provided
+            if labels is not None:
+                self._compute_test_metrics(decoded_predictions, labels)
+            return torch.tensor(0.0, device=self.device)
+
+        # CASE 3: No cached predictions → run full inference pipeline
+        print(f"  🔄 No cached predictions found, running inference")
+
+        # Run inference (cfg.test used for data loading and transforms via datamodule)
+        predictions = self.inference_manager.predict_with_tta(images, mask=mask)
+        predictions_np = predictions.detach().cpu().float().numpy()
+
+        # Save intermediate predictions if configured
+        save_intermediate = False
+        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "save_prediction"):
+            save_intermediate = getattr(self.cfg.inference.save_prediction, "enabled", False)
+
+        if save_intermediate:
+            # Apply intensity scaling and dtype conversion before saving
+            predictions_to_save = apply_save_prediction_transform(self.cfg, predictions_np)
+            write_outputs(self.cfg, predictions_to_save, filenames, suffix="tta_prediction", mode=mode)
+            print(f"  💾 Saved intermediate predictions")
+
+        # Decode and postprocess
+        decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
+        postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
+
+        # Save final predictions
+        write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
+        print(f"  💾 Saved final predictions")
+
+        # Evaluate if labels provided
+        if labels is not None:
+            self._compute_test_metrics(decoded_predictions, labels)
+
+        return torch.tensor(0.0, device=self.device)
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configure optimizers and learning rate schedulers."""

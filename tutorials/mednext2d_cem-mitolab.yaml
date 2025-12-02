@@ -175,12 +175,13 @@ inference:
     act: sigmoid                       # Sigmoid activation
     select_channel: null
     ensemble_mode: mean
-  
-  # Postprocessing configuration
-  postprocessing:
+
+  # Save intermediate predictions
+  save_prediction:
+    enabled: true
     intensity_scale: 255                  # Scale to [0, 255]
     intensity_dtype: uint8
-  
+
   # Evaluation
   evaluation:
     enabled: false                     # Disabled for multi-task learning (metrics need channel selection)

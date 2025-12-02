@@ -483,6 +483,17 @@ def create_datamodule(
     else:
         iter_num_for_dataset = iter_num
 
+    # Select appropriate batch_size and num_workers based on mode
+    # For test/tune modes, use system.inference settings instead of system.training
+    if mode in ["test", "tune", "tune-test"]:
+        batch_size = cfg.system.inference.batch_size
+        num_workers = cfg.system.inference.num_workers
+        print(f"  Using inference settings: batch_size={batch_size}, num_workers={num_workers}")
+    else:
+        batch_size = cfg.system.training.batch_size
+        num_workers = cfg.system.training.num_workers
+        print(f"  Using training settings: batch_size={batch_size}, num_workers={num_workers}")
+
     # Use optimized pre-loaded cache when iter_num > 0 (only for training mode and volume datasets)
     use_preloaded = (
         cfg.data.use_preloaded_cache
@@ -518,17 +529,17 @@ def create_datamodule(
         )
 
         # Use fewer workers since we're loading from memory
-        num_workers = min(cfg.system.training.num_workers, 2)
-        print(f"  Using {num_workers} workers (in-memory operations are fast)")
+        preloaded_num_workers = min(num_workers, 2)
+        print(f"  Using {preloaded_num_workers} workers (in-memory operations are fast)")
 
         # Create simple dataloader
         train_loader = DataLoader(
             train_dataset,
-            batch_size=cfg.system.training.batch_size,
+            batch_size=batch_size,
             shuffle=False,  # Already random
-            num_workers=num_workers,
+            num_workers=preloaded_num_workers,
             pin_memory=cfg.data.pin_memory,
-            persistent_workers=num_workers > 0,
+            persistent_workers=preloaded_num_workers > 0,
         )
 
         # Create data module wrapper that inherits from LightningDataModule
@@ -619,8 +630,8 @@ def create_datamodule(
         datamodule = FilenameDataModule(
             train_ds=train_dataset,
             val_ds=val_dataset,
-            batch_size=cfg.system.training.batch_size,
-            num_workers=cfg.system.training.num_workers,
+            batch_size=batch_size,
+            num_workers=num_workers,
             pin_memory=cfg.data.pin_memory,
             persistent_workers=cfg.data.persistent_workers,
         )
@@ -641,8 +652,8 @@ def create_datamodule(
                 "test": test_transforms,
             },
             dataset_type="cached" if use_cache else "standard",
-            batch_size=cfg.system.training.batch_size,
-            num_workers=cfg.system.training.num_workers,
+            batch_size=batch_size,
+            num_workers=num_workers,
             pin_memory=cfg.data.pin_memory,
             persistent_workers=cfg.data.persistent_workers,
             cache_rate=cfg.data.cache_rate if use_cache else 0.0,
@@ -811,8 +822,8 @@ def modify_checkpoint_state(
     if reset_early_stopping:
         print("   - Resetting early stopping patience counter")
 
-    # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    # Load checkpoint (weights_only=False needed for PyTorch 2.6+ to load Lightning checkpoints with custom configs)
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
 
     # Reset optimizer state
     if reset_optimizer and "optimizer_states" in checkpoint:

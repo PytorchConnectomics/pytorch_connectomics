@@ -114,7 +114,7 @@ def predict_cellmap(checkpoint_path, config_path, output_dir, crop_filter=None):
 
     # Load checkpoint
     print(f"Loading checkpoint: {checkpoint_path}")
-    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
     # Handle Lightning checkpoint format
     if 'state_dict' in checkpoint:
