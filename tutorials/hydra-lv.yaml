@@ -323,14 +323,19 @@ inference:
     flip_axes: all      # Use all flip augmentations
     # Per-channel activations (aligned with multi_task_config)
     # Format: [[start_ch, end_ch, activation], ...]
+    select_channel: all               # Use all channels
     channel_activations:
       - [0, 1, sigmoid]                # Channel 0: binary segmentation (sigmoid)
       - [1, 2, sigmoid]                # Channel 1: boundary (sigmoid)
       - [2, 3, tanh]                   # Channel 2: EDT distance (tanh)
-    select_channel: all               # Use all channels
     ensemble_mode: mean              # Mean ensemble (smooth predictions)
     apply_mask: true                   # Multiply predictions by test_mask after ensemble
-    save_predictions: true             # Save intermediate predictions (before decoding)
+
+  save_prediction:
+    enabled: true             # Save intermediate predictions (before decoding)
+    intensity_scale: 255      # Scale predictions to [0, 255] for saving
+    intensity_dtype: uint8    # Save as uint8
+
   
 
 # ============================================================================

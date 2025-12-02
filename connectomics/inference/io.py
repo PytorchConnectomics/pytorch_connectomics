@@ -16,14 +16,73 @@ from omegaconf import DictConfig
 from ..config import Config
 
 
+def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
+    """
+    Apply intensity scaling and dtype conversion from save_prediction config.
+
+    This is used when saving intermediate predictions (before decoding).
+
+    Args:
+        cfg: Configuration object
+        data: Predictions array to transform
+
+    Returns:
+        Transformed predictions with applied scaling and dtype conversion
+    """
+    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "save_prediction"):
+        return data
+
+    save_pred_cfg = cfg.inference.save_prediction
+
+    # Apply intensity scaling
+    intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
+    if intensity_scale is not None and intensity_scale != 1.0:
+        data = data * float(intensity_scale)
+
+    # Apply dtype conversion
+    target_dtype_str = getattr(save_pred_cfg, "intensity_dtype", None)
+    if target_dtype_str is not None:
+        dtype_map = {
+            "uint8": np.uint8,
+            "int8": np.int8,
+            "uint16": np.uint16,
+            "int16": np.int16,
+            "uint32": np.uint32,
+            "int32": np.int32,
+            "float16": np.float16,
+            "float32": np.float32,
+            "float64": np.float64,
+        }
+
+        if target_dtype_str not in dtype_map:
+            warnings.warn(
+                f"Unknown dtype '{target_dtype_str}' in save_prediction config. "
+                f"Supported: {list(dtype_map.keys())}. Keeping current dtype.",
+                UserWarning,
+            )
+            return data
+
+        target_dtype = dtype_map[target_dtype_str]
+
+        # Get dtype info for proper clamping
+        if np.issubdtype(target_dtype, np.integer):
+            info = np.iinfo(target_dtype)
+            data = np.clip(data, info.min, info.max)
+
+        data = data.astype(target_dtype)
+
+    return data
+
+
 def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
     """
     Apply postprocessing transformations to predictions.
 
-    This method applies (in order):
+    This method applies:
     1. Binary postprocessing (morphological operations, connected components filtering)
-    2. Scaling (intensity_scale or output_scale): Multiply predictions by scale factor
-    3. Dtype conversion (intensity_dtype or output_dtype): Convert to target dtype with clamping
+    2. Axis transposition (output_transpose)
+
+    Note: Intensity scaling and dtype conversion are handled by apply_save_prediction_transform()
     """
     if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "postprocessing"):
         return data
@@ -82,53 +141,16 @@ def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarr
 
         data = np.stack(results, axis=0)
 
-    intensity_scale = getattr(postprocessing, "intensity_scale", None)
-    output_scale = getattr(postprocessing, "output_scale", None)
-    scale = intensity_scale if intensity_scale is not None else output_scale
-    if scale is not None:
-        data = data * float(scale)
-
-    target_dtype_str = getattr(postprocessing, "intensity_dtype", None)
-    if target_dtype_str is None:
-        target_dtype_str = getattr(postprocessing, "output_dtype", None)
-
-    if target_dtype_str is not None:
-        dtype_map = {
-            "uint8": np.uint8,
-            "int8": np.int8,
-            "uint16": np.uint16,
-            "int16": np.int16,
-            "uint32": np.uint32,
-            "int32": np.int32,
-            "float16": np.float16,
-            "float32": np.float32,
-            "float64": np.float64,
-        }
-
-        if target_dtype_str not in dtype_map:
+    # Apply axis transposition if configured
+    output_transpose = getattr(postprocessing, "output_transpose", [])
+    if output_transpose and len(output_transpose) > 0:
+        try:
+            data = np.transpose(data, axes=output_transpose)
+        except Exception as e:
             warnings.warn(
-                f"Unknown dtype '{target_dtype_str}'. Supported: {list(dtype_map.keys())}. "
-                f"Keeping float32.",
+                f"Transpose failed with axes {output_transpose}: {e}. Keeping original shape.",
                 UserWarning,
             )
-            return data
-
-        target_dtype = dtype_map[target_dtype_str]
-
-        if target_dtype_str == "uint8":
-            data = np.clip(data, 0, 255)
-        elif target_dtype_str == "int8":
-            data = np.clip(data, -128, 127)
-        elif target_dtype_str == "uint16":
-            data = np.clip(data, 0, 65535)
-        elif target_dtype_str == "int16":
-            data = np.clip(data, -32768, 32767)
-        elif target_dtype_str == "uint32":
-            data = np.clip(data, 0, 4294967295)
-        elif target_dtype_str == "int32":
-            data = np.clip(data, -2147483648, 2147483647)
-
-        data = data.astype(target_dtype)
 
     return data
 
@@ -342,8 +364,8 @@ def write_outputs(
         sample = np.squeeze(sample)
         write_hdf5(
             output_path,
-            "main",
             sample.astype(np.float32) if not np.issubdtype(sample.dtype, np.integer) else sample,
+            dataset="main",
         )
 
         print(f"  ✓ Saved prediction: {output_path}")

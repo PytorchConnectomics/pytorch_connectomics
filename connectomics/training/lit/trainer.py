@@ -27,6 +27,14 @@ from omegaconf import DictConfig
 from ...config import Config
 from .callbacks import VisualizationCallback
 
+# Register safe globals for PyTorch 2.6+ checkpoint loading
+# This allows our Config class to be unpickled from Lightning checkpoints
+try:
+    torch.serialization.add_safe_globals([Config])
+except AttributeError:
+    # PyTorch < 2.6 doesn't have add_safe_globals
+    pass
+
 
 def create_trainer(
     cfg: Config,

@@ -57,6 +57,13 @@ try:
 except ImportError:
     _RSUNET_AVAILABLE = False
 
+# Import nnUNet models to trigger registration
+try:
+    from . import nnunet_models
+    _NNUNET_AVAILABLE = True
+except ImportError:
+    _NNUNET_AVAILABLE = False
+
 # Check what's available
 def get_available_architectures() -> dict:
     """
@@ -75,6 +82,7 @@ def get_available_architectures() -> dict:
         'monai': [a for a in all_archs if a.startswith('monai_')] if _MONAI_AVAILABLE else [],
         'mednext': [a for a in all_archs if a.startswith('mednext')] if _MEDNEXT_AVAILABLE else [],
         'rsunet': [a for a in all_archs if a.startswith('rsunet')] if _RSUNET_AVAILABLE else [],
+        'nnunet': [a for a in all_archs if a.startswith('nnunet')] if _NNUNET_AVAILABLE else [],
     }
 
     return info
@@ -106,6 +114,13 @@ def print_available_architectures():
         print(f"\nRSUNet Models ({len(info['rsunet'])}):")
         for arch in info['rsunet']:
             print(f"  - {arch}")
+
+    if info['nnunet']:
+        print(f"\nnnUNet Models ({len(info['nnunet'])}):")
+        for arch in info['nnunet']:
+            print(f"  - {arch}")
+    else:
+        print("\nnnUNet Models: Not available (install with: pip install nnunetv2)")
 
     print(f"\nTotal: {len(info['all'])} architectures")
     print("="*60 + "\n")

@@ -1,0 +1,250 @@
+# Mitochondria 2D Semantic Segmentation - Pretrained nnUNet Model
+# Uses pretrained nnUNet model from /projects/weilab/liupeng/mito_2d_semantic_model/
+#
+# This config integrates the pretrained nnUNet model into the PyTorch Connectomics framework
+# using the nnunet_pretrained architecture wrapper.
+#
+# ============================================================================
+# USAGE:
+# ============================================================================
+#
+# Training (fine-tuning):
+#   python scripts/main.py --config tutorials/mito2dsem_nnunet.yaml
+#
+# Inference (testing):
+#   python scripts/main.py --config tutorials/mito2dsem_nnunet.yaml --mode test \
+#       --checkpoint path/to/checkpoint.ckpt
+#
+# Standalone Prediction (using nnUNet script directly):
+#   python /projects/weilab/liupeng/mito_2d_semantic_model/mito_2d_semantic.py \
+#       -i <input_folder> -o <output_folder> \
+#       --checkpoint /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
+#
+# ============================================================================
+
+experiment_name: mito2dsem_nnunet
+description: Mitochondria 2D semantic segmentation using pretrained nnUNet model integrated with PyTorch Connectomics
+
+# System Configuration
+system:
+  training:
+    num_gpus: 1
+    num_cpus: 4
+    num_workers: 4           # Data loading workers
+    batch_size: 8            # Batch size for training (2D slices)
+  inference:
+    num_gpus: 1
+    num_cpus: 2
+    num_workers: 2
+    batch_size: 1            # Process one volume at a time
+  seed: 42
+
+# Model Configuration - Using pretrained nnUNet
+model:
+  # ========== nnUNet Pretrained Architecture ==========
+  architecture: nnunet_2d_pretrained  # or nnunet_pretrained, nnunet_3d_pretrained
+
+  # Pretrained model paths (REQUIRED)
+  nnunet_checkpoint: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
+  nnunet_plans: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/plans.json
+  nnunet_dataset: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/dataset.json
+  nnunet_device: cuda        # 'cuda' or 'cpu'
+
+  # Model I/O (these will be auto-configured from nnUNet files)
+  in_channels: 1             # Grayscale input
+  out_channels: 2            # Background + mitochondria
+  input_size: [512, 512]     # 2D input size (auto-adjusted by nnUNet)
+  output_size: [512, 512]    # 2D output size
+
+  # Loss configuration
+  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_weights: [1.0, 1.0]
+  loss_kwargs:
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss
+    - {reduction: mean}                                   # BCEWithLogitsLoss
+
+# Data Configuration
+data:
+  # Dataset type - use 2D data
+  do_2d: true              # Enable 2D data processing
+
+  # Training data paths (UPDATE THESE)
+  train_image: datasets/mito2d/train_images.h5
+  train_label: datasets/mito2d/train_labels.h5
+
+  # Validation data paths (UPDATE THESE)
+  val_image: datasets/mito2d/val_images.h5
+  val_label: datasets/mito2d/val_labels.h5
+
+  # Patch configuration for 2D
+  patch_size: [1, 512, 512]   # [D, H, W] - D=1 for 2D slices
+  pad_size: [0, 0, 0]         # No padding
+
+  # Sampling
+  iter_num_per_epoch: 1000    # Number of random crops per epoch
+  use_preloaded_cache: true   # Load volumes into memory
+
+  # Image normalization
+  image_transform:
+    normalize: "0-1"          # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+
+  # Label transformation
+  label_transform:
+    normalize: true           # Convert labels to 0-1 range
+
+  # Augmentation - moderate for 2D
+  augmentation:
+    preset: "some"
+
+    # 2D geometric augmentations
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis: [1, 2]    # Flip H and W (not D)
+
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes: [1, 2]    # Rotate in H-W plane
+
+    affine:
+      enabled: true
+      prob: 0.3
+      rotate_range: [0.0, 0.1, 0.1]  # No Z rotation
+      scale_range: [0.0, 0.05, 0.05]
+      shear_range: [0.0, 0.05, 0.05]
+
+    # Intensity augmentations
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.2
+      gaussian_noise_std: 0.03
+      shift_intensity_prob: 0.4
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.4
+      contrast_range: [0.8, 1.2]
+
+# Optimization
+optimization:
+  max_epochs: 100             # Training epochs
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"     # Mixed precision training
+
+  optimizer:
+    name: AdamW               # AdamW for fine-tuning
+    lr: 1.0e-4                # Lower LR for fine-tuning pretrained model
+    weight_decay: 1.0e-5
+    betas: [0.9, 0.999]
+
+  scheduler:
+    name: ReduceLROnPlateau
+    mode: min
+    factor: 0.5
+    patience: 10
+    threshold: 1.0e-4
+    min_lr: 1.0e-6
+
+# Monitoring
+monitor:
+  detect_anomaly: false
+
+  logging:
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+      benchmark: true
+
+    images:
+      enabled: true
+      max_images: 4
+      num_slices: 1           # Single 2D slice
+      log_every_n_epochs: 1
+      channel_mode: argmax
+
+  checkpoint:
+    mode: min
+    save_top_k: 3
+    save_last: true
+    save_every_n_epochs: 5
+    use_timestamp: true
+
+  early_stopping:
+    enabled: true
+    monitor: train_loss_total_epoch
+    patience: 20
+    mode: min
+    min_delta: 1.0e-4
+    check_finite: true
+
+# Inference Configuration
+inference:
+  # MONAI SlidingWindowInferer for 2D
+  sliding_window:
+    window_size: [1, 512, 512]     # 2D window
+    sw_batch_size: 4               # Process 4 slices at a time
+    overlap: 0.25                  # 25% overlap
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
+
+  # Test-Time Augmentation
+  test_time_augmentation:
+    enabled: true
+    flip_axes: [[1], [2], [1, 2]]  # H, W, and H+W flips (no Z flip)
+    channel_activations: [[0, 1, 'sigmoid']]
+    select_channel: null
+    ensemble_mode: mean
+
+  # Save predictions
+  save_prediction:
+    enabled: true
+    intensity_scale: 255
+    intensity_dtype: uint8
+
+# Test Configuration (optional - update paths as needed)
+test:
+  data:
+    test_image: datasets/mito2d/test_images.h5
+    test_label: datasets/mito2d/test_labels.h5
+
+  evaluation:
+    enabled: true
+    metrics: [jaccard, dice]
+
+# ============================================================================
+# INTEGRATION NOTES
+# ============================================================================
+#
+# This config demonstrates how to use a pretrained nnUNet model within
+# the PyTorch Connectomics framework:
+#
+# 1. Model Loading: Uses nnunet_2d_pretrained architecture to load the
+#    pretrained checkpoint with plans.json and dataset.json
+#
+# 2. Fine-tuning: The loaded model can be fine-tuned on new data by
+#    setting up train_image/train_label paths
+#
+# 3. Inference: Use PyTC's SlidingWindowInferer for prediction, or
+#    use the standalone nnUNet prediction script for better compatibility
+#
+# 4. Data Format: Configure your data paths in the 'data' section.
+#    For 2D data, use do_2d: true and patch_size: [1, H, W]
+#
+# Integration Benefits:
+# - Unified training/inference pipeline with PyTC
+# - Lightning-based training with callbacks and logging
+# - MONAI transforms and augmentations
+# - Multi-GPU support via DDP
+# - Comprehensive monitoring and checkpointing
+#
+# Standalone Prediction (Alternative):
+# For production inference, you can still use the nnUNet prediction script:
+#
+# python /projects/weilab/liupeng/mito_2d_semantic_model/mito_2d_semantic.py \
+#     -i <input_folder> -o <output_folder> \
+#     --checkpoint /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
+# ============================================================================

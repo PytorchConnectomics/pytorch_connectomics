@@ -181,6 +181,12 @@ class ModelConfig:
     rsunet_act_negative_slope: float = 0.01  # For LeakyReLU
     rsunet_act_init: float = 0.25  # For PReLU
 
+    # nnUNet-specific parameters (for loading pretrained models)
+    nnunet_checkpoint: Optional[str] = None  # Path to pretrained checkpoint (.pth file)
+    nnunet_plans: Optional[str] = None  # Path to plans.json file
+    nnunet_dataset: Optional[str] = None  # Path to dataset.json file
+    nnunet_device: str = "cuda"  # Device for model loading ('cuda' or 'cpu')
+
     # Deep supervision (supported by MedNeXt, RSUNet, and some MONAI models)
     deep_supervision: bool = False
     deep_supervision_weights: Optional[List[float]] = (
@@ -872,7 +878,10 @@ class SlidingWindowConfig:
 
 @dataclass
 class TestTimeAugmentationConfig:
-    """Test-time augmentation configuration."""
+    """Test-time augmentation configuration.
+
+    Note: Saving predictions is now handled by SavePredictionConfig.
+    """
 
     enabled: bool = False
     flip_axes: Any = (
@@ -886,12 +895,24 @@ class TestTimeAugmentationConfig:
     )
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
-    save_predictions: bool = (
-        False  # Save intermediate TTA predictions (before decoding) to disk (default: False)
-    )
-    save_dtype: Optional[str] = (
-        None  # Data type for saving predictions: "float16", "float32", "uint8", "uint16", or None (keep original)
-    )
+
+
+@dataclass
+class SavePredictionConfig:
+    """Configuration for saving intermediate predictions during inference.
+
+    Controls how raw model predictions are saved before any decoding or postprocessing.
+    Useful for debugging, visualization, or running multiple decoding strategies.
+
+    Attributes:
+        enabled: Enable saving intermediate predictions (default: True)
+        intensity_scale: Scale factor for predictions (e.g., 255 for uint8 visualization)
+        intensity_dtype: Data type for saved predictions (e.g., 'uint8', 'float32')
+    """
+
+    enabled: bool = True  # Enable saving intermediate predictions
+    intensity_scale: float = 255.0  # Scale predictions to [0, 255] for saving
+    intensity_dtype: str = "uint8"  # Save as uint8 for visualization
 
 
 @dataclass
@@ -971,27 +992,17 @@ class ConnectedComponentsConfig:
 class PostprocessingConfig:
     """Postprocessing configuration for inference output.
 
-    Controls how predictions are transformed before saving:
+    Controls how predictions are transformed after saving:
     - Binary refinement: Morphological operations and connected components filtering
-    - Scaling: Multiply intensity values (e.g., 255 for uint8)
-    - Dtype conversion: Convert to target data type with proper clamping
     - Transpose: Reorder axes (e.g., [2,1,0] for zyx->xyz)
+
+    Note: Intensity scaling and dtype conversion are handled by SavePredictionConfig.
     """
 
     # Binary segmentation refinement (morphological ops, connected components)
     binary: Optional[Dict[str, Any]] = field(
         default_factory=dict
     )  # Binary postprocessing config (e.g., {'opening_iterations': 2})
-
-    # Intensity scaling
-    intensity_scale: Optional[float] = (
-        None  # Scale predictions for saving (e.g., 255.0 for uint8). None = no scaling
-    )
-
-    # Data type conversion
-    intensity_dtype: Optional[str] = (
-        None  # Output data type: 'uint8', 'uint16', 'float32'. None = no conversion (keep as-is)
-    )
 
     # Axis permutation
     output_transpose: List[int] = field(
@@ -1017,6 +1028,7 @@ class InferenceConfig:
     Key Features:
     - Sliding window inference for large volumes
     - Test-time augmentation (TTA) support
+    - Saving intermediate predictions
     - Multiple decoding strategies
     - Postprocessing and evaluation
     - System resource overrides for inference
@@ -1028,6 +1040,7 @@ class InferenceConfig:
     test_time_augmentation: TestTimeAugmentationConfig = field(
         default_factory=TestTimeAugmentationConfig
     )
+    save_prediction: SavePredictionConfig = field(default_factory=SavePredictionConfig)
     decoding: Optional[List[DecodeModeConfig]] = None  # List of decode modes to apply sequentially
     postprocessing: PostprocessingConfig = field(default_factory=PostprocessingConfig)
     evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
@@ -1255,6 +1268,7 @@ __all__ = [
     "InferenceDataConfig",
     "SlidingWindowConfig",
     "TestTimeAugmentationConfig",
+    "SavePredictionConfig",
     "PostprocessingConfig",
     "BinaryPostprocessingConfig",
     "ConnectedComponentsConfig",

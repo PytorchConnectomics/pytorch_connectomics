@@ -100,7 +100,6 @@ inference:
     select_channel: all
     ensemble_mode: mean
     apply_mask: true
-    save_predictions: true
 
   # -------------------------------------------------------------------------
   # Decoding Configuration (with tuning support)
@@ -224,9 +223,10 @@ inference:
         test_datasets: ["test_main"]  # Which test sets to run
 
   # -------------------------------------------------------------------------
-  # Postprocessing
+  # Save intermediate predictions
   # -------------------------------------------------------------------------
-  postprocessing:
+  save_prediction:
+    enabled: true
     intensity_scale: 255
     intensity_dtype: uint8
 

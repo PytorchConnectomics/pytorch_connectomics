@@ -201,7 +201,12 @@ inference:
     select_channel: all               # Use all channels
     ensemble_mode: mean
     apply_mask: false                   # Multiply predictions by test_mask after ensemble
-    save_predictions: true             # Save intermediate predictions (before decoding)
+
+  # Save intermediate predictions
+  save_prediction:
+    enabled: true                      # Save intermediate predictions (before decoding)
+    intensity_scale: 255               # Scale to [0, 255] for visualization
+    intensity_dtype: uint8             # Save as uint8
 
   # Decoding configuration (instance segmentation postprocessing)
   decoding:

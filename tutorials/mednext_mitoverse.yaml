@@ -112,8 +112,12 @@ inference:
     select_channel: all
     ensemble_mode: mean
     apply_mask: false
-    save_predictions: true
-    save_dtype: float16                # Save as float16 (or uint8, float32)
+
+  # Save intermediate predictions
+  save_prediction:
+    enabled: true
+    intensity_scale: 1.0             # Keep original scale for float16
+    intensity_dtype: float16         # Save as float16 for precision
 
   # BANIS two-stage watershed post-processing for instance segmentation
   # Uses affinity channels (foreground) + SDT channel (seeds/distance)
