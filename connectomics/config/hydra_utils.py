@@ -185,6 +185,11 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("optimization.gradient_clip_val must be non-negative")
     if cfg.optimization.accumulate_grad_batches <= 0:
         raise ValueError("optimization.accumulate_grad_batches must be positive")
+    if hasattr(cfg.optimization, "ema") and getattr(cfg.optimization.ema, "enabled", False):
+        if cfg.optimization.ema.decay <= 0 or cfg.optimization.ema.decay >= 1:
+            raise ValueError("optimization.ema.decay must be in (0, 1)")
+        if cfg.optimization.ema.warmup_steps < 0:
+            raise ValueError("optimization.ema.warmup_steps must be non-negative")
 
     # Loss validation
     if len(cfg.model.loss_functions) != len(cfg.model.loss_weights):

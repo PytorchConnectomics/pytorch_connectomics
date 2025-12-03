@@ -25,7 +25,7 @@ from pytorch_lightning.strategies import DDPStrategy
 from omegaconf import DictConfig
 
 from ...config import Config
-from .callbacks import VisualizationCallback
+from .callbacks import VisualizationCallback, EMAWeightsCallback
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
@@ -135,6 +135,22 @@ def create_trainer(
             )
         else:
             print(f"  Visualization: Disabled")
+
+        # EMA weights for stabler validation
+        ema_cfg = getattr(cfg.optimization, "ema", None)
+        if ema_cfg and getattr(ema_cfg, "enabled", False):
+            ema_callback = EMAWeightsCallback(
+                decay=getattr(ema_cfg, "decay", 0.999),
+                warmup_steps=getattr(ema_cfg, "warmup_steps", 0),
+                validate_with_ema=getattr(ema_cfg, "validate_with_ema", True),
+                device=getattr(ema_cfg, "device", None),
+                copy_buffers=getattr(ema_cfg, "copy_buffers", True),
+            )
+            callbacks.append(ema_callback)
+            print(
+                f"  EMA: Enabled (decay={ema_cfg.decay}, warmup_steps={ema_cfg.warmup_steps}, "
+                f"validate_with_ema={ema_cfg.validate_with_ema})"
+            )
 
     # Progress bar (optional - requires rich package)
     try:

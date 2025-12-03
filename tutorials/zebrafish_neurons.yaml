@@ -62,8 +62,7 @@ data:
   val_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/val/images/*.tif
   val_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/val/labels/*.tif
   use_preloaded_cache: false              # Dataset too large for full in-memory cache
-  use_cache: true                         # Partial cache for faster IO
-  cache_rate: 0.1
+  cache_rate: 0
   pin_memory: true
   persistent_workers: true
 
