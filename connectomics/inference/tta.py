@@ -13,6 +13,13 @@ import warnings
 import torch
 from monai.transforms import Flip
 
+try:
+    from omegaconf import ListConfig
+    HAS_OMEGACONF = True
+except ImportError:
+    HAS_OMEGACONF = False
+    ListConfig = list  # Fallback
+
 
 class TTAPredictor:
     """Encapsulates TTA preprocessing and flip ensemble logic."""
@@ -126,7 +133,7 @@ class TTAPredictor:
 
     def predict(self, images: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
-        Perform test-time augmentation using flips and ensemble predictions.
+        Perform test-time augmentation using flips, rotations, and ensemble predictions.
 
         Args:
             images: Input volume (B, C, D, H, W) or (B, D, H, W) or (D, H, W)
@@ -153,17 +160,24 @@ class TTAPredictor:
         if getattr(self.cfg.data, "do_2d", False) and images.size(2) == 1:
             images = images.squeeze(2)
 
+        # Get TTA configuration
         if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation"):
             tta_flip_axes_config = getattr(
                 self.cfg.inference.test_time_augmentation, "flip_axes", None
             )
+            tta_rotation90_axes_config = getattr(
+                self.cfg.inference.test_time_augmentation, "rotation90_axes", None
+            )
         else:
             tta_flip_axes_config = None
+            tta_rotation90_axes_config = None
 
-        if tta_flip_axes_config is None:
+        # If no augmentation configured, run network once
+        if tta_flip_axes_config is None and tta_rotation90_axes_config is None:
             pred = self._run_network(images)
             ensemble_result = self.apply_preprocessing(pred)
         else:
+            # Parse flip axes configuration
             if tta_flip_axes_config == "all" or tta_flip_axes_config == []:
                 if images.dim() == 5:
                     spatial_axes = [1, 2, 3]
@@ -178,12 +192,78 @@ class TTAPredictor:
 
                     for combo in combinations(spatial_axes, r):
                         tta_flip_axes.append(list(combo))
+            elif HAS_OMEGACONF and isinstance(tta_flip_axes_config, ListConfig):
+                # OmegaConf ListConfig - convert to regular list
+                tta_flip_axes_config = [
+                    list(item) if isinstance(item, ListConfig) else item
+                    for item in tta_flip_axes_config
+                ]
+                tta_flip_axes = [[]] + tta_flip_axes_config
             elif isinstance(tta_flip_axes_config, (list, tuple)):
                 tta_flip_axes = [[]] + list(tta_flip_axes_config)
+            elif tta_flip_axes_config is None:
+                tta_flip_axes = [[]]  # No flip augmentation
             else:
                 raise ValueError(
                     f"Invalid tta_flip_axes: {tta_flip_axes_config}. "
                     f"Expected 'all' (8 flips), null (no aug), or list of flip axes."
+                )
+
+            # Parse rotation90 axes configuration
+            # NOTE: We use torch.rot90 which expects full tensor axes
+            # For 5D tensor (B, C, D, H, W): D=2, H=3, W=4
+            # For 4D tensor (B, C, H, W): H=2, W=3
+            # Spatial axes from config (0=D, 1=H, 2=W) need to be converted
+            spatial_offset = 2  # Offset for batch and channel dimensions
+
+            if tta_rotation90_axes_config == "all":
+                if images.dim() == 5:
+                    # For 3D data (B, C, D, H, W), all possible rotation planes
+                    tta_rotation90_axes = [
+                        (2, 3),  # D-H plane
+                        (2, 4),  # D-W plane
+                        (3, 4),  # H-W plane
+                    ]
+                elif images.dim() == 4:
+                    # For 2D data (B, C, H, W), only one rotation plane
+                    tta_rotation90_axes = [(2, 3)]  # H-W plane
+                else:
+                    raise ValueError(f"Unsupported data dimensions: {images.dim()}")
+            elif HAS_OMEGACONF and isinstance(tta_rotation90_axes_config, ListConfig):
+                # OmegaConf ListConfig - convert to list and process
+                tta_rotation90_axes_config = list(tta_rotation90_axes_config)
+                if len(tta_rotation90_axes_config) > 0:
+                    tta_rotation90_axes = []
+                    for axes in tta_rotation90_axes_config:
+                        if HAS_OMEGACONF and isinstance(axes, ListConfig):
+                            axes = list(axes)
+                        if not isinstance(axes, (list, tuple)) or len(axes) != 2:
+                            raise ValueError(
+                                f"Invalid rotation plane: {axes}. Each plane must be a list/tuple of 2 axes."
+                            )
+                        # Convert spatial axes to full tensor axes
+                        full_axes = tuple(a + spatial_offset for a in axes)
+                        tta_rotation90_axes.append(full_axes)
+                else:
+                    tta_rotation90_axes = []
+            elif isinstance(tta_rotation90_axes_config, (list, tuple)) and len(tta_rotation90_axes_config) > 0:
+                # User-specified rotation planes: e.g., [[1, 2], [2, 3]]
+                # Validate that each entry is a list/tuple of length 2
+                tta_rotation90_axes = []
+                for axes in tta_rotation90_axes_config:
+                    if not isinstance(axes, (list, tuple)) or len(axes) != 2:
+                        raise ValueError(
+                            f"Invalid rotation plane: {axes}. Each plane must be a list/tuple of 2 axes."
+                        )
+                    # Convert spatial axes to full tensor axes
+                    full_axes = tuple(a + spatial_offset for a in axes)
+                    tta_rotation90_axes.append(full_axes)
+            elif tta_rotation90_axes_config is None:
+                tta_rotation90_axes = []  # No rotation augmentation
+            else:
+                raise ValueError(
+                    f"Invalid tta_rotation90_axes: {tta_rotation90_axes_config}. "
+                    f"Expected 'all', null (no rotation), or list of rotation planes like [[1, 2]]."
                 )
 
             ensemble_mode = getattr(
@@ -193,19 +273,46 @@ class TTAPredictor:
             ensemble_result = None
             num_predictions = 0
 
-            for flip_axes in tta_flip_axes:
-                if flip_axes:
-                    x_aug = Flip(spatial_axis=flip_axes)(images)
-                else:
-                    x_aug = images
+            # Generate all combinations of (flip_axes, rotation_plane, k_rotations)
+            # For each rotation plane, we try k=0,1,2,3 (0°, 90°, 180°, 270°)
+            augmentation_combinations = []
 
+            for flip_axes in tta_flip_axes:
+                if not tta_rotation90_axes:
+                    # No rotation: just add flip augmentation
+                    augmentation_combinations.append((flip_axes, None, 0))
+                else:
+                    # Add all rotation combinations for this flip
+                    for rotation_plane in tta_rotation90_axes:
+                        for k in range(4):  # 0, 1, 2, 3 rotations (0°, 90°, 180°, 270°)
+                            augmentation_combinations.append((flip_axes, rotation_plane, k))
+
+            # Apply each augmentation combination
+            for flip_axes, rotation_plane, k_rotations in augmentation_combinations:
+                x_aug = images
+
+                # Apply flip augmentation
+                if flip_axes:
+                    x_aug = Flip(spatial_axis=flip_axes)(x_aug)
+
+                # Apply rotation augmentation using torch.rot90
+                if rotation_plane is not None and k_rotations > 0:
+                    x_aug = torch.rot90(x_aug, k=k_rotations, dims=rotation_plane)
+
+                # Run network
                 pred = self._run_network(x_aug)
 
+                # Reverse rotation augmentation
+                if rotation_plane is not None and k_rotations > 0:
+                    pred = torch.rot90(pred, k=-k_rotations, dims=rotation_plane)
+
+                # Reverse flip augmentation
                 if flip_axes:
                     pred = Flip(spatial_axis=flip_axes)(pred)
 
                 pred_processed = self.apply_preprocessing(pred)
 
+                # Ensemble predictions
                 if ensemble_result is None:
                     ensemble_result = pred_processed.clone()
                 else:
