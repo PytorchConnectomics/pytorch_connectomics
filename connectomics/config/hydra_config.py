@@ -108,6 +108,16 @@ class SystemConfig:
 
 
 @dataclass
+class LossBalancingConfig:
+    """Configuration for adaptive loss weighting."""
+
+    strategy: Optional[str] = None  # None, "uncertainty", or "gradnorm"
+    gradnorm_alpha: float = 0.5
+    gradnorm_lambda: float = 1.0
+    gradnorm_parameter_strategy: str = "last"  # "first", "last", or "all"
+
+
+@dataclass
 class ModelConfig:
     """Model architecture configuration.
 
@@ -199,6 +209,7 @@ class ModelConfig:
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
     loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
+    loss_balancing: LossBalancingConfig = field(default_factory=LossBalancingConfig)
 
     # Multi-task learning configuration
     # Defines which output channels correspond to which targets
@@ -881,11 +892,18 @@ class TestTimeAugmentationConfig:
     """Test-time augmentation configuration.
 
     Note: Saving predictions is now handled by SavePredictionConfig.
+
+    Axis Indexing:
+    - flip_axes: Uses full tensor indices (e.g., [2, 3] for H, W in 5D tensor (B, C, D, H, W))
+    - rotation90_axes: Uses spatial-only indices (e.g., [1, 2] for H-W plane where 0=D, 1=H, 2=W)
     """
 
     enabled: bool = False
     flip_axes: Any = (
-        None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
+        None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[2], [3]] (full tensor indices)
+    )
+    rotation90_axes: Any = (
+        None  # TTA rotation90 strategy: "all" (3 planes × 4 rotations), null, or list like [[1, 2]] (spatial indices: 0=D, 1=H, 2=W)
     )
     channel_activations: Optional[List[Any]] = (
         None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...] e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
@@ -1058,9 +1076,11 @@ class InferenceConfig:
 @dataclass
 class TestDataConfig:
     """Test data configuration."""
-    test_image: Optional[str] = None
-    test_label: Optional[str] = None
-    test_mask: Optional[str] = None
+    # These can be strings (single file), lists (multiple files), or None
+    # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
+    test_image: Any = None  # str, List[str], or None
+    test_label: Any = None  # str, List[str], or None
+    test_mask: Any = None  # str, List[str], or None
     test_resolution: Optional[List[float]] = None
     test_transpose: Optional[List[int]] = None
     output_path: Optional[str] = None
@@ -1080,9 +1100,11 @@ class TestConfig:
 @dataclass
 class TuneDataConfig:
     """Tuning data configuration."""
-    tune_image: Optional[str] = None
-    tune_label: Optional[str] = None
-    tune_mask: Optional[str] = None
+    # These can be strings (single file), lists (multiple files), or None
+    # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
+    tune_image: Any = None  # str, List[str], or None
+    tune_label: Any = None  # str, List[str], or None
+    tune_mask: Any = None  # str, List[str], or None
     tune_resolution: Optional[List[int]] = None
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)

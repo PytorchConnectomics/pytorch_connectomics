@@ -35,6 +35,7 @@ from ...config import Config
 # Import training/inference components
 from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
 from ..debugging import DebugManager
+from ..loss_balancing import build_loss_weighter
 from ...inference import (
     InferenceManager,
     apply_save_prediction_transform,
@@ -77,6 +78,12 @@ class ConnectomicsModule(pl.LightningModule):
         # Build loss functions
         self.loss_functions = self._build_losses(cfg)
         self.loss_weights = cfg.model.loss_weights if hasattr(cfg.model, 'loss_weights') else [1.0] * len(self.loss_functions)
+        num_tasks = (
+            len(cfg.model.multi_task_config)
+            if hasattr(cfg.model, "multi_task_config") and cfg.model.multi_task_config is not None
+            else len(self.loss_functions)
+        )
+        self.loss_weighter = build_loss_weighter(cfg, num_tasks=num_tasks, model=self.model)
 
         # Enable inline NaN detection (can be disabled via config)
         self.enable_nan_detection = getattr(cfg.model, 'enable_nan_detection', True)
@@ -94,6 +101,7 @@ class ConnectomicsModule(pl.LightningModule):
             loss_weights=self.loss_weights,
             enable_nan_detection=self.enable_nan_detection,
             debug_on_nan=self.debug_on_nan,
+            loss_weighter=self.loss_weighter,
         )
 
         self.inference_manager = InferenceManager(

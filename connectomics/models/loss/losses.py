@@ -226,6 +226,41 @@ class WeightedMAELoss(nn.Module):
             return mae
 
 
+class SmoothL1Loss(nn.Module):
+    """
+    Smooth L1 (Huber) loss with optional tanh activation and spatial weighting.
+
+    Useful for distance transform regression where large outliers should be
+    down-weighted relative to MSE.
+    """
+
+    def __init__(self, beta: float = 1.0, reduction: str = 'mean', tanh: bool = False):
+        super().__init__()
+        self.beta = beta
+        self.reduction = reduction
+        self.tanh = tanh
+
+    def forward(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        weight: torch.Tensor = None,
+    ) -> torch.Tensor:
+        if self.tanh:
+            pred = torch.tanh(pred)
+
+        loss = F.smooth_l1_loss(pred, target, beta=self.beta, reduction='none')
+
+        if weight is not None:
+            loss = loss * weight
+
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        return loss
+
+
 class GANLoss(nn.Module):
     """
     GAN loss for adversarial training.

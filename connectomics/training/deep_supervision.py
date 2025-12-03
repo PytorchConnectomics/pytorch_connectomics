@@ -43,12 +43,14 @@ class DeepSupervisionHandler:
         loss_weights: List[float],
         enable_nan_detection: bool = True,
         debug_on_nan: bool = True,
+        loss_weighter: Optional[nn.Module] = None,
     ):
         self.cfg = cfg
         self.loss_functions = loss_functions
         self.loss_weights = loss_weights
         self.enable_nan_detection = enable_nan_detection
         self.debug_on_nan = debug_on_nan
+        self.loss_weighter = loss_weighter
 
         # Deep supervision configuration
         self.clamp_min = getattr(cfg.model, 'deep_supervision_clamp_min', -20.0)
@@ -60,10 +62,35 @@ class DeepSupervisionHandler:
             cfg.model.multi_task_config is not None
         )
 
+    def _apply_task_weighting(
+        self,
+        task_losses: List[torch.Tensor],
+        task_names: List[str],
+        stage: str,
+    ) -> tuple[torch.Tensor, torch.Tensor, Dict[str, float]]:
+        """
+        Apply optional adaptive weighting across task-level losses.
+
+        Returns:
+            total_loss: Combined loss for all tasks
+            weights: Tensor of weights applied to each task (detach for logging)
+            log_dict: Additional logs from the weighting strategy
+        """
+        if self.loss_weighter is None or len(task_losses) == 0:
+            total_loss = sum(task_losses)
+            weights = torch.ones(len(task_losses), device=task_losses[0].device)
+            return total_loss, weights, {}
+
+        total_loss, weights, log_dict = self.loss_weighter.combine(
+            task_losses, task_names, stage
+        )
+        return total_loss, weights, log_dict
+
     def compute_multitask_loss(
         self,
         outputs: torch.Tensor,
-        labels: torch.Tensor
+        labels: torch.Tensor,
+        stage: str = "train",
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
         Compute losses for multi-task learning where different output channels
@@ -76,8 +103,9 @@ class DeepSupervisionHandler:
         Returns:
             Tuple of (total_loss, loss_dict)
         """
-        total_loss = 0.0
         loss_dict = {}
+        task_losses: List[torch.Tensor] = []
+        task_names: List[str] = []
 
         # Parse multi-task configuration
         # Format: [[start_ch, end_ch, "task_name", [loss_indices]], ...]
@@ -102,7 +130,7 @@ class DeepSupervisionHandler:
             label_ch_offset += num_label_channels
 
             # Apply specified losses for this task
-            task_loss = 0.0
+            task_loss_components: List[torch.Tensor] = []
             for loss_idx in loss_indices:
                 loss_fn = self.loss_functions[loss_idx]
                 weight = self.loss_weights[loss_idx]
@@ -127,16 +155,27 @@ class DeepSupervisionHandler:
                     raise ValueError(f"NaN/Inf in loss for task '{task_name}' with loss index {loss_idx}")
 
                 weighted_loss = loss * weight
-                task_loss += weighted_loss
+                task_loss_components.append(weighted_loss)
 
                 # Log individual loss
-                loss_dict[f'train_loss_{task_name}_loss{loss_idx}'] = loss.item()
+                loss_dict[f'{stage}_loss_{task_name}_loss{loss_idx}'] = loss.item()
 
-            # Log task total
-            loss_dict[f'train_loss_{task_name}_total'] = task_loss.item()
-            total_loss += task_loss
+            # Aggregate per-task losses before adaptive weighting
+            task_loss = sum(task_loss_components)
+            task_losses.append(task_loss)
+            task_names.append(task_name)
+            loss_dict[f'{stage}_loss_{task_name}_unweighted'] = task_loss.item()
 
-        loss_dict['train_loss_total'] = total_loss.item()
+        total_loss, weights, weighting_logs = self._apply_task_weighting(
+            task_losses, task_names, stage=stage
+        )
+
+        for task_name, task_loss, weight in zip(task_names, task_losses, weights):
+            loss_dict[f'{stage}_loss_{task_name}_weight'] = float(weight)
+            loss_dict[f'{stage}_loss_{task_name}_total'] = (task_loss * weight).item()
+
+        loss_dict.update(weighting_logs)
+        loss_dict[f'{stage}_loss_total'] = total_loss.item()
         return total_loss, loss_dict
 
     def compute_loss_for_scale(
@@ -164,6 +203,9 @@ class DeepSupervisionHandler:
         if self.is_multi_task:
             # Multi-task learning with deep supervision:
             # Apply specific losses to specific channels at each scale
+            task_losses: List[torch.Tensor] = []
+            task_names: List[str] = []
+
             for task_idx, task_config in enumerate(self.cfg.model.multi_task_config):
                 start_ch, end_ch, task_name, loss_indices = task_config
 
@@ -178,6 +220,7 @@ class DeepSupervisionHandler:
                 task_output = torch.clamp(task_output, min=self.clamp_min, max=self.clamp_max)
 
                 # Apply specified losses for this task
+                task_loss_components: List[torch.Tensor] = []
                 for loss_idx in loss_indices:
                     loss_fn = self.loss_functions[loss_idx]
                     weight = self.loss_weights[loss_idx]
@@ -199,7 +242,12 @@ class DeepSupervisionHandler:
                             pdb.set_trace()
                         raise ValueError(f"NaN/Inf in deep supervision loss at scale {scale_idx}, task {task_name}")
 
-                    scale_loss += loss * weight
+                    task_loss_components.append(loss * weight)
+
+                task_losses.append(sum(task_loss_components))
+                task_names.append(task_name)
+
+            scale_loss, _, _ = self._apply_task_weighting(task_losses, task_names, stage)
         else:
             # Standard deep supervision: apply all losses to all outputs
             # Clamp outputs to prevent numerical instability at coarser scales
@@ -309,10 +357,7 @@ class DeepSupervisionHandler:
         # Check if multi-task learning is configured
         if self.is_multi_task:
             # Multi-task learning: apply specific losses to specific channels
-            total_loss, loss_dict = self.compute_multitask_loss(outputs, labels)
-            # Rename keys for stage
-            if stage == "val":
-                loss_dict = {k.replace('train_', 'val_'): v for k, v in loss_dict.items()}
+            total_loss, loss_dict = self.compute_multitask_loss(outputs, labels, stage=stage)
         else:
             # Standard single-scale loss: apply all losses to all outputs
             for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):

@@ -28,6 +28,7 @@ from .losses import (
     WeightedBCEWithLogitsLoss,
     WeightedMSELoss,
     WeightedMAELoss,
+    SmoothL1Loss,
     GANLoss,
 )
 
@@ -77,6 +78,7 @@ def create_loss(
         'CrossEntropyLoss': CrossEntropyLossWrapper,  # Use wrapper for shape handling
         'MSELoss': nn.MSELoss,
         'L1Loss': nn.L1Loss,
+        'SmoothL1Loss': SmoothL1Loss,
 
         # Custom connectomics losses
         'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
