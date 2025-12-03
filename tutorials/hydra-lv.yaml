@@ -54,7 +54,7 @@ system:
     num_gpus: 4
     num_cpus: 8
     num_workers: 8                     # More workers for parallel data loading (6x speedup)
-    batch_size: 4                      # Reduced from 32 for larger patches (OPTION 3)
+    batch_size: 8                      # Reduced from 32 for larger patches (OPTION 3)
   inference:
     num_gpus: 1
     num_cpus: 1
@@ -222,24 +222,29 @@ data:
 optimization:
   max_epochs: 10000
   gradient_clip_val: 0.5               # Conservative gradient clipping (from lucchi++)
-  accumulate_grad_batches: 1
+  accumulate_grad_batches: 2           # Effective global batch ≈32 with 4 GPUs × bs=4
   precision: "bf16-mixed"              # BFloat16 mixed precision
 
   optimizer:
     name: AdamW
-    lr: 0.001                          # Standard learning rate
+    lr: 0.0005                         # Lower LR pairs better with warmup+cosine
     weight_decay: 0.01
     betas: [0.9, 0.999]
     eps: 1.0e-8
 
-  # Scheduler - ReduceLROnPlateau for adaptive learning (from lucchi++)
+  # Scheduler - linear warmup into cosine decay (smoother than flat LR + ReduceLROnPlateau)
   scheduler:
-    name: ReduceLROnPlateau           # Reduce LR when validation loss plateaus
-    mode: min                         # Monitor minimum loss
-    factor: 0.5                       # Reduce LR by 50%
-    patience: 50                      # Wait 50 epochs before reducing
-    threshold: 1.0e-4                 # Minimum change to qualify as improvement
-    min_lr: 1.0e-6                    # Don't go below 1e-6
+    name: warmupcosine
+    warmup_epochs: 200                # Linear ramp to target LR
+    warmup_start_lr: 0.1              # Start at 10% of base LR
+    min_lr: 1.0e-6                    # Eta min for cosine tail
+
+  # Exponential Moving Average (EMA) weights for stabler validation
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 1000                # Sync EMA to model for the first N updates
+    validate_with_ema: true
 
 monitor:
   # Loss monitoring and validation frequency  

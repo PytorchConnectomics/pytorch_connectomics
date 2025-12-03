@@ -557,19 +557,35 @@ class ConnectomicsModule(pl.LightningModule):
         optimizer = build_optimizer(self.cfg, self.model)
 
         # Build scheduler if configured
-        if hasattr(self.cfg, 'scheduler') and self.cfg.scheduler is not None:
+        sched_cfg = None
+        if hasattr(self.cfg, "optimization"):
+            sched_cfg = getattr(self.cfg.optimization, "scheduler", None)
+
+        if sched_cfg is not None:
+            scheduler_name = getattr(sched_cfg, "name", None)
+            if scheduler_name is None or (isinstance(scheduler_name, str) and scheduler_name.lower() in ["none", "null"]):
+                return optimizer
+
             scheduler = build_lr_scheduler(self.cfg, optimizer)
+
+            lr_scheduler_dict: Dict[str, Any] = {
+                'scheduler': scheduler,
+                'interval': 'epoch',
+                'frequency': 1,
+            }
+
+            # ReduceLROnPlateau requires a monitor key
+            name = getattr(sched_cfg, "name", "")
+            if isinstance(name, str) and name.lower() == "reducelronplateau":
+                monitor = getattr(sched_cfg, "monitor", "train_loss_total_epoch")
+                lr_scheduler_dict["monitor"] = monitor
 
             return {
                 'optimizer': optimizer,
-                'lr_scheduler': {
-                    'scheduler': scheduler,
-                    'interval': 'epoch',
-                    'frequency': 1,
-                },
+                'lr_scheduler': lr_scheduler_dict,
             }
-        else:
-            return optimizer
+
+        return optimizer
 
     def on_train_epoch_end(self) -> None:
         """Called at the end of training epoch."""

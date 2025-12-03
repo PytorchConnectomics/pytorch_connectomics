@@ -491,6 +491,18 @@ class SchedulerConfig:
 
 
 @dataclass
+class EMAConfig:
+    """Exponential Moving Average (EMA) configuration."""
+
+    enabled: bool = False
+    decay: float = 0.999
+    warmup_steps: int = 0
+    validate_with_ema: bool = True
+    device: Optional[str] = None  # e.g., "cpu" to offload EMA weights
+    copy_buffers: bool = True     # Keep BatchNorm buffers in sync with model
+
+
+@dataclass
 class OptimizationConfig:
     """Optimization configuration (optimizer + scheduler + training params).
 
@@ -522,6 +534,7 @@ class OptimizationConfig:
 
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
+    ema: EMAConfig = field(default_factory=EMAConfig)
 
 
 @dataclass

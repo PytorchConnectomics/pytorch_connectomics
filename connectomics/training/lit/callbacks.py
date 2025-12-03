@@ -5,7 +5,7 @@ Provides callbacks for visualization, checkpointing, and monitoring.
 """
 
 from __future__ import annotations
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import pdb
 import torch
 from pytorch_lightning import Callback
@@ -16,6 +16,7 @@ from ...utils.visualizer import Visualizer
 __all__ = [
     'VisualizationCallback',
     'NaNDetectionCallback',
+    'EMAWeightsCallback',
     'create_callbacks',
 ]
 
@@ -416,9 +417,155 @@ class NaNDetectionCallback(Callback):
         if optimizer:
             lr = optimizer.param_groups[0]['lr']
             print(f"\n📚 Optimizer:")
-            print(f"   Learning rate: {lr:.2e}")
+        print(f"   Learning rate: {lr:.2e}")
 
         print(f"{'─'*80}\n")
+
+
+class EMAWeightsCallback(Callback):
+    """
+    Maintain exponential moving average (EMA) weights and swap them in for evaluation.
+    """
+
+    def __init__(
+        self,
+        decay: float = 0.999,
+        warmup_steps: int = 0,
+        validate_with_ema: bool = True,
+        device: Optional[str] = None,
+        copy_buffers: bool = True,
+    ):
+        super().__init__()
+        self.decay = decay
+        self.warmup_steps = warmup_steps
+        self.validate_with_ema = validate_with_ema
+        self.device = device
+        self.copy_buffers = copy_buffers
+
+        self._ema_state: Optional[Dict[str, torch.Tensor]] = None
+        self._backup_state: Optional[Dict[str, torch.Tensor]] = None
+        self._ema_device: Optional[torch.device] = None
+        self._updates: int = 0
+        self._using_ema: bool = False
+
+    def on_fit_start(self, trainer, pl_module):
+        self._initialize_ema(pl_module)
+
+    def on_train_batch_end(
+        self,
+        trainer,
+        pl_module,
+        outputs: Dict[str, Any],
+        batch: Dict[str, torch.Tensor],
+        batch_idx: int,
+    ):
+        if self._ema_state is None:
+            self._initialize_ema(pl_module)
+        if self._ema_state is None:
+            return
+
+        self._updates += 1
+        decay = 0.0 if self._updates <= self.warmup_steps else self.decay
+        self._update_ema(pl_module, decay)
+
+    def on_validation_epoch_start(self, trainer, pl_module):
+        if trainer.sanity_checking or not self.validate_with_ema:
+            return
+        self._apply_ema_weights(pl_module)
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        if trainer.sanity_checking:
+            return
+        self._restore_original_weights(pl_module)
+
+    def on_test_epoch_start(self, trainer, pl_module):
+        if not self.validate_with_ema:
+            return
+        self._apply_ema_weights(pl_module)
+
+    def on_test_epoch_end(self, trainer, pl_module):
+        self._restore_original_weights(pl_module)
+
+    def on_fit_end(self, trainer, pl_module):
+        self._restore_original_weights(pl_module)
+
+    def _initialize_ema(self, pl_module):
+        """Create EMA storage on the desired device."""
+        device = torch.device(self.device) if self.device is not None else pl_module.device
+        self._ema_device = device
+
+        with torch.no_grad():
+            self._ema_state = {
+                name: tensor.detach().clone().to(device)
+                for name, tensor in pl_module.model.state_dict().items()
+            }
+
+    def _update_ema(self, pl_module, decay: float):
+        """Update EMA weights using the current model parameters."""
+        if self._ema_state is None:
+            return
+
+        device = self._ema_device or pl_module.device
+        with torch.no_grad():
+            for name, param in pl_module.model.named_parameters():
+                if not param.requires_grad:
+                    continue
+                self._update_single(name, param.detach(), decay, device, use_decay=True)
+
+            for name, buffer in pl_module.model.named_buffers():
+                if not self.copy_buffers:
+                    continue
+                self._update_single(name, buffer.detach(), decay, device, use_decay=False)
+
+    def _update_single(self, name: str, tensor: torch.Tensor, decay: float, device: torch.device, use_decay: bool):
+        if self._ema_state is None:
+            return
+
+        tensor = tensor.to(device)
+        ema_tensor = self._ema_state.get(name)
+
+        if ema_tensor is None:
+            self._ema_state[name] = tensor.clone()
+            return
+
+        if ema_tensor.device != device:
+            ema_tensor = ema_tensor.to(device)
+            self._ema_state[name] = ema_tensor
+
+        if not torch.is_floating_point(ema_tensor) or not use_decay:
+            self._ema_state[name] = tensor.clone()
+            return
+
+        ema_tensor.mul_(decay).add_(tensor, alpha=1.0 - decay)
+
+    def _apply_ema_weights(self, pl_module):
+        """Swap EMA weights into the model for evaluation."""
+        if self._ema_state is None or self._using_ema:
+            return
+
+        with torch.no_grad():
+            self._backup_state = {
+                name: tensor.detach().clone()
+                for name, tensor in pl_module.model.state_dict().items()
+            }
+
+            ema_on_device = {
+                name: tensor.to(pl_module.device)
+                for name, tensor in self._ema_state.items()
+            }
+            pl_module.model.load_state_dict(ema_on_device, strict=True)
+            self._using_ema = True
+
+    def _restore_original_weights(self, pl_module):
+        """Restore the training weights after evaluation."""
+        if not self._using_ema or self._backup_state is None:
+            return
+
+        with torch.no_grad():
+            pl_module.model.load_state_dict(self._backup_state, strict=True)
+
+        self._backup_state = None
+        self._using_ema = False
 
 
 def create_callbacks(cfg) -> list:

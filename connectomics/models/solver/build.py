@@ -218,9 +218,10 @@ def _build_lr_scheduler_hydra(
             max_iter = sched_cfg.max_iter
         else:
             max_iter = 100
-        
+    
         warmup_iters = sched_cfg.warmup_epochs if hasattr(sched_cfg, 'warmup_epochs') else 5
         warmup_factor = sched_cfg.warmup_start_lr if hasattr(sched_cfg, 'warmup_start_lr') else 0.001
+        eta_min = sched_cfg.min_lr if hasattr(sched_cfg, 'min_lr') else 0.0
         
         scheduler = WarmupCosineLR(
             optimizer,
@@ -228,6 +229,7 @@ def _build_lr_scheduler_hydra(
             warmup_factor=warmup_factor,
             warmup_iters=warmup_iters,
             warmup_method='linear',
+            eta_min=eta_min,
         )
     
     else:
