@@ -15,6 +15,7 @@ from monai.transforms import Flip
 
 try:
     from omegaconf import ListConfig
+
     HAS_OMEGACONF = True
 except ImportError:
     HAS_OMEGACONF = False
@@ -246,7 +247,10 @@ class TTAPredictor:
                         tta_rotation90_axes.append(full_axes)
                 else:
                     tta_rotation90_axes = []
-            elif isinstance(tta_rotation90_axes_config, (list, tuple)) and len(tta_rotation90_axes_config) > 0:
+            elif (
+                isinstance(tta_rotation90_axes_config, (list, tuple))
+                and len(tta_rotation90_axes_config) > 0
+            ):
                 # User-specified rotation planes: e.g., [[1, 2], [2, 3]]
                 # Validate that each entry is a list/tuple of length 2
                 tta_rotation90_axes = []
@@ -317,9 +321,9 @@ class TTAPredictor:
                     ensemble_result = pred_processed.clone()
                 else:
                     if ensemble_mode == "mean":
-                        ensemble_result = ensemble_result + (
-                            pred_processed - ensemble_result
-                        ) / (num_predictions + 1)
+                        ensemble_result = ensemble_result + (pred_processed - ensemble_result) / (
+                            num_predictions + 1
+                        )
                     elif ensemble_mode == "min":
                         ensemble_result = torch.minimum(ensemble_result, pred_processed)
                     elif ensemble_mode == "max":
@@ -334,7 +338,12 @@ class TTAPredictor:
                 if torch.cuda.is_available() and num_predictions % 4 == 0:
                     torch.cuda.empty_cache()
 
-        apply_mask = getattr(self.cfg.inference.test_time_augmentation, "apply_mask", False) if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation") else False
+        apply_mask = (
+            getattr(self.cfg.inference.test_time_augmentation, "apply_mask", False)
+            if hasattr(self.cfg, "inference")
+            and hasattr(self.cfg.inference, "test_time_augmentation")
+            else False
+        )
         if apply_mask and mask is not None:
             if mask.shape != ensemble_result.shape:
                 if not (mask.shape[1] == 1 and mask.shape[0] == ensemble_result.shape[0]):

@@ -7,6 +7,7 @@ try:
     from matplotlib import pyplot as plt
     from mpl_toolkits.axes_grid1 import ImageGrid
     from skimage.color import label2rgb
+
     HAS_MATPLOTLIB = True
 except ImportError:
     HAS_MATPLOTLIB = False
@@ -35,7 +36,7 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
         return tuple(pad_size)
 
-    assert len(pad_size) in [1, ndim, 2*ndim]
+    assert len(pad_size) in [1, ndim, 2 * ndim]
     if len(pad_size) == 1:
         pad_size = pad_size[0]
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
@@ -44,13 +45,10 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
     if len(pad_size) == ndim:
         return tuple([tuple([x, x]) for x in pad_size])
 
-    return tuple(
-        [tuple([pad_size[2*i], pad_size[2*i+1]])
-            for i in range(len(pad_size) // 2)])
+    return tuple([tuple([pad_size[2 * i], pad_size[2 * i + 1]]) for i in range(len(pad_size) // 2)])
 
 
-def array_unpad(data: np.ndarray,
-                pad_size: Tuple[int]) -> np.ndarray:
+def array_unpad(data: np.ndarray, pad_size: Tuple[int]) -> np.ndarray:
     """Unpad a given numpy.ndarray based on the given padding size.
 
     Args:
@@ -65,20 +63,17 @@ def array_unpad(data: np.ndarray,
         pad_size = tuple(extra + list(pad_size))
 
     assert len(pad_size) == data.ndim
-    index = tuple([
-        slice(pad_size[i][0], data.shape[i]-pad_size[i][1])
-        for i in range(data.ndim)
-    ])
+    index = tuple([slice(pad_size[i][0], data.shape[i] - pad_size[i][1]) for i in range(data.ndim)])
     return data[index]
 
-def normalize_image(image: np.ndarray,
-                    mean: float = 0.5,
-                    std: float = 0.5,
-                    match_act: str = 'none') -> np.ndarray:
+
+def normalize_image(
+    image: np.ndarray, mean: float = 0.5, std: float = 0.5, match_act: str = "none"
+) -> np.ndarray:
     # the image should be float32 within [0.0, 1.0]
-    if match_act == 'sigmoid':
+    if match_act == "sigmoid":
         return image
-    elif match_act == 'tanh': # (0,1)->(-1,1)
+    elif match_act == "tanh":  # (0,1)->(-1,1)
         return image * 2.0 - 1.0
 
     assert image.dtype == np.float32
@@ -86,21 +81,25 @@ def normalize_image(image: np.ndarray,
     return image
 
 
-def show_image(image, image_type='im', num_row=1, cmap='gray', title='Test Title', interpolation=None):
+def show_image(
+    image, image_type="im", num_row=1, cmap="gray", title="Test Title", interpolation=None
+):
     num_imgs = image.shape[0]
-    num_col = (num_imgs + num_row - 1) // num_row 
-    fig = plt.figure(figsize=(20., 3.))
+    num_col = (num_imgs + num_row - 1) // num_row
+    fig = plt.figure(figsize=(20.0, 3.0))
     fig.suptitle(title, fontsize=15)
-    grid = ImageGrid(fig, 111,  # similar to subplot(111)
-                     nrows_ncols=(num_row, num_col),  # creates 2x2 grid of axes
-                     axes_pad=0.1,  # pad between axes in inch.
-                     )
+    grid = ImageGrid(
+        fig,
+        111,  # similar to subplot(111)
+        nrows_ncols=(num_row, num_col),  # creates 2x2 grid of axes
+        axes_pad=0.1,  # pad between axes in inch.
+    )
     image_list = np.split(image, num_imgs, 0)
     for ax, im in zip(grid, [np.squeeze(x) for x in image_list]):
         # Iterating over the grid returns the Axes.
-        if image_type == 'seg':
+        if image_type == "seg":
             im = label2rgb(im)
         ax.imshow(im, cmap=cmap, interpolation=interpolation)
-        ax.axis('off')
+        ax.axis("off")
 
     plt.show()

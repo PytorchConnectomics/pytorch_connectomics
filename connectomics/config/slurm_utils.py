@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NodeResources:
     """Resources available on a compute node."""
+
     cpus: int
     gpus: int
     memory_gb: int
@@ -24,6 +25,7 @@ class NodeResources:
 @dataclass
 class PartitionInfo:
     """Information about a SLURM partition."""
+
     name: str
     nodes: Dict[str, NodeResources]
     available: bool
@@ -43,7 +45,7 @@ def detect_slurm_resources() -> Dict[str, PartitionInfo]:
     """
     try:
         # Test if SLURM is available
-        subprocess.run(['sinfo', '--version'], capture_output=True, check=True)
+        subprocess.run(["sinfo", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         logger.warning("SLURM not available, returning empty resource dict")
         return {}
@@ -53,15 +55,14 @@ def detect_slurm_resources() -> Dict[str, PartitionInfo]:
     try:
         # Get partition list: partition|state|timelimit|nodelist
         result = subprocess.run(
-            ['sinfo', '-h', '-o', '%R|%A|%l|%N'],
-            capture_output=True, text=True, check=True
+            ["sinfo", "-h", "-o", "%R|%A|%l|%N"], capture_output=True, text=True, check=True
         )
 
-        for line in result.stdout.strip().split('\n'):
+        for line in result.stdout.strip().split("\n"):
             if not line:
                 continue
 
-            parts = line.split('|')
+            parts = line.split("|")
             if len(parts) < 4:
                 continue
 
@@ -71,14 +72,10 @@ def detect_slurm_resources() -> Dict[str, PartitionInfo]:
             nodes = _parse_partition_nodes(name, nodelist)
 
             # Determine if partition is available
-            available = any(s in state.lower() for s in ['idle', 'mix', 'alloc'])
+            available = any(s in state.lower() for s in ["idle", "mix", "alloc"])
 
             partitions[name] = PartitionInfo(
-                name=name,
-                nodes=nodes,
-                available=available,
-                max_time=time_limit,
-                state=state
+                name=name, nodes=nodes, available=available, max_time=time_limit, state=state
             )
 
     except subprocess.CalledProcessError as e:
@@ -108,28 +105,27 @@ def _parse_partition_nodes(partition: str, nodelist: str) -> Dict[str, NodeResou
         for node_name in expanded_nodes:
             # Get detailed node information
             result = subprocess.run(
-                ['scontrol', 'show', 'node', node_name],
-                capture_output=True, text=True, check=True
+                ["scontrol", "show", "node", node_name], capture_output=True, text=True, check=True
             )
 
             node_info = result.stdout
 
             # Parse CPU count
-            cpu_match = re.search(r'CPUTot=(\d+)', node_info)
+            cpu_match = re.search(r"CPUTot=(\d+)", node_info)
             cpus = int(cpu_match.group(1)) if cpu_match else 0
 
             # Parse memory (convert MB to GB)
-            mem_match = re.search(r'RealMemory=(\d+)', node_info)
+            mem_match = re.search(r"RealMemory=(\d+)", node_info)
             memory_gb = int(mem_match.group(1)) // 1024 if mem_match else 0
 
             # Parse GPU count and type from GRES
             gpus = 0
             gpu_type = None
-            gres_match = re.search(r'Gres=([^\s]+)', node_info)
+            gres_match = re.search(r"Gres=([^\s]+)", node_info)
             if gres_match:
                 gres = gres_match.group(1)
                 # Parse formats like "gpu:4", "gpu:a100:2", "gpu:v100:4(S:0-1)"
-                gpu_match = re.search(r'gpu:(\w+)?:?(\d+)', gres)
+                gpu_match = re.search(r"gpu:(\w+)?:?(\d+)", gres)
                 if gpu_match:
                     if gpu_match.group(1) and gpu_match.group(1).isdigit():
                         # Format: gpu:4
@@ -140,10 +136,7 @@ def _parse_partition_nodes(partition: str, nodelist: str) -> Dict[str, NodeResou
                         gpus = int(gpu_match.group(2)) if gpu_match.group(2) else 0
 
             nodes[node_name] = NodeResources(
-                cpus=cpus,
-                gpus=gpus,
-                memory_gb=memory_gb,
-                gpu_type=gpu_type
+                cpus=cpus, gpus=gpus, memory_gb=memory_gb, gpu_type=gpu_type
             )
 
     except subprocess.CalledProcessError as e:
@@ -165,17 +158,16 @@ def _expand_nodelist(nodelist: str) -> List[str]:
     try:
         # Use scontrol to expand nodelist
         result = subprocess.run(
-            ['scontrol', 'show', 'hostnames', nodelist],
-            capture_output=True, text=True, check=True
+            ["scontrol", "show", "hostnames", nodelist], capture_output=True, text=True, check=True
         )
-        return result.stdout.strip().split('\n')
+        return result.stdout.strip().split("\n")
     except subprocess.CalledProcessError:
         # Fallback: return as-is if expansion fails
         return [nodelist]
 
 
 # Cache configuration
-CACHE_FILE = Path.home() / '.pytorch_connectomics_slurm_cache.json'
+CACHE_FILE = Path.home() / ".pytorch_connectomics_slurm_cache.json"
 CACHE_VALIDITY = 3600  # 1 hour in seconds
 
 
@@ -193,7 +185,7 @@ def get_cluster_config(force_refresh: bool = False) -> Dict[str, PartitionInfo]:
         cache_age = time.time() - CACHE_FILE.stat().st_mtime
         if cache_age < CACHE_VALIDITY:
             try:
-                with open(CACHE_FILE, 'r') as f:
+                with open(CACHE_FILE, "r") as f:
                     cached_data = json.load(f)
                     # Reconstruct dataclass objects from dict
                     return _dict_to_partition_info(cached_data)
@@ -207,7 +199,7 @@ def get_cluster_config(force_refresh: bool = False) -> Dict[str, PartitionInfo]:
     # Save to cache
     try:
         cache_data = _partition_info_to_dict(config)
-        with open(CACHE_FILE, 'w') as f:
+        with open(CACHE_FILE, "w") as f:
             json.dump(cache_data, f, indent=2)
     except Exception as e:
         logger.warning(f"Failed to save cache: {e}")
@@ -220,14 +212,11 @@ def _partition_info_to_dict(partitions: Dict[str, PartitionInfo]) -> dict:
     result = {}
     for name, info in partitions.items():
         result[name] = {
-            'name': info.name,
-            'available': info.available,
-            'max_time': info.max_time,
-            'state': info.state,
-            'nodes': {
-                node_name: asdict(resources)
-                for node_name, resources in info.nodes.items()
-            }
+            "name": info.name,
+            "available": info.available,
+            "max_time": info.max_time,
+            "state": info.state,
+            "nodes": {node_name: asdict(resources) for node_name, resources in info.nodes.items()},
         }
     return result
 
@@ -237,14 +226,14 @@ def _dict_to_partition_info(data: dict) -> Dict[str, PartitionInfo]:
     result = {}
     for name, info in data.items():
         result[name] = PartitionInfo(
-            name=info['name'],
-            available=info['available'],
-            max_time=info['max_time'],
-            state=info['state'],
+            name=info["name"],
+            available=info["available"],
+            max_time=info["max_time"],
+            state=info["state"],
             nodes={
                 node_name: NodeResources(**resources)
-                for node_name, resources in info['nodes'].items()
-            }
+                for node_name, resources in info["nodes"].items()
+            },
         )
     return result
 
@@ -255,7 +244,7 @@ def filter_partitions(
     min_gpus: int = 0,
     min_memory_gb: int = 0,
     available_only: bool = True,
-    gpu_type: Optional[str] = None
+    gpu_type: Optional[str] = None,
 ) -> Dict[str, PartitionInfo]:
     """
     Filter partitions based on resource requirements.
@@ -281,9 +270,11 @@ def filter_partitions(
         # Check if any node meets requirements
         valid_nodes = {}
         for node_name, resources in info.nodes.items():
-            if (resources.cpus >= min_cpus and
-                resources.gpus >= min_gpus and
-                resources.memory_gb >= min_memory_gb):
+            if (
+                resources.cpus >= min_cpus
+                and resources.gpus >= min_gpus
+                and resources.memory_gb >= min_memory_gb
+            ):
 
                 # Check GPU type if specified
                 if gpu_type and resources.gpu_type != gpu_type:
@@ -297,7 +288,7 @@ def filter_partitions(
                 nodes=valid_nodes,
                 available=info.available,
                 max_time=info.max_time,
-                state=info.state
+                state=info.state,
             )
 
     return filtered
@@ -308,7 +299,7 @@ def get_best_partition(
     min_cpus: int = 1,
     min_gpus: int = 0,
     min_memory_gb: int = 0,
-    gpu_type: Optional[str] = None
+    gpu_type: Optional[str] = None,
 ) -> Optional[str]:
     """
     Get the best available partition based on preferences and requirements.
@@ -331,7 +322,7 @@ def get_best_partition(
         min_cpus=min_cpus,
         min_gpus=min_gpus,
         min_memory_gb=min_memory_gb,
-        gpu_type=gpu_type
+        gpu_type=gpu_type,
     )
 
     if not valid_partitions:
@@ -346,8 +337,7 @@ def get_best_partition(
 
     # Fallback: return partition with most GPUs
     best = max(
-        valid_partitions.items(),
-        key=lambda x: sum(node.gpus for node in x[1].nodes.values())
+        valid_partitions.items(), key=lambda x: sum(node.gpus for node in x[1].nodes.values())
     )
     return best[0]
 
@@ -360,9 +350,9 @@ def print_cluster_resources():
         print("No SLURM partitions detected")
         return
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("SLURM Cluster Resources")
-    print("="*80)
+    print("=" * 80)
 
     for name, info in partitions.items():
         print(f"\nPartition: {name}")
@@ -395,14 +385,14 @@ def print_cluster_resources():
             if sample_node[1].gpu_type:
                 print(f"    GPU Type: {sample_node[1].gpu_type}")
 
-    print("\n" + "="*80 + "\n")
+    print("\n" + "=" * 80 + "\n")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # CLI usage
     import sys
 
-    if len(sys.argv) > 1 and sys.argv[1] == '--refresh':
+    if len(sys.argv) > 1 and sys.argv[1] == "--refresh":
         print("Refreshing cluster resource cache...")
         get_cluster_config(force_refresh=True)
 

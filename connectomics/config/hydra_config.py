@@ -157,7 +157,9 @@ class ModelConfig:
     kernel_size: int = 3  # Convolution kernel size
     strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
     act: str = "relu"  # Activation function: 'relu', 'prelu', 'elu', etc.
-    upsample: str = "deconv"  # Upsampling mode for MONAI BasicUNet: 'deconv' (transposed conv), 'nontrainable' (interpolation + conv), or 'pixelshuffle'
+    upsample: str = (
+        "deconv"  # Upsampling mode for MONAI BasicUNet: 'deconv' (transposed conv), 'nontrainable' (interpolation + conv), or 'pixelshuffle'
+    )
 
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
@@ -499,7 +501,7 @@ class EMAConfig:
     warmup_steps: int = 0
     validate_with_ema: bool = True
     device: Optional[str] = None  # e.g., "cpu" to offload EMA weights
-    copy_buffers: bool = True     # Keep BatchNorm buffers in sync with model
+    copy_buffers: bool = True  # Keep BatchNorm buffers in sync with model
 
 
 @dataclass
@@ -868,9 +870,7 @@ class InferenceDataConfig:
     tune_resolution: Optional[List[float]] = (
         None  # Tuning data resolution [z, y, x] in nm (e.g., [30, 8, 8])
     )
-    tune_transpose: List[int] = field(
-        default_factory=list
-    )  # Axis permutation for tuning data
+    tune_transpose: List[int] = field(default_factory=list)  # Axis permutation for tuning data
     output_path: Optional[str] = None  # Optional explicit directory for inference outputs
     output_name: str = (
         "predictions.h5"  # Output filename (auto-pathed to inference/{checkpoint}/{output_name})
@@ -942,8 +942,12 @@ class SavePredictionConfig:
     """
 
     enabled: bool = True  # Enable saving intermediate predictions
-    intensity_scale: float = -1.0  # If < 0, keep raw predictions (no normalization/scaling). If > 0, normalize to [0,1] then scale.
-    intensity_dtype: str = "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
+    intensity_scale: float = (
+        -1.0
+    )  # If < 0, keep raw predictions (no normalization/scaling). If > 0, normalize to [0,1] then scale.
+    intensity_dtype: str = (
+        "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
+    )
 
 
 @dataclass
@@ -1089,6 +1093,7 @@ class InferenceConfig:
 @dataclass
 class TestDataConfig:
     """Test data configuration."""
+
     # These can be strings (single file), lists (multiple files), or None
     # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
     test_image: Any = None  # str, List[str], or None
@@ -1105,6 +1110,7 @@ class TestDataConfig:
 @dataclass
 class TestConfig:
     """Test-specific configuration (data paths, decoding, evaluation)."""
+
     data: TestDataConfig = field(default_factory=TestDataConfig)
     decoding: Optional[List[Dict[str, Any]]] = None
     evaluation: Optional[Dict[str, Any]] = None
@@ -1113,6 +1119,7 @@ class TestConfig:
 @dataclass
 class TuneDataConfig:
     """Tuning data configuration."""
+
     # These can be strings (single file), lists (multiple files), or None
     # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
     tune_image: Any = None  # str, List[str], or None
@@ -1126,6 +1133,7 @@ class TuneDataConfig:
 @dataclass
 class TuneOutputConfig:
     """Tuning output configuration."""
+
     output_dir: str = "outputs/tuning"
     output_pred: Optional[str] = None
     cache_suffix: str = "_tta_prediction.h5"
@@ -1139,6 +1147,7 @@ class TuneOutputConfig:
 @dataclass
 class ParameterConfig:
     """Single parameter configuration for optimization."""
+
     type: str  # "float", "int", "categorical"
     range: List[Any]  # [min, max] for numeric, [options...] for categorical
     step: Optional[float] = None
@@ -1151,6 +1160,7 @@ class ParameterConfig:
 @dataclass
 class DecodingParameterSpace:
     """Decoding function parameter space configuration."""
+
     function_name: str = "decode_binary_contour_distance_watershed"
     defaults: Dict[str, Any] = field(default_factory=dict)
     parameters: Dict[str, Any] = field(default_factory=dict)  # Dict[str, ParameterConfig]
@@ -1159,6 +1169,7 @@ class DecodingParameterSpace:
 @dataclass
 class PostprocessingParameterSpace:
     """Post-processing function parameter space configuration."""
+
     enabled: bool = False
     function_name: str = "remove_small_instances"
     defaults: Dict[str, Any] = field(default_factory=dict)
@@ -1168,13 +1179,17 @@ class PostprocessingParameterSpace:
 @dataclass
 class ParameterSpaceConfig:
     """Parameter space configuration for Optuna optimization."""
+
     decoding: DecodingParameterSpace = field(default_factory=DecodingParameterSpace)
-    postprocessing: PostprocessingParameterSpace = field(default_factory=PostprocessingParameterSpace)
+    postprocessing: PostprocessingParameterSpace = field(
+        default_factory=PostprocessingParameterSpace
+    )
 
 
 @dataclass
 class TuneConfig:
     """Parameter tuning configuration (Optuna settings)."""
+
     enabled: bool = True
     n_trials: int = 100
     timeout: Optional[int] = None
@@ -1183,10 +1198,12 @@ class TuneConfig:
     load_if_exists: bool = True
     sampler: Dict[str, Any] = field(default_factory=lambda: {"name": "TPE"})
     pruner: Optional[Dict[str, Any]] = None
-    optimization: Dict[str, Any] = field(default_factory=lambda: {
-        "mode": "single",
-        "single_objective": {"metric": "adapted_rand", "direction": "minimize"}
-    })
+    optimization: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "mode": "single",
+            "single_objective": {"metric": "adapted_rand", "direction": "minimize"},
+        }
+    )
     data: TuneDataConfig = field(default_factory=TuneDataConfig)
     output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
     logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})

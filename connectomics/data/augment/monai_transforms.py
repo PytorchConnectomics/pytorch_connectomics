@@ -422,9 +422,19 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 z_start = self.R.randint(0, max(1, img.shape[1] - z_len + 1))
                 noise_shape = (img.shape[0], z_len, y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[:, z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len]
+                region = img[
+                    :,
+                    z_start : z_start + z_len,
+                    y_start : y_start + y_len,
+                    x_start : x_start + x_len,
+                ]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[:, z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+                img[
+                    :,
+                    z_start : z_start + z_len,
+                    y_start : y_start + y_len,
+                    x_start : x_start + x_len,
+                ] = noisy_region
             else:
                 # (C, H, W) - 2D with channels
                 noise_shape = (img.shape[0], y_len, x_len)
@@ -449,9 +459,13 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 z_start = self.R.randint(0, max(1, img.shape[0] - z_len + 1))
                 noise_shape = (z_len, y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len]
+                region = img[
+                    z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len
+                ]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+                img[
+                    z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len
+                ] = noisy_region
         else:
             # 2D case: (H, W)
             noise_shape = (y_len, x_len)
@@ -1053,9 +1067,13 @@ class SmartNormalizeIntensityd(MapTransform):
                 self.divide_value = float(mode.split("-", 1)[1])
                 self.mode = "divide"
             except ValueError:
-                raise ValueError(f"Invalid divide mode '{mode}'. Format should be 'divide-K' where K is a number (e.g., 'divide-255')")
+                raise ValueError(
+                    f"Invalid divide mode '{mode}'. Format should be 'divide-K' where K is a number (e.g., 'divide-255')"
+                )
         elif mode not in ["none", "normal", "0-1"]:
-            raise ValueError(f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', or 'divide-K'")
+            raise ValueError(
+                f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', or 'divide-K'"
+            )
         else:
             self.mode = mode
 

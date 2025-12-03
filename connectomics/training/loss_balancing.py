@@ -15,9 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def _select_shared_parameters(
-    model: nn.Module, strategy: str = "last"
-) -> List[nn.Parameter]:
+def _select_shared_parameters(model: nn.Module, strategy: str = "last") -> List[nn.Parameter]:
     """
     Select a small, shared parameter set for GradNorm gradient measurement.
 
@@ -104,9 +102,7 @@ class GradNormLossWeighter(BaseLossWeighter):
         self.gradnorm_lambda = gradnorm_lambda
         self.task_weights = nn.Parameter(torch.ones(num_tasks))
         self.register_buffer("initial_losses", None)
-        self.shared_parameters = (
-            list(shared_parameters) if shared_parameters is not None else []
-        )
+        self.shared_parameters = list(shared_parameters) if shared_parameters is not None else []
 
     def _normalized_weights(self) -> torch.Tensor:
         # Keep weights positive and with constant sum for stability
@@ -203,9 +199,7 @@ def build_loss_weighter(
 
     if strategy == "gradnorm":
         shared_params = (
-            _select_shared_parameters(
-                model, getattr(lb_cfg, "gradnorm_parameter_strategy", "last")
-            )
+            _select_shared_parameters(model, getattr(lb_cfg, "gradnorm_parameter_strategy", "last"))
             if model is not None
             else []
         )

@@ -47,7 +47,7 @@ class LoadVolumed(MapTransform):
         self,
         keys: KeysCollection,
         transpose_axes: Sequence[int] | None = None,
-        allow_missing_keys: bool = False
+        allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
         self.transpose_axes = list(transpose_axes) if transpose_axes else []
@@ -81,13 +81,15 @@ class LoadVolumed(MapTransform):
                 d[key] = volume
                 meta_key = f"{key}_meta_dict"
                 meta_dict = dict(d.get(meta_key, {}))
-                meta_dict.update({
-                    'filename_or_obj': source_path,
-                    'original_shape': tuple(volume.shape),
-                    'spatial_shape': tuple(volume.shape[1:]),
-                    'channels_first': True,
-                    'transpose_axes': self.transpose_axes if self.transpose_axes else None,
-                })
+                meta_dict.update(
+                    {
+                        "filename_or_obj": source_path,
+                        "original_shape": tuple(volume.shape),
+                        "spatial_shape": tuple(volume.shape[1:]),
+                        "channels_first": True,
+                        "transpose_axes": self.transpose_axes if self.transpose_axes else None,
+                    }
+                )
                 d[meta_key] = meta_dict
         return d
 
@@ -117,8 +119,8 @@ class SaveVolumed(MapTransform):
         self,
         keys: KeysCollection,
         output_dir: str,
-        output_format: str = 'h5',
-        allow_missing_keys: bool = False
+        output_format: str = "h5",
+        allow_missing_keys: bool = False,
     ):
         super().__init__(keys, allow_missing_keys)
         self.output_dir = output_dir
@@ -127,6 +129,7 @@ class SaveVolumed(MapTransform):
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Save volume data to files."""
         import os
+
         os.makedirs(self.output_dir, exist_ok=True)
 
         d = dict(data)
@@ -170,9 +173,9 @@ class TileLoaderd(MapTransform):
         for key in self.key_iterator(d):
             if key in d and isinstance(d[key], dict):
                 tile_info = d[key]
-                if 'metadata' in tile_info and 'chunk_coords' in tile_info:
-                    metadata = tile_info['metadata']
-                    coords = tile_info['chunk_coords']
+                if "metadata" in tile_info and "chunk_coords" in tile_info:
+                    metadata = tile_info["metadata"]
+                    coords = tile_info["chunk_coords"]
                     volume = self._load_tiles_for_chunk(metadata, coords)
                     d[key] = volume
 
@@ -186,29 +189,25 @@ class TileLoaderd(MapTransform):
         """Load and reconstruct volume chunk from tiles."""
         z_start, z_end, y_start, y_end, x_start, x_end = coords
 
-        tile_paths = metadata['image'][z_start:z_end]
+        tile_paths = metadata["image"][z_start:z_end]
         volume_coords = [z_start, z_end, y_start, y_end, x_start, x_end]
-        tile_coords = [
-            0, metadata['depth'],
-            0, metadata['height'],
-            0, metadata['width']
-        ]
+        tile_coords = [0, metadata["depth"], 0, metadata["height"], 0, metadata["width"]]
 
         volume = reconstruct_volume_from_tiles(
             tile_paths=tile_paths,
             volume_coords=volume_coords,
             tile_coords=tile_coords,
-            tile_size=metadata['tile_size'],
-            data_type=np.dtype(metadata['dtype']),
-            tile_start=metadata.get('tile_st', [0, 0]),
-            tile_ratio=metadata.get('tile_ratio', 1.0),
+            tile_size=metadata["tile_size"],
+            data_type=np.dtype(metadata["dtype"]),
+            tile_start=metadata.get("tile_st", [0, 0]),
+            tile_ratio=metadata.get("tile_ratio", 1.0),
         )
 
         return volume
 
 
 __all__ = [
-    'LoadVolumed',
-    'SaveVolumed',
-    'TileLoaderd',
+    "LoadVolumed",
+    "SaveVolumed",
+    "TileLoaderd",
 ]

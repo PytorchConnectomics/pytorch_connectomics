@@ -140,7 +140,9 @@ def watershed_split(
     mask[tuple(coords.T)] = True
     markers = cc3d.connected_components(mask)
     split_objects = mahotas.cwatershed(-distance, markers)
-    split_objects[~cropped] = 0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    split_objects[~cropped] = (
+        0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    )
 
     seg_id = np.unique(split_objects)
     new_id = []
@@ -197,9 +199,7 @@ def stitch_3d(masks: np.ndarray, stitch_threshold: float = 0.25) -> np.ndarray:
     return masks
 
 
-def intersection_over_union(
-    masks_true: np.ndarray, masks_pred: np.ndarray
-) -> np.ndarray:
+def intersection_over_union(masks_true: np.ndarray, masks_pred: np.ndarray) -> np.ndarray:
     """Calculates the intersection over union for all mask pairs.
 
     Abducted from the cellpose repository (https://github.com/MouseLand/cellpose/blob/master/cellpose/metrics.py).
@@ -253,7 +253,7 @@ def _label_overlap(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def apply_binary_postprocessing(
-    pred: np.ndarray, config: 'BinaryPostprocessingConfig'
+    pred: np.ndarray, config: "BinaryPostprocessingConfig"
 ) -> np.ndarray:
     """Apply binary segmentation postprocessing pipeline.
 
@@ -313,15 +313,15 @@ def apply_binary_postprocessing(
 
     # Step 3: Morphological opening (erosion + dilation) - removes small objects
     if config.opening_iterations > 0:
-        binary = ndimage.binary_opening(
-            binary, iterations=config.opening_iterations
-        ).astype(np.uint8)
+        binary = ndimage.binary_opening(binary, iterations=config.opening_iterations).astype(
+            np.uint8
+        )
 
     # Step 4: Morphological closing (dilation + erosion) - fills small holes
     if config.closing_iterations > 0:
-        binary = ndimage.binary_closing(
-            binary, iterations=config.closing_iterations
-        ).astype(np.uint8)
+        binary = ndimage.binary_closing(binary, iterations=config.closing_iterations).astype(
+            np.uint8
+        )
 
     # Step 5: Connected components filtering
     if config.connected_components is not None and config.connected_components.enabled:
@@ -350,13 +350,13 @@ def apply_binary_postprocessing(
 
             if len(sizes) > cc_config.top_k:
                 # Get indices of top-k largest components
-                top_k_indices = np.argsort(sizes)[-cc_config.top_k:]
+                top_k_indices = np.argsort(sizes)[-cc_config.top_k :]
                 top_k_labels = label_ids[top_k_indices]
 
                 # Create mask keeping only top-k
                 keep_mask = np.zeros_like(labels, dtype=bool)
                 for label_id in top_k_labels:
-                    keep_mask |= (labels == label_id)
+                    keep_mask |= labels == label_id
 
                 labels = keep_mask.astype(np.uint8)
             else:

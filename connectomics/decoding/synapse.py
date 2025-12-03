@@ -130,9 +130,7 @@ def polarity2instance(
             int(segm.shape[2] * scale_factors[2]),
         )
         # Calculate zoom factors for target size
-        zoom_factors = [
-            out_size / in_size for out_size, in_size in zip(target_size, segm.shape)
-        ]
+        zoom_factors = [out_size / in_size for out_size, in_size in zip(target_size, segm.shape)]
         segm = zoom(segm, zoom_factors, order=0, mode="nearest")
 
     return cast2dtype(segm)

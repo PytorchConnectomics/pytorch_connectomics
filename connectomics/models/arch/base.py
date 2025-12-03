@@ -67,11 +67,11 @@ class ConnectomicsModel(nn.Module, ABC):
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
 
         return {
-            'name': self.__class__.__name__,
-            'deep_supervision': self.supports_deep_supervision,
-            'output_scales': self.output_scales,
-            'parameters': total_params,
-            'trainable_parameters': trainable_params,
+            "name": self.__class__.__name__,
+            "deep_supervision": self.supports_deep_supervision,
+            "output_scales": self.output_scales,
+            "parameters": total_params,
+            "trainable_parameters": trainable_params,
         }
 
     def summary(self, input_shape: Optional[tuple] = None) -> str:
@@ -111,4 +111,4 @@ class ConnectomicsModel(nn.Module, ABC):
         )
 
 
-__all__ = ['ConnectomicsModel']
+__all__ = ["ConnectomicsModel"]

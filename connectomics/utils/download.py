@@ -106,9 +106,7 @@ def check_dataset_exists(dataset_name: str, base_dir: Path = Path(".")) -> bool:
     return True
 
 
-def download_dataset(
-    dataset_name: str, base_dir: Path = Path("."), force: bool = False
-) -> bool:
+def download_dataset(dataset_name: str, base_dir: Path = Path("."), force: bool = False) -> bool:
     """
     Download tutorial dataset.
 
@@ -203,9 +201,7 @@ def list_datasets():
         print()
 
 
-def auto_download_if_missing(
-    config_path: str, dataset_name: Optional[str] = None
-) -> bool:
+def auto_download_if_missing(config_path: str, dataset_name: Optional[str] = None) -> bool:
     """
     Automatically download dataset if config references missing files.
 
@@ -258,9 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("dataset", nargs="?", help="Dataset name (e.g., 'lucchi')")
     parser.add_argument("--list", action="store_true", help="List available datasets")
     parser.add_argument("--force", action="store_true", help="Force re-download")
-    parser.add_argument(
-        "--dir", type=str, default=".", help="Base directory (default: current)"
-    )
+    parser.add_argument("--dir", type=str, default=".", help="Base directory (default: current)")
 
     args = parser.parse_args()
 

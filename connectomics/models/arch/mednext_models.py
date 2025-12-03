@@ -21,6 +21,7 @@ from typing import Union, Dict
 
 try:
     from nnunet_mednext import create_mednext_v1, MedNeXt as MedNeXtBase
+
     MEDNEXT_AVAILABLE = True
 except ImportError:
     MEDNEXT_AVAILABLE = False
@@ -75,11 +76,11 @@ class MedNeXtWrapper(ConnectomicsModel):
         if self.supports_deep_supervision and isinstance(outputs, list):
             # Convert list to dict for Lightning compatibility
             return {
-                'output': outputs[0],  # Main output (full resolution)
-                'ds_1': outputs[1],    # 1/2 resolution
-                'ds_2': outputs[2],    # 1/4 resolution
-                'ds_3': outputs[3],    # 1/8 resolution
-                'ds_4': outputs[4],    # 1/16 resolution (bottleneck)
+                "output": outputs[0],  # Main output (full resolution)
+                "ds_1": outputs[1],  # 1/2 resolution
+                "ds_2": outputs[2],  # 1/4 resolution
+                "ds_3": outputs[3],  # 1/8 resolution
+                "ds_4": outputs[4],  # 1/16 resolution (bottleneck)
             }
         else:
             return outputs
@@ -97,7 +98,7 @@ def _check_mednext_available():
         )
 
 
-@register_architecture('mednext')
+@register_architecture("mednext")
 def build_mednext(cfg) -> ConnectomicsModel:
     """
     Build MedNeXt model using predefined sizes.
@@ -143,12 +144,12 @@ def build_mednext(cfg) -> ConnectomicsModel:
     # Extract config from Hydra/OmegaConf
     in_channels = cfg.model.in_channels
     out_channels = cfg.model.out_channels
-    model_size = getattr(cfg.model, 'mednext_size', 'S')
-    kernel_size = getattr(cfg.model, 'mednext_kernel_size', 3)
-    deep_supervision = getattr(cfg.model, 'deep_supervision', False)
+    model_size = getattr(cfg.model, "mednext_size", "S")
+    kernel_size = getattr(cfg.model, "mednext_kernel_size", 3)
+    deep_supervision = getattr(cfg.model, "deep_supervision", False)
 
     # Validate model size
-    if model_size not in ['S', 'B', 'M', 'L']:
+    if model_size not in ["S", "B", "M", "L"]:
         raise ValueError(
             f"MedNeXt model_size must be 'S', 'B', 'M', or 'L'. Got: {model_size}\n"
             f"Model sizes:\n"
@@ -177,7 +178,7 @@ def build_mednext(cfg) -> ConnectomicsModel:
     return MedNeXtWrapper(model, deep_supervision=deep_supervision)
 
 
-@register_architecture('mednext_custom')
+@register_architecture("mednext_custom")
 def build_mednext_custom(cfg) -> ConnectomicsModel:
     """
     Build MedNeXt with custom architecture parameters.
@@ -224,29 +225,29 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
 
     # Extract all custom parameters (Hydra only)
     params = {
-        'in_channels': cfg.model.in_channels,
-        'n_channels': getattr(cfg.model, 'mednext_base_channels', 32),
-        'n_classes': cfg.model.out_channels,
-        'exp_r': getattr(cfg.model, 'mednext_exp_r', 4),
-        'kernel_size': getattr(cfg.model, 'mednext_kernel_size', 7),
-        'deep_supervision': getattr(cfg.model, 'deep_supervision', False),
-        'do_res': getattr(cfg.model, 'mednext_do_res', True),
-        'do_res_up_down': getattr(cfg.model, 'mednext_do_res_up_down', True),
-        'block_counts': getattr(cfg.model, 'mednext_block_counts', [2,2,2,2,2,2,2,2,2]),
-        'checkpoint_style': getattr(cfg.model, 'mednext_checkpoint_style', None),
-        'norm_type': getattr(cfg.model, 'mednext_norm', 'group'),
-        'dim': getattr(cfg.model, 'mednext_dim', '3d'),
-        'grn': getattr(cfg.model, 'mednext_grn', False),
+        "in_channels": cfg.model.in_channels,
+        "n_channels": getattr(cfg.model, "mednext_base_channels", 32),
+        "n_classes": cfg.model.out_channels,
+        "exp_r": getattr(cfg.model, "mednext_exp_r", 4),
+        "kernel_size": getattr(cfg.model, "mednext_kernel_size", 7),
+        "deep_supervision": getattr(cfg.model, "deep_supervision", False),
+        "do_res": getattr(cfg.model, "mednext_do_res", True),
+        "do_res_up_down": getattr(cfg.model, "mednext_do_res_up_down", True),
+        "block_counts": getattr(cfg.model, "mednext_block_counts", [2, 2, 2, 2, 2, 2, 2, 2, 2]),
+        "checkpoint_style": getattr(cfg.model, "mednext_checkpoint_style", None),
+        "norm_type": getattr(cfg.model, "mednext_norm", "group"),
+        "dim": getattr(cfg.model, "mednext_dim", "3d"),
+        "grn": getattr(cfg.model, "mednext_grn", False),
     }
 
     # Validate parameters
-    if params['dim'] not in ['2d', '3d']:
+    if params["dim"] not in ["2d", "3d"]:
         raise ValueError(f"mednext_dim must be '2d' or '3d', got: {params['dim']}")
 
-    if params['norm_type'] not in ['group', 'layer']:
+    if params["norm_type"] not in ["group", "layer"]:
         raise ValueError(f"mednext_norm must be 'group' or 'layer', got: {params['norm_type']}")
 
-    if len(params['block_counts']) != 9:
+    if len(params["block_counts"]) != 9:
         raise ValueError(
             f"mednext_block_counts must have exactly 9 elements (one per level), "
             f"got {len(params['block_counts'])}"
@@ -255,11 +256,13 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
     # Build custom model
     model = MedNeXtBase(**params)
 
-    return MedNeXtWrapper(model, deep_supervision=params['deep_supervision'])
+    return MedNeXtWrapper(model, deep_supervision=params["deep_supervision"])
 
 
 # Utility function for UpKern weight loading
-def upkern_load_weights(target_model: MedNeXtWrapper, source_model: MedNeXtWrapper) -> MedNeXtWrapper:
+def upkern_load_weights(
+    target_model: MedNeXtWrapper, source_model: MedNeXtWrapper
+) -> MedNeXtWrapper:
     """
     Load weights from small kernel model to large kernel model using UpKern.
 
@@ -311,8 +314,8 @@ def upkern_load_weights(target_model: MedNeXtWrapper, source_model: MedNeXtWrapp
 
 
 __all__ = [
-    'MedNeXtWrapper',
-    'build_mednext',
-    'build_mednext_custom',
-    'upkern_load_weights',
+    "MedNeXtWrapper",
+    "build_mednext",
+    "build_mednext_custom",
+    "upkern_load_weights",
 ]

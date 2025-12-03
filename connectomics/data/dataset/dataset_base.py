@@ -19,7 +19,6 @@ from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
 
 
-
 class MonaiConnectomicsDataset(Dataset):
     """
     MONAI-native base dataset for all connectomics data loading scenarios.
@@ -51,7 +50,7 @@ class MonaiConnectomicsDataset(Dataset):
         data_dicts: Sequence[Dict[str, Any]],
         transforms: Optional[Compose] = None,
         sample_size: Tuple[int, int, int] = (32, 256, 256),
-        mode: str = 'train',
+        mode: str = "train",
         iter_num: int = -1,
         valid_ratio: float = 0.5,
         reject_size_thres: int = 0,
@@ -96,7 +95,7 @@ class MonaiConnectomicsDataset(Dataset):
         For training mode, implements rejection sampling to increase
         foreground sample frequency.
         """
-        if self.mode == 'train' and self.iter_num > 0:
+        if self.mode == "train" and self.iter_num > 0:
             # Rejection sampling for training
             return self._get_sample_with_rejection(index)
         else:
@@ -135,10 +134,10 @@ class MonaiConnectomicsDataset(Dataset):
             bool: True if sample is valid for training
         """
         # If no label, always accept (unsupervised case)
-        if 'label' not in sample:
+        if "label" not in sample:
             return True
 
-        label = sample['label']
+        label = sample["label"]
 
         # If label is still a string (path), skip validation (no transforms applied)
         if isinstance(label, str):
@@ -203,9 +202,9 @@ class MonaiCachedConnectomicsDataset(CacheDataset):
 
         # Store connectomics parameters
         self.connectomics_params = kwargs
-        self.sample_size = kwargs.get('sample_size', (32, 256, 256))
-        self.mode = kwargs.get('mode', 'train')
-        self.iter_num = kwargs.get('iter_num', -1)
+        self.sample_size = kwargs.get("sample_size", (32, 256, 256))
+        self.mode = kwargs.get("mode", "train")
+        self.iter_num = kwargs.get("iter_num", -1)
 
         # Calculate dataset length
         if self.iter_num > 0:
@@ -235,7 +234,7 @@ class MonaiPersistentConnectomicsDataset(PersistentDataset):
         self,
         data_dicts: Sequence[Dict[str, Any]],
         transforms: Optional[Compose] = None,
-        cache_dir: str = './cache',
+        cache_dir: str = "./cache",
         **kwargs,
     ):
         # Initialize MONAI PersistentDataset
@@ -247,9 +246,9 @@ class MonaiPersistentConnectomicsDataset(PersistentDataset):
 
         # Store connectomics parameters
         self.connectomics_params = kwargs
-        self.sample_size = kwargs.get('sample_size', (32, 256, 256))
-        self.mode = kwargs.get('mode', 'train')
-        self.iter_num = kwargs.get('iter_num', -1)
+        self.sample_size = kwargs.get("sample_size", (32, 256, 256))
+        self.mode = kwargs.get("mode", "train")
+        self.iter_num = kwargs.get("iter_num", -1)
 
         # Calculate dataset length
         if self.iter_num > 0:
@@ -262,7 +261,7 @@ class MonaiPersistentConnectomicsDataset(PersistentDataset):
 
 
 __all__ = [
-    'MonaiConnectomicsDataset',
-    'MonaiCachedConnectomicsDataset',
-    'MonaiPersistentConnectomicsDataset',
+    "MonaiConnectomicsDataset",
+    "MonaiCachedConnectomicsDataset",
+    "MonaiPersistentConnectomicsDataset",
 ]

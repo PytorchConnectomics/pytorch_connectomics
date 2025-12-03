@@ -27,17 +27,17 @@ from .metrics_skel import (
 
 __all__ = [
     # Segmentation metrics
-    'jaccard',
-    'get_binary_jaccard',
-    'adapted_rand',
-    'instance_matching',
-    'cremi_distance',
+    "jaccard",
+    "get_binary_jaccard",
+    "adapted_rand",
+    "instance_matching",
+    "cremi_distance",
     # Skeleton metrics
-    'compute_skeleton_metrics',
-    'compute_precision_recall',
-    'compute_iou',
-    'binarize_masks',
-    'evaluate_image_pair',
-    'evaluate_file_pair',
-    'evaluate_directory',
+    "compute_skeleton_metrics",
+    "compute_precision_recall",
+    "compute_iou",
+    "binarize_masks",
+    "evaluate_image_pair",
+    "evaluate_file_pair",
+    "evaluate_directory",
 ]

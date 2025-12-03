@@ -363,9 +363,7 @@ def create_datamodule(
         # Expand glob patterns for test data (same as train data)
         test_image_paths = expand_file_paths(cfg.test.data.test_image)
         test_label_paths = (
-            expand_file_paths(cfg.test.data.test_label)
-            if cfg.test.data.test_label
-            else None
+            expand_file_paths(cfg.test.data.test_label) if cfg.test.data.test_label else None
         )
         test_mask_paths = (
             expand_file_paths(cfg.test.data.test_mask)
@@ -384,22 +382,18 @@ def create_datamodule(
                 f"Tune mode requires tune.data.tune_image to be set in config.\n"
                 f"Current config has tune.data.tune_image: {cfg.tune.data.tune_image if hasattr(cfg, 'tune') and cfg.tune and hasattr(cfg.tune, 'data') else 'N/A'}"
             )
-        
+
         print(f"  🎯 Creating tune dataset from: {cfg.tune.data.tune_image}")
 
         # Expand glob patterns for tune data
         test_image_paths = expand_file_paths(cfg.tune.data.tune_image)
         test_label_paths = (
-            expand_file_paths(cfg.tune.data.tune_label)
-            if cfg.tune.data.tune_label
-            else None
+            expand_file_paths(cfg.tune.data.tune_label) if cfg.tune.data.tune_label else None
         )
         test_mask_paths = (
-            expand_file_paths(cfg.tune.data.tune_mask)
-            if cfg.tune.data.tune_mask
-            else None
+            expand_file_paths(cfg.tune.data.tune_mask) if cfg.tune.data.tune_mask else None
         )
-    
+
     # Common printing and data dict creation for test and tune modes
     if mode in ["test", "tune"]:
         mode_label = "Test" if mode == "test" else "Tune"
@@ -808,7 +802,7 @@ def modify_checkpoint_state(
     # Early return if no checkpoint or no resets requested
     if not checkpoint_path:
         return None
-    
+
     if not (reset_optimizer or reset_scheduler or reset_epoch or reset_early_stopping):
         return checkpoint_path
 
