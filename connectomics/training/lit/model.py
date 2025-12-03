@@ -70,14 +70,18 @@ class ConnectomicsModule(pl.LightningModule):
     ):
         super().__init__()
         self.cfg = cfg
-        self.save_hyperparameters(ignore=['model'])
+        self.save_hyperparameters(ignore=["model"])
 
         # Build model
         self.model = model if model is not None else self._build_model(cfg)
 
         # Build loss functions
         self.loss_functions = self._build_losses(cfg)
-        self.loss_weights = cfg.model.loss_weights if hasattr(cfg.model, 'loss_weights') else [1.0] * len(self.loss_functions)
+        self.loss_weights = (
+            cfg.model.loss_weights
+            if hasattr(cfg.model, "loss_weights")
+            else [1.0] * len(self.loss_functions)
+        )
         num_tasks = (
             len(cfg.model.multi_task_config)
             if hasattr(cfg.model, "multi_task_config") and cfg.model.multi_task_config is not None
@@ -86,13 +90,13 @@ class ConnectomicsModule(pl.LightningModule):
         self.loss_weighter = build_loss_weighter(cfg, num_tasks=num_tasks, model=self.model)
 
         # Enable inline NaN detection (can be disabled via config)
-        self.enable_nan_detection = getattr(cfg.model, 'enable_nan_detection', True)
-        self.debug_on_nan = getattr(cfg.model, 'debug_on_nan', True)
+        self.enable_nan_detection = getattr(cfg.model, "enable_nan_detection", True)
+        self.debug_on_nan = getattr(cfg.model, "debug_on_nan", True)
 
         # Activation clamping to prevent inf (can be configured)
-        self.clamp_activations = getattr(cfg.model, 'clamp_activations', False)
-        self.clamp_min = getattr(cfg.model, 'clamp_min', -10.0)
-        self.clamp_max = getattr(cfg.model, 'clamp_max', 10.0)
+        self.clamp_activations = getattr(cfg.model, "clamp_activations", False)
+        self.clamp_min = getattr(cfg.model, "clamp_min", -10.0)
+        self.clamp_max = getattr(cfg.model, "clamp_max", 10.0)
 
         # Initialize specialized handlers
         self.deep_supervision_handler = DeepSupervisionHandler(
@@ -127,8 +131,12 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _build_losses(self, cfg) -> nn.ModuleList:
         """Build loss functions from configuration."""
-        loss_names = cfg.model.loss_functions if hasattr(cfg.model, 'loss_functions') else ['DiceLoss']
-        loss_kwargs_list = cfg.model.loss_kwargs if hasattr(cfg.model, 'loss_kwargs') else [{}] * len(loss_names)
+        loss_names = (
+            cfg.model.loss_functions if hasattr(cfg.model, "loss_functions") else ["DiceLoss"]
+        )
+        loss_kwargs_list = (
+            cfg.model.loss_kwargs if hasattr(cfg.model, "loss_kwargs") else [{}] * len(loss_names)
+        )
 
         losses = nn.ModuleList()
         for loss_name, kwargs in zip(loss_names, loss_kwargs_list):
@@ -149,49 +157,64 @@ class ConnectomicsModule(pl.LightningModule):
         """Initialize test metrics based on test or inference config."""
         # Check test.evaluation first, then fall back to inference.evaluation
         evaluation_config = None
-        if hasattr(self.cfg, 'test') and self.cfg.test and hasattr(self.cfg.test, 'evaluation'):
+        if hasattr(self.cfg, "test") and self.cfg.test and hasattr(self.cfg.test, "evaluation"):
             evaluation_config = self.cfg.test.evaluation
-        elif hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
+        elif hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "evaluation"):
             evaluation_config = self.cfg.inference.evaluation
-        
+
         if not evaluation_config:
             return
 
         # Check if evaluation is enabled
-        enabled = evaluation_config.get('enabled', False) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'enabled', False)
+        enabled = (
+            evaluation_config.get("enabled", False)
+            if isinstance(evaluation_config, dict)
+            else getattr(evaluation_config, "enabled", False)
+        )
         if not enabled:
             return
 
-        metrics = evaluation_config.get('metrics', None) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'metrics', None)
+        metrics = (
+            evaluation_config.get("metrics", None)
+            if isinstance(evaluation_config, dict)
+            else getattr(evaluation_config, "metrics", None)
+        )
         if metrics is None:
             return
 
-        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
 
         # Create only the specified metrics
-        if 'jaccard' in metrics:
+        if "jaccard" in metrics:
             if num_classes == 1:
                 # Binary segmentation - use binary metrics
-                self.test_jaccard = torchmetrics.JaccardIndex(task='binary').to(self.device)
+                self.test_jaccard = torchmetrics.JaccardIndex(task="binary").to(self.device)
             else:
                 # Multi-class segmentation
-                self.test_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
-        if 'dice' in metrics:
+                self.test_jaccard = torchmetrics.JaccardIndex(
+                    task="multiclass", num_classes=num_classes
+                ).to(self.device)
+        if "dice" in metrics:
             if num_classes == 1:
                 # Binary segmentation - use binary metrics
-                self.test_dice = torchmetrics.Dice(task='binary').to(self.device)
+                self.test_dice = torchmetrics.Dice(task="binary").to(self.device)
             else:
                 # Multi-class segmentation
-                self.test_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
-        if 'accuracy' in metrics:
+                self.test_dice = torchmetrics.Dice(num_classes=num_classes, average="macro").to(
+                    self.device
+                )
+        if "accuracy" in metrics:
             if num_classes == 1:
                 # Binary segmentation - use binary metrics
-                self.test_accuracy = torchmetrics.Accuracy(task='binary').to(self.device)
+                self.test_accuracy = torchmetrics.Accuracy(task="binary").to(self.device)
             else:
                 # Multi-class segmentation
-                self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
-        if 'adapted_rand' in metrics:
+                self.test_accuracy = torchmetrics.Accuracy(
+                    task="multiclass", num_classes=num_classes
+                ).to(self.device)
+        if "adapted_rand" in metrics:
             from ...metrics.metrics_seg import AdaptedRandError
+
             self.test_adapted_rand = AdaptedRandError().to(self.device)
 
     def _invert_save_prediction_transform(self, data: np.ndarray) -> np.ndarray:
@@ -228,7 +251,9 @@ class ConnectomicsModule(pl.LightningModule):
 
         return data
 
-    def _resolve_test_output_config(self, batch: Dict[str, Any]) -> tuple[str, Optional[str], str, List[str]]:
+    def _resolve_test_output_config(
+        self, batch: Dict[str, Any]
+    ) -> tuple[str, Optional[str], str, List[str]]:
         """Determine mode, output dir, cache suffix, and filenames for test/tune."""
         mode = "test"
         output_dir_value = None
@@ -264,6 +289,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         for filename in filenames:
             from connectomics.data.io import read_hdf5
+
             pred_file = output_dir / f"{filename}{cache_suffix}"
             if not pred_file.exists() and mode == "test" and cache_suffix != "_tta_prediction.h5":
                 tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
@@ -318,32 +344,60 @@ class ConnectomicsModule(pl.LightningModule):
         else:
             pred_binary = (torch.sigmoid(pred_tensor) > 0.5).long()
 
-        labels_binary = (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
+        labels_binary = (
+            (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
+        )
 
         if hasattr(self, "test_jaccard") and self.test_jaccard is not None:
             self.test_jaccard.update(pred_binary, labels_binary)
-            self.log("test_jaccard", self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(
+                "test_jaccard",
+                self.test_jaccard,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+            )
 
         if hasattr(self, "test_dice") and self.test_dice is not None:
             self.test_dice.update(pred_binary, labels_binary)
-            self.log("test_dice", self.test_dice, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(
+                "test_dice",
+                self.test_dice,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+            )
 
         if hasattr(self, "test_accuracy") and self.test_accuracy is not None:
             self.test_accuracy.update(pred_binary, labels_binary)
-            self.log("test_accuracy", self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            self.log(
+                "test_accuracy",
+                self.test_accuracy,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+            )
 
-        if hasattr(self, "test_adapted_rand") and isinstance(self.test_adapted_rand, torchmetrics.Metric):
+        if hasattr(self, "test_adapted_rand") and isinstance(
+            self.test_adapted_rand, torchmetrics.Metric
+        ):
             self.test_adapted_rand.update(pred_binary.cpu(), labels_binary.cpu())
+
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
-        images = batch['image']
-        labels = batch['label']
+        images = batch["image"]
+        labels = batch["label"]
 
         # Forward pass
         outputs = self(images)
 
         # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+        is_deep_supervision = isinstance(outputs, dict) and any(
+            k.startswith("ds_") for k in outputs.keys()
+        )
 
         # Compute loss using deep supervision handler
         if is_deep_supervision:
@@ -356,20 +410,24 @@ class ConnectomicsModule(pl.LightningModule):
             )
 
         # Log losses (sync across GPUs for distributed training)
-        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log_dict(
+            loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True
+        )
 
         return total_loss
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Validation step with deep supervision support."""
-        images = batch['image']
-        labels = batch['label']
+        images = batch["image"]
+        labels = batch["label"]
 
         # Forward pass
         outputs = self(images)
 
         # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+        is_deep_supervision = isinstance(outputs, dict) and any(
+            k.startswith("ds_") for k in outputs.keys()
+        )
 
         # Compute loss using deep supervision handler
         if is_deep_supervision:
@@ -382,18 +440,21 @@ class ConnectomicsModule(pl.LightningModule):
             )
 
         # Compute evaluation metrics if enabled
-        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
-            if getattr(self.cfg.inference.evaluation, 'enabled', False):
-                metrics = getattr(self.cfg.inference.evaluation, 'metrics', None)
+        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "evaluation"):
+            if getattr(self.cfg.inference.evaluation, "enabled", False):
+                metrics = getattr(self.cfg.inference.evaluation, "metrics", None)
                 if metrics is not None:
                     # Get the main output for metric computation
                     if is_deep_supervision:
-                        main_output = outputs['output']
+                        main_output = outputs["output"]
                     else:
                         main_output = outputs
 
                     # Check if this is multi-task learning
-                    is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
+                    is_multi_task = (
+                        hasattr(self.cfg.model, "multi_task_config")
+                        and self.cfg.model.multi_task_config is not None
+                    )
 
                     # Convert logits/probabilities to predictions
                     if is_multi_task:
@@ -413,44 +474,82 @@ class ConnectomicsModule(pl.LightningModule):
                         targets = labels.squeeze(1).long()  # (B, D, H, W)
 
                     # Compute and log metrics
-                    if 'jaccard' in metrics:
-                        if not hasattr(self, 'val_jaccard'):
-                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                    if "jaccard" in metrics:
+                        if not hasattr(self, "val_jaccard"):
+                            num_classes = (
+                                self.cfg.model.out_channels
+                                if hasattr(self.cfg.model, "out_channels")
+                                else 2
+                            )
                             if num_classes == 1:
                                 # Binary segmentation - use binary metrics
-                                self.val_jaccard = torchmetrics.JaccardIndex(task='binary').to(self.device)
+                                self.val_jaccard = torchmetrics.JaccardIndex(task="binary").to(
+                                    self.device
+                                )
                             else:
                                 # Multi-class segmentation
-                                self.val_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
+                                self.val_jaccard = torchmetrics.JaccardIndex(
+                                    task="multiclass", num_classes=num_classes
+                                ).to(self.device)
                         self.val_jaccard(preds, targets)
-                        self.log('val_jaccard', self.val_jaccard, on_step=False, on_epoch=True, prog_bar=True)
+                        self.log(
+                            "val_jaccard",
+                            self.val_jaccard,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=True,
+                        )
 
-                    if 'dice' in metrics:
-                        if not hasattr(self, 'val_dice'):
-                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                    if "dice" in metrics:
+                        if not hasattr(self, "val_dice"):
+                            num_classes = (
+                                self.cfg.model.out_channels
+                                if hasattr(self.cfg.model, "out_channels")
+                                else 2
+                            )
                             if num_classes == 1:
                                 # Binary segmentation - use binary metrics
-                                self.val_dice = torchmetrics.Dice(task='binary').to(self.device)
+                                self.val_dice = torchmetrics.Dice(task="binary").to(self.device)
                             else:
                                 # Multi-class segmentation
-                                self.val_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
+                                self.val_dice = torchmetrics.Dice(
+                                    num_classes=num_classes, average="macro"
+                                ).to(self.device)
                         self.val_dice(preds, targets)
-                        self.log('val_dice', self.val_dice, on_step=False, on_epoch=True, prog_bar=True)
+                        self.log(
+                            "val_dice", self.val_dice, on_step=False, on_epoch=True, prog_bar=True
+                        )
 
-                    if 'accuracy' in metrics:
-                        if not hasattr(self, 'val_accuracy'):
-                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                    if "accuracy" in metrics:
+                        if not hasattr(self, "val_accuracy"):
+                            num_classes = (
+                                self.cfg.model.out_channels
+                                if hasattr(self.cfg.model, "out_channels")
+                                else 2
+                            )
                             if num_classes == 1:
                                 # Binary segmentation - use binary metrics
-                                self.val_accuracy = torchmetrics.Accuracy(task='binary').to(self.device)
+                                self.val_accuracy = torchmetrics.Accuracy(task="binary").to(
+                                    self.device
+                                )
                             else:
                                 # Multi-class segmentation
-                                self.val_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
+                                self.val_accuracy = torchmetrics.Accuracy(
+                                    task="multiclass", num_classes=num_classes
+                                ).to(self.device)
                         self.val_accuracy(preds, targets)
-                        self.log('val_accuracy', self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
+                        self.log(
+                            "val_accuracy",
+                            self.val_accuracy,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=True,
+                        )
 
         # Log losses (sync across GPUs for distributed training)
-        self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log_dict(
+            loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True
+        )
 
         return total_loss
 
@@ -459,7 +558,7 @@ class ConnectomicsModule(pl.LightningModule):
         self._setup_test_metrics()
 
         # Explicitly set eval mode if configured (Lightning does this by default, but be explicit)
-        if hasattr(self.cfg, 'inference') and getattr(self.cfg.inference, 'do_eval', True):
+        if hasattr(self.cfg, "inference") and getattr(self.cfg.inference, "do_eval", True):
             self.eval()
         else:
             # Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)
@@ -469,7 +568,12 @@ class ConnectomicsModule(pl.LightningModule):
         """Called at the end of testing to compute and log final metrics."""
         if self.test_adapted_rand and isinstance(self.test_adapted_rand, torchmetrics.Metric):
             try:
-                self.log('test_adapted_rand', self.test_adapted_rand.compute(), prog_bar=True, logger=True)
+                self.log(
+                    "test_adapted_rand",
+                    self.test_adapted_rand.compute(),
+                    prog_bar=True,
+                    logger=True,
+                )
             except Exception as e:
                 warnings.warn(f"Could not compute adapted rand metric: {e}", UserWarning)
 
@@ -497,7 +601,9 @@ class ConnectomicsModule(pl.LightningModule):
 
         # CASE 1: Final predictions exist → directly evaluate
         if loaded_final_predictions:
-            print(f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing")
+            print(
+                f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+            )
             if labels is not None:
                 self._compute_test_metrics(predictions_np, labels)
             return torch.tensor(0.0, device=self.device)
@@ -513,7 +619,9 @@ class ConnectomicsModule(pl.LightningModule):
             postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
 
             # Save final predictions
-            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
+            write_outputs(
+                self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode
+            )
 
             # Evaluate if labels provided
             if labels is not None:
@@ -535,7 +643,9 @@ class ConnectomicsModule(pl.LightningModule):
         if save_intermediate:
             # Apply intensity scaling and dtype conversion before saving
             predictions_to_save = apply_save_prediction_transform(self.cfg, predictions_np)
-            write_outputs(self.cfg, predictions_to_save, filenames, suffix="tta_prediction", mode=mode)
+            write_outputs(
+                self.cfg, predictions_to_save, filenames, suffix="tta_prediction", mode=mode
+            )
             print(f"  💾 Saved intermediate predictions")
 
         # Decode and postprocess
@@ -543,7 +653,9 @@ class ConnectomicsModule(pl.LightningModule):
         postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
 
         # Save final predictions
-        write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
+        write_outputs(
+            self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode
+        )
         print(f"  💾 Saved final predictions")
 
         # Evaluate if labels provided
@@ -563,15 +675,17 @@ class ConnectomicsModule(pl.LightningModule):
 
         if sched_cfg is not None:
             scheduler_name = getattr(sched_cfg, "name", None)
-            if scheduler_name is None or (isinstance(scheduler_name, str) and scheduler_name.lower() in ["none", "null"]):
+            if scheduler_name is None or (
+                isinstance(scheduler_name, str) and scheduler_name.lower() in ["none", "null"]
+            ):
                 return optimizer
 
             scheduler = build_lr_scheduler(self.cfg, optimizer)
 
             lr_scheduler_dict: Dict[str, Any] = {
-                'scheduler': scheduler,
-                'interval': 'epoch',
-                'frequency': 1,
+                "scheduler": scheduler,
+                "interval": "epoch",
+                "frequency": 1,
             }
 
             # ReduceLROnPlateau requires a monitor key
@@ -581,8 +695,8 @@ class ConnectomicsModule(pl.LightningModule):
                 lr_scheduler_dict["monitor"] = monitor
 
             return {
-                'optimizer': optimizer,
-                'lr_scheduler': lr_scheduler_dict,
+                "optimizer": optimizer,
+                "lr_scheduler": lr_scheduler_dict,
             }
 
         return optimizer
@@ -594,8 +708,8 @@ class ConnectomicsModule(pl.LightningModule):
             optimizer = self.optimizers()
             if isinstance(optimizer, list):
                 optimizer = optimizer[0]
-            lr = optimizer.param_groups[0]['lr']
-            self.log('lr', lr, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            lr = optimizer.param_groups[0]["lr"]
+            self.log("lr", lr, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
 
 def create_lightning_module(

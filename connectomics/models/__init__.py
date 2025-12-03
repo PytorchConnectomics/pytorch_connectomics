@@ -17,13 +17,12 @@ from .loss import (
 
 __all__ = [
     # Model building
-    'build_model',
-    'update_state_dict',
-
+    "build_model",
+    "update_state_dict",
     # Loss functions
-    'create_loss',
-    'create_combined_loss',
-    'create_loss_from_config',
-    'create_binary_segmentation_loss',
-    'create_multiclass_segmentation_loss',
+    "create_loss",
+    "create_combined_loss",
+    "create_loss_from_config",
+    "create_binary_segmentation_loss",
+    "create_multiclass_segmentation_loss",
 ]

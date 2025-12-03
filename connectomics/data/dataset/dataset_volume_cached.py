@@ -16,9 +16,7 @@ from monai.utils import ensure_tuple_rep
 from ..io import read_volume
 
 
-def crop_volume(
-    volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...]
-) -> np.ndarray:
+def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...]) -> np.ndarray:
     """
     Crop a subvolume from a volume using numpy slicing (fast!).
 
@@ -137,7 +135,9 @@ class CachedVolumeDataset(Dataset):
 
                 # Apply padding if specified (same padding as image)
                 if self.pad_size is not None:
-                    lbl = self._apply_padding(lbl, mode='constant', constant_values=0)  # Use constant 0 for labels
+                    lbl = self._apply_padding(
+                        lbl, mode="constant", constant_values=0
+                    )  # Use constant 0 for labels
 
                 self.cached_labels.append(lbl)
             else:
@@ -151,7 +151,7 @@ class CachedVolumeDataset(Dataset):
 
                 # Apply padding if specified (same padding as label)
                 if self.pad_size is not None:
-                    mask = self._apply_padding(mask, mode='constant', constant_values=0)
+                    mask = self._apply_padding(mask, mode="constant", constant_values=0)
 
                 self.cached_masks.append(mask)
             else:
@@ -193,7 +193,7 @@ class CachedVolumeDataset(Dataset):
             pad_width.append((p, p))
 
         # Apply padding using np.pad
-        if mode == 'constant':
+        if mode == "constant":
             padded = np.pad(volume, pad_width, mode=mode, constant_values=constant_values)
         else:
             padded = np.pad(volume, pad_width, mode=mode)
@@ -219,8 +219,7 @@ class CachedVolumeDataset(Dataset):
         # Random position ensuring crop fits within volume
         # Support both 2D and 3D
         positions = tuple(
-            random.randint(0, max(0, vol_size[i] - patch_size[i]))
-            for i in range(len(patch_size))
+            random.randint(0, max(0, vol_size[i] - patch_size[i])) for i in range(len(patch_size))
         )
         return positions
 
@@ -240,8 +239,7 @@ class CachedVolumeDataset(Dataset):
         # Center position for each dimension
         # Support both 2D and 3D
         positions = tuple(
-            max(0, (vol_size[i] - patch_size[i]) // 2)
-            for i in range(len(patch_size))
+            max(0, (vol_size[i] - patch_size[i]) // 2) for i in range(len(patch_size))
         )
         return positions
 

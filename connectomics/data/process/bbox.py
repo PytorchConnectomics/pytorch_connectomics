@@ -7,23 +7,23 @@ import numpy as np
 from scipy.ndimage import find_objects
 
 __all__ = [
-    'bbox_ND',
-    'bbox_relax',
-    'adjust_bbox',
-    'index2bbox',
-    'crop_ND',
-    'replace_ND',
-    'crop_pad_data',
-    'rand_window',
-    'compute_bbox_all',
-    'compute_bbox_all_2d',
-    'compute_bbox_all_3d',
+    "bbox_ND",
+    "bbox_relax",
+    "adjust_bbox",
+    "index2bbox",
+    "crop_ND",
+    "replace_ND",
+    "crop_pad_data",
+    "rand_window",
+    "compute_bbox_all",
+    "compute_bbox_all_2d",
+    "compute_bbox_all_3d",
 ]
 
 
 def bbox_ND(img: np.ndarray, relax: int = 0) -> tuple:
-    """Calculate the bounding box of an object in a N-dimensional numpy array. 
-    All non-zero elements are treated as foregounrd. Please note that the 
+    """Calculate the bounding box of an object in a N-dimensional numpy array.
+    All non-zero elements are treated as foregounrd. Please note that the
     calculated bounding-box coordinates are inclusive.
     Reference: https://stackoverflow.com/a/31402351
 
@@ -43,14 +43,12 @@ def bbox_ND(img: np.ndarray, relax: int = 0) -> tuple:
     return bbox_relax(out, img.shape, relax)
 
 
-def bbox_relax(coord: Union[tuple, list], 
-               shape: tuple, 
-               relax: int = 0) -> tuple:
+def bbox_relax(coord: Union[tuple, list], shape: tuple, relax: int = 0) -> tuple:
     assert len(coord) == len(shape) * 2
     coord = list(coord)
     for i in range(len(shape)):
-        coord[2*i] = max(0, coord[2*i]-relax)
-        coord[2*i+1] = min(shape[i], coord[2*i+1]+relax)
+        coord[2 * i] = max(0, coord[2 * i] - relax)
+        coord[2 * i + 1] = min(shape[i], coord[2 * i + 1] + relax)
 
     return tuple(coord)
 
@@ -65,21 +63,20 @@ def adjust_bbox(low, high, sz):
     return low - diff, low - diff + sz
 
 
-def index2bbox(seg: np.ndarray, indices: list, relax: int = 0,
-               iterative: bool = False) -> dict:
-    """Calculate the bounding boxes associated with the given mask indices. 
+def index2bbox(seg: np.ndarray, indices: list, relax: int = 0, iterative: bool = False) -> dict:
+    """Calculate the bounding boxes associated with the given mask indices.
     For a small number of indices, the iterative approach may be preferred.
 
     Note:
         Since labels with value 0 are ignored in ``scipy.ndimage.find_objects``,
-        the first tuple in the output list is associated with label index 1. 
+        the first tuple in the output list is associated with label index 1.
     """
     bbox_dict = OrderedDict()
 
     if iterative:
         # calculate the bounding boxes of each segment iteratively
         for idx in indices:
-            temp = (seg == idx) # binary mask of the current seg
+            temp = seg == idx  # binary mask of the current seg
             bbox = bbox_ND(temp, relax=relax)
             bbox_dict[idx] = bbox
         return bbox_dict
@@ -89,18 +86,18 @@ def index2bbox(seg: np.ndarray, indices: list, relax: int = 0,
     seg_shape = seg.shape
     for idx, item in enumerate(loc):
         if item is None:
-            # For scipy.ndimage.find_objects, if a number is 
+            # For scipy.ndimage.find_objects, if a number is
             # missing, None is returned instead of a slice.
             continue
 
-        object_idx = idx + 1 # 0 is ignored in find_objects
+        object_idx = idx + 1  # 0 is ignored in find_objects
         if object_idx not in indices:
             continue
 
         bbox = []
-        for x in item: # slice() object
+        for x in item:  # slice() object
             bbox.append(x.start)
-            bbox.append(x.stop-1) # bbox is inclusive by definition
+            bbox.append(x.stop - 1)  # bbox is inclusive by definition
         bbox_dict[object_idx] = bbox_relax(bbox, seg_shape, relax)
     return bbox_dict
 
@@ -109,33 +106,37 @@ def _coord2slice(coord: Tuple[int], ndim: int, end_included: bool = False):
     assert len(coord) == ndim * 2
     slicing = []
     for i in range(ndim):
-        start = coord[2*i]
-        end = coord[2*i+1] + 1 if end_included else coord[2*i+1]
+        start = coord[2 * i]
+        end = coord[2 * i + 1] + 1 if end_included else coord[2 * i + 1]
         slicing.append(slice(start, end))
     slicing = tuple(slicing)
     return slicing
 
 
-def crop_ND(img: np.ndarray, coord: Tuple[int], 
-            end_included: bool = False) -> np.ndarray:
-    """Crop a chunk from a N-dimensional array based on the 
+def crop_ND(img: np.ndarray, coord: Tuple[int], end_included: bool = False) -> np.ndarray:
+    """Crop a chunk from a N-dimensional array based on the
     bounding box coordinates.
     """
     slicing = _coord2slice(coord, img.ndim, end_included)
     return img[slicing].copy()
 
 
-def replace_ND(img: np.ndarray, replacement: np.ndarray, coord: Tuple[int], 
-               end_included: bool = False, overwrite_bg: bool = False) -> np.ndarray:
-    """Replace a chunk from a N-dimensional array based on the 
+def replace_ND(
+    img: np.ndarray,
+    replacement: np.ndarray,
+    coord: Tuple[int],
+    end_included: bool = False,
+    overwrite_bg: bool = False,
+) -> np.ndarray:
+    """Replace a chunk from a N-dimensional array based on the
     bounding box coordinates.
     """
     slicing = _coord2slice(coord, img.ndim, end_included)
 
-    if not overwrite_bg: # only overwrite foreground pixels
+    if not overwrite_bg:  # only overwrite foreground pixels
         temp = img[slicing].copy()
-        mask_fg = (replacement!=0).astype(temp.dtype)
-        mask_bg = (replacement==0).astype(temp.dtype)
+        mask_fg = (replacement != 0).astype(temp.dtype)
+        mask_bg = (replacement == 0).astype(temp.dtype)
         replacement = replacement * mask_fg + temp * mask_bg
 
     img[slicing] = replacement
@@ -143,8 +144,7 @@ def replace_ND(img: np.ndarray, replacement: np.ndarray, coord: Tuple[int],
 
 
 def crop_pad_data(data, z, bbox_2d, pad_val=0, mask=None, return_box=False):
-    """Crop a 2D patch from 3D volume given the z index and 2d bbox.
-    """
+    """Crop a 2D patch from 3D volume given the z index and 2d bbox."""
     sz = data.shape[1:]
     y1o, y2o, x1o, x2o = bbox_2d  # region to crop
     y1m, y2m, x1m, x2m = 0, sz[0], 0, sz[1]
@@ -158,8 +158,7 @@ def crop_pad_data(data, z, bbox_2d, pad_val=0, mask=None, return_box=False):
 
     pad = ((y1 - y1o, y2o - y2), (x1 - x1o, x2o - x2))
     if not all(v == 0 for v in pad):
-        cropped = np.pad(cropped, pad, mode='constant',
-                         constant_values=pad_val)
+        cropped = np.pad(cropped, pad, mode="constant", constant_values=pad_val)
 
     if not return_box:
         return cropped
@@ -168,27 +167,29 @@ def crop_pad_data(data, z, bbox_2d, pad_val=0, mask=None, return_box=False):
 
 
 def rand_window(w0, w1, sz, rand_shift: int = 0):
-    assert (w1 >= w0)
-    diff = np.abs((w1-w0)-sz)
-    if (w1-w0) <= sz:
-        if rand_shift > 0: # random shift augmentation
-            start_l = max(w0-diff//2-rand_shift, w1-sz)
-            start_r = min(w0, w0-diff//2+rand_shift)
+    assert w1 >= w0
+    diff = np.abs((w1 - w0) - sz)
+    if (w1 - w0) <= sz:
+        if rand_shift > 0:  # random shift augmentation
+            start_l = max(w0 - diff // 2 - rand_shift, w1 - sz)
+            start_r = min(w0, w0 - diff // 2 + rand_shift)
             low = np.random.randint(start_l, start_r)
         else:
-            low = w0 - diff//2 
+            low = w0 - diff // 2
     else:
-        if rand_shift > 0: # random shift augmentation
-            start_l = max(w0, w0+diff//2-rand_shift)
-            start_r = min(w0+diff//2+rand_shift, w1-sz)
+        if rand_shift > 0:  # random shift augmentation
+            start_l = max(w0, w0 + diff // 2 - rand_shift)
+            start_r = min(w0 + diff // 2 + rand_shift, w1 - sz)
             low = np.random.randint(start_l, start_r)
         else:
-            low = w0 + diff//2 
-    high = low + sz    
+            low = w0 + diff // 2
+    high = low + sz
     return low, high
 
 
-def compute_bbox_all(seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+def compute_bbox_all(
+    seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None
+) -> Optional[np.ndarray]:
     """
     Compute the bounding boxes of segments in a segmentation map.
 
@@ -208,7 +209,7 @@ def compute_bbox_all(seg: np.ndarray, do_count: bool = False, uid: Optional[np.n
         - The bounding boxes represent the minimum and maximum coordinates of each segment in the map.
         - The function can compute the segment counts if `do_count` is set to True.
         - The bounding boxes are returned as an array.
-    """    
+    """
     if seg.ndim == 2:
         return compute_bbox_all_2d(seg, do_count, uid)
     elif seg.ndim == 3:
@@ -217,7 +218,9 @@ def compute_bbox_all(seg: np.ndarray, do_count: bool = False, uid: Optional[np.n
         raise ValueError("Input volume should be either 2D or 3D")
 
 
-def compute_bbox_all_2d(seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+def compute_bbox_all_2d(
+    seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None
+) -> Optional[np.ndarray]:
     """
     Compute the bounding boxes of 2D instance segmentation.
 
@@ -237,7 +240,7 @@ def compute_bbox_all_2d(seg: np.ndarray, do_count: bool = False, uid: Optional[n
             - count (optional): The count of pixels belonging to the instance.
         - If the `uid` argument is not provided, the unique identifiers are automatically determined from the segmentation.
         - Instances with no pixels are excluded from the output.
-    """        
+    """
     sz = seg.shape
     assert len(sz) == 2
     if uid is None:
@@ -277,7 +280,9 @@ def compute_bbox_all_2d(seg: np.ndarray, do_count: bool = False, uid: Optional[n
     return out
 
 
-def compute_bbox_all_3d(seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None) -> Optional[np.ndarray]:
+def compute_bbox_all_3d(
+    seg: np.ndarray, do_count: bool = False, uid: Optional[np.ndarray] = None
+) -> Optional[np.ndarray]:
     """
     Compute the bounding boxes of 3D instance segmentation.
 

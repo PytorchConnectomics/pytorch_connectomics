@@ -29,20 +29,20 @@ from .dataset_tile import (
 
 __all__ = [
     # Data dict creation
-    'create_data_dicts_from_paths',
-    'create_volume_data_dicts',
-    'create_tile_data_dicts_from_json',
-    
+    "create_data_dicts_from_paths",
+    "create_volume_data_dicts",
+    "create_tile_data_dicts_from_json",
     # Dataset creation
-    'create_connectomics_dataset',
-    'create_volume_dataset',
-    'create_tile_dataset',
+    "create_connectomics_dataset",
+    "create_volume_dataset",
+    "create_tile_dataset",
 ]
 
 
 # ============================================================================
 # Data Dictionary Creation
 # ============================================================================
+
 
 def create_data_dicts_from_paths(
     image_paths: List[str],
@@ -59,7 +59,7 @@ def create_data_dicts_from_paths(
 
     Returns:
         List of dictionaries with 'image', 'label', and/or 'mask' keys
-        
+
     Examples:
         >>> image_paths = ['img1.h5', 'img2.h5']
         >>> label_paths = ['lbl1.h5', 'lbl2.h5']
@@ -69,13 +69,13 @@ def create_data_dicts_from_paths(
     data_dicts = []
 
     for i, image_path in enumerate(image_paths):
-        data_dict = {'image': image_path}
+        data_dict = {"image": image_path}
 
         if label_paths is not None:
-            data_dict['label'] = label_paths[i]
+            data_dict["label"] = label_paths[i]
 
         if mask_paths is not None:
-            data_dict['mask'] = mask_paths[i]
+            data_dict["mask"] = mask_paths[i]
 
         data_dicts.append(data_dict)
 
@@ -100,7 +100,7 @@ def create_volume_data_dicts(
 
     Returns:
         List of MONAI-style data dictionaries
-        
+
     Examples:
         >>> data_dicts = create_volume_data_dicts(['vol1.tif'], ['lbl1.tif'])
     """
@@ -195,11 +195,11 @@ def create_tile_data_dicts_from_json(
     if not volume_path.exists():
         raise FileNotFoundError(f"Volume JSON file not found: {volume_json}")
 
-    with open(volume_path, 'r') as f:
+    with open(volume_path, "r") as f:
         volume_metadata = json.load(f)
 
     # Validate required fields
-    required_fields = ['depth', 'height', 'width']
+    required_fields = ["depth", "height", "width"]
     missing_fields = [field for field in required_fields if field not in volume_metadata]
     if missing_fields:
         raise KeyError(
@@ -213,7 +213,7 @@ def create_tile_data_dicts_from_json(
         label_path = Path(label_json)
         if not label_path.exists():
             raise FileNotFoundError(f"Label JSON file not found: {label_json}")
-        with open(label_path, 'r') as f:
+        with open(label_path, "r") as f:
             label_metadata = json.load(f)
 
     # Load mask metadata if provided
@@ -222,7 +222,7 @@ def create_tile_data_dicts_from_json(
         mask_path = Path(mask_json)
         if not mask_path.exists():
             raise FileNotFoundError(f"Mask JSON file not found: {mask_json}")
-        with open(mask_path, 'r') as f:
+        with open(mask_path, "r") as f:
             mask_metadata = json.load(f)
 
     # Calculate chunk indices if not provided
@@ -232,29 +232,29 @@ def create_tile_data_dicts_from_json(
     # Create data dictionaries for each chunk
     data_dicts = []
     for chunk_info in chunk_indices:
-        chunk_id = chunk_info['chunk_id']
-        coords = chunk_info['coords']
+        chunk_id = chunk_info["chunk_id"]
+        coords = chunk_info["coords"]
 
         data_dict = {
-            'image': {
-                'metadata': volume_metadata,
-                'chunk_coords': coords,
-                'chunk_id': chunk_id,
+            "image": {
+                "metadata": volume_metadata,
+                "chunk_coords": coords,
+                "chunk_id": chunk_id,
             },
         }
 
         if label_metadata is not None:
-            data_dict['label'] = {
-                'metadata': label_metadata,
-                'chunk_coords': coords,
-                'chunk_id': chunk_id,
+            data_dict["label"] = {
+                "metadata": label_metadata,
+                "chunk_coords": coords,
+                "chunk_id": chunk_id,
             }
 
         if mask_metadata is not None:
-            data_dict['mask'] = {
-                'metadata': mask_metadata,
-                'chunk_coords': coords,
-                'chunk_id': chunk_id,
+            data_dict["mask"] = {
+                "metadata": mask_metadata,
+                "chunk_coords": coords,
+                "chunk_id": chunk_id,
             }
 
         data_dicts.append(data_dict)
@@ -281,9 +281,9 @@ def _calculate_chunk_indices(
             - 'coords': Tuple of (z_start, z_end, y_start, y_end, x_start, x_end)
     """
     # Get volume dimensions
-    depth = volume_metadata['depth']
-    height = volume_metadata['height']
-    width = volume_metadata['width']
+    depth = volume_metadata["depth"]
+    height = volume_metadata["height"]
+    width = volume_metadata["width"]
 
     # Calculate chunk sizes
     chunk_z = depth // chunk_num[0]
@@ -302,10 +302,12 @@ def _calculate_chunk_indices(
                 x_start = x * chunk_x
                 x_end = min((x + 1) * chunk_x, width)
 
-                chunk_indices.append({
-                    'chunk_id': (z, y, x),
-                    'coords': (z_start, z_end, y_start, y_end, x_start, x_end),
-                })
+                chunk_indices.append(
+                    {
+                        "chunk_id": (z, y, x),
+                        "coords": (z_start, z_end, y_start, y_end, x_start, x_end),
+                    }
+                )
 
     return chunk_indices
 
@@ -314,12 +316,15 @@ def _calculate_chunk_indices(
 # Dataset Creation - Base
 # ============================================================================
 
+
 def create_connectomics_dataset(
     data_dicts: Sequence[Dict[str, Any]],
     transforms: Optional[Compose] = None,
-    dataset_type: str = 'standard',
+    dataset_type: str = "standard",
     **kwargs,
-) -> Union[MonaiConnectomicsDataset, MonaiCachedConnectomicsDataset, MonaiPersistentConnectomicsDataset]:
+) -> Union[
+    MonaiConnectomicsDataset, MonaiCachedConnectomicsDataset, MonaiPersistentConnectomicsDataset
+]:
     """
     Factory function to create appropriate MONAI connectomics dataset.
 
@@ -331,20 +336,20 @@ def create_connectomics_dataset(
 
     Returns:
         Appropriate MONAI connectomics dataset instance
-        
+
     Examples:
         >>> data_dicts = create_data_dicts_from_paths(['img.h5'], ['lbl.h5'])
         >>> dataset = create_connectomics_dataset(
         ...     data_dicts, transforms=my_transforms, dataset_type='cached'
         ... )
     """
-    if dataset_type == 'cached':
+    if dataset_type == "cached":
         return MonaiCachedConnectomicsDataset(
             data_dicts=data_dicts,
             transforms=transforms,
             **kwargs,
         )
-    elif dataset_type == 'persistent':
+    elif dataset_type == "persistent":
         return MonaiPersistentConnectomicsDataset(
             data_dicts=data_dicts,
             transforms=transforms,
@@ -362,12 +367,13 @@ def create_connectomics_dataset(
 # Dataset Creation - Volume
 # ============================================================================
 
+
 def create_volume_dataset(
     image_paths: List[str],
     label_paths: Optional[List[str]] = None,
     mask_paths: Optional[List[str]] = None,
     transforms: Optional[Compose] = None,
-    dataset_type: str = 'standard',
+    dataset_type: str = "standard",
     cache_rate: float = 1.0,
     **kwargs,
 ) -> Union[MonaiVolumeDataset, MonaiCachedVolumeDataset]:
@@ -385,7 +391,7 @@ def create_volume_dataset(
 
     Returns:
         Appropriate MONAI volume dataset instance
-        
+
     Examples:
         >>> dataset = create_volume_dataset(
         ...     image_paths=['train_img.tif'],
@@ -395,7 +401,7 @@ def create_volume_dataset(
         ...     cache_rate=1.0,
         ... )
     """
-    if dataset_type == 'cached':
+    if dataset_type == "cached":
         return MonaiCachedVolumeDataset(
             image_paths=image_paths,
             label_paths=label_paths,
@@ -418,12 +424,13 @@ def create_volume_dataset(
 # Dataset Creation - Tile
 # ============================================================================
 
+
 def create_tile_dataset(
     volume_json: str,
     label_json: Optional[str] = None,
     mask_json: Optional[str] = None,
     transforms: Optional[Compose] = None,
-    dataset_type: str = 'standard',
+    dataset_type: str = "standard",
     cache_rate: float = 1.0,
     **kwargs,
 ) -> Union[MonaiTileDataset, MonaiCachedTileDataset]:
@@ -441,7 +448,7 @@ def create_tile_dataset(
 
     Returns:
         Appropriate MONAI tile dataset instance
-        
+
     Examples:
         >>> dataset = create_tile_dataset(
         ...     volume_json='tiles.json',
@@ -450,7 +457,7 @@ def create_tile_dataset(
         ...     dataset_type='cached',
         ... )
     """
-    if dataset_type == 'cached':
+    if dataset_type == "cached":
         return MonaiCachedTileDataset(
             volume_json=volume_json,
             label_json=label_json,

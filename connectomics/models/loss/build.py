@@ -42,10 +42,7 @@ from .regularization import (
 )
 
 
-def create_loss(
-    loss_name: str,
-    **kwargs
-) -> nn.Module:
+def create_loss(loss_name: str, **kwargs) -> nn.Module:
     """
     Create a single loss function by name.
 
@@ -64,41 +61,35 @@ def create_loss(
     # Map loss names to MONAI/custom loss classes
     loss_registry = {
         # MONAI Dice variants
-        'DiceLoss': DiceLoss,
-        'DiceCELoss': DiceCELoss,
-        'DiceFocalLoss': DiceFocalLoss,
-        'GeneralizedDiceLoss': GeneralizedDiceLoss,
-
+        "DiceLoss": DiceLoss,
+        "DiceCELoss": DiceCELoss,
+        "DiceFocalLoss": DiceFocalLoss,
+        "GeneralizedDiceLoss": GeneralizedDiceLoss,
         # MONAI other losses
-        'FocalLoss': FocalLoss,
-        'TverskyLoss': TverskyLoss,
-
+        "FocalLoss": FocalLoss,
+        "TverskyLoss": TverskyLoss,
         # PyTorch standard losses (for convenience)
-        'BCEWithLogitsLoss': nn.BCEWithLogitsLoss,
-        'CrossEntropyLoss': CrossEntropyLossWrapper,  # Use wrapper for shape handling
-        'MSELoss': nn.MSELoss,
-        'L1Loss': nn.L1Loss,
-        'SmoothL1Loss': SmoothL1Loss,
-
+        "BCEWithLogitsLoss": nn.BCEWithLogitsLoss,
+        "CrossEntropyLoss": CrossEntropyLossWrapper,  # Use wrapper for shape handling
+        "MSELoss": nn.MSELoss,
+        "L1Loss": nn.L1Loss,
+        "SmoothL1Loss": SmoothL1Loss,
         # Custom connectomics losses
-        'WeightedBCEWithLogitsLoss': WeightedBCEWithLogitsLoss,
-        'WeightedMSELoss': WeightedMSELoss,
-        'WeightedMAELoss': WeightedMAELoss,
-        'GANLoss': GANLoss,
-
+        "WeightedBCEWithLogitsLoss": WeightedBCEWithLogitsLoss,
+        "WeightedMSELoss": WeightedMSELoss,
+        "WeightedMAELoss": WeightedMAELoss,
+        "GANLoss": GANLoss,
         # Regularization losses
-        'BinaryRegularization': BinaryRegularization,
-        'ForegroundDistanceConsistency': ForegroundDistanceConsistency,
-        'ContourDistanceConsistency': ContourDistanceConsistency,
-        'ForegroundContourConsistency': ForegroundContourConsistency,
-        'NonOverlapRegularization': NonOverlapRegularization,
+        "BinaryRegularization": BinaryRegularization,
+        "ForegroundDistanceConsistency": ForegroundDistanceConsistency,
+        "ContourDistanceConsistency": ContourDistanceConsistency,
+        "ForegroundContourConsistency": ForegroundContourConsistency,
+        "NonOverlapRegularization": NonOverlapRegularization,
     }
 
     if loss_name not in loss_registry:
         available = list(loss_registry.keys())
-        raise ValueError(
-            f"Unknown loss: {loss_name}. Available losses: {available}"
-        )
+        raise ValueError(f"Unknown loss: {loss_name}. Available losses: {available}")
 
     return loss_registry[loss_name](**kwargs)
 
@@ -177,10 +168,9 @@ def create_combined_loss(
             return total_loss
 
         def __repr__(self):
-            loss_str = ", ".join([
-                f"{name}(weight={w:.2f})"
-                for name, w in zip(self.loss_names, self.weights)
-            ])
+            loss_str = ", ".join(
+                [f"{name}(weight={w:.2f})" for name, w in zip(self.loss_names, self.weights)]
+            )
             return f"CombinedLoss({loss_str})"
 
     # Create individual loss functions
@@ -211,7 +201,7 @@ def create_loss_from_config(cfg) -> nn.Module:
 
     # Check if loss_kwargs is available in config
     loss_kwargs = None
-    if hasattr(cfg.model, 'loss_kwargs'):
+    if hasattr(cfg.model, "loss_kwargs"):
         loss_kwargs = cfg.model.loss_kwargs
 
     return create_combined_loss(
@@ -239,12 +229,12 @@ def create_binary_segmentation_loss(
         Combined DiceLoss + BCEWithLogitsLoss
     """
     return create_combined_loss(
-        loss_names=['DiceLoss', 'BCEWithLogitsLoss'],
+        loss_names=["DiceLoss", "BCEWithLogitsLoss"],
         loss_weights=[dice_weight, bce_weight],
         loss_kwargs=[
-            {'include_background': include_background, 'sigmoid': True},
+            {"include_background": include_background, "sigmoid": True},
             {},
-        ]
+        ],
     )
 
 
@@ -267,16 +257,16 @@ def create_multiclass_segmentation_loss(
         Combined DiceLoss + CrossEntropyLoss
     """
     return create_combined_loss(
-        loss_names=['DiceLoss', 'CrossEntropyLoss'],
+        loss_names=["DiceLoss", "CrossEntropyLoss"],
         loss_weights=[dice_weight, ce_weight],
         loss_kwargs=[
             {
-                'include_background': include_background,
-                'to_onehot_y': True,
-                'softmax': True,
+                "include_background": include_background,
+                "to_onehot_y": True,
+                "softmax": True,
             },
             {},
-        ]
+        ],
     )
 
 
@@ -294,32 +284,43 @@ def create_focal_loss(
     Returns:
         FocalLoss
     """
-    return create_loss('FocalLoss', gamma=gamma, alpha=alpha)
+    return create_loss("FocalLoss", gamma=gamma, alpha=alpha)
 
 
 def list_available_losses() -> List[str]:
     """List all available loss functions."""
     return [
         # MONAI losses
-        'DiceLoss', 'DiceCELoss', 'DiceFocalLoss', 'GeneralizedDiceLoss',
-        'FocalLoss', 'TverskyLoss',
+        "DiceLoss",
+        "DiceCELoss",
+        "DiceFocalLoss",
+        "GeneralizedDiceLoss",
+        "FocalLoss",
+        "TverskyLoss",
         # PyTorch losses
-        'BCEWithLogitsLoss', 'CrossEntropyLoss', 'MSELoss', 'L1Loss',
+        "BCEWithLogitsLoss",
+        "CrossEntropyLoss",
+        "MSELoss",
+        "L1Loss",
         # Custom losses
-        'WeightedMSELoss', 'WeightedMAELoss', 'GANLoss',
+        "WeightedMSELoss",
+        "WeightedMAELoss",
+        "GANLoss",
         # Regularization losses
-        'BinaryRegularization', 'ForegroundDistanceConsistency',
-        'ContourDistanceConsistency', 'ForegroundContourConsistency',
-        'NonOverlapRegularization',
+        "BinaryRegularization",
+        "ForegroundDistanceConsistency",
+        "ContourDistanceConsistency",
+        "ForegroundContourConsistency",
+        "NonOverlapRegularization",
     ]
 
 
 __all__ = [
-    'create_loss',
-    'create_combined_loss',
-    'create_loss_from_config',
-    'create_binary_segmentation_loss',
-    'create_multiclass_segmentation_loss',
-    'create_focal_loss',
-    'list_available_losses',
+    "create_loss",
+    "create_combined_loss",
+    "create_loss_from_config",
+    "create_binary_segmentation_loss",
+    "create_multiclass_segmentation_loss",
+    "create_focal_loss",
+    "list_available_losses",
 ]

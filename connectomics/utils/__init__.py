@@ -21,6 +21,6 @@ from .visualizer import *
 
 __all__ = [
     # Visualizer
-    'Visualizer',
-    'LightningVisualizer',
+    "Visualizer",
+    "LightningVisualizer",
 ]

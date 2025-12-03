@@ -234,7 +234,9 @@ def preflight_check(cfg) -> list:
                 # Expand glob pattern
                 matched_files = glob(cfg.data.train_image)
                 if not matched_files:
-                    issues.append(f"❌ Training image pattern matched no files: {cfg.data.train_image}")
+                    issues.append(
+                        f"❌ Training image pattern matched no files: {cfg.data.train_image}"
+                    )
             elif not Path(cfg.data.train_image).exists():
                 issues.append(f"❌ Training image not found: {cfg.data.train_image}")
 
@@ -257,7 +259,9 @@ def preflight_check(cfg) -> list:
                 # Expand glob pattern
                 matched_files = glob(cfg.data.train_label)
                 if not matched_files:
-                    issues.append(f"❌ Training label pattern matched no files: {cfg.data.train_label}")
+                    issues.append(
+                        f"❌ Training label pattern matched no files: {cfg.data.train_label}"
+                    )
             elif not Path(cfg.data.train_label).exists():
                 issues.append(f"❌ Training label not found: {cfg.data.train_label}")
 

@@ -16,10 +16,11 @@ def im_to_col(volume, kernel_size, stride=1):
     # Parameters
     M, N = volume.shape
     # Get Starting block indices
-    start_idx = np.arange(
-        0, M-kernel_size[0]+1, stride)[:, None]*N + np.arange(0, N-kernel_size[1]+1, stride)
+    start_idx = np.arange(0, M - kernel_size[0] + 1, stride)[:, None] * N + np.arange(
+        0, N - kernel_size[1] + 1, stride
+    )
     # Get offsetted indices across the height and width of input array
-    offset_idx = np.arange(kernel_size[0])[:, None]*N + np.arange(kernel_size[1])
+    offset_idx = np.arange(kernel_size[0])[:, None] * N + np.arange(kernel_size[1])
     # Get all actual indices & index into input array for final output
     return np.take(volume, start_idx.ravel()[:, None] + offset_idx.ravel())
 
@@ -29,21 +30,21 @@ def seg_erosion_instance(seg, tsz_h=1):
     # "we preprocessed the ground truth seg such that any voxel centered on a 3 × 3 × 1 window containing
     # more than one positive segment ID (zero is reserved for background) is marked as background."
     # seg=0: background
-    tsz = 2*tsz_h+1
+    tsz = 2 * tsz_h + 1
     sz = seg.shape
     if len(sz) == 3:
         for z in range(sz[0]):
             mm = seg[z].max()
             patch = im_to_col(
-                np.pad(seg[z], ((tsz_h, tsz_h), (tsz_h, tsz_h)), 'reflect'), [tsz, tsz])
+                np.pad(seg[z], ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz]
+            )
             p0 = patch.max(axis=1)
-            patch[patch == 0] = mm+1
+            patch[patch == 0] = mm + 1
             p1 = patch.min(axis=1)
-            seg[z] = seg[z]*((p0 == p1).reshape(sz[1:]))
+            seg[z] = seg[z] * ((p0 == p1).reshape(sz[1:]))
     else:
         mm = seg.max()
-        patch = im_to_col(
-            np.pad(seg, ((tsz_h, tsz_h), (tsz_h, tsz_h)), 'reflect'), [tsz, tsz])
+        patch = im_to_col(np.pad(seg, ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz])
         p0 = patch.max(axis=1)
         patch[patch == 0] = mm + 1
         p1 = patch.min(axis=1)
@@ -58,22 +59,22 @@ def seg_to_small_seg(seg, thres=25, rr=2):
     for z in np.where(seg.max(axis=1).max(axis=1) > 0)[0]:
         tmp = cc3d.connected_components(seg[z])
         ui, uc = np.unique(tmp, return_counts=True)
-        rl = np.zeros(ui[-1]+1, np.uint8)
+        rl = np.zeros(ui[-1] + 1, np.uint8)
         rl[ui[uc < thres]] = 1
         rl[0] = 0
         mask[z] += rl[tmp]
     for y in np.where(seg.max(axis=2).max(axis=0) > 0)[0]:
         tmp = cc3d.connected_components(seg[:, y])
         ui, uc = np.unique(tmp, return_counts=True)
-        rl = np.zeros(ui[-1]+1, np.uint8)
-        rl[ui[uc < thres//rr]] = 1
+        rl = np.zeros(ui[-1] + 1, np.uint8)
+        rl[ui[uc < thres // rr]] = 1
         rl[0] = 0
         mask[:, y] += rl[tmp]
     for x in np.where(seg.max(axis=0).max(axis=0) > 0)[0]:
         tmp = cc3d.connected_components(seg[:, :, x])
         ui, uc = np.unique(tmp, return_counts=True)
-        rl = np.zeros(ui[-1]+1, np.uint8)
-        rl[ui[uc < thres//rr]] = 1
+        rl = np.zeros(ui[-1] + 1, np.uint8)
+        rl[ui[uc < thres // rr]] = 1
         rl[0] = 0
         mask[:, :, x] += rl[tmp]
     return mask
@@ -90,8 +91,7 @@ def seg_markInvalid(seg, iter_num=2, do_2d=True):
         else:  # save memory
             for z in range(seg.shape[0]):
                 tmp = seg[z]  # by reference
-                out = binary_dilation(
-                    tmp > 0, structure=stel, iterations=iter_num)
+                out = binary_dilation(tmp > 0, structure=stel, iterations=iter_num)
                 tmp[out == 0] = -1
     else:
         stel = np.array([[1, 1, 1], [1, 1, 1], [1, 1, 1]]).astype(bool)
@@ -100,9 +100,7 @@ def seg_markInvalid(seg, iter_num=2, do_2d=True):
     return seg
 
 
-def seg_erosion(label: np.ndarray,
-                index: int,
-                erosion_rates: RATES_TYPE = None):
+def seg_erosion(label: np.ndarray, index: int, erosion_rates: RATES_TYPE = None):
 
     if erosion_rates is None:
         return label
@@ -113,9 +111,7 @@ def seg_erosion(label: np.ndarray,
     return erosion(label, label_erosion)
 
 
-def seg_dilation(label: np.ndarray,
-                 index: int,
-                 dilation_rates: RATES_TYPE = None):
+def seg_dilation(label: np.ndarray, index: int, dilation_rates: RATES_TYPE = None):
     if dilation_rates is None:
         return label
 
@@ -123,10 +119,11 @@ def seg_dilation(label: np.ndarray,
     if isinstance(label_dilation, list):
         label_dilation = label_dilation[index]
 
-    tsz = 2*label_dilation + 1
+    tsz = 2 * label_dilation + 1
     assert label.ndim in [2, 3]
     shape = (1, tsz, tsz) if label.ndim == 3 else (tsz, tsz)
     return dilation(label, np.ones(shape, dtype=label.dtype))
+
 
 def seg_selection(label, indices):
     mid = label.max() + 1
@@ -134,4 +131,12 @@ def seg_selection(label, indices):
     relabel[indices] = np.arange(1, len(indices) + 1)
     return relabel[label]
 
-__all__ = ['im_to_col', 'seg_erosion_instance', 'seg_markInvalid', 'seg_erosion', 'seg_dilation', 'seg_selection']
+
+__all__ = [
+    "im_to_col",
+    "seg_erosion_instance",
+    "seg_markInvalid",
+    "seg_erosion",
+    "seg_dilation",
+    "seg_selection",
+]

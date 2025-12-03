@@ -15,7 +15,7 @@ def split_volume_train_val(
     volume_shape: Tuple[int, int, int],
     train_ratio: float = 0.8,
     axis: int = 0,
-    min_val_size: Optional[int] = None
+    min_val_size: Optional[int] = None,
 ) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
     """
     Split a volume into training and validation regions along a specified axis.
@@ -58,8 +58,10 @@ def split_volume_train_val(
         train_size = split_dim - min_val_size
         val_size = min_val_size
         actual_ratio = train_size / split_dim
-        print(f"Warning: Adjusted train_ratio from {train_ratio:.2f} to {actual_ratio:.2f} "
-              f"to satisfy min_val_size={min_val_size}")
+        print(
+            f"Warning: Adjusted train_ratio from {train_ratio:.2f} to {actual_ratio:.2f} "
+            f"to satisfy min_val_size={min_val_size}"
+        )
 
     # Create slices
     train_slices = [slice(None)] * len(volume_shape)
@@ -76,7 +78,7 @@ def create_split_masks(
     train_ratio: float = 0.8,
     axis: int = 0,
     min_val_size: Optional[int] = None,
-    dtype: np.dtype = np.uint8
+    dtype: np.dtype = np.uint8,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Create binary masks for train/val splits.
@@ -101,9 +103,7 @@ def create_split_masks(
         >>> print(train_mask.shape, train_mask.sum())  # (100, 256, 256), first 80 slices = 1
         >>> print(val_mask.shape, val_mask.sum())      # (100, 256, 256), last 20 slices = 1
     """
-    train_slices, val_slices = split_volume_train_val(
-        volume_shape, train_ratio, axis, min_val_size
-    )
+    train_slices, val_slices = split_volume_train_val(volume_shape, train_ratio, axis, min_val_size)
 
     # Create masks
     train_mask = np.zeros(volume_shape, dtype=dtype)
@@ -118,8 +118,8 @@ def create_split_masks(
 def pad_volume_to_size(
     volume: Union[np.ndarray, torch.Tensor],
     target_size: Tuple[int, int, int],
-    mode: str = 'reflect',
-    constant_value: float = 0.0
+    mode: str = "reflect",
+    constant_value: float = 0.0,
 ) -> Union[np.ndarray, torch.Tensor]:
     """
     Pad a volume to match a target size.
@@ -184,48 +184,51 @@ def pad_volume_to_size(
         # PyTorch padding: (left, right, top, bottom, front, back)
         # Order is reversed: last dim first
         padding = (
-            pad_w_before, pad_w_after,  # W
-            pad_h_before, pad_h_after,  # H
-            pad_d_before, pad_d_after,  # D
+            pad_w_before,
+            pad_w_after,  # W
+            pad_h_before,
+            pad_h_after,  # H
+            pad_d_before,
+            pad_d_after,  # D
         )
 
         # Map mode names
-        if mode == 'constant':
-            padded = torch.nn.functional.pad(volume, padding, mode='constant', value=constant_value)
-        elif mode == 'reflect':
-            padded = torch.nn.functional.pad(volume, padding, mode='reflect')
-        elif mode == 'replicate':
-            padded = torch.nn.functional.pad(volume, padding, mode='replicate')
-        elif mode == 'circular':
-            padded = torch.nn.functional.pad(volume, padding, mode='circular')
+        if mode == "constant":
+            padded = torch.nn.functional.pad(volume, padding, mode="constant", value=constant_value)
+        elif mode == "reflect":
+            padded = torch.nn.functional.pad(volume, padding, mode="reflect")
+        elif mode == "replicate":
+            padded = torch.nn.functional.pad(volume, padding, mode="replicate")
+        elif mode == "circular":
+            padded = torch.nn.functional.pad(volume, padding, mode="circular")
         else:
             raise ValueError(f"Unknown padding mode: {mode}")
     else:
         # NumPy padding
         if has_channel:
             pad_width = (
-                (0, 0),                        # C - no padding
-                (pad_d_before, pad_d_after),   # D
-                (pad_h_before, pad_h_after),   # H
-                (pad_w_before, pad_w_after),   # W
+                (0, 0),  # C - no padding
+                (pad_d_before, pad_d_after),  # D
+                (pad_h_before, pad_h_after),  # H
+                (pad_w_before, pad_w_after),  # W
             )
         else:
             pad_width = (
-                (pad_d_before, pad_d_after),   # D
-                (pad_h_before, pad_h_after),   # H
-                (pad_w_before, pad_w_after),   # W
+                (pad_d_before, pad_d_after),  # D
+                (pad_h_before, pad_h_after),  # H
+                (pad_w_before, pad_w_after),  # W
             )
 
         # Map mode names
         np_mode = mode
-        if mode == 'reflect':
-            np_mode = 'reflect'
-        elif mode == 'replicate':
-            np_mode = 'edge'
-        elif mode == 'circular':
-            np_mode = 'wrap'
-        elif mode == 'constant':
-            padded = np.pad(volume, pad_width, mode='constant', constant_values=constant_value)
+        if mode == "reflect":
+            np_mode = "reflect"
+        elif mode == "replicate":
+            np_mode = "edge"
+        elif mode == "circular":
+            np_mode = "wrap"
+        elif mode == "constant":
+            padded = np.pad(volume, pad_width, mode="constant", constant_values=constant_value)
             return padded
         else:
             raise ValueError(f"Unknown padding mode: {mode}")
@@ -240,8 +243,8 @@ def split_and_pad_volume(
     train_ratio: float = 0.8,
     target_size: Optional[Tuple[int, int, int]] = None,
     axis: int = 0,
-    pad_mode: str = 'reflect',
-    min_val_size: Optional[int] = None
+    pad_mode: str = "reflect",
+    min_val_size: Optional[int] = None,
 ) -> Tuple[Union[np.ndarray, torch.Tensor], Union[np.ndarray, torch.Tensor]]:
     """
     Split volume into train/val and pad validation if needed.
@@ -306,8 +309,8 @@ def save_split_masks_h5(
     volume_shape: Tuple[int, int, int],
     train_ratio: float = 0.8,
     axis: int = 0,
-    train_filename: str = 'msk_train.h5',
-    val_filename: str = 'msk_val.h5'
+    train_filename: str = "msk_train.h5",
+    val_filename: str = "msk_val.h5",
 ):
     """
     Save train/val split masks to HDF5 files (DeepEM compatible).
@@ -332,11 +335,11 @@ def save_split_masks_h5(
     train_path = output_dir / train_filename
     val_path = output_dir / val_filename
 
-    with h5py.File(train_path, 'w') as f:
-        f.create_dataset('main', data=train_mask, compression='gzip')
+    with h5py.File(train_path, "w") as f:
+        f.create_dataset("main", data=train_mask, compression="gzip")
 
-    with h5py.File(val_path, 'w') as f:
-        f.create_dataset('main', data=val_mask, compression='gzip')
+    with h5py.File(val_path, "w") as f:
+        f.create_dataset("main", data=val_mask, compression="gzip")
 
     print(f"Saved training mask to: {train_path}")
     print(f"Saved validation mask to: {val_path}")
@@ -351,12 +354,14 @@ def save_split_masks_h5(
 try:
     from monai.config import KeysCollection
     from monai.transforms import MapTransform
+
     HAS_MONAI = True
 except ImportError:
     HAS_MONAI = False
 
 
 if HAS_MONAI:
+
     class ApplyVolumetricSplitd(MapTransform):
         """
         MONAI transform to apply volumetric split during data loading.
@@ -397,11 +402,11 @@ if HAS_MONAI:
             d = dict(data)
 
             # Check if split metadata exists
-            if 'split_slices' not in d:
+            if "split_slices" not in d:
                 return d  # No split to apply
 
-            split_slices = d['split_slices']
-            split_mode = d.get('split_mode', 'train')
+            split_slices = d["split_slices"]
+            split_mode = d.get("split_mode", "train")
 
             # Apply split to each key
             for key in self.key_iterator(d):
@@ -420,9 +425,9 @@ if HAS_MONAI:
                         raise ValueError(f"Expected 3D or 4D volume, got shape {volume.shape}")
 
             # Apply padding if validation mode and padding requested
-            if split_mode == 'val' and d.get('split_pad', False):
-                target_size = d.get('split_pad_size')
-                pad_mode = d.get('split_pad_mode', 'reflect')
+            if split_mode == "val" and d.get("split_pad", False):
+                target_size = d.get("split_pad_size")
+                pad_mode = d.get("split_pad_mode", "reflect")
 
                 if target_size is not None:
                     for key in self.key_iterator(d):
@@ -435,13 +440,12 @@ if HAS_MONAI:
 
             return d
 
-
     def apply_volumetric_split(
         volume: Union[np.ndarray, torch.Tensor],
         split_slices: Tuple[slice, ...],
         pad: bool = False,
         pad_size: Optional[Tuple[int, ...]] = None,
-        pad_mode: str = 'reflect',
+        pad_mode: str = "reflect",
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Apply volumetric split to a single volume (convenience function).
@@ -472,13 +476,13 @@ if HAS_MONAI:
 
 
 __all__ = [
-    'split_volume_train_val',
-    'create_split_masks',
-    'pad_volume_to_size',
-    'split_and_pad_volume',
-    'save_split_masks_h5',
-    'apply_volumetric_split',
+    "split_volume_train_val",
+    "create_split_masks",
+    "pad_volume_to_size",
+    "split_and_pad_volume",
+    "save_split_masks_h5",
+    "apply_volumetric_split",
 ]
 
 if HAS_MONAI:
-    __all__.append('ApplyVolumetricSplitd')
+    __all__.append("ApplyVolumetricSplitd")

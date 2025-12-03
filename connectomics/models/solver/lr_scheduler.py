@@ -9,6 +9,7 @@ import torch
 # As a result, "epoch" (e.g., as in self.last_epoch) should be understood to mean
 # "iteration" instead.
 
+
 class WarmupMultiStepLR(torch.optim.lr_scheduler._LRScheduler):
     def __init__(
         self,
@@ -74,8 +75,7 @@ class WarmupCosineLR(torch.optim.lr_scheduler._LRScheduler):
         # instead of at 0. In the case that warmup_iters << max_iters the two are
         # very close to each other.
         return [
-            self.eta_min
-            + (base_lr * warmup_factor - self.eta_min) * cosine
+            self.eta_min + (base_lr * warmup_factor - self.eta_min) * cosine
             for base_lr in self.base_lrs
         ]
 

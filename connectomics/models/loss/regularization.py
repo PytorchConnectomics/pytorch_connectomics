@@ -151,12 +151,13 @@ class ContourDistanceConsistency(nn.Module):
         contour_prob = torch.sigmoid(contour_logits)
         distance_abs = torch.abs(torch.tanh(distance_transform))
 
-        assert contour_prob.shape == distance_abs.shape, \
-            f"Shape mismatch: {contour_prob.shape} vs {distance_abs.shape}"
+        assert (
+            contour_prob.shape == distance_abs.shape
+        ), f"Shape mismatch: {contour_prob.shape} vs {distance_abs.shape}"
 
         # Penalize: high contour prob should match low distance
         loss = contour_prob * distance_abs
-        loss = loss ** 2
+        loss = loss**2
 
         if mask is not None:
             loss = loss * mask
@@ -188,8 +189,8 @@ class ForegroundContourConsistency(nn.Module):
 
         # Sobel filters for edge detection
         sobel = torch.tensor([1.0, 0.0, -1.0])
-        self.register_buffer('sobel_x', sobel.view(1, 1, 1, 1, 3))
-        self.register_buffer('sobel_y', sobel.view(1, 1, 1, 3, 1))
+        self.register_buffer("sobel_x", sobel.view(1, 1, 1, 1, 3))
+        self.register_buffer("sobel_y", sobel.view(1, 1, 1, 3, 1))
 
     def forward(
         self,
@@ -216,22 +217,19 @@ class ForegroundContourConsistency(nn.Module):
         edge_y = F.conv3d(fg_prob, self.sobel_y, padding=(0, 1, 0))
 
         # Compute edge magnitude
-        edge = torch.sqrt(edge_x ** 2 + edge_y ** 2 + self.eps)
+        edge = torch.sqrt(edge_x**2 + edge_y**2 + self.eps)
         edge = torch.clamp(edge, min=self.eps, max=1.0 - self.eps)
 
         # Max pooling to expand edge regions
         edge = F.pad(edge, (1, 1, 1, 1, 0, 0))
-        edge = F.max_pool3d(
-            edge,
-            kernel_size=(1, self.kernel_size, self.kernel_size),
-            stride=1
-        )
+        edge = F.max_pool3d(edge, kernel_size=(1, self.kernel_size, self.kernel_size), stride=1)
 
-        assert edge.shape == contour_prob.shape, \
-            f"Shape mismatch: {edge.shape} vs {contour_prob.shape}"
+        assert (
+            edge.shape == contour_prob.shape
+        ), f"Shape mismatch: {edge.shape} vs {contour_prob.shape}"
 
         # MSE between detected edges and predicted contours
-        loss = F.mse_loss(edge, contour_prob, reduction='none')
+        loss = F.mse_loss(edge, contour_prob, reduction="none")
 
         if mask is not None:
             loss = loss * mask
@@ -275,8 +273,7 @@ class NonOverlapRegularization(nn.Module):
         """
         if pred.shape[1] < 2:
             raise ValueError(
-                f"Expected at least 2 channels for pre/post predictions, "
-                f"got {pred.shape[1]}"
+                f"Expected at least 2 channels for pre/post predictions, " f"got {pred.shape[1]}"
             )
 
         # Pre- and post-synaptic probabilities
@@ -295,15 +292,15 @@ class NonOverlapRegularization(nn.Module):
 
 
 __all__ = [
-    'BinaryRegularization',
-    'ForegroundDistanceConsistency',
-    'ContourDistanceConsistency',
-    'ForegroundContourConsistency',
-    'NonOverlapRegularization',
+    "BinaryRegularization",
+    "ForegroundDistanceConsistency",
+    "ContourDistanceConsistency",
+    "ForegroundContourConsistency",
+    "NonOverlapRegularization",
     # Aliases
-    'BinaryReg',
-    'FgDTConsistency',
-    'ContourDTConsistency',
-    'FgContourConsistency',
-    'NonoverlapReg',
+    "BinaryReg",
+    "FgDTConsistency",
+    "ContourDTConsistency",
+    "FgContourConsistency",
+    "NonoverlapReg",
 ]

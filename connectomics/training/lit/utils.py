@@ -85,7 +85,7 @@ def parse_args():
     parser.add_argument(
         "--fast-dev-run",
         type=int,
-        nargs='?',
+        nargs="?",
         const=1,
         default=0,
         help="Run N batches for quick debugging (default: 0, no argument defaults to 1)",
@@ -155,7 +155,7 @@ def setup_config(args) -> Config:
         cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
 
     # Update test output path only if test section exists and output_path not provided
-    if hasattr(cfg, 'test') and hasattr(cfg.test, 'data'):
+    if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
         if not getattr(cfg.test.data, "output_path", None):
             cfg.test.data.output_path = str(Path(output_folder) / "results")
         else:
@@ -306,8 +306,8 @@ def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> O
 
 
 __all__ = [
-    'parse_args',
-    'setup_config',
-    'expand_file_paths',
-    'extract_best_score_from_checkpoint',
+    "parse_args",
+    "setup_config",
+    "expand_file_paths",
+    "extract_best_score_from_checkpoint",
 ]

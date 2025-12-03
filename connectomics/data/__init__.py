@@ -14,13 +14,12 @@ Recommended imports:
     from connectomics.data.process import MultiTaskLabelTransformd, create_label_transform_pipeline
 """
 
-
 # Make submodules available
 from . import augment
 from . import process
 
 __all__ = [
     # Submodules
-    'augment',
-    'process',
+    "augment",
+    "process",
 ]

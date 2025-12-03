@@ -39,27 +39,23 @@ from .regularization import (
 
 __all__ = [
     # Factory functions (primary interface)
-    'create_loss',
-    'create_combined_loss',
-    'create_loss_from_config',
-
+    "create_loss",
+    "create_combined_loss",
+    "create_loss_from_config",
     # Convenience factory functions
-    'create_binary_segmentation_loss',
-    'create_multiclass_segmentation_loss',
-    'create_focal_loss',
-
+    "create_binary_segmentation_loss",
+    "create_multiclass_segmentation_loss",
+    "create_focal_loss",
     # Utility
-    'list_available_losses',
-
+    "list_available_losses",
     # Custom losses
-    'WeightedMSELoss',
-    'WeightedMAELoss',
-    'GANLoss',
-
+    "WeightedMSELoss",
+    "WeightedMAELoss",
+    "GANLoss",
     # Regularization losses
-    'BinaryRegularization',
-    'ForegroundDistanceConsistency',
-    'ContourDistanceConsistency',
-    'ForegroundContourConsistency',
-    'NonOverlapRegularization',
+    "BinaryRegularization",
+    "ForegroundDistanceConsistency",
+    "ContourDistanceConsistency",
+    "ForegroundContourConsistency",
+    "NonOverlapRegularization",
 ]

@@ -21,6 +21,7 @@ try:
     from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
     from batchgenerators.utilities.file_and_folder_operations import load_json
     import nnunetv2
+
     NNUNET_AVAILABLE = True
 except ImportError:
     NNUNET_AVAILABLE = False
@@ -113,19 +114,27 @@ class nnUNetWrapper(ConnectomicsModel):
         info = super().get_model_info()
 
         # Add nnUNet-specific information
-        info.update({
-            'framework': 'nnUNetv2',
-            'spatial_dims': self.spatial_dims,
-            'configuration': self.configuration_manager.configuration_name
-            if hasattr(self.configuration_manager, 'configuration_name') else 'unknown',
-            'network_class': self.configuration_manager.network_arch_class_name
-            if hasattr(self.configuration_manager, 'network_arch_class_name') else 'unknown',
-        })
+        info.update(
+            {
+                "framework": "nnUNetv2",
+                "spatial_dims": self.spatial_dims,
+                "configuration": (
+                    self.configuration_manager.configuration_name
+                    if hasattr(self.configuration_manager, "configuration_name")
+                    else "unknown"
+                ),
+                "network_class": (
+                    self.configuration_manager.network_arch_class_name
+                    if hasattr(self.configuration_manager, "network_arch_class_name")
+                    else "unknown"
+                ),
+            }
+        )
 
         return info
 
 
-@register_architecture('nnunet_pretrained')
+@register_architecture("nnunet_pretrained")
 def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     """
     Build nnUNet model from pretrained checkpoint.
@@ -180,8 +189,8 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
 
     # Get device
-    device_str = getattr(cfg.model, 'nnunet_device', 'cuda')
-    device = torch.device(device_str if torch.cuda.is_available() else 'cpu')
+    device_str = getattr(cfg.model, "nnunet_device", "cuda")
+    device = torch.device(device_str if torch.cuda.is_available() else "cpu")
 
     print(f"Loading nnUNet pretrained model...")
     print(f"  Checkpoint: {checkpoint_path}")
@@ -198,11 +207,13 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
 
     # Load checkpoint
     print(f"Loading checkpoint weights...")
-    checkpoint = torch.load(str(checkpoint_path), map_location=torch.device('cpu'), weights_only=False)
+    checkpoint = torch.load(
+        str(checkpoint_path), map_location=torch.device("cpu"), weights_only=False
+    )
 
     # Extract trainer information
-    trainer_name = checkpoint['trainer_name']
-    configuration_name = checkpoint['init_args']['configuration']
+    trainer_name = checkpoint["trainer_name"]
+    configuration_name = checkpoint["init_args"]["configuration"]
 
     # Get configuration manager
     configuration_manager = plans_manager.get_configuration(configuration_name)
@@ -213,7 +224,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     )
 
     # Override if specified in config
-    if hasattr(cfg.model, 'in_channels') and cfg.model.in_channels is not None:
+    if hasattr(cfg.model, "in_channels") and cfg.model.in_channels is not None:
         num_input_channels = cfg.model.in_channels
 
     # Find trainer class
@@ -221,7 +232,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     trainer_class = recursive_find_python_class(
         os.path.join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
         trainer_name,
-        'nnunetv2.training.nnUNetTrainer'
+        "nnunetv2.training.nnUNetTrainer",
     )
 
     if trainer_class is None:
@@ -237,27 +248,27 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
         configuration_manager.network_arch_init_kwargs_req_import,
         num_input_channels,
         plans_manager.get_label_manager(dataset_json).num_segmentation_heads,
-        enable_deep_supervision=False  # Disable for inference
+        enable_deep_supervision=False,  # Disable for inference
     )
 
     # Load weights
     print(f"Loading model weights...")
-    network.load_state_dict(checkpoint['network_weights'])
+    network.load_state_dict(checkpoint["network_weights"])
 
     # Move to device
     network = network.to(device)
 
     # Determine spatial dimensions from configuration
     spatial_dims = 3  # Default to 3D
-    if 'dimension' in str(configuration_name).lower():
-        if '2d' in str(configuration_name).lower():
+    if "dimension" in str(configuration_name).lower():
+        if "2d" in str(configuration_name).lower():
             spatial_dims = 2
-        elif '3d' in str(configuration_name).lower():
+        elif "3d" in str(configuration_name).lower():
             spatial_dims = 3
 
     # Check if model was trained with deep supervision
     # (we disable it for inference, but track for metadata)
-    trained_with_deep_supervision = checkpoint.get('deep_supervision', False)
+    trained_with_deep_supervision = checkpoint.get("deep_supervision", False)
 
     print(f"Model loaded successfully!")
     print(f"  Trainer: {trainer_name}")
@@ -280,7 +291,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     return wrapper
 
 
-@register_architecture('nnunet_2d_pretrained')
+@register_architecture("nnunet_2d_pretrained")
 def build_nnunet_2d_pretrained(cfg) -> ConnectomicsModel:
     """
     Build nnUNet 2D model from pretrained checkpoint.
@@ -311,7 +322,7 @@ def build_nnunet_2d_pretrained(cfg) -> ConnectomicsModel:
     return wrapper
 
 
-@register_architecture('nnunet_3d_pretrained')
+@register_architecture("nnunet_3d_pretrained")
 def build_nnunet_3d_pretrained(cfg) -> ConnectomicsModel:
     """
     Build nnUNet 3D model from pretrained checkpoint.
@@ -341,8 +352,8 @@ def build_nnunet_3d_pretrained(cfg) -> ConnectomicsModel:
 
 
 __all__ = [
-    'nnUNetWrapper',
-    'build_nnunet_pretrained',
-    'build_nnunet_2d_pretrained',
-    'build_nnunet_3d_pretrained',
+    "nnUNetWrapper",
+    "build_nnunet_pretrained",
+    "build_nnunet_2d_pretrained",
+    "build_nnunet_3d_pretrained",
 ]

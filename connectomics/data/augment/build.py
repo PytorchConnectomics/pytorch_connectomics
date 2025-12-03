@@ -95,7 +95,11 @@ def build_train_transforms(
 
     # Apply resize if configured (before cropping)
     resize_size = None
-    if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "resize") and cfg.data.data_transform.resize is not None:
+    if (
+        hasattr(cfg.data, "data_transform")
+        and hasattr(cfg.data.data_transform, "resize")
+        and cfg.data.data_transform.resize is not None
+    ):
         resize_size = cfg.data.data_transform.resize
 
     if resize_size:
@@ -194,9 +198,7 @@ def build_train_transforms(
     return Compose(transforms)
 
 
-def _build_eval_transforms_impl(
-    cfg: Config, mode: str = "val", keys: list[str] = None
-) -> Compose:
+def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] = None) -> Compose:
     """
     Internal implementation for building evaluation transforms (validation or test).
 
@@ -239,7 +241,7 @@ def _build_eval_transforms_impl(
             )
             if has_test_label or has_tune_label:
                 keys.append("label")
-            
+
             # Add mask if test_mask or tune_mask is explicitly specified
             has_test_mask = (
                 hasattr(cfg, "test")
@@ -297,17 +299,35 @@ def _build_eval_transforms_impl(
     # For val mode, use data.image_transform
     resize_factors = None
     if mode == "test":
-        if hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "image_transform"):
-            if hasattr(cfg.test.data.image_transform, "resize") and cfg.test.data.image_transform.resize is not None:
+        if (
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "image_transform")
+        ):
+            if (
+                hasattr(cfg.test.data.image_transform, "resize")
+                and cfg.test.data.image_transform.resize is not None
+            ):
                 resize_factors = cfg.test.data.image_transform.resize
     elif mode == "tune":
-        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data") and hasattr(cfg.tune.data, "image_transform"):
-            if hasattr(cfg.tune.data.image_transform, "resize") and cfg.tune.data.image_transform.resize is not None:
+        if (
+            hasattr(cfg, "tune")
+            and cfg.tune
+            and hasattr(cfg.tune, "data")
+            and hasattr(cfg.tune.data, "image_transform")
+        ):
+            if (
+                hasattr(cfg.tune.data.image_transform, "resize")
+                and cfg.tune.data.image_transform.resize is not None
+            ):
                 resize_factors = cfg.tune.data.image_transform.resize
     else:  # mode == "val"
-        if hasattr(cfg.data.image_transform, "resize") and cfg.data.image_transform.resize is not None:
+        if (
+            hasattr(cfg.data.image_transform, "resize")
+            and cfg.data.image_transform.resize is not None
+        ):
             resize_factors = cfg.data.image_transform.resize
-    
+
     if resize_factors is not None:
         if resize_factors:
             # Use bilinear for images, nearest for labels/masks
@@ -353,9 +373,20 @@ def _build_eval_transforms_impl(
     # For test/tune mode, only use test.data.image_transform or tune.data.image_transform (no fallback)
     # For val mode, use data.image_transform
     image_transform = None
-    if mode == "test" and hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "image_transform"):
+    if (
+        mode == "test"
+        and hasattr(cfg, "test")
+        and hasattr(cfg.test, "data")
+        and hasattr(cfg.test.data, "image_transform")
+    ):
         image_transform = cfg.test.data.image_transform
-    elif mode == "tune" and hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data") and hasattr(cfg.tune.data, "image_transform"):
+    elif (
+        mode == "tune"
+        and hasattr(cfg, "tune")
+        and cfg.tune
+        and hasattr(cfg.tune, "data")
+        and hasattr(cfg.tune.data, "image_transform")
+    ):
         image_transform = cfg.tune.data.image_transform
     elif mode == "val":
         image_transform = cfg.data.image_transform
@@ -365,8 +396,8 @@ def _build_eval_transforms_impl(
             SmartNormalizeIntensityd(
                 keys=["image"],
                 mode=image_transform.normalize,
-                clip_percentile_low=getattr(image_transform, 'clip_percentile_low', 0.0),
-                clip_percentile_high=getattr(image_transform, 'clip_percentile_high', 1.0),
+                clip_percentile_low=getattr(image_transform, "clip_percentile_low", 0.0),
+                clip_percentile_high=getattr(image_transform, "clip_percentile_high", 1.0),
             )
         )
 
@@ -391,7 +422,9 @@ def _build_eval_transforms_impl(
                     metric = getattr(cfg.tune.optimization.single_objective, "metric", None)
                     if metric == "adapted_rand":
                         skip_label_transform = True
-                        print(f"  ⚠️  Skipping label transforms for Optuna tuning (keeping original labels for {metric})")
+                        print(
+                            f"  ⚠️  Skipping label transforms for Optuna tuning (keeping original labels for {metric})"
+                        )
 
             if evaluation_config:
                 evaluation_enabled = getattr(evaluation_config, "enabled", False)
@@ -507,7 +540,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
 
     # Get preset mode
     preset = getattr(aug_cfg, "preset", "some")
-    
+
     # Validate preset choice
     valid_presets = {"none", "some", "all"}
     if preset not in valid_presets:
@@ -516,39 +549,39 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             f"Valid choices are: {', '.join(sorted(valid_presets))}. "
             f"Got: '{preset}'. Please use one of the valid options."
         )
-    
+
     # Helper function to check if augmentation should be applied
     def should_augment(aug_name: str, aug_enabled: Optional[bool]) -> bool:
         """
         Determine if augmentation should be applied based on preset mode and enabled flag.
-        
+
         All augmentations default to enabled=None (use preset default). The preset mode controls
         the behavior:
-        
+
         - "none": Disable all augmentations
         - "some": Disable all by default (only True enables)
         - "all": Enable all by default (only False disables)
-        
+
         The enabled field can be:
         - None: Use preset default (not specified in YAML)
         - True: Explicitly enable (overrides preset)
         - False: Explicitly disable (overrides preset)
-        
+
         Examples:
             preset="some" with enabled=None:
                 → Disabled (default off, must opt-in)
                 → User enables in YAML: flip.enabled: true
-            
+
             preset="some" with enabled=true:
                 → Enabled
-            
+
             preset="all" with enabled=None:
                 → Enabled (default on)
                 → User can disable: flip.enabled: false
-            
+
             preset="all" with enabled=false:
                 → Disabled (explicit override)
-            
+
             preset="none":
                 → Always disabled
         """
@@ -572,7 +605,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 return True
             else:  # None or False
                 return False
-    
+
     # Standard geometric augmentations
     if should_augment("flip", aug_cfg.flip.enabled):
         transforms.append(

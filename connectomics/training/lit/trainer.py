@@ -247,5 +247,5 @@ def create_trainer(
 
 
 __all__ = [
-    'create_trainer',
+    "create_trainer",
 ]

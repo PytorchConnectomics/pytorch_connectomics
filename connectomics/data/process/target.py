@@ -278,9 +278,15 @@ def seg_to_affinity(
         affinities[2, :, :, :-1] = (seg[:, :, :-1] == seg[:, :, 1:]) & (seg[:, :, 1:] > 0)
 
         # Long range affinities
-        affinities[3, :-long_range] = (seg[:-long_range] == seg[long_range:]) & (seg[long_range:] > 0)
-        affinities[4, :, :-long_range] = (seg[:, :-long_range] == seg[:, long_range:]) & (seg[:, long_range:] > 0)
-        affinities[5, :, :, :-long_range] = (seg[:, :, :-long_range] == seg[:, :, long_range:]) & (seg[:, :, long_range:] > 0)
+        affinities[3, :-long_range] = (seg[:-long_range] == seg[long_range:]) & (
+            seg[long_range:] > 0
+        )
+        affinities[4, :, :-long_range] = (seg[:, :-long_range] == seg[:, long_range:]) & (
+            seg[:, long_range:] > 0
+        )
+        affinities[5, :, :, :-long_range] = (seg[:, :, :-long_range] == seg[:, :, long_range:]) & (
+            seg[:, :, long_range:] > 0
+        )
 
         return affinities
 

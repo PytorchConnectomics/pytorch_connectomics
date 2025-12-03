@@ -69,7 +69,7 @@ class BBoxInstanceProcessor:
         self,
         label: np.ndarray,
         instance_fn: Callable[[np.ndarray, int, Tuple[slice, ...], Dict], Optional[np.ndarray]],
-        **kwargs
+        **kwargs,
     ) -> np.ndarray:
         """
         Process all instances using bounding box optimization.
@@ -146,21 +146,13 @@ class BBoxInstanceProcessor:
             label = label_cc(label)
 
         if self.config.padding:
-            label = np.pad(
-                label,
-                self.config.pad_size,
-                mode="constant",
-                constant_values=0
-            )
+            label = np.pad(label, self.config.pad_size, mode="constant", constant_values=0)
             was_padded = True
 
         return label, label.shape, was_padded
 
     def _extract_bbox(
-        self,
-        bbox_row: np.ndarray,
-        label_shape: Tuple[int, ...],
-        ndim: int
+        self, bbox_row: np.ndarray, label_shape: Tuple[int, ...], ndim: int
     ) -> Tuple[slice, ...]:
         """Extract bounding box as tuple of slices."""
         if ndim == 2:
@@ -194,10 +186,7 @@ class BBoxInstanceProcessor:
             )
 
     def _aggregate_result(
-        self,
-        distance: np.ndarray,
-        bbox: Tuple[slice, ...],
-        result_crop: np.ndarray
+        self, distance: np.ndarray, bbox: Tuple[slice, ...], result_crop: np.ndarray
     ):
         """Aggregate crop result back to full volume."""
         if self.config.combine_mode == "max":
@@ -227,11 +216,9 @@ class BBoxInstanceProcessor:
 # Convenience wrappers for common patterns
 # ============================================================================
 
+
 def process_instances_with_bbox(
-    label: np.ndarray,
-    instance_fn: Callable,
-    config: Optional[BBoxProcessorConfig] = None,
-    **kwargs
+    label: np.ndarray, instance_fn: Callable, config: Optional[BBoxProcessorConfig] = None, **kwargs
 ) -> np.ndarray:
     """
     Functional wrapper for bbox-based instance processing.
@@ -260,10 +247,7 @@ def process_instances_with_bbox(
     return processor.process(label, instance_fn, **kwargs)
 
 
-def make_instance_processor(
-    operation: str,
-    **default_kwargs
-) -> Callable[[np.ndarray], np.ndarray]:
+def make_instance_processor(operation: str, **default_kwargs) -> Callable[[np.ndarray], np.ndarray]:
     """
     Factory function to create reusable instance processors.
 

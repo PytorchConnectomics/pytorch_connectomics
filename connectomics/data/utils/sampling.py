@@ -89,7 +89,7 @@ def compute_total_samples(
 def calculate_inference_grid(
     volume_shape: Tuple[int, int, int],
     patch_size: Tuple[int, int, int],
-    stride: Tuple[int, int, int]
+    stride: Tuple[int, int, int],
 ) -> Tuple[np.ndarray, Tuple[int, int, int]]:
     """
     Calculate grid of patch positions for sliding-window inference.
@@ -137,9 +137,21 @@ def calculate_inference_grid(
                 # Calculate position with boundary handling
                 # Normal case: multiply by stride
                 # Boundary case: tuck in to ensure patch fits
-                z = z_idx * stride[0] if z_idx < grid_shape[0] - 1 else volume_shape[0] - patch_size[0]
-                y = y_idx * stride[1] if y_idx < grid_shape[1] - 1 else volume_shape[1] - patch_size[1]
-                x = x_idx * stride[2] if x_idx < grid_shape[2] - 1 else volume_shape[2] - patch_size[2]
+                z = (
+                    z_idx * stride[0]
+                    if z_idx < grid_shape[0] - 1
+                    else volume_shape[0] - patch_size[0]
+                )
+                y = (
+                    y_idx * stride[1]
+                    if y_idx < grid_shape[1] - 1
+                    else volume_shape[1] - patch_size[1]
+                )
+                x = (
+                    x_idx * stride[2]
+                    if x_idx < grid_shape[2] - 1
+                    else volume_shape[2] - patch_size[2]
+                )
 
                 positions.append([z, y, x])
 
@@ -147,7 +159,7 @@ def calculate_inference_grid(
 
 
 __all__ = [
-    'count_volume',
-    'compute_total_samples',
-    'calculate_inference_grid',
+    "count_volume",
+    "compute_total_samples",
+    "calculate_inference_grid",
 ]

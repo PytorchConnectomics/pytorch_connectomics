@@ -34,23 +34,23 @@ def load_external_weights(model, cfg):
         Model with loaded weights
     """
     weights_path = cfg.model.external_weights_path
-    key_prefix = getattr(cfg.model, 'external_weights_key_prefix', 'model.')
+    key_prefix = getattr(cfg.model, "external_weights_key_prefix", "model.")
 
     if not Path(weights_path).exists():
         raise FileNotFoundError(f"External weights file not found: {weights_path}")
 
     # Load checkpoint
-    checkpoint = torch.load(weights_path, map_location='cpu', weights_only=False)
+    checkpoint = torch.load(weights_path, map_location="cpu", weights_only=False)
 
     # Extract state_dict based on checkpoint format
     if isinstance(checkpoint, dict):
-        if 'state_dict' in checkpoint:
+        if "state_dict" in checkpoint:
             # PyTorch Lightning checkpoint
-            state_dict = checkpoint['state_dict']
+            state_dict = checkpoint["state_dict"]
             print(f'    Loaded Lightning checkpoint (epoch={checkpoint.get("epoch", "?")})')
-        elif 'model_state_dict' in checkpoint:
+        elif "model_state_dict" in checkpoint:
             # Some training frameworks use this key
-            state_dict = checkpoint['model_state_dict']
+            state_dict = checkpoint["model_state_dict"]
         else:
             # Assume the dict is the state_dict itself
             state_dict = checkpoint
@@ -65,7 +65,7 @@ def load_external_weights(model, cfg):
         stripped_count = 0
         for key, value in state_dict.items():
             if key.startswith(key_prefix):
-                new_key = key[len(key_prefix):]
+                new_key = key[len(key_prefix) :]
                 new_state_dict[new_key] = value
                 stripped_count += 1
             else:
@@ -76,12 +76,12 @@ def load_external_weights(model, cfg):
 
     # Handle torch.compile() models which have "_orig_mod." prefix
     # Check if keys have this prefix
-    has_orig_mod = any(k.startswith('_orig_mod.') for k in state_dict.keys())
+    has_orig_mod = any(k.startswith("_orig_mod.") for k in state_dict.keys())
     if has_orig_mod:
         new_state_dict = {}
         compile_stripped = 0
         for key, value in state_dict.items():
-            if key.startswith('_orig_mod.'):
+            if key.startswith("_orig_mod."):
                 new_key = key[10:]  # len('_orig_mod.') = 10
                 new_state_dict[new_key] = value
                 compile_stripped += 1
@@ -89,35 +89,37 @@ def load_external_weights(model, cfg):
                 new_state_dict[key] = value
         state_dict = new_state_dict
         if compile_stripped > 0:
-            print(f'    Stripped "_orig_mod." prefix from {compile_stripped} keys (torch.compile model)')
+            print(
+                f'    Stripped "_orig_mod." prefix from {compile_stripped} keys (torch.compile model)'
+            )
 
     # Handle wrapped models (e.g., MedNeXtWrapper has model.model)
     target_module = model
-    if hasattr(model, 'model'):
+    if hasattr(model, "model"):
         target_module = model.model
-        print(f'    Loading into wrapped model: {target_module.__class__.__name__}')
+        print(f"    Loading into wrapped model: {target_module.__class__.__name__}")
 
     # Load state dict
     missing_keys, unexpected_keys = target_module.load_state_dict(state_dict, strict=False)
 
     if missing_keys:
-        print(f'    Warning: {len(missing_keys)} missing keys')
+        print(f"    Warning: {len(missing_keys)} missing keys")
         if len(missing_keys) <= 5:
             for key in missing_keys:
-                print(f'      - {key}')
+                print(f"      - {key}")
         else:
-            print(f'      First 5: {missing_keys[:5]}')
+            print(f"      First 5: {missing_keys[:5]}")
 
     if unexpected_keys:
-        print(f'    Warning: {len(unexpected_keys)} unexpected keys')
+        print(f"    Warning: {len(unexpected_keys)} unexpected keys")
         if len(unexpected_keys) <= 5:
             for key in unexpected_keys:
-                print(f'      - {key}')
+                print(f"      - {key}")
         else:
-            print(f'      First 5: {unexpected_keys[:5]}')
+            print(f"      First 5: {unexpected_keys[:5]}")
 
     if not missing_keys and not unexpected_keys:
-        print(f'    Successfully loaded all weights')
+        print(f"    Successfully loaded all weights")
 
     return model
 
@@ -171,8 +173,8 @@ def build_model(cfg, device=None, rank=None):
     model = builder(cfg)
 
     # Print model info
-    print(f'\nModel: {model.__class__.__name__} (architecture: {model_arch})')
-    if hasattr(model, 'get_model_info'):
+    print(f"\nModel: {model.__class__.__name__} (architecture: {model_arch})")
+    if hasattr(model, "get_model_info"):
         info = model.get_model_info()
         print(f'  Parameters: {info["parameters"]:,}')
         print(f'  Trainable: {info["trainable_parameters"]:,}')
@@ -181,23 +183,23 @@ def build_model(cfg, device=None, rank=None):
             print(f'  Output Scales: {info["output_scales"]}')
 
     # Load external weights if specified
-    external_weights_path = getattr(cfg.model, 'external_weights_path', None)
+    external_weights_path = getattr(cfg.model, "external_weights_path", None)
     if external_weights_path:
-        print(f'\n  Loading external weights from: {external_weights_path}')
+        print(f"\n  Loading external weights from: {external_weights_path}")
         model = load_external_weights(model, cfg)
 
     # Move to device
     # Note: PyTorch Lightning handles DDP/DP automatically, so we just move to device
     if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = model.to(device)
-    print(f'  Device: {device}\n')
+    print(f"  Device: {device}\n")
 
     return model
 
 
-def update_state_dict(cfg, model_dict: dict, mode: str = 'train') -> dict:
+def update_state_dict(cfg, model_dict: dict, mode: str = "train") -> dict:
     """
     Process state dict for loading checkpoints.
 
@@ -217,13 +219,13 @@ def update_state_dict(cfg, model_dict: dict, mode: str = 'train') -> dict:
         PyTorch Lightning handles DDP state dict processing automatically.
         This function is mainly for legacy checkpoint compatibility.
     """
-    if 'n_averaged' in model_dict.keys():
+    if "n_averaged" in model_dict.keys():
         print(f"Loading SWA model (averaged {model_dict['n_averaged']} checkpoints)")
 
     # Remove 'module.' prefix from DataParallel/DDP if present
     new_dict = {}
     for key, value in model_dict.items():
-        if key.startswith('module.'):
+        if key.startswith("module."):
             new_dict[key[7:]] = value  # Remove 'module.' prefix
         else:
             new_dict[key] = value
@@ -232,7 +234,7 @@ def update_state_dict(cfg, model_dict: dict, mode: str = 'train') -> dict:
 
 
 __all__ = [
-    'build_model',
-    'load_external_weights',
-    'update_state_dict',
+    "build_model",
+    "load_external_weights",
+    "update_state_dict",
 ]

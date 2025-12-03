@@ -66,9 +66,7 @@ def remove_small_instances(
     if mode == "background":
         return remove_small_objects(segm, thres_small)
     elif mode == "background_2d":
-        temp = [
-            remove_small_objects(segm[i], thres_small) for i in range(segm.shape[0])
-        ]
+        temp = [remove_small_objects(segm[i], thres_small) for i in range(segm.shape[0])]
         return np.stack(temp, axis=0)
 
     if mode == "neighbor":
@@ -78,9 +76,7 @@ def remove_small_instances(
         return np.stack(temp, axis=0)
 
 
-def merge_small_objects(
-    segm: np.ndarray, thres_small: int, do_3d: bool = False
-) -> np.ndarray:
+def merge_small_objects(segm: np.ndarray, thres_small: int, do_3d: bool = False) -> np.ndarray:
     """Merge small objects with their neighbors.
 
     Args:

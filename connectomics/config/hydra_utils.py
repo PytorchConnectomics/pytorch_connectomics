@@ -160,7 +160,9 @@ def validate_config(cfg: Config) -> None:
     if cfg.model.out_channels <= 0:
         raise ValueError("model.out_channels must be positive")
     if len(cfg.model.input_size) not in [2, 3]:
-        raise ValueError("model.input_size must be 2D or 3D (got length {})".format(len(cfg.model.input_size)))
+        raise ValueError(
+            "model.input_size must be 2D or 3D (got length {})".format(len(cfg.model.input_size))
+        )
 
     # System validation
     if cfg.system.training.batch_size <= 0:
@@ -170,7 +172,9 @@ def validate_config(cfg: Config) -> None:
 
     # Data validation
     if len(cfg.data.patch_size) not in [2, 3]:
-        raise ValueError("data.patch_size must be 2D or 3D (got length {})".format(len(cfg.data.patch_size)))
+        raise ValueError(
+            "data.patch_size must be 2D or 3D (got length {})".format(len(cfg.data.patch_size))
+        )
 
     # Optimizer validation
     if cfg.optimization.optimizer.lr <= 0:
@@ -276,7 +280,9 @@ def resolve_data_paths(cfg: Config) -> Config:
     import os
     from glob import glob
 
-    def _combine_path(base_path: str, file_path: Optional[Union[str, List[str]]]) -> Optional[Union[str, List[str]]]:
+    def _combine_path(
+        base_path: str, file_path: Optional[Union[str, List[str]]]
+    ) -> Optional[Union[str, List[str]]]:
         """Helper to combine base path with file path(s) and expand globs."""
         if file_path is None:
             return file_path
@@ -301,7 +307,8 @@ def resolve_data_paths(cfg: Config) -> Config:
         # Expand glob patterns with optional selector support
         # Format: path/*.tiff[0] or path/*.tiff[filename]
         import re
-        selector_match = re.match(r'^(.+)\[(.+)\]$', file_path)
+
+        selector_match = re.match(r"^(.+)\[(.+)\]$", file_path)
 
         if selector_match:
             # Has selector - extract glob pattern and selector
@@ -317,20 +324,27 @@ def resolve_data_paths(cfg: Config) -> Config:
                 # Try numeric index
                 index = int(selector)
                 if index < -len(expanded) or index >= len(expanded):
-                    print(f"Warning: Index {index} out of range for {len(expanded)} files, using first")
+                    print(
+                        f"Warning: Index {index} out of range for {len(expanded)} files, using first"
+                    )
                     return expanded[0]
                 return expanded[index]
             except ValueError:
                 # Not a number, try filename match
                 from pathlib import Path
-                matching = [f for f in expanded if Path(f).name == selector or Path(f).stem == selector]
+
+                matching = [
+                    f for f in expanded if Path(f).name == selector or Path(f).stem == selector
+                ]
                 if not matching:
                     # Try partial match
                     matching = [f for f in expanded if selector in Path(f).name]
                 if matching:
                     return matching[0]
                 else:
-                    print(f"Warning: No file matches selector '{selector}', using first of {len(expanded)} files")
+                    print(
+                        f"Warning: No file matches selector '{selector}', using first of {len(expanded)} files"
+                    )
                     return expanded[0]
 
         elif "*" in file_path or "?" in file_path:
@@ -359,23 +373,31 @@ def resolve_data_paths(cfg: Config) -> Config:
     cfg.data.val_json = _combine_path(val_base, cfg.data.val_json)
 
     # Resolve test data paths (cfg.test.data.test_*)
-    if hasattr(cfg, 'test') and hasattr(cfg.test, 'data'):
-        test_base = cfg.test.data.test_path if hasattr(cfg.test.data, 'test_path') and cfg.test.data.test_path else ""
-        if hasattr(cfg.test.data, 'test_image'):
+    if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
+        test_base = (
+            cfg.test.data.test_path
+            if hasattr(cfg.test.data, "test_path") and cfg.test.data.test_path
+            else ""
+        )
+        if hasattr(cfg.test.data, "test_image"):
             cfg.test.data.test_image = _combine_path(test_base, cfg.test.data.test_image)
-        if hasattr(cfg.test.data, 'test_label'):
+        if hasattr(cfg.test.data, "test_label"):
             cfg.test.data.test_label = _combine_path(test_base, cfg.test.data.test_label)
-        if hasattr(cfg.test.data, 'test_mask'):
+        if hasattr(cfg.test.data, "test_mask"):
             cfg.test.data.test_mask = _combine_path(test_base, cfg.test.data.test_mask)
-    
+
     # Resolve tuning data paths (cfg.tune.data.tune_*)
-    if hasattr(cfg, 'tune') and hasattr(cfg.tune, 'data'):
-        tune_base = cfg.tune.data.test_path if hasattr(cfg.tune.data, 'test_path') and cfg.tune.data.test_path else ""
-        if hasattr(cfg.tune.data, 'tune_image'):
+    if hasattr(cfg, "tune") and hasattr(cfg.tune, "data"):
+        tune_base = (
+            cfg.tune.data.test_path
+            if hasattr(cfg.tune.data, "test_path") and cfg.tune.data.test_path
+            else ""
+        )
+        if hasattr(cfg.tune.data, "tune_image"):
             cfg.tune.data.tune_image = _combine_path(tune_base, cfg.tune.data.tune_image)
-        if hasattr(cfg.tune.data, 'tune_label'):
+        if hasattr(cfg.tune.data, "tune_label"):
             cfg.tune.data.tune_label = _combine_path(tune_base, cfg.tune.data.tune_label)
-        if hasattr(cfg.tune.data, 'tune_mask'):
+        if hasattr(cfg.tune.data, "tune_mask"):
             cfg.tune.data.tune_mask = _combine_path(tune_base, cfg.tune.data.tune_mask)
 
     return cfg

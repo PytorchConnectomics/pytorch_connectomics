@@ -63,9 +63,13 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
         # Apply scaling factor
         if intensity_scale != 1.0:
             data = data * float(intensity_scale)
-            print(f"  Scaled predictions by {intensity_scale} -> range [{data.min():.4f}, {data.max():.4f}]")
+            print(
+                f"  Scaled predictions by {intensity_scale} -> range [{data.min():.4f}, {data.max():.4f}]"
+            )
     else:
-        print(f"  Intensity scaling disabled (scale={intensity_scale} < 0), keeping raw predictions")
+        print(
+            f"  Intensity scaling disabled (scale={intensity_scale} < 0), keeping raw predictions"
+        )
         # Skip dtype conversion when intensity_scale < 0 to preserve raw predictions
         return data
 

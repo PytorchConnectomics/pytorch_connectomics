@@ -23,48 +23,48 @@ def get_gpu_info() -> Dict[str, any]:
             - cuda_available: Whether CUDA is available
     """
     info = {
-        'cuda_available': torch.cuda.is_available(),
-        'num_gpus': 0,
-        'gpu_names': [],
-        'total_memory_gb': [],
-        'available_memory_gb': [],
+        "cuda_available": torch.cuda.is_available(),
+        "num_gpus": 0,
+        "gpu_names": [],
+        "total_memory_gb": [],
+        "available_memory_gb": [],
     }
 
     if not torch.cuda.is_available():
         return info
 
-    info['num_gpus'] = torch.cuda.device_count()
+    info["num_gpus"] = torch.cuda.device_count()
 
-    for i in range(info['num_gpus']):
+    for i in range(info["num_gpus"]):
         # Get GPU name
-        info['gpu_names'].append(torch.cuda.get_device_name(i))
+        info["gpu_names"].append(torch.cuda.get_device_name(i))
 
         # Get memory info
         props = torch.cuda.get_device_properties(i)
-        total_memory = props.total_memory / (1024 ** 3)  # Convert to GB
-        info['total_memory_gb'].append(total_memory)
+        total_memory = props.total_memory / (1024**3)  # Convert to GB
+        info["total_memory_gb"].append(total_memory)
 
         # Try to get available memory (may require GPU to be initialized)
         try:
             torch.cuda.set_device(i)
             torch.cuda.empty_cache()
-            available_memory = (props.total_memory - torch.cuda.memory_allocated(i)) / (1024 ** 3)
-            info['available_memory_gb'].append(available_memory)
+            available_memory = (props.total_memory - torch.cuda.memory_allocated(i)) / (1024**3)
+            info["available_memory_gb"].append(available_memory)
         except Exception:
             # Fallback: assume 90% is available
-            info['available_memory_gb'].append(total_memory * 0.9)
+            info["available_memory_gb"].append(total_memory * 0.9)
 
     return info
 
 
 def get_system_memory_gb() -> float:
     """Get total system RAM in GB."""
-    return psutil.virtual_memory().total / (1024 ** 3)
+    return psutil.virtual_memory().total / (1024**3)
 
 
 def get_available_system_memory_gb() -> float:
     """Get available system RAM in GB."""
-    return psutil.virtual_memory().available / (1024 ** 3)
+    return psutil.virtual_memory().available / (1024**3)
 
 
 def estimate_gpu_memory_required(
@@ -142,15 +142,19 @@ def estimate_gpu_memory_required(
     # - Optimizer state (AdamW): 2x parameters
     # - Workspace (CUDNN, etc.): 20% overhead
 
-    activation_memory_gb = (total_voxels * bytes_per_element) / (1024 ** 3)
+    activation_memory_gb = (total_voxels * bytes_per_element) / (1024**3)
     gradient_memory_gb = activation_memory_gb  # Same size
     parameter_memory_gb = 0.1  # Rough estimate
     optimizer_memory_gb = parameter_memory_gb * 2  # AdamW uses 2x param memory
     workspace_memory_gb = (activation_memory_gb + gradient_memory_gb) * 0.2  # 20% overhead
 
-    total_memory_gb = (activation_memory_gb + gradient_memory_gb +
-                       parameter_memory_gb + optimizer_memory_gb +
-                       workspace_memory_gb)
+    total_memory_gb = (
+        activation_memory_gb
+        + gradient_memory_gb
+        + parameter_memory_gb
+        + optimizer_memory_gb
+        + workspace_memory_gb
+    )
 
     return total_memory_gb
 
@@ -218,24 +222,28 @@ def print_gpu_info():
     print("GPU Information")
     print("=" * 60)
 
-    if not info['cuda_available']:
+    if not info["cuda_available"]:
         print("CUDA is not available. Training will use CPU.")
-        print(f"System RAM: {get_system_memory_gb():.1f} GB total, "
-              f"{get_available_system_memory_gb():.1f} GB available")
+        print(
+            f"System RAM: {get_system_memory_gb():.1f} GB total, "
+            f"{get_available_system_memory_gb():.1f} GB available"
+        )
         return
 
     print(f"Number of GPUs: {info['num_gpus']}")
     print()
 
-    for i in range(info['num_gpus']):
+    for i in range(info["num_gpus"]):
         print(f"GPU {i}:")
         print(f"  Name: {info['gpu_names'][i]}")
         print(f"  Total Memory: {info['total_memory_gb'][i]:.2f} GB")
         print(f"  Available Memory: {info['available_memory_gb'][i]:.2f} GB")
         print()
 
-    print(f"System RAM: {get_system_memory_gb():.1f} GB total, "
-          f"{get_available_system_memory_gb():.1f} GB available")
+    print(
+        f"System RAM: {get_system_memory_gb():.1f} GB total, "
+        f"{get_available_system_memory_gb():.1f} GB available"
+    )
     print("=" * 60)
 
 
@@ -260,14 +268,14 @@ def get_optimal_num_workers(num_gpus: int = 1) -> int:
     return max(2, suggested)  # Minimum 2 workers
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Test GPU info
     print_gpu_info()
 
     # Test batch size suggestion
     if torch.cuda.is_available():
         info = get_gpu_info()
-        if info['num_gpus'] > 0:
+        if info["num_gpus"] > 0:
             print("\nBatch Size Suggestions:")
             print("=" * 60)
 
@@ -277,7 +285,7 @@ if __name__ == '__main__':
                     patch_size=patch_size,
                     in_channels=1,
                     out_channels=2,
-                    available_gpu_memory_gb=info['available_memory_gb'][0],
+                    available_gpu_memory_gb=info["available_memory_gb"][0],
                     deep_supervision=True,
                     mixed_precision=True,
                 )

@@ -7,7 +7,12 @@ Exports Lightning-specific modules (model, data, trainer, callbacks, config/util
 from .model import ConnectomicsModule
 from .data import ConnectomicsDataModule, VolumeDataModule, TileDataModule
 from .trainer import create_trainer
-from .callbacks import VisualizationCallback, NaNDetectionCallback, EMAWeightsCallback, create_callbacks
+from .callbacks import (
+    VisualizationCallback,
+    NaNDetectionCallback,
+    EMAWeightsCallback,
+    create_callbacks,
+)
 from .config import (
     create_datamodule,
     expand_file_paths,

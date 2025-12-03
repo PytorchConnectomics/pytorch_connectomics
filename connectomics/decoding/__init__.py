@@ -60,33 +60,29 @@ from .utils import (
 
 __all__ = [
     # Segmentation decoding
-    'decode_instance_binary_contour_distance',
-    'decode_instance_affinity_cc',
-
+    "decode_instance_binary_contour_distance",
+    "decode_instance_affinity_cc",
     # Auto-tuning
-    'optimize_threshold',
-    'optimize_parameters',
-    'grid_search_threshold',
-    'SkeletonMetrics',
-    'OptunaDecodingTuner',
-    'run_tuning',
-    'load_and_apply_best_params',
-
+    "optimize_threshold",
+    "optimize_parameters",
+    "grid_search_threshold",
+    "SkeletonMetrics",
+    "OptunaDecodingTuner",
+    "run_tuning",
+    "load_and_apply_best_params",
     # Synapse decoding
-    'polarity2instance',
-
+    "polarity2instance",
     # Post-processing
-    'binarize_and_median',
-    'remove_masks',
-    'add_masks',
-    'merge_masks',
-    'watershed_split',
-    'stitch_3d',
-    'intersection_over_union',
-
+    "binarize_and_median",
+    "remove_masks",
+    "add_masks",
+    "merge_masks",
+    "watershed_split",
+    "stitch_3d",
+    "intersection_over_union",
     # Utilities
-    'cast2dtype',
-    'remove_small_instances',
-    'remove_large_instances',
-    'merge_small_objects',
+    "cast2dtype",
+    "remove_small_instances",
+    "remove_large_instances",
+    "merge_small_objects",
 ]
