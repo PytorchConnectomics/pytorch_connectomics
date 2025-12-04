@@ -82,10 +82,12 @@ class ConnectomicsModule(pl.LightningModule):
             if hasattr(cfg.model, "loss_weights")
             else [1.0] * len(self.loss_functions)
         )
-        num_tasks = (
-            len(cfg.model.multi_task_config)
-            if hasattr(cfg.model, "multi_task_config") and cfg.model.multi_task_config is not None
-            else len(self.loss_functions)
+        self.multi_task_config = (
+            getattr(cfg.model, "multi_task_config", None) or []
+        )
+        self.multi_task_enabled = len(self.multi_task_config) > 0
+        num_tasks = len(self.multi_task_config) if self.multi_task_config else len(
+            self.loss_functions
         )
         self.loss_weighter = build_loss_weighter(cfg, num_tasks=num_tasks, model=self.model)
 
@@ -328,7 +330,7 @@ class ConnectomicsModule(pl.LightningModule):
         self, decoded_predictions: np.ndarray, labels: torch.Tensor, filenames: List[str] = None
     ):
         """Update configured torchmetrics using decoded predictions.
-        
+
         Args:
             decoded_predictions: Instance segmentation predictions (numpy array)
             labels: Ground truth labels (torch tensor)
@@ -396,7 +398,7 @@ class ConnectomicsModule(pl.LightningModule):
             # Check original shape before processing to handle batch dimension correctly
             original_shape = decoded_predictions.shape
             pred_instance = torch.from_numpy(decoded_predictions).long()
-            
+
             # Labels should also be instance segmentation (integer labels)
             labels_instance = labels.long()
 
@@ -411,7 +413,7 @@ class ConnectomicsModule(pl.LightningModule):
             if not has_batch_dim and len(original_shape) == 4 and original_shape[0] == 1:
                 # Single volume with batch dimension of 1 - squeeze it
                 pred_instance = pred_instance.squeeze(0)
-            
+
             # Handle batch dimension - compute per-volume if multiple volumes in batch
             if has_batch_dim:
                 # Multiple volumes in batch - compute per volume
@@ -422,15 +424,16 @@ class ConnectomicsModule(pl.LightningModule):
                         vol_label = labels_instance[i].cpu()
                     else:
                         vol_label = labels_instance.cpu()
-                    
+
                     # Compute per-volume metric
                     self.test_adapted_rand.update(vol_pred, vol_label)
-                    
+
                     # Compute and log per-volume metric
                     if filenames and i < len(filenames):
                         vol_name = filenames[i]
                         # Compute metric for this volume only
                         from ...metrics.metrics_seg import AdaptedRandError
+
                         vol_metric = AdaptedRandError()
                         vol_metric.update(vol_pred, vol_label)
                         vol_error = vol_metric.compute().item()
@@ -451,14 +454,15 @@ class ConnectomicsModule(pl.LightningModule):
                         pred_instance = pred_instance.unsqueeze(0)
                     elif labels_instance.ndim == pred_instance.ndim - 1:
                         labels_instance = labels_instance.unsqueeze(0)
-                
+
                 # AdaptedRandError.update() expects CPU tensors (it converts to numpy internally)
                 self.test_adapted_rand.update(pred_instance.cpu(), labels_instance.cpu())
-                
+
                 # Compute and log per-volume metric if filename available
                 if filenames and len(filenames) > 0:
                     vol_name = filenames[0]
                     from ...metrics.metrics_seg import AdaptedRandError
+
                     vol_metric = AdaptedRandError()
                     vol_metric.update(pred_instance.cpu(), labels_instance.cpu())
                     vol_error = vol_metric.compute().item()
@@ -472,7 +476,7 @@ class ConnectomicsModule(pl.LightningModule):
                         prog_bar=False,
                         logger=True,
                     )
-            
+
             # Log aggregate metric during test_step (on_test_end doesn't allow logging)
             self.log(
                 "test_adapted_rand",
@@ -723,7 +727,9 @@ class ConnectomicsModule(pl.LightningModule):
 
             # For tune mode, skip decoding/postprocessing (only need intermediate predictions)
             if mode == "tune":
-                print("  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)")
+                print(
+                    "  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)"
+                )
                 return torch.tensor(0.0, device=self.device)
 
             # Ensure batch dimension for apply_decode_mode (expects [B, C, D, H, W] or [B, C, H, W])
@@ -761,7 +767,7 @@ class ConnectomicsModule(pl.LightningModule):
         save_intermediate = False
         if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "save_prediction"):
             save_intermediate = getattr(self.cfg.inference.save_prediction, "enabled", False)
-        
+
         # Always save intermediate predictions in tune mode (needed for parameter tuning)
         if mode == "tune":
             save_intermediate = True
@@ -776,7 +782,9 @@ class ConnectomicsModule(pl.LightningModule):
 
         # For tune mode, skip decoding/postprocessing (only need intermediate predictions)
         if mode == "tune":
-            print("  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)")
+            print(
+                "  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)"
+            )
             return torch.tensor(0.0, device=self.device)
 
         # Decode and postprocess

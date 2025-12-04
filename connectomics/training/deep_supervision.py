@@ -123,7 +123,7 @@ class DeepSupervisionHandler:
             num_label_channels = 1
 
             # Extract label channels
-            task_label = labels[:, label_ch_offset: label_ch_offset + num_label_channels, ...]
+            task_label = labels[:, label_ch_offset : label_ch_offset + num_label_channels, ...]
             label_ch_offset += num_label_channels
 
             # Apply specified losses for this task

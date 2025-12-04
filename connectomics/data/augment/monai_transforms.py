@@ -38,7 +38,11 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
         self.rotate_ratio = rotate_ratio
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
         d = dict(data)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -52,6 +56,10 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
                 else:
                     d[key] = self._apply_misalignment_translation(d[key])
         return d
+
+    def randomize(self, _: Any = None) -> None:
+        """Randomly decide whether to apply the transform."""
+        self._do_transform = self.R.rand() < self.prob
 
     def _apply_misalignment_translation(
         self, img: Union[np.ndarray, torch.Tensor]
@@ -184,7 +192,12 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
         self.num_sections = num_sections
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+
         d = dict(data)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -193,29 +206,40 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
                 d[key] = self._apply_missing_section(d[key])
         return d
 
+    def randomize(self, _: Any = None) -> None:
+        """Randomly decide whether to apply the transform."""
+        self._do_transform = self.R.rand() < self.prob
+
     def _apply_missing_section(
         self, img: Union[np.ndarray, torch.Tensor]
     ) -> Union[np.ndarray, torch.Tensor]:
         """Remove random sections from volume."""
-        if img.ndim < 3 or img.shape[0] <= 3:
+        if img.ndim < 3:
             return img  # Skip 2D or very small volumes
 
         # Handle both numpy and torch tensors
         is_tensor = isinstance(img, torch.Tensor)
 
+        depth_axis = 0
+        if img.ndim >= 4 and img.shape[0] <= 3:
+            depth_axis = 1  # Channel-first; depth is axis 1
+
+        depth = img.shape[depth_axis]
+        if depth <= 3:
+            return img
+
         # Select sections to remove (avoid first and last)
-        num_to_remove = min(self.num_sections, img.shape[0] - 2)
+        num_to_remove = min(self.num_sections, depth - 2)
         indices_to_remove = self.R.choice(
-            np.arange(1, img.shape[0] - 1), size=num_to_remove, replace=False
+            np.arange(1, depth - 1), size=num_to_remove, replace=False
         )
 
         if is_tensor:
-            # Keep sections that are NOT in indices_to_remove
-            keep_mask = torch.ones(img.shape[0], dtype=torch.bool, device=img.device)
+            keep_mask = torch.ones(depth, dtype=torch.bool, device=img.device)
             keep_mask[indices_to_remove] = False
-            return img[keep_mask]
+            return torch.index_select(img, dim=depth_axis, index=keep_mask.nonzero(as_tuple=False).squeeze(-1))
         else:
-            return np.delete(img, indices_to_remove, axis=0)
+            return np.delete(img, indices_to_remove, axis=depth_axis)
 
 
 class RandMissingPartsd(RandomizableTransform, MapTransform):

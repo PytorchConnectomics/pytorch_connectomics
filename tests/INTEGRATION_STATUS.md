@@ -16,11 +16,7 @@ Successfully migrated integration tests from YACS (v1.x) to Hydra (v2.0) config 
    - Removed YACS-specific MockArgs pattern
    - Added modern Hydra config tests
 
-2. ✅ **test_lightning_integration.py** - Complete rewrite
-   - Replaced `HydraConfig` → `Config`
-   - Updated to use pytest fixtures with temp data
-   - Added comprehensive Lightning component tests
-   - Tests cover: module, trainer, optimizer, scheduler, etc.
+2. ✅ **test_lightning_integration.py** - Removed (duplicated config smoke coverage; consolidated into test_config_integration.py)
 
 3. ✅ **test_affinity_cc3d.py** - Fixed imports
    - Added missing `get_seg_type()` function to `connectomics.data.process.misc`
