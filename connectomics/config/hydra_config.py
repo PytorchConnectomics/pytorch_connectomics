@@ -1220,6 +1220,18 @@ try:
                 DecodingParameterSpace,
                 PostprocessingParameterSpace,
                 ParameterSpaceConfig,
+                # Core config dataclasses (for Lightning checkpoints)
+                Config,
+                SystemConfig,
+                SystemTrainingConfig,
+                SystemInferenceConfig,
+                ModelConfig,
+                DataConfig,
+                OptimizationConfig,
+                MonitorConfig,
+                InferenceConfig,
+                TestConfig,
+                TuneConfig,
             ]
         )
 except Exception:
