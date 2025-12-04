@@ -450,9 +450,7 @@ class DataConfig:
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 
     # Augmentation configuration (nested under data in YAML)
-    augmentation: Optional["AugmentationConfig"] = (
-        None  # Set to None for simple enabled flag, or full config for detailed control
-    )
+    augmentation: "AugmentationConfig" = field(default_factory=lambda: AugmentationConfig())
 
 
 @dataclass

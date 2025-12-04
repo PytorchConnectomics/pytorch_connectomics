@@ -8,7 +8,7 @@ This directory contains the test suite for PyTorch Connectomics, organized by te
 tests/
 ├── unit/              # Unit tests (fast, isolated)
 ├── integration/       # Integration tests (multiple components)
-├── e2e/              # End-to-end tests (complete workflows)
+├── e2e/               # End-to-end tests (complete workflows)
 └── test_banis_features.py  # BANIS Phase 12 integration tests
 ```
 
@@ -33,8 +33,7 @@ pytest tests/unit/
 ### Integration Tests (`integration/`)
 
 Tests for multiple components working together:
-- **test_lightning_integration.py** - Lightning module + model + loss
-- **test_config_integration.py** - Config system + training pipeline
+- **test_config_integration.py** - Config system + training pipeline smoke
 - **test_dataset_multi.py** - Multi-dataset loading and mixing
 - **test_auto_config.py** - Auto-configuration system
 - **test_auto_tuning.py** - Hyperparameter auto-tuning
@@ -49,7 +48,6 @@ pytest tests/integration/
 
 Complete workflow tests (slowest, most comprehensive):
 - **test_lucchi_training.py** - Full training run on Lucchi dataset
-- **test_lucchi_simple.py** - Simplified training test
 - **test_main_lightning.py** - Complete main.py workflow
 
 Run e2e tests only:

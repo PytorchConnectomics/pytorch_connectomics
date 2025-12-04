@@ -86,7 +86,7 @@ def update_from_cli(cfg: Config, overrides: List[str]) -> Config:
     """
     Update config from command-line overrides.
 
-    Supports dot notation: ['data.batch_size=4', 'model.architecture=unet3d']
+    Supports dot notation: ['system.training.batch_size=4', 'model.architecture=unet3d']
 
     Args:
         cfg: Base Config object

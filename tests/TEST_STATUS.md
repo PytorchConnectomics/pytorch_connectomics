@@ -11,8 +11,8 @@ Tests have been reorganized into three categories:
 ```
 tests/
 ├── unit/              # 7 test files - Fast, isolated component tests
-├── integration/       # 6 test files - Multi-component integration tests
-├── e2e/              # 3 test files - Complete workflow tests
+├── integration/       # 5 test files - Multi-component integration tests
+├── e2e/               # 2 test files - Complete workflow tests
 └── test_banis_features.py  # BANIS Phase 6-12 feature tests
 ```
 
@@ -85,7 +85,6 @@ tests/
 #### Tests:
 - ❌ **test_affinity_cc3d.py** - Import error (`affinity_cc3d`)
 - ❌ **test_config_integration.py** - Import error (`load_cfg`)
-- ❌ **test_lightning_integration.py** - Import error (`get_cfg_defaults`)
 - ⏸️ **test_auto_config.py** - Not tested yet
 - ⏸️ **test_auto_tuning.py** - Not tested yet
 - ⏸️ **test_dataset_multi.py** - Not tested yet
@@ -98,7 +97,6 @@ tests/
 
 #### Tests:
 - ⏸️ **test_lucchi_training.py** - Full training workflow
-- ⏸️ **test_lucchi_simple.py** - Simplified training
 - ⏸️ **test_main_lightning.py** - Complete main.py workflow
 
 *Note:* E2E tests require Lucchi dataset

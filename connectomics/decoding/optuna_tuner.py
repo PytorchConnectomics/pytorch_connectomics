@@ -203,7 +203,7 @@ class OptunaDecodingTuner:
             db_dir = db_path_obj.parent
             db_dir.mkdir(parents=True, exist_ok=True)
             print(f"📁 Created optuna storage directory: {db_dir}")
-            
+
             # Ensure database file has write permissions if it exists
             if db_path_obj.exists():
                 db_path_obj.chmod(0o664)  # rw-rw-r--
@@ -338,7 +338,9 @@ class OptunaDecodingTuner:
                 print(f"   Error: {e}")
                 print(f"   Traceback:\n{traceback.format_exc()}")
                 return (
-                    float("-inf") if self._get_optimization_direction() == "maximize" else float("inf")
+                    float("-inf")
+                    if self._get_optimization_direction() == "maximize"
+                    else float("inf")
                 )
 
             # Apply post-processing if enabled
@@ -348,7 +350,9 @@ class OptunaDecodingTuner:
                 except Exception as e:
                     import traceback
 
-                    print(f"\n❌ Trial {self.trial_count} failed during post-processing (volume {vol_idx}):")
+                    print(
+                        f"\n❌ Trial {self.trial_count} failed during post-processing (volume {vol_idx}):"
+                    )
                     print(f"   Parameters: {postproc_params}")
                     print(f"   Error: {e}")
                     print(f"   Traceback:\n{traceback.format_exc()}")
@@ -362,19 +366,25 @@ class OptunaDecodingTuner:
             try:
                 gt_vol = self.ground_truth[vol_idx]
                 mask_vol = self.mask[vol_idx] if self.mask is not None else None
-                vol_metric = self._compute_metric_single(segmentation, gt_vol, mask_vol, metric_name)
+                vol_metric = self._compute_metric_single(
+                    segmentation, gt_vol, mask_vol, metric_name
+                )
                 volume_metrics.append(vol_metric)
             except Exception as e:
                 import traceback
 
-                print(f"\n❌ Trial {self.trial_count} failed during metric computation (volume {vol_idx}):")
+                print(
+                    f"\n❌ Trial {self.trial_count} failed during metric computation (volume {vol_idx}):"
+                )
                 print(f"   Metric: {metric_name}")
                 print(f"   Segmentation shape: {segmentation.shape}, dtype: {segmentation.dtype}")
                 print(f"   Unique labels in segmentation: {len(np.unique(segmentation))}")
                 print(f"   Error: {e}")
                 print(f"   Traceback:\n{traceback.format_exc()}")
                 return (
-                    float("-inf") if self._get_optimization_direction() == "maximize" else float("inf")
+                    float("-inf")
+                    if self._get_optimization_direction() == "maximize"
+                    else float("inf")
                 )
 
         # Average metrics across volumes
@@ -385,7 +395,9 @@ class OptunaDecodingTuner:
             direction = self._get_optimization_direction()
             # Show per-volume and average
             vol_str = ", ".join([f"{m:.4f}" for m in volume_metrics])
-            print(f"Trial {self.trial_count:3d}: {metric_name}=[{vol_str}] avg={metric_value:.6f} ({direction})")
+            print(
+                f"Trial {self.trial_count:3d}: {metric_name}=[{vol_str}] avg={metric_value:.6f} ({direction})"
+            )
 
         return metric_value
 
@@ -555,7 +567,7 @@ class OptunaDecodingTuner:
         segmentation: np.ndarray,
         ground_truth: np.ndarray,
         mask: Optional[np.ndarray],
-        metric_name: str
+        metric_name: str,
     ) -> float:
         """
         Compute evaluation metric for a single volume.
@@ -734,7 +746,11 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Step 2: Load predictions from saved files
     print("\n[2/4] Loading predictions from saved files...")
-    output_pred_dir = tune_output.output_pred if tune_output.output_pred is not None else str(output_dir.parent / "results")
+    output_pred_dir = (
+        tune_output.output_pred
+        if tune_output.output_pred is not None
+        else str(output_dir.parent / "results")
+    )
     cache_suffix = tune_output.cache_suffix
     predictions_dir = Path(output_pred_dir)
 
@@ -762,7 +778,9 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     print(f"✓ Loaded {len(predictions)} prediction volume(s)")
     for i, pred in enumerate(predictions):
-        print(f"  Volume {i}: shape {pred.shape}, dtype {pred.dtype}, range [{pred.min():.3f}, {pred.max():.3f}]")
+        print(
+            f"  Volume {i}: shape {pred.shape}, dtype {pred.dtype}, range [{pred.min():.3f}, {pred.max():.3f}]"
+        )
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
@@ -778,7 +796,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     else:
         # If it's a string, treat it as a glob pattern
         label_files = sorted(glob.glob(tune_label_pattern))
-    
+
     if not label_files:
         raise FileNotFoundError(f"No label files found matching pattern: {tune_label_pattern}")
 
@@ -798,7 +816,9 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     for i, gt in enumerate(ground_truth):
         unique_labels = np.unique(gt)
         n_nonzero_labels = len(unique_labels) - (1 if 0 in unique_labels else 0)
-        print(f"  Volume {i}: shape {gt.shape}, dtype {gt.dtype}, range [{gt.min()}, {gt.max()}], unique labels: {n_nonzero_labels}")
+        print(
+            f"  Volume {i}: shape {gt.shape}, dtype {gt.dtype}, range [{gt.min()}, {gt.max()}], unique labels: {n_nonzero_labels}"
+        )
 
         # Validate ground truth for this volume
         if n_nonzero_labels == 0:
@@ -851,7 +871,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
                 f"   Ground truth shape: {gt.shape}"
             )
     print(f"✓ All {len(predictions)} volumes have matching spatial dimensions")
-    
+
     # Step 5: Create tuner and run optimization
     print("\n[5/6] Creating Optuna tuner...")
     tuner = OptunaDecodingTuner(

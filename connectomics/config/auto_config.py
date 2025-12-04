@@ -377,26 +377,24 @@ def auto_plan_config(
 
     # Collect manual overrides (values explicitly set in config)
     manual_overrides = {}
+    training_cfg = getattr(config.system, "training", None) if hasattr(config, "system") else None
     if hasattr(config, "data"):
-        if hasattr(config.data, "batch_size") and config.data.batch_size is not None:
-            manual_overrides["batch_size"] = config.data.batch_size
-        if hasattr(config.data, "num_workers") and config.data.num_workers is not None:
-            manual_overrides["num_workers"] = config.data.num_workers
+        if training_cfg and getattr(training_cfg, "batch_size", None) is not None:
+            manual_overrides["batch_size"] = training_cfg.batch_size
+        if training_cfg and getattr(training_cfg, "num_workers", None) is not None:
+            manual_overrides["num_workers"] = training_cfg.num_workers
         if hasattr(config.data, "patch_size") and config.data.patch_size is not None:
             manual_overrides["patch_size"] = config.data.patch_size
 
-    if hasattr(config, "training"):
-        if hasattr(config.training, "precision") and config.training.precision is not None:
-            manual_overrides["precision"] = config.training.precision
-        if (
-            hasattr(config.training, "accumulate_grad_batches")
-            and config.training.accumulate_grad_batches is not None
-        ):
-            manual_overrides["accumulate_grad_batches"] = config.training.accumulate_grad_batches
+    if hasattr(config, "optimization"):
+        if getattr(config.optimization, "precision", None) is not None:
+            manual_overrides["precision"] = config.optimization.precision
+        if getattr(config.optimization, "accumulate_grad_batches", None) is not None:
+            manual_overrides["accumulate_grad_batches"] = config.optimization.accumulate_grad_batches
 
-    if hasattr(config, "optimizer"):
-        if hasattr(config.optimizer, "lr") and config.optimizer.lr is not None:
-            manual_overrides["lr"] = config.optimizer.lr
+        opt_cfg = getattr(config.optimization, "optimizer", None)
+        if opt_cfg and getattr(opt_cfg, "lr", None) is not None:
+            manual_overrides["lr"] = opt_cfg.lr
 
     # Create planner
     planner = AutoConfigPlanner(
@@ -408,9 +406,8 @@ def auto_plan_config(
 
     # Plan
     use_mixed_precision = not (
-        hasattr(config, "training")
-        and hasattr(config.training, "precision")
-        and config.training.precision == "32"
+        hasattr(config, "optimization")
+        and getattr(config.optimization, "precision", None) == "32"
     )
 
     result = planner.plan(
@@ -423,20 +420,20 @@ def auto_plan_config(
     # Update config with planned values (if not manually overridden)
     OmegaConf.set_struct(config, False)  # Allow adding new fields
 
-    if "batch_size" not in manual_overrides:
-        config.data.batch_size = result.batch_size
-    if "num_workers" not in manual_overrides:
-        config.data.num_workers = result.num_workers
+    if "batch_size" not in manual_overrides and training_cfg is not None:
+        training_cfg.batch_size = result.batch_size
+    if "num_workers" not in manual_overrides and training_cfg is not None:
+        training_cfg.num_workers = result.num_workers
     if "patch_size" not in manual_overrides:
         config.data.patch_size = result.patch_size
 
     if "precision" not in manual_overrides:
-        config.training.precision = result.precision
+        config.optimization.precision = result.precision
     if "accumulate_grad_batches" not in manual_overrides:
-        config.training.accumulate_grad_batches = result.accumulate_grad_batches
+        config.optimization.accumulate_grad_batches = result.accumulate_grad_batches
 
-    if "lr" not in manual_overrides:
-        config.optimizer.lr = result.lr
+    if "lr" not in manual_overrides and hasattr(config, "optimization"):
+        config.optimization.optimizer.lr = result.lr
 
     OmegaConf.set_struct(config, True)  # Re-enable struct mode
 
@@ -460,7 +457,7 @@ if __name__ == "__main__":
     cfg = auto_plan_config(cfg, print_results=True)
 
     print("\nFinal Config Values:")
-    print(f"  batch_size: {cfg.data.batch_size}")
+    print(f"  batch_size: {cfg.system.training.batch_size}")
     print(f"  patch_size: {cfg.data.patch_size}")
     print(f"  precision: {cfg.optimization.precision}")
     print(f"  lr: {cfg.optimization.optimizer.lr}")

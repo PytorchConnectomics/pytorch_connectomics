@@ -29,7 +29,7 @@ def test_default_config_creation():
     cfg = Config()
     
     assert cfg.model.architecture == 'monai_basic_unet3d'
-    assert cfg.data.batch_size == 2
+    assert cfg.system.training.batch_size == 4
     assert cfg.optimization.optimizer.name == 'AdamW'
     assert cfg.optimization.max_epochs == 100
     print("✅ Default config creation works")
@@ -47,7 +47,7 @@ def test_config_validation():
         raise AssertionError(f"Valid config failed validation: {e}")
     
     # Invalid config should fail
-    cfg.data.batch_size = -1
+    cfg.system.training.batch_size = -1
     try:
         validate_config(cfg)
         raise AssertionError("Invalid config should have failed validation")
@@ -80,14 +80,14 @@ def test_config_cli_updates():
     cfg = Config()
     
     overrides = [
-        'data.batch_size=8',
+        'system.training.batch_size=8',
         'model.architecture=unetr',
-        'optimizer.lr=0.001'
+        'optimization.optimizer.lr=0.001'
     ]
     
     updated_cfg = update_from_cli(cfg, overrides)
     
-    assert updated_cfg.data.batch_size == 8
+    assert updated_cfg.system.training.batch_size == 8
     assert updated_cfg.model.architecture == 'unetr'
     assert updated_cfg.optimization.optimizer.lr == 0.001
     print("✅ CLI updates work")
@@ -97,18 +97,18 @@ def test_config_merge():
     """Test merging configs."""
     base_cfg = Config()
     base_cfg.experiment_name = "base"
-    base_cfg.data.batch_size = 2
+    base_cfg.system.training.batch_size = 2
     
     override_dict = {
         'experiment_name': 'merged',
-        'data': {'batch_size': 4},
+        'system': {'training': {'batch_size': 4}},
         'model': {'architecture': 'custom'}
     }
     
     merged_cfg = merge_configs(base_cfg, override_dict)
     
     assert merged_cfg.experiment_name == "merged"
-    assert merged_cfg.data.batch_size == 4
+    assert merged_cfg.system.training.batch_size == 4
     assert merged_cfg.model.architecture == "custom"
     print("✅ Config merge works")
 
@@ -144,7 +144,7 @@ def test_config_hash():
     print("✅ Same configs have same hash")
     
     # Different configs should have different hash
-    cfg2.data.batch_size = 999
+    cfg2.system.training.batch_size = 999
     hash3 = get_config_hash(cfg2)
     assert hash1 != hash3
     print("✅ Different configs have different hash")
@@ -154,7 +154,7 @@ def test_experiment_name_generation():
     """Test automatic experiment name generation."""
     cfg = Config()
     cfg.model.architecture = "unet3d"
-    cfg.data.batch_size = 4
+    cfg.system.training.batch_size = 4
     cfg.optimization.optimizer.lr = 0.001
     
     name = create_experiment_name(cfg)
@@ -171,17 +171,17 @@ def test_augmentation_config():
     cfg = Config()
     
     # Enable EM-specific augmentations
-    cfg.augmentation.misalignment.enabled = True
-    cfg.augmentation.misalignment.prob = 0.7
-    cfg.augmentation.missing_section.enabled = True
-    cfg.augmentation.mixup.enabled = True
-    cfg.augmentation.copy_paste.enabled = True
+    cfg.data.augmentation.misalignment.enabled = True
+    cfg.data.augmentation.misalignment.prob = 0.7
+    cfg.data.augmentation.missing_section.enabled = True
+    cfg.data.augmentation.mixup.enabled = True
+    cfg.data.augmentation.copy_paste.enabled = True
     
-    assert cfg.augmentation.misalignment.enabled
-    assert cfg.augmentation.misalignment.prob == 0.7
-    assert cfg.augmentation.missing_section.enabled
-    assert cfg.augmentation.mixup.enabled
-    assert cfg.augmentation.copy_paste.enabled
+    assert cfg.data.augmentation.misalignment.enabled
+    assert cfg.data.augmentation.misalignment.prob == 0.7
+    assert cfg.data.augmentation.missing_section.enabled
+    assert cfg.data.augmentation.mixup.enabled
+    assert cfg.data.augmentation.copy_paste.enabled
     print("✅ Augmentation config works")
 
 
