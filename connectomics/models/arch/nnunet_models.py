@@ -12,10 +12,9 @@ import os
 import torch
 import torch.nn as nn
 from pathlib import Path
-from typing import Optional, Union, Dict, Any
+from typing import Dict, Any
 
 try:
-    from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
     from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
     from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
     from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
@@ -192,7 +191,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     device_str = getattr(cfg.model, "nnunet_device", "cuda")
     device = torch.device(device_str if torch.cuda.is_available() else "cpu")
 
-    print(f"Loading nnUNet pretrained model...")
+    print("Loading nnUNet pretrained model...")
     print(f"  Checkpoint: {checkpoint_path}")
     print(f"  Plans: {plans_path}")
     print(f"  Dataset: {dataset_path}")
@@ -206,7 +205,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     plans_manager = PlansManager(plans)
 
     # Load checkpoint
-    print(f"Loading checkpoint weights...")
+    print("Loading checkpoint weights...")
     checkpoint = torch.load(
         str(checkpoint_path), map_location=torch.device("cpu"), weights_only=False
     )
@@ -228,7 +227,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
         num_input_channels = cfg.model.in_channels
 
     # Find trainer class
-    print(f"Building network architecture...")
+    print("Building network architecture...")
     trainer_class = recursive_find_python_class(
         os.path.join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
         trainer_name,
@@ -252,7 +251,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     )
 
     # Load weights
-    print(f"Loading model weights...")
+    print("Loading model weights...")
     network.load_state_dict(checkpoint["network_weights"])
 
     # Move to device
@@ -270,7 +269,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     # (we disable it for inference, but track for metadata)
     trained_with_deep_supervision = checkpoint.get("deep_supervision", False)
 
-    print(f"Model loaded successfully!")
+    print("Model loaded successfully!")
     print(f"  Trainer: {trainer_name}")
     print(f"  Configuration: {configuration_name}")
     print(f"  Spatial dimensions: {spatial_dims}D")

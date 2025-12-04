@@ -20,7 +20,8 @@ Import patterns:
 
 from .segmentation import (
     decode_instance_binary_contour_distance,
-    decode_instance_affinity_cc,
+    decode_affinity_cc,
+    affinity_cc3d,
 )
 
 from .auto_tuning import (
@@ -61,7 +62,8 @@ from .utils import (
 __all__ = [
     # Segmentation decoding
     "decode_instance_binary_contour_distance",
-    "decode_instance_affinity_cc",
+    "decode_affinity_cc",
+    "affinity_cc3d",
     # Auto-tuning
     "optimize_threshold",
     "optimize_parameters",

@@ -26,8 +26,9 @@ class LoadVolumed(MapTransform):
 
     Args:
         keys: Keys to load from the data dictionary
-        transpose_axes: Axis permutation for transposing loaded volumes (e.g., [2,1,0] for xyz->zyx).
-                       Empty list or None means no transpose. Applied BEFORE adding channel dimension.
+        transpose_axes: Axis permutation for transposing loaded volumes
+            (e.g., [2,1,0] for xyz->zyx). Empty list or None means no transpose.
+            Applied BEFORE adding channel dimension.
         allow_missing_keys: Whether to allow missing keys in the dictionary
 
     Examples:

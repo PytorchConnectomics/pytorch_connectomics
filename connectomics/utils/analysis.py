@@ -8,8 +8,8 @@ from tqdm import tqdm  # show progress
 from scipy.ndimage.measurements import center_of_mass
 from scipy.spatial import KDTree
 
-from connectomics.data.io import *
-from connectomics.data.process import *
+from connectomics.data.io import *  # noqa: F403
+from connectomics.data.process import *  # noqa: F403
 
 
 def voxel_instance_size(target: np.ndarray, ds_name: str = "main") -> pd.DataFrame:
@@ -172,11 +172,11 @@ def diff_segm(
 
     counts_dict1 = dict(zip(indices1, counts1))
     counts_dict2 = dict(zip(indices2, counts2))
-    bbox_dict1 = index2bbox(seg1, indices1, relax=1, progress=progress)
+    bbox_dict1 = index2bbox(seg1, indices1, relax=1, progress=progress)  # noqa: F405
 
     for idx1 in tqdm(indices1) if progress else indices1:
         bbox = bbox_dict1[idx1]
-        crop_seg1, crop_seg2 = crop_ND(seg1, bbox), crop_ND(seg2, bbox)
+        crop_seg1, crop_seg2 = crop_ND(seg1, bbox), crop_ND(seg2, bbox)  # noqa: F405
         temp1 = (crop_seg1 == idx1).astype(int)
 
         best_iou = 0.0

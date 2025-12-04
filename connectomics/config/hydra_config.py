@@ -150,15 +150,15 @@ class ModelConfig:
     activation: str = "relu"
 
     # UNet-specific parameters (MONAI UNet)
-    spatial_dims: int = (
-        3  # Spatial dimensions: 2 for 2D, 3 for 3D (auto-inferred from input_size length, not used directly)
-    )
+    spatial_dims: int = 3  # Spatial dimensions: 2 for 2D, 3 for 3D
+    # (auto-inferred from input_size length, not used directly)
     num_res_units: int = 2  # Number of residual units per block
     kernel_size: int = 3  # Convolution kernel size
     strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
     act: str = "relu"  # Activation function: 'relu', 'prelu', 'elu', etc.
     upsample: str = (
-        "deconv"  # Upsampling mode for MONAI BasicUNet: 'deconv' (transposed conv), 'nontrainable' (interpolation + conv), or 'pixelshuffle'
+        "deconv"  # Upsampling mode: 'deconv' (transposed conv),
+        # 'nontrainable' (interpolation + conv), or 'pixelshuffle'
     )
 
     # Transformer-specific (UNETR, etc.)
@@ -911,19 +911,16 @@ class TestTimeAugmentationConfig:
     - rotation90_axes: Uses spatial-only indices (e.g., [1, 2] for H-W plane where 0=D, 1=H, 2=W)
     """
 
-    enabled: bool = False
-    flip_axes: Any = (
-        None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[2], [3]] (full tensor indices)
-    )
-    rotation90_axes: Any = (
-        None  # TTA rotation90 strategy: "all" (3 planes × 4 rotations), null, or list like [[1, 2]] (spatial indices: 0=D, 1=H, 2=W)
-    )
+    flip_axes: Any = None  # TTA flip strategy: "all" (8 flips), null (no aug),
+    # or list like [[2], [3]] (full tensor indices)
+    rotation90_axes: Any = None  # TTA rotation90 strategy: "all" (3 planes × 4 rotations),
+    # null, or list like [[1, 2]] (spatial indices: 0=D, 1=H, 2=W)
     channel_activations: Optional[List[Any]] = (
-        None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...] e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
+        None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...]
+        # e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
     )
-    select_channel: Any = (
-        None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
-    )
+    select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all)
+    # (applied even with null flip_axes)
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
 
@@ -943,8 +940,9 @@ class SavePredictionConfig:
 
     enabled: bool = True  # Enable saving intermediate predictions
     intensity_scale: float = (
-        -1.0
-    )  # If < 0, keep raw predictions (no normalization/scaling). If > 0, normalize to [0,1] then scale.
+        -1.0  # If < 0, keep raw predictions (no normalization/scaling).
+        # If > 0, normalize to [0,1] then scale.
+    )
     intensity_dtype: str = (
         "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
     )
@@ -983,9 +981,8 @@ class DecodeBinaryContourDistanceWatershedConfig:
 class DecodeModeConfig:
     """Configuration for a single decode mode/function."""
 
-    name: str = (
-        "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
-    )
+    name: str = "decode_binary_watershed"  # Function name: decode_binary_cc,
+    # decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
     kwargs: Dict[str, Any] = field(
         default_factory=dict
     )  # Keyword arguments for the decode function
@@ -1105,6 +1102,8 @@ class TestDataConfig:
     cache_suffix: str = "_prediction.h5"
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    # Label transformation (optional, typically not used for test mode to preserve raw labels for evaluation)
+    label_transform: Optional[LabelTransformConfig] = None
 
 
 @dataclass
@@ -1128,6 +1127,8 @@ class TuneDataConfig:
     tune_resolution: Optional[List[int]] = None
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    # Label transformation (optional, typically not used for tune mode to preserve raw labels for evaluation)
+    label_transform: Optional[LabelTransformConfig] = None
 
 
 @dataclass
@@ -1208,6 +1209,24 @@ class TuneConfig:
     output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
     logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})
     parameter_space: ParameterSpaceConfig = field(default_factory=ParameterSpaceConfig)
+
+
+# Allow safe loading of checkpoints with PyTorch 2.6+ weights_only defaults
+try:
+    import torch
+
+    if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
+        torch.serialization.add_safe_globals(
+            [
+                ParameterConfig,
+                DecodingParameterSpace,
+                PostprocessingParameterSpace,
+                ParameterSpaceConfig,
+            ]
+        )
+except Exception:
+    # Best-effort registration; ignore if torch not available at import time
+    pass
 
 
 @dataclass

@@ -4,10 +4,12 @@ import numpy as np
 
 
 def seg2d_to_flows(masks: np.ndarray):
-    """Convert masks to flows using diffusion from center pixel. Center of masks is defined to be the
-    closest pixel to the median of all pixels that is inside the mask. Result of diffusion is converted
-    into flows by computing the gradients of the diffusion density map. This function is adapted from
-    https://github.com/MouseLand/cellpose.
+    """Convert masks to flows using diffusion from center pixel.
+
+    Center of masks is defined to be the closest pixel to the median of all
+    pixels that is inside the mask. Result of diffusion is converted into flows
+    by computing the gradients of the diffusion density map. This function is
+    adapted from https://github.com/MouseLand/cellpose.
     """
     h, w = masks.shape
     masks_padded = np.pad(masks, 1, mode="constant", constant_values=0).astype(np.int64)

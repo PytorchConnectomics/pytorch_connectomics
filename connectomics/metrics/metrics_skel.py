@@ -343,13 +343,13 @@ def evaluate_directory(
     }
 
     if verbose:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"Evaluated {output['num_evaluated']} images")
         print(f"Mean IoU:          {output['mean_iou']:.4f}")
         print(f"Mean Correctness:  {output['mean_correctness']:.4f}")
         print(f"Mean Completeness: {output['mean_completeness']:.4f}")
         print(f"Mean Quality:      {output['mean_quality']:.4f}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
 
     return output
 

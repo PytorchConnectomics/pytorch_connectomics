@@ -109,7 +109,10 @@ class SegToInstanceBoundaryMaskd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_bd(d[key], self.thickness, self.edge_mode, self.mode)
+                label = d[key]
+                if isinstance(label, torch.Tensor):
+                    label = label.detach().cpu().numpy()
+                d[key] = seg_to_instance_bd(label, self.thickness, self.edge_mode, self.mode)
         return d
 
 

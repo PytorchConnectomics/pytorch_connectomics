@@ -22,9 +22,9 @@ def energy_quantize(energy, levels=10):
 
 
 def decode_quantize(output, mode="max"):
-    assert type(output) in [torch.Tensor, np.ndarray]
+    assert isinstance(output, (torch.Tensor, np.ndarray))
     assert mode in ["max", "mean"]
-    if type(output) == torch.Tensor:
+    if isinstance(output, torch.Tensor):
         return _decode_quant_torch(output, mode)
     else:
         return _decode_quant_numpy(output, mode)

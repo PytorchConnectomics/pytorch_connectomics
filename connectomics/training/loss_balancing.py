@@ -71,7 +71,7 @@ class UncertaintyLossWeighter(BaseLossWeighter):
     def combine(
         self, losses: Sequence[torch.Tensor], names: Sequence[str], stage: str
     ) -> Tuple[torch.Tensor, torch.Tensor, dict]:
-        loss_tensor = torch.stack([l for l in losses])
+        loss_tensor = torch.stack([loss for loss in losses])
         weights = torch.exp(-self.log_vars)
 
         # Standard homoscedastic uncertainty formulation
@@ -112,7 +112,7 @@ class GradNormLossWeighter(BaseLossWeighter):
     def combine(
         self, losses: Sequence[torch.Tensor], names: Sequence[str], stage: str
     ) -> Tuple[torch.Tensor, torch.Tensor, dict]:
-        losses_tensor = torch.stack([l for l in losses])
+        losses_tensor = torch.stack([loss for loss in losses])
         weights = self._normalized_weights()
 
         weighted_losses = weights * losses_tensor

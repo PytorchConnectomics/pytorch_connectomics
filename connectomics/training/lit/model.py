@@ -33,7 +33,7 @@ from ...models.solver import build_optimizer, build_lr_scheduler
 from ...config import Config
 
 # Import training/inference components
-from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
+from ..deep_supervision import DeepSupervisionHandler
 from ..debugging import DebugManager
 from ..loss_balancing import build_loss_weighter
 from ...inference import (
@@ -237,9 +237,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         save_pred_cfg = self.cfg.inference.save_prediction
 
-        # Get the scale and dtype that were used for saving
+        # Get the scale that was used for saving
         intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
-        intensity_dtype = getattr(save_pred_cfg, "intensity_dtype", None)
 
         # Convert to float first
         data = data.astype(np.float32)
@@ -325,8 +324,16 @@ class ConnectomicsModule(pl.LightningModule):
 
         return None, False, loaded_suffix
 
-    def _compute_test_metrics(self, decoded_predictions: np.ndarray, labels: torch.Tensor):
-        """Update configured torchmetrics using decoded predictions."""
+    def _compute_test_metrics(
+        self, decoded_predictions: np.ndarray, labels: torch.Tensor, filenames: List[str] = None
+    ):
+        """Update configured torchmetrics using decoded predictions.
+        
+        Args:
+            decoded_predictions: Instance segmentation predictions (numpy array)
+            labels: Ground truth labels (torch tensor)
+            filenames: Optional list of filenames for per-volume metrics
+        """
         pred_tensor = torch.from_numpy(decoded_predictions).float().to(self.device)
         labels_tensor = labels.float()
 
@@ -384,7 +391,97 @@ class ConnectomicsModule(pl.LightningModule):
         if hasattr(self, "test_adapted_rand") and isinstance(
             self.test_adapted_rand, torchmetrics.Metric
         ):
-            self.test_adapted_rand.update(pred_binary.cpu(), labels_binary.cpu())
+            # Adapted Rand requires instance segmentation labels (integer labels), not binary
+            # decoded_predictions should already be instance segmentation from decode_instance_*
+            # Check original shape before processing to handle batch dimension correctly
+            original_shape = decoded_predictions.shape
+            pred_instance = torch.from_numpy(decoded_predictions).long()
+            
+            # Labels should also be instance segmentation (integer labels)
+            labels_instance = labels.long()
+
+            # Squeeze all leading dimensions of size 1 from labels (remove batch & channel dims)
+            # Labels can be: (B, C, Z, H, W), (B, Z, H, W), (C, Z, H, W), or (Z, H, W)
+            while labels_instance.ndim > 3 and labels_instance.shape[0] == 1:
+                labels_instance = labels_instance.squeeze(0)
+
+            # Determine if we have a batch dimension in predictions
+            # decoded_predictions can be: (Z,H,W), (1,Z,H,W), or (B,Z,H,W)
+            has_batch_dim = len(original_shape) == 4 and original_shape[0] > 1
+            if not has_batch_dim and len(original_shape) == 4 and original_shape[0] == 1:
+                # Single volume with batch dimension of 1 - squeeze it
+                pred_instance = pred_instance.squeeze(0)
+            
+            # Handle batch dimension - compute per-volume if multiple volumes in batch
+            if has_batch_dim:
+                # Multiple volumes in batch - compute per volume
+                batch_size = original_shape[0]
+                for i in range(batch_size):
+                    vol_pred = pred_instance[i].cpu()
+                    if labels_instance.ndim == 4:
+                        vol_label = labels_instance[i].cpu()
+                    else:
+                        vol_label = labels_instance.cpu()
+                    
+                    # Compute per-volume metric
+                    self.test_adapted_rand.update(vol_pred, vol_label)
+                    
+                    # Compute and log per-volume metric
+                    if filenames and i < len(filenames):
+                        vol_name = filenames[i]
+                        # Compute metric for this volume only
+                        from ...metrics.metrics_seg import AdaptedRandError
+                        vol_metric = AdaptedRandError()
+                        vol_metric.update(vol_pred, vol_label)
+                        vol_error = vol_metric.compute().item()
+                        print(f"  📊 {vol_name}: adapted_rand = {vol_error:.6f}")
+                        # Log per-volume metric
+                        self.log(
+                            f"test_adapted_rand/{vol_name}",
+                            vol_error,
+                            on_step=True,
+                            on_epoch=False,
+                            prog_bar=False,
+                            logger=True,
+                        )
+            else:
+                # Single volume - ensure same dimensionality (both should be 3D: Z, H, W)
+                if pred_instance.ndim != labels_instance.ndim:
+                    if pred_instance.ndim == labels_instance.ndim - 1:
+                        pred_instance = pred_instance.unsqueeze(0)
+                    elif labels_instance.ndim == pred_instance.ndim - 1:
+                        labels_instance = labels_instance.unsqueeze(0)
+                
+                # AdaptedRandError.update() expects CPU tensors (it converts to numpy internally)
+                self.test_adapted_rand.update(pred_instance.cpu(), labels_instance.cpu())
+                
+                # Compute and log per-volume metric if filename available
+                if filenames and len(filenames) > 0:
+                    vol_name = filenames[0]
+                    from ...metrics.metrics_seg import AdaptedRandError
+                    vol_metric = AdaptedRandError()
+                    vol_metric.update(pred_instance.cpu(), labels_instance.cpu())
+                    vol_error = vol_metric.compute().item()
+                    print(f"  📊 {vol_name}: adapted_rand = {vol_error:.6f}")
+                    # Log per-volume metric
+                    self.log(
+                        f"test_adapted_rand/{vol_name}",
+                        vol_error,
+                        on_step=True,
+                        on_epoch=False,
+                        prog_bar=False,
+                        logger=True,
+                    )
+            
+            # Log aggregate metric during test_step (on_test_end doesn't allow logging)
+            self.log(
+                "test_adapted_rand",
+                self.test_adapted_rand,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=True,
+            )
 
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
@@ -566,14 +663,24 @@ class ConnectomicsModule(pl.LightningModule):
 
     def on_test_end(self):
         """Called at the end of testing to compute and log final metrics."""
+        # Note: Metrics are already logged during test_step() via self.log()
+        # This is kept as a fallback to log directly to logger if needed
         if self.test_adapted_rand and isinstance(self.test_adapted_rand, torchmetrics.Metric):
             try:
-                self.log(
-                    "test_adapted_rand",
-                    self.test_adapted_rand.compute(),
-                    prog_bar=True,
-                    logger=True,
-                )
+                metric_value = self.test_adapted_rand.compute()
+                # Try using self.log() first (works in newer PyTorch Lightning versions)
+                try:
+                    self.log("test_adapted_rand_final", metric_value, on_step=False, on_epoch=True)
+                except Exception:
+                    # Fallback: log directly to TensorBoard using add_scalar
+                    if self.logger and hasattr(self.logger, "experiment"):
+                        writer = self.logger.experiment
+                        if hasattr(writer, "add_scalar"):
+                            # TensorBoard SummaryWriter
+                            writer.add_scalar("test_adapted_rand_final", metric_value.item(), 0)
+                        elif hasattr(writer, "log"):
+                            # WandB logger
+                            writer.log({"test_adapted_rand_final": metric_value.item()})
             except Exception as e:
                 warnings.warn(f"Could not compute adapted rand metric: {e}", UserWarning)
 
@@ -602,21 +709,36 @@ class ConnectomicsModule(pl.LightningModule):
         # CASE 1: Final predictions exist → directly evaluate
         if loaded_final_predictions:
             print(
-                f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+                "  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
             )
             if labels is not None:
-                self._compute_test_metrics(predictions_np, labels)
+                self._compute_test_metrics(predictions_np, labels, filenames)
             return torch.tensor(0.0, device=self.device)
 
         # CASE 2: Intermediate predictions exist → decode and postprocess
         if loaded_intermediate_predictions:
-            print(f"  ✅ Loaded intermediate predictions from disk, skipping inference")
+            print("  ✅ Loaded intermediate predictions from disk, skipping inference")
             # Convert back from saved format to [0,1] predictions if needed
             predictions_np = self._invert_save_prediction_transform(predictions_np)
 
+            # For tune mode, skip decoding/postprocessing (only need intermediate predictions)
+            if mode == "tune":
+                print("  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)")
+                return torch.tensor(0.0, device=self.device)
+
+            # Ensure batch dimension for apply_decode_mode (expects [B, C, D, H, W] or [B, C, H, W])
+            if predictions_np.ndim == 4:  # (C, D, H, W) -> (1, C, D, H, W)
+                predictions_np_batched = predictions_np[np.newaxis, ...]
+            else:
+                predictions_np_batched = predictions_np
+
             # Decode and postprocess
-            decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
+            decoded_predictions = apply_decode_mode(self.cfg, predictions_np_batched)
             postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
+
+            # Remove batch dimension for saving and metrics (1, D, H, W) -> (D, H, W)
+            decoded_predictions = decoded_predictions.squeeze(0)
+            postprocessed_predictions = postprocessed_predictions.squeeze(0)
 
             # Save final predictions
             write_outputs(
@@ -625,20 +747,24 @@ class ConnectomicsModule(pl.LightningModule):
 
             # Evaluate if labels provided
             if labels is not None:
-                self._compute_test_metrics(decoded_predictions, labels)
+                self._compute_test_metrics(decoded_predictions, labels, filenames)
             return torch.tensor(0.0, device=self.device)
 
         # CASE 3: No cached predictions → run full inference pipeline
-        print(f"  🔄 No cached predictions found, running inference")
+        print("  🔄 No cached predictions found, running inference")
 
         # Run inference (cfg.test used for data loading and transforms via datamodule)
         predictions = self.inference_manager.predict_with_tta(images, mask=mask)
         predictions_np = predictions.detach().cpu().float().numpy()
 
-        # Save intermediate predictions if configured
+        # Save intermediate predictions if configured (always save in tune mode)
         save_intermediate = False
         if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "save_prediction"):
             save_intermediate = getattr(self.cfg.inference.save_prediction, "enabled", False)
+        
+        # Always save intermediate predictions in tune mode (needed for parameter tuning)
+        if mode == "tune":
+            save_intermediate = True
 
         if save_intermediate:
             # Apply intensity scaling and dtype conversion before saving
@@ -646,7 +772,12 @@ class ConnectomicsModule(pl.LightningModule):
             write_outputs(
                 self.cfg, predictions_to_save, filenames, suffix="tta_prediction", mode=mode
             )
-            print(f"  💾 Saved intermediate predictions")
+            print("  💾 Saved intermediate predictions")
+
+        # For tune mode, skip decoding/postprocessing (only need intermediate predictions)
+        if mode == "tune":
+            print("  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)")
+            return torch.tensor(0.0, device=self.device)
 
         # Decode and postprocess
         decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
@@ -656,7 +787,7 @@ class ConnectomicsModule(pl.LightningModule):
         write_outputs(
             self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode
         )
-        print(f"  💾 Saved final predictions")
+        print("  💾 Saved final predictions")
 
         # Evaluate if labels provided
         if labels is not None:

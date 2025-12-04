@@ -6,11 +6,13 @@ augmentations, replacing the legacy custom augmentor system entirely.
 """
 
 from __future__ import annotations
-from typing import Dict, Any, List, Optional, Union, Tuple
+
 import math
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import cv2
 import numpy as np
 import torch
-import cv2
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform
 
@@ -1068,7 +1070,8 @@ class SmartNormalizeIntensityd(MapTransform):
                 self.mode = "divide"
             except ValueError:
                 raise ValueError(
-                    f"Invalid divide mode '{mode}'. Format should be 'divide-K' where K is a number (e.g., 'divide-255')"
+                    f"Invalid divide mode '{mode}'. Format should be 'divide-K' "
+                    f"where K is a number (e.g., 'divide-255')"
                 )
         elif mode not in ["none", "normal", "0-1"]:
             raise ValueError(
@@ -1212,7 +1215,8 @@ class RandStriped(RandomizableTransform, MapTransform):
 
         if orientation not in ["horizontal", "vertical", "random"]:
             raise ValueError(
-                f"Invalid orientation '{orientation}'. Must be 'horizontal', 'vertical', or 'random'"
+                f"Invalid orientation '{orientation}'. Must be 'horizontal', "
+                f"'vertical', or 'random'"
             )
         self.orientation = orientation
 
@@ -1356,7 +1360,8 @@ class ResizeByFactord(MapTransform):
 
     Args:
         keys: Keys to transform
-        scale_factors: Scale factors for each spatial dimension (e.g., [0.25, 0.25] for 2D, [0.5, 0.5, 0.5] for 3D)
+        scale_factors: Scale factors for each spatial dimension
+            (e.g., [0.25, 0.25] for 2D, [0.5, 0.5, 0.5] for 3D)
         mode: Interpolation mode ('bilinear', 'nearest', 'area', etc.)
         align_corners: Whether to align corners (True for bilinear, None for nearest)
         allow_missing_keys: Whether to allow missing keys

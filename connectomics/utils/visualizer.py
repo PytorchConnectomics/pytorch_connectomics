@@ -6,10 +6,12 @@ Provides TensorBoard visualization of training progress, predictions, and metric
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any, List
+
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 import torch
 import torchvision.utils as vutils
-import numpy as np
 from skimage.color import label2rgb
 
 try:
@@ -77,7 +79,8 @@ class Visualizer:
             writer: TensorBoard SummaryWriter
             prefix: Prefix for logging (train/val/test)
             channel_mode: How to handle multi-channel output ('argmax', 'all', 'selected')
-            selected_channels: List of channel indices to show (only used when channel_mode='selected')
+            selected_channels: List of channel indices to show
+                (only used when channel_mode='selected')
         """
         if not HAS_TENSORBOARD:
             return

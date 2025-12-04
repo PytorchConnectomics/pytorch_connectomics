@@ -196,7 +196,8 @@ def compute_bbox_all(
     Args:
         seg (numpy.ndarray): The input segmentation map (2D or 3D).
         do_count (bool, optional): Whether to compute the segment counts. Defaults to False.
-        uid (numpy.ndarray, optional): The segment IDs to compute the bounding boxes for. Defaults to None.
+        uid (numpy.ndarray, optional): The segment IDs to compute the bounding
+            boxes for. Defaults to None.
 
     Returns:
         numpy.ndarray: An array containing the bounding boxes of the segments.
@@ -206,7 +207,8 @@ def compute_bbox_all(
 
     Notes:
         - The function computes the bounding boxes of segments in a segmentation map.
-        - The bounding boxes represent the minimum and maximum coordinates of each segment in the map.
+        - The bounding boxes represent the minimum and maximum coordinates of
+          each segment in the map.
         - The function can compute the segment counts if `do_count` is set to True.
         - The bounding boxes are returned as an array.
     """
@@ -233,12 +235,15 @@ def compute_bbox_all_2d(
         numpy.ndarray: The computed bounding boxes of the instances.
 
     Notes:
-        - The input segmentation should have dimensions HxW, where H is the height and W is the width.
+        - The input segmentation should have dimensions HxW, where H is the
+          height and W is the width.
         - Each row in the output represents an instance and contains the following information:
             - seg id: The ID of the instance.
-            - bounding box: The coordinates of the bounding box in the format [ymin, ymax, xmin, xmax].
+            - bounding box: The coordinates of the bounding box in the format
+              [ymin, ymax, xmin, xmax].
             - count (optional): The count of pixels belonging to the instance.
-        - If the `uid` argument is not provided, the unique identifiers are automatically determined from the segmentation.
+        - If the `uid` argument is not provided, the unique identifiers are
+          automatically determined from the segmentation.
         - Instances with no pixels are excluded from the output.
     """
     sz = seg.shape
@@ -297,7 +302,8 @@ def compute_bbox_all_3d(
     Notes:
         - Each row in the output represents an instance and contains the following information:
             - seg id: The ID of the instance.
-            - bounding box: The coordinates of the bounding box in the format [zmin, zmax, ymin, ymax, xmin, xmax].
+            - bounding box: The coordinates of the bounding box in the format
+              [zmin, zmax, ymin, ymax, xmin, xmax].
             - count (optional): The count of voxels belonging to the instance.
         - The output only includes instances with valid bounding boxes.
     """

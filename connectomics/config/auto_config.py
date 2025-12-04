@@ -199,7 +199,7 @@ class AutoConfigPlanner:
             )
             result.planning_notes.append(
                 f"Estimated memory: {result.estimated_gpu_memory_gb:.2f} GB "
-                f"({result.estimated_gpu_memory_gb/gpu_memory_gb*100:.1f}% of GPU)"
+                f"({result.estimated_gpu_memory_gb / gpu_memory_gb * 100:.1f}% of GPU)"
             )
             result.planning_notes.append(f"Batch size: {batch_size}")
 
@@ -207,7 +207,7 @@ class AutoConfigPlanner:
             if batch_size == 1:
                 result.accumulate_grad_batches = 4
                 result.planning_notes.append(
-                    f"Using gradient accumulation (4 batches) for effective batch_size=4"
+                    "Using gradient accumulation (4 batches) for effective batch_size=4"
                 )
 
         # Step 5: Determine num_workers
@@ -311,7 +311,7 @@ class AutoConfigPlanner:
             print(f"  Available: {result.available_gpu_memory_gb:.2f} GB")
             print(
                 f"  Estimated Usage: {result.estimated_gpu_memory_gb:.2f} GB "
-                f"({result.estimated_gpu_memory_gb/result.available_gpu_memory_gb*100:.1f}%)"
+                f"({result.estimated_gpu_memory_gb / result.available_gpu_memory_gb * 100:.1f}%)"
             )
             print(f"  Per Sample: {result.gpu_memory_per_sample_gb:.2f} GB")
             print()
@@ -450,7 +450,6 @@ def auto_plan_config(
 if __name__ == "__main__":
     # Test auto planning
     from connectomics.config import Config
-    from omegaconf import OmegaConf
 
     # Create test config
     cfg = OmegaConf.structured(Config())

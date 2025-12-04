@@ -32,7 +32,7 @@ def get_padsize(pad_size: Union[int, List[int]], ndim: int = 3) -> Tuple[int]:
         pad_size (int, List[int]): number of values padded to the edges of each axis.
         ndim (int): the dimension of the array to be padded. Default: 3
     """
-    if type(pad_size) == int:
+    if isinstance(pad_size, int):
         pad_size = [tuple([pad_size, pad_size]) for _ in range(ndim)]
         return tuple(pad_size)
 

@@ -269,7 +269,11 @@ def resolve_data_paths(cfg: Config) -> Config:
         >>> cfg.data.train_image = ["PT37/*_raw.tif", "file.tif"]
         >>> resolve_data_paths(cfg)
         >>> print(cfg.data.train_image)
-        ['/data/barcode/PT37/img1_raw.tif', '/data/barcode/PT37/img2_raw.tif', '/data/barcode/file.tif']
+        [
+            '/data/barcode/PT37/img1_raw.tif',
+            '/data/barcode/PT37/img2_raw.tif',
+            '/data/barcode/file.tif'
+        ]
 
         >>> cfg.test.data.test_path = "/data/test/"
         >>> cfg.test.data.test_image = ["volume_*.tif"]
@@ -325,7 +329,8 @@ def resolve_data_paths(cfg: Config) -> Config:
                 index = int(selector)
                 if index < -len(expanded) or index >= len(expanded):
                     print(
-                        f"Warning: Index {index} out of range for {len(expanded)} files, using first"
+                        f"Warning: Index {index} out of range for {len(expanded)} files, "
+                        f"using first"
                     )
                     return expanded[0]
                 return expanded[index]
@@ -343,7 +348,8 @@ def resolve_data_paths(cfg: Config) -> Config:
                     return matching[0]
                 else:
                     print(
-                        f"Warning: No file matches selector '{selector}', using first of {len(expanded)} files"
+                        f"Warning: No file matches selector '{selector}', "
+                        f"using first of {len(expanded)} files"
                     )
                     return expanded[0]
 

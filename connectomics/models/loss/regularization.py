@@ -151,9 +151,9 @@ class ContourDistanceConsistency(nn.Module):
         contour_prob = torch.sigmoid(contour_logits)
         distance_abs = torch.abs(torch.tanh(distance_transform))
 
-        assert (
-            contour_prob.shape == distance_abs.shape
-        ), f"Shape mismatch: {contour_prob.shape} vs {distance_abs.shape}"
+        assert contour_prob.shape == distance_abs.shape, (
+            f"Shape mismatch: {contour_prob.shape} vs {distance_abs.shape}"
+        )
 
         # Penalize: high contour prob should match low distance
         loss = contour_prob * distance_abs
@@ -224,9 +224,9 @@ class ForegroundContourConsistency(nn.Module):
         edge = F.pad(edge, (1, 1, 1, 1, 0, 0))
         edge = F.max_pool3d(edge, kernel_size=(1, self.kernel_size, self.kernel_size), stride=1)
 
-        assert (
-            edge.shape == contour_prob.shape
-        ), f"Shape mismatch: {edge.shape} vs {contour_prob.shape}"
+        assert edge.shape == contour_prob.shape, (
+            f"Shape mismatch: {edge.shape} vs {contour_prob.shape}"
+        )
 
         # MSE between detected edges and predicted contours
         loss = F.mse_loss(edge, contour_prob, reduction="none")
@@ -273,7 +273,7 @@ class NonOverlapRegularization(nn.Module):
         """
         if pred.shape[1] < 2:
             raise ValueError(
-                f"Expected at least 2 channels for pre/post predictions, " f"got {pred.shape[1]}"
+                f"Expected at least 2 channels for pre/post predictions, got {pred.shape[1]}"
             )
 
         # Pre- and post-synaptic probabilities
@@ -297,10 +297,4 @@ __all__ = [
     "ContourDistanceConsistency",
     "ForegroundContourConsistency",
     "NonOverlapRegularization",
-    # Aliases
-    "BinaryReg",
-    "FgDTConsistency",
-    "ContourDTConsistency",
-    "FgContourConsistency",
-    "NonoverlapReg",
 ]

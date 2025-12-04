@@ -56,7 +56,7 @@ test dataset arch_or_ckpt ckpt_or_args='' *ARGS='':
         python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch_or_ckpt}} --mode test --checkpoint {{ckpt_or_args}} {{ARGS}}
     fi
 
-# Tune decoding parameters on validation set (e.g., just tune hydra-lv ckpt.pt)
+# Tune decoding parameters on validation set (e.g., just tune fiber ckpt.pt)
 tune dataset ckpt *ARGS='':
     python scripts/main.py --config tutorials/{{dataset}}.yaml --mode tune --checkpoint {{ckpt}} {{ARGS}}
 

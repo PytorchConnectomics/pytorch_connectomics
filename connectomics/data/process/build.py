@@ -63,7 +63,7 @@ def _coerce_config(cfg: Any = None, extra_kwargs: Optional[Dict[str, Any]] = Non
     return namespace
 
 
-from .monai_transforms import MultiTaskLabelTransformd
+from .monai_transforms import MultiTaskLabelTransformd  # noqa: E402
 
 
 def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> Compose:

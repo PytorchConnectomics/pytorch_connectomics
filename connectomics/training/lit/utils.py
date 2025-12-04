@@ -11,7 +11,6 @@ This module provides helper functions for:
 from __future__ import annotations
 import argparse
 import re
-import sys
 from glob import glob
 from pathlib import Path
 from typing import List, Optional
@@ -19,7 +18,6 @@ from typing import List, Optional
 from ...config import (
     Config,
     load_config,
-    save_config,
     update_from_cli,
     validate_config,
     resolve_data_paths,
@@ -186,7 +184,7 @@ def setup_config(args) -> Config:
 
     # Override config for fast-dev-run mode
     if args.fast_dev_run:
-        print(f"🔧 Fast-dev-run mode: Overriding config for debugging")
+        print("🔧 Fast-dev-run mode: Overriding config for debugging")
         print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
         print(f"   - num_cpus: {cfg.system.training.num_cpus} → 1")
         print(f"   - num_workers: {cfg.system.training.num_workers} → 1")

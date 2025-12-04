@@ -275,7 +275,6 @@ def filter_partitions(
                 and resources.gpus >= min_gpus
                 and resources.memory_gb >= min_memory_gb
             ):
-
                 # Check GPU type if specified
                 if gpu_type and resources.gpu_type != gpu_type:
                     continue

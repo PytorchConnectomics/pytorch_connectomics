@@ -128,7 +128,7 @@ def download_dataset(dataset_name: str, base_dir: Path = Path("."), force: bool 
     # Check if already exists
     if not force and check_dataset_exists(dataset_name, base_dir):
         print(f"✅ Dataset '{dataset_name}' already exists")
-        print(f"   Use force=True to re-download")
+        print("   Use force=True to re-download")
         return True
 
     print(f"📥 Downloading {dataset_info['name']}")
@@ -150,7 +150,7 @@ def download_dataset(dataset_name: str, base_dir: Path = Path("."), force: bool 
         # Extract
         extract_zip(zip_path, base_dir)
 
-        print(f"✅ Extraction complete")
+        print("✅ Extraction complete")
 
         # Verify files
         missing_files = []
@@ -160,7 +160,7 @@ def download_dataset(dataset_name: str, base_dir: Path = Path("."), force: bool 
                 missing_files.append(file_path)
 
         if missing_files:
-            print(f"⚠️  Some files are missing:")
+            print("⚠️  Some files are missing:")
             for f in missing_files:
                 print(f"   - {f}")
             return False

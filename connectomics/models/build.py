@@ -47,7 +47,7 @@ def load_external_weights(model, cfg):
         if "state_dict" in checkpoint:
             # PyTorch Lightning checkpoint
             state_dict = checkpoint["state_dict"]
-            print(f'    Loaded Lightning checkpoint (epoch={checkpoint.get("epoch", "?")})')
+            print(f"    Loaded Lightning checkpoint (epoch={checkpoint.get('epoch', '?')})")
         elif "model_state_dict" in checkpoint:
             # Some training frameworks use this key
             state_dict = checkpoint["model_state_dict"]
@@ -65,7 +65,7 @@ def load_external_weights(model, cfg):
         stripped_count = 0
         for key, value in state_dict.items():
             if key.startswith(key_prefix):
-                new_key = key[len(key_prefix) :]
+                new_key = key[len(key_prefix):]
                 new_state_dict[new_key] = value
                 stripped_count += 1
             else:
@@ -119,7 +119,7 @@ def load_external_weights(model, cfg):
             print(f"      First 5: {unexpected_keys[:5]}")
 
     if not missing_keys and not unexpected_keys:
-        print(f"    Successfully loaded all weights")
+        print("    Successfully loaded all weights")
 
     return model
 
@@ -176,11 +176,11 @@ def build_model(cfg, device=None, rank=None):
     print(f"\nModel: {model.__class__.__name__} (architecture: {model_arch})")
     if hasattr(model, "get_model_info"):
         info = model.get_model_info()
-        print(f'  Parameters: {info["parameters"]:,}')
-        print(f'  Trainable: {info["trainable_parameters"]:,}')
-        print(f'  Deep Supervision: {info["deep_supervision"]}')
+        print(f"  Parameters: {info['parameters']:,}")
+        print(f"  Trainable: {info['trainable_parameters']:,}")
+        print(f"  Deep Supervision: {info['deep_supervision']}")
         if info["deep_supervision"]:
-            print(f'  Output Scales: {info["output_scales"]}')
+            print(f"  Output Scales: {info['output_scales']}")
 
     # Load external weights if specified
     external_weights_path = getattr(cfg.model, "external_weights_path", None)

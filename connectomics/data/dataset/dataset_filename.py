@@ -143,7 +143,7 @@ class MonaiFilenameDataset(Dataset):
         # Initialize parent MONAI Dataset
         super().__init__(data=data_dicts, transform=transforms)
 
-        print(f"📋 MonaiFilenameDataset initialized:")
+        print("📋 MonaiFilenameDataset initialized:")
         print(f"   Mode: {mode}")
         print(f"   Samples: {len(data_dicts)}")
         print(f"   Base path: {self.base_path}")
@@ -234,10 +234,10 @@ class MonaiFilenameIterableDataset(torch.utils.data.IterableDataset):
                     f"number of labels ({len(self.label_files)})"
                 )
 
-        print(f"📋 MonaiFilenameIterableDataset initialized:")
+        print("📋 MonaiFilenameIterableDataset initialized:")
         print(f"   Samples: {len(self.image_files)}")
         print(f"   Base path: {self.base_path}")
-        print(f"   Infinite sampling: True")
+        print("   Infinite sampling: True")
 
     def __iter__(self):
         """Infinite iterator over dataset."""

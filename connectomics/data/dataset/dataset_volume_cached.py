@@ -157,7 +157,7 @@ class CachedVolumeDataset(Dataset):
             else:
                 self.cached_masks.append(None)
 
-            print(f"    Volume {i+1}/{len(image_paths)}: {img.shape}")
+            print(f"    Volume {i + 1}/{len(image_paths)}: {img.shape}")
 
         print(f"  ✓ Loaded {len(self.cached_images)} volumes into memory")
 

@@ -31,7 +31,8 @@ class MonaiConnectomicsDataset(Dataset):
     - Modern MONAI Compose transform pipelines
 
     Args:
-        data_dicts (Sequence[Dict]): List of data dictionaries with 'image' and optionally 'label' keys
+        data_dicts (Sequence[Dict]): List of data dictionaries with 'image' and
+            optionally 'label' keys
         transforms (Compose, optional): MONAI transforms pipeline
         sample_size (Tuple[int, ...]): Size of samples to extract (z, y, x)
         mode (str): Dataset mode ('train', 'val', 'test'). Default: 'train'
