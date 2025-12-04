@@ -891,20 +891,22 @@
 <div class="viewcode-block" id="instance_matching">
 <a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.instance_matching">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">instance_matching</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s2">&quot;iou&quot;</span><span class="p">,</span> <span class="n">report_matches</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate detection/instance segmentation metrics between ground truth and predicted label images.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate detection/instance segmentation metrics between ground truth and predictions.</span>
 
 <span class="sd">    Currently, the following metrics are implemented:</span>
+<span class="sd">        &#39;fp&#39;, &#39;tp&#39;, &#39;fn&#39;, &#39;precision&#39;, &#39;recall&#39;, &#39;accuracy&#39;, &#39;f1&#39;,</span>
+<span class="sd">        &#39;criterion&#39;, &#39;thresh&#39;, &#39;n_true&#39;, &#39;n_pred&#39;, &#39;mean_true_score&#39;,</span>
+<span class="sd">        &#39;mean_matched_score&#39;, &#39;panoptic_quality&#39;</span>
 
-<span class="sd">    &#39;fp&#39;, &#39;tp&#39;, &#39;fn&#39;, &#39;precision&#39;, &#39;recall&#39;, &#39;accuracy&#39;, &#39;f1&#39;, &#39;criterion&#39;, &#39;thresh&#39;, &#39;n_true&#39;, &#39;n_pred&#39;, &#39;mean_true_score&#39;, &#39;mean_matched_score&#39;, &#39;panoptic_quality&#39;</span>
-
-<span class="sd">    Corresponding objects of y_true and y_pred are counted as true positives (tp), false positives (fp), and false negatives (fn)</span>
-<span class="sd">    whether their intersection over union (IoU) &gt;= thresh (for criterion=&#39;iou&#39;, which can be changed)</span>
+<span class="sd">    Corresponding objects of y_true and y_pred are counted as true positives (tp),</span>
+<span class="sd">    false positives (fp), and false negatives (fn) when their intersection over</span>
+<span class="sd">    union (IoU) &gt;= thresh (for criterion=&#39;iou&#39;, which can be changed)</span>
 
 <span class="sd">    * mean_matched_score is the mean IoUs of matched true positives</span>
-
-<span class="sd">    * mean_true_score is the mean IoUs of matched true positives but normalized by the total number of GT objects</span>
-
-<span class="sd">    * panoptic_quality defined as in Eq. 1 of Kirillov et al. &quot;Panoptic Segmentation&quot;, CVPR 2019</span>
+<span class="sd">    * mean_true_score is the mean IoUs of matched true positives but normalized</span>
+<span class="sd">      by the total number of GT objects</span>
+<span class="sd">    * panoptic_quality defined as in Eq. 1 of Kirillov et al. &quot;Panoptic Segmentation&quot;,</span>
+<span class="sd">      CVPR 2019</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -917,7 +919,8 @@
 <span class="sd">    criterion: string</span>
 <span class="sd">        matching criterion (default IoU)</span>
 <span class="sd">    report_matches: bool</span>
-<span class="sd">        if True, additionally calculate matched_pairs and matched_scores (note, that this returns even gt-pred pairs whose scores are below  &#39;thresh&#39;)</span>
+<span class="sd">        if True, additionally calculate matched_pairs and matched_scores</span>
+<span class="sd">        (returns gt-pred pairs even when scores are below &#39;thresh&#39;)</span>
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -931,7 +934,9 @@
 
 <span class="sd">    &gt;&gt;&gt; stats = instance_matching(y_true, y_pred)</span>
 <span class="sd">    &gt;&gt;&gt; print(stats)</span>
-<span class="sd">    Matching(criterion=&#39;iou&#39;, thresh=0.5, fp=1, tp=0, fn=1, precision=0, recall=0, accuracy=0, f1=0, n_true=1, n_pred=1, mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)</span>
+<span class="sd">    Matching(criterion=&#39;iou&#39;, thresh=0.5, fp=1, tp=0, fn=1, precision=0,</span>
+<span class="sd">             recall=0, accuracy=0, f1=0, n_true=1, n_pred=1,</span>
+<span class="sd">             mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">_check_label_array</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="s2">&quot;y_true&quot;</span><span class="p">)</span>

@@ -433,9 +433,8 @@
                 <span class="n">log_every_n_epochs</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">log_every_n_epochs</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vis_callback</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;  Visualization: Enabled (every </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">log_every_n_epochs</span><span class="si">}</span><span class="s2"> epoch(s))&quot;</span>
-            <span class="p">)</span>
+            <span class="n">log_freq</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">log_every_n_epochs</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Visualization: Enabled (every </span><span class="si">{</span><span class="n">log_freq</span><span class="si">}</span><span class="s2"> epoch(s))&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Visualization: Disabled&quot;</span><span class="p">)</span>
 

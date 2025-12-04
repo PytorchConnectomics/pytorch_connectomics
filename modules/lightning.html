@@ -440,7 +440,10 @@
 <p>Workflow:
 1. If final prediction exists → directly do evaluation
 2. If intermediate prediction exists → apply decoding → postprocessing → evaluation
-3. Else → run inference (using cfg.test for data loading/transform) → save → decode → evaluate</p>
+3. Else → run inference (cfg.test for data loading/transform) →</p>
+<blockquote>
+<div><p>save → decode → evaluate</p>
+</div></blockquote>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

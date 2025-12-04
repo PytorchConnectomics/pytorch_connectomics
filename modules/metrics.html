@@ -572,15 +572,22 @@ to be of the same size.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="connectomics.metrics.instance_matching">
 <span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">instance_matching</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criterion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'iou'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">report_matches</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#instance_matching"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.instance_matching" title="Link to this definition">¶</a></dt>
-<dd><p>Calculate detection/instance segmentation metrics between ground truth and predicted label images.</p>
-<p>Currently, the following metrics are implemented:</p>
-<p>‘fp’, ‘tp’, ‘fn’, ‘precision’, ‘recall’, ‘accuracy’, ‘f1’, ‘criterion’, ‘thresh’, ‘n_true’, ‘n_pred’, ‘mean_true_score’, ‘mean_matched_score’, ‘panoptic_quality’</p>
-<p>Corresponding objects of y_true and y_pred are counted as true positives (tp), false positives (fp), and false negatives (fn)
-whether their intersection over union (IoU) &gt;= thresh (for criterion=’iou’, which can be changed)</p>
+<dd><p>Calculate detection/instance segmentation metrics between ground truth and predictions.</p>
+<dl class="simple">
+<dt>Currently, the following metrics are implemented:</dt><dd><p>‘fp’, ‘tp’, ‘fn’, ‘precision’, ‘recall’, ‘accuracy’, ‘f1’,
+‘criterion’, ‘thresh’, ‘n_true’, ‘n_pred’, ‘mean_true_score’,
+‘mean_matched_score’, ‘panoptic_quality’</p>
+</dd>
+</dl>
+<p>Corresponding objects of y_true and y_pred are counted as true positives (tp),
+false positives (fp), and false negatives (fn) when their intersection over
+union (IoU) &gt;= thresh (for criterion=’iou’, which can be changed)</p>
 <ul class="simple">
 <li><p>mean_matched_score is the mean IoUs of matched true positives</p></li>
-<li><p>mean_true_score is the mean IoUs of matched true positives but normalized by the total number of GT objects</p></li>
-<li><p>panoptic_quality defined as in Eq. 1 of Kirillov et al. “Panoptic Segmentation”, CVPR 2019</p></li>
+<li><p>mean_true_score is the mean IoUs of matched true positives but normalized
+by the total number of GT objects</p></li>
+<li><p>panoptic_quality defined as in Eq. 1 of Kirillov et al. “Panoptic Segmentation”,
+CVPR 2019</p></li>
 </ul>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -589,7 +596,8 @@ whether their intersection over union (IoU) &gt;= thresh (for criterion=’iou�
 <li><p><strong>y_pred</strong> (<em>ndarray</em>) – predicted label image (integer valued)</p></li>
 <li><p><strong>thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – threshold for matching criterion (default 0.5)</p></li>
 <li><p><strong>criterion</strong> (<em>string</em>) – matching criterion (default IoU)</p></li>
-<li><p><strong>report_matches</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – if True, additionally calculate matched_pairs and matched_scores (note, that this returns even gt-pred pairs whose scores are below  ‘thresh’)</p></li>
+<li><p><strong>report_matches</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – if True, additionally calculate matched_pairs and matched_scores
+(returns gt-pred pairs even when scores are below ‘thresh’)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -604,7 +612,9 @@ whether their intersection over union (IoU) &gt;= thresh (for criterion=’iou�
 </div>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">instance_matching</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
-<span class="go">Matching(criterion=&#39;iou&#39;, thresh=0.5, fp=1, tp=0, fn=1, precision=0, recall=0, accuracy=0, f1=0, n_true=1, n_pred=1, mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)</span>
+<span class="go">Matching(criterion=&#39;iou&#39;, thresh=0.5, fp=1, tp=0, fn=1, precision=0,</span>
+<span class="go">         recall=0, accuracy=0, f1=0, n_true=1, n_pred=1,</span>
+<span class="go">         mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)</span>
 </pre></div>
 </div>
 </dd></dl>

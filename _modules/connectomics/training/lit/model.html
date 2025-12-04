@@ -591,7 +591,8 @@
 
         <span class="k">if</span> <span class="n">all_exist</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
             <span class="nb">print</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;  ✅ All prediction files exist! Loading </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span><span class="si">}</span><span class="s2"> predictions and skipping inference.&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;  ✅ All prediction files exist! Loading </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span><span class="si">}</span><span class="s2"> predictions &quot;</span>
+                <span class="s2">&quot;and skipping inference.&quot;</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">predictions_np</span> <span class="o">=</span> <span class="n">existing_predictions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -988,7 +989,8 @@
 <span class="sd">        Workflow:</span>
 <span class="sd">        1. If final prediction exists → directly do evaluation</span>
 <span class="sd">        2. If intermediate prediction exists → apply decoding → postprocessing → evaluation</span>
-<span class="sd">        3. Else → run inference (using cfg.test for data loading/transform) → save → decode → evaluate</span>
+<span class="sd">        3. Else → run inference (cfg.test for data loading/transform) →</span>
+<span class="sd">           save → decode → evaluate</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
@@ -1021,7 +1023,8 @@
             <span class="c1"># For tune mode, skip decoding/postprocessing (only need intermediate predictions)</span>
             <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;tune&quot;</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span>
-                    <span class="s2">&quot;  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)&quot;</span>
+                    <span class="s2">&quot;  ⏭️  Tune mode: skipping decoding/postprocessing &quot;</span>
+                    <span class="s2">&quot;(using intermediate predictions)&quot;</span>
                 <span class="p">)</span>
                 <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
