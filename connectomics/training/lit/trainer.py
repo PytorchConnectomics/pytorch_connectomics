@@ -24,12 +24,38 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
 
 from ...config import Config
+from ...config.hydra_config import (
+    SystemConfig,
+    SystemTrainingConfig,
+    SystemInferenceConfig,
+    ModelConfig,
+    DataConfig,
+    OptimizationConfig,
+    MonitorConfig,
+    InferenceConfig,
+    TestConfig,
+    TuneConfig,
+)
 from .callbacks import VisualizationCallback, EMAWeightsCallback
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
 try:
-    torch.serialization.add_safe_globals([Config])
+    torch.serialization.add_safe_globals(
+        [
+            Config,
+            SystemConfig,
+            SystemTrainingConfig,
+            SystemInferenceConfig,
+            ModelConfig,
+            DataConfig,
+            OptimizationConfig,
+            MonitorConfig,
+            InferenceConfig,
+            TestConfig,
+            TuneConfig,
+        ]
+    )
 except AttributeError:
     # PyTorch < 2.6 doesn't have add_safe_globals
     pass

@@ -390,7 +390,9 @@ def auto_plan_config(
         if getattr(config.optimization, "precision", None) is not None:
             manual_overrides["precision"] = config.optimization.precision
         if getattr(config.optimization, "accumulate_grad_batches", None) is not None:
-            manual_overrides["accumulate_grad_batches"] = config.optimization.accumulate_grad_batches
+            manual_overrides["accumulate_grad_batches"] = (
+                config.optimization.accumulate_grad_batches
+            )
 
         opt_cfg = getattr(config.optimization, "optimizer", None)
         if opt_cfg and getattr(opt_cfg, "lr", None) is not None:
@@ -406,8 +408,7 @@ def auto_plan_config(
 
     # Plan
     use_mixed_precision = not (
-        hasattr(config, "optimization")
-        and getattr(config.optimization, "precision", None) == "32"
+        hasattr(config, "optimization") and getattr(config.optimization, "precision", None) == "32"
     )
 
     result = planner.plan(

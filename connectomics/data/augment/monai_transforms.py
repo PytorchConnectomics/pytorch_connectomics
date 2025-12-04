@@ -237,7 +237,9 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
         if is_tensor:
             keep_mask = torch.ones(depth, dtype=torch.bool, device=img.device)
             keep_mask[indices_to_remove] = False
-            return torch.index_select(img, dim=depth_axis, index=keep_mask.nonzero(as_tuple=False).squeeze(-1))
+            return torch.index_select(
+                img, dim=depth_axis, index=keep_mask.nonzero(as_tuple=False).squeeze(-1)
+            )
         else:
             return np.delete(img, indices_to_remove, axis=depth_axis)
 

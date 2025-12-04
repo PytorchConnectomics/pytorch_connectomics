@@ -82,12 +82,10 @@ class ConnectomicsModule(pl.LightningModule):
             if hasattr(cfg.model, "loss_weights")
             else [1.0] * len(self.loss_functions)
         )
-        self.multi_task_config = (
-            getattr(cfg.model, "multi_task_config", None) or []
-        )
+        self.multi_task_config = getattr(cfg.model, "multi_task_config", None) or []
         self.multi_task_enabled = len(self.multi_task_config) > 0
-        num_tasks = len(self.multi_task_config) if self.multi_task_config else len(
-            self.loss_functions
+        num_tasks = (
+            len(self.multi_task_config) if self.multi_task_config else len(self.loss_functions)
         )
         self.loss_weighter = build_loss_weighter(cfg, num_tasks=num_tasks, model=self.model)
 
