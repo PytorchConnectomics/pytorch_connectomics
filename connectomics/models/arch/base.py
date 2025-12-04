@@ -86,9 +86,9 @@ class ConnectomicsModel(nn.Module, ABC):
         """
         info = self.get_model_info()
 
-        summary_str = f"\n{'='*60}\n"
+        summary_str = f"\n{'=' * 60}\n"
         summary_str += f"Model: {info['name']}\n"
-        summary_str += f"{'='*60}\n"
+        summary_str += f"{'=' * 60}\n"
         summary_str += f"Parameters: {info['parameters']:,}\n"
         summary_str += f"Trainable Parameters: {info['trainable_parameters']:,}\n"
         summary_str += f"Deep Supervision: {info['deep_supervision']}\n"
@@ -97,7 +97,7 @@ class ConnectomicsModel(nn.Module, ABC):
         if input_shape:
             summary_str += f"Expected Input Shape: {input_shape}\n"
 
-        summary_str += f"{'='*60}\n"
+        summary_str += f"{'=' * 60}\n"
 
         return summary_str
 

@@ -164,7 +164,7 @@ class DebugManager:
             if not result["has_nan"] and not result["has_inf"]:
                 print("✅ No NaN/Inf found in parameters or gradients")
             else:
-                print(f"\n📊 Summary:")
+                print("\n📊 Summary:")
                 print(f"   NaN parameters: {len(nan_params)}")
                 print(f"   Inf parameters: {len(inf_params)}")
                 print(f"   NaN gradients: {len(nan_grads)}")

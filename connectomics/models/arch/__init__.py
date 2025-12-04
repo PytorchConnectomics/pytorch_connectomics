@@ -38,7 +38,7 @@ from .base import ConnectomicsModel
 
 # Import MONAI models to trigger registration
 try:
-    from . import monai_models
+    from . import monai_models  # noqa: F401
 
     _MONAI_AVAILABLE = True
 except ImportError:
@@ -46,7 +46,7 @@ except ImportError:
 
 # Import MedNeXt models to trigger registration
 try:
-    from . import mednext_models
+    from . import mednext_models  # noqa: F401
 
     _MEDNEXT_AVAILABLE = True
 except ImportError:
@@ -54,7 +54,7 @@ except ImportError:
 
 # Import RSUNet models (always available - pure PyTorch)
 try:
-    from . import rsunet
+    from . import rsunet  # noqa: F401
 
     _RSUNET_AVAILABLE = True
 except ImportError:
@@ -62,7 +62,7 @@ except ImportError:
 
 # Import nnUNet models to trigger registration
 try:
-    from . import nnunet_models
+    from . import nnunet_models  # noqa: F401
 
     _NNUNET_AVAILABLE = True
 except ImportError:

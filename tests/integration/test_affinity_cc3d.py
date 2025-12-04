@@ -12,46 +12,75 @@ Tests cover:
 
 import numpy as np
 import pytest
+from connectomics.decoding import affinity_cc3d
 from connectomics.decoding.segmentation import decode_affinity_cc
 
 try:
+    import numba  # noqa: F401
+
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
 
+try:
+    import pytest_benchmark  # noqa: F401
+
+    HAS_BENCHMARK = True
+except ImportError:
+    HAS_BENCHMARK = False
+
+
+# ---------------------------------------------------------------------------
+# Shared fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def simple_affinities():
+    """Create simple synthetic affinity predictions."""
+    # Create 32x32x32 volume with 2 separate components
+    aff = np.zeros((3, 32, 32, 32), dtype=np.float32)
+
+    # Component 1: cube in corner (8x8x8)
+    aff[:, 0:8, 0:8, 0:8] = 0.9
+
+    # Component 2: cube in opposite corner (8x8x8)
+    aff[:, 24:32, 24:32, 24:32] = 0.9
+
+    return aff
+
+
+@pytest.fixture
+def connected_affinities():
+    """Create fully connected affinity predictions."""
+    # 16x16x16 volume, all connected
+    aff = np.ones((3, 16, 16, 16), dtype=np.float32) * 0.8
+    return aff
+
+
+@pytest.fixture
+def six_channel_affinities():
+    """Create 6-channel affinities (short + long range)."""
+    # Should only use first 3 channels
+    aff = np.zeros((6, 32, 32, 32), dtype=np.float32)
+    aff[:3, 8:24, 8:24, 8:24] = 0.9  # Short-range
+    aff[3:, 8:24, 8:24, 8:24] = 0.1  # Long-range (ignored)
+    return aff
+
+
+if not HAS_BENCHMARK:
+
+    @pytest.fixture
+    def benchmark():
+        """Lightweight fallback when pytest-benchmark is not installed."""
+
+        def _runner(fn, *args, **kwargs):
+            return fn(*args, **kwargs)
+
+        return _runner
+
 
 class TestAffinityCC3D:
     """Test suite for decode_affinity_cc function."""
-
-    @pytest.fixture
-    def simple_affinities(self):
-        """Create simple synthetic affinity predictions."""
-        # Create 32x32x32 volume with 2 separate components
-        aff = np.zeros((3, 32, 32, 32), dtype=np.float32)
-
-        # Component 1: cube in corner (8x8x8)
-        aff[:, 0:8, 0:8, 0:8] = 0.9
-
-        # Component 2: cube in opposite corner (8x8x8)
-        aff[:, 24:32, 24:32, 24:32] = 0.9
-
-        return aff
-
-    @pytest.fixture
-    def connected_affinities(self):
-        """Create fully connected affinity predictions."""
-        # 16x16x16 volume, all connected
-        aff = np.ones((3, 16, 16, 16), dtype=np.float32) * 0.8
-        return aff
-
-    @pytest.fixture
-    def six_channel_affinities(self):
-        """Create 6-channel affinities (short + long range)."""
-        # Should only use first 3 channels
-        aff = np.zeros((6, 32, 32, 32), dtype=np.float32)
-        aff[:3, 8:24, 8:24, 8:24] = 0.9  # Short-range
-        aff[3:, 8:24, 8:24, 8:24] = 0.1  # Long-range (ignored)
-        return aff
 
     def test_basic_functionality(self, simple_affinities):
         """Test basic connected components on simple affinity data."""

@@ -9,7 +9,9 @@ Factory functions to create various types of MONAI-based datasets for connectomi
 All factory functions follow the consistent `create_*` naming pattern.
 """
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING, Union
 from monai.transforms import Compose
 
 from .dataset_base import (
@@ -17,14 +19,13 @@ from .dataset_base import (
     MonaiCachedConnectomicsDataset,
     MonaiPersistentConnectomicsDataset,
 )
-from .dataset_volume import (
-    MonaiVolumeDataset,
-    MonaiCachedVolumeDataset,
-)
 from .dataset_tile import (
     MonaiTileDataset,
     MonaiCachedTileDataset,
 )
+
+if TYPE_CHECKING:
+    from .dataset_volume import MonaiVolumeDataset, MonaiCachedVolumeDataset
 
 
 __all__ = [
@@ -401,6 +402,9 @@ def create_volume_dataset(
         ...     cache_rate=1.0,
         ... )
     """
+    # Lazy import to avoid circular dependency during module import
+    from .dataset_volume import MonaiVolumeDataset, MonaiCachedVolumeDataset
+
     if dataset_type == "cached":
         return MonaiCachedVolumeDataset(
             image_paths=image_paths,

@@ -117,16 +117,16 @@ class NaNDetectionHook:
                 issue_type = "NaN" if has_nan else "Inf"
                 suffix = f"[{i}]" if len(tensors_to_check) > 1 else ""
 
-                print(f"\n{'='*80}")
+                print(f"\n{'=' * 80}")
                 print(f"⚠️  {issue_type} DETECTED IN LAYER OUTPUT!")
-                print(f"{'='*80}")
+                print(f"{'=' * 80}")
                 print(f"Layer: {self.layer_name}{suffix}")
                 print(f"Module type: {module.__class__.__name__}")
                 print(f"Output shape: {tuple(tensor.shape)}")
                 print(f"Forward pass count: {self.stats['forward_count']}")
 
                 # Print statistics
-                print(f"\n📊 Output Statistics:")
+                print("\n📊 Output Statistics:")
                 print(f"   Min: {self.stats['last_min']}")
                 print(f"   Max: {self.stats['last_max']}")
                 print(f"   Mean: {self.stats['last_mean']}")
@@ -135,7 +135,7 @@ class NaNDetectionHook:
                 print(f"   Inf count: {torch.isinf(tensor).sum().item()} / {tensor.numel()}")
 
                 # Check inputs
-                print(f"\n🔍 Input Statistics:")
+                print("\n🔍 Input Statistics:")
                 for idx, inp in enumerate(inputs):
                     if isinstance(inp, torch.Tensor):
                         in_suffix = f"[{idx}]" if len(inputs) > 1 else ""
@@ -146,17 +146,17 @@ class NaNDetectionHook:
                         print(f"   Input{in_suffix} has NaN: {torch.isnan(inp).any().item()}")
                         print(f"   Input{in_suffix} has Inf: {torch.isinf(inp).any().item()}")
 
-                print(f"\n{'='*80}")
+                print(f"\n{'=' * 80}")
 
                 if self.debug_on_nan:
-                    print(f"\n🐛 Entering debugger...")
-                    print(f"Available variables:")
-                    print(f"  - module: The layer that produced NaN")
-                    print(f"  - inputs: Layer inputs (tuple)")
-                    print(f"  - output: Layer output (NaN detected here)")
-                    print(f"  - tensor: The specific output tensor with NaN")
-                    print(f"  - self: Hook object with statistics")
-                    print(f"\nUse 'c' to continue, 'q' to quit, 'up' to go up stack\n")
+                    print("\n🐛 Entering debugger...")
+                    print("Available variables:")
+                    print("  - module: The layer that produced NaN")
+                    print("  - inputs: Layer inputs (tuple)")
+                    print("  - output: Layer output (NaN detected here)")
+                    print("  - tensor: The specific output tensor with NaN")
+                    print("  - self: Hook object with statistics")
+                    print("\nUse 'c' to continue, 'q' to quit, 'up' to go up stack\n")
                     pdb.set_trace()
 
                 # Only stop at first NaN-producing layer
@@ -249,7 +249,7 @@ class NaNDetectionHookManager:
 
     def _attach_hooks(self):
         """Attach hooks to all matching layers in the model."""
-        print(f"🔗 Attaching NaN detection hooks...")
+        print("🔗 Attaching NaN detection hooks...")
 
         for name, module in self.model.named_modules():
             # Skip the root module
@@ -293,9 +293,9 @@ class NaNDetectionHookManager:
 
     def print_summary(self):
         """Print summary of hook statistics."""
-        print(f"\n{'='*80}")
-        print(f"📊 NaN Detection Hook Summary")
-        print(f"{'='*80}")
+        print(f"\n{'=' * 80}")
+        print("📊 NaN Detection Hook Summary")
+        print(f"{'=' * 80}")
 
         total_nan = sum(hook.stats["nan_count"] for hook in self.hooks.values())
         total_inf = sum(hook.stats["inf_count"] for hook in self.hooks.values())
@@ -305,16 +305,16 @@ class NaNDetectionHookManager:
         print(f"Total Inf detections: {total_inf}")
 
         if total_nan > 0 or total_inf > 0:
-            print(f"\n⚠️  Layers with NaN/Inf:")
+            print("\n⚠️  Layers with NaN/Inf:")
             for name, hook in self.hooks.items():
                 if hook.stats["nan_count"] > 0 or hook.stats["inf_count"] > 0:
                     print(
                         f"   {name}: NaN={hook.stats['nan_count']}, Inf={hook.stats['inf_count']}"
                     )
         else:
-            print(f"\n✅ No NaN/Inf detected in any layer")
+            print("\n✅ No NaN/Inf detected in any layer")
 
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
     def reset_stats(self):
         """Reset statistics for all hooks."""

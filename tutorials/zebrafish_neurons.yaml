@@ -85,7 +85,7 @@ data:
       - name: instance_boundary
         kwargs:
           thickness: 1
-          edge_mode: seg-all
+          edge_mode: all
           mode: 2d
 
   # Augmentation - soft geometric + conservative intensity tweaks for low SNR

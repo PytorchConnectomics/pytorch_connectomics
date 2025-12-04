@@ -171,10 +171,10 @@ def read_image_as_volume(filename: str, drop_channel: bool = False) -> np.ndarra
     Raises:
         ValueError: If file format is not supported
     """
-    image_suffix = filename[filename.rfind(".") + 1 :].lower()
+    image_suffix = filename[filename.rfind(".") + 1:].lower()
     if image_suffix not in SUPPORTED_IMAGE_FORMATS:
         raise ValueError(
-            f"Unsupported format: {image_suffix}. " f"Supported formats: {SUPPORTED_IMAGE_FORMATS}"
+            f"Unsupported format: {image_suffix}. Supported formats: {SUPPORTED_IMAGE_FORMATS}"
         )
 
     data = imageio.imread(filename)
@@ -281,7 +281,7 @@ def read_volume(
     if filename.endswith(".nii.gz"):
         image_suffix = "nii.gz"
     else:
-        image_suffix = filename[filename.rfind(".") + 1 :].lower()
+        image_suffix = filename[filename.rfind(".") + 1:].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         data = read_hdf5(filename, dataset)
@@ -385,7 +385,7 @@ def save_volume(
         nib.save(nii_img, filename)
     else:
         raise ValueError(
-            f"Unsupported format: {file_format}. " f"Supported formats: h5, png, nii, nii.gz"
+            f"Unsupported format: {file_format}. Supported formats: h5, png, nii, nii.gz"
         )
 
 
@@ -420,7 +420,7 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
     if filename.endswith(".nii.gz"):
         image_suffix = "nii.gz"
     else:
-        image_suffix = filename[filename.rfind(".") + 1 :].lower()
+        image_suffix = filename[filename.rfind(".") + 1:].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         # HDF5: Read shape from metadata (no data loading)

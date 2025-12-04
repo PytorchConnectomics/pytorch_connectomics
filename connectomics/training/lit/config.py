@@ -131,7 +131,7 @@ def create_datamodule(
 
             if dataset_name:
                 print(f"💡 Attempting to auto-download '{dataset_name}' dataset...")
-                print(f"   (You can disable auto-download by manually downloading data)")
+                print("   (You can disable auto-download by manually downloading data)")
 
                 # Prompt user
                 try:
@@ -278,12 +278,12 @@ def create_datamodule(
 
             if train_json_empty:
                 # Fallback to volume-based dataset when train_json is empty
-                print(f"  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
+                print("  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
                 print(f"  Train JSON: {cfg.data.train_json}")
                 dataset_type = None  # Switch to volume-based
             else:
                 # Filename-based dataset: uses JSON file lists
-                print(f"  Using filename-based dataset")
+                print("  Using filename-based dataset")
                 print(f"  Train JSON: {cfg.data.train_json}")
                 print(f"  Image key: {cfg.data.train_image_key}")
                 print(f"  Label key: {cfg.data.train_label_key}")
@@ -806,7 +806,7 @@ def modify_checkpoint_state(
     if not (reset_optimizer or reset_scheduler or reset_epoch or reset_early_stopping):
         return checkpoint_path
 
-    print(f"\n🔄 Modifying checkpoint state:")
+    print("\n🔄 Modifying checkpoint state:")
     if reset_optimizer:
         print("   - Resetting optimizer state")
     if reset_scheduler:

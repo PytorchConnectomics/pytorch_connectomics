@@ -17,9 +17,9 @@ Note: Legacy system.py utilities (get_args, init_devices) have been moved to leg
       and replaced by Hydra config system. See connectomics.training.lit for modern alternatives.
 """
 
-from .visualizer import *
+from .visualizer import *  # noqa: F403
 
-__all__ = [
+__all__ = [  # noqa: F405
     # Visualizer
     "Visualizer",
     "LightningVisualizer",

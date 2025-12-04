@@ -37,8 +37,10 @@ class TTAPredictor:
         Supports per-channel activations via channel_activations config:
         Format: [[start_ch, end_ch, 'activation'], ...]
         Examples:
-          - [[0, 2, 'softmax'], [2, 3, 'sigmoid']]  # Softmax over channels 0-1, sigmoid for channel 2
-          - [[0, 1, 'sigmoid'], [1, 2, 'sigmoid']]  # Sigmoid for channels 0 and 1 separately
+          - [[0, 2, 'softmax'], [2, 3, 'sigmoid']]  # Softmax over channels
+            0-1, sigmoid for channel 2
+          - [[0, 1, 'sigmoid'], [1, 2, 'sigmoid']]  # Sigmoid for channels 0
+            and 1 separately
         """
         if not hasattr(self.cfg, "inference") or not hasattr(
             self.cfg.inference, "test_time_augmentation"
@@ -72,7 +74,8 @@ class TTAPredictor:
                         channel_tensor = torch.softmax(channel_tensor, dim=1)
                     else:
                         warnings.warn(
-                            f"Softmax activation for single channel ({start_ch}:{end_ch}) is not meaningful. Skipping.",
+                            f"Softmax activation for single channel "
+                            f"({start_ch}:{end_ch}) is not meaningful. Skipping.",
                             UserWarning,
                         )
                 elif act is None or (isinstance(act, str) and act.lower() == "none"):
@@ -99,7 +102,8 @@ class TTAPredictor:
                 tensor = torch.tanh(tensor)
             elif tta_act is not None and tta_act.lower() != "none":
                 warnings.warn(
-                    f"Unknown TTA activation function '{tta_act}'. Supported: 'softmax', 'sigmoid', 'tanh', None",
+                    f"Unknown TTA activation function '{tta_act}'. "
+                    f"Supported: 'softmax', 'sigmoid', 'tanh', None",
                     UserWarning,
                 )
 
@@ -108,11 +112,17 @@ class TTAPredictor:
             tta_channel = getattr(self.cfg.inference, "output_channel", None)
 
         if tta_channel is not None:
-            if isinstance(tta_channel, int):
+            # Handle "all" string (skip channel selection)
+            if isinstance(tta_channel, str) and tta_channel.lower() == "all":
+                pass  # Keep all channels
+            elif isinstance(tta_channel, int):
                 if tta_channel != -1:
-                    tensor = tensor[:, tta_channel : tta_channel + 1, ...]
+                    tensor = tensor[:, tta_channel: tta_channel + 1, ...]
             elif isinstance(tta_channel, (list, tuple, Sequence)):
-                tensor = tensor[:, list(tta_channel), ...]
+                # Convert to list of integers (handle both int and string numbers
+                # from OmegaConf)
+                channel_list = [int(ch) for ch in tta_channel]
+                tensor = tensor[:, channel_list, ...]
 
         return tensor
 
@@ -149,13 +159,14 @@ class TTAPredictor:
         elif images.ndim == 4:
             images = images.unsqueeze(1)
             warnings.warn(
-                f"Input shape (B, D, H, W) automatically expanded to (B, 1, D, H, W)",
+                "Input shape (B, D, H, W) automatically expanded to (B, 1, D, H, W)",
                 UserWarning,
             )
         elif images.ndim != 5:
             raise ValueError(
-                f"TTA requires 3D, 4D, or 5D input tensor. Got {images.ndim}D tensor with shape {images.shape}. "
-                f"Expected shapes: (D, H, W), (B, D, H, W), or (B, C, D, H, W)"
+                f"TTA requires 3D, 4D, or 5D input tensor. Got {images.ndim}D "
+                f"tensor with shape {images.shape}. Expected shapes: (D, H, W), "
+                f"(B, D, H, W), or (B, C, D, H, W)"
             )
 
         if getattr(self.cfg.data, "do_2d", False) and images.size(2) == 1:
@@ -240,7 +251,8 @@ class TTAPredictor:
                             axes = list(axes)
                         if not isinstance(axes, (list, tuple)) or len(axes) != 2:
                             raise ValueError(
-                                f"Invalid rotation plane: {axes}. Each plane must be a list/tuple of 2 axes."
+                                f"Invalid rotation plane: {axes}. Each plane must be "
+                                f"a list/tuple of 2 axes."
                             )
                         # Convert spatial axes to full tensor axes
                         full_axes = tuple(a + spatial_offset for a in axes)
@@ -257,7 +269,8 @@ class TTAPredictor:
                 for axes in tta_rotation90_axes_config:
                     if not isinstance(axes, (list, tuple)) or len(axes) != 2:
                         raise ValueError(
-                            f"Invalid rotation plane: {axes}. Each plane must be a list/tuple of 2 axes."
+                            f"Invalid rotation plane: {axes}. Each plane must be "
+                            f"a list/tuple of 2 axes."
                         )
                     # Convert spatial axes to full tensor axes
                     full_axes = tuple(a + spatial_offset for a in axes)
@@ -330,7 +343,8 @@ class TTAPredictor:
                         ensemble_result = torch.maximum(ensemble_result, pred_processed)
                     else:
                         raise ValueError(
-                            f"Unknown TTA ensemble mode: {ensemble_mode}. Use 'mean', 'min', or 'max'."
+                            f"Unknown TTA ensemble mode: {ensemble_mode}. "
+                            f"Use 'mean', 'min', or 'max'."
                         )
 
                 num_predictions += 1
@@ -348,8 +362,10 @@ class TTAPredictor:
             if mask.shape != ensemble_result.shape:
                 if not (mask.shape[1] == 1 and mask.shape[0] == ensemble_result.shape[0]):
                     warnings.warn(
-                        f"Mask shape {mask.shape} does not match ensemble result shape {ensemble_result.shape}. "
-                        f"Expected mask with C={ensemble_result.shape[1]} or C=1 channels. Skipping mask application.",
+                        f"Mask shape {mask.shape} does not match ensemble result "
+                        f"shape {ensemble_result.shape}. Expected mask with "
+                        f"C={ensemble_result.shape[1]} or C=1 channels. "
+                        f"Skipping mask application.",
                         UserWarning,
                     )
                     return ensemble_result

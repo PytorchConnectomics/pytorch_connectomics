@@ -20,7 +20,8 @@ def seg_to_rgb(seg):
         numpy.ndarray: The RGB image representation of the segmentation map.
 
     Notes:
-        - The function converts a segmentation map to an RGB image, where each unique segment ID is assigned a unique color.
+        - The function converts a segmentation map to an RGB image, where each
+          unique segment ID is assigned a unique color.
         - The RGB image is represented as a numpy array.
     """
     return np.stack([seg // 65536, seg // 256, seg % 256], axis=2).astype(np.uint8)

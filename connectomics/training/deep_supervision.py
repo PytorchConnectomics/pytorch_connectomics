@@ -123,7 +123,7 @@ class DeepSupervisionHandler:
             num_label_channels = 1
 
             # Extract label channels
-            task_label = labels[:, label_ch_offset : label_ch_offset + num_label_channels, ...]
+            task_label = labels[:, label_ch_offset: label_ch_offset + num_label_channels, ...]
             label_ch_offset += num_label_channels
 
             # Apply specified losses for this task
@@ -136,9 +136,9 @@ class DeepSupervisionHandler:
 
                 # Check for NaN/Inf
                 if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
-                    print(f"\n{'='*80}")
-                    print(f"⚠️  NaN/Inf detected in multi-task loss!")
-                    print(f"{'='*80}")
+                    print(f"\n{'=' * 80}")
+                    print("⚠️  NaN/Inf detected in multi-task loss!")
+                    print(f"{'=' * 80}")
                     print(f"Task: {task_name} (channels {start_ch}:{end_ch})")
                     print(f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})")
                     print(f"Loss value: {loss.item()}")
@@ -151,7 +151,7 @@ class DeepSupervisionHandler:
                     print(f"Output contains NaN: {torch.isnan(task_output).any()}")
                     print(f"Label contains NaN: {torch.isnan(task_label).any()}")
                     if self.debug_on_nan:
-                        print(f"\nEntering debugger...")
+                        print("\nEntering debugger...")
                         pdb.set_trace()
                     raise ValueError(
                         f"NaN/Inf in loss for task '{task_name}' with loss index {loss_idx}"
@@ -232,9 +232,9 @@ class DeepSupervisionHandler:
                         and self.enable_nan_detection
                         and (torch.isnan(loss) or torch.isinf(loss))
                     ):
-                        print(f"\n{'='*80}")
-                        print(f"⚠️  NaN/Inf detected in deep supervision multi-task loss!")
-                        print(f"{'='*80}")
+                        print(f"\n{'=' * 80}")
+                        print("⚠️  NaN/Inf detected in deep supervision multi-task loss!")
+                        print(f"{'=' * 80}")
                         print(
                             f"Scale: {scale_idx}, Task: {task_name} (channels {start_ch}:{end_ch})"
                         )
@@ -247,7 +247,7 @@ class DeepSupervisionHandler:
                             f"Target shape: {task_target.shape}, range: [{task_target.min():.4f}, {task_target.max():.4f}]"
                         )
                         if self.debug_on_nan:
-                            print(f"\nEntering debugger...")
+                            print("\nEntering debugger...")
                             pdb.set_trace()
                         raise ValueError(
                             f"NaN/Inf in deep supervision loss at scale {scale_idx}, task {task_name}"
@@ -273,9 +273,9 @@ class DeepSupervisionHandler:
                     and self.enable_nan_detection
                     and (torch.isnan(loss) or torch.isinf(loss))
                 ):
-                    print(f"\n{'='*80}")
-                    print(f"⚠️  NaN/Inf detected in loss computation!")
-                    print(f"{'='*80}")
+                    print(f"\n{'=' * 80}")
+                    print("⚠️  NaN/Inf detected in loss computation!")
+                    print(f"{'=' * 80}")
                     print(f"Loss function: {loss_fn.__class__.__name__}")
                     print(f"Loss value: {loss.item()}")
                     print(f"Scale: {scale_idx}, Weight: {weight}")
@@ -288,7 +288,7 @@ class DeepSupervisionHandler:
                     print(f"Output contains NaN: {torch.isnan(output).any()}")
                     print(f"Target contains NaN: {torch.isnan(target).any()}")
                     if self.debug_on_nan:
-                        print(f"\nEntering debugger...")
+                        print("\nEntering debugger...")
                         pdb.set_trace()
                     raise ValueError(f"NaN/Inf in loss at scale {scale_idx}")
 
@@ -385,9 +385,9 @@ class DeepSupervisionHandler:
                     and self.enable_nan_detection
                     and (torch.isnan(loss) or torch.isinf(loss))
                 ):
-                    print(f"\n{'='*80}")
-                    print(f"⚠️  NaN/Inf detected in loss computation!")
-                    print(f"{'='*80}")
+                    print(f"\n{'=' * 80}")
+                    print("⚠️  NaN/Inf detected in loss computation!")
+                    print(f"{'=' * 80}")
                     print(f"Loss function: {loss_fn.__class__.__name__}")
                     print(f"Loss value: {loss.item()}")
                     print(f"Loss index: {i}, Weight: {weight}")
@@ -400,7 +400,7 @@ class DeepSupervisionHandler:
                     print(f"Output contains NaN: {torch.isnan(outputs).any()}")
                     print(f"Label contains NaN: {torch.isnan(labels).any()}")
                     if self.debug_on_nan:
-                        print(f"\nEntering debugger...")
+                        print("\nEntering debugger...")
                         pdb.set_trace()
                     raise ValueError(f"NaN/Inf in loss at index {i}")
 

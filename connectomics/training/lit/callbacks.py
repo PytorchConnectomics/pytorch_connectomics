@@ -300,9 +300,9 @@ class NaNDetectionCallback(Callback):
     ):
         """Handle NaN/Inf detection with diagnostics and debugging."""
         issue_type = "NaN" if is_nan else "Inf"
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"⚠️  {issue_type} DETECTED IN TRAINING LOSS!")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print(f"Epoch: {trainer.current_epoch}, Global Step: {trainer.global_step}")
         print(f"Loss value: {loss_value}")
         if nan_metric_keys:
@@ -312,19 +312,19 @@ class NaNDetectionCallback(Callback):
             self._print_diagnostics(trainer, pl_module, batch, None)
 
         if self.debug_on_nan:
-            print(f"\n🔍 Entering debugger (pdb)...")
-            print(f"Available variables:")
-            print(f"  - trainer: PyTorch Lightning trainer")
-            print(f"  - pl_module: LightningModule (model)")
-            print(f"  - batch: Current batch data")
-            print(f"  - loss_value: The NaN/Inf loss value")
-            print(f"  - nan_metric_keys: List of affected metrics")
-            print(f"\nUseful commands:")
+            print("\n🔍 Entering debugger (pdb)...")
+            print("Available variables:")
+            print("  - trainer: PyTorch Lightning trainer")
+            print("  - pl_module: LightningModule (model)")
+            print("  - batch: Current batch data")
+            print("  - loss_value: The NaN/Inf loss value")
+            print("  - nan_metric_keys: List of affected metrics")
+            print("\nUseful commands:")
             print(
-                f"  - Check gradients: [p for n, p in pl_module.named_parameters() if p.grad is not None]"
+                "  - Check gradients: [p for n, p in pl_module.named_parameters() if p.grad is not None]"
             )
-            print(f"  - Check inputs: batch['image'].min(), batch['image'].max()")
-            print(f"  - Continue: 'c' or quit: 'q'")
+            print("  - Check inputs: batch['image'].min(), batch['image'].max()")
+            print("  - Continue: 'c' or quit: 'q'")
             print()
             pdb.set_trace()
 
@@ -335,14 +335,14 @@ class NaNDetectionCallback(Callback):
 
     def _print_diagnostics(self, trainer, pl_module, batch, outputs):
         """Print detailed diagnostic information."""
-        print(f"\n{'─'*80}")
+        print(f"\n{'─' * 80}")
         print("📊 DIAGNOSTIC INFORMATION:")
-        print(f"{'─'*80}")
+        print(f"{'─' * 80}")
 
         # Batch statistics
         if "image" in batch:
             images = batch["image"]
-            print(f"\n🖼️  Input Image Stats:")
+            print("\n🖼️  Input Image Stats:")
             print(f"   Shape: {images.shape}")
             print(f"   Min: {images.min().item():.6f}, Max: {images.max().item():.6f}")
             print(f"   Mean: {images.mean().item():.6f}, Std: {images.std().item():.6f}")
@@ -351,7 +351,7 @@ class NaNDetectionCallback(Callback):
 
         if "label" in batch:
             labels = batch["label"]
-            print(f"\n🎯 Label Stats:")
+            print("\n🎯 Label Stats:")
             print(f"   Shape: {labels.shape}")
             print(f"   Min: {labels.min().item():.6f}, Max: {labels.max().item():.6f}")
             print(f"   Unique values: {torch.unique(labels).tolist()}")
@@ -360,7 +360,7 @@ class NaNDetectionCallback(Callback):
 
         # Check gradients
         if self.check_grads:
-            print(f"\n📉 Gradient Stats:")
+            print("\n📉 Gradient Stats:")
             nan_grads = []
             inf_grads = []
             grad_norms = []
@@ -382,12 +382,12 @@ class NaNDetectionCallback(Callback):
 
             # Show largest gradient norms
             grad_norms.sort(key=lambda x: x[1], reverse=True)
-            print(f"   Top 5 gradient norms:")
+            print("   Top 5 gradient norms:")
             for name, norm in grad_norms[:5]:
                 print(f"      {name}: {norm:.6f}")
 
         # Check model parameters
-        print(f"\n⚙️  Model Parameter Stats:")
+        print("\n⚙️  Model Parameter Stats:")
         nan_params = []
         inf_params = []
         for name, param in pl_module.named_parameters():
@@ -401,16 +401,16 @@ class NaNDetectionCallback(Callback):
         if inf_params:
             print(f"   ⚠️  Parameters with Inf: {inf_params}")
         if not nan_params and not inf_params:
-            print(f"   ✓ No NaN/Inf in parameters")
+            print("   ✓ No NaN/Inf in parameters")
 
         # Learning rate
         optimizer = trainer.optimizers[0] if trainer.optimizers else None
         if optimizer:
             lr = optimizer.param_groups[0]["lr"]
-            print(f"\n📚 Optimizer:")
+            print("\n📚 Optimizer:")
         print(f"   Learning rate: {lr:.2e}")
 
-        print(f"{'─'*80}\n")
+        print(f"{'─' * 80}\n")
 
 
 class EMAWeightsCallback(Callback):

@@ -46,7 +46,7 @@ def split_volume_train_val(
         raise ValueError(f"train_ratio must be between 0 and 1, got {train_ratio}")
 
     if axis < 0 or axis >= len(volume_shape):
-        raise ValueError(f"axis must be between 0 and {len(volume_shape)-1}, got {axis}")
+        raise ValueError(f"axis must be between 0 and {len(volume_shape) - 1}, got {axis}")
 
     # Calculate split point
     split_dim = volume_shape[axis]

@@ -64,7 +64,8 @@ def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) 
         if intensity_scale != 1.0:
             data = data * float(intensity_scale)
             print(
-                f"  Scaled predictions by {intensity_scale} -> range [{data.min():.4f}, {data.max():.4f}]"
+                f"  Scaled predictions by {intensity_scale} -> "
+                f"range [{data.min():.4f}, {data.max():.4f}]"
             )
     else:
         print(
@@ -214,12 +215,12 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
 
     from connectomics.decoding import (
         decode_instance_binary_contour_distance,
-        decode_instance_affinity_cc,
+        decode_affinity_cc,
     )
 
     decode_fn_map = {
         "decode_instance_binary_contour_distance": decode_instance_binary_contour_distance,
-        "decode_instance_affinity_cc": decode_instance_affinity_cc,
+        "decode_affinity_cc": decode_affinity_cc,
     }
 
     if data.ndim == 4:
@@ -250,7 +251,8 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
 
             if fn_name not in decode_fn_map:
                 raise ValueError(
-                    f"Unknown decode function '{fn_name}'. Available functions: {list(decode_fn_map.keys())}. "
+                    f"Unknown decode function '{fn_name}'. "
+                    f"Available functions: {list(decode_fn_map.keys())}. "
                     f"Please update your config to use one of the available functions."
                 )
 
@@ -310,7 +312,8 @@ def resolve_output_filenames(
 
     if len(resolved_names) < batch_size:
         print(
-            f"  WARNING: resolve_output_filenames - Only {len(resolved_names)} filenames but batch_size is {batch_size}, padding with fallback names"
+            f"  WARNING: resolve_output_filenames - Only {len(resolved_names)} "
+            f"filenames but batch_size is {batch_size}, padding with fallback names"
         )
         while len(resolved_names) < batch_size:
             resolved_names.append(f"volume_{global_step}_{len(resolved_names)}")
@@ -371,8 +374,9 @@ def write_outputs(
 
     if len(filenames) != actual_batch_size:
         print(
-            f"  WARNING: write_outputs - filename count ({len(filenames)}) does not match "
-            f"batch size ({actual_batch_size}). Using first {min(len(filenames), actual_batch_size)} filenames."
+            f"  WARNING: write_outputs - filename count ({len(filenames)}) "
+            f"does not match batch size ({actual_batch_size}). Using first "
+            f"{min(len(filenames), actual_batch_size)} filenames."
         )
 
     for idx in range(actual_batch_size):
@@ -391,11 +395,13 @@ def write_outputs(
                 try:
                     sample = sample[channel_indices]
                     print(
-                        f"  Selected channels {channel_indices} from {predictions[idx].shape[0]} channels"
+                        f"  Selected channels {channel_indices} from "
+                        f"{predictions[idx].shape[0]} channels"
                     )
                 except Exception as e:
                     print(
-                        f"  WARNING: write_outputs - channel selection failed: {e}, keeping all channels"
+                        f"  WARNING: write_outputs - channel selection failed: "
+                        f"{e}, keeping all channels"
                     )
 
         if output_transpose and len(output_transpose) > 0:

@@ -255,7 +255,7 @@ def grid_search_threshold(
 
         if verbose and (i + 1) % 5 == 0:
             print(
-                f"  [{i+1}/{len(thresholds)}] " f"threshold={thr:.3f}, {metric}={current_value:.4f}"
+                f"  [{i + 1}/{len(thresholds)}] threshold={thr:.3f}, {metric}={current_value:.4f}"
             )
 
     if verbose:
@@ -377,7 +377,7 @@ def optimize_threshold(
     best_metrics["threshold"] = best_threshold
 
     if verbose:
-        print(f"\nOptimization complete!")
+        print("\nOptimization complete!")
         print(f"Best threshold: {best_threshold:.3f}")
         print(f"Best {metric}: {study.best_value:.4f}")
 
@@ -501,8 +501,8 @@ def optimize_parameters(
     best_metrics.update(best_params)
 
     if verbose:
-        print(f"\nOptimization complete!")
-        print(f"Best parameters:")
+        print("\nOptimization complete!")
+        print("Best parameters:")
         for k, v in best_params.items():
             print(f"  {k}: {v:.3f}" if isinstance(v, float) else f"  {k}: {v}")
         print(f"Best {metric}: {study.best_value:.4f}")

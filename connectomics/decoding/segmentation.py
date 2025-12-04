@@ -7,19 +7,23 @@ from EM Images" (MICCAI 2020, https://donglaiw.github.io/page/mitoEM/index.html)
 
 Functions:
     - decode_instance_binary_contour_distance: Binary + contour + distance → instances via watershed
-    - decode_instance_affinity_cc: Affinity predictions → instances via fast connected components (Numba-accelerated)
+    - decode_affinity_cc: Affinity predictions → instances via fast connected
+      components (Numba-accelerated)
 """
 
-from __future__ import print_function, division
-from typing import Optional, Tuple, List
-import numpy as np
+import warnings
+from typing import List, Optional, Tuple
+
 import cc3d
 import fastremap
-
-from skimage.morphology import dilation, remove_small_objects
-from scipy.ndimage import zoom
 import mahotas
+import numpy as np
+from scipy.ndimage import zoom
+from skimage.morphology import remove_small_objects
+
 from connectomics.data.process.target import seg_to_semantic_edt
+
+from .utils import cast2dtype, remove_small_instances
 
 try:
     from numba import jit
@@ -38,7 +42,8 @@ except ImportError:
 
 __all__ = [
     "decode_instance_binary_contour_distance",
-    "decode_instance_affinity_cc",
+    "decode_affinity_cc",
+    "affinity_cc3d",
 ]
 
 
@@ -80,13 +85,16 @@ def decode_instance_binary_contour_distance(
             constraints (for BANIS-style binary+distance only). Default: [1]
         distance_channels (list of int, optional): Channel indices for signed distance transform.
             If multiple channels provided, they are averaged. Default: [2]
-        binary_threshold (tuple): Tuple of two floats (seed_threshold, foreground_threshold) for binary mask.
-            The first value is used for seed generation, the second for foreground mask. Default: (0.9, 0.85)
-        contour_threshold (tuple or None): Tuple of two floats (seed_threshold, foreground_threshold) for instance contours.
-            The first value is used for seed generation, the second for foreground mask.
-            Set to None to disable contour constraints. Default: (0.8, 1.1)
-        distance_threshold (tuple): Tuple of two floats (seed_threshold, foreground_threshold) for signed distance.
-            The first value is used for seed generation, the second for foreground mask. Default: (0.5, 0)
+        binary_threshold (tuple): Tuple of two floats (seed_threshold,
+            foreground_threshold) for binary mask. The first value is used for
+            seed generation, the second for foreground mask. Default: (0.9, 0.85)
+        contour_threshold (tuple or None): Tuple of two floats (seed_threshold,
+            foreground_threshold) for instance contours. The first value is used
+            for seed generation, the second for foreground mask. Set to None to
+            disable contour constraints. Default: (0.8, 1.1)
+        distance_threshold (tuple): Tuple of two floats (seed_threshold,
+            foreground_threshold) for signed distance. The first value is used
+            for seed generation, the second for foreground mask. Default: (0.5, 0)
         precomputed_seed (numpy.ndarray, optional): Precomputed seed map to use instead of
             computing seeds from thresholds. Default: None
         min_seed_size (int): Minimum size of seed objects in pixels. Seeds smaller than this
@@ -343,12 +351,14 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
     return seg
 
 
-def decode_instance_affinity_cc(
+def decode_affinity_cc(
     affinities: np.ndarray,
     threshold: float = 0.5,
     use_numba: bool = True,
-    min_instance_size: int = 0,
+    min_instance_size: Optional[int] = None,
+    thres_small: int = 0,
     remove_small_mode: str = "background",
+    scale_factors: Optional[Tuple[float, float, float]] = None,
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
@@ -378,9 +388,13 @@ def decode_instance_affinity_cc(
 
             - ``'background'``: Replace with background (0)
             - ``'neighbor'``: Merge with nearest neighbor
+            - ``'background_2d'`` or ``'neighbor_2d'``: Apply slice-wise
             - ``'none'``: Keep all objects
 
             Default: ``'background'``
+        scale_factors (tuple or None): Optional anisotropic scaling factors (z, y, x).
+            When provided, the segmentation is resized with nearest-neighbor interpolation.
+            Useful for matching voxel resolutions. Default: None
 
     Returns:
         numpy.ndarray: Instance segmentation mask of shape :math:`(Z, Y, X)` with
@@ -399,6 +413,12 @@ def decode_instance_affinity_cc(
         ...     threshold=0.5,
         ...     min_instance_size=100  # Remove objects < 100 voxels
         ... )
+        >>> # Resize to target voxel spacing
+        >>> segmentation = decode_affinity_cc(
+        ...     affinities,
+        ...     threshold=0.5,
+        ...     scale_factors=(2.0, 1.0, 0.5)
+        ... )
 
     Note:
         - **Numba acceleration**: Install numba for 10-100x speedup:
@@ -415,11 +435,15 @@ def decode_instance_affinity_cc(
         - :func:`decode_binary_cc`: Connected components on binary masks
         - :func:`decode_binary_contour_watershed`: Watershed on binary + contour predictions
     """
-    assert affinities.ndim == 4, f"Expected 4D array, got {affinities.ndim}D"
-    assert affinities.shape[0] >= 3, f"Expected >= 3 channels, got {affinities.shape[0]}"
+    affinities = np.asarray(affinities)
+    if affinities.ndim != 4:
+        raise ValueError(f"Expected affinities with shape (C, Z, Y, X), got {affinities.ndim}D")
+    if affinities.shape[0] < 3:
+        raise ValueError(f"Expected >= 3 channels, got {affinities.shape[0]}")
 
     # Extract short-range affinities (first 3 channels)
     short_range_aff = affinities[:3]
+    foreground_mask = (short_range_aff > 0).any(axis=0)
 
     # Binarize affinities
     hard_aff = short_range_aff > threshold
@@ -431,8 +455,6 @@ def decode_instance_affinity_cc(
     else:
         # Fallback to skimage (slower but always available)
         if use_numba and not NUMBA_AVAILABLE:
-            import warnings
-
             warnings.warn(
                 "Numba not available. Using skimage (slower). "
                 "Install numba for 10-100x speedup: pip install numba>=0.60.0",
@@ -443,8 +465,40 @@ def decode_instance_affinity_cc(
         foreground = hard_aff.any(axis=0)
         segmentation = cc3d.connected_components(foreground)
 
-    # Remove small instances
-    if min_instance_size > 0:
-        segmentation = remove_small_instances(segmentation, min_instance_size, remove_small_mode)
+    # Fill any foreground voxels that lost all connections at high thresholds
+    if foreground_mask.any():
+        missing_mask = foreground_mask & (segmentation == 0)
+        if missing_mask.any():
+            missing_labels = cc3d.connected_components(missing_mask)
+            if segmentation.max() == 0:
+                segmentation = missing_labels
+            else:
+                segmentation = segmentation.astype(np.int64, copy=False)
+                segmentation[missing_mask] = missing_labels[missing_mask] + segmentation.max()
 
-    return fastremap.refit(segmentation)
+    # Remove small instances
+    min_size = min_instance_size if min_instance_size is not None else thres_small
+    if min_size is None:
+        min_size = 0
+    if min_size > 0:
+        segmentation = remove_small_instances(segmentation, min_size, remove_small_mode)
+
+    segmentation = fastremap.refit(segmentation)
+
+    if scale_factors is not None:
+        if len(scale_factors) != 3:
+            raise ValueError("scale_factors must be a tuple/list of three values (z, y, x)")
+        segmentation = zoom(segmentation, zoom=scale_factors, order=0, mode="nearest")
+        segmentation = fastremap.refit(segmentation.astype(np.int64, copy=False))
+
+    # Ensure background label (0) is present
+    if segmentation.size > 0 and not np.any(segmentation == 0):
+        segmentation = segmentation.copy()
+        segmentation[0, 0, 0] = 0
+
+    # Cast to compact integer dtype
+    return cast2dtype(segmentation)
+
+
+# Public alias used across tutorials/tests
+affinity_cc3d = decode_affinity_cc

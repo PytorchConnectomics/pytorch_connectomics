@@ -10,7 +10,7 @@ This module provides Lightning trainer factory functions with:
 
 from __future__ import annotations
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional
 
 import torch
 import pytorch_lightning as pl
@@ -20,9 +20,8 @@ from pytorch_lightning.callbacks import (
     LearningRateMonitor,
     RichProgressBar,
 )
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
-from omegaconf import DictConfig
 
 from ...config import Config
 from .callbacks import VisualizationCallback, EMAWeightsCallback
@@ -134,7 +133,7 @@ def create_trainer(
                 f"  Visualization: Enabled (every {cfg.monitor.logging.images.log_every_n_epochs} epoch(s))"
             )
         else:
-            print(f"  Visualization: Disabled")
+            print("  Visualization: Disabled")
 
         # EMA weights for stabler validation
         ema_cfg = getattr(cfg.optimization, "ema", None)

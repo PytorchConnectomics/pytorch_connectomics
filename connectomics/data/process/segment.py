@@ -27,8 +27,9 @@ def im_to_col(volume, kernel_size, stride=1):
 
 def seg_erosion_instance(seg, tsz_h=1):
     # Kisuk Lee's thesis (A.1.4):
-    # "we preprocessed the ground truth seg such that any voxel centered on a 3 × 3 × 1 window containing
-    # more than one positive segment ID (zero is reserved for background) is marked as background."
+    # "we preprocessed the ground truth seg such that any voxel centered on a
+    # 3 × 3 × 1 window containing more than one positive segment ID (zero is
+    # reserved for background) is marked as background."
     # seg=0: background
     tsz = 2 * tsz_h + 1
     sz = seg.shape
@@ -101,7 +102,6 @@ def seg_markInvalid(seg, iter_num=2, do_2d=True):
 
 
 def seg_erosion(label: np.ndarray, index: int, erosion_rates: RATES_TYPE = None):
-
     if erosion_rates is None:
         return label
 

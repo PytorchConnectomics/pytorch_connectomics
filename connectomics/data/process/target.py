@@ -1,14 +1,13 @@
-from __future__ import print_function, division
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
-import numpy as np
-from skimage.morphology import binary_dilation
-from scipy.ndimage import grey_dilation, grey_erosion
-from skimage.morphology import erosion, dilation, disk
 import cc3d
 import fastremap
-from .flow import seg2d_to_flows
+import numpy as np
+from scipy.ndimage import grey_dilation, grey_erosion
+from skimage.morphology import binary_dilation, dilation, disk, erosion
+
 from .distance import edt_instance, edt_semantic
+from .flow import seg2d_to_flows
 
 RATES_TYPE = Optional[Union[List[int], int]]
 
@@ -56,10 +55,12 @@ def seg_to_instance_bd(
     It supports both 2D and 3D processing modes with different boundary detection strategies.
 
     Args:
-        seg (np.ndarray): Input segmentation map where each unique value represents a different instance.
-            Must be a 3D array (Z, Y, X) even for 2D processing mode.
-        thickness (int, optional): Thickness of the boundary in pixels. Defaults to 1.
-            For thickness=1, uses optimized neighbor comparison. For thickness>1, uses morphological operations.
+        seg (np.ndarray): Input segmentation map where each unique value
+            represents a different instance. Must be a 3D array (Z, Y, X) even
+            for 2D processing mode.
+        thickness (int, optional): Thickness of the boundary in pixels.
+            Defaults to 1. For thickness=1, uses optimized neighbor comparison.
+            For thickness>1, uses morphological operations.
         edge_mode (str, optional): Type of boundaries to detect. Options:
             - "all": All boundaries (instance-to-instance and instance-to-background)
             - "seg-all": Only instance-to-instance boundaries (no background edges)
@@ -147,7 +148,7 @@ def seg_to_instance_bd(
             # Use morphological operations for thickness > 1
             if edge_mode == "all":
                 seg_eroded = grey_erosion(seg, thickness, mode="reflect")
-                bd = ((seg != seg_eroded)).astype(np.uint8)
+                bd = (seg != seg_eroded).astype(np.uint8)
             elif edge_mode == "seg-all":
                 seg_eroded = grey_erosion(seg, thickness, mode="reflect")
                 bd = ((seg > 0) & (seg != seg_eroded)).astype(np.uint8)
@@ -207,7 +208,7 @@ def seg_to_instance_bd(
                 slice_2d = seg[z]
                 if edge_mode == "all":
                     eroded = grey_erosion(slice_2d, thickness, mode="reflect")
-                    bd[z] = ((slice_2d != eroded)).astype(np.uint8)
+                    bd[z] = (slice_2d != eroded).astype(np.uint8)
                 elif edge_mode == "seg-all":
                     eroded = grey_erosion(slice_2d, thickness, mode="reflect")
                     bd[z] = ((slice_2d > 0) & (slice_2d != eroded)).astype(np.uint8)

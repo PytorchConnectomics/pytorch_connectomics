@@ -100,7 +100,7 @@ class DependencyError(ConnectomicsError):
         message = f"Missing dependency '{package}' required for {feature}"
         suggestions = [
             f"Install missing package: pip install {package}",
-            f"Install full version: pip install -e .[full]",
+            "Install full version: pip install -e .[full]",
             f"Check installation: python -c 'import {package}'",
         ]
         super().__init__(message, suggestions)
@@ -292,7 +292,7 @@ def preflight_check(cfg) -> list:
                 issues.append(
                     f"⚠️  Estimated memory ({estimated_gb:.1f}GB) may exceed available ({available_gb:.1f}GB)"
                 )
-                issues.append(f"   💡 Consider reducing batch_size or patch_size")
+                issues.append("   💡 Consider reducing batch_size or patch_size")
         except Exception:
             pass  # Skip memory estimation if it fails
 

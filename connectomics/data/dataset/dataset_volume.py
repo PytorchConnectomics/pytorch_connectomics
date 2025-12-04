@@ -13,6 +13,7 @@ from monai.transforms import Compose, RandSpatialCropd, CenterSpatialCropd
 from monai.utils import ensure_tuple_rep
 
 from .dataset_base import MonaiConnectomicsDataset
+from .build import create_data_dicts_from_paths
 from ..io.monai_transforms import LoadVolumed
 
 

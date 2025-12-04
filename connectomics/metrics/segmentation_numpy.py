@@ -40,6 +40,13 @@ def adapted_rand(seg, gt, all_stats=False):
     ----------
     [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation
     """
+    # Validate shapes match
+    if seg.shape != gt.shape:
+        raise ValueError(
+            f"seg and gt must have the same shape. "
+            f"Got seg.shape={seg.shape}, gt.shape={gt.shape}"
+        )
+
     # segA is truth, segB is query
     segA = np.ravel(gt)
     segB = np.ravel(seg)
@@ -271,8 +278,8 @@ def divide_columns(matrix, row, in_place=False):
         out = matrix
     else:
         out = matrix.copy()
-    if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
-        if type(out) == sparse.csc_matrix:
+    if isinstance(out, (sparse.csc_matrix, sparse.csr_matrix)):
+        if isinstance(out, sparse.csc_matrix):
             convert_to_csc = True
             out = out.tocsr()
         else:
@@ -310,8 +317,8 @@ def divide_rows(matrix, column, in_place=False):
         out = matrix
     else:
         out = matrix.copy()
-    if type(out) in [sparse.csc_matrix, sparse.csr_matrix]:
-        if type(out) == sparse.csr_matrix:
+    if isinstance(out, (sparse.csc_matrix, sparse.csr_matrix)):
+        if type(out) == sparse.csr_matrix:  # noqa: E721
             convert_to_csr = True
             out = out.tocsc()
         else:
@@ -739,7 +746,6 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
 
 
 def wrapper_matching_dataset_lazy(stats_all, thresh, criterion="iou", by_image=False):
-
     set(
         (
             "fp",

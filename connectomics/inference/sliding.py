@@ -85,7 +85,8 @@ def build_sliding_inferer(cfg):
         return None
 
     overlap = resolve_inferer_overlap(cfg, roi_size)
-    # Use system.inference.batch_size as default, fall back to sliding_window.sw_batch_size if specified
+    # Use system.inference.batch_size as default, fall back to
+    # sliding_window.sw_batch_size if specified
     system_batch_cfg = getattr(getattr(cfg, "system", None), "inference", None)
     system_batch_value = getattr(system_batch_cfg, "batch_size", 1) if system_batch_cfg else 1
     sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
