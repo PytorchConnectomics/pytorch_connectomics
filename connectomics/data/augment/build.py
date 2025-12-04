@@ -408,7 +408,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             transforms.append(NormalizeLabelsd(keys=["label"]))
 
         # Label transformations (affinity, distance transform, etc.)
-        # For test/tune modes: NEVER apply label transforms (keep raw instance labels for evaluation)
+        # For test/tune modes: NEVER apply label transforms
+        # (keep raw instance labels for evaluation)
         # For val mode: use training label_transform config
         label_cfg = None
         if mode == "val":

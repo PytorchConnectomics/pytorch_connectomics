@@ -140,9 +140,8 @@ class NaNDetectionHook:
                     if isinstance(inp, torch.Tensor):
                         in_suffix = f"[{idx}]" if len(inputs) > 1 else ""
                         print(f"   Input{in_suffix} shape: {tuple(inp.shape)}")
-                        print(
-                            f"   Input{in_suffix} range: [{inp.min().item():.4f}, {inp.max().item():.4f}]"
-                        )
+                        input_range = f"[{inp.min().item():.4f}, {inp.max().item():.4f}]"
+                        print(f"   Input{in_suffix} range: {input_range}")
                         print(f"   Input{in_suffix} has NaN: {torch.isnan(inp).any().item()}")
                         print(f"   Input{in_suffix} has Inf: {torch.isinf(inp).any().item()}")
 
@@ -271,9 +270,9 @@ class NaNDetectionHookManager:
 
         print(f"   Attached hooks to {len(self.hooks)} layers")
         if self.verbose:
-            print(
-                f"   Monitoring: {', '.join(list(self.hooks.keys())[:5])}{'...' if len(self.hooks) > 5 else ''}"
-            )
+            preview = ", ".join(list(self.hooks.keys())[:5])
+            suffix = "..." if len(self.hooks) > 5 else ""
+            print(f"   Monitoring: {preview}{suffix}")
 
     def remove_hooks(self):
         """Remove all hooks from the model."""

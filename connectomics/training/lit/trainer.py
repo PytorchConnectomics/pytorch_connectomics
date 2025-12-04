@@ -155,9 +155,8 @@ def create_trainer(
                 log_every_n_epochs=cfg.monitor.logging.images.log_every_n_epochs,
             )
             callbacks.append(vis_callback)
-            print(
-                f"  Visualization: Enabled (every {cfg.monitor.logging.images.log_every_n_epochs} epoch(s))"
-            )
+            log_freq = cfg.monitor.logging.images.log_every_n_epochs
+            print(f"  Visualization: Enabled (every {log_freq} epoch(s))")
         else:
             print("  Visualization: Disabled")
 

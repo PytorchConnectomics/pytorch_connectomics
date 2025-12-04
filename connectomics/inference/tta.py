@@ -117,7 +117,7 @@ class TTAPredictor:
                 pass  # Keep all channels
             elif isinstance(tta_channel, int):
                 if tta_channel != -1:
-                    tensor = tensor[:, tta_channel : tta_channel + 1, ...]
+                    tensor = tensor[:, tta_channel: tta_channel + 1, ...]
             elif isinstance(tta_channel, (list, tuple, Sequence)):
                 # Convert to list of integers (handle both int and string numbers
                 # from OmegaConf)
@@ -148,7 +148,8 @@ class TTAPredictor:
 
         Args:
             images: Input volume (B, C, D, H, W) or (B, D, H, W) or (D, H, W)
-            mask: Optional mask to multiply with predictions after ensemble (B, C, D, H, W) or (B, 1, D, H, W)
+            mask: Optional mask to multiply with predictions after ensemble
+                (B, C, D, H, W) or (B, 1, D, H, W)
         """
         if images.ndim == 3:
             images = images.unsqueeze(0).unsqueeze(0)

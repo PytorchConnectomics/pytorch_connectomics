@@ -207,8 +207,10 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         - model.kernel_size: Kernel size for convolutions (default: 3)
         - model.norm: Normalization type (default: 'batch')
         - model.dropout: Dropout rate (default: 0.0)
-        - model.upsample_mode: Upsampling mode ('deconv' default, or 'nontrainable'/'pixelshuffle'/'deconvgroup')
-        - model.upsample_interp_mode: Interpolation mode when upsample_mode='nontrainable' (default: 'linear')
+        - model.upsample_mode: Upsampling mode ('deconv' default, or
+          'nontrainable'/'pixelshuffle'/'deconvgroup')
+        - model.upsample_interp_mode: Interpolation mode when upsample_mode='nontrainable'
+          (default: 'linear')
         - model.upsample_align_corners: align_corners flag for nontrainable upsample (default: True)
 
     Args:

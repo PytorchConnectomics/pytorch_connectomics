@@ -93,7 +93,8 @@ def _check_mednext_available():
             "MedNeXt is not installed.\n"
             "Install from: /projects/weilab/weidf/lib/MedNeXt\n"
             "Run: pip install -e /projects/weilab/weidf/lib/MedNeXt\n"
-            "Or add to PYTHONPATH: export PYTHONPATH=/projects/weilab/weidf/lib/MedNeXt:$PYTHONPATH\n"
+            "Or add to PYTHONPATH: export PYTHONPATH=/projects/weilab/weidf/lib/MedNeXt:"
+            "$PYTHONPATH\n"
             "\nSee .claude/MEDNEXT.md for detailed setup instructions."
         )
 
@@ -195,8 +196,10 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
         - model.deep_supervision: Enable deep supervision (default: False)
         - model.mednext_do_res: Residual connections in blocks (default: True)
         - model.mednext_do_res_up_down: Residual in up/down blocks (default: True)
-        - model.mednext_block_counts: Blocks per level, list of 9 ints (default: [2,2,2,2,2,2,2,2,2])
-        - model.mednext_checkpoint_style: Gradient checkpointing, None or 'outside_block' (default: None)
+        - model.mednext_block_counts: Blocks per level, list of 9 ints
+          (default: [2,2,2,2,2,2,2,2,2])
+        - model.mednext_checkpoint_style: Gradient checkpointing, None or
+          'outside_block' (default: None)
         - model.mednext_norm: Normalization 'group' or 'layer' (default: 'group')
         - model.mednext_dim: Dimension '2d' or '3d' (default: '3d')
         - model.mednext_grn: Global Response Normalization (default: False)

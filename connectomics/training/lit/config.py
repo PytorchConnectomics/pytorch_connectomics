@@ -135,12 +135,10 @@ def create_datamodule(
 
                 # Prompt user
                 try:
+                    size_mb = DATASETS[dataset_name]["size_mb"]
+                    prompt = f"   Download {dataset_name} dataset (~{size_mb} MB)? [Y/n]: "
                     response = (
-                        input(
-                            f"   Download {dataset_name} dataset (~{DATASETS[dataset_name]['size_mb']} MB)? [Y/n]: "
-                        )
-                        .strip()
-                        .lower()
+                        input(prompt).strip().lower()
                     )
                     if response in ["", "y", "yes"]:
                         if download_dataset(dataset_name, base_dir=PathLib.cwd()):
@@ -176,7 +174,7 @@ def create_datamodule(
     print(f"  Val transforms: {len(val_transforms.transforms)} steps")
     if mode in ["test", "tune"]:
         print(
-            f"  Test transforms: {len(test_transforms.transforms)} steps (no cropping for sliding window)"
+            f"  Test transforms: {len(test_transforms.transforms)} steps (no sliding-window crop)"
         )
 
     # For test/tune modes, skip training data setup entirely
@@ -298,7 +296,8 @@ def create_datamodule(
             if cfg.data.train_image is None:
                 raise ValueError(
                     "For volume-based datasets, data.train_image must be specified.\n"
-                    "Either set data.train_image or use data.dataset_type='filename' with data.train_json"
+                    "Either set data.train_image or use data.dataset_type='filename' with "
+                    "data.train_json"
                 )
 
             train_image_paths = expand_file_paths(cfg.data.train_image)
@@ -354,9 +353,14 @@ def create_datamodule(
             or not hasattr(cfg.test, "data")
             or not cfg.test.data.test_image
         ):
+            test_image_val = (
+                cfg.test.data.test_image
+                if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "data")
+                else "N/A"
+            )
             raise ValueError(
                 f"Test mode requires test.data.test_image to be set in config.\n"
-                f"Current config has: test.data.test_image = {cfg.test.data.test_image if hasattr(cfg, 'test') and cfg.test and hasattr(cfg.test, 'data') else 'N/A'}"
+                f"Current config has: test.data.test_image = {test_image_val}"
             )
         print(f"  🧪 Creating test dataset from: {cfg.test.data.test_image}")
 
@@ -378,9 +382,14 @@ def create_datamodule(
             or not hasattr(cfg.tune, "data")
             or not cfg.tune.data.tune_image
         ):
+            tune_image_val = (
+                cfg.tune.data.tune_image
+                if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data")
+                else "N/A"
+            )
             raise ValueError(
                 f"Tune mode requires tune.data.tune_image to be set in config.\n"
-                f"Current config has tune.data.tune_image: {cfg.tune.data.tune_image if hasattr(cfg, 'tune') and cfg.tune and hasattr(cfg.tune, 'data') else 'N/A'}"
+                f"Current config has tune.data.tune_image: {tune_image_val}"
             )
 
         print(f"  🎯 Creating tune dataset from: {cfg.tune.data.tune_image}")
@@ -633,8 +642,8 @@ def create_datamodule(
         # Standard data module
         use_cache = cfg.data.use_cache
 
-        # Note: transpose_axes is now handled in the transform builders (build_train/val/test_transforms)
-        # which embed the transpose in LoadVolumed, so no need to pass it here
+        # Note: transpose_axes handled in transform builders (build_train/val/test_transforms)
+        # They embed the transpose in LoadVolumed, so no need to pass it here
 
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
@@ -816,7 +825,8 @@ def modify_checkpoint_state(
     if reset_early_stopping:
         print("   - Resetting early stopping patience counter")
 
-    # Load checkpoint (weights_only=False needed for PyTorch 2.6+ to load Lightning checkpoints with custom configs)
+    # Load checkpoint (weights_only=False needed for PyTorch 2.6+ to load Lightning
+    # checkpoints with custom configs)
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
 
     # Reset optimizer state

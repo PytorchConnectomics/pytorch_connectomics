@@ -1100,7 +1100,7 @@ class TestDataConfig:
     cache_suffix: str = "_prediction.h5"
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
-    # Label transformation (optional, typically not used for test mode to preserve raw labels for evaluation)
+    # Label transformation (optional). Typically unused in test mode to preserve raw labels
     label_transform: Optional[LabelTransformConfig] = None
 
 
@@ -1125,7 +1125,7 @@ class TuneDataConfig:
     tune_resolution: Optional[List[int]] = None
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
-    # Label transformation (optional, typically not used for tune mode to preserve raw labels for evaluation)
+    # Label transformation (optional). Typically unused in tune mode to preserve raw labels
     label_transform: Optional[LabelTransformConfig] = None
 
 
@@ -1209,36 +1209,6 @@ class TuneConfig:
     parameter_space: ParameterSpaceConfig = field(default_factory=ParameterSpaceConfig)
 
 
-# Allow safe loading of checkpoints with PyTorch 2.6+ weights_only defaults
-try:
-    import torch
-
-    if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
-        torch.serialization.add_safe_globals(
-            [
-                ParameterConfig,
-                DecodingParameterSpace,
-                PostprocessingParameterSpace,
-                ParameterSpaceConfig,
-                # Core config dataclasses (for Lightning checkpoints)
-                Config,
-                SystemConfig,
-                SystemTrainingConfig,
-                SystemInferenceConfig,
-                ModelConfig,
-                DataConfig,
-                OptimizationConfig,
-                MonitorConfig,
-                InferenceConfig,
-                TestConfig,
-                TuneConfig,
-            ]
-        )
-except Exception:
-    # Best-effort registration; ignore if torch not available at import time
-    pass
-
-
 @dataclass
 class Config:
     """Main configuration for PyTorch Connectomics.
@@ -1287,6 +1257,36 @@ class Config:
 
     # Optional: Parameter tuning configuration (tuning data paths, optimization settings)
     tune: Optional[TuneConfig] = None
+
+
+# Allow safe loading of checkpoints with PyTorch 2.6+ weights_only defaults
+try:
+    import torch
+
+    if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
+        torch.serialization.add_safe_globals(
+            [
+                ParameterConfig,
+                DecodingParameterSpace,
+                PostprocessingParameterSpace,
+                ParameterSpaceConfig,
+                # Core config dataclasses (for Lightning checkpoints)
+                Config,
+                SystemConfig,
+                SystemTrainingConfig,
+                SystemInferenceConfig,
+                ModelConfig,
+                DataConfig,
+                OptimizationConfig,
+                MonitorConfig,
+                InferenceConfig,
+                TestConfig,
+                TuneConfig,
+            ]
+        )
+except Exception:
+    # Best-effort registration; ignore if torch not available at import time
+    pass
 
 
 # Utility functions for common configuration tasks
