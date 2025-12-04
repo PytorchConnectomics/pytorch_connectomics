@@ -1,0 +1,887 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Installation &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="Configuration System" href="config.html" />
+  <link rel="prev" title="PyTorch Connectomics Documentation" href="../index.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Installation</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notes/installation.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>PyTorch Connectomics v2.0</strong> features a complete rewrite with PyTorch Lightning and MONAI integration.
+Please follow the updated installation instructions below.</p>
+</div>
+<p>The PyTorch Connectomics package is primarily developed on Linux machines with NVIDIA GPUs. We recommend following
+the <a class="reference external" href="installation.html#id1">Linux Installation</a> guide to ensure compatibility with the latest features.
+For Windows users, please check the <a class="reference external" href="installation.html#id2">Windows Installation</a> section.</p>
+<section id="id1">
+<h2>Linux Installation<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>We do not recommend installation as root user on your system Python. Please set up an
+<a class="reference external" href="https://conda.io/docs/user-guide/install/index.html/">Anaconda/Miniconda</a> environment
+and add the required packages to the environment.</p>
+</div>
+<section id="prerequisites">
+<h3>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Python</strong>: 3.8 or higher (3.10 recommended)</p></li>
+<li><p><strong>CUDA</strong>: 10.2 or higher (11.8+ recommended for PyTorch 2.0+)</p></li>
+<li><p><strong>GPU</strong>: NVIDIA GPU with compute capability 3.5+</p></li>
+</ul>
+</section>
+<section id="quick-installation">
+<h3>Quick Installation<a class="headerlink" href="#quick-installation" title="Link to this heading">¶</a></h3>
+<p>For users who want to get started quickly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create conda environment</span>
+conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>pytc<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10
+conda<span class="w"> </span>activate<span class="w"> </span>pytc
+
+<span class="c1"># Install PyTorch (adjust for your CUDA version)</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+
+<span class="c1"># Clone and install PyTorch Connectomics</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zudi-lin/pytorch_connectomics.git
+<span class="nb">cd</span><span class="w"> </span>pytorch_connectomics
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="detailed-installation-steps">
+<h3>Detailed Installation Steps<a class="headerlink" href="#detailed-installation-steps" title="Link to this heading">¶</a></h3>
+<section id="create-and-activate-virtual-environment">
+<h4>1 - Create and Activate Virtual Environment<a class="headerlink" href="#create-and-activate-virtual-environment" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>pytc<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10
+conda<span class="w"> </span>activate<span class="w"> </span>pytc
+</pre></div>
+</div>
+</section>
+<section id="install-pytorch">
+<h4>2 - Install PyTorch<a class="headerlink" href="#install-pytorch" title="Link to this heading">¶</a></h4>
+<p>Visit <a class="reference external" href="https://pytorch.org/get-started/locally/">PyTorch Get Started</a> to find the correct installation
+command for your system and CUDA version.</p>
+<p><strong>For CUDA 11.8:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+</pre></div>
+</div>
+<p><strong>For CUDA 12.1:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu121
+</pre></div>
+</div>
+<p><strong>For CPU only (not recommended):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision
+</pre></div>
+</div>
+<p>Verify PyTorch installation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import torch; print(f&#39;PyTorch: </span><span class="si">{torch.__version__}</span><span class="s2">&#39;)&quot;</span>
+<span class="n">python</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import torch; print(f&#39;CUDA available: {torch.cuda.is_available()}&#39;)&quot;</span>
+</pre></div>
+</div>
+<p>Expected output:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">PyTorch: 2.0.0+cu118</span>
+<span class="go">CUDA available: True</span>
+</pre></div>
+</div>
+</section>
+<section id="install-pytorch-connectomics">
+<h4>3 - Install PyTorch Connectomics<a class="headerlink" href="#install-pytorch-connectomics" title="Link to this heading">¶</a></h4>
+<p><strong>Option A: Full Installation (Recommended)</strong></p>
+<p>Includes all optional features (Weights &amp; Biases, TIFF support, hyperparameter optimization, etc.):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zudi-lin/pytorch_connectomics.git
+<span class="nb">cd</span><span class="w"> </span>pytorch_connectomics
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Option B: Basic Installation</strong></p>
+<p>Core dependencies only:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zudi-lin/pytorch_connectomics.git
+<span class="nb">cd</span><span class="w"> </span>pytorch_connectomics
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<p><strong>Option C: Custom Installation</strong></p>
+<p>Install specific feature sets:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># With Weights &amp; Biases tracking</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>wandb<span class="o">]</span>
+
+<span class="c1"># With hyperparameter optimization (Optuna)</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>optim<span class="o">]</span>
+
+<span class="c1"># With TIFF file support</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>tiff<span class="o">]</span>
+
+<span class="c1"># With 3D visualization (Neuroglancer)</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>viz<span class="o">]</span>
+
+<span class="c1"># Multiple features</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full,dev,docs<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Option D: Direct Install from GitHub</strong></p>
+<p>If you only want the library without cloning the repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>git+https://github.com/zudi-lin/pytorch_connectomics.git
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We use editable mode (<code class="docutils literal notranslate"><span class="pre">-e</span></code>) by default so there’s no need to re-install when making changes to the code.</p>
+</div>
+</section>
+<section id="install-mednext-optional">
+<h4>4 - Install MedNeXt (Optional)<a class="headerlink" href="#install-mednext-optional" title="Link to this heading">¶</a></h4>
+<p>For state-of-the-art MedNeXt models (MICCAI 2023):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/MIC-DKFZ/MedNeXt.git
+<span class="nb">cd</span><span class="w"> </span>MedNeXt
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>MedNeXt is optional. PyTorch Connectomics will work without it, but you won’t be able to use
+MedNeXt architectures.</p>
+</div>
+</section>
+<section id="verify-installation">
+<h4>5 - Verify Installation<a class="headerlink" href="#verify-installation" title="Link to this heading">¶</a></h4>
+<p>Check that everything is installed correctly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check version</span>
+python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import connectomics; print(f&#39;PyTC Version: {connectomics.__version__}&#39;)&quot;</span>
+
+<span class="c1"># List available models</span>
+python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from connectomics.models.architectures import list_architectures; print(&#39;Available models:&#39;, list_architectures())&quot;</span>
+</pre></div>
+</div>
+<p>Expected output:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">PyTC Version: 2.0.0</span>
+<span class="go">Available models: [&#39;monai_basic_unet3d&#39;, &#39;monai_unet&#39;, &#39;monai_unetr&#39;, &#39;monai_swin_unetr&#39;, &#39;mednext&#39;, &#39;mednext_custom&#39;]</span>
+</pre></div>
+</div>
+</section>
+<section id="verify-cuda-setup-optional">
+<h4>6 - Verify CUDA Setup (Optional)<a class="headerlink" href="#verify-cuda-setup-optional" title="Link to this heading">¶</a></h4>
+<p>Check that PyTorch is properly configured with CUDA:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PyTorch version: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">__version__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CUDA available: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CUDA version: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">cuda</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Number of GPUs: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">device_count</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GPU name: </span><span class="si">{</span><span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">get_device_name</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Add CUDA to your environment (if needed):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span>/usr/local/cuda/bin:<span class="nv">$PATH</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CPATH</span><span class="o">=</span>/usr/local/cuda/include:<span class="nv">$CPATH</span>
+</pre></div>
+</div>
+<p>Verify <code class="docutils literal notranslate"><span class="pre">nvcc</span></code> is accessible:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>nvcc<span class="w"> </span>--version
+</pre></div>
+</div>
+</section>
+</section>
+<section id="dependencies">
+<h3>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading">¶</a></h3>
+<p>PyTorch Connectomics v2.0 has the following core dependencies:</p>
+<p><strong>Core Frameworks:</strong></p>
+<ul class="simple">
+<li><p>PyTorch (&gt;=1.8.0)</p></li>
+<li><p>PyTorch Lightning (&gt;=2.0.0) - Training orchestration</p></li>
+<li><p>MONAI (&gt;=0.9.1) - Medical imaging toolkit</p></li>
+<li><p>OmegaConf (&gt;=2.1.0) - Configuration management</p></li>
+</ul>
+<p><strong>Scientific Computing:</strong></p>
+<ul class="simple">
+<li><p>NumPy, SciPy, scikit-learn, scikit-image</p></li>
+</ul>
+<p><strong>Data I/O:</strong></p>
+<ul class="simple">
+<li><p>h5py (HDF5), imageio, OpenCV</p></li>
+</ul>
+<p><strong>Utilities:</strong></p>
+<ul class="simple">
+<li><p>TensorBoard (logging), tqdm (progress bars), einops, psutil</p></li>
+</ul>
+<p><strong>Post-processing:</strong></p>
+<ul class="simple">
+<li><p>cc3d (connected components)</p></li>
+</ul>
+<p>All core dependencies are automatically installed with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code></p>
+<p><strong>Optional Dependencies:</strong></p>
+<p>Install via <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.[extra_name]</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">[full]</span></code>: All recommended features (wandb, tifffile, jupyter)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[wandb]</span></code>: Weights &amp; Biases experiment tracking</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[optim]</span></code>: Hyperparameter optimization (Optuna)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[tiff]</span></code>: TIFF file support (tifffile)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[viz]</span></code>: 3D visualization (Neuroglancer)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[dev]</span></code>: Development tools (pytest)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">[docs]</span></code>: Documentation building (Sphinx)</p></li>
+</ul>
+<p>See <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/setup.py">setup.py</a> for complete list.</p>
+</section>
+<section id="cluster-installation-fasrc">
+<h3>Cluster Installation (FASRC)<a class="headerlink" href="#cluster-installation-fasrc" title="Link to this heading">¶</a></h3>
+<p>For Harvard FASRC cluster users:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load required modules</span>
+module<span class="w"> </span>load<span class="w"> </span>cuda<span class="w"> </span>cudnn
+module<span class="w"> </span>load<span class="w"> </span>Anaconda3/2023.09-0
+
+<span class="c1"># Create environment</span>
+conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>pytc<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.10
+conda<span class="w"> </span>activate<span class="w"> </span>pytc
+
+<span class="c1"># Install PyTorch</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+
+<span class="c1"># Install PyTorch Connectomics</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zudi-lin/pytorch_connectomics.git
+<span class="nb">cd</span><span class="w"> </span>pytorch_connectomics
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+<p>See <a class="reference external" href="https://www.rc.fas.harvard.edu">FASRC documentation</a> for more details on module loading.</p>
+</section>
+</section>
+<section id="id2">
+<h2>Windows Installation<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Windows support is experimental. We recommend using Linux or WSL2 (Windows Subsystem for Linux)
+for production use.</p>
+</div>
+<section id="using-wsl2-recommended">
+<h3>Using WSL2 (Recommended)<a class="headerlink" href="#using-wsl2-recommended" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>Install WSL2 and Ubuntu: <a class="reference external" href="https://docs.microsoft.com/en-us/windows/wsl/install">WSL Installation Guide</a></p></li>
+<li><p>Follow the Linux installation instructions above inside WSL2</p></li>
+</ol>
+</section>
+<section id="native-windows-installation">
+<h3>Native Windows Installation<a class="headerlink" href="#native-windows-installation" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>Install <a class="reference external" href="https://www.anaconda.com/download">Anaconda for Windows</a></p></li>
+<li><p>Open Anaconda Prompt and create environment:</p></li>
+</ol>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span>conda create -n pytc python=3.10
+conda activate pytc
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p>Install PyTorch:</p></li>
+</ol>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span>pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+</pre></div>
+</div>
+<ol class="arabic simple" start="4">
+<li><p>Install PyTorch Connectomics:</p></li>
+</ol>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span>git clone https://github.com/zudi-lin/pytorch_connectomics.git
+<span class="k">cd</span> pytorch_connectomics
+pip install -e .[full]
+</pre></div>
+</div>
+</section>
+</section>
+<section id="docker-installation">
+<h2>Docker Installation<a class="headerlink" href="#docker-installation" title="Link to this heading">¶</a></h2>
+<p>We provide Docker images for easy deployment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Pull the latest image</span>
+docker<span class="w"> </span>pull<span class="w"> </span>pytorchconnectomics/pytc:latest
+
+<span class="c1"># Run container</span>
+docker<span class="w"> </span>run<span class="w"> </span>--gpus<span class="w"> </span>all<span class="w"> </span>-it<span class="w"> </span>pytorchconnectomics/pytc:latest
+
+<span class="c1"># Or build from Dockerfile</span>
+<span class="nb">cd</span><span class="w"> </span>docker
+docker<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>pytc<span class="w"> </span>.
+</pre></div>
+</div>
+<p>See <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/docker/README.md">docker/README.md</a>
+for detailed instructions.</p>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
+<section id="common-installation-issues">
+<h3>Common Installation Issues<a class="headerlink" href="#common-installation-issues" title="Link to this heading">¶</a></h3>
+<p><strong>Issue: No module named ‘torch’</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Solution: Install PyTorch first</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+</pre></div>
+</div>
+<p><strong>Issue: No module named ‘omegaconf’</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Solution: Update omegaconf</span>
+pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>omegaconf
+</pre></div>
+</div>
+<p><strong>Issue: No module named ‘cc3d’</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Solution: Install connected-components-3d</span>
+pip<span class="w"> </span>install<span class="w"> </span>connected-components-3d
+</pre></div>
+</div>
+<p><strong>Issue: Could not import MedNeXt</strong></p>
+<p>This is expected if MedNeXt is not installed. MedNeXt is optional. Install it if needed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/MIC-DKFZ/MedNeXt.git
+<span class="nb">cd</span><span class="w"> </span>MedNeXt
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<p><strong>Issue: CUDA out of memory</strong></p>
+<p>Solutions:</p>
+<ul class="simple">
+<li><p>Reduce batch size in config: <code class="docutils literal notranslate"><span class="pre">data.batch_size:</span> <span class="pre">1</span></code></p></li>
+<li><p>Use mixed precision: <code class="docutils literal notranslate"><span class="pre">training.precision:</span> <span class="pre">&quot;16-mixed&quot;</span></code></p></li>
+<li><p>Reduce patch size: <code class="docutils literal notranslate"><span class="pre">data.patch_size:</span> <span class="pre">[64,</span> <span class="pre">64,</span> <span class="pre">64]</span></code></p></li>
+</ul>
+<p><strong>Issue: ImportError on startup</strong></p>
+<p>Reset your environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>uninstall<span class="w"> </span>connectomics
+pip<span class="w"> </span>cache<span class="w"> </span>purge
+<span class="nb">cd</span><span class="w"> </span>pytorch_connectomics
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+<section id="version-requirements">
+<h3>Version Requirements<a class="headerlink" href="#version-requirements" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Python</strong>: 3.8+ (3.10 recommended)</p></li>
+<li><p><strong>PyTorch</strong>: 1.8+ (2.0+ recommended)</p></li>
+<li><p><strong>PyTorch Lightning</strong>: 2.0+</p></li>
+<li><p><strong>MONAI</strong>: 0.9.1+ (1.0+ recommended)</p></li>
+<li><p><strong>CUDA</strong>: 10.2+ (11.8+ recommended)</p></li>
+</ul>
+</section>
+<section id="getting-help">
+<h3>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">¶</a></h3>
+<p>If you encounter issues:</p>
+<ol class="arabic simple">
+<li><p>Check the <a class="reference external" href="faq.html">FAQ</a></p></li>
+<li><p>Search <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/issues">GitHub Issues</a></p></li>
+<li><p>Ask on <a class="reference external" href="https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w">Slack</a></p></li>
+<li><p>Open a new issue on GitHub</p></li>
+</ol>
+</section>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<p>After installation:</p>
+<ol class="arabic simple">
+<li><p>Read the <a class="reference external" href="config.html">Configuration Guide</a> to learn about Hydra configs</p></li>
+<li><p>Follow the <a class="reference external" href="../tutorials/neuron.html">Tutorials</a> for hands-on examples</p></li>
+<li><p>Check the <a class="reference external" href="dataloading.html">Data Loading Guide</a> for dataset preparation</p></li>
+<li><p>Explore the <a class="reference external" href="../modules/model.html">API Reference</a> for advanced usage</p></li>
+</ol>
+<section id="quick-start">
+<h3>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h3>
+<p>Train your first model:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Download example data (if needed)</span>
+<span class="c1"># ...</span>
+
+<span class="c1"># Train with example config</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml
+</pre></div>
+</div>
+<p>See tutorials for complete examples!</p>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="config.html" class="btn btn-neutral float-right" title="Configuration System" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="../index.html" class="btn btn-neutral" title="PyTorch Connectomics Documentation" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Installation</a><ul>
+<li><a class="reference internal" href="#id1">Linux Installation</a><ul>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a class="reference internal" href="#quick-installation">Quick Installation</a></li>
+<li><a class="reference internal" href="#detailed-installation-steps">Detailed Installation Steps</a><ul>
+<li><a class="reference internal" href="#create-and-activate-virtual-environment">1 - Create and Activate Virtual Environment</a></li>
+<li><a class="reference internal" href="#install-pytorch">2 - Install PyTorch</a></li>
+<li><a class="reference internal" href="#install-pytorch-connectomics">3 - Install PyTorch Connectomics</a></li>
+<li><a class="reference internal" href="#install-mednext-optional">4 - Install MedNeXt (Optional)</a></li>
+<li><a class="reference internal" href="#verify-installation">5 - Verify Installation</a></li>
+<li><a class="reference internal" href="#verify-cuda-setup-optional">6 - Verify CUDA Setup (Optional)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li><a class="reference internal" href="#cluster-installation-fasrc">Cluster Installation (FASRC)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id2">Windows Installation</a><ul>
+<li><a class="reference internal" href="#using-wsl2-recommended">Using WSL2 (Recommended)</a></li>
+<li><a class="reference internal" href="#native-windows-installation">Native Windows Installation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#docker-installation">Docker Installation</a></li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li><a class="reference internal" href="#common-installation-issues">Common Installation Issues</a></li>
+<li><a class="reference internal" href="#version-requirements">Version Requirements</a></li>
+<li><a class="reference internal" href="#getting-help">Getting Help</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#next-steps">Next Steps</a><ul>
+<li><a class="reference internal" href="#quick-start">Quick Start</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

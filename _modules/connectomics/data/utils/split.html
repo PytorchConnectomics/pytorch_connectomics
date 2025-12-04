@@ -1,0 +1,961 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.data.utils.split &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.data.utils.split</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.data.utils.split</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Volume splitting utilities for train/val splits.</span>
+
+<span class="sd">Inspired by DeepEM&#39;s approach of using spatial splits along the Z-axis</span>
+<span class="sd">for training and validation, with automatic padding to model input size.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+
+<div class="viewcode-block" id="split_volume_train_val">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.split_volume_train_val">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">split_volume_train_val</span><span class="p">(</span>
+    <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">min_val_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="o">...</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Split a volume into training and validation regions along a specified axis.</span>
+
+<span class="sd">    This follows DeepEM&#39;s approach of spatial splitting where:</span>
+<span class="sd">    - First 80% (or specified ratio) of volume is used for training</span>
+<span class="sd">    - Last 20% is used for validation</span>
+<span class="sd">    - Split is along Z-axis by default (axis=0 for [D,H,W] volumes)</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume_shape: Shape of the volume (D, H, W)</span>
+<span class="sd">        train_ratio: Ratio of volume to use for training (default: 0.8)</span>
+<span class="sd">        axis: Axis along which to split (0=D, 1=H, 2=W). Default: 0 (Z-axis)</span>
+<span class="sd">        min_val_size: Minimum size for validation split (default: None)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        train_slices: Tuple of slices for training region</span>
+<span class="sd">        val_slices: Tuple of slices for validation region</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; volume_shape = (100, 256, 256)  # [D, H, W]</span>
+<span class="sd">        &gt;&gt;&gt; train_slices, val_slices = split_volume_train_val(volume_shape, train_ratio=0.8)</span>
+<span class="sd">        &gt;&gt;&gt; # train_slices = (slice(0, 80), slice(None), slice(None))</span>
+<span class="sd">        &gt;&gt;&gt; # val_slices = (slice(80, 100), slice(None), slice(None))</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Validate inputs</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">train_ratio</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;train_ratio must be between 0 and 1, got </span><span class="si">{</span><span class="n">train_ratio</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">axis</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">axis</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;axis must be between 0 and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">axis</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Calculate split point</span>
+    <span class="n">split_dim</span> <span class="o">=</span> <span class="n">volume_shape</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span>
+    <span class="n">train_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">split_dim</span> <span class="o">*</span> <span class="n">train_ratio</span><span class="p">)</span>
+    <span class="n">val_size</span> <span class="o">=</span> <span class="n">split_dim</span> <span class="o">-</span> <span class="n">train_size</span>
+
+    <span class="c1"># Ensure minimum validation size</span>
+    <span class="k">if</span> <span class="n">min_val_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">val_size</span> <span class="o">&lt;</span> <span class="n">min_val_size</span><span class="p">:</span>
+        <span class="n">train_size</span> <span class="o">=</span> <span class="n">split_dim</span> <span class="o">-</span> <span class="n">min_val_size</span>
+        <span class="n">val_size</span> <span class="o">=</span> <span class="n">min_val_size</span>
+        <span class="n">actual_ratio</span> <span class="o">=</span> <span class="n">train_size</span> <span class="o">/</span> <span class="n">split_dim</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Warning: Adjusted train_ratio from </span><span class="si">{</span><span class="n">train_ratio</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">actual_ratio</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;to satisfy min_val_size=</span><span class="si">{</span><span class="n">min_val_size</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Create slices</span>
+    <span class="n">train_slices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">)</span>
+    <span class="n">val_slices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">)]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">)</span>
+
+    <span class="n">train_slices</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">train_size</span><span class="p">)</span>
+    <span class="n">val_slices</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span> <span class="o">=</span> <span class="nb">slice</span><span class="p">(</span><span class="n">train_size</span><span class="p">,</span> <span class="n">split_dim</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">train_slices</span><span class="p">),</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">val_slices</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_split_masks">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.create_split_masks">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_split_masks</span><span class="p">(</span>
+    <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">min_val_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dtype</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create binary masks for train/val splits.</span>
+
+<span class="sd">    Similar to DeepEM&#39;s msk_train.h5 and msk_val.h5 approach, but computed</span>
+<span class="sd">    automatically based on train_ratio.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume_shape: Shape of the volume (D, H, W)</span>
+<span class="sd">        train_ratio: Ratio of volume to use for training (default: 0.8)</span>
+<span class="sd">        axis: Axis along which to split (0=D, 1=H, 2=W). Default: 0</span>
+<span class="sd">        min_val_size: Minimum size for validation split (default: None)</span>
+<span class="sd">        dtype: Data type for masks (default: np.uint8)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        train_mask: Binary mask for training region (1=valid, 0=invalid)</span>
+<span class="sd">        val_mask: Binary mask for validation region (1=valid, 0=invalid)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; volume_shape = (100, 256, 256)</span>
+<span class="sd">        &gt;&gt;&gt; train_mask, val_mask = create_split_masks(volume_shape, train_ratio=0.8)</span>
+<span class="sd">        &gt;&gt;&gt; print(train_mask.shape, train_mask.sum())  # (100, 256, 256), first 80 slices = 1</span>
+<span class="sd">        &gt;&gt;&gt; print(val_mask.shape, val_mask.sum())      # (100, 256, 256), last 20 slices = 1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">train_slices</span><span class="p">,</span> <span class="n">val_slices</span> <span class="o">=</span> <span class="n">split_volume_train_val</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">train_ratio</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">min_val_size</span><span class="p">)</span>
+
+    <span class="c1"># Create masks</span>
+    <span class="n">train_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">val_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+
+    <span class="n">train_mask</span><span class="p">[</span><span class="n">train_slices</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">val_mask</span><span class="p">[</span><span class="n">val_slices</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">train_mask</span><span class="p">,</span> <span class="n">val_mask</span></div>
+
+
+
+<div class="viewcode-block" id="pad_volume_to_size">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.pad_volume_to_size">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">pad_volume_to_size</span><span class="p">(</span>
+    <span class="n">volume</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+    <span class="n">target_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;reflect&quot;</span><span class="p">,</span>
+    <span class="n">constant_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Pad a volume to match a target size.</span>
+
+<span class="sd">    This is useful when validation data is smaller than the model&#39;s input size</span>
+<span class="sd">    and needs to be padded for inference.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume: Input volume of shape (D, H, W) or (C, D, H, W)</span>
+<span class="sd">        target_size: Target size (D, H, W)</span>
+<span class="sd">        mode: Padding mode. Options:</span>
+<span class="sd">            - &#39;constant&#39;: Pad with constant value</span>
+<span class="sd">            - &#39;reflect&#39;: Reflect values at boundaries</span>
+<span class="sd">            - &#39;replicate&#39;: Replicate edge values</span>
+<span class="sd">            - &#39;circular&#39;: Circular padding</span>
+<span class="sd">        constant_value: Value to use for constant padding (default: 0.0)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Padded volume of shape matching target_size (+ channel dim if input had it)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; volume = np.random.randn(18, 160, 160)  # Small validation volume</span>
+<span class="sd">        &gt;&gt;&gt; target_size = (32, 256, 256)  # Model input size</span>
+<span class="sd">        &gt;&gt;&gt; padded = pad_volume_to_size(volume, target_size, mode=&#39;reflect&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; print(padded.shape)  # (32, 256, 256)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">is_tensor</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span>
+
+    <span class="c1"># Handle channel dimension</span>
+    <span class="n">has_channel</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span>
+    <span class="k">if</span> <span class="n">has_channel</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_tensor</span><span class="p">:</span>
+            <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">spatial_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">is_tensor</span><span class="p">:</span>
+            <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">spatial_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
+
+    <span class="c1"># Calculate padding needed</span>
+    <span class="n">pad_d</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">target_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">spatial_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">pad_h</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">target_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">spatial_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">pad_w</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">target_size</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">spatial_shape</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+    <span class="c1"># No padding needed</span>
+    <span class="k">if</span> <span class="n">pad_d</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">pad_h</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">pad_w</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">volume</span>
+
+    <span class="c1"># Calculate symmetric padding (before, after) for each dimension</span>
+    <span class="n">pad_d_before</span> <span class="o">=</span> <span class="n">pad_d</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">pad_d_after</span> <span class="o">=</span> <span class="n">pad_d</span> <span class="o">-</span> <span class="n">pad_d_before</span>
+    <span class="n">pad_h_before</span> <span class="o">=</span> <span class="n">pad_h</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">pad_h_after</span> <span class="o">=</span> <span class="n">pad_h</span> <span class="o">-</span> <span class="n">pad_h_before</span>
+    <span class="n">pad_w_before</span> <span class="o">=</span> <span class="n">pad_w</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">pad_w_after</span> <span class="o">=</span> <span class="n">pad_w</span> <span class="o">-</span> <span class="n">pad_w_before</span>
+
+    <span class="k">if</span> <span class="n">is_tensor</span><span class="p">:</span>
+        <span class="c1"># PyTorch padding: (left, right, top, bottom, front, back)</span>
+        <span class="c1"># Order is reversed: last dim first</span>
+        <span class="n">padding</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">pad_w_before</span><span class="p">,</span>
+            <span class="n">pad_w_after</span><span class="p">,</span>  <span class="c1"># W</span>
+            <span class="n">pad_h_before</span><span class="p">,</span>
+            <span class="n">pad_h_after</span><span class="p">,</span>  <span class="c1"># H</span>
+            <span class="n">pad_d_before</span><span class="p">,</span>
+            <span class="n">pad_d_after</span><span class="p">,</span>  <span class="c1"># D</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Map mode names</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">:</span>
+            <span class="n">padded</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">constant_value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;reflect&quot;</span><span class="p">:</span>
+            <span class="n">padded</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;reflect&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;replicate&quot;</span><span class="p">:</span>
+            <span class="n">padded</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;replicate&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+            <span class="n">padded</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">padding</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;circular&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown padding mode: </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># NumPy padding</span>
+        <span class="k">if</span> <span class="n">has_channel</span><span class="p">:</span>
+            <span class="n">pad_width</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>  <span class="c1"># C - no padding</span>
+                <span class="p">(</span><span class="n">pad_d_before</span><span class="p">,</span> <span class="n">pad_d_after</span><span class="p">),</span>  <span class="c1"># D</span>
+                <span class="p">(</span><span class="n">pad_h_before</span><span class="p">,</span> <span class="n">pad_h_after</span><span class="p">),</span>  <span class="c1"># H</span>
+                <span class="p">(</span><span class="n">pad_w_before</span><span class="p">,</span> <span class="n">pad_w_after</span><span class="p">),</span>  <span class="c1"># W</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pad_width</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="n">pad_d_before</span><span class="p">,</span> <span class="n">pad_d_after</span><span class="p">),</span>  <span class="c1"># D</span>
+                <span class="p">(</span><span class="n">pad_h_before</span><span class="p">,</span> <span class="n">pad_h_after</span><span class="p">),</span>  <span class="c1"># H</span>
+                <span class="p">(</span><span class="n">pad_w_before</span><span class="p">,</span> <span class="n">pad_w_after</span><span class="p">),</span>  <span class="c1"># W</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Map mode names</span>
+        <span class="n">np_mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;reflect&quot;</span><span class="p">:</span>
+            <span class="n">np_mode</span> <span class="o">=</span> <span class="s2">&quot;reflect&quot;</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;replicate&quot;</span><span class="p">:</span>
+            <span class="n">np_mode</span> <span class="o">=</span> <span class="s2">&quot;edge&quot;</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+            <span class="n">np_mode</span> <span class="o">=</span> <span class="s2">&quot;wrap&quot;</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">:</span>
+            <span class="n">padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">pad_width</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">constant_values</span><span class="o">=</span><span class="n">constant_value</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">padded</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown padding mode: </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">padded</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">pad_width</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">np_mode</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">padded</span></div>
+
+
+
+<div class="viewcode-block" id="split_and_pad_volume">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.split_and_pad_volume">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">split_and_pad_volume</span><span class="p">(</span>
+    <span class="n">volume</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+    <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">target_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">pad_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;reflect&quot;</span><span class="p">,</span>
+    <span class="n">min_val_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Split volume into train/val and pad validation if needed.</span>
+
+<span class="sd">    This combines splitting and padding in one operation, following DeepEM&#39;s</span>
+<span class="sd">    approach of using 80% for training and padding the smaller validation</span>
+<span class="sd">    volume to match model input requirements.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume: Input volume (D, H, W) or (C, D, H, W)</span>
+<span class="sd">        train_ratio: Ratio for training split (default: 0.8)</span>
+<span class="sd">        target_size: Target size for padding validation (default: None, no padding)</span>
+<span class="sd">        axis: Split axis (default: 0 for Z-axis)</span>
+<span class="sd">        pad_mode: Padding mode for validation volume (default: &#39;reflect&#39;)</span>
+<span class="sd">        min_val_size: Minimum validation size (default: None)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        train_volume: Training portion (unchanged)</span>
+<span class="sd">        val_volume: Validation portion (padded to target_size if specified)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; # Volume with 100 slices</span>
+<span class="sd">        &gt;&gt;&gt; volume = np.random.randn(100, 256, 256)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Split 80/20 and pad validation to model size</span>
+<span class="sd">        &gt;&gt;&gt; train_vol, val_vol = split_and_pad_volume(</span>
+<span class="sd">        ...     volume,</span>
+<span class="sd">        ...     train_ratio=0.8,</span>
+<span class="sd">        ...     target_size=(32, 256, 256),  # Model input size</span>
+<span class="sd">        ...     pad_mode=&#39;reflect&#39;</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; print(train_vol.shape)  # (80, 256, 256) - first 80 slices</span>
+<span class="sd">        &gt;&gt;&gt; print(val_vol.shape)    # (32, 256, 256) - last 20 slices, padded to 32</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Determine spatial shape</span>
+    <span class="n">has_channel</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span>
+    <span class="k">if</span> <span class="n">has_channel</span><span class="p">:</span>
+        <span class="n">spatial_shape</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">spatial_shape</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="c1"># Get split slices</span>
+    <span class="n">train_slices</span><span class="p">,</span> <span class="n">val_slices</span> <span class="o">=</span> <span class="n">split_volume_train_val</span><span class="p">(</span>
+        <span class="n">spatial_shape</span><span class="p">,</span> <span class="n">train_ratio</span><span class="p">,</span> <span class="n">axis</span><span class="p">,</span> <span class="n">min_val_size</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Split volume</span>
+    <span class="n">train_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">train_slices</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_channel</span> <span class="k">else</span> <span class="n">volume</span><span class="p">[:][</span><span class="n">train_slices</span><span class="p">]</span>
+    <span class="n">val_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">val_slices</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_channel</span> <span class="k">else</span> <span class="n">volume</span><span class="p">[:][</span><span class="n">val_slices</span><span class="p">]</span>
+
+    <span class="c1"># Pad validation if target size specified</span>
+    <span class="k">if</span> <span class="n">target_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">val_volume</span> <span class="o">=</span> <span class="n">pad_volume_to_size</span><span class="p">(</span><span class="n">val_volume</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">pad_mode</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">train_volume</span><span class="p">,</span> <span class="n">val_volume</span></div>
+
+
+
+<span class="c1"># Convenience function for saving masks to HDF5 (DeepEM style)</span>
+<div class="viewcode-block" id="save_split_masks_h5">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.save_split_masks_h5">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_split_masks_h5</span><span class="p">(</span>
+    <span class="n">output_dir</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">],</span>
+    <span class="n">volume_shape</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">train_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.8</span><span class="p">,</span>
+    <span class="n">axis</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">train_filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;msk_train.h5&quot;</span><span class="p">,</span>
+    <span class="n">val_filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;msk_val.h5&quot;</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Save train/val split masks to HDF5 files (DeepEM compatible).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        output_dir: Directory to save mask files</span>
+<span class="sd">        volume_shape: Shape of the volume (D, H, W)</span>
+<span class="sd">        train_ratio: Training split ratio (default: 0.8)</span>
+<span class="sd">        axis: Split axis (default: 0)</span>
+<span class="sd">        train_filename: Filename for training mask (default: &#39;msk_train.h5&#39;)</span>
+<span class="sd">        val_filename: Filename for validation mask (default: &#39;msk_val.h5&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+
+    <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span>
+    <span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Create masks</span>
+    <span class="n">train_mask</span><span class="p">,</span> <span class="n">val_mask</span> <span class="o">=</span> <span class="n">create_split_masks</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">train_ratio</span><span class="p">,</span> <span class="n">axis</span><span class="p">)</span>
+
+    <span class="c1"># Save to HDF5</span>
+    <span class="n">train_path</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="n">train_filename</span>
+    <span class="n">val_path</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="n">val_filename</span>
+
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">train_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;main&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">train_mask</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;gzip&quot;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">val_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">f</span><span class="o">.</span><span class="n">create_dataset</span><span class="p">(</span><span class="s2">&quot;main&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">val_mask</span><span class="p">,</span> <span class="n">compression</span><span class="o">=</span><span class="s2">&quot;gzip&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved training mask to: </span><span class="si">{</span><span class="n">train_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved validation mask to: </span><span class="si">{</span><span class="n">val_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training region: </span><span class="si">{</span><span class="n">train_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s2"> voxels&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation region: </span><span class="si">{</span><span class="n">val_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s2"> voxels&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># MONAI Transform for applying splits during data loading</span>
+<span class="c1"># ============================================================================</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">monai.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">KeysCollection</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">MapTransform</span>
+
+    <span class="n">HAS_MONAI</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="n">HAS_MONAI</span> <span class="o">=</span> <span class="kc">False</span>
+
+
+<span class="k">if</span> <span class="n">HAS_MONAI</span><span class="p">:</span>
+
+<div class="viewcode-block" id="ApplyVolumetricSplitd">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.ApplyVolumetricSplitd">[docs]</a>
+    <span class="k">class</span><span class="w"> </span><span class="nc">ApplyVolumetricSplitd</span><span class="p">(</span><span class="n">MapTransform</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        MONAI transform to apply volumetric split during data loading.</span>
+
+<span class="sd">        This transform extracts a spatial region from loaded volumes based on</span>
+<span class="sd">        split metadata stored in the data dictionary. It supports automatic</span>
+<span class="sd">        padding for validation regions.</span>
+
+<span class="sd">        Expected metadata in data dict:</span>
+<span class="sd">            - &#39;split_slices&#39;: Tuple of slice objects defining the region</span>
+<span class="sd">            - &#39;split_mode&#39;: &#39;train&#39; or &#39;val&#39;</span>
+<span class="sd">            - &#39;split_pad&#39; (optional): Whether to pad validation</span>
+<span class="sd">            - &#39;split_pad_size&#39; (optional): Target size for padding</span>
+<span class="sd">            - &#39;split_pad_mode&#39; (optional): Padding mode (&#39;reflect&#39;, etc.)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            keys: Keys of data dict to apply split to (e.g., [&#39;image&#39;, &#39;label&#39;])</span>
+<span class="sd">            allow_missing_keys: Don&#39;t raise error if key is missing</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; from monai.transforms import Compose</span>
+<span class="sd">            &gt;&gt;&gt; transforms = Compose([</span>
+<span class="sd">            ...     LoadImaged(keys=[&#39;image&#39;, &#39;label&#39;]),</span>
+<span class="sd">            ...     ApplyVolumetricSplitd(keys=[&#39;image&#39;, &#39;label&#39;]),</span>
+<span class="sd">            ...     # ... other transforms</span>
+<span class="sd">            ... ])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">keys</span><span class="p">:</span> <span class="n">KeysCollection</span><span class="p">,</span>
+            <span class="n">allow_missing_keys</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="p">):</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">allow_missing_keys</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Apply volumetric split to data dictionary.&quot;&quot;&quot;</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+            <span class="c1"># Check if split metadata exists</span>
+            <span class="k">if</span> <span class="s2">&quot;split_slices&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">d</span>  <span class="c1"># No split to apply</span>
+
+            <span class="n">split_slices</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;split_slices&quot;</span><span class="p">]</span>
+            <span class="n">split_mode</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;split_mode&quot;</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Apply split to each key</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_iterator</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+                    <span class="n">volume</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+                    <span class="c1"># Apply slicing</span>
+                    <span class="c1"># Handle both (C, D, H, W) and (D, H, W) shapes</span>
+                    <span class="k">if</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+                        <span class="c1"># Has channel dimension - apply split to spatial dims</span>
+                        <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[:,</span> <span class="n">split_slices</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">split_slices</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">split_slices</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+                    <span class="k">elif</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+                        <span class="c1"># No channel dimension - apply directly</span>
+                        <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">split_slices</span><span class="p">]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected 3D or 4D volume, got shape </span><span class="si">{</span><span class="n">volume</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Apply padding if validation mode and padding requested</span>
+            <span class="k">if</span> <span class="n">split_mode</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;split_pad&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">target_size</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;split_pad_size&quot;</span><span class="p">)</span>
+                <span class="n">pad_mode</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;split_pad_mode&quot;</span><span class="p">,</span> <span class="s2">&quot;reflect&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">target_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">key_iterator</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+                            <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">pad_volume_to_size</span><span class="p">(</span>
+                                <span class="n">d</span><span class="p">[</span><span class="n">key</span><span class="p">],</span>
+                                <span class="n">target_size</span><span class="o">=</span><span class="n">target_size</span><span class="p">,</span>
+                                <span class="n">mode</span><span class="o">=</span><span class="n">pad_mode</span><span class="p">,</span>
+                            <span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">d</span></div>
+
+
+<div class="viewcode-block" id="apply_volumetric_split">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.utils.apply_volumetric_split">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">apply_volumetric_split</span><span class="p">(</span>
+        <span class="n">volume</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+        <span class="n">split_slices</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">slice</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
+        <span class="n">pad</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">pad_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pad_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;reflect&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Apply volumetric split to a single volume (convenience function).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            volume: Input volume (D, H, W) or (C, D, H, W)</span>
+<span class="sd">            split_slices: Tuple of slice objects</span>
+<span class="sd">            pad: Whether to pad after splitting</span>
+<span class="sd">            pad_size: Target size for padding (only if pad=True)</span>
+<span class="sd">            pad_mode: Padding mode (&#39;reflect&#39;, &#39;replicate&#39;, &#39;constant&#39;)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Split (and optionally padded) volume</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply split</span>
+        <span class="k">if</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[:,</span> <span class="n">split_slices</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">split_slices</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">split_slices</span><span class="p">[</span><span class="mi">2</span><span class="p">]]</span>
+        <span class="k">elif</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">split_slices</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected 3D or 4D volume, got shape </span><span class="si">{</span><span class="n">volume</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Apply padding if requested</span>
+        <span class="k">if</span> <span class="n">pad</span> <span class="ow">and</span> <span class="n">pad_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">pad_volume_to_size</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">target_size</span><span class="o">=</span><span class="n">pad_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">pad_mode</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;split_volume_train_val&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_split_masks&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pad_volume_to_size&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;split_and_pad_volume&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;save_split_masks_h5&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;apply_volumetric_split&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="k">if</span> <span class="n">HAS_MONAI</span><span class="p">:</span>
+    <span class="n">__all__</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ApplyVolumetricSplitd&quot;</span><span class="p">)</span>
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../../"
+    src="../../../../_static/documentation_options.js"></script>
+  <script src="../../../../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

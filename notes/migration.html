@@ -1,0 +1,1051 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Migration Guide (v1.0 → v2.0) &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="FAQ" href="faq.html" />
+  <link rel="prev" title="Data Loading" href="dataloading.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataloading.html">Data Loading</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Migration Guide (v1.0 → v2.0)</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notes/migration.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="migration-guide-v1-0-v2-0">
+<h1>Migration Guide (v1.0 → v2.0)<a class="headerlink" href="#migration-guide-v1-0-v2-0" title="Link to this heading">¶</a></h1>
+<p>This guide helps you migrate from PyTorch Connectomics v1.0 to v2.0.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>v2.0 is a major rewrite</strong> with PyTorch Lightning and MONAI integration. The new system provides better performance, features, and ease of use.</p>
+</div>
+<section id="overview-of-changes">
+<h2>Overview of Changes<a class="headerlink" href="#overview-of-changes" title="Link to this heading">¶</a></h2>
+<p>v2.0 introduces significant architectural improvements:</p>
+<p><strong>What’s New:</strong></p>
+<ul class="simple">
+<li><p>⚡ <strong>PyTorch Lightning</strong> replaces custom trainer</p></li>
+<li><p>🏥 <strong>MONAI</strong> provides models, transforms, and losses</p></li>
+<li><p>🔧 <strong>Hydra/OmegaConf</strong> for modern configuration management</p></li>
+<li><p>📦 <strong>Architecture Registry</strong> for extensible model management</p></li>
+<li><p>🔬 <strong>MedNeXt</strong> state-of-the-art models</p></li>
+<li><p>🧩 <strong>Deep Supervision</strong> support</p></li>
+</ul>
+<p><strong>What Changed:</strong></p>
+<ul class="simple">
+<li><p>Custom trainer → PyTorch Lightning (<code class="docutils literal notranslate"><span class="pre">connectomics/lightning/</span></code>)</p></li>
+<li><p>Configuration → Hydra/OmegaConf YAML format</p></li>
+<li><p>Entry point: <code class="docutils literal notranslate"><span class="pre">scripts/main.py</span></code></p></li>
+</ul>
+</section>
+<section id="migration-checklist">
+<h2>Migration Checklist<a class="headerlink" href="#migration-checklist" title="Link to this heading">¶</a></h2>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>☐ Update installation (Lightning, MONAI, OmegaConf)
+☐ Create Hydra YAML configuration files
+☐ Use scripts/main.py for training
+☐ Update imports to use Lightning modules
+☐ Use MONAI models from architecture registry
+☐ Test training pipeline
+☐ Update inference scripts
+☐ Use MONAI transforms for data loading
+</pre></div>
+</div>
+</section>
+<section id="installation-updates">
+<h2>Installation Updates<a class="headerlink" href="#installation-updates" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0 Installation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</pre></div>
+</div>
+<p><strong>v2.0 Installation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Install PyTorch first</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+
+<span class="c1"># Install with new dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="installation.html#installation"><span class="std std-ref">installation guide</span></a> for details.</p>
+</section>
+<section id="configuration-system">
+<h2>Configuration System<a class="headerlink" href="#configuration-system" title="Link to this heading">¶</a></h2>
+<section id="hydra-omegaconf-configuration">
+<h3>Hydra/OmegaConf Configuration<a class="headerlink" href="#hydra-omegaconf-configuration" title="Link to this heading">¶</a></h3>
+<p><strong>v2.0 uses Hydra/OmegaConf:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># tutorials/lucchi.yaml</span>
+<span class="nt">system</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">num_cpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">  </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span>
+
+<span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">32</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">512</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
+<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
+<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">train_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/train_image.h5&quot;</span>
+<span class="w">  </span><span class="nt">train_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/train_label.h5&quot;</span>
+<span class="w">  </span><span class="nt">val_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/val_image.h5&quot;</span>
+<span class="w">  </span><span class="nt">val_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/val_label.h5&quot;</span>
+<span class="w">  </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">num_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+
+<span class="nt">optimizer</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AdamW</span>
+<span class="w">  </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
+<span class="w">  </span><span class="nt">weight_decay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
+
+<span class="nt">scheduler</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CosineAnnealingLR</span>
+<span class="w">  </span><span class="nt">warmup_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+
+<span class="nt">training</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">max_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">  </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;16-mixed&quot;</span>
+<span class="w">  </span><span class="nt">gradient_clip_val</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+
+<span class="nt">checkpoint</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">monitor</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;val/loss&quot;</span>
+<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;min&quot;</span>
+<span class="w">  </span><span class="nt">save_top_k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">save_last</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-structure">
+<h3>Configuration Structure<a class="headerlink" href="#configuration-structure" title="Link to this heading">¶</a></h3>
+<p>Key configuration sections in v2.0:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 70.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Section</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">system</span></code></p></td>
+<td><p>Hardware setup (GPUs, CPUs, random seed)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">model</span></code></p></td>
+<td><p>Architecture, input/output channels, loss functions</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">data</span></code></p></td>
+<td><p>Dataset paths, batch size, augmentation settings</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">optimizer</span></code></p></td>
+<td><p>Optimizer type and hyperparameters</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">scheduler</span></code></p></td>
+<td><p>Learning rate scheduling configuration</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">training</span></code></p></td>
+<td><p>Training loop parameters (epochs, precision, etc.)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">checkpoint</span></code></p></td>
+<td><p>Model checkpointing strategy</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">logging</span></code></p></td>
+<td><p>Logging and monitoring configuration</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="configuration-override">
+<h3>Configuration Override<a class="headerlink" href="#configuration-override" title="Link to this heading">¶</a></h3>
+<p>Override config parameters from CLI:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>training.max_epochs<span class="o">=</span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>optimizer.lr<span class="o">=</span>2e-4
+</pre></div>
+</div>
+</section>
+</section>
+<section id="training-script-usage">
+<h2>Training Script Usage<a class="headerlink" href="#training-script-usage" title="Link to this heading">¶</a></h2>
+<p><strong>Using main.py:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Basic training</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml
+
+<span class="c1"># Override parameters</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>training.max_epochs<span class="o">=</span><span class="m">300</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">4</span>
+
+<span class="c1"># Fast development run (1 batch)</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span>--fast-dev-run
+
+<span class="c1"># Testing mode</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>path/to/checkpoint.ckpt
+</pre></div>
+</div>
+</section>
+<section id="python-api-usage">
+<h2>Python API Usage<a class="headerlink" href="#python-api-usage" title="Link to this heading">¶</a></h2>
+<section id="pytorch-lightning-integration">
+<h3>PyTorch Lightning Integration<a class="headerlink" href="#pytorch-lightning-integration" title="Link to this heading">¶</a></h3>
+<p><strong>v2.0 Python API:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ConnectomicsModule</span><span class="p">,</span>
+    <span class="n">ConnectomicsDataModule</span><span class="p">,</span>
+    <span class="n">create_trainer</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">seed_everything</span>
+
+<span class="c1"># Load config</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/lucchi.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Set seed</span>
+<span class="n">seed_everything</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+
+<span class="c1"># Create components</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">ConnectomicsDataModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ConnectomicsModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">trainer</span> <span class="o">=</span> <span class="n">create_trainer</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+
+<span class="c1"># Train</span>
+<span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">datamodule</span><span class="o">=</span><span class="n">datamodule</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="model-configuration">
+<h2>Model Configuration<a class="headerlink" href="#model-configuration" title="Link to this heading">¶</a></h2>
+<section id="using-monai-and-mednext-models">
+<h3>Using MONAI and MedNeXt Models<a class="headerlink" href="#using-monai-and-mednext-models" title="Link to this heading">¶</a></h3>
+<p><strong>MONAI BasicUNet:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">28</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">36</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">48</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">80</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p><strong>MedNeXt (State-of-the-Art):</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">28</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">36</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">48</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">80</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+</section>
+<section id="using-custom-models">
+<h3>Using Custom Models<a class="headerlink" href="#using-custom-models" title="Link to this heading">¶</a></h3>
+<p>You can still use custom models by wrapping them:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModule</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MyCustomModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># Your model definition</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="c1"># Your forward pass</span>
+        <span class="k">return</span> <span class="n">x</span>
+
+<span class="c1"># Create config</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;my_config.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Use custom model</span>
+<span class="n">custom_model</span> <span class="o">=</span> <span class="n">MyCustomModel</span><span class="p">(</span>
+    <span class="n">in_channels</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">in_channels</span><span class="p">,</span>
+    <span class="n">out_channels</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span>
+<span class="p">)</span>
+
+<span class="c1"># Wrap with Lightning</span>
+<span class="n">lit_model</span> <span class="o">=</span> <span class="n">ConnectomicsModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">custom_model</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="data-loading-migration">
+<h2>Data Loading Migration<a class="headerlink" href="#data-loading-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_dataloader</span>
+
+<span class="c1"># Build dataloaders</span>
+<span class="n">train_loader</span> <span class="o">=</span> <span class="n">build_dataloader</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">)</span>
+<span class="n">val_loader</span> <span class="o">=</span> <span class="n">build_dataloader</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;val&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>v2.0:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsDataModule</span>
+
+<span class="c1"># Create data module (handles all splits)</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">ConnectomicsDataModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+
+<span class="c1"># Access loaders if needed</span>
+<span class="n">datamodule</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="s1">&#39;fit&#39;</span><span class="p">)</span>
+<span class="n">train_loader</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">train_dataloader</span><span class="p">()</span>
+<span class="n">val_loader</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">val_dataloader</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="inference-migration">
+<h2>Inference Migration<a class="headerlink" href="#inference-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-u<span class="w"> </span>scripts/build.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config-file<span class="w"> </span>configs/Lucchi-Mitochondria.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--inference<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/checkpoint_10000.pth
+</pre></div>
+</div>
+<p><strong>v2.0:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/epoch<span class="o">=</span><span class="m">99</span>-val_loss<span class="o">=</span><span class="m">0</span>.123.ckpt
+</pre></div>
+</div>
+</section>
+<section id="loss-function-migration">
+<h2>Loss Function Migration<a class="headerlink" href="#loss-function-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">MODEL</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">LOSS_OPTION</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&#39;WeightedBCE&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;DiceLoss&#39;</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">LOSS_WEIGHT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">]]</span>
+</pre></div>
+</div>
+<p><strong>v2.0:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p><strong>Loss name mappings:</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>v1.0</p></th>
+<th class="head"><p>v2.0</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">WeightedBCE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BCEWithLogitsLoss</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DiceLoss</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DiceLoss</span></code> (same)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">WeightedMSE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">MSELoss</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BCELoss</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BCEWithLogitsLoss</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="augmentation-migration">
+<h2>Augmentation Migration<a class="headerlink" href="#augmentation-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0 (Custom augmentation):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span>
+
+<span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">([</span><span class="o">...</span><span class="p">])</span>
+</pre></div>
+</div>
+<p><strong>v2.0 (MONAI transforms):</strong></p>
+<p>MONAI transforms are automatically applied through the data module. To customize:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">use_augmentation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">augmentation_params</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">rotation_range</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span>
+<span class="w">    </span><span class="nt">scale_range</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.9</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">elastic_deform</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+</section>
+<section id="multi-gpu-training-migration">
+<h2>Multi-GPU Training Migration<a class="headerlink" href="#multi-gpu-training-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">SYSTEM</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">NUM_GPUS</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Manual DataParallel/DistributedDataParallel setup</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">DataParallel</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">device_ids</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>v2.0:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">system</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">  </span><span class="c1"># Automatically uses DDP</span>
+</pre></div>
+</div>
+<p>Lightning handles distributed training automatically!</p>
+</section>
+<section id="checkpoint-format-migration">
+<h2>Checkpoint Format Migration<a class="headerlink" href="#checkpoint-format-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0 checkpoints:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">checkpoint_10000</span><span class="o">.</span><span class="n">pth</span>  <span class="c1"># Iteration-based</span>
+</pre></div>
+</div>
+<p><strong>v2.0 checkpoints:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">epoch</span><span class="o">=</span><span class="mi">99</span><span class="o">-</span><span class="n">val_loss</span><span class="o">=</span><span class="mf">0.123</span><span class="o">.</span><span class="n">ckpt</span>  <span class="c1"># Epoch-based with metrics</span>
+</pre></div>
+</div>
+<p><strong>Loading v1.0 checkpoints in v2.0:</strong></p>
+<p>You may need to manually convert:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="c1"># Load old checkpoint</span>
+<span class="n">old_ckpt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;checkpoint_10000.pth&quot;</span><span class="p">)</span>
+
+<span class="c1"># Extract model weights</span>
+<span class="n">model_weights</span> <span class="o">=</span> <span class="n">old_ckpt</span><span class="p">[</span><span class="s1">&#39;model_state_dict&#39;</span><span class="p">]</span>
+
+<span class="c1"># Load into new model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ConnectomicsModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">model_weights</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="logging-and-monitoring-migration">
+<h2>Logging and Monitoring Migration<a class="headerlink" href="#logging-and-monitoring-migration" title="Link to this heading">¶</a></h2>
+<p><strong>v1.0:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># TensorBoard logging built-in</span>
+<span class="c1"># Logs in output directory</span>
+</pre></div>
+</div>
+<p><strong>v2.0:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">logging</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">save_dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;outputs&quot;</span>
+<span class="w">  </span><span class="nt">experiment_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lucchi_exp&quot;</span>
+
+<span class="w">  </span><span class="c1"># Optional: Weights &amp; Biases</span>
+<span class="w">  </span><span class="nt">use_wandb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">wandb_project</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;connectomics&quot;</span>
+<span class="w">  </span><span class="nt">wandb_entity</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your_team&quot;</span>
+</pre></div>
+</div>
+<p>Lightning provides:</p>
+<ul class="simple">
+<li><p>Automatic TensorBoard logging</p></li>
+<li><p>Optional Weights &amp; Biases integration</p></li>
+<li><p>Rich console logging with progress bars</p></li>
+<li><p>Metric tracking and visualization</p></li>
+</ul>
+</section>
+<section id="common-migration-issues">
+<h2>Common Migration Issues<a class="headerlink" href="#common-migration-issues" title="Link to this heading">¶</a></h2>
+<section id="issue-no-module-named-yacs">
+<h3>Issue: “No module named ‘yacs’”<a class="headerlink" href="#issue-no-module-named-yacs" title="Link to this heading">¶</a></h3>
+<p><strong>Solution:</strong> Install new dependencies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>omegaconf&gt;<span class="o">=</span><span class="m">2</span>.1.0
+</pre></div>
+</div>
+</section>
+<section id="issue-config-file-not-found">
+<h3>Issue: Config file not found<a class="headerlink" href="#issue-config-file-not-found" title="Link to this heading">¶</a></h3>
+<p><strong>Solution:</strong> Update config path:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Old</span>
+--config-file<span class="w"> </span>configs/Lucchi-Mitochondria.yaml
+
+<span class="c1"># New</span>
+--config<span class="w"> </span>tutorials/lucchi.yaml
+</pre></div>
+</div>
+</section>
+<section id="issue-iteration-vs-epoch">
+<h3>Issue: Iteration vs Epoch<a class="headerlink" href="#issue-iteration-vs-epoch" title="Link to this heading">¶</a></h3>
+<p>v1.0 used iterations, v2.0 uses epochs.</p>
+<p><strong>Conversion:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># iterations = epochs * steps_per_epoch</span>
+<span class="c1"># epochs = iterations / steps_per_epoch</span>
+
+<span class="c1"># Example: 10000 iterations, 100 batches per epoch</span>
+<span class="n">epochs</span> <span class="o">=</span> <span class="mi">10000</span> <span class="o">/</span> <span class="mi">100</span> <span class="o">=</span> <span class="mi">100</span>
+</pre></div>
+</div>
+</section>
+<section id="issue-model-architecture-not-found">
+<h3>Issue: Model architecture not found<a class="headerlink" href="#issue-model-architecture-not-found" title="Link to this heading">¶</a></h3>
+<p><strong>Solution:</strong> Use MONAI models or architecture registry:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Old</span>
+<span class="nt">MODEL</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ARCHITECTURE</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;unet_residual_3d&#39;</span>
+
+<span class="c1"># New - MONAI</span>
+<span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_unet</span>
+
+<span class="c1"># Or use MedNeXt</span>
+<span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext</span>
+<span class="w">  </span><span class="nt">mednext_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">S</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="backward-compatibility">
+<h2>Backward Compatibility<a class="headerlink" href="#backward-compatibility" title="Link to this heading">¶</a></h2>
+<p>v2.0 maintains backward compatibility for:</p>
+<ul class="simple">
+<li><p>✅ YACS configs (still work, but deprecated)</p></li>
+<li><p>✅ Legacy trainer (available in <code class="docutils literal notranslate"><span class="pre">engine/trainer.py</span></code>)</p></li>
+<li><p>✅ Custom models</p></li>
+<li><p>✅ Data formats (HDF5, TIFF, etc.)</p></li>
+<li><p>✅ Augmentation interface</p></li>
+</ul>
+<p>Not backward compatible:</p>
+<ul class="simple">
+<li><p>❌ Checkpoint format (need manual conversion)</p></li>
+<li><p>❌ Direct imports from old modules (use new paths)</p></li>
+</ul>
+</section>
+<section id="running-both-systems-side-by-side">
+<h2>Running Both Systems Side-by-Side<a class="headerlink" href="#running-both-systems-side-by-side" title="Link to this heading">¶</a></h2>
+<p>You can run both v1.0 and v2.0 systems:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># v1.0 style (legacy)</span>
+python<span class="w"> </span>scripts/build.py<span class="w"> </span>--config-file<span class="w"> </span>configs/old_config.yaml
+
+<span class="c1"># v2.0 style (recommended)</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/new_config.yaml
+</pre></div>
+</div>
+</section>
+<section id="migration-examples">
+<h2>Migration Examples<a class="headerlink" href="#migration-examples" title="Link to this heading">¶</a></h2>
+<p>See the <code class="docutils literal notranslate"><span class="pre">tutorials/</span></code> directory for complete v2.0 examples:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/lucchi.yaml">tutorials/lucchi.yaml</a></p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_lucchi.yaml">tutorials/mednext_lucchi.yaml</a></p></li>
+</ul>
+</section>
+<section id="getting-help">
+<h2>Getting Help<a class="headerlink" href="#getting-help" title="Link to this heading">¶</a></h2>
+<p>If you encounter issues during migration:</p>
+<ol class="arabic simple">
+<li><p>Check this migration guide</p></li>
+<li><p>Read the <a class="reference internal" href="#configuration-system"><span class="std std-ref">configuration guide</span></a></p></li>
+<li><p>See <a class="reference internal" href="installation.html#installation"><span class="std std-ref">installation guide</span></a></p></li>
+<li><p>Search <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/issues">GitHub Issues</a></p></li>
+<li><p>Ask on <a class="reference external" href="https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w">Slack</a></p></li>
+</ol>
+</section>
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<p>After migration:</p>
+<ol class="arabic simple">
+<li><p>✅ Test training with new config</p></li>
+<li><p>✅ Verify metrics match previous results</p></li>
+<li><p>✅ Update documentation/scripts in your project</p></li>
+<li><p>✅ Consider using MONAI models for better performance</p></li>
+<li><p>✅ Explore new features (deep supervision, MedNeXt, etc.)</p></li>
+</ol>
+<p>Welcome to v2.0! 🚀</p>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="faq.html" class="btn btn-neutral float-right" title="FAQ" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="dataloading.html" class="btn btn-neutral" title="Data Loading" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Migration Guide (v1.0 → v2.0)</a><ul>
+<li><a class="reference internal" href="#overview-of-changes">Overview of Changes</a></li>
+<li><a class="reference internal" href="#migration-checklist">Migration Checklist</a></li>
+<li><a class="reference internal" href="#installation-updates">Installation Updates</a></li>
+<li><a class="reference internal" href="#configuration-system">Configuration System</a><ul>
+<li><a class="reference internal" href="#hydra-omegaconf-configuration">Hydra/OmegaConf Configuration</a></li>
+<li><a class="reference internal" href="#configuration-structure">Configuration Structure</a></li>
+<li><a class="reference internal" href="#configuration-override">Configuration Override</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#training-script-usage">Training Script Usage</a></li>
+<li><a class="reference internal" href="#python-api-usage">Python API Usage</a><ul>
+<li><a class="reference internal" href="#pytorch-lightning-integration">PyTorch Lightning Integration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#model-configuration">Model Configuration</a><ul>
+<li><a class="reference internal" href="#using-monai-and-mednext-models">Using MONAI and MedNeXt Models</a></li>
+<li><a class="reference internal" href="#using-custom-models">Using Custom Models</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-loading-migration">Data Loading Migration</a></li>
+<li><a class="reference internal" href="#inference-migration">Inference Migration</a></li>
+<li><a class="reference internal" href="#loss-function-migration">Loss Function Migration</a></li>
+<li><a class="reference internal" href="#augmentation-migration">Augmentation Migration</a></li>
+<li><a class="reference internal" href="#multi-gpu-training-migration">Multi-GPU Training Migration</a></li>
+<li><a class="reference internal" href="#checkpoint-format-migration">Checkpoint Format Migration</a></li>
+<li><a class="reference internal" href="#logging-and-monitoring-migration">Logging and Monitoring Migration</a></li>
+<li><a class="reference internal" href="#common-migration-issues">Common Migration Issues</a><ul>
+<li><a class="reference internal" href="#issue-no-module-named-yacs">Issue: “No module named ‘yacs’”</a></li>
+<li><a class="reference internal" href="#issue-config-file-not-found">Issue: Config file not found</a></li>
+<li><a class="reference internal" href="#issue-iteration-vs-epoch">Issue: Iteration vs Epoch</a></li>
+<li><a class="reference internal" href="#issue-model-architecture-not-found">Issue: Model architecture not found</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#backward-compatibility">Backward Compatibility</a></li>
+<li><a class="reference internal" href="#running-both-systems-side-by-side">Running Both Systems Side-by-Side</a></li>
+<li><a class="reference internal" href="#migration-examples">Migration Examples</a></li>
+<li><a class="reference internal" href="#getting-help">Getting Help</a></li>
+<li><a class="reference internal" href="#next-steps">Next Steps</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,1455 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.data &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="connectomics.utils" href="utils.html" />
+  <link rel="prev" title="connectomics.models" href="model.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">connectomics.models</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>connectomics.data</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/data.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="connectomics-data">
+<h1>connectomics.data<a class="headerlink" href="#connectomics-data" title="Link to this heading">¶</a></h1>
+<section id="module-connectomics.data.dataset">
+<span id="datasets"></span><h2>Datasets<a class="headerlink" href="#module-connectomics.data.dataset" title="Link to this heading">¶</a></h2>
+<p>MONAI-native dataset module for PyTorch Connectomics.</p>
+<p>This module provides MONAI-based dataset classes and PyTorch Lightning DataModules
+for connectomics data loading.</p>
+<dl class="simple">
+<dt>Inference Strategy:</dt><dd><p>For sliding-window inference, use MONAI’s SlidingWindowInferer in the Lightning
+module. Test datasets should return full volumes (no cropping). See
+.claude/INFERENCE_DESIGN.md for details.</p>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiCachedConnectomicsDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiCachedConnectomicsDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dicts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_base.html#MonaiCachedConnectomicsDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset" title="Link to this definition">¶</a></dt>
+<dd><p>MONAI CacheDataset-based implementation for improved performance.</p>
+<p>This dataset caches transformed data in memory for faster training.
+Suitable for smaller datasets that fit in memory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_dicts</strong> (<em>Sequence</em><em>[</em><em>Dict</em><em>]</em>) – List of data dictionaries</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em>, </em><em>optional</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>cache_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Percentage of data to cache. Default: 1.0</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of workers for caching. Default: 0</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments passed to MonaiConnectomicsDataset</p></li>
+<li><p><strong>data</strong> – input data to load and transform to generate dataset for model.</p></li>
+<li><p><strong>transform</strong> – transforms to execute operations on input data.</p></li>
+<li><p><strong>cache_num</strong> – number of items to be cached. Default is <cite>sys.maxsize</cite>.
+will take the minimum of (cache_num, data_length x cache_rate, data_length).</p></li>
+<li><p><strong>cache_rate</strong> – percentage of cached data in total, default is 1.0 (cache all).
+will take the minimum of (cache_num, data_length x cache_rate, data_length).</p></li>
+<li><p><strong>num_workers</strong> – the number of worker threads if computing cache in the initialization.
+If num_workers is None then the number returned by os.cpu_count() is used.
+If a value less than 1 is specified, 1 will be used instead.</p></li>
+<li><p><strong>progress</strong> – whether to display a progress bar.</p></li>
+<li><p><strong>copy_cache</strong> – whether to <cite>deepcopy</cite> the cache content before applying the random transforms,
+default to <cite>True</cite>. if the random transforms don’t modify the cached content
+(for example, randomly crop from the cached image and deepcopy the crop region)
+or if every cache item is only used once in a <cite>multi-processing</cite> environment,
+may set <cite>copy=False</cite> for better performance.</p></li>
+<li><p><strong>as_contiguous</strong> – whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+it may help improve the performance of following logic.</p></li>
+<li><p><strong>hash_as_key</strong> – whether to compute hash value of input data as the key to save cache,
+if key exists, avoid saving duplicated content. it can help save memory when
+the dataset has duplicated items or augmented dataset.</p></li>
+<li><p><strong>hash_func</strong> – if <cite>hash_as_key</cite>, a callable to compute hash from data items to be cached.
+defaults to <cite>monai.data.utils.pickle_hashing</cite>.</p></li>
+<li><p><strong>runtime_cache</strong> – <p>mode of cache at the runtime. Default to <cite>False</cite> to prepare
+the cache content for the entire <code class="docutils literal notranslate"><span class="pre">data</span></code> during initialization, this potentially largely increase the
+time required between the constructor called and first mini-batch generated.
+Three options are provided to compute the cache on the fly after the dataset initialization:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;threads&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">True</span></code>: use a regular <code class="docutils literal notranslate"><span class="pre">list</span></code> to store the cache items.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;processes&quot;</span></code>: use a ListProxy to store the cache items, it can be shared among processes.</p></li>
+<li><p>A list-like object: a users-provided container to be used to store the cache items.</p></li>
+</ol>
+<p>For <cite>thread-based</cite> caching (typically for caching cuda tensors), option 1 is recommended.
+For single process workflows with multiprocessing data loading, option 2 is recommended.
+For multiprocessing workflows (typically for distributed training),
+where this class is initialized in subprocesses, option 3 is recommended,
+and the list-like object should be prepared in the main process and passed to all subprocesses.
+Not following these recommendations may lead to runtime errors or duplicated cache across processes.</p>
+</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiCachedTileDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiCachedTileDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cache_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#MonaiCachedTileDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiCachedTileDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Cached version of MONAI tile dataset.</p>
+<p>This dataset caches reconstructed chunks in memory for improved performance.
+Suitable when the total size of cached chunks fits in available memory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cache_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Percentage of chunks to cache. Default: 1.0</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of workers for caching. Default: 0</p></li>
+<li><p><strong>**kwargs</strong> – Arguments passed to MonaiTileDataset</p></li>
+<li><p><strong>data</strong> – input data to load and transform to generate dataset for model.</p></li>
+<li><p><strong>transform</strong> – a callable, sequence of callables or None. If transform is not</p></li>
+<li><p><strong>instance</strong> (<em>a Compose</em>)</p></li>
+<li><p><strong>Sequences</strong> (<em>it will be wrapped in a Compose instance.</em>)</p></li>
+<li><p><strong>passed</strong> (<em>of callables are applied in order and if None is</em>)</p></li>
+<li><p><strong>is.</strong> (<em>the data is returned as</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiCachedVolumeDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiCachedVolumeDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#MonaiCachedVolumeDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiCachedVolumeDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Cached version of MONAI volume dataset for improved performance.</p>
+<p>This dataset caches transformed volumes in memory for faster access
+during training. Suitable for datasets that fit in available memory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cache_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Percentage of data to cache. Default: 1.0</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of workers for caching. Default: 0</p></li>
+<li><p><strong>**kwargs</strong> – Arguments passed to dataset creation</p></li>
+<li><p><strong>data</strong> – input data to load and transform to generate dataset for model.</p></li>
+<li><p><strong>transform</strong> – transforms to execute operations on input data.</p></li>
+<li><p><strong>cache_num</strong> – number of items to be cached. Default is <cite>sys.maxsize</cite>.
+will take the minimum of (cache_num, data_length x cache_rate, data_length).</p></li>
+<li><p><strong>cache_rate</strong> – percentage of cached data in total, default is 1.0 (cache all).
+will take the minimum of (cache_num, data_length x cache_rate, data_length).</p></li>
+<li><p><strong>num_workers</strong> – the number of worker threads if computing cache in the initialization.
+If num_workers is None then the number returned by os.cpu_count() is used.
+If a value less than 1 is specified, 1 will be used instead.</p></li>
+<li><p><strong>progress</strong> – whether to display a progress bar.</p></li>
+<li><p><strong>copy_cache</strong> – whether to <cite>deepcopy</cite> the cache content before applying the random transforms,
+default to <cite>True</cite>. if the random transforms don’t modify the cached content
+(for example, randomly crop from the cached image and deepcopy the crop region)
+or if every cache item is only used once in a <cite>multi-processing</cite> environment,
+may set <cite>copy=False</cite> for better performance.</p></li>
+<li><p><strong>as_contiguous</strong> – whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
+it may help improve the performance of following logic.</p></li>
+<li><p><strong>hash_as_key</strong> – whether to compute hash value of input data as the key to save cache,
+if key exists, avoid saving duplicated content. it can help save memory when
+the dataset has duplicated items or augmented dataset.</p></li>
+<li><p><strong>hash_func</strong> – if <cite>hash_as_key</cite>, a callable to compute hash from data items to be cached.
+defaults to <cite>monai.data.utils.pickle_hashing</cite>.</p></li>
+<li><p><strong>runtime_cache</strong> – <p>mode of cache at the runtime. Default to <cite>False</cite> to prepare
+the cache content for the entire <code class="docutils literal notranslate"><span class="pre">data</span></code> during initialization, this potentially largely increase the
+time required between the constructor called and first mini-batch generated.
+Three options are provided to compute the cache on the fly after the dataset initialization:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;threads&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">True</span></code>: use a regular <code class="docutils literal notranslate"><span class="pre">list</span></code> to store the cache items.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;processes&quot;</span></code>: use a ListProxy to store the cache items, it can be shared among processes.</p></li>
+<li><p>A list-like object: a users-provided container to be used to store the cache items.</p></li>
+</ol>
+<p>For <cite>thread-based</cite> caching (typically for caching cuda tensors), option 1 is recommended.
+For single process workflows with multiprocessing data loading, option 2 is recommended.
+For multiprocessing workflows (typically for distributed training),
+where this class is initialized in subprocesses, option 3 is recommended,
+and the list-like object should be prepared in the main process and passed to all subprocesses.
+Not following these recommendations may lead to runtime errors or duplicated cache across processes.</p>
+</p></li>
+<li><p><strong>image_paths</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>label_paths</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+<li><p><strong>mask_paths</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+<li><p><strong>transforms</strong> (<em>Optional</em><em>[</em><em>Compose</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiConnectomicsDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiConnectomicsDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dicts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(32,</span> <span class="pre">256,</span> <span class="pre">256)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iter_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_size_thres</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_diversity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_2d</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_relabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_base.html#MonaiConnectomicsDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiConnectomicsDataset" title="Link to this definition">¶</a></dt>
+<dd><p>MONAI-native base dataset for all connectomics data loading scenarios.</p>
+<p>This class extends MONAI’s Dataset with connectomics-specific functionality:
+- Volume-based loading with sampling strategies
+- Tile-based loading for large-scale data
+- Cloud-based loading support
+- Advanced rejection sampling for training
+- Modern MONAI Compose transform pipelines</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_dicts</strong> (<em>Sequence</em><em>[</em><em>Dict</em><em>]</em>) – List of data dictionaries with ‘image’ and
+optionally ‘label’ keys</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em>, </em><em>optional</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>sample_size</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>]</em>) – Size of samples to extract (z, y, x)</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Dataset mode (‘train’, ‘val’, ‘test’). Default: ‘train’</p></li>
+<li><p><strong>iter_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations per epoch (-1 for inference). Default: -1</p></li>
+<li><p><strong>valid_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Volume ratio threshold for valid samples. Default: 0.5</p></li>
+<li><p><strong>reject_size_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for foreground objects. Default: 0</p></li>
+<li><p><strong>reject_diversity</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for multiple objects. Default: 0</p></li>
+<li><p><strong>reject_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Probability of rejecting non-foreground volumes. Default: 0.95</p></li>
+<li><p><strong>do_2d</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Load 2D samples from 3D volumes. Default: False</p></li>
+<li><p><strong>do_relabel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Reduce mask indices in sampled volumes. Default: True</p></li>
+<li><p><strong>cache_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – MONAI cache rate for performance. Default: 0.0</p></li>
+<li><p><strong>data</strong> – input data to load and transform to generate dataset for model.</p></li>
+<li><p><strong>transform</strong> – a callable, sequence of callables or None. If transform is not</p></li>
+<li><p><strong>instance</strong> (<em>a Compose</em>)</p></li>
+<li><p><strong>Sequences</strong> (<em>it will be wrapped in a Compose instance.</em>)</p></li>
+<li><p><strong>passed</strong> (<em>of callables are applied in order and if None is</em>)</p></li>
+<li><p><strong>is.</strong> (<em>the data is returned as</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiPersistentConnectomicsDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiPersistentConnectomicsDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dicts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'./cache'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_base.html#MonaiPersistentConnectomicsDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiPersistentConnectomicsDataset" title="Link to this definition">¶</a></dt>
+<dd><p>MONAI PersistentDataset-based implementation for very large datasets.</p>
+<p>This dataset persists transformed data to disk for memory efficiency
+with large datasets that don’t fit in memory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_dicts</strong> (<em>Sequence</em><em>[</em><em>Dict</em><em>]</em>) – List of data dictionaries</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em>, </em><em>optional</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Directory for persistent cache</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments passed to MonaiConnectomicsDataset</p></li>
+<li><p><strong>data</strong> – input data file paths to load and transform to generate dataset for model.
+<cite>PersistentDataset</cite> expects input data to be a list of serializable
+and hashes them as cache keys using <cite>hash_func</cite>.</p></li>
+<li><p><strong>transform</strong> – transforms to execute operations on input data.</p></li>
+<li><p><strong>cache_dir</strong> – If specified, this is the location for persistent storage
+of pre-computed transformed data tensors. The cache_dir is computed once, and
+persists on disk until explicitly removed.  Different runs, programs, experiments
+may share a common cache dir provided that the transforms pre-processing is consistent.
+If <cite>cache_dir</cite> doesn’t exist, will automatically create it.
+If <cite>cache_dir</cite> is <cite>None</cite>, there is effectively no caching.</p></li>
+<li><p><strong>hash_func</strong> – a callable to compute hash from data items to be cached.
+defaults to <cite>monai.data.utils.pickle_hashing</cite>.</p></li>
+<li><p><strong>pickle_module</strong> – string representing the module used for pickling metadata and objects,
+default to <cite>“pickle”</cite>. due to the pickle limitation in multi-processing of Dataloader,
+we can’t use <cite>pickle</cite> as arg directly, so here we use a string name instead.
+if want to use other pickle module at runtime, just register like:
+&gt;&gt;&gt; from monai.data import utils
+&gt;&gt;&gt; utils.SUPPORTED_PICKLE_MOD[“test”] = other_pickle
+this arg is used by <cite>torch.save</cite>, for more details, please check:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.save.html#torch.save">https://pytorch.org/docs/stable/generated/torch.save.html#torch.save</a>,
+and <code class="docutils literal notranslate"><span class="pre">monai.data.utils.SUPPORTED_PICKLE_MOD</span></code>.</p></li>
+<li><p><strong>pickle_protocol</strong> – specifies pickle protocol when saving, with <cite>torch.save</cite>.
+Defaults to torch.serialization.DEFAULT_PROTOCOL. For more details, please check:
+<a class="reference external" href="https://pytorch.org/docs/stable/generated/torch.save.html#torch.save">https://pytorch.org/docs/stable/generated/torch.save.html#torch.save</a>.</p></li>
+<li><p><strong>hash_transform</strong> – a callable to compute hash from the transform information when caching.
+This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+Other options are <cite>pickle_hashing</cite> and <cite>json_hashing</cite> functions from <cite>monai.data.utils</cite>.</p></li>
+<li><p><strong>reset_ops_id</strong> – whether to set <cite>TraceKeys.ID</cite> to <code class="docutils literal notranslate"><span class="pre">Tracekys.NONE</span></code>, defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>.
+When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+This is useful for skipping the transform instance checks when inverting applied operations
+using the cached content and with re-created transform instances.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiTileDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiTileDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_json</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(2,</span> <span class="pre">2,</span> <span class="pre">2)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_iter</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_stride</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(32,</span> <span class="pre">256,</span> <span class="pre">256)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iter_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">0)</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_tile.html#MonaiTileDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiTileDataset" title="Link to this definition">¶</a></dt>
+<dd><p>MONAI-native dataset for large-scale tile-based connectomics data.</p>
+<p>This dataset is designed for large-scale volumetric datasets that are stored
+as individual tiles. It constructs smaller chunks for processing without loading
+the entire volume into memory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – JSON metadata file for input image tiles</p></li>
+<li><p><strong>label_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – JSON metadata file for label tiles</p></li>
+<li><p><strong>mask_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – JSON metadata file for valid mask tiles</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em>, </em><em>optional</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>chunk_num</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Volume splitting parameters (z, y, x). Default: (2, 2, 2)</p></li>
+<li><p><strong>chunk_indices</strong> (<em>List</em><em>[</em><em>Tuple</em><em>]</em><em>, </em><em>optional</em>) – Predefined list of chunk indices</p></li>
+<li><p><strong>chunk_iter</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations on each chunk. Default: -1</p></li>
+<li><p><strong>chunk_stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Allow overlap between chunks. Default: True</p></li>
+<li><p><strong>sample_size</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Size of samples to extract (z, y, x)</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Dataset mode (‘train’, ‘val’, ‘test’). Default: ‘train’</p></li>
+<li><p><strong>iter_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations per epoch (-1 for inference). Default: -1</p></li>
+<li><p><strong>pad_size</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Padding parameters (z, y, x). Default: (0, 0, 0)</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments passed to base dataset</p></li>
+<li><p><strong>data</strong> – input data to load and transform to generate dataset for model.</p></li>
+<li><p><strong>transform</strong> – a callable, sequence of callables or None. If transform is not</p></li>
+<li><p><strong>instance</strong> (<em>a Compose</em>)</p></li>
+<li><p><strong>Sequences</strong> (<em>it will be wrapped in a Compose instance.</em>)</p></li>
+<li><p><strong>passed</strong> (<em>of callables are applied in order and if None is</em>)</p></li>
+<li><p><strong>is.</strong> (<em>the data is returned as</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiVolumeDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">MonaiVolumeDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(32,</span> <span class="pre">256,</span> <span class="pre">256)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'train'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">iter_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">-1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">valid_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_size_thres</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_diversity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reject_p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_2d</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">do_relabel</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_mean</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_std</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transpose_axes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_volume.html#MonaiVolumeDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiVolumeDataset" title="Link to this definition">¶</a></dt>
+<dd><p>MONAI-native dataset for volumetric connectomics data.</p>
+<p>This class extends the base MONAI connectomics dataset with volume-specific
+functionality including:
+- Random spatial cropping for training
+- Sliding window sampling for inference
+- Rejection sampling based on foreground content
+- Support for multiple volumes with different sizes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_paths</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of image volume file paths</p></li>
+<li><p><strong>label_paths</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>, </em><em>optional</em>) – List of label volume file paths</p></li>
+<li><p><strong>mask_paths</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>, </em><em>optional</em>) – List of valid mask file paths</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em>, </em><em>optional</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>sample_size</strong> (<em>Tuple</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Size of samples to extract (z, y, x)</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Dataset mode (‘train’, ‘val’, ‘test’). Default: ‘train’</p></li>
+<li><p><strong>iter_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of iterations per epoch (-1 for inference). Default: -1</p></li>
+<li><p><strong>valid_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Volume ratio threshold for valid samples. Default: 0.5</p></li>
+<li><p><strong>reject_size_thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for foreground objects. Default: 0</p></li>
+<li><p><strong>reject_diversity</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for multiple objects. Default: 0</p></li>
+<li><p><strong>reject_p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Probability of rejecting non-foreground volumes. Default: 0.95</p></li>
+<li><p><strong>do_2d</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Load 2D samples from 3D volumes. Default: False</p></li>
+<li><p><strong>do_relabel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Reduce mask indices in sampled volumes. Default: True</p></li>
+<li><p><strong>data_mean</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Mean for normalization. Default: 0.5</p></li>
+<li><p><strong>data_std</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Standard deviation for normalization. Default: 0.5</p></li>
+<li><p><strong>data</strong> – input data to load and transform to generate dataset for model.</p></li>
+<li><p><strong>transform</strong> – a callable, sequence of callables or None. If transform is not</p></li>
+<li><p><strong>instance</strong> (<em>a Compose</em>)</p></li>
+<li><p><strong>Sequences</strong> (<em>it will be wrapped in a Compose instance.</em>)</p></li>
+<li><p><strong>passed</strong> (<em>of callables are applied in order and if None is</em>)</p></li>
+<li><p><strong>is.</strong> (<em>the data is returned as</em>)</p></li>
+<li><p><strong>transpose_axes</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.StratifiedConcatDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">StratifiedConcatDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_multi.html#StratifiedConcatDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.StratifiedConcatDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Concatenate datasets with stratified (round-robin) sampling.</p>
+<p>Ensures balanced sampling across datasets by cycling through them.
+This is useful when you want equal representation from each dataset
+regardless of their actual sizes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datasets</strong> (<em>List</em><em>[</em><em>Dataset</em><em>]</em>) – List of datasets to concatenate</p></li>
+<li><p><strong>length</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Total number of samples per epoch. Default: sum of dataset lengths</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">StratifiedConcatDataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset1</span> <span class="o">=</span> <span class="n">Dataset1</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset2</span> <span class="o">=</span> <span class="n">Dataset2</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stratified</span> <span class="o">=</span> <span class="n">StratifiedConcatDataset</span><span class="p">([</span><span class="n">dataset1</span><span class="p">,</span> <span class="n">dataset2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Will sample: dataset1[0], dataset2[0], dataset1[1], dataset2[1], ...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Ensures equal representation even though dataset2 is 2x larger</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.UniformConcatDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">UniformConcatDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_multi.html#UniformConcatDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.UniformConcatDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Concatenate datasets with uniform random sampling.</p>
+<p>Samples uniformly from all datasets combined, giving equal probability
+to each individual sample across all datasets. This is equivalent to
+WeightedConcatDataset with weights proportional to dataset sizes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datasets</strong> (<em>List</em><em>[</em><em>Dataset</em><em>]</em>) – List of datasets to concatenate</p></li>
+<li><p><strong>length</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Total number of samples per epoch. Default: sum of dataset lengths</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">UniformConcatDataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset1</span> <span class="o">=</span> <span class="n">Dataset1</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset2</span> <span class="o">=</span> <span class="n">Dataset2</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">uniform</span> <span class="o">=</span> <span class="n">UniformConcatDataset</span><span class="p">([</span><span class="n">dataset1</span><span class="p">,</span> <span class="n">dataset2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Each sample has equal probability (1/300) regardless of source dataset</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.dataset.WeightedConcatDataset">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">WeightedConcatDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datasets</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weights</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_multi.html#WeightedConcatDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.WeightedConcatDataset" title="Link to this definition">¶</a></dt>
+<dd><p>Concatenate multiple datasets and sample from them with specified weights.</p>
+<p>Unlike torch.utils.data.ConcatDataset which samples proportionally to
+dataset sizes, this class samples according to specified weights. This is
+particularly useful for domain adaptation where you want to control the
+ratio of synthetic vs. real data regardless of dataset sizes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datasets</strong> (<em>List</em><em>[</em><em>Dataset</em><em>]</em>) – List of datasets to concatenate</p></li>
+<li><p><strong>weights</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>]</em>) – List of sampling weights (must sum to 1.0)</p></li>
+<li><p><strong>length</strong> (<em>Optional</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Total number of samples per epoch. Default: minimum dataset length</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.dataset</span><span class="w"> </span><span class="kn">import</span> <span class="n">WeightedConcatDataset</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">synthetic_data</span> <span class="o">=</span> <span class="n">SyntheticDataset</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">real_data</span> <span class="o">=</span> <span class="n">RealDataset</span><span class="p">(</span><span class="n">size</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># 80% synthetic, 20% real (regardless of actual sizes)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mixed</span> <span class="o">=</span> <span class="n">WeightedConcatDataset</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">datasets</span><span class="o">=</span><span class="p">[</span><span class="n">synthetic_data</span><span class="p">,</span> <span class="n">real_data</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">length</span><span class="o">=</span><span class="mi">5000</span>  <span class="c1"># 5000 samples per epoch</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Each batch will be 80% synthetic, 20% real on average</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.dataset.create_connectomics_dataset">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_connectomics_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_dicts</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'standard'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_connectomics_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_connectomics_dataset" title="Link to this definition">¶</a></dt>
+<dd><p>Factory function to create appropriate MONAI connectomics dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_dicts</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Sequence" title="(in Python v3.14)"><em>Sequence</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>]</em>) – List of data dictionaries</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em> | </em><em>None</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>dataset_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of dataset (‘standard’, ‘cached’, ‘persistent’)</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments for dataset initialization</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Appropriate MONAI connectomics dataset instance</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#connectomics.data.dataset.MonaiConnectomicsDataset" title="connectomics.data.dataset.dataset_base.MonaiConnectomicsDataset"><em>MonaiConnectomicsDataset</em></a> | <a class="reference internal" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset" title="connectomics.data.dataset.dataset_base.MonaiCachedConnectomicsDataset"><em>MonaiCachedConnectomicsDataset</em></a> | <a class="reference internal" href="#connectomics.data.dataset.MonaiPersistentConnectomicsDataset" title="connectomics.data.dataset.dataset_base.MonaiPersistentConnectomicsDataset"><em>MonaiPersistentConnectomicsDataset</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_data_dicts_from_paths</span><span class="p">([</span><span class="s1">&#39;img.h5&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;lbl.h5&#39;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">create_connectomics_dataset</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">data_dicts</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="n">my_transforms</span><span class="p">,</span> <span class="n">dataset_type</span><span class="o">=</span><span class="s1">&#39;cached&#39;</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.dataset.create_data_dicts_from_paths">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_data_dicts_from_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_data_dicts_from_paths"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_data_dicts_from_paths" title="Link to this definition">¶</a></dt>
+<dd><p>Create MONAI-style data dictionaries from file paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of image file paths</p></li>
+<li><p><strong>label_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of label file paths</p></li>
+<li><p><strong>mask_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of mask file paths</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of dictionaries with ‘image’, ‘label’, and/or ‘mask’ keys</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">image_paths</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;img1.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;img2.h5&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">label_paths</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;lbl1.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;lbl2.h5&#39;</span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_data_dicts_from_paths</span><span class="p">(</span><span class="n">image_paths</span><span class="p">,</span> <span class="n">label_paths</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># [{&#39;image&#39;: &#39;img1.h5&#39;, &#39;label&#39;: &#39;lbl1.h5&#39;}, ...]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.dataset.create_tile_data_dicts_from_json">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_tile_data_dicts_from_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_json</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(2,</span> <span class="pre">2,</span> <span class="pre">2)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_indices</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_tile_data_dicts_from_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_tile_data_dicts_from_json" title="Link to this definition">¶</a></dt>
+<dd><p>Create MONAI data dictionaries from tile JSON metadata files.</p>
+<p>This function loads tile metadata from JSON files and creates data dictionaries
+for each chunk of the volume. It’s useful for preparing data before creating
+a dataset, or for custom dataset implementations.</p>
+<dl>
+<dt>JSON Schema:</dt><dd><p>The JSON file should contain volume metadata in the following format:
+{</p>
+<blockquote>
+<div><p>“depth”: int,       # Volume depth in pixels/voxels
+“height”: int,      # Volume height in pixels/voxels
+“width”: int,       # Volume width in pixels/voxels
+“tiles”: [          # List of tile files (optional)</p>
+<blockquote>
+<div><dl class="simple">
+<dt>{</dt><dd><p>“file”: str,           # Path to tile file
+“z_start”: int,        # Starting z coordinate
+“z_end”: int,          # Ending z coordinate
+“y_start”: int,        # Starting y coordinate
+“y_end”: int,          # Ending y coordinate
+“x_start”: int,        # Starting x coordinate
+“x_end”: int           # Ending x coordinate</p>
+</dd>
+</dl>
+</div></blockquote>
+<p>],
+“tile_size”: [int, int, int],    # Optional: default tile size (z, y, x)
+“overlap”: [int, int, int],      # Optional: tile overlap (z, y, x)
+“format”: str,                   # Optional: file format (e.g., “tif”, “h5”)
+“metadata”: {…}                # Optional: additional metadata</p>
+</div></blockquote>
+<p>}</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to JSON metadata file for input image tiles</p></li>
+<li><p><strong>label_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional path to JSON metadata file for label tiles</p></li>
+<li><p><strong>mask_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional path to JSON metadata file for mask tiles</p></li>
+<li><p><strong>chunk_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Volume splitting parameters (z, y, x). Default: (2, 2, 2)</p></li>
+<li><p><strong>chunk_indices</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>] </em><em>| </em><em>None</em>) – Optional predefined list of chunk information dicts.
+Each dict should have ‘chunk_id’ and ‘coords’ keys.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of MONAI-style data dictionaries for tile chunks.
+Each dictionary contains nested dicts for ‘image’, ‘label’ (if provided),
+and ‘mask’ (if provided) with metadata and chunk coordinates.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create data dicts from JSON with automatic chunking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_tile_data_dicts_from_json</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">volume_json</span><span class="o">=</span><span class="s1">&#39;tiles/image.json&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">label_json</span><span class="o">=</span><span class="s1">&#39;tiles/label.json&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">chunk_num</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">data_dicts</span><span class="p">)</span>  <span class="c1"># 2*2*2 = 8 chunks</span>
+<span class="go">8</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create with custom chunk indices</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">custom_chunks</span> <span class="o">=</span> <span class="p">[</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">&#39;chunk_id&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;coords&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">200</span><span class="p">)},</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">&#39;chunk_id&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s1">&#39;coords&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">400</span><span class="p">)},</span>
+<span class="gp">... </span><span class="p">]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_tile_data_dicts_from_json</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="s1">&#39;tiles/image.json&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">chunk_indices</span><span class="o">=</span><span class="n">custom_chunks</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#FileNotFoundError" title="(in Python v3.14)"><strong>FileNotFoundError</strong></a> – If JSON file doesn’t exist</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If JSON is malformed or missing required fields</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#KeyError" title="(in Python v3.14)"><strong>KeyError</strong></a> – If required keys are missing from JSON</p></li>
+</ul>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>volume_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>label_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>mask_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>chunk_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>)</p></li>
+<li><p><strong>chunk_indices</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.dataset.create_tile_dataset">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_tile_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_json</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'standard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_tile_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_tile_dataset" title="Link to this definition">¶</a></dt>
+<dd><p>Factory function to create MONAI tile datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – JSON metadata file for input image tiles</p></li>
+<li><p><strong>label_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional JSON metadata file for label tiles</p></li>
+<li><p><strong>mask_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – Optional JSON metadata file for mask tiles</p></li>
+<li><p><strong>transforms</strong> (<em>Compose</em><em> | </em><em>None</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>dataset_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of dataset (‘standard’, ‘cached’)</p></li>
+<li><p><strong>cache_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Cache rate for cached datasets</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments for dataset initialization</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Appropriate MONAI tile dataset instance</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#connectomics.data.dataset.MonaiTileDataset" title="connectomics.data.dataset.dataset_tile.MonaiTileDataset"><em>MonaiTileDataset</em></a> | <a class="reference internal" href="#connectomics.data.dataset.MonaiCachedTileDataset" title="connectomics.data.dataset.dataset_tile.MonaiCachedTileDataset"><em>MonaiCachedTileDataset</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">create_tile_dataset</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">volume_json</span><span class="o">=</span><span class="s1">&#39;tiles.json&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">label_json</span><span class="o">=</span><span class="s1">&#39;labels.json&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">transforms</span><span class="o">=</span><span class="n">my_transforms</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">dataset_type</span><span class="o">=</span><span class="s1">&#39;cached&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.dataset.create_volume_data_dicts">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_volume_data_dicts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_volume_data_dicts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_volume_data_dicts" title="Link to this definition">¶</a></dt>
+<dd><p>Create MONAI data dictionaries for volume datasets.</p>
+<p>This is a convenience wrapper around create_data_dicts_from_paths
+for volume-specific use cases.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of image volume file paths</p></li>
+<li><p><strong>label_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of label volume file paths</p></li>
+<li><p><strong>mask_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of valid mask file paths</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of MONAI-style data dictionaries</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_volume_data_dicts</span><span class="p">([</span><span class="s1">&#39;vol1.tif&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;lbl1.tif&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.dataset.create_volume_dataset">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_volume_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'standard'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_volume_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_volume_dataset" title="Link to this definition">¶</a></dt>
+<dd><p>Factory function to create MONAI volume datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>image_paths</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of image volume file paths</p></li>
+<li><p><strong>label_paths</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>) – Optional list of label volume file paths</p></li>
+<li><p><strong>mask_paths</strong> (<em>Optional</em><em>[</em><em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>) – Optional list of valid mask file paths</p></li>
+<li><p><strong>transforms</strong> (<em>Optional</em><em>[</em><em>Compose</em><em>]</em>) – MONAI transforms pipeline</p></li>
+<li><p><strong>dataset_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Type of dataset (‘standard’, ‘cached’)</p></li>
+<li><p><strong>cache_rate</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Cache rate for cached datasets</p></li>
+<li><p><strong>**kwargs</strong> – Additional arguments for dataset initialization</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Appropriate MONAI volume dataset instance</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Union[<a class="reference internal" href="#connectomics.data.dataset.MonaiVolumeDataset" title="connectomics.data.dataset.MonaiVolumeDataset">MonaiVolumeDataset</a>, <a class="reference internal" href="#connectomics.data.dataset.MonaiCachedVolumeDataset" title="connectomics.data.dataset.MonaiCachedVolumeDataset">MonaiCachedVolumeDataset</a>]</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">dataset</span> <span class="o">=</span> <span class="n">create_volume_dataset</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">image_paths</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;train_img.tif&#39;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">label_paths</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;train_lbl.tif&#39;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">transforms</span><span class="o">=</span><span class="n">my_transforms</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">dataset_type</span><span class="o">=</span><span class="s1">&#39;cached&#39;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">cache_rate</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="augmentations">
+<h2>Augmentations<a class="headerlink" href="#augmentations" title="Link to this heading">¶</a></h2>
+</section>
+<section id="module-connectomics.data.utils">
+<span id="utility-functions"></span><h2>Utility Functions<a class="headerlink" href="#module-connectomics.data.utils" title="Link to this heading">¶</a></h2>
+<p>Data utility functions.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.data.utils.ApplyVolumetricSplitd">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">ApplyVolumetricSplitd</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#ApplyVolumetricSplitd"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.ApplyVolumetricSplitd" title="Link to this definition">¶</a></dt>
+<dd><p>MONAI transform to apply volumetric split during data loading.</p>
+<p>This transform extracts a spatial region from loaded volumes based on
+split metadata stored in the data dictionary. It supports automatic
+padding for validation regions.</p>
+<dl class="simple">
+<dt>Expected metadata in data dict:</dt><dd><ul class="simple">
+<li><p>‘split_slices’: Tuple of slice objects defining the region</p></li>
+<li><p>‘split_mode’: ‘train’ or ‘val’</p></li>
+<li><p>‘split_pad’ (optional): Whether to pad validation</p></li>
+<li><p>‘split_pad_size’ (optional): Target size for padding</p></li>
+<li><p>‘split_pad_mode’ (optional): Padding mode (‘reflect’, etc.)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>keys</strong> (<a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Collection" title="(in Python v3.14)"><em>Collection</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Hashable" title="(in Python v3.14)"><em>Hashable</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Hashable" title="(in Python v3.14)"><em>Hashable</em></a>) – Keys of data dict to apply split to (e.g., [‘image’, ‘label’])</p></li>
+<li><p><strong>allow_missing_keys</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Don’t raise error if key is missing</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">transforms</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">([</span>
+<span class="gp">... </span>    <span class="n">LoadImaged</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">]),</span>
+<span class="gp">... </span>    <span class="n">ApplyVolumetricSplitd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">]),</span>
+<span class="gp">... </span>    <span class="c1"># ... other transforms</span>
+<span class="gp">... </span><span class="p">])</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.apply_volumetric_split">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">apply_volumetric_split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split_slices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reflect'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#apply_volumetric_split"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.apply_volumetric_split" title="Link to this definition">¶</a></dt>
+<dd><p>Apply volumetric split to a single volume (convenience function).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input volume (D, H, W) or (C, D, H, W)</p></li>
+<li><p><strong>split_slices</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#slice" title="(in Python v3.14)"><em>slice</em></a><em>, </em><em>...</em><em>]</em>) – Tuple of slice objects</p></li>
+<li><p><strong>pad</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to pad after splitting</p></li>
+<li><p><strong>pad_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>) – Target size for padding (only if pad=True)</p></li>
+<li><p><strong>pad_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Padding mode (‘reflect’, ‘replicate’, ‘constant’)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Split (and optionally padded) volume</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em> | <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.compute_total_samples">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">compute_total_samples</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_sizes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/sampling.html#compute_total_samples"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.compute_total_samples" title="Link to this definition">¶</a></dt>
+<dd><p>Compute total number of samples across multiple volumes.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_sizes</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em><em>]</em>) – List of volume sizes [(z1, y1, x1), (z2, y2, x2), …]</p></li>
+<li><p><strong>patch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Size of each patch (z, y, x)</p></li>
+<li><p><strong>stride</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Stride for sampling (z, y, x)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of (total_samples, samples_per_volume)
+- total_samples: Total number of possible patches across all volumes
+- samples_per_volume: List of sample counts per volume</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]]</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">volume_sizes</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">165</span><span class="p">,</span> <span class="mi">768</span><span class="p">,</span> <span class="mi">1024</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">patch_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">112</span><span class="p">,</span> <span class="mi">112</span><span class="p">,</span> <span class="mi">112</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stride</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">total</span><span class="p">,</span> <span class="n">per_vol</span> <span class="o">=</span> <span class="n">compute_total_samples</span><span class="p">(</span><span class="n">volume_sizes</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total samples: </span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Total samples: 32,380,302 (54 * 657 * 913)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.count_volume">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">count_volume</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">patch_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stride</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/sampling.html#count_volume"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.count_volume" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate the number of patches that can be extracted from a volume.</p>
+<p>This function computes how many non-overlapping or overlapping patches
+of a given size can be extracted from a volume using a specified stride.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_size</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Size of the input volume (z, y, x)</p></li>
+<li><p><strong>patch_size</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Size of each patch (z, y, x)</p></li>
+<li><p><strong>stride</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Stride for sampling (z, y, x)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Array of shape (3,) containing the number of patches along each dimension</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">165</span><span class="p">,</span> <span class="mi">768</span><span class="p">,</span> <span class="mi">1024</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">patch_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">112</span><span class="p">,</span> <span class="mi">112</span><span class="p">,</span> <span class="mi">112</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stride</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">count</span> <span class="o">=</span> <span class="n">count_volume</span><span class="p">(</span><span class="n">data_size</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># count = [54, 657, 913] along z, y, x</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">total_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">(</span><span class="n">count</span><span class="p">)</span>  <span class="c1"># Total possible patches</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The formula is: 1 + ceil((data_size - patch_size) / stride)
+This matches the legacy PyTorch Connectomics v1 implementation.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.create_split_masks">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">create_split_masks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_ratio=0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis=0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_val_size=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype=&lt;class</span> <span class="pre">'numpy.uint8'&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#create_split_masks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.create_split_masks" title="Link to this definition">¶</a></dt>
+<dd><p>Create binary masks for train/val splits.</p>
+<p>Similar to DeepEM’s msk_train.h5 and msk_val.h5 approach, but computed
+automatically based on train_ratio.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_shape</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Shape of the volume (D, H, W)</p></li>
+<li><p><strong>train_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Ratio of volume to use for training (default: 0.8)</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Axis along which to split (0=D, 1=H, 2=W). Default: 0</p></li>
+<li><p><strong>min_val_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Minimum size for validation split (default: None)</p></li>
+<li><p><strong>dtype</strong> (<em>dtype</em>) – Data type for masks (default: np.uint8)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Binary mask for training region (1=valid, 0=invalid)
+val_mask: Binary mask for validation region (1=valid, 0=invalid)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>train_mask</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">volume_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train_mask</span><span class="p">,</span> <span class="n">val_mask</span> <span class="o">=</span> <span class="n">create_split_masks</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">train_ratio</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">train_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">train_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>  <span class="c1"># (100, 256, 256), first 80 slices = 1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">val_mask</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">val_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>      <span class="c1"># (100, 256, 256), last 20 slices = 1</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.pad_volume_to_size">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">pad_volume_to_size</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_size</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reflect'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">constant_value</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#pad_volume_to_size"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.pad_volume_to_size" title="Link to this definition">¶</a></dt>
+<dd><p>Pad a volume to match a target size.</p>
+<p>This is useful when validation data is smaller than the model’s input size
+and needs to be padded for inference.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input volume of shape (D, H, W) or (C, D, H, W)</p></li>
+<li><p><strong>target_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Target size (D, H, W)</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Padding mode. Options:
+- ‘constant’: Pad with constant value
+- ‘reflect’: Reflect values at boundaries
+- ‘replicate’: Replicate edge values
+- ‘circular’: Circular padding</p></li>
+<li><p><strong>constant_value</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Value to use for constant padding (default: 0.0)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Padded volume of shape matching target_size (+ channel dim if input had it)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>ndarray</em> | <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">160</span><span class="p">,</span> <span class="mi">160</span><span class="p">)</span>  <span class="c1"># Small validation volume</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">target_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>  <span class="c1"># Model input size</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">padded</span> <span class="o">=</span> <span class="n">pad_volume_to_size</span><span class="p">(</span><span class="n">volume</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;reflect&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">padded</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>  <span class="c1"># (32, 256, 256)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.save_split_masks_h5">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">save_split_masks_h5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">volume_shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'msk_train.h5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'msk_val.h5'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#save_split_masks_h5"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.save_split_masks_h5" title="Link to this definition">¶</a></dt>
+<dd><p>Save train/val split masks to HDF5 files (DeepEM compatible).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>output_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>Path</em></a>) – Directory to save mask files</p></li>
+<li><p><strong>volume_shape</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Shape of the volume (D, H, W)</p></li>
+<li><p><strong>train_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Training split ratio (default: 0.8)</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Split axis (default: 0)</p></li>
+<li><p><strong>train_filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Filename for training mask (default: ‘msk_train.h5’)</p></li>
+<li><p><strong>val_filename</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Filename for validation mask (default: ‘msk_val.h5’)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.split_and_pad_volume">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">split_and_pad_volume</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pad_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'reflect'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_val_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#split_and_pad_volume"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.split_and_pad_volume" title="Link to this definition">¶</a></dt>
+<dd><p>Split volume into train/val and pad validation if needed.</p>
+<p>This combines splitting and padding in one operation, following DeepEM’s
+approach of using 80% for training and padding the smaller validation
+volume to match model input requirements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input volume (D, H, W) or (C, D, H, W)</p></li>
+<li><p><strong>train_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Ratio for training split (default: 0.8)</p></li>
+<li><p><strong>target_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><em>None</em>) – Target size for padding validation (default: None, no padding)</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Split axis (default: 0 for Z-axis)</p></li>
+<li><p><strong>pad_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Padding mode for validation volume (default: ‘reflect’)</p></li>
+<li><p><strong>min_val_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Minimum validation size (default: None)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Training portion (unchanged)
+val_volume: Validation portion (padded to target_size if specified)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>train_volume</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Volume with 100 slices</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Split 80/20 and pad validation to model size</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train_vol</span><span class="p">,</span> <span class="n">val_vol</span> <span class="o">=</span> <span class="n">split_and_pad_volume</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">volume</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">train_ratio</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">target_size</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span>  <span class="c1"># Model input size</span>
+<span class="gp">... </span>    <span class="n">pad_mode</span><span class="o">=</span><span class="s1">&#39;reflect&#39;</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">train_vol</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>  <span class="c1"># (80, 256, 256) - first 80 slices</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">val_vol</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>    <span class="c1"># (32, 256, 256) - last 20 slices, padded to 32</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.data.utils.split_volume_train_val">
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.utils.</span></span><span class="sig-name descname"><span class="pre">split_volume_train_val</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">volume_shape</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_ratio</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_val_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/utils/split.html#split_volume_train_val"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.utils.split_volume_train_val" title="Link to this definition">¶</a></dt>
+<dd><p>Split a volume into training and validation regions along a specified axis.</p>
+<p>This follows DeepEM’s approach of spatial splitting where:
+- First 80% (or specified ratio) of volume is used for training
+- Last 20% is used for validation
+- Split is along Z-axis by default (axis=0 for [D,H,W] volumes)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>volume_shape</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Shape of the volume (D, H, W)</p></li>
+<li><p><strong>train_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Ratio of volume to use for training (default: 0.8)</p></li>
+<li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Axis along which to split (0=D, 1=H, 2=W). Default: 0 (Z-axis)</p></li>
+<li><p><strong>min_val_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Minimum size for validation split (default: None)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of slices for training region
+val_slices: Tuple of slices for validation region</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>train_slices</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">volume_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>  <span class="c1"># [D, H, W]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">train_slices</span><span class="p">,</span> <span class="n">val_slices</span> <span class="o">=</span> <span class="n">split_volume_train_val</span><span class="p">(</span><span class="n">volume_shape</span><span class="p">,</span> <span class="n">train_ratio</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># train_slices = (slice(0, 80), slice(None), slice(None))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># val_slices = (slice(80, 100), slice(None), slice(None))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="utils.html" class="btn btn-neutral float-right" title="connectomics.utils" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="model.html" class="btn btn-neutral" title="connectomics.models" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">connectomics.data</a><ul>
+<li><a class="reference internal" href="#module-connectomics.data.dataset">Datasets</a><ul>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedConnectomicsDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedTileDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedTileDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedVolumeDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedVolumeDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiConnectomicsDataset"><code class="docutils literal notranslate"><span class="pre">MonaiConnectomicsDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiPersistentConnectomicsDataset"><code class="docutils literal notranslate"><span class="pre">MonaiPersistentConnectomicsDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiTileDataset"><code class="docutils literal notranslate"><span class="pre">MonaiTileDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiVolumeDataset"><code class="docutils literal notranslate"><span class="pre">MonaiVolumeDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.StratifiedConcatDataset"><code class="docutils literal notranslate"><span class="pre">StratifiedConcatDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.UniformConcatDataset"><code class="docutils literal notranslate"><span class="pre">UniformConcatDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.WeightedConcatDataset"><code class="docutils literal notranslate"><span class="pre">WeightedConcatDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.create_connectomics_dataset"><code class="docutils literal notranslate"><span class="pre">create_connectomics_dataset()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.create_data_dicts_from_paths"><code class="docutils literal notranslate"><span class="pre">create_data_dicts_from_paths()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.create_tile_data_dicts_from_json"><code class="docutils literal notranslate"><span class="pre">create_tile_data_dicts_from_json()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.create_tile_dataset"><code class="docutils literal notranslate"><span class="pre">create_tile_dataset()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.create_volume_data_dicts"><code class="docutils literal notranslate"><span class="pre">create_volume_data_dicts()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.create_volume_dataset"><code class="docutils literal notranslate"><span class="pre">create_volume_dataset()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#augmentations">Augmentations</a></li>
+<li><a class="reference internal" href="#module-connectomics.data.utils">Utility Functions</a><ul>
+<li><a class="reference internal" href="#connectomics.data.utils.ApplyVolumetricSplitd"><code class="docutils literal notranslate"><span class="pre">ApplyVolumetricSplitd</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.apply_volumetric_split"><code class="docutils literal notranslate"><span class="pre">apply_volumetric_split()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.compute_total_samples"><code class="docutils literal notranslate"><span class="pre">compute_total_samples()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.count_volume"><code class="docutils literal notranslate"><span class="pre">count_volume()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.create_split_masks"><code class="docutils literal notranslate"><span class="pre">create_split_masks()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.pad_volume_to_size"><code class="docutils literal notranslate"><span class="pre">pad_volume_to_size()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.save_split_masks_h5"><code class="docutils literal notranslate"><span class="pre">save_split_masks_h5()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.split_and_pad_volume"><code class="docutils literal notranslate"><span class="pre">split_and_pad_volume()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.utils.split_volume_train_val"><code class="docutils literal notranslate"><span class="pre">split_volume_train_val()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

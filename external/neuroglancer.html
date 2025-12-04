@@ -1,0 +1,881 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Neuroglancer &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="Lightning Module API" href="../modules/lightning.html" />
+  <link rel="prev" title="Artifacts Detection (Draft)" href="../tutorials/artifact.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Neuroglancer</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/external/neuroglancer.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="neuroglancer">
+<h1>Neuroglancer<a class="headerlink" href="#neuroglancer" title="Link to this heading">¶</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p><a class="reference external" href="https://github.com/google/neuroglancer">Neuroglancer</a> is a high-performance, flexible WebGL-based viewer and visualization
+framework for volumetric data developed by the <a class="reference external" href="https://research.google/teams/connectomics/">Google Connectomics Team</a>.
+It supports a wide variety of data sources and can display arbitrary (non axis-aligned) cross-sectional views of volumetric
+data and 3-D meshes and line-segment-based models (skeletons). Neuroglancer is a powerful tool for large-scale neuroscience
+datasets, which can be impractical to visualize with other traditional image viewer applications.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The tutorial below is only tested with the Google <a class="reference external" href="https://www.google.com/chrome/downloads/">Chrome</a> web browser. You may see different behaviors or errors when using other browsers.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="installation-and-quick-start">
+<h2>Installation and Quick Start<a class="headerlink" href="#installation-and-quick-start" title="Link to this heading">¶</a></h2>
+<section id="install-neuroglancer-a-virtual-environment">
+<h3>1 - Install neuroglancer a virtual environment<a class="headerlink" href="#install-neuroglancer-a-virtual-environment" title="Link to this heading">¶</a></h3>
+<p>Two installation instructions are provided. Installing neuroglancer via Python’s package manager <code class="docutils literal notranslate"><span class="pre">pip</span></code> is simpler.
+If changes to the neuroglancer package or a certain neuroglancer repository is needed, installtion instructions
+for building neuroglancer from source are also provided.</p>
+<p>In both cases the software is installed in a Python virtual environment. We recommend to use Anaconda. See
+this <a class="reference external" href="../notes/installation.html">page</a> for steps to create a virtual environment called <code class="docutils literal notranslate"><span class="pre">py3_torch</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Install neuroglancer using pip in virtual env, which</span>
+<span class="c1"># is the recommended way to start quickly.</span>
+<span class="nb">source</span><span class="w"> </span>activate<span class="w"> </span>py3_torch
+pip<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>pip
+pip<span class="w"> </span>install<span class="w"> </span>neuroglancer<span class="w"> </span>imageio<span class="w"> </span>h5py<span class="w"> </span>cloud-volume
+pip<span class="w"> </span>install<span class="w"> </span>jupyter<span class="w"> </span><span class="c1">#(optional) jupyter/ipykernel installation</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># build neuroglancer from source (requires nvm/node.js)</span>
+mkdir<span class="w"> </span>project
+<span class="nb">cd</span><span class="w"> </span>project
+<span class="nb">source</span><span class="w"> </span>activate<span class="w"> </span>py3_torch
+
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/google/neuroglancer.git
+<span class="nb">cd</span><span class="w"> </span>neuroglancer
+curl<span class="w"> </span>-o-<span class="w"> </span>https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash
+<span class="nb">export</span><span class="w"> </span><span class="nv">NVM_DIR</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="p">-</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span>%s<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">HOME</span><span class="si">}</span><span class="s2">/.nvm&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span>%s<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">XDG_CONFIG_HOME</span><span class="si">}</span><span class="s2">/nvm&quot;</span><span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">[</span><span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$NVM_DIR</span><span class="s2">/nvm.sh&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\.</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$NVM_DIR</span><span class="s2">/nvm.sh&quot;</span><span class="w"> </span><span class="c1"># This loads nvm</span>
+pip<span class="w"> </span>install<span class="w"> </span>numpy<span class="w"> </span>Pillow<span class="w"> </span>requests<span class="w"> </span>tornado<span class="w"> </span>sockjs-tornado<span class="w"> </span>six<span class="w"> </span>google-apitools<span class="w"> </span>selenium<span class="w"> </span>imageio<span class="w"> </span>h5py<span class="w"> </span>cloud-volume
+python<span class="w"> </span>setup.py<span class="w"> </span>install
+</pre></div>
+</div>
+</section>
+<section id="start-a-local-neuroglancer-server">
+<h3>2 - Start a local neuroglancer server<a class="headerlink" href="#start-a-local-neuroglancer-server" title="Link to this heading">¶</a></h3>
+<p>Create a new (initially empty) viewer. This starts a web server in a background thread, which serves a copy of the Neuroglancer
+client, and which also can serve local volume data and handles sending and receiving Neuroglancer state updates and print a link
+to the viewer (only while the script is running). Note that anyone with the link can obtain any authentication credentials that
+the neuroglancer Python module obtains when the viewer is running.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Users need to start a local neuroglancer server with <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-i</span> <span class="pre">[YOUR_SCRIPT].py</span></code> or use a jupyter notebook. It cannot be run as a non-interactive python script, <em>i.e.</em>, do <strong>not</strong> use <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">[YOUR_SCRIPT].py</span></code> because the server will shut down immediately after running the code.</p>
+</div>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">neuroglancer</span>
+
+<span class="n">ip</span> <span class="o">=</span> <span class="s1">&#39;localhost&#39;</span> <span class="c1"># or public IP of the machine for sharable display</span>
+<span class="n">port</span> <span class="o">=</span> <span class="mi">9999</span> <span class="c1"># change to an unused port number</span>
+<span class="n">neuroglancer</span><span class="o">.</span><span class="n">set_server_bind_address</span><span class="p">(</span><span class="n">bind_address</span><span class="o">=</span><span class="n">ip</span><span class="p">,</span> <span class="n">bind_port</span><span class="o">=</span><span class="n">port</span><span class="p">)</span>
+
+<span class="n">viewer</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">Viewer</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">viewer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Publicly available datasets can be loaded either by navigating to the source tab using the GUI or by using the Python interface. Below
+is an example to load a public dataset in Python:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">neuroglancer</span>
+
+<span class="n">ip</span> <span class="o">=</span> <span class="s1">&#39;localhost&#39;</span> <span class="c1">#or public IP of the machine for sharable display</span>
+<span class="n">port</span> <span class="o">=</span> <span class="mi">9999</span> <span class="c1">#change to an unused port number</span>
+<span class="n">neuroglancer</span><span class="o">.</span><span class="n">set_server_bind_address</span><span class="p">(</span><span class="n">bind_address</span><span class="o">=</span><span class="n">ip</span><span class="p">,</span><span class="n">bind_port</span><span class="o">=</span><span class="n">port</span><span class="p">)</span>
+
+<span class="n">viewer</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">Viewer</span><span class="p">()</span>
+
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">ImageLayer</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="s1">&#39;precomputed://gs://neuroglancer-janelia-flyem-hemibrain/emdata/clahe_yz/jpeg/&#39;</span><span class="p">)</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;segmentation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">SegmentationLayer</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="s1">&#39;precomputed://gs://neuroglancer-janelia-flyem-hemibrain/v1.0/segmentation&#39;</span><span class="p">,</span> <span class="n">selected_alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">viewer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then copy the printed viewer address to your browser (best with Chrome) to visualize the data.</p>
+</section>
+<section id="using-neuroglancer-with-a-local-dataset">
+<h3>3 - Using neuroglancer with a local dataset<a class="headerlink" href="#using-neuroglancer-with-a-local-dataset" title="Link to this heading">¶</a></h3>
+<p>The local dataset can be TIFF or HDF5 formats. In this example we use the <a class="reference external" href="../tutorials/neuron.html">SNEMI</a> neuron
+segmentation dataset for demonstration.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">neuroglancer</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">imageio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+
+<span class="n">ip</span> <span class="o">=</span> <span class="s1">&#39;localhost&#39;</span> <span class="c1">#or public IP of the machine for sharable display</span>
+<span class="n">port</span> <span class="o">=</span> <span class="mi">9999</span> <span class="c1">#change to an unused port number</span>
+<span class="n">neuroglancer</span><span class="o">.</span><span class="n">set_server_bind_address</span><span class="p">(</span><span class="n">bind_address</span><span class="o">=</span><span class="n">ip</span><span class="p">,</span><span class="n">bind_port</span><span class="o">=</span><span class="n">port</span><span class="p">)</span>
+<span class="n">viewer</span><span class="o">=</span><span class="n">neuroglancer</span><span class="o">.</span><span class="n">Viewer</span><span class="p">()</span>
+
+<span class="c1"># SNEMI (# 3d vol dim: z,y,x)</span>
+<span class="n">D0</span><span class="o">=</span><span class="s1">&#39;./&#39;</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">CoordinateSpace</span><span class="p">(</span>
+        <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">],</span>
+        <span class="n">units</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">],</span>
+        <span class="n">scales</span><span class="o">=</span><span class="p">[</span><span class="mi">30</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">6</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;load im and gt segmentation&#39;</span><span class="p">)</span>
+<span class="n">im</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">volread</span><span class="p">(</span><span class="n">D0</span><span class="o">+</span><span class="s1">&#39;train-input.tif&#39;</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">D0</span><span class="o">+</span><span class="s1">&#39;train_label.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fl</span><span class="p">:</span>
+    <span class="n">gt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fl</span><span class="p">[</span><span class="s1">&#39;main&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">im</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">gt</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">ngLayer</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">res</span><span class="p">,</span><span class="n">oo</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">tt</span><span class="o">=</span><span class="s1">&#39;segmentation&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">LocalVolume</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">dimensions</span><span class="o">=</span><span class="n">res</span><span class="p">,</span><span class="n">volume_type</span><span class="o">=</span><span class="n">tt</span><span class="p">,</span><span class="n">voxel_offset</span><span class="o">=</span><span class="n">oo</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;im&#39;</span><span class="p">,</span><span class="n">layer</span><span class="o">=</span><span class="n">ngLayer</span><span class="p">(</span><span class="n">im</span><span class="p">,</span><span class="n">res</span><span class="p">,</span><span class="n">tt</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">))</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;gt&#39;</span><span class="p">,</span><span class="n">layer</span><span class="o">=</span><span class="n">ngLayer</span><span class="p">(</span><span class="n">gt</span><span class="p">,</span><span class="n">res</span><span class="p">,</span><span class="n">tt</span><span class="o">=</span><span class="s1">&#39;segmentation&#39;</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">viewer</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Please note that the mask volume needs to be loaded as a <code class="docutils literal notranslate"><span class="pre">'segmentation'</span></code> layer.</p>
+<blockquote>
+<div><div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>To show the 3D meshes of all segments, print the segment indices in the Python script (use <code class="docutils literal notranslate"><span class="pre">numpy.unique</span></code>) and copy it to the segment tab of the corresponding <code class="docutils literal notranslate"><span class="pre">'segmentation'</span></code> layer. May need to wait a couple of minutes before seeing the rendered 3D meshes.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="loading-public-datasets-in-gui">
+<h3>4 - Loading public datasets in GUI<a class="headerlink" href="#loading-public-datasets-in-gui" title="Link to this heading">¶</a></h3>
+<p>Different datasets are added sequentially. Use the (+) icon located in the upper left corner to add a new layer. It is designed
+to easily support many different data sources as shown in the image below.  We have to select a data source and enter the
+URL to the data and the layer will be loaded automatically.</p>
+<a class="reference internal image-reference" href="../_images/new_layer2.png"><img alt="../_images/new_layer2.png" src="../_images/new_layer2.png" style="width: 270.90000000000003px; height: 387.0px;" />
+</a>
+<p>After adding the source we have to select the <strong>type</strong> of the layer that is loaded. Click on the <strong>new</strong> button and
+select the type of the layer. List of supported data formats are listed <a class="reference external" href="https://github.com/google/neuroglancer#supported-data-sources">here</a>.</p>
+</section>
+</section>
+<section id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading">¶</a></h2>
+<p>This section shows some basic manipulation instructions that will be useful while viewing a dataset in
+neuroglancer. Here we load the public <a class="reference external" href="https://www.janelia.org/project-team/flyem/hemibrain">FlyEM Hemibrain</a> dataset
+as an example. In the <strong>top left</strong> corner of the window:</p>
+<a class="reference internal image-reference" href="../_images/top_left_corner2.png"><img alt="../_images/top_left_corner2.png" src="../_images/top_left_corner2.png" style="width: 644.6px; height: 22.0px;" />
+</a>
+<ul class="simple">
+<li><p>The x/y/z denotes the coordinates of the center of the images displayed in 3D space. In this example, the coordinates are (17213, 19862, 20697).</p></li>
+<li><p>The numbers inside the parentheses show the resolution of the dataset, in this case each voxel is 8nm x 8nm x 8nm.</p></li>
+<li><p>The current coordinates of the cursor are displayed in orange and are continously updated as the position of the cursor changes. In this image the cordinates are (17263, 19919, 29697).</p></li>
+</ul>
+<p>You can load and view multiple layers at once:</p>
+<img alt="../_images/screen_cropped2.png" src="../_images/screen_cropped2.png" />
+<p>Currently we have two layers loaded</p>
+<ul class="simple">
+<li><p>The image layer (raw images)</p></li>
+<li><p>The segmentataion layer (segmentation masks)</p></li>
+</ul>
+<p>The two different tabs marked in the image shown above represent the loaded layers. We can switch them on and off by (left) clicking on their respective names.</p>
+<p>You can view all three orthogonal views simultaneously in diffrent frames. There is also an additional frame where we can see the 3D meshes. The three frames and model move together in unison. If you make changes in any of the frames (e.g. rotation, 2D/3D translation), the corresponding changes will be updated in all the projections/models.
+You can also change the view of the screen by clicking on top right corner of any of the 3 frames.</p>
+<img alt="../_images/screen_VIEWS.png" src="../_images/screen_VIEWS.png" />
+<p>You can (right) click on the layer tab to display its properties panel:</p>
+<a class="reference internal image-reference" href="../_images/layer_properties2.png"><img alt="../_images/layer_properties2.png" src="../_images/layer_properties2.png" style="width: 300.0px; height: 463.0px;" />
+</a>
+<p>The graphical rendering can be changed depending on what the layer contains in the rendering tab. The segmentation
+tab (<strong>Seg.</strong>) appears if the layer is a segmentation:</p>
+<a class="reference internal image-reference" href="../_images/segmentation_tab2.png"><img alt="../_images/segmentation_tab2.png" src="../_images/segmentation_tab2.png" style="width: 300.0px; height: 487.0px;" />
+</a>
+<p>The bottom half displays all the segment names with their corresponding colors and IDs.
+The current active segments are also marked.
+The active segments will be visible in the image and 3D mesh view. A single segment can be activated by either double clicking it or by selecting it from the list in the bottom half of the segmentation tab in the properties pane. We can change the opacity and saturation of the selected/non-selected segments from the render tab.
+We can also search for a particular segment name, ID or a /regexp using the search bar at the top of the segment pane.
+Selecting a single segment shows the segment on the orthagonal frames in its respective color and also renders a 3D mesh.</p>
+<p>Some other commonly used commands include:</p>
+<ul class="simple">
+<li><p>zooming in/out (cltr + mousewheel)</p></li>
+<li><p>scrolling through the planes (mousewheel)</p></li>
+<li><p>selecting a segment (double click)</p></li>
+<li><p>snapping back to initial position (‘Z’ key)</p></li>
+<li><p>translating (left click and drag)</p></li>
+</ul>
+<p>The above and other available commands can be seen in the help menu which can be accessed by pressing <strong>‘H’</strong> key.</p>
+</section>
+<section id="additional-examples">
+<h2>Additional examples<a class="headerlink" href="#additional-examples" title="Link to this heading">¶</a></h2>
+<section id="load-a-mesh-layer">
+<h3>1. Load a mesh layer<a class="headerlink" href="#load-a-mesh-layer" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">neuroglancer</span>
+
+<span class="n">ip</span> <span class="o">=</span> <span class="s1">&#39;localhost&#39;</span> <span class="c1">#or public IP of the machine for sharable display</span>
+<span class="n">port</span> <span class="o">=</span> <span class="mi">9999</span> <span class="c1">#change to an unused port number</span>
+<span class="n">neuroglancer</span><span class="o">.</span><span class="n">set_server_bind_address</span><span class="p">(</span><span class="n">bind_address</span><span class="o">=</span><span class="n">ip</span><span class="p">,</span><span class="n">bind_port</span><span class="o">=</span><span class="n">port</span><span class="p">)</span>
+
+<span class="n">viewer</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">Viewer</span><span class="p">()</span>
+
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">ImageLayer</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="s1">&#39;precomputed://gs://neuroglancer-fafb-data/fafb_v14/fafb_v14_clahe&#39;</span><span class="p">)</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;mesh&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">SingleMeshLayer</span><span class="p">(</span><span class="n">source</span><span class="o">=</span><span class="s1">&#39;vtk://https://storage.googleapis.com/neuroglancer-fafb-data/elmr-data/FAFB.surf.vtk.gz&#39;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">viewer</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="show-indices-of-active-segments">
+<h3>2. Show indices of active segments<a class="headerlink" href="#show-indices-of-active-segments" title="Link to this heading">¶</a></h3>
+<p>This code outputs the currently selected layers. The code can be added to a python script or run as a python notebook codeblock.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with a &#39;segmentation&#39; layer is created</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">viewer</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;segmentation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">segments</span><span class="p">)))</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># specify an interval</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-actions">
+<h3>3. Custom Actions<a class="headerlink" href="#custom-actions" title="Link to this heading">¶</a></h3>
+<p>Custom actions can be added to the neuroglancer viewer object. The following code shows how to register a <em>custom action</em> to a key press.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with is already created</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">action</span><span class="p">(</span><span class="n">action_state</span><span class="p">):</span>
+    <span class="c1"># do something</span>
+
+<span class="n">viewer</span><span class="o">.</span><span class="n">actions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;custom_action&#39;</span><span class="p">,</span> <span class="n">action</span><span class="p">)</span>  <span class="c1"># register the function as neuroglancer action</span>
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">config_state</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">input_event_bindings</span><span class="o">.</span><span class="n">viewer</span><span class="p">[</span><span class="s1">&#39;shift+mousedown0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;custom_action&#39;</span>  <span class="c1"># the function will be called on pressing shift+left mouse button</span>
+</pre></div>
+</div>
+<p>Neuroglancer will provide the custom function with an <code class="docutils literal notranslate"><span class="pre">ActionState</span></code> object. This object contains the current mouse position in voxels, a <code class="docutils literal notranslate"><span class="pre">ViewerState</span></code> object
+that contains information about the current state of the viewer and a dictionary of <code class="docutils literal notranslate"><span class="pre">selected_values</span></code> which contains information about the options selected for
+each layer in the viewer. The next section has a simple example about how to log mouse position using a custom action.</p>
+</section>
+<section id="display-mouse-position">
+<h3>4. Display mouse position<a class="headerlink" href="#display-mouse-position" title="Link to this heading">¶</a></h3>
+<p>This code can be used to display the current mouse position as a point annotation. It also logs the mouse position in voxel space, and
+the selected object (if there is a <code class="docutils literal notranslate"><span class="pre">'segmentation'</span></code> layer in the viewer) to the terminal. The action is triggered if the key <code class="docutils literal notranslate"><span class="pre">L</span></code> is pressed.
+The code can be added to a Python script or run as a Python notebook codeblock.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with is already created</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">LocalAnnotationLayer</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="n">res</span><span class="p">)</span>
+
+<span class="n">num_actions</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">logger</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">global</span> <span class="n">num_actions</span>
+    <span class="n">num_actions</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">config_state</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">st</span><span class="p">:</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">status_messages</span><span class="p">[</span><span class="s1">&#39;hello&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s1">&#39;Got action </span><span class="si">%d</span><span class="s1">: mouse position = </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span>
+                                    <span class="p">(</span><span class="n">num_actions</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">mouse_voxel_coordinates</span><span class="p">))</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Log event&#39;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Mouse position: &#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">mouse_voxel_coordinates</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Layer selected values:&#39;</span><span class="p">,</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">viewer</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;segmentation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">segments</span><span class="p">))))</span>
+    <span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+        <span class="n">point</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">mouse_voxel_coordinates</span><span class="p">)</span>
+        <span class="n">point_anno</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">PointAnnotation</span><span class="p">(</span>
+                         <span class="nb">id</span><span class="o">=</span><span class="nb">repr</span><span class="p">(</span><span class="n">point</span><span class="p">),</span>
+                         <span class="n">point</span><span class="o">=</span><span class="n">point</span><span class="p">)</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="p">[</span><span class="n">point_anno</span><span class="p">]</span>
+
+
+<span class="n">viewer</span><span class="o">.</span><span class="n">actions</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;logger&#39;</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">config_state</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">input_event_bindings</span><span class="o">.</span><span class="n">viewer</span><span class="p">[</span><span class="s1">&#39;keyl&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;logger&#39;</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">status_messages</span><span class="p">[</span><span class="s1">&#39;hello&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Add a promt for neuroglancer&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="re-render-a-layer">
+<h3>5. Re-render a layer<a class="headerlink" href="#re-render-a-layer" title="Link to this heading">¶</a></h3>
+<p>If changes are made to a neuroglancer layer through custom actions, the layer needs to be re-rendered for the changes to be visible
+in the viewer. To re-render a layer simply call the <code class="docutils literal notranslate"><span class="pre">invalidate()</span></code> function on a <code class="docutils literal notranslate"><span class="pre">LocalVolume</span></code> object</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with is already created</span>
+<span class="n">mesh_volume</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">LocalVolume</span><span class="p">(</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">res</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;mesh&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">SegmentationLayer</span><span class="p">(</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">mesh_volume</span><span class="p">)</span>
+
+<span class="c1"># do something ...</span>
+
+<span class="c1"># re-renders the &#39;mesh&#39; layer in viewer</span>
+<span class="n">mesh_volume</span><span class="o">.</span><span class="n">invalidate</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="using-custom-shaders-with-images">
+<h3>6. Using custom shaders with images<a class="headerlink" href="#using-custom-shaders-with-images" title="Link to this heading">¶</a></h3>
+<p>Neuroglancer allows using custom shaders to control how an image layer appears in the viewers rather than simple black and white. The
+following code snippet shows how to render an image layer with the Jet colormap.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with is already created</span>
+<span class="n">data_volume</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">LocalVolume</span><span class="p">(</span>
+        <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">dimensions</span><span class="o">=</span><span class="n">res</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">ImageLayer</span><span class="p">(</span>
+            <span class="n">source</span><span class="o">=</span><span class="n">data_volume</span><span class="p">,</span>
+            <span class="n">shader</span><span class="o">=</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">                void main() {</span>
+<span class="s1">                float v = toNormalized(getDataValue(0));</span>
+<span class="s1">                vec4 rgba = vec4(0,0,0,0);</span>
+<span class="s1">                if (v != 0.0) {</span>
+<span class="s1">                    rgba = vec4(colormapJet(v), 1.0);</span>
+<span class="s1">                }</span>
+<span class="s1">                emitRGBA(rgba);</span>
+<span class="s1">                }</span>
+<span class="s1">                &#39;&#39;&#39;</span>
+            <span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="visualize-rgb-images">
+<h3>7. Visualize RGB images<a class="headerlink" href="#visualize-rgb-images" title="Link to this heading">¶</a></h3>
+<p>Sometimes visualizing RGB images (<em>e.g.</em>, 3-channel affinity or synaptic polarity prediction) with raw images can be a convenient way for debugging and error
+analysis. The following code snippet shows an example to display the overlay of gray-scale and RGB images.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with is already created</span>
+
+<span class="c1"># coordinate space for gray-scale volume (z,y,x)</span>
+<span class="n">res0</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">CoordinateSpace</span><span class="p">(</span>
+        <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">],</span>
+        <span class="n">units</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">],</span>
+        <span class="n">scales</span><span class="o">=</span><span class="p">[</span><span class="mi">30</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+
+<span class="c1"># coordinate space for RGB volume (c,z,y,x)</span>
+<span class="n">res1</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">CoordinateSpace</span><span class="p">(</span>
+        <span class="n">names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;c^&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;x&#39;</span><span class="p">],</span>
+        <span class="n">units</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">,</span> <span class="s1">&#39;nm&#39;</span><span class="p">],</span>
+        <span class="n">scales</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">30</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">])</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">ngLayer</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">res</span><span class="p">,</span><span class="n">oo</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">tt</span><span class="o">=</span><span class="s1">&#39;segmentation&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">LocalVolume</span><span class="p">(</span><span class="n">data</span><span class="p">,</span><span class="n">dimensions</span><span class="o">=</span><span class="n">res</span><span class="p">,</span><span class="n">volume_type</span><span class="o">=</span><span class="n">tt</span><span class="p">,</span><span class="n">voxel_offset</span><span class="o">=</span><span class="n">oo</span><span class="p">)</span>
+
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="c1"># im: 3d array in (z,y,x). im_rgb: 4d array in (c,z,y,x), c=3</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;im&#39;</span><span class="p">,</span><span class="n">layer</span><span class="o">=</span><span class="n">ngLayer</span><span class="p">(</span><span class="n">im</span><span class="p">,</span><span class="n">res0</span><span class="p">,</span><span class="n">tt</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">)),</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;im_rgb&#39;</span><span class="p">,</span><span class="n">layer</span><span class="o">=</span><span class="n">ngLayer</span><span class="p">(</span><span class="n">im_rgb</span><span class="p">,</span><span class="n">res1</span><span class="p">,</span><span class="n">oo</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">],</span><span class="n">tt</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">),</span>
+    <span class="n">shader</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        void main() {</span>
+<span class="s2">        emitRGB(vec3(toNormalized(getDataValue(0)),</span>
+<span class="s2">        toNormalized(getDataValue(1)),</span>
+<span class="s2">        toNormalized(getDataValue(2))));</span>
+<span class="s2">        }</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+    <span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">viewer</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../_images/ng_rgb.png" src="../_images/ng_rgb.png" />
+<p>Visualization of EM images overlay with synaptic polarity prediction. See <a class="reference external" href="../tutorials/synapse.html#synaptic-polarity-detection">synapse detection</a> for details.</p>
+</section>
+<section id="visualize-point-annotations">
+<h3>8. Visualize Point Annotations<a class="headerlink" href="#visualize-point-annotations" title="Link to this heading">¶</a></h3>
+<p>Quite often, it is necessary to visualize point annotations in a 3D volume of a microscopy image. These points for instance could denote centroids of segment masks of nuclei or synapses. The following code can be used to perform such an action.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># assume a viewer with is already created</span>
+<span class="c1"># here, assume that we are loading the 3D coordinates from a text file</span>
+<span class="n">points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">fname</span><span class="o">=</span><span class="s1">&#39;fixed.txt&#39;</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;uint8&#39;</span><span class="p">)</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+<span class="k">with</span> <span class="n">viewer</span><span class="o">.</span><span class="n">txn</span><span class="p">()</span> <span class="k">as</span> <span class="n">s</span><span class="p">:</span>
+    <span class="c1"># define an annotation layer</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;annotation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">AnnotationLayer</span><span class="p">()</span>
+    <span class="n">annotations</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="s1">&#39;annotation&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">annotations</span>
+
+    <span class="c1"># each point annotation has a unique id</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">)</span> <span class="ow">in</span> <span class="n">points</span><span class="p">[::</span><span class="mi">10</span><span class="p">]:</span>
+        <span class="n">pt</span> <span class="o">=</span> <span class="n">neuroglancer</span><span class="o">.</span><span class="n">PointAnnotation</span><span class="p">(</span><span class="n">point</span><span class="o">=</span><span class="p">[</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">],</span> <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;point</span><span class="si">{</span><span class="n">counter</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        <span class="n">annotations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pt</span><span class="p">)</span>
+        <span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="c1"># image layer</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;im&#39;</span><span class="p">,</span> <span class="n">layer</span><span class="o">=</span><span class="n">ngLayer</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">res</span><span class="p">,</span> <span class="n">tt</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">viewer</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../_images/ng_pt_annotation.png" src="../_images/ng_pt_annotation.png" />
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="../modules/lightning.html" class="btn btn-neutral float-right" title="Lightning Module API" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="../tutorials/artifact.html" class="btn btn-neutral" title="Artifacts Detection (Draft)" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Neuroglancer</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#installation-and-quick-start">Installation and Quick Start</a><ul>
+<li><a class="reference internal" href="#install-neuroglancer-a-virtual-environment">1 - Install neuroglancer a virtual environment</a></li>
+<li><a class="reference internal" href="#start-a-local-neuroglancer-server">2 - Start a local neuroglancer server</a></li>
+<li><a class="reference internal" href="#using-neuroglancer-with-a-local-dataset">3 - Using neuroglancer with a local dataset</a></li>
+<li><a class="reference internal" href="#loading-public-datasets-in-gui">4 - Loading public datasets in GUI</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li><a class="reference internal" href="#additional-examples">Additional examples</a><ul>
+<li><a class="reference internal" href="#load-a-mesh-layer">1. Load a mesh layer</a></li>
+<li><a class="reference internal" href="#show-indices-of-active-segments">2. Show indices of active segments</a></li>
+<li><a class="reference internal" href="#custom-actions">3. Custom Actions</a></li>
+<li><a class="reference internal" href="#display-mouse-position">4. Display mouse position</a></li>
+<li><a class="reference internal" href="#re-render-a-layer">5. Re-render a layer</a></li>
+<li><a class="reference internal" href="#using-custom-shaders-with-images">6. Using custom shaders with images</a></li>
+<li><a class="reference internal" href="#visualize-rgb-images">7. Visualize RGB images</a></li>
+<li><a class="reference internal" href="#visualize-point-annotations">8. Visualize Point Annotations</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

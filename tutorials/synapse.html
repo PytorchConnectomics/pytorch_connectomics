@@ -1,0 +1,679 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Synapse Detection &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="Artifacts Detection (Draft)" href="artifact.html" />
+  <link rel="prev" title="Mitochondria Segmentation" href="mito.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Synapse Detection</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorials/synapse.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="synapse-detection">
+<h1>Synapse Detection<a class="headerlink" href="#synapse-detection" title="Link to this heading">¶</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p>A <a class="reference external" href="https://en.wikipedia.org/wiki/Synapse">synapse</a> is an essential structure in the nervous system that allows an electric or chemical signal to be
+passed to another neuron or an effector cell (<em>e.g.</em>, muscle fiber). Identification of synapses is important for reconstructing the wiring diagram of
+neurons to enable new insights into the workings of the brain, which is the long-term goal of the connectomics area. Signal flows in one direction
+at a synapse, therefore each synapse usually consists of a pre-synaptic region and a post-synaptic region.</p>
+<p>This tutorial has two parts. In the first part, you will learn how to detect <strong>synaptic clefts</strong> by predicting the synaptic cleft pixels on the
+<a class="reference external" href="https://cremi.org">CREMI Challenge</a> dataset from adult <em>Drosophila melanogaster</em> brain tissue. This dataset is released in 2016. In the second part,
+you will learn how to predict the <strong>synaptic polarity masks</strong> to demonstrate the signal flow between neurons using the dataset released
+by <a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a> in 2020. The brain sample is collected from Layer II/III in
+the primary visual cortex of an adult rat.</p>
+</section>
+<section id="synaptic-cleft-detection">
+<h2>Synaptic Cleft Detection<a class="headerlink" href="#synaptic-cleft-detection" title="Link to this heading">¶</a></h2>
+<p>This tutorial provides step-by-step guidance for synaptic cleft detection with <a class="reference external" href="https://cremi.org">CREMI</a> benchmark datasets.
+We consider the task as a semantic segmentation task and predict the synapse pixels with encoder-decoder ConvNets similar to
+the models used in affinity prediction in <a class="reference external" href="neuron.html">neuron segmentation</a>.
+The evaluation of the synapse detection results is based on the F1 score and average distance. See <a class="reference external" href="https://cremi.org/metrics/">CREMI metrics</a>
+for more details.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We preform re-alignment of the original CREMI image stacks and also remove the crack artifacts. Please reverse the alignment before submitting the test prediction to the CREMI challenge.</p>
+</div>
+</div></blockquote>
+<p>Script needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>. The <em>YAML</em> configuration files can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/</span></code>, which
+stores the common settings for model training and inference. Other default configuration options can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/connectomics/config/</span></code>. The pytorch
+dataset class of the synaptic cleft detection task is <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/cremi_qual.png"><img alt="../_images/cremi_qual.png" src="../_images/cremi_qual.png" style="width: 800px;" />
+</a>
+</figure>
+<p>Qualitative results of the synaptic cleft prediction (red segments) on the CREMI challenge test volumes. The three images from left to right are
+cropped from volume A+, B+, and C+, respectively.</p>
+<section id="get-the-dataset">
+<h3>1 - Get the dataset<a class="headerlink" href="#get-the-dataset" title="Link to this heading">¶</a></h3>
+<p>Download the dataset from the <a class="reference external" href="https://cremi.org/">challenge page</a>, or the Harvard RC server:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/cremi.zip
+</pre></div>
+</div>
+<p>Or execute the following snippet in the root directory:</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you use the original CREMI challenge datasets or the data processed by yourself, the file names can be different from the default ones. In such case, please change the corresponding entries, including <code class="docutils literal notranslate"><span class="pre">IMAGE_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">LABEL_NAME</span></code> and <code class="docutils literal notranslate"><span class="pre">INPUT_PATH</span></code> in the <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/configs/CREMI-Synaptic-Cleft.yaml">CREMI config file</a>.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="run-training">
+<h3>2 - Run training<a class="headerlink" href="#run-training" title="Link to this heading">¶</a></h3>
+<p>For the CREMI dataset that has multiple volumes, our framework can take a list of volumes and
+conduct training/inference at the same time.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>source activate py3_torch
+python -u scripts/main.py \
+--config-base configs/CREMI/CREMI-Base.yaml \
+--config-file configs/CREMI/CREMI-Foreground-UNet.yaml
+</pre></div>
+</div>
+<p>Or if using multiple GPUs for higher performance:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>source activate py3_torch
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -u -m torch.distributed.run \
+--nproc_per_node=4 --master_port=2345 scripts/main.py --distributed \
+--config-base configs/CREMI/CREMI-Base_multiGPU.yaml \
+--config-file configs/CREMI/CREMI-Foreground-UNet.yaml
+</pre></div>
+</div>
+</section>
+<section id="visualize-the-training-progress">
+<h3>3 - Visualize the training progress<a class="headerlink" href="#visualize-the-training-progress" title="Link to this heading">¶</a></h3>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>tensorboard --logdir outputs/CREMI_Binary_UNet
+</pre></div>
+</div>
+</section>
+<section id="run-inference">
+<h3>4 - Run inference<a class="headerlink" href="#run-inference" title="Link to this heading">¶</a></h3>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>python -u scripts/main.py \
+--inference --config-base configs/CREMI/CREMI-Base.yaml \
+--config-file configs/CREMI/CREMI-Foreground-UNet.yaml \
+--checkpoint outputs/CREMI_Binary_UNet/volume_100000.pth.tar
+</pre></div>
+</div>
+</section>
+</section>
+<section id="synaptic-polarity-detection">
+<h2>Synaptic Polarity Detection<a class="headerlink" href="#synaptic-polarity-detection" title="Link to this heading">¶</a></h2>
+<p>This tutorial provides step-by-step guidance for synaptic polarity detection with the EM-R50 dataset released by <a class="reference external" href="http://www.ecva.net/papers/eccv_2020/papers_ECCV/papers/123630103.pdf">Lin et al.</a> in 2020.
+This task is different from the synaptic cleft detection task in two aspects. First, this one requires distinguishing different synapses, while the cleft detection task
+only needs the binary foreground mask for evaluation. Second, the polarity detection task also requires separated pre-synaptic and post-synaptic masks.
+The evaluation metric of the synaptic polarity detection results is an IoU-based F1 score. The sparsity and diversity of synapses make the task challenging.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We tackle the task using a bottom-up approach that first generates the segmentation masks of synaptic regions and then apply post-processing algorithms like connected component labeling to separate individual synapses. Our segmentation model uses a model target of three channels. The three channels are <strong>pre-synaptic region</strong>, <strong>post-synaptic region</strong> and <strong>synaptic region</strong> (union of the first two channels), respectively.</p>
+</div>
+</div></blockquote>
+<p>All the scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/scripts/</span></code>.
+The pytorch dataset class of synaptic partners is <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.VolumeDataset</span></code>.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/polarity_qual.png"><img alt="../_images/polarity_qual.png" src="../_images/polarity_qual.png" style="width: 800px;" />
+</a>
+</figure>
+<p>Qualitative results of the synaptic polarity prediction on the EM-R50 dataset. The three-channel outputs that consist of pre-synaptic region, post-synaptic region and their
+union (synaptic region) are visualizd in color on the EM images. The single flows from the magenta sides to the cyan sides between neurons.</p>
+<section id="id1">
+<h3>1 - Get the dataset<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p>Download the example dataset for synaptic polarity detection from our server:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>wget http://rhoana.rc.fas.harvard.edu/dataset/jwr15_synapse.zip
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>2 - Run training<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<p>The training and inference script can take a list of volumes (or a long string of paths that can be separated by <cite>‘&#64;’</cite>)
+in either the yaml config file or by command-line arguments.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>source activate py3_torch
+python -u scripts/main.py \
+--config-base configs/JWR15/synapse/JWR15-Synapse-Base.yaml \
+--config-file configs/JWR15/synapse/JWR15-Synapse-BCE.yaml
+</pre></div>
+</div>
+<blockquote>
+<div><div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>We add <strong>higher weights</strong> to the foreground pixels and apply <strong>rejection sampling</strong> to reject samples without synapes during training to heavily penalize false negatives. This is beneficial for down-stream proofreading and analysis as correcting false positives is much easier than finding missing synapses in the vast volumes.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="id3">
+<h3>3 - Visualize the training progress<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>tensorboard --logdir outputs/Synaptic_Polarity_UNet
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h3>4 - Run inference<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>source activate py3_torch
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -u scripts/main.py \
+--config-file configs/Synaptic-Polarity.yaml --inference \
+--checkpoint outputs/Synaptic_Polarity_UNet/volume_100000.pth.tar
+</pre></div>
+</div>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The path to images for inference/testing are not specified in the configuration file. Please change the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE_NAME</span></code> option in <code class="docutils literal notranslate"><span class="pre">configs/Synaptic-Polarity.yaml</span></code>.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="post-process">
+<h3>5 - Post-process<a class="headerlink" href="#post-process" title="Link to this heading">¶</a></h3>
+<p>Then convert the predicted probability into segmentation masks in post-processing. Specifically,
+we use <code class="xref py py-func docutils literal notranslate"><span class="pre">connectomics.utils.process.polarity2instance()</span></code> to convert the predictions into instance or semantic
+masks based on the downstream application.</p>
+</section>
+<section id="learning-exclusive-polarity-masks">
+<h3>6 - Learning exclusive polarity masks<a class="headerlink" href="#learning-exclusive-polarity-masks" title="Link to this heading">¶</a></h3>
+<p>The tutorial shown above predicts three channels <em>independently</em> with binary cross-entropy losses (BCE) using
+the following model configurations:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">MODEL</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">TARGET_OPT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;1&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">LOSS_OPTION</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">LOSS_WEIGHT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="nv">1.0</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">WEIGHT_OPT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&quot;1&quot;</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">OUTPUT_ACT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&quot;none&quot;</span><span class="p p-Indicator">]]</span>
+<span class="nt">INFERENCE</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">OUTPUT_ACT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;sigmoid&quot;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Because the three channels are not exclusive, overlap can happen between pre- and post-synaptic masks. Therefore we
+also provide a config file to conduct standard semantic segmentation with exclusive masks. The main configurations are</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">MODEL</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">TARGET_OPT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;1-1&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># exclusive pos and neg masks</span>
+<span class="w">  </span><span class="nt">LOSS_OPTION</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&quot;WeightedCE&quot;</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">LOSS_KWARGS_KEY</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[[</span><span class="s">&quot;class_weight&quot;</span><span class="p p-Indicator">]]]</span>
+<span class="w">  </span><span class="nt">LOSS_KWARGS_VAL</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[[[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">10.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">10.0</span><span class="p p-Indicator">]]]]</span><span class="w"> </span><span class="c1"># class weights</span>
+<span class="w">  </span><span class="nt">LOSS_WEIGHT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="nv">1.0</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">WEIGHT_OPT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&quot;0&quot;</span><span class="p p-Indicator">]]</span>
+<span class="w">  </span><span class="nt">OUTPUT_ACT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[[</span><span class="s">&quot;none&quot;</span><span class="p p-Indicator">]]</span>
+<span class="nt">INFERENCE</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">OUTPUT_ACT</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;softmax&quot;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>The prediction of the non-exclusive synaptic masks can also be converted into instance masks to identify individual
+synapse instances using <code class="xref py py-func docutils literal notranslate"><span class="pre">connectomics.utils.process.polarity2instance()</span></code> with the option <code class="docutils literal notranslate"><span class="pre">exclusive=True</span></code>.</p>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="artifact.html" class="btn btn-neutral float-right" title="Artifacts Detection (Draft)" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="mito.html" class="btn btn-neutral" title="Mitochondria Segmentation" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Synapse Detection</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#synaptic-cleft-detection">Synaptic Cleft Detection</a><ul>
+<li><a class="reference internal" href="#get-the-dataset">1 - Get the dataset</a></li>
+<li><a class="reference internal" href="#run-training">2 - Run training</a></li>
+<li><a class="reference internal" href="#visualize-the-training-progress">3 - Visualize the training progress</a></li>
+<li><a class="reference internal" href="#run-inference">4 - Run inference</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#synaptic-polarity-detection">Synaptic Polarity Detection</a><ul>
+<li><a class="reference internal" href="#id1">1 - Get the dataset</a></li>
+<li><a class="reference internal" href="#id2">2 - Run training</a></li>
+<li><a class="reference internal" href="#id3">3 - Visualize the training progress</a></li>
+<li><a class="reference internal" href="#id4">4 - Run inference</a></li>
+<li><a class="reference internal" href="#post-process">5 - Post-process</a></li>
+<li><a class="reference internal" href="#learning-exclusive-polarity-masks">6 - Learning exclusive polarity masks</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

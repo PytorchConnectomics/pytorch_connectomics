@@ -1,0 +1,831 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.metrics &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>connectomics.metrics</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/metrics.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="module-connectomics.metrics">
+<span id="connectomics-metrics"></span><h1>connectomics.metrics<a class="headerlink" href="#module-connectomics.metrics" title="Link to this heading">¶</a></h1>
+<p>Evaluation metrics for PyTorch Connectomics.</p>
+<p>This package provides comprehensive evaluation metrics:
+- metrics_seg.py: Segmentation metrics (Adapted Rand, Dice, Jaccard, etc.)
+- metrics_skel.py: Skeleton-based metrics for curvilinear structures</p>
+<p>Note: PyTorch Lightning handles training monitoring and logging.</p>
+<dl class="simple">
+<dt>Import patterns:</dt><dd><p>from connectomics.metrics import adapted_rand, get_binary_jaccard
+from connectomics.metrics import compute_skeleton_metrics, evaluate_image_pair
+from connectomics.metrics.metrics_seg import instance_matching
+from connectomics.metrics.metrics_skel import evaluate_directory</p>
+</dd>
+</dl>
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.adapted_rand">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">adapted_rand</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">all_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#adapted_rand"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.adapted_rand" title="Link to this definition">¶</a></dt>
+<dd><p>Compute Adapted Rand error as defined by the SNEMI3D contest [1]</p>
+<blockquote>
+<div><p>Formula is given as 1 - the maximal F-score of the Rand index
+(excluding the zero component of the original labels). Adapted
+from the SNEMI3D MATLAB script, hence the strange style.</p>
+<dl class="simple">
+<dt>seg<span class="classifier">np.ndarray</span></dt><dd><p>the segmentation to score, where each value is the label at that point</p>
+</dd>
+<dt>gt<span class="classifier">np.ndarray, same shape as seg</span></dt><dd><p>the groundtruth to score against, where each value is a label</p>
+</dd>
+<dt>all_stats<span class="classifier">boolean, optional</span></dt><dd><p>whether to also return precision and recall as a 3-tuple with rand_error</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>are<span class="classifier">float</span></dt><dd><p>The adapted Rand error; equal to $1 -</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl>
+<dt>rac{2pr}{p + r}$,</dt><dd><blockquote>
+<div><p>where $p$ and $r$ are the precision and recall described below.</p>
+</div></blockquote>
+<dl class="simple">
+<dt>prec<span class="classifier">float, optional</span></dt><dd><p>The adapted Rand precision. (Only returned when <cite>all_stats</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.)</p>
+</dd>
+<dt>rec<span class="classifier">float, optional</span></dt><dd><p>The adapted Rand recall.  (Only returned when <cite>all_stats</cite> is <code class="docutils literal notranslate"><span class="pre">True</span></code>.)</p>
+</dd>
+</dl>
+<p>[1]: <a class="reference external" href="http://brainiac2.mit.edu/SNEMI3D/evaluation">http://brainiac2.mit.edu/SNEMI3D/evaluation</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.binarize_masks">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">binarize_masks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">128</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#binarize_masks"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.binarize_masks" title="Link to this definition">¶</a></dt>
+<dd><p>Binarize prediction and ground truth masks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<em>ndarray</em>) – Prediction mask (0-255 range)</p></li>
+<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth mask (0-255 range)</p></li>
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for binarizing prediction. Default: 128</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of (binarized_pred, binarized_gt) as uint8 arrays</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<em>ndarray</em>, <em>ndarray</em>]</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Prediction: threshold at specified value (default 128)</p></li>
+<li><p>Ground truth: exclude 0 (background) and 255 (ignore) pixels</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.compute_iou">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_iou</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#compute_iou"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.compute_iou" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate foreground Intersection over Union (IoU).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<em>ndarray</em>) – Predicted binary mask</p></li>
+<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth binary mask</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Foreground IoU score in range [0.0, 1.0]</dt><dd><ul class="simple">
+<li><p>1.0: Perfect overlap</p></li>
+<li><p>0.0: No overlap or empty union</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a></p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Both inputs should be binary (0 or 1)</p></li>
+<li><p>Returns 0.0 if union is empty (both masks are empty)</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.compute_precision_recall">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_precision_recall</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#compute_precision_recall"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.compute_precision_recall" title="Link to this definition">¶</a></dt>
+<dd><p>Compute precision and recall metrics for single prediction-GT pair.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<em>ndarray</em>) – Predicted binary segmentation mask</p></li>
+<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth binary segmentation mask</p></li>
+<li><p><strong>dilation_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of square structuring element for dilation. Default: 5</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of (correctness, completeness, quality) metrics</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Automatically skeletonizes input masks</p></li>
+<li><p>Applies dilation with specified size (default 5x5 square)</p></li>
+<li><p>Returns 0.0 for all metrics if inputs are empty</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.compute_skeleton_metrics">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">compute_skeleton_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">skeleton_output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeleton_gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeleton_output_dil</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skeleton_gt_dil</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#compute_skeleton_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.compute_skeleton_metrics" title="Link to this definition">¶</a></dt>
+<dd><p>Compute skeleton-based metrics for curvilinear structure evaluation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>skeleton_output</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of skeletonized predictions (binarized)</p></li>
+<li><p><strong>skeleton_gt</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of skeletonized ground truth</p></li>
+<li><p><strong>skeleton_output_dil</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of dilated skeletonized predictions</p></li>
+<li><p><strong>skeleton_gt_dil</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><em>ndarray</em><em>]</em>) – List of dilated skeletonized ground truth</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Tuple of (correctness, completeness, quality) metrics</dt><dd><ul class="simple">
+<li><p>Correctness: True positives / (True positives + False positives)</p></li>
+<li><p>Completeness: True positives / (True positives + False negatives)</p></li>
+<li><p>Quality: F-measure combining correctness and completeness</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>All inputs should be binary arrays (0 or 1)</p></li>
+<li><p>Dilation factor should be consistent (typically 5x5 square)</p></li>
+<li><p>Quality is 0 if denominator is 0 (no predictions or ground truth)</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.cremi_distance">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">cremi_distance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">resolution</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(40.0,</span> <span class="pre">4.0,</span> <span class="pre">4.0)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#cremi_distance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.cremi_distance" title="Link to this definition">¶</a></dt>
+<dd><p>Compute the FP/FN statistics between predictions and ground truth as
+in the CREMI challenge (<a class="reference external" href="https://cremi.org/">https://cremi.org/</a>). Both inputs (pred, gt) need
+to be of the same size.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.evaluate_directory">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">evaluate_directory</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%03d_pred.png'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt_pattern</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'%03d.png'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#evaluate_directory"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.evaluate_directory" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate all images in directories using parallel processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Directory containing prediction images</p></li>
+<li><p><strong>gt_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Directory containing ground truth images</p></li>
+<li><p><strong>pred_pattern</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Filename pattern for predictions (with %d for index)</p></li>
+<li><p><strong>gt_pattern</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Filename pattern for ground truth (with %d for index)</p></li>
+<li><p><strong>max_index</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum image index to evaluate</p></li>
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for binarizing predictions. Default: 128</p></li>
+<li><p><strong>dilation_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dilation size for skeleton matching. Default: 5</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – Number of parallel workers (None = all CPUs). Default: None</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Print progress and results. Default: True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p>‘mean_iou’: Mean foreground IoU</p></li>
+<li><p>’mean_correctness’: Mean skeleton correctness</p></li>
+<li><p>’mean_completeness’: Mean skeleton completeness</p></li>
+<li><p>’mean_quality’: Mean skeleton quality</p></li>
+<li><p>’num_evaluated’: Number of images successfully evaluated</p></li>
+<li><p>’results’: Array of shape (N, 4) with per-image results</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dictionary with keys</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">results</span> <span class="o">=</span> <span class="n">evaluate_directory</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">pred_dir</span><span class="o">=</span><span class="s2">&quot;predictions/&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">gt_dir</span><span class="o">=</span><span class="s2">&quot;ground_truth/&quot;</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">max_index</span><span class="o">=</span><span class="mi">100</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean IoU: </span><span class="si">{</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;mean_iou&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.evaluate_file_pair">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">evaluate_file_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#evaluate_file_pair"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.evaluate_file_pair" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate single file pair (for parallel processing).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to prediction image</p></li>
+<li><p><strong>gt_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Path to ground truth image</p></li>
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for binarizing prediction. Default: 128</p></li>
+<li><p><strong>dilation_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dilation size for skeleton matching. Default: 5</p></li>
+<li><p><strong>verbose</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Print results for each image. Default: False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of (iou, correctness, completeness, quality) or empty list if file missing</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.evaluate_image_pair">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">evaluate_image_pair</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dilation_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_skel.html#evaluate_image_pair"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.evaluate_image_pair" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate single prediction-ground truth pair.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<em>ndarray</em>) – Prediction mask (0-255 range)</p></li>
+<li><p><strong>gt</strong> (<em>ndarray</em>) – Ground truth mask (0-255 range)</p></li>
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Threshold for binarizing prediction. Default: 128</p></li>
+<li><p><strong>dilation_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dilation size for skeleton matching. Default: 5</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>Tuple of (iou, correctness, completeness, quality) metrics</dt><dd><ul class="simple">
+<li><p>Returns (1.0, 1.0, 1.0, 1.0) if GT is empty</p></li>
+<li><p>All values in range [0.0, 1.0]</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.get_binary_jaccard">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">get_binary_jaccard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/metrics_seg.html#get_binary_jaccard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.get_binary_jaccard" title="Link to this definition">¶</a></dt>
+<dd><p>Convenience wrapper to compute Jaccard on binary masks with optional thresholding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>target</strong> (<em>ndarray</em>)</p></li>
+<li><p><strong>threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)">float</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.instance_matching">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">instance_matching</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y_true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y_pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thresh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criterion</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'iou'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">report_matches</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#instance_matching"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.instance_matching" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate detection/instance segmentation metrics between ground truth and predicted label images.</p>
+<p>Currently, the following metrics are implemented:</p>
+<p>‘fp’, ‘tp’, ‘fn’, ‘precision’, ‘recall’, ‘accuracy’, ‘f1’, ‘criterion’, ‘thresh’, ‘n_true’, ‘n_pred’, ‘mean_true_score’, ‘mean_matched_score’, ‘panoptic_quality’</p>
+<p>Corresponding objects of y_true and y_pred are counted as true positives (tp), false positives (fp), and false negatives (fn)
+whether their intersection over union (IoU) &gt;= thresh (for criterion=’iou’, which can be changed)</p>
+<ul class="simple">
+<li><p>mean_matched_score is the mean IoUs of matched true positives</p></li>
+<li><p>mean_true_score is the mean IoUs of matched true positives but normalized by the total number of GT objects</p></li>
+<li><p>panoptic_quality defined as in Eq. 1 of Kirillov et al. “Panoptic Segmentation”, CVPR 2019</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>y_true</strong> (<em>ndarray</em>) – ground truth label image (integer valued)</p></li>
+<li><p><strong>y_pred</strong> (<em>ndarray</em>) – predicted label image (integer valued)</p></li>
+<li><p><strong>thresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – threshold for matching criterion (default 0.5)</p></li>
+<li><p><strong>criterion</strong> (<em>string</em>) – matching criterion (default IoU)</p></li>
+<li><p><strong>report_matches</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – if True, additionally calculate matched_pairs and matched_scores (note, that this returns even gt-pred pairs whose scores are below  ‘thresh’)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Matching object with different metrics as attributes</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">y_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">uint16</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y_true</span><span class="p">[</span><span class="mi">10</span><span class="p">:</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">:</span><span class="mi">20</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="n">axis</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">stats</span> <span class="o">=</span> <span class="n">instance_matching</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
+<span class="go">Matching(criterion=&#39;iou&#39;, thresh=0.5, fp=1, tp=0, fn=1, precision=0, recall=0, accuracy=0, f1=0, n_true=1, n_pred=1, mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.metrics.jaccard">
+<span class="sig-prename descclassname"><span class="pre">connectomics.metrics.</span></span><span class="sig-name descname"><span class="pre">jaccard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">thres</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[0.5]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/metrics/segmentation_numpy.html#jaccard"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.metrics.jaccard" title="Link to this definition">¶</a></dt>
+<dd><p>Evaluate the binary prediction at multiple thresholds using the Jaccard
+Index, which is also known as Intersection over Union (IoU). If the prediction
+is already binarized, different thresholds will result the same result.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<em>numpy.ndarray</em>) – foreground probability of shape <span class="math notranslate nohighlight">\((Z, Y, X)\)</span>.</p></li>
+<li><p><strong>gt</strong> (<em>numpy.ndarray</em>) – binary foreground label of shape identical to the prediction.</p></li>
+<li><p><strong>thres</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – a list of probablility threshold in (0,1). Default: [0.5]</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>a numpy array of shape <span class="math notranslate nohighlight">\((N, 4)\)</span>, where <span class="math notranslate nohighlight">\(N\)</span> is the
+number of element(s) in the probability threshold list. The four scores in each line
+are foreground IoU, IoU, precision and recall, respectively.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>score (numpy.ndarray)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">connectomics.metrics</a><ul>
+<li><a class="reference internal" href="#connectomics.metrics.adapted_rand"><code class="docutils literal notranslate"><span class="pre">adapted_rand()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.binarize_masks"><code class="docutils literal notranslate"><span class="pre">binarize_masks()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.compute_iou"><code class="docutils literal notranslate"><span class="pre">compute_iou()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.compute_precision_recall"><code class="docutils literal notranslate"><span class="pre">compute_precision_recall()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.compute_skeleton_metrics"><code class="docutils literal notranslate"><span class="pre">compute_skeleton_metrics()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.cremi_distance"><code class="docutils literal notranslate"><span class="pre">cremi_distance()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.evaluate_directory"><code class="docutils literal notranslate"><span class="pre">evaluate_directory()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.evaluate_file_pair"><code class="docutils literal notranslate"><span class="pre">evaluate_file_pair()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.evaluate_image_pair"><code class="docutils literal notranslate"><span class="pre">evaluate_image_pair()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.get_binary_jaccard"><code class="docutils literal notranslate"><span class="pre">get_binary_jaccard()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.instance_matching"><code class="docutils literal notranslate"><span class="pre">instance_matching()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.metrics.jaccard"><code class="docutils literal notranslate"><span class="pre">jaccard()</span></code></a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

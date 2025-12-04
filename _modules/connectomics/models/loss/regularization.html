@@ -1,0 +1,782 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.models.loss.regularization &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.models.loss.regularization</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.models.loss.regularization</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Regularization losses for connectomics.</span>
+
+<span class="sd">These losses encourage specific properties in the predictions, such as:</span>
+<span class="sd">- Binary outputs</span>
+<span class="sd">- Consistency between related prediction tasks</span>
+<span class="sd">- Non-overlapping predictions</span>
+
+<span class="sd">All losses are implemented as nn.Module for consistency with MONAI.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+
+
+<div class="viewcode-block" id="BinaryRegularization">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.BinaryRegularization">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BinaryRegularization</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Regularization encouraging outputs to be binary (close to 0 or 1).</span>
+
+<span class="sd">    Penalizes predictions that are close to 0.5 (uncertain).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        min_threshold: Minimum threshold for clamping (default: 1e-2)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; reg = BinaryRegularization()</span>
+<span class="sd">        &gt;&gt;&gt; pred = torch.sigmoid(torch.randn(1, 1, 64, 64, 64))</span>
+<span class="sd">        &gt;&gt;&gt; loss = reg(pred)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-2</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_threshold</span> <span class="o">=</span> <span class="n">min_threshold</span>
+
+<div class="viewcode-block" id="BinaryRegularization.forward">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.BinaryRegularization.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pred</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute binary regularization loss.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pred: Predictions (logits or probabilities)</span>
+<span class="sd">            mask: Optional spatial weight mask</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Regularization loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Convert logits to probabilities if needed</span>
+        <span class="k">if</span> <span class="n">pred</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">pred</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
+
+        <span class="c1"># Distance from 0.5 (most uncertain)</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">pred</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">diff</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">diff</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">min_threshold</span><span class="p">)</span>
+
+        <span class="c1"># Penalize being close to 0.5</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">diff</span>
+
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span> <span class="o">*</span> <span class="n">mask</span>
+
+        <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ForegroundDistanceConsistency">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.ForegroundDistanceConsistency">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ForegroundDistanceConsistency</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Consistency regularization between binary foreground mask and signed distance transform.</span>
+
+<span class="sd">    Encourages foreground predictions to be consistent with distance transform predictions.</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; reg = ForegroundDistanceConsistency()</span>
+<span class="sd">        &gt;&gt;&gt; fg_logits = torch.randn(1, 1, 64, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; dt_pred = torch.randn(1, 1, 64, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; loss = reg(fg_logits, dt_pred)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ForegroundDistanceConsistency.forward">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.ForegroundDistanceConsistency.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">foreground_logits</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">distance_transform</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute consistency loss between foreground and distance transform.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            foreground_logits: Binary foreground logits</span>
+<span class="sd">            distance_transform: Signed distance transform predictions</span>
+<span class="sd">            mask: Optional spatial weight mask</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Consistency loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Log probabilities for numerical stability</span>
+        <span class="n">log_prob_pos</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">logsigmoid</span><span class="p">(</span><span class="n">foreground_logits</span><span class="p">)</span>
+        <span class="n">log_prob_neg</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">logsigmoid</span><span class="p">(</span><span class="o">-</span><span class="n">foreground_logits</span><span class="p">)</span>
+
+        <span class="c1"># Distance transform (normalized with tanh)</span>
+        <span class="n">distance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">distance_transform</span><span class="p">)</span>
+        <span class="n">dist_pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>  <span class="c1"># Positive distances (inside)</span>
+        <span class="n">dist_neg</span> <span class="o">=</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">distance</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>  <span class="c1"># Negative distances (outside)</span>
+
+        <span class="c1"># Consistency: high positive prob should match positive distances</span>
+        <span class="n">loss_pos</span> <span class="o">=</span> <span class="o">-</span><span class="n">log_prob_pos</span> <span class="o">*</span> <span class="n">dist_pos</span>
+        <span class="n">loss_neg</span> <span class="o">=</span> <span class="o">-</span><span class="n">log_prob_neg</span> <span class="o">*</span> <span class="n">dist_neg</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_pos</span> <span class="o">+</span> <span class="n">loss_neg</span>
+
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span> <span class="o">*</span> <span class="n">mask</span>
+
+        <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ContourDistanceConsistency">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.ContourDistanceConsistency">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ContourDistanceConsistency</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Consistency regularization between instance contour map and signed distance transform.</span>
+
+<span class="sd">    Encourages contour predictions (high at boundaries) to be consistent with</span>
+<span class="sd">    distance transform predictions (low magnitude at boundaries).</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; reg = ContourDistanceConsistency()</span>
+<span class="sd">        &gt;&gt;&gt; contour_logits = torch.randn(1, 1, 64, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; dt_pred = torch.randn(1, 1, 64, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; loss = reg(contour_logits, dt_pred)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ContourDistanceConsistency.forward">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.ContourDistanceConsistency.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">contour_logits</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">distance_transform</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute consistency loss between contour and distance transform.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            contour_logits: Instance contour logits</span>
+<span class="sd">            distance_transform: Signed distance transform predictions</span>
+<span class="sd">            mask: Optional spatial weight mask</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Consistency loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">contour_prob</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">contour_logits</span><span class="p">)</span>
+        <span class="n">distance_abs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">distance_transform</span><span class="p">))</span>
+
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">distance_abs</span><span class="o">.</span><span class="n">shape</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Shape mismatch: </span><span class="si">{</span><span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">distance_abs</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="c1"># Penalize: high contour prob should match low distance</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">contour_prob</span> <span class="o">*</span> <span class="n">distance_abs</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span><span class="o">**</span><span class="mi">2</span>
+
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span> <span class="o">*</span> <span class="n">mask</span>
+
+        <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ForegroundContourConsistency">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.ForegroundContourConsistency">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ForegroundContourConsistency</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Consistency regularization between binary foreground and instance contour maps.</span>
+
+<span class="sd">    Encourages contour predictions to align with foreground edges detected via Sobel filters.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        kernel_half_size: Half-size of edge detection kernel (default: 1)</span>
+<span class="sd">        eps: Small epsilon for numerical stability (default: 1e-7)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; reg = ForegroundContourConsistency()</span>
+<span class="sd">        &gt;&gt;&gt; fg_logits = torch.randn(1, 1, 64, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; contour_logits = torch.randn(1, 1, 64, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; loss = reg(fg_logits, contour_logits)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kernel_half_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-7</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">kernel_half_size</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
+
+        <span class="c1"># Sobel filters for edge detection</span>
+        <span class="n">sobel</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;sobel_x&quot;</span><span class="p">,</span> <span class="n">sobel</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;sobel_y&quot;</span><span class="p">,</span> <span class="n">sobel</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+<div class="viewcode-block" id="ForegroundContourConsistency.forward">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.ForegroundContourConsistency.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">foreground_logits</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">contour_logits</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute consistency loss between foreground edges and contours.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            foreground_logits: Binary foreground logits</span>
+<span class="sd">            contour_logits: Instance contour logits</span>
+<span class="sd">            mask: Optional spatial weight mask</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Consistency loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fg_prob</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">foreground_logits</span><span class="p">)</span>
+        <span class="n">contour_prob</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">contour_logits</span><span class="p">)</span>
+
+        <span class="c1"># Detect edges in foreground using Sobel filters</span>
+        <span class="n">edge_x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv3d</span><span class="p">(</span><span class="n">fg_prob</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sobel_x</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">edge_y</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">conv3d</span><span class="p">(</span><span class="n">fg_prob</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sobel_y</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="c1"># Compute edge magnitude</span>
+        <span class="n">edge</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">edge_x</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">edge_y</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+        <span class="n">edge</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">edge</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+
+        <span class="c1"># Max pooling to expand edge regions</span>
+        <span class="n">edge</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">edge</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+        <span class="n">edge</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">max_pool3d</span><span class="p">(</span><span class="n">edge</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">),</span> <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="n">edge</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Shape mismatch: </span><span class="si">{</span><span class="n">edge</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">contour_prob</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="c1"># MSE between detected edges and predicted contours</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">mse_loss</span><span class="p">(</span><span class="n">edge</span><span class="p">,</span> <span class="n">contour_prob</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span> <span class="o">*</span> <span class="n">mask</span>
+
+        <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NonOverlapRegularization">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.NonOverlapRegularization">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NonOverlapRegularization</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Regularization preventing overlapping predictions.</span>
+
+<span class="sd">    Specifically designed for synaptic polarity prediction where pre- and post-synaptic</span>
+<span class="sd">    masks should not overlap. Optionally masks the regularization by the cleft prediction.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cleft_masked: Whether to mask regularization by cleft prediction (default: True)</span>
+
+<span class="sd">    Example:</span>
+<span class="sd">        &gt;&gt;&gt; reg = NonOverlapRegularization()</span>
+<span class="sd">        &gt;&gt;&gt; # pred has shape (B, 3, Z, Y, X) with channels: [pre, post, cleft]</span>
+<span class="sd">        &gt;&gt;&gt; pred = torch.randn(2, 3, 32, 64, 64)</span>
+<span class="sd">        &gt;&gt;&gt; loss = reg(pred)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cleft_masked</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cleft_masked</span> <span class="o">=</span> <span class="n">cleft_masked</span>
+
+<div class="viewcode-block" id="NonOverlapRegularization.forward">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.NonOverlapRegularization.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute non-overlap regularization loss.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            pred: Predictions with shape (B, C, Z, Y, X) where:</span>
+<span class="sd">                  - Channel 0: Pre-synaptic logits</span>
+<span class="sd">                  - Channel 1: Post-synaptic logits</span>
+<span class="sd">                  - Channel 2: Cleft logits (optional, used if cleft_masked=True)</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Non-overlap regularization loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pred</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Expected at least 2 channels for pre/post predictions, got </span><span class="si">{</span><span class="n">pred</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Pre- and post-synaptic probabilities</span>
+        <span class="n">pre_prob</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">pred</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+        <span class="n">post_prob</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">pred</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
+
+        <span class="c1"># Penalize overlap</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">pre_prob</span> <span class="o">*</span> <span class="n">post_prob</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">cleft_masked</span> <span class="ow">and</span> <span class="n">pred</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="c1"># Mask by cleft prediction (detached to avoid decreasing cleft prob)</span>
+            <span class="n">cleft_prob</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">pred</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">())</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss</span> <span class="o">*</span> <span class="n">cleft_prob</span>
+
+        <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span></div>
+</div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;BinaryRegularization&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ForegroundDistanceConsistency&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ContourDistanceConsistency&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ForegroundContourConsistency&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;NonOverlapRegularization&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../../"
+    src="../../../../_static/documentation_options.js"></script>
+  <script src="../../../../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

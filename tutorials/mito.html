@@ -1,0 +1,756 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Mitochondria Segmentation &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="Synapse Detection" href="synapse.html" />
+  <link rel="prev" title="Neuron Segmentation" href="neuron.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Mitochondria Segmentation</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/tutorials/mito.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="mitochondria-segmentation">
+<h1>Mitochondria Segmentation<a class="headerlink" href="#mitochondria-segmentation" title="Link to this heading">¶</a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
+<p><a class="reference external" href="https://en.wikipedia.org/wiki/Mitochondrion">Mitochondria</a> are the primary energy providers for cell activities, thus essential for metabolism. Quantification of the size and geometry of mitochondria is not only crucial to basic neuroscience research, but also informative to the clinical studies of several diseases including bipolar disorder and diabetes.</p>
+<p>This tutorial has two parts. In the first part, you will learn how to make <strong>pixel-wise class prediction</strong> on the widely used benchmark dataset released by <a class="reference external" href="https://ieeexplore.ieee.org/document/6619103">Lucchi et al.</a> in 2012. In the second part, you will learn how to predict the <strong>instance masks</strong> of individual mitochondrion from the large-scale MitoEM dataset released by <a class="reference external" href="https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf">Wei et al.</a> in 2020.</p>
+</section>
+<section id="semantic-segmentation">
+<h2>Semantic Segmentation<a class="headerlink" href="#semantic-segmentation" title="Link to this heading">¶</a></h2>
+<p>This section provides step-by-step guidance for mitochondria segmentation with the EM benchmark datasets released by <a class="reference external" href="https://cvlab.epfl.ch/research/page-90578-en-html/research-medical-em-mitochondria-index-php/">Lucchi et al. (2012)</a>. We approach the task as a <strong>semantic segmentation</strong> task and predict the mitochondria pixels with encoder-decoder ConvNets similar to the models used for affinity prediction in <a class="reference external" href="neuron.html">neuron segmentation</a>. The evaluation of the mitochondria segmentation results is based on the F1 score and Intersection over Union (IoU).</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Unlike other EM connectomics datasets used in these tutorials, the dataset released by Lucchi et al. is an isotropic dataset, which means the spatial resolution along all three axes is the same. Therefore a completely 3D U-Net and data augmentation along x-z and y-z planes (alongside the standard practice of applying augmentation along the x-y plane) is applied.</p>
+</div>
+</div></blockquote>
+<p>The scripts needed for this tutorial can be found at <code class="docutils literal notranslate"><span class="pre">scripts/main.py</span></code>. The corresponding configuration file is <code class="docutils literal notranslate"><span class="pre">tutorials/monai_lucchi++.yaml</span></code>.</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/lucchi_qual.png"><img alt="../_images/lucchi_qual.png" src="../_images/lucchi_qual.png" style="width: 800px;" />
+</a>
+</figure>
+<p>A benchmark model’s qualitative results on the Lucchi dataset, presented without any post-processing</p>
+<section id="setup-environment">
+<h3>0 - Setup environment<a class="headerlink" href="#setup-environment" title="Link to this heading">¶</a></h3>
+<p>Activate the PyTorch Connectomics environment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span><span class="w"> </span>/projects/weilab/weidf/lib/miniconda3/bin/activate<span class="w"> </span>pytc
+</pre></div>
+</div>
+</section>
+<section id="get-the-data">
+<h3>1 - Get the data<a class="headerlink" href="#get-the-data" title="Link to this heading">¶</a></h3>
+<p>The Lucchi++ dataset is available at:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/projects/weilab/weidf/lib/pytorch_connectomics/datasets/Lucchi++
+</pre></div>
+</div>
+<p>For description of the data please check <a class="reference external" href="https://www.epfl.ch/labs/cvlab/data/data-em/">the author page</a>.</p>
+</section>
+<section id="visualize-the-data">
+<h3>2 - Visualize the data<a class="headerlink" href="#visualize-the-data" title="Link to this heading">¶</a></h3>
+<p>Before training, you can visualize the dataset using Neuroglancer:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>visualize<span class="w"> </span>tutorials/monai_lucchi++.yaml<span class="w"> </span>--mode<span class="w"> </span>train
+</pre></div>
+</div>
+<p>This will launch a Neuroglancer instance to explore the training data.</p>
+</section>
+<section id="run-training">
+<h3>3 - Run training<a class="headerlink" href="#run-training" title="Link to this heading">¶</a></h3>
+<p><strong>On SLURM cluster</strong> (recommended for multi-GPU training):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>slurm<span class="w"> </span>weilab<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="s2">&quot;train monai lucchi++&quot;</span>
+</pre></div>
+</div>
+<p>This launches a training job on the <code class="docutils literal notranslate"><span class="pre">weilab</span></code> partition with 8 GPUs and 4 CPUs per GPU.</p>
+<p><strong>On local machine</strong> (single or multi-GPU):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>train<span class="w"> </span>monai<span class="w"> </span>lucchi++
+</pre></div>
+</div>
+<p>The training script automatically uses PyTorch Lightning with distributed data-parallel (DDP) training for multiple GPUs, enabling synchronized batch normalization (SyncBN) and efficient distributed training.</p>
+</section>
+<section id="monitor-training-progress">
+<h3>4 - Monitor training progress<a class="headerlink" href="#monitor-training-progress" title="Link to this heading">¶</a></h3>
+<p>You can monitor the training progress with TensorBoard:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>tensorboard<span class="w"> </span>monai_lucchi++
+</pre></div>
+</div>
+<p>This will launch TensorBoard and display training metrics, losses, and validation results in real-time.</p>
+</section>
+<section id="test-the-model">
+<h3>5 - Test the model<a class="headerlink" href="#test-the-model" title="Link to this heading">¶</a></h3>
+<p>After training completes, test the model on the test set:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span><span class="nb">test</span><span class="w"> </span>monai<span class="w"> </span>lucchi++<span class="w"> </span>outputs/lucchi++_monai_unet/20251012_011259/checkpoints/last.ckpt
+</pre></div>
+</div>
+<p>Replace the checkpoint path with your actual trained model checkpoint. The checkpoint is typically saved in <code class="docutils literal notranslate"><span class="pre">outputs/lucchi++_monai_unet/{timestamp}/checkpoints/last.ckpt</span></code>.</p>
+</section>
+<section id="visualize-results">
+<h3>6 - Visualize results<a class="headerlink" href="#visualize-results" title="Link to this heading">¶</a></h3>
+<p>After testing, visualize the prediction results using Neuroglancer:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>just<span class="w"> </span>visualize<span class="w"> </span>tutorials/monai_lucchi++.yaml<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--port<span class="w"> </span><span class="m">5005</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--volumes<span class="w"> </span>pred:image:outputs/lucchi++_monai_unet/results/test_im_prediction.h5:5-5-5
+</pre></div>
+</div>
+<p>This will launch a Neuroglancer instance on port 5005 displaying the predicted segmentation overlaid on the test images.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pred</span></code>: Layer name in Neuroglancer</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">image</span></code>: Volume type (can be <code class="docutils literal notranslate"><span class="pre">image</span></code> for raw data or <code class="docutils literal notranslate"><span class="pre">segmentation</span></code> for labels)</p></li>
+<li><p>Path to the prediction HDF5 file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">5-5-5</span></code>: Voxel resolution in nm (z-y-x)</p></li>
+</ul>
+</div>
+</section>
+<section id="run-evaluation">
+<h3>7 - Run evaluation<a class="headerlink" href="#run-evaluation" title="Link to this heading">¶</a></h3>
+<p>Since the ground-truth label of the test set is public, we can run the evaluation locally:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.evaluation</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_binary_jaccard</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">readvol</span>
+
+<span class="c1"># Load prediction and ground truth</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="s1">&#39;outputs/lucchi++_monai_unet/results/test_im_prediction.h5&#39;</span><span class="p">)</span>
+<span class="n">gt</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="s1">&#39;datasets/Lucchi++/test_label.h5&#39;</span><span class="p">)</span>
+
+<span class="c1"># Prepare for evaluation</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred</span> <span class="o">/</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>  <span class="c1"># output is casted to uint8 with range [0,255]</span>
+<span class="n">gt</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="n">thres</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.4</span><span class="p">,</span> <span class="mf">0.6</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">]</span>  <span class="c1"># evaluate at multiple thresholds</span>
+<span class="n">scores</span> <span class="o">=</span> <span class="n">get_binary_jaccard</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">thres</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The prediction can be further improved by conducting median filtering to remove noise:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.evaluate</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_binary_jaccard</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.process</span><span class="w"> </span><span class="kn">import</span> <span class="n">binarize_and_median</span>
+
+<span class="n">pred</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred</span> <span class="o">/</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>  <span class="c1"># output is casted to uint8 with range [0,255]</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="n">binarize_and_median</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<span class="n">gt</span> <span class="o">=</span> <span class="p">(</span><span class="n">gt</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="n">scores</span> <span class="o">=</span> <span class="n">get_binary_jaccard</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">)</span>  <span class="c1"># prediction is already binarized</span>
+</pre></div>
+</div>
+<p>Our pretrained model achieves a foreground IoU and IoU of <strong>0.892</strong> and <strong>0.943</strong> on the test set, respectively. The results are better or on par with state-of-the-art approaches. Please check <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/BENCHMARK.md">BENCHMARK.md</a> for detailed performance comparison and the pre-trained models.</p>
+</section>
+</section>
+<section id="instance-segmentation">
+<h2>Instance Segmentation<a class="headerlink" href="#instance-segmentation" title="Link to this heading">¶</a></h2>
+<p>This section provides step-by-step guidance for mitochondria segmentation with the <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">MitoEM</a> dataset. We approach the task as a 3D <strong>instance segmentation</strong> task and provide three different confiurations of the model output. We utilize the <code class="docutils literal notranslate"><span class="pre">UNet3D</span></code> model similar to the one used in <a class="reference external" href="neuron.html">neuron segmentation</a>. The evaluation of the segmentation results is based on the AP-75 (average precision with an IoU threshold of 0.75).</p>
+<figure class="align-center">
+<a class="reference internal image-reference" href="../_images/mito_complex.png"><img alt="../_images/mito_complex.png" src="../_images/mito_complex.png" style="width: 800px;" />
+</a>
+</figure>
+<p>Complex mitochondria in the MitoEM dataset:(<strong>a</strong>) mitochondria-on-a-string (MOAS), and (<strong>b</strong>) dense tangle of touching instances. Those challenging cases are prevalent but not covered in previous datasets.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The MitoEM dataset has two sub-datasets <strong>MitoEM-Rat</strong> and <strong>MitoEM-Human</strong> based on the source of the tissues. Three training configuration files on <strong>MitoEM-Rat</strong> are provided in <code class="docutils literal notranslate"><span class="pre">pytorch_connectomics/configs/MitoEM/</span></code> for different learning setting as described in this <a class="reference external" href="https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf">paper</a>.</p>
+</div>
+</div></blockquote>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Since the dataset is very large and can not be directly loaded into memory, we designed the <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code> class that only loads part of the whole volume each time by opening involved <code class="docutils literal notranslate"><span class="pre">PNG</span></code> or <code class="docutils literal notranslate"><span class="pre">TIFF</span></code> images.</p>
+</div>
+</div></blockquote>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>A benchmark evaluation with validation data and pretrained weights is provided for users at <a class="reference external" href="https://colab.research.google.com/drive/1ll3a0F2VbmmKBTQ_RBqSrEsU3gpTUdam">this Colab notebook</a>.</p>
+</div>
+</div></blockquote>
+<section id="dataset-introduction">
+<h3>1 - Dataset introduction<a class="headerlink" href="#dataset-introduction" title="Link to this heading">¶</a></h3>
+<p>The dataset is publicly available at both the <a class="reference external" href="https://donglaiw.github.io/page/mitoEM/index.html">project</a> page and
+the <a class="reference external" href="https://mitoem.grand-challenge.org/">MitoEM Challenge</a> page. To provide a brief description of the dataset:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">im</span></code>: includes 1,000 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of raw EM images (with a spatial resolution of <strong>30x8x8</strong> nm).
+The 1,000 images are splited into 400, 100 and 500 slices for training, validation and inference, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mito_train/</span></code>: includes 400 single-channel <code class="docutils literal notranslate"><span class="pre">*.png</span></code> files (<strong>4096x4096</strong>) of instance labels for training. Similarly, the <code class="docutils literal notranslate"><span class="pre">mito_val/</span></code> folder contains 100 slices for validation. The ground-truth annotation of the test set (rest 500 slices) is not publicly provided but can be evaluated online at the <a class="reference external" href="https://mitoem.grand-challenge.org">MitoEM challenge page</a>.</p></li>
+</ul>
+</section>
+<section id="model-configuration">
+<h3>2 - Model configuration<a class="headerlink" href="#model-configuration" title="Link to this heading">¶</a></h3>
+<p>Multiple <code class="docutils literal notranslate"><span class="pre">*.yaml</span></code> configuration files are provided at <code class="docutils literal notranslate"><span class="pre">configs/MitoEM</span></code> for different learning targets:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-A.yaml</span></code>: output 3 channels for predicting the affinty between voxels.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-AC.yaml</span></code>: output 4 channels for predicting both affinity and instance contour.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MitoEM-R-BC.yaml</span></code>: output 2 channels for predicting both the binary foreground mask and instance contour.</p></li>
+</ul>
+<p>The lattermost configuration achieves the best overall performance according to our <a class="reference external" href="https://donglaiw.github.io/paper/2020_miccai_mitoEM.pdf">experiments</a>. This tutorial will move forward using this configuration file.</p>
+</section>
+<section id="id2">
+<h3>3 - Run training<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-u<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+--config-base<span class="w"> </span>configs/MitoEM/MitoEM-R-Base.yaml<span class="w"> </span><span class="se">\</span>
+--config-file<span class="w"> </span>configs/MitoEM/MitoEM-R-BC.yaml
+</pre></div>
+</div>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>By default the path of images and labels are not specified. To run the training scripts, please revise the <code class="docutils literal notranslate"><span class="pre">DATASET.IMAGE_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">DATASET.LABEL_NAME</span></code>, <code class="docutils literal notranslate"><span class="pre">DATASET.OUTPUT_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">DATASET.INPUT_PATH</span></code> options in <code class="docutils literal notranslate"><span class="pre">configs/MitoEM/MitoEM-R-*.yaml</span></code>. The options can also be given as command-line arguments without changing of the <code class="docutils literal notranslate"><span class="pre">yaml</span></code> configuration files.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="optional-visualize-the-training-progress">
+<h3>4 (<em>optional</em>) - Visualize the training progress<a class="headerlink" href="#optional-visualize-the-training-progress" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tensorboard<span class="w"> </span>--logdir<span class="w"> </span>outputs/MitoEM_R_BC/
+</pre></div>
+</div>
+</section>
+<section id="run-inference">
+<h3>5 - Run inference<a class="headerlink" href="#run-inference" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-u<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+--config-base<span class="w"> </span>configs/MitoEM/MitoEM-R-Base.yaml<span class="w"> </span><span class="se">\</span>
+--config-file<span class="w"> </span>configs/MitoEM/MitoEM-R-BC.yaml<span class="w"> </span>--inference<span class="w"> </span><span class="se">\</span>
+--checkpoint<span class="w"> </span>outputs/MitoEM_R_BC/checkpoint_100000.pth.tar
+</pre></div>
+</div>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If training on personal data, please change the <code class="docutils literal notranslate"><span class="pre">INFERENCE.IMAGE_NAME</span></code> <code class="docutils literal notranslate"><span class="pre">INFERENCE.OUTPUT_PATH</span></code> <code class="docutils literal notranslate"><span class="pre">INFERENCE.OUTPUT_NAME</span></code> options in <code class="docutils literal notranslate"><span class="pre">configs/MitoEM-R-*.yaml</span></code> based on your own data path.</p>
+</div>
+</div></blockquote>
+</section>
+<section id="post-process">
+<h3>6 - Post-process<a class="headerlink" href="#post-process" title="Link to this heading">¶</a></h3>
+<p>The post-processing step requires merging output volumes and applying watershed segmentation. As mentioned before, the dataset is very large and cannot be directly loaded into memory for processing. Therefore our code run prediction on smaller chunks sequentially, which produces multiple <code class="docutils literal notranslate"><span class="pre">*.h5</span></code> files with the coordinate information. To merge the chunks into a single volume and apply the segmentation algorithm:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">readvol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.process</span><span class="w"> </span><span class="kn">import</span> <span class="n">bc_watershed</span>
+
+<span class="n">output_files</span> <span class="o">=</span> <span class="s1">&#39;outputs/MitoEM_R_BC/test/*.h5&#39;</span> <span class="c1"># output folder with chunks</span>
+<span class="n">chunks</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">output_files</span><span class="p">)</span>
+
+<span class="c1"># Mitochondria Segmentation</span>
+<span class="n">vol_shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">4096</span><span class="p">,</span> <span class="mi">4096</span><span class="p">)</span> <span class="c1"># MitoEM test set</span>
+<span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">vol_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">chunks</span><span class="p">:</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;process chunk: &quot;</span><span class="p">,</span> <span class="n">pos</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">pos</span><span class="p">))</span>
+    <span class="n">chunk</span> <span class="o">=</span> <span class="n">readvol</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">pred</span><span class="p">[:,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span><span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">pos</span><span class="p">[</span><span class="mi">2</span><span class="p">]:</span><span class="n">pos</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">pos</span><span class="p">[</span><span class="mi">4</span><span class="p">]:</span><span class="n">pos</span><span class="p">[</span><span class="mi">5</span><span class="p">]]</span> <span class="o">=</span> <span class="n">chunk</span>
+
+<span class="c1"># This function process the array in numpy.float64 format.</span>
+<span class="c1"># Please allocate enough memory for processing.</span>
+<span class="n">segm</span> <span class="o">=</span> <span class="n">bc_watershed</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">thres1</span><span class="o">=</span><span class="mf">0.85</span><span class="p">,</span> <span class="n">thres2</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span> <span class="n">thres3</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">thres_small</span><span class="o">=</span><span class="mi">1024</span><span class="p">)</span>
+</pre></div>
+</div>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The decoding parameters for the watershed step are a set of reasonable thresholds but not optimal given different segmentation models. We suggest conducting a hyper-parameter search on the validation set to decide the decoding parameters.</p>
+</div>
+</div></blockquote>
+<p>The generated segmentation map should be ready for submission to the <a class="reference external" href="https://mitoem.grand-challenge.org/">MitoEM</a> challenge website for evaluation. Please note that this tutorial only outlines training on <strong>MitoEM-Rat</strong> subset. Results on the <strong>MitoEM-Human</strong> subset, which can be generated using a similar pipeline as above, also need to be provided for online evaluation.</p>
+</section>
+<section id="optional-evaluate-on-the-validation-set">
+<h3>7 (<em>optional</em>)- Evaluate on the validation set<a class="headerlink" href="#optional-evaluate-on-the-validation-set" title="Link to this heading">¶</a></h3>
+<p>Performance on the MitoEM test data subset can only be evaluated on the Grand Challenge website. Users are encouraged to experiment with the metric code on the validation data subset to optimize performance and understand the Challenge’s evaluation process. Evaluation is performed with the <code class="docutils literal notranslate"><span class="pre">demo.py</span></code> file provided by the <a class="reference external" href="https://github.com/ygCoconut/mAP_3Dvolume/tree/master">mAP_3Dvolume</a> repository. The ground truth <code class="docutils literal notranslate"><span class="pre">.h5</span></code> file can be generated from the 2D images using the following script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">glob</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">writeh5</span><span class="p">,</span> <span class="n">readvol</span>
+
+<span class="n">gt_path</span> <span class="o">=</span> <span class="s2">&quot;datasets/MitoEM_R/mito_val/*.tif&quot;</span>
+<span class="n">files</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">gt_path</span><span class="p">))</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;process chunk: &quot;</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+    <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">readvol</span><span class="p">(</span><span class="n">file</span><span class="p">))</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="n">writeh5</span><span class="p">(</span><span class="s2">&quot;validation_gt.h5&quot;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The resulting scores can then be obtained by executing <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">demo.py</span> <span class="pre">-gt</span> <span class="pre">{path</span> <span class="pre">to</span> <span class="pre">validation</span> <span class="pre">ground</span> <span class="pre">truth}.h5</span> <span class="pre">-p</span> <span class="pre">{path</span> <span class="pre">to</span> <span class="pre">segmentation</span> <span class="pre">result}.h5</span></code></p>
+</section>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="synapse.html" class="btn btn-neutral float-right" title="Synapse Detection" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="neuron.html" class="btn btn-neutral" title="Neuron Segmentation" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Mitochondria Segmentation</a><ul>
+<li><a class="reference internal" href="#introduction">Introduction</a></li>
+<li><a class="reference internal" href="#semantic-segmentation">Semantic Segmentation</a><ul>
+<li><a class="reference internal" href="#setup-environment">0 - Setup environment</a></li>
+<li><a class="reference internal" href="#get-the-data">1 - Get the data</a></li>
+<li><a class="reference internal" href="#visualize-the-data">2 - Visualize the data</a></li>
+<li><a class="reference internal" href="#run-training">3 - Run training</a></li>
+<li><a class="reference internal" href="#monitor-training-progress">4 - Monitor training progress</a></li>
+<li><a class="reference internal" href="#test-the-model">5 - Test the model</a></li>
+<li><a class="reference internal" href="#visualize-results">6 - Visualize results</a></li>
+<li><a class="reference internal" href="#run-evaluation">7 - Run evaluation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#instance-segmentation">Instance Segmentation</a><ul>
+<li><a class="reference internal" href="#dataset-introduction">1 - Dataset introduction</a></li>
+<li><a class="reference internal" href="#model-configuration">2 - Model configuration</a></li>
+<li><a class="reference internal" href="#id2">3 - Run training</a></li>
+<li><a class="reference internal" href="#optional-visualize-the-training-progress">4 (<em>optional</em>) - Visualize the training progress</a></li>
+<li><a class="reference internal" href="#run-inference">5 - Run inference</a></li>
+<li><a class="reference internal" href="#post-process">6 - Post-process</a></li>
+<li><a class="reference internal" href="#optional-evaluate-on-the-validation-set">7 (<em>optional</em>)- Evaluate on the validation set</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

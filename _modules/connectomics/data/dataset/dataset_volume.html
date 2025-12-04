@@ -1,0 +1,747 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.data.dataset.dataset_volume &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.data.dataset.dataset_volume</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.data.dataset.dataset_volume</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">MONAI-native volume dataset for PyTorch Connectomics.</span>
+
+<span class="sd">This module provides volume-based dataset classes using MONAI&#39;s native dataset</span>
+<span class="sd">infrastructure with connectomics-specific sampling and augmentation strategies.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">monai.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span><span class="p">,</span> <span class="n">RandSpatialCropd</span><span class="p">,</span> <span class="n">CenterSpatialCropd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">monai.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_tuple_rep</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">MonaiConnectomicsDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_data_dicts_from_paths</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..io.monai_transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">LoadVolumed</span>
+
+
+<div class="viewcode-block" id="MonaiVolumeDataset">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.MonaiVolumeDataset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MonaiVolumeDataset</span><span class="p">(</span><span class="n">MonaiConnectomicsDataset</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    MONAI-native dataset for volumetric connectomics data.</span>
+
+<span class="sd">    This class extends the base MONAI connectomics dataset with volume-specific</span>
+<span class="sd">    functionality including:</span>
+<span class="sd">    - Random spatial cropping for training</span>
+<span class="sd">    - Sliding window sampling for inference</span>
+<span class="sd">    - Rejection sampling based on foreground content</span>
+<span class="sd">    - Support for multiple volumes with different sizes</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image_paths (List[str]): List of image volume file paths</span>
+<span class="sd">        label_paths (List[str], optional): List of label volume file paths</span>
+<span class="sd">        mask_paths (List[str], optional): List of valid mask file paths</span>
+<span class="sd">        transforms (Compose, optional): MONAI transforms pipeline</span>
+<span class="sd">        sample_size (Tuple[int, int, int]): Size of samples to extract (z, y, x)</span>
+<span class="sd">        mode (str): Dataset mode (&#39;train&#39;, &#39;val&#39;, &#39;test&#39;). Default: &#39;train&#39;</span>
+<span class="sd">        iter_num (int): Number of iterations per epoch (-1 for inference). Default: -1</span>
+<span class="sd">        valid_ratio (float): Volume ratio threshold for valid samples. Default: 0.5</span>
+<span class="sd">        reject_size_thres (int): Threshold for foreground objects. Default: 0</span>
+<span class="sd">        reject_diversity (int): Threshold for multiple objects. Default: 0</span>
+<span class="sd">        reject_p (float): Probability of rejecting non-foreground volumes. Default: 0.95</span>
+<span class="sd">        do_2d (bool): Load 2D samples from 3D volumes. Default: False</span>
+<span class="sd">        do_relabel (bool): Reduce mask indices in sampled volumes. Default: True</span>
+<span class="sd">        data_mean (float): Mean for normalization. Default: 0.5</span>
+<span class="sd">        data_std (float): Standard deviation for normalization. Default: 0.5</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image_paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">label_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mask_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">sample_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;train&quot;</span><span class="p">,</span>
+        <span class="n">iter_num</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">valid_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">reject_size_thres</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">reject_diversity</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">reject_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.95</span><span class="p">,</span>
+        <span class="n">do_2d</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">do_relabel</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">data_mean</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">data_std</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">transpose_axes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Create MONAI data dictionaries</span>
+        <span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_data_dicts_from_paths</span><span class="p">(</span>
+            <span class="n">image_paths</span><span class="o">=</span><span class="n">image_paths</span><span class="p">,</span>
+            <span class="n">label_paths</span><span class="o">=</span><span class="n">label_paths</span><span class="p">,</span>
+            <span class="n">mask_paths</span><span class="o">=</span><span class="n">mask_paths</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Store data dictionaries temporarily for transform creation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data_dicts</span> <span class="o">=</span> <span class="n">data_dicts</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transpose_axes</span> <span class="o">=</span> <span class="n">transpose_axes</span>
+
+        <span class="c1"># Create transforms if not provided</span>
+        <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_default_transforms</span><span class="p">(</span>
+                <span class="n">sample_size</span><span class="o">=</span><span class="n">sample_size</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                <span class="n">do_2d</span><span class="o">=</span><span class="n">do_2d</span><span class="p">,</span>
+                <span class="n">data_mean</span><span class="o">=</span><span class="n">data_mean</span><span class="p">,</span>
+                <span class="n">data_std</span><span class="o">=</span><span class="n">data_std</span><span class="p">,</span>
+                <span class="n">transpose_axes</span><span class="o">=</span><span class="n">transpose_axes</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Initialize base dataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">data_dicts</span><span class="o">=</span><span class="n">data_dicts</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="n">sample_size</span><span class="o">=</span><span class="n">sample_size</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+            <span class="n">iter_num</span><span class="o">=</span><span class="n">iter_num</span><span class="p">,</span>
+            <span class="n">valid_ratio</span><span class="o">=</span><span class="n">valid_ratio</span><span class="p">,</span>
+            <span class="n">reject_size_thres</span><span class="o">=</span><span class="n">reject_size_thres</span><span class="p">,</span>
+            <span class="n">reject_diversity</span><span class="o">=</span><span class="n">reject_diversity</span><span class="p">,</span>
+            <span class="n">reject_p</span><span class="o">=</span><span class="n">reject_p</span><span class="p">,</span>
+            <span class="n">do_2d</span><span class="o">=</span><span class="n">do_2d</span><span class="p">,</span>
+            <span class="n">do_relabel</span><span class="o">=</span><span class="n">do_relabel</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Clean up temporary references</span>
+        <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_data_dicts&quot;</span><span class="p">)</span>
+        <span class="nb">delattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_transpose_axes&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Store volume-specific parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_mean</span> <span class="o">=</span> <span class="n">data_mean</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_std</span> <span class="o">=</span> <span class="n">data_std</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_default_transforms</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sample_size</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">do_2d</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">data_mean</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">data_std</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">transpose_axes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Compose</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Create default MONAI transforms pipeline for volume data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            sample_size: Size of samples to extract</span>
+<span class="sd">            mode: Dataset mode (&#39;train&#39;, &#39;val&#39;, &#39;test&#39;)</span>
+<span class="sd">            do_2d: Whether to extract 2D samples</span>
+<span class="sd">            data_mean: Mean for normalization</span>
+<span class="sd">            data_std: Standard deviation for normalization</span>
+<span class="sd">            transpose_axes: Axis permutation for transposing loaded volumes</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            MONAI Compose transforms pipeline</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;label&quot;</span> <span class="ow">in</span> <span class="n">data_dict</span> <span class="k">for</span> <span class="n">data_dict</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_dicts</span><span class="p">):</span>
+            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span> <span class="ow">in</span> <span class="n">data_dict</span> <span class="k">for</span> <span class="n">data_dict</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_dicts</span><span class="p">):</span>
+            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span><span class="p">)</span>
+
+        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="c1"># Load images using custom connectomics loader (adds channel dim)</span>
+            <span class="n">LoadVolumed</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span> <span class="n">transpose_axes</span><span class="o">=</span><span class="n">transpose_axes</span><span class="p">),</span>
+        <span class="p">]</span>
+
+        <span class="c1"># Add spatial cropping for both training and validation</span>
+        <span class="c1"># This prevents loading full volumes which cause OOM errors</span>
+        <span class="n">crop_size</span> <span class="o">=</span> <span class="n">sample_size</span>
+        <span class="k">if</span> <span class="n">do_2d</span><span class="p">:</span>
+            <span class="n">crop_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sample_size</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;train&quot;</span><span class="p">:</span>
+            <span class="c1"># Random cropping for training</span>
+            <span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">RandSpatialCropd</span><span class="p">(</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span>
+                    <span class="n">roi_size</span><span class="o">=</span><span class="n">crop_size</span><span class="p">,</span>
+                    <span class="n">random_center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">random_size</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+            <span class="c1"># Center cropping for validation to ensure consistent patch size</span>
+            <span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">CenterSpatialCropd</span><span class="p">(</span>
+                    <span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span>
+                    <span class="n">roi_size</span><span class="o">=</span><span class="n">crop_size</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="c1"># For test mode, return full volumes to enable sliding-window inference</span>
+
+        <span class="c1"># TODO: Add normalization transforms here if needed</span>
+        <span class="c1"># Could use ScaleIntensityd, NormalizeIntensityd, etc.</span>
+
+        <span class="k">return</span> <span class="n">Compose</span><span class="p">(</span><span class="n">transforms</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="MonaiCachedVolumeDataset">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.MonaiCachedVolumeDataset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MonaiCachedVolumeDataset</span><span class="p">(</span><span class="n">CacheDataset</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Cached version of MONAI volume dataset for improved performance.</span>
+
+<span class="sd">    This dataset caches transformed volumes in memory for faster access</span>
+<span class="sd">    during training. Suitable for datasets that fit in available memory.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cache_rate (float): Percentage of data to cache. Default: 1.0</span>
+<span class="sd">        num_workers (int): Number of workers for caching. Default: 0</span>
+<span class="sd">        **kwargs: Arguments passed to dataset creation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">image_paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">label_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mask_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cache_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Get parameters for dataset creation</span>
+        <span class="n">sample_size</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sample_size&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">32</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">))</span>
+        <span class="n">mode</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">)</span>
+        <span class="n">do_2d</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;do_2d&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data_mean&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;data_std&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">transpose_axes</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transpose_axes&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="c1"># Create data dictionaries</span>
+        <span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_data_dicts_from_paths</span><span class="p">(</span>
+            <span class="n">image_paths</span><span class="o">=</span><span class="n">image_paths</span><span class="p">,</span>
+            <span class="n">label_paths</span><span class="o">=</span><span class="n">label_paths</span><span class="p">,</span>
+            <span class="n">mask_paths</span><span class="o">=</span><span class="n">mask_paths</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Create transforms if not provided</span>
+        <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">label_paths</span><span class="p">:</span>
+                <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mask_paths</span><span class="p">:</span>
+                <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span><span class="p">)</span>
+
+            <span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="c1"># Use custom connectomics loader (adds channel dim)</span>
+                <span class="n">LoadVolumed</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span> <span class="n">transpose_axes</span><span class="o">=</span><span class="n">transpose_axes</span><span class="p">),</span>
+            <span class="p">]</span>
+
+            <span class="c1"># Add spatial cropping for both training and validation</span>
+            <span class="n">crop_size</span> <span class="o">=</span> <span class="n">sample_size</span>
+            <span class="k">if</span> <span class="n">do_2d</span><span class="p">:</span>
+                <span class="n">crop_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">sample_size</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">sample_size</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+
+            <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;train&quot;</span><span class="p">:</span>
+                <span class="c1"># Random cropping for training</span>
+                <span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">RandSpatialCropd</span><span class="p">(</span>
+                        <span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span>
+                        <span class="n">roi_size</span><span class="o">=</span><span class="n">crop_size</span><span class="p">,</span>
+                        <span class="n">random_center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="n">random_size</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+                <span class="c1"># Center cropping for validation</span>
+                <span class="n">transforms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">CenterSpatialCropd</span><span class="p">(</span>
+                        <span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">,</span>
+                        <span class="n">roi_size</span><span class="o">=</span><span class="n">crop_size</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="p">)</span>
+            <span class="c1"># For test mode, return full volumes to enable sliding-window inference</span>
+
+            <span class="n">transforms</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">(</span><span class="n">transforms</span><span class="p">)</span>
+
+        <span class="c1"># Initialize MONAI CacheDataset</span>
+        <span class="n">CacheDataset</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">data_dicts</span><span class="p">,</span>
+            <span class="n">transform</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="n">cache_rate</span><span class="o">=</span><span class="n">cache_rate</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Store connectomics parameters</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_size</span> <span class="o">=</span> <span class="n">ensure_tuple_rep</span><span class="p">(</span><span class="n">sample_size</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;iter_num&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Calculate dataset length</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_dicts</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;MonaiVolumeDataset&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;MonaiCachedVolumeDataset&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../../"
+    src="../../../../_static/documentation_options.js"></script>
+  <script src="../../../../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

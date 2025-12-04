@@ -1,0 +1,1004 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Configuration System &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="Data Loading" href="dataloading.html" />
+  <link rel="prev" title="Installation" href="installation.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Configuration System</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notes/config.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="configuration-system">
+<h1>Configuration System<a class="headerlink" href="#configuration-system" title="Link to this heading">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>PyTorch Connectomics v2.0</strong> uses <strong>Hydra/OmegaConf</strong> as the configuration system.</p>
+</div>
+<p>PyTorch Connectomics uses a flexible, type-safe configuration system built on
+<a class="reference external" href="https://hydra.cc/">Hydra</a> and <a class="reference external" href="https://omegaconf.readthedocs.io/">OmegaConf</a>.
+Configuration files are written in YAML and support CLI overrides, composition, and type checking.</p>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
+<p><strong>Basic training:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Train with a config file</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml
+
+<span class="c1"># Override config from CLI</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>training.max_epochs<span class="o">=</span><span class="m">200</span>
+</pre></div>
+</div>
+<p><strong>Python API:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span><span class="p">,</span> <span class="n">print_config</span>
+
+<span class="c1"># Load config</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/lucchi.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Access values</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">)</span>  <span class="c1"># &#39;monai_basic_unet3d&#39;</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>     <span class="c1"># 2</span>
+
+<span class="c1"># Modify values</span>
+<span class="n">cfg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="mi">4</span>
+
+<span class="c1"># Print entire config</span>
+<span class="n">print_config</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-structure">
+<h2>Configuration Structure<a class="headerlink" href="#configuration-structure" title="Link to this heading">¶</a></h2>
+<p>A typical v2.0 config file has the following sections:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># System configuration</span>
+<span class="nt">system</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">num_cpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">  </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span>
+
+<span class="c1"># Model configuration</span>
+<span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">32</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">512</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span>
+<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
+<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+
+<span class="c1"># Data configuration</span>
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">train_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/train_image.h5&quot;</span>
+<span class="w">  </span><span class="nt">train_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/train_label.h5&quot;</span>
+<span class="w">  </span><span class="nt">val_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/val_image.h5&quot;</span>
+<span class="w">  </span><span class="nt">val_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;datasets/lucchi/val_label.h5&quot;</span>
+<span class="w">  </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">num_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+
+<span class="c1"># Optimizer configuration</span>
+<span class="nt">optimizer</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AdamW</span>
+<span class="w">  </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
+<span class="w">  </span><span class="nt">weight_decay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span>
+
+<span class="c1"># Scheduler configuration</span>
+<span class="nt">scheduler</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CosineAnnealingLR</span>
+<span class="w">  </span><span class="nt">warmup_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">  </span><span class="nt">min_lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-6</span>
+
+<span class="c1"># Training configuration</span>
+<span class="nt">training</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">max_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">  </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;16-mixed&quot;</span>
+<span class="w">  </span><span class="nt">gradient_clip_val</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">  </span><span class="nt">accumulate_grad_batches</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+
+<span class="c1"># Checkpoint configuration</span>
+<span class="nt">checkpoint</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">monitor</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;val/loss&quot;</span>
+<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;min&quot;</span>
+<span class="w">  </span><span class="nt">save_top_k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+<span class="w">  </span><span class="nt">save_last</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="c1"># Logging configuration</span>
+<span class="nt">logging</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">log_every_n_steps</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="nt">save_dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;outputs&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-sections">
+<h2>Configuration Sections<a class="headerlink" href="#configuration-sections" title="Link to this heading">¶</a></h2>
+<section id="system-configuration">
+<h3>System Configuration<a class="headerlink" href="#system-configuration" title="Link to this heading">¶</a></h3>
+<p>Controls hardware and reproducibility:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">system</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">          </span><span class="c1"># Number of GPUs (0 for CPU)</span>
+<span class="w">  </span><span class="nt">num_cpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">          </span><span class="c1"># Number of CPU workers</span>
+<span class="w">  </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span><span class="w">             </span><span class="c1"># Random seed for reproducibility</span>
+<span class="w">  </span><span class="nt">deterministic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w"> </span><span class="c1"># Use deterministic algorithms (slower)</span>
+</pre></div>
+</div>
+</section>
+<section id="model-configuration">
+<h3>Model Configuration<a class="headerlink" href="#model-configuration" title="Link to this heading">¶</a></h3>
+<p>Specifies model architecture and loss functions:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span><span class="w">  </span><span class="c1"># Model architecture</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">                     </span><span class="c1"># Input channels</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">                    </span><span class="c1"># Output channels</span>
+<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">32</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">512</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Filter sizes per level</span>
+<span class="w">  </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span><span class="w">                       </span><span class="c1"># Dropout rate</span>
+
+<span class="w">  </span><span class="c1"># Loss functions</span>
+<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
+<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+
+<span class="w">  </span><span class="c1"># Optional: Deep supervision</span>
+<span class="w">  </span><span class="nt">deep_supervision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+<p><strong>Available architectures:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">monai_basic_unet3d</span></code>: Simple and fast 3D U-Net</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">monai_unet</span></code>: U-Net with residual units</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">monai_unetr</span></code>: Transformer-based UNETR</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">monai_swin_unetr</span></code>: Swin Transformer U-Net</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mednext</span></code>: MedNeXt with predefined sizes (S/B/M/L)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mednext_custom</span></code>: MedNeXt with custom parameters</p></li>
+</ul>
+<p><strong>Available loss functions:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DiceLoss</span></code>: Soft Dice loss</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FocalLoss</span></code>: Focal loss for class imbalance</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TverskyLoss</span></code>: Tversky loss</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DiceCELoss</span></code>: Combined Dice + Cross-Entropy</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">BCEWithLogitsLoss</span></code>: Binary cross-entropy</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CrossEntropyLoss</span></code>: Multi-class cross-entropy</p></li>
+</ul>
+</section>
+<section id="data-configuration">
+<h3>Data Configuration<a class="headerlink" href="#data-configuration" title="Link to this heading">¶</a></h3>
+<p>Specifies data paths and loading parameters:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># Data paths</span>
+<span class="w">  </span><span class="nt">train_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;path/to/train_image.h5&quot;</span>
+<span class="w">  </span><span class="nt">train_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;path/to/train_label.h5&quot;</span>
+<span class="w">  </span><span class="nt">val_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;path/to/val_image.h5&quot;</span>
+<span class="w">  </span><span class="nt">val_label</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;path/to/val_label.h5&quot;</span>
+<span class="w">  </span><span class="nt">test_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;path/to/test_image.h5&quot;</span><span class="w">  </span><span class="c1"># Optional</span>
+
+<span class="w">  </span><span class="c1"># Patch sampling</span>
+<span class="w">  </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">]</span>
+
+<span class="w">  </span><span class="c1"># Data loader settings</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">num_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+<span class="w">  </span><span class="nt">persistent_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">pin_memory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">  </span><span class="c1"># Augmentation</span>
+<span class="w">  </span><span class="nt">use_augmentation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">augmentation_params</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">rotation_range</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">45</span>
+<span class="w">    </span><span class="nt">scale_range</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.9</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+</section>
+<section id="optimizer-configuration">
+<h3>Optimizer Configuration<a class="headerlink" href="#optimizer-configuration" title="Link to this heading">¶</a></h3>
+<p>Specifies optimizer type and hyperparameters:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">optimizer</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AdamW</span><span class="w">           </span><span class="c1"># Optimizer type</span>
+<span class="w">  </span><span class="nt">lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span><span class="w">             </span><span class="c1"># Learning rate</span>
+<span class="w">  </span><span class="nt">weight_decay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-4</span><span class="w">   </span><span class="c1"># Weight decay (L2 regularization)</span>
+
+<span class="w">  </span><span class="c1"># Optimizer-specific params</span>
+<span class="w">  </span><span class="nt">betas</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.9</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.999</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># For Adam/AdamW</span>
+<span class="w">  </span><span class="nt">momentum</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span><span class="w">        </span><span class="c1"># For SGD</span>
+</pre></div>
+</div>
+<p><strong>Supported optimizers:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Adam</span></code>, <code class="docutils literal notranslate"><span class="pre">AdamW</span></code>, <code class="docutils literal notranslate"><span class="pre">SGD</span></code>, <code class="docutils literal notranslate"><span class="pre">RMSprop</span></code>, <code class="docutils literal notranslate"><span class="pre">Adagrad</span></code></p></li>
+</ul>
+</section>
+<section id="scheduler-configuration">
+<h3>Scheduler Configuration<a class="headerlink" href="#scheduler-configuration" title="Link to this heading">¶</a></h3>
+<p>Specifies learning rate scheduling:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">scheduler</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CosineAnnealingLR</span>
+<span class="w">  </span><span class="nt">warmup_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+<span class="w">  </span><span class="nt">min_lr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1e-6</span>
+
+<span class="w">  </span><span class="c1"># Scheduler-specific params</span>
+<span class="w">  </span><span class="nt">T_max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w">           </span><span class="c1"># For CosineAnnealingLR</span>
+<span class="w">  </span><span class="nt">step_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span><span class="w">        </span><span class="c1"># For StepLR</span>
+<span class="w">  </span><span class="nt">gamma</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.1</span><span class="w">           </span><span class="c1"># For StepLR, ExponentialLR</span>
+</pre></div>
+</div>
+<p><strong>Supported schedulers:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">CosineAnnealingLR</span></code>, <code class="docutils literal notranslate"><span class="pre">StepLR</span></code>, <code class="docutils literal notranslate"><span class="pre">ExponentialLR</span></code>, <code class="docutils literal notranslate"><span class="pre">ReduceLROnPlateau</span></code></p></li>
+</ul>
+</section>
+<section id="training-configuration">
+<h3>Training Configuration<a class="headerlink" href="#training-configuration" title="Link to this heading">¶</a></h3>
+<p>Controls training loop parameters:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">training</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">max_epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">  </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;16-mixed&quot;</span><span class="w">         </span><span class="c1"># &quot;32&quot;, &quot;16-mixed&quot;, &quot;bf16-mixed&quot;</span>
+<span class="w">  </span><span class="nt">gradient_clip_val</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+<span class="w">  </span><span class="nt">gradient_clip_algorithm</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;norm&quot;</span>
+<span class="w">  </span><span class="nt">accumulate_grad_batches</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">    </span><span class="c1"># Gradient accumulation</span>
+<span class="w">  </span><span class="nt">val_check_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span><span class="w">       </span><span class="c1"># Validation frequency</span>
+<span class="w">  </span><span class="nt">limit_train_batches</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span><span class="w">      </span><span class="c1"># For debugging</span>
+<span class="w">  </span><span class="nt">limit_val_batches</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="command-line-overrides">
+<h2>Command Line Overrides<a class="headerlink" href="#command-line-overrides" title="Link to this heading">¶</a></h2>
+<p>Override any config value from the command line:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Override single values</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">4</span>
+
+<span class="c1"># Override multiple values</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>data.batch_size<span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>training.max_epochs<span class="o">=</span><span class="m">200</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>optimizer.lr<span class="o">=</span>1e-3
+
+<span class="c1"># Override nested values</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>model.filters<span class="o">=[</span><span class="m">64</span>,128,256,512<span class="o">]</span>
+
+<span class="c1"># Add new values</span>
+python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>+training.fast_dev_run<span class="o">=</span><span class="nb">true</span>
+</pre></div>
+</div>
+</section>
+<section id="multiple-loss-functions">
+<h2>Multiple Loss Functions<a class="headerlink" href="#multiple-loss-functions" title="Link to this heading">¶</a></h2>
+<p>Combine multiple loss functions with different weights:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">BCEWithLogitsLoss</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">FocalLoss</span>
+<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.5</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>The total loss is computed as:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">total_loss</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">*</span> <span class="n">dice_loss</span> <span class="o">+</span>
+              <span class="mf">1.0</span> <span class="o">*</span> <span class="n">bce_loss</span> <span class="o">+</span>
+              <span class="mf">0.5</span> <span class="o">*</span> <span class="n">focal_loss</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="deep-supervision">
+<h2>Deep Supervision<a class="headerlink" href="#deep-supervision" title="Link to this heading">¶</a></h2>
+<p>Enable multi-scale loss computation for improved training:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext</span>
+<span class="w">  </span><span class="nt">deep_supervision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">loss_functions</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">DiceLoss</span>
+<span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.0</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Deep supervision automatically:</p>
+<ul class="simple">
+<li><p>Computes losses at multiple scales (5 scales for MedNeXt)</p></li>
+<li><p>Resizes ground truth to match each scale</p></li>
+<li><p>Averages losses across scales</p></li>
+</ul>
+</section>
+<section id="mednext-configuration">
+<h2>MedNeXt Configuration<a class="headerlink" href="#mednext-configuration" title="Link to this heading">¶</a></h2>
+<p><strong>Predefined sizes:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext</span>
+<span class="w">  </span><span class="nt">mednext_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">S</span><span class="w">              </span><span class="c1"># S, B, M, or L</span>
+<span class="w">  </span><span class="nt">mednext_kernel_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">       </span><span class="c1"># 3, 5, or 7</span>
+<span class="w">  </span><span class="nt">deep_supervision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</pre></div>
+</div>
+<p><strong>Custom configuration:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mednext_custom</span>
+<span class="w">  </span><span class="nt">mednext_base_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span>
+<span class="w">  </span><span class="nt">mednext_exp_r</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">mednext_block_counts</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">3</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">mednext_kernel_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">7</span>
+<span class="w">  </span><span class="nt">mednext_grn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">deep_supervision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+<p>See <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/.claude/MEDNEXT.md">.claude/MEDNEXT.md</a> for details.</p>
+</section>
+<section id="d-configuration">
+<h2>2D Configuration<a class="headerlink" href="#d-configuration" title="Link to this heading">¶</a></h2>
+<p>For 2D segmentation tasks:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet2d</span><span class="w">  </span><span class="c1"># or monai_unet2d</span>
+<span class="w">  </span><span class="nt">in_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">out_channels</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+<span class="w">  </span><span class="nt">filters</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">32</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">64</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">]</span>
+
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">256</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># [D, H, W] - D=1 for 2D</span>
+</pre></div>
+</div>
+</section>
+<section id="mixed-precision-training">
+<h2>Mixed Precision Training<a class="headerlink" href="#mixed-precision-training" title="Link to this heading">¶</a></h2>
+<p>Use mixed precision for faster training and reduced memory:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">training</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;16-mixed&quot;</span><span class="w">  </span><span class="c1"># FP16 mixed precision</span>
+
+<span class="c1"># Or for BFloat16 (requires Ampere+ GPUs)</span>
+<span class="nt">training</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">precision</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;bf16-mixed&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="distributed-training">
+<h2>Distributed Training<a class="headerlink" href="#distributed-training" title="Link to this heading">¶</a></h2>
+<p>Automatically use distributed training with multiple GPUs:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">system</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">num_gpus</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">  </span><span class="c1"># Uses DDP automatically</span>
+
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">  </span><span class="c1"># Per-GPU batch size</span>
+</pre></div>
+</div>
+<p>Effective batch size = <code class="docutils literal notranslate"><span class="pre">num_gpus</span> <span class="pre">*</span> <span class="pre">batch_size</span> <span class="pre">=</span> <span class="pre">4</span> <span class="pre">*</span> <span class="pre">2</span> <span class="pre">=</span> <span class="pre">8</span></code></p>
+</section>
+<section id="gradient-accumulation">
+<h2>Gradient Accumulation<a class="headerlink" href="#gradient-accumulation" title="Link to this heading">¶</a></h2>
+<p>Simulate larger batch sizes:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+
+<span class="nt">training</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">accumulate_grad_batches</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span>
+</pre></div>
+</div>
+<p>Effective batch size = <code class="docutils literal notranslate"><span class="pre">batch_size</span> <span class="pre">*</span> <span class="pre">accumulate_grad_batches</span> <span class="pre">=</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">4</span> <span class="pre">=</span> <span class="pre">8</span></code></p>
+</section>
+<section id="checkpointing-and-logging">
+<h2>Checkpointing and Logging<a class="headerlink" href="#checkpointing-and-logging" title="Link to this heading">¶</a></h2>
+<p><strong>Model checkpointing:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">checkpoint</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">monitor</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;val/loss&quot;</span>
+<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;min&quot;</span><span class="w">              </span><span class="c1"># &quot;min&quot; or &quot;max&quot;</span>
+<span class="w">  </span><span class="nt">save_top_k</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">            </span><span class="c1"># Keep best 3 checkpoints</span>
+<span class="w">  </span><span class="nt">save_last</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">          </span><span class="c1"># Also save last checkpoint</span>
+<span class="w">  </span><span class="nt">filename</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;epoch{epoch:02d}-loss{val/loss:.2f}&quot;</span>
+</pre></div>
+</div>
+<p><strong>Early stopping:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">early_stopping</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">monitor</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;val/loss&quot;</span>
+<span class="w">  </span><span class="nt">patience</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;min&quot;</span>
+<span class="w">  </span><span class="nt">min_delta</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+</pre></div>
+</div>
+<p><strong>Logging:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">logging</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">log_every_n_steps</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+<span class="w">  </span><span class="nt">save_dir</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;outputs&quot;</span>
+<span class="w">  </span><span class="nt">experiment_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;lucchi_exp&quot;</span>
+
+<span class="w">  </span><span class="c1"># Weights &amp; Biases (optional)</span>
+<span class="w">  </span><span class="nt">use_wandb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">  </span><span class="nt">wandb_project</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;connectomics&quot;</span>
+<span class="w">  </span><span class="nt">wandb_entity</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;your_team&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-in-python">
+<h2>Configuration in Python<a class="headerlink" href="#configuration-in-python" title="Link to this heading">¶</a></h2>
+<p><strong>Load and modify configs:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span><span class="p">,</span> <span class="n">save_config</span><span class="p">,</span> <span class="n">print_config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">OmegaConf</span>
+
+<span class="c1"># Load config</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/lucchi.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Access values</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+
+<span class="c1"># Modify values</span>
+<span class="n">cfg</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">cfg</span><span class="o">.</span><span class="n">training</span><span class="o">.</span><span class="n">max_epochs</span> <span class="o">=</span> <span class="mi">200</span>
+
+<span class="c1"># Merge configs</span>
+<span class="n">overrides</span> <span class="o">=</span> <span class="n">OmegaConf</span><span class="o">.</span><span class="n">create</span><span class="p">({</span>
+    <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">8</span><span class="p">},</span>
+    <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">}</span>
+<span class="p">})</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">OmegaConf</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">overrides</span><span class="p">)</span>
+
+<span class="c1"># Save config</span>
+<span class="n">save_config</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;modified_config.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Print config</span>
+<span class="n">print_config</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Create configs programmatically:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">OmegaConf</span>
+
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">OmegaConf</span><span class="o">.</span><span class="n">create</span><span class="p">({</span>
+    <span class="s2">&quot;system&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;num_gpus&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">},</span>
+    <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="s2">&quot;monai_basic_unet3d&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;in_channels&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;out_channels&quot;</span><span class="p">:</span> <span class="mi">2</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">&quot;patch_size&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">]</span>
+    <span class="p">}</span>
+<span class="p">})</span>
+</pre></div>
+</div>
+</section>
+<section id="inference-configuration">
+<h2>Inference Configuration<a class="headerlink" href="#inference-configuration" title="Link to this heading">¶</a></h2>
+<p>Many training configs are reused for inference. Key differences:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># inference_config.yaml</span>
+<span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monai_basic_unet3d</span>
+<span class="w">  </span><span class="c1"># ... same as training</span>
+
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">test_image</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;path/to/test.h5&quot;</span>
+<span class="w">  </span><span class="nt">patch_size</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">128</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">  </span><span class="c1"># Can use larger batch size</span>
+
+<span class="nt">inference</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">checkpoint_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;outputs/best.ckpt&quot;</span>
+<span class="w">  </span><span class="nt">output_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;predictions/&quot;</span>
+<span class="w">  </span><span class="nt">overlap</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span><span class="w">               </span><span class="c1"># Overlap between patches</span>
+<span class="w">  </span><span class="nt">blend_mode</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;gaussian&quot;</span><span class="w">     </span><span class="c1"># &quot;gaussian&quot; or &quot;linear&quot;</span>
+<span class="w">  </span><span class="nt">do_tta</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">             </span><span class="c1"># Test-time augmentation</span>
+</pre></div>
+</div>
+<p><strong>Run inference:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--config<span class="w"> </span>inference_config.yaml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--mode<span class="w"> </span><span class="nb">test</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--checkpoint<span class="w"> </span>outputs/best.ckpt
+</pre></div>
+</div>
+</section>
+<section id="configuration-examples">
+<h2>Configuration Examples<a class="headerlink" href="#configuration-examples" title="Link to this heading">¶</a></h2>
+<p>See the <code class="docutils literal notranslate"><span class="pre">tutorials/</span></code> directory for complete examples:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/lucchi.yaml">tutorials/lucchi.yaml</a>: MONAI BasicUNet</p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_lucchi.yaml">tutorials/mednext_lucchi.yaml</a>: MedNeXt-S</p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/tutorials/mednext_custom.yaml">tutorials/mednext_custom.yaml</a>: Custom MedNeXt</p></li>
+</ul>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><strong>Use version control</strong> for config files</p></li>
+<li><p><strong>Document</strong> non-obvious parameter choices</p></li>
+<li><p><strong>Start simple</strong> with basic configs, then customize</p></li>
+<li><p><strong>Save configs</strong> with experiment outputs for reproducibility</p></li>
+<li><p><strong>Use meaningful names</strong> for experiments</p></li>
+<li><p><strong>Validate configs</strong> before long training runs</p></li>
+</ol>
+<p>For more information:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://hydra.cc/">Hydra Documentation</a></p></li>
+<li><p><a class="reference external" href="https://omegaconf.readthedocs.io/">OmegaConf Documentation</a></p></li>
+<li><p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/blob/master/.claude/CLAUDE.md">.claude/CLAUDE.md</a></p></li>
+</ul>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="dataloading.html" class="btn btn-neutral float-right" title="Data Loading" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="installation.html" class="btn btn-neutral" title="Installation" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Configuration System</a><ul>
+<li><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li><a class="reference internal" href="#configuration-structure">Configuration Structure</a></li>
+<li><a class="reference internal" href="#configuration-sections">Configuration Sections</a><ul>
+<li><a class="reference internal" href="#system-configuration">System Configuration</a></li>
+<li><a class="reference internal" href="#model-configuration">Model Configuration</a></li>
+<li><a class="reference internal" href="#data-configuration">Data Configuration</a></li>
+<li><a class="reference internal" href="#optimizer-configuration">Optimizer Configuration</a></li>
+<li><a class="reference internal" href="#scheduler-configuration">Scheduler Configuration</a></li>
+<li><a class="reference internal" href="#training-configuration">Training Configuration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#command-line-overrides">Command Line Overrides</a></li>
+<li><a class="reference internal" href="#multiple-loss-functions">Multiple Loss Functions</a></li>
+<li><a class="reference internal" href="#deep-supervision">Deep Supervision</a></li>
+<li><a class="reference internal" href="#mednext-configuration">MedNeXt Configuration</a></li>
+<li><a class="reference internal" href="#d-configuration">2D Configuration</a></li>
+<li><a class="reference internal" href="#mixed-precision-training">Mixed Precision Training</a></li>
+<li><a class="reference internal" href="#distributed-training">Distributed Training</a></li>
+<li><a class="reference internal" href="#gradient-accumulation">Gradient Accumulation</a></li>
+<li><a class="reference internal" href="#checkpointing-and-logging">Checkpointing and Logging</a></li>
+<li><a class="reference internal" href="#configuration-in-python">Configuration in Python</a></li>
+<li><a class="reference internal" href="#inference-configuration">Inference Configuration</a></li>
+<li><a class="reference internal" href="#configuration-examples">Configuration Examples</a></li>
+<li><a class="reference internal" href="#best-practices">Best Practices</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

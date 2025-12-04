@@ -1,0 +1,674 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>PyTorch Connectomics Documentation &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="genindex.html" />
+  <link rel="search" title="Search" href="search.html" />
+  <link rel="next" title="Installation" href="notes/installation.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="#" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="#">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="#">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>PyTorch Connectomics Documentation</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            
+              <!-- User defined GitHub URL -->
+              <a href="https://github.com/zudi-lin/pytorch_connectomics" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="pytorch-connectomics-documentation">
+<h1>PyTorch Connectomics Documentation<a class="headerlink" href="#pytorch-connectomics-documentation" title="Link to this heading">¶</a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Version 2.0 is here!</strong> PyTorch Connectomics has been completely rewritten with PyTorch Lightning orchestration
+and MONAI medical imaging tools. See the <a class="reference internal" href="notes/installation.html#installation"><span class="std std-ref">installation guide</span></a> for updated instructions.</p>
+</div>
+<p><a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics">PyTorch Connectomics</a> is a deep learning
+framework for automatic and semi-automatic annotation of connectomics datasets, powered by
+<a class="reference external" href="https://pytorch.org/">PyTorch</a>, <a class="reference external" href="https://lightning.ai/">PyTorch Lightning</a>, and
+<a class="reference external" href="https://monai.io/">MONAI</a>. This repository is actively developed and maintained by the
+<strong>Visual Computing Group</strong> (<a class="reference external" href="https://vcg.seas.harvard.edu">VCG</a>) at Harvard University.</p>
+<p>The field of connectomics aims to reconstruct the wiring diagram of the brain by mapping neuronal
+connections at the level of individual synapses. Recent advances in electron microscopy (EM) have
+enabled the collection of large-scale image stacks at nanometer resolution, but annotation requires
+expertise and is extremely time-consuming, which restricts progress in downstream biological and
+medical analysis.</p>
+<section id="what-s-new-in-v2-0">
+<h2>What’s New in v2.0<a class="headerlink" href="#what-s-new-in-v2-0" title="Link to this heading">¶</a></h2>
+<p>PyTorch Connectomics v2.0 brings major architectural improvements:</p>
+<ul class="simple">
+<li><p>⚡ <strong>PyTorch Lightning Integration</strong>: Distributed training, mixed-precision, and automatic optimization</p></li>
+<li><p>🏥 <strong>MONAI Integration</strong>: Medical imaging models, transforms, and losses</p></li>
+<li><p>🔧 <strong>Hydra Configuration</strong>: Type-safe, composable configuration management</p></li>
+<li><p>📦 <strong>Architecture Registry</strong>: Easy model management and extensibility</p></li>
+<li><p>🔬 <strong>MedNeXt Models</strong>: State-of-the-art ConvNeXt-based models (MICCAI 2023)</p></li>
+<li><p>🧩 <strong>Deep Supervision</strong>: Multi-scale training support</p></li>
+<li><p>📊 <strong>Enhanced Monitoring</strong>: TensorBoard and Weights &amp; Biases integration</p></li>
+</ul>
+</section>
+<section id="key-features">
+<h2>Key Features<a class="headerlink" href="#key-features" title="Link to this heading">¶</a></h2>
+<p><strong>Modern Architecture</strong></p>
+<ul class="simple">
+<li><p>PyTorch Lightning for training orchestration</p></li>
+<li><p>MONAI for medical imaging domain expertise</p></li>
+<li><p>Clean separation of concerns: Lightning (shell) + MONAI (toolbox)</p></li>
+</ul>
+<p><strong>Training &amp; Optimization</strong></p>
+<ul class="simple">
+<li><p>Multi-task, active, and semi-supervised learning</p></li>
+<li><p>Distributed training (DDP) with automatic GPU parallelization</p></li>
+<li><p>Mixed-precision training (FP16/BF16) for speed and memory efficiency</p></li>
+<li><p>Gradient accumulation and checkpointing</p></li>
+<li><p>Advanced learning rate scheduling with warmup</p></li>
+</ul>
+<p><strong>Models &amp; Architectures</strong></p>
+<ul class="simple">
+<li><p><strong>MONAI Models</strong>: BasicUNet3D, UNet, UNETR, Swin UNETR</p></li>
+<li><p><strong>MedNeXt</strong>: ConvNeXt-based models (S/B/M/L variants)</p></li>
+<li><p>Custom architecture support through registry system</p></li>
+<li><p>Deep supervision for multi-scale loss computation</p></li>
+</ul>
+<p><strong>Data Processing</strong></p>
+<ul class="simple">
+<li><p>Support for HDF5, TIFF, Zarr formats</p></li>
+<li><p>MONAI-based augmentations for volumetric data</p></li>
+<li><p>Efficient caching and preprocessing</p></li>
+<li><p>Multi-scale and multi-task label handling</p></li>
+</ul>
+<p><strong>Monitoring &amp; Logging</strong></p>
+<ul class="simple">
+<li><p>TensorBoard integration (default)</p></li>
+<li><p>Weights &amp; Biases support</p></li>
+<li><p>Early stopping and model checkpointing</p></li>
+<li><p>Rich metrics tracking with TorchMetrics</p></li>
+</ul>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
+<p><strong>Installation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Install PyTorch</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>torchvision<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu118
+
+<span class="c1"># Install PyTorch Connectomics</span>
+git<span class="w"> </span>clone<span class="w"> </span>https://github.com/zudi-lin/pytorch_connectomics.git
+<span class="nb">cd</span><span class="w"> </span>pytorch_connectomics
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>full<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Train a model:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/main.py<span class="w"> </span>--config<span class="w"> </span>tutorials/lucchi.yaml
+</pre></div>
+</div>
+<p><strong>Python API:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.training.lit</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConnectomicsModule</span><span class="p">,</span> <span class="n">ConnectomicsDataModule</span><span class="p">,</span> <span class="n">create_trainer</span>
+
+<span class="c1"># Load configuration</span>
+<span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;tutorials/lucchi.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Create components</span>
+<span class="n">datamodule</span> <span class="o">=</span> <span class="n">ConnectomicsDataModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">ConnectomicsModule</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+<span class="n">trainer</span> <span class="o">=</span> <span class="n">create_trainer</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+
+<span class="c1"># Train</span>
+<span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">datamodule</span><span class="o">=</span><span class="n">datamodule</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="notes/installation.html#installation"><span class="std std-ref">installation guide</span></a> and <span class="xref std std-ref">tutorials</span> for more details.</p>
+</section>
+<section id="documentation">
+<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notes/faq.html">FAQ</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="modules/utils.html">connectomics.utils</a></li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="about/team.html">About Us</a></li>
+</ul>
+</div>
+</section>
+<section id="community-support">
+<h2>Community &amp; Support<a class="headerlink" href="#community-support" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>💬 <strong>Slack</strong>: <a class="reference external" href="https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w">Join our community</a></p></li>
+<li><p>📧 <strong>GitHub</strong>: <a class="reference external" href="https://github.com/zudi-lin/pytorch_connectomics/issues">Issues and discussions</a></p></li>
+<li><p>📚 <strong>Documentation</strong>: <a class="reference external" href="https://connectomics.readthedocs.io">https://connectomics.readthedocs.io</a></p></li>
+<li><p>📄 <strong>Paper</strong>: <a class="reference external" href="https://arxiv.org/abs/2112.05754">arXiv:2112.05754</a></p></li>
+</ul>
+</section>
+<section id="migration-from-v1-0">
+<h2>Migration from v1.0<a class="headerlink" href="#migration-from-v1-0" title="Link to this heading">¶</a></h2>
+<p>If you’re upgrading from v1.0, key changes include:</p>
+<ul class="simple">
+<li><p><strong>Configuration</strong>: Hydra/OmegaConf configuration system</p></li>
+<li><p><strong>Training</strong>: PyTorch Lightning for orchestration</p></li>
+<li><p><strong>Models</strong>: MONAI native models with registry system</p></li>
+<li><p><strong>Entry point</strong>: <code class="docutils literal notranslate"><span class="pre">scripts/main.py</span></code></p></li>
+</ul>
+<p>v2.0 uses:</p>
+<ul class="simple">
+<li><p>Hydra/OmegaConf configs (<code class="docutils literal notranslate"><span class="pre">tutorials/*.yaml</span></code>)</p></li>
+<li><p>Lightning modules (<code class="docutils literal notranslate"><span class="pre">connectomics/lightning/</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scripts/main.py</span></code> entry point</p></li>
+</ul>
+</section>
+<section id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">¶</a></h2>
+<p>If you find PyTorch Connectomics useful in your research, please cite:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">lin2021pytorch</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{PyTorch Connectomics: A Scalable and Flexible Segmentation Framework for EM Connectomics}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Lin, Zudi and Wei, Donglai and Lichtman, Jeff and Pfister, Hanspeter}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{arXiv preprint arXiv:2112.05754}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2021}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and Tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+</ul>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="notes/installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n"
+      rel="next">Next <img src="_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">PyTorch Connectomics Documentation</a><ul>
+<li><a class="reference internal" href="#what-s-new-in-v2-0">What’s New in v2.0</a></li>
+<li><a class="reference internal" href="#key-features">Key Features</a></li>
+<li><a class="reference internal" href="#quick-start">Quick Start</a></li>
+<li><a class="reference internal" href="#documentation">Documentation</a><ul>
+</ul>
+</li>
+<li><a class="reference internal" href="#community-support">Community &amp; Support</a></li>
+<li><a class="reference internal" href="#migration-from-v1-0">Migration from v1.0</a></li>
+<li><a class="reference internal" href="#citation">Citation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and Tables</a></li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="./"
+    src="_static/documentation_options.js"></script>
+  <script src="_static/documentation_options.js?v=f4332903"></script>
+  <script src="_static/doctools.js?v=9bcbadda"></script>
+  <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

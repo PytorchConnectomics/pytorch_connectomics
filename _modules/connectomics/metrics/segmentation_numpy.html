@@ -1,0 +1,1287 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.metrics.segmentation_numpy &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.metrics.segmentation_numpy</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.metrics.segmentation_numpy</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.sparse</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sparse</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">ndimage</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">linear_sum_assignment</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">namedtuple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">skimage.segmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">relabel_sequential</span>
+
+<span class="n">matching_criteria</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;jaccard&quot;</span><span class="p">,</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span> <span class="s2">&quot;instance_matching&quot;</span><span class="p">,</span> <span class="s2">&quot;cremi_distance&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="adapted_rand">
+<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.adapted_rand">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">adapted_rand</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">all_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute Adapted Rand error as defined by the SNEMI3D contest [1]</span>
+
+<span class="sd">    Formula is given as 1 - the maximal F-score of the Rand index</span>
+<span class="sd">    (excluding the zero component of the original labels). Adapted</span>
+<span class="sd">    from the SNEMI3D MATLAB script, hence the strange style.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    seg : np.ndarray</span>
+<span class="sd">        the segmentation to score, where each value is the label at that point</span>
+<span class="sd">    gt : np.ndarray, same shape as seg</span>
+<span class="sd">        the groundtruth to score against, where each value is a label</span>
+<span class="sd">    all_stats : boolean, optional</span>
+<span class="sd">        whether to also return precision and recall as a 3-tuple with rand_error</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    are : float</span>
+<span class="sd">        The adapted Rand error; equal to $1 - \frac{2pr}{p + r}$,</span>
+<span class="sd">        where $p$ and $r$ are the precision and recall described below.</span>
+<span class="sd">    prec : float, optional</span>
+<span class="sd">        The adapted Rand precision. (Only returned when `all_stats` is ``True``.)</span>
+<span class="sd">    rec : float, optional</span>
+<span class="sd">        The adapted Rand recall.  (Only returned when `all_stats` is ``True``.)</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Validate shapes match</span>
+    <span class="k">if</span> <span class="n">seg</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">gt</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;seg and gt must have the same shape. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Got seg.shape=</span><span class="si">{</span><span class="n">seg</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, gt.shape=</span><span class="si">{</span><span class="n">gt</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># segA is truth, segB is query</span>
+    <span class="n">segA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">gt</span><span class="p">)</span>
+    <span class="n">segB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ravel</span><span class="p">(</span><span class="n">seg</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">segA</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="n">n_labels_A</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">segA</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">n_labels_B</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">segB</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="n">ones_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+
+    <span class="n">p_ij</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">((</span><span class="n">ones_data</span><span class="p">,</span> <span class="p">(</span><span class="n">segA</span><span class="p">[:],</span> <span class="n">segB</span><span class="p">[:])),</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="n">n_labels_B</span><span class="p">))</span>
+
+    <span class="n">a</span> <span class="o">=</span> <span class="n">p_ij</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="n">p_ij</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span><span class="n">n_labels_B</span><span class="p">]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">p_ij</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="n">n_labels_A</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">todense</span><span class="p">()</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
+
+    <span class="n">a_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">b_i</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="n">sumA</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">a_i</span> <span class="o">*</span> <span class="n">a_i</span><span class="p">)</span>
+    <span class="n">sumB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">b_i</span> <span class="o">*</span> <span class="n">b_i</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+    <span class="n">sumAB</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">)</span>
+
+    <span class="n">precision</span> <span class="o">=</span> <span class="n">sumAB</span> <span class="o">/</span> <span class="n">sumB</span>
+    <span class="n">recall</span> <span class="o">=</span> <span class="n">sumAB</span> <span class="o">/</span> <span class="n">sumA</span>
+
+    <span class="n">fScore</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">precision</span> <span class="o">*</span> <span class="n">recall</span> <span class="o">/</span> <span class="p">(</span><span class="n">precision</span> <span class="o">+</span> <span class="n">recall</span><span class="p">)</span>
+    <span class="n">are</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">fScore</span>
+
+    <span class="k">if</span> <span class="n">all_stats</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">are</span><span class="p">,</span> <span class="n">precision</span><span class="p">,</span> <span class="n">recall</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">are</span></div>
+
+
+
+<span class="c1"># Evaluation code courtesy of Juan Nunez-Iglesias, taken from</span>
+<span class="c1"># https://github.com/janelia-flyem/gala/blob/master/gala/evaluate.py</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">voi</span><span class="p">(</span><span class="n">reconstruction</span><span class="p">,</span> <span class="n">groundtruth</span><span class="p">,</span> <span class="n">ignore_reconstruction</span><span class="o">=</span><span class="p">[],</span> <span class="n">ignore_groundtruth</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the conditional entropies of the variation of information metric. [1]</span>
+
+<span class="sd">    Let X be a reconstruction, and Y a ground truth labelling. The variation of</span>
+<span class="sd">    information between the two is the sum of two conditional entropies:</span>
+
+<span class="sd">        VI(X, Y) = H(X|Y) + H(Y|X).</span>
+
+<span class="sd">    The first one, H(X|Y), is a measure of oversegmentation, the second one,</span>
+<span class="sd">    H(Y|X), a measure of undersegmentation. These measures are referred to as</span>
+<span class="sd">    the variation of information split or merge error, respectively.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    seg : np.ndarray, int type, arbitrary shape</span>
+<span class="sd">        A candidate segmentation.</span>
+<span class="sd">    gt : np.ndarray, int type, same shape as `seg`</span>
+<span class="sd">        The ground truth segmentation.</span>
+<span class="sd">    ignore_seg, ignore_gt : list of int, optional</span>
+<span class="sd">        Any points having a label in this list are ignored in the evaluation.</span>
+<span class="sd">        By default, only the label 0 in the ground truth will be ignored.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    (split, merge) : float</span>
+<span class="sd">        The variation of information split and merge error, i.e., H(X|Y) and H(Y|X)</span>
+
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    [1] Meila, M. (2007). Comparing clusterings - an information based</span>
+<span class="sd">    distance. Journal of Multivariate Analysis 98, 873-895.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="p">(</span><span class="n">hyxg</span><span class="p">,</span> <span class="n">hxgy</span><span class="p">)</span> <span class="o">=</span> <span class="n">split_vi</span><span class="p">(</span><span class="n">reconstruction</span><span class="p">,</span> <span class="n">groundtruth</span><span class="p">,</span> <span class="n">ignore_reconstruction</span><span class="p">,</span> <span class="n">ignore_groundtruth</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">hxgy</span><span class="p">,</span> <span class="n">hyxg</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">split_vi</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ignore_x</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ignore_y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the symmetric conditional entropies associated with the VI.</span>
+
+<span class="sd">    The variation of information is defined as VI(X,Y) = H(X|Y) + H(Y|X).</span>
+<span class="sd">    If Y is the ground-truth segmentation, then H(Y|X) can be interpreted</span>
+<span class="sd">    as the amount of under-segmentation of Y and H(X|Y) is then the amount</span>
+<span class="sd">    of over-segmentation.  In other words, a perfect over-segmentation</span>
+<span class="sd">    will have H(Y|X)=0 and a perfect under-segmentation will have H(X|Y)=0.</span>
+
+<span class="sd">    If y is None, x is assumed to be a contingency table.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : np.ndarray</span>
+<span class="sd">        Label field (int type) or contingency table (float). `x` is</span>
+<span class="sd">        interpreted as a contingency table (summing to 1.0) if and only if `y`</span>
+<span class="sd">        is not provided.</span>
+<span class="sd">    y : np.ndarray of int, same shape as x, optional</span>
+<span class="sd">        A label field to compare to `x`.</span>
+<span class="sd">    ignore_x, ignore_y : list of int, optional</span>
+<span class="sd">        Any points having a label in this list are ignored in the evaluation.</span>
+<span class="sd">        Ignore 0-labeled points by default.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    sv : np.ndarray of float, shape (2,)</span>
+<span class="sd">        The conditional entropies of Y|X and X|Y.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">    vi</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">hxgy</span><span class="p">,</span> <span class="n">hygx</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">vi_tables</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">ignore_x</span><span class="p">,</span> <span class="n">ignore_y</span><span class="p">)</span>
+    <span class="c1"># false merges, false splits</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">hygx</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="n">hxgy</span><span class="o">.</span><span class="n">sum</span><span class="p">()])</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">vi_tables</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ignore_x</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ignore_y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return probability tables used for calculating VI.</span>
+
+<span class="sd">    If y is None, x is assumed to be a contingency table.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x, y : np.ndarray</span>
+<span class="sd">        Either x and y are provided as equal-shaped np.ndarray label fields</span>
+<span class="sd">        (int type), or y is not provided and x is a contingency table</span>
+<span class="sd">        (sparse.csc_matrix) that may or may not sum to 1.</span>
+<span class="sd">    ignore_x, ignore_y : list of int, optional</span>
+<span class="sd">        Rows and columns (respectively) to ignore in the contingency table.</span>
+<span class="sd">        These are labels that are not counted when evaluating VI.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pxy : sparse.csc_matrix of float</span>
+<span class="sd">        The normalized contingency table.</span>
+<span class="sd">    px, py, hxgy, hygx, lpygx, lpxgy : np.ndarray of float</span>
+<span class="sd">        The proportions of each label in `x` and `y` (`px`, `py`), the</span>
+<span class="sd">        per-segment conditional entropies of `x` given `y` and vice-versa, the</span>
+<span class="sd">        per-segment conditional probability p log p.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pxy</span> <span class="o">=</span> <span class="n">contingency_table</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">ignore_x</span><span class="p">,</span> <span class="n">ignore_y</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cont</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cont</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="c1"># normalize, since it is an identity op if already done</span>
+        <span class="n">pxy</span> <span class="o">=</span> <span class="n">cont</span> <span class="o">/</span> <span class="n">total</span>
+
+    <span class="c1"># Calculate probabilities</span>
+    <span class="n">px</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pxy</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">py</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">pxy</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="c1"># Remove zero rows/cols</span>
+    <span class="n">nzx</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">nzy</span> <span class="o">=</span> <span class="n">py</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">nzpx</span> <span class="o">=</span> <span class="n">px</span><span class="p">[</span><span class="n">nzx</span><span class="p">]</span>
+    <span class="n">nzpy</span> <span class="o">=</span> <span class="n">py</span><span class="p">[</span><span class="n">nzy</span><span class="p">]</span>
+    <span class="n">nzpxy</span> <span class="o">=</span> <span class="n">pxy</span><span class="p">[</span><span class="n">nzx</span><span class="p">,</span> <span class="p">:][:,</span> <span class="n">nzy</span><span class="p">]</span>
+
+    <span class="c1"># Calculate log conditional probabilities and entropies</span>
+    <span class="n">lpygx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">px</span><span class="p">))</span>
+    <span class="n">lpygx</span><span class="p">[</span><span class="n">nzx</span><span class="p">]</span> <span class="o">=</span> <span class="n">xlogx</span><span class="p">(</span><span class="n">divide_rows</span><span class="p">(</span><span class="n">nzpxy</span><span class="p">,</span> <span class="n">nzpx</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="c1"># \sum_x{p_{y|x} \log{p_{y|x}}}</span>
+    <span class="n">hygx</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">px</span> <span class="o">*</span> <span class="n">lpygx</span><span class="p">)</span>  <span class="c1"># \sum_x{p_x H(Y|X=x)} = H(Y|X)</span>
+
+    <span class="n">lpxgy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">py</span><span class="p">))</span>
+    <span class="n">lpxgy</span><span class="p">[</span><span class="n">nzy</span><span class="p">]</span> <span class="o">=</span> <span class="n">xlogx</span><span class="p">(</span><span class="n">divide_columns</span><span class="p">(</span><span class="n">nzpxy</span><span class="p">,</span> <span class="n">nzpy</span><span class="p">))</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">hxgy</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">py</span> <span class="o">*</span> <span class="n">lpxgy</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">[</span><span class="n">pxy</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">,</span> <span class="p">[</span><span class="n">px</span><span class="p">,</span> <span class="n">py</span><span class="p">,</span> <span class="n">hxgy</span><span class="p">,</span> <span class="n">hygx</span><span class="p">,</span> <span class="n">lpygx</span><span class="p">,</span> <span class="n">lpxgy</span><span class="p">]))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">contingency_table</span><span class="p">(</span><span class="n">seg</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">ignore_seg</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ignore_gt</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">norm</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the contingency table for all regions in matched segmentations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    seg : np.ndarray, int type, arbitrary shape</span>
+<span class="sd">        A candidate segmentation.</span>
+<span class="sd">    gt : np.ndarray, int type, same shape as `seg`</span>
+<span class="sd">        The ground truth segmentation.</span>
+<span class="sd">    ignore_seg : list of int, optional</span>
+<span class="sd">        Values to ignore in `seg`. Voxels in `seg` having a value in this list</span>
+<span class="sd">        will not contribute to the contingency table. (default: [0])</span>
+<span class="sd">    ignore_gt : list of int, optional</span>
+<span class="sd">        Values to ignore in `gt`. Voxels in `gt` having a value in this list</span>
+<span class="sd">        will not contribute to the contingency table. (default: [0])</span>
+<span class="sd">    norm : bool, optional</span>
+<span class="sd">        Whether to normalize the table so that it sums to 1.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    cont : scipy.sparse.csc_matrix</span>
+<span class="sd">        A contingency table. `cont[i, j]` will equal the number of voxels</span>
+<span class="sd">        labeled `i` in `seg` and `j` in `gt`. (Or the proportion of such voxels</span>
+<span class="sd">        if `norm=True`.)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">segr</span> <span class="o">=</span> <span class="n">seg</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">gtr</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">ignored</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">segr</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">gtr</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">ignore_seg</span><span class="p">:</span>
+        <span class="n">ignored</span><span class="p">[</span><span class="n">segr</span> <span class="o">==</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">ignore_gt</span><span class="p">:</span>
+        <span class="n">ignored</span><span class="p">[</span><span class="n">gtr</span> <span class="o">==</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">data</span><span class="p">[</span><span class="n">ignored</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">cont</span> <span class="o">=</span> <span class="n">sparse</span><span class="o">.</span><span class="n">coo_matrix</span><span class="p">((</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">segr</span><span class="p">,</span> <span class="n">gtr</span><span class="p">)))</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">norm</span><span class="p">:</span>
+        <span class="n">cont</span> <span class="o">/=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cont</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">cont</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">divide_columns</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">row</span><span class="p">,</span> <span class="n">in_place</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divide each column of `matrix` by the corresponding element in `row`.</span>
+
+<span class="sd">    The result is as follows: out[i, j] = matrix[i, j] / row[j]</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : np.ndarray, scipy.sparse.csc_matrix or csr_matrix, shape (M, N)</span>
+<span class="sd">        The input matrix.</span>
+<span class="sd">    column : a 1D np.ndarray, shape (N,)</span>
+<span class="sd">        The row dividing `matrix`.</span>
+<span class="sd">    in_place : bool (optional, default False)</span>
+<span class="sd">        Do the computation in-place.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    out : same type as `matrix`</span>
+<span class="sd">        The result of the row-wise division.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">in_place</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">matrix</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="p">(</span><span class="n">sparse</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">):</span>
+            <span class="n">convert_to_csc</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">convert_to_csc</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">row_repeated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span>
+        <span class="n">nz</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span> <span class="o">/=</span> <span class="n">row_repeated</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">convert_to_csc</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">/=</span> <span class="n">row</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">divide_rows</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">column</span><span class="p">,</span> <span class="n">in_place</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Divide each row of `matrix` by the corresponding element in `column`.</span>
+
+<span class="sd">    The result is as follows: out[i, j] = matrix[i, j] / column[i]</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    matrix : np.ndarray, scipy.sparse.csc_matrix or csr_matrix, shape (M, N)</span>
+<span class="sd">        The input matrix.</span>
+<span class="sd">    column : a 1D np.ndarray, shape (M,)</span>
+<span class="sd">        The column dividing `matrix`.</span>
+<span class="sd">    in_place : bool (optional, default False)</span>
+<span class="sd">        Do the computation in-place.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    out : same type as `matrix`</span>
+<span class="sd">        The result of the row-wise division.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">in_place</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">matrix</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="p">(</span><span class="n">sparse</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">out</span><span class="p">)</span> <span class="o">==</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">:</span>  <span class="c1"># noqa: E721</span>
+            <span class="n">convert_to_csr</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">convert_to_csr</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">column_repeated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="n">column</span><span class="p">,</span> <span class="n">out</span><span class="o">.</span><span class="n">indices</span><span class="p">)</span>
+        <span class="n">nz</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span> <span class="o">/=</span> <span class="n">column_repeated</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">convert_to_csr</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">/=</span> <span class="n">column</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">xlogx</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">in_place</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute x * log_2(x).</span>
+
+<span class="sd">    We define 0 * log_2(0) = 0</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : np.ndarray or scipy.sparse.csc_matrix or csr_matrix</span>
+<span class="sd">        The input array.</span>
+<span class="sd">    out : same type as x (optional)</span>
+<span class="sd">        If provided, use this array/matrix for the result.</span>
+<span class="sd">    in_place : bool (optional, default False)</span>
+<span class="sd">        Operate directly on x.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    y : same type as x</span>
+<span class="sd">        Result of x * log_2(x).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">in_place</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">x</span>
+    <span class="k">elif</span> <span class="n">out</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">out</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="n">sparse</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">,</span> <span class="n">sparse</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">]:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">data</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">y</span>
+    <span class="n">nz</span> <span class="o">=</span> <span class="n">z</span><span class="o">.</span><span class="n">nonzero</span><span class="p">()</span>
+    <span class="n">z</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">log2</span><span class="p">(</span><span class="n">z</span><span class="p">[</span><span class="n">nz</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">y</span>
+
+
+<span class="c1"># Functions for evaluating binary segmentation</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">confusion_matrix</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate the confusion matrix given a probablility threshold in (0,1).&quot;&quot;&quot;</span>
+    <span class="n">TP</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">gt</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pred</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">))</span>
+    <span class="n">FP</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">gt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pred</span> <span class="o">&gt;</span> <span class="n">thres</span><span class="p">))</span>
+    <span class="n">TN</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">gt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pred</span> <span class="o">&lt;=</span> <span class="n">thres</span><span class="p">))</span>
+    <span class="n">FN</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">gt</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">pred</span> <span class="o">&lt;=</span> <span class="n">thres</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">TP</span><span class="p">,</span> <span class="n">FP</span><span class="p">,</span> <span class="n">TN</span><span class="p">,</span> <span class="n">FN</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="jaccard">
+<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.jaccard">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">jaccard</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">thres</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">]):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Evaluate the binary prediction at multiple thresholds using the Jaccard</span>
+<span class="sd">    Index, which is also known as Intersection over Union (IoU). If the prediction</span>
+<span class="sd">    is already binarized, different thresholds will result the same result.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        pred (numpy.ndarray): foreground probability of shape :math:`(Z, Y, X)`.</span>
+<span class="sd">        gt (numpy.ndarray): binary foreground label of shape identical to the prediction.</span>
+<span class="sd">        thres (list): a list of probablility threshold in (0,1). Default: [0.5]</span>
+
+<span class="sd">    Return:</span>
+<span class="sd">        score (numpy.ndarray): a numpy array of shape :math:`(N, 4)`, where :math:`N` is the</span>
+<span class="sd">        number of element(s) in the probability threshold list. The four scores in each line</span>
+<span class="sd">        are foreground IoU, IoU, precision and recall, respectively.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">thres</span><span class="p">),</span> <span class="mi">4</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">tid</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">thres</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="mf">0.0</span> <span class="o">&lt;</span> <span class="n">t</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;The range of the threshold should be (0,1).&quot;</span>
+        <span class="n">TP</span><span class="p">,</span> <span class="n">FP</span><span class="p">,</span> <span class="n">TN</span><span class="p">,</span> <span class="n">FN</span> <span class="o">=</span> <span class="n">confusion_matrix</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+
+        <span class="n">precision</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">TP</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">TP</span> <span class="o">+</span> <span class="n">FP</span><span class="p">)</span>
+        <span class="n">recall</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">TP</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">TP</span> <span class="o">+</span> <span class="n">FN</span><span class="p">)</span>
+        <span class="n">iou_fg</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">TP</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">TP</span> <span class="o">+</span> <span class="n">FP</span> <span class="o">+</span> <span class="n">FN</span><span class="p">)</span>
+        <span class="n">iou_bg</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">TN</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">TN</span> <span class="o">+</span> <span class="n">FP</span> <span class="o">+</span> <span class="n">FN</span><span class="p">)</span>
+        <span class="n">iou</span> <span class="o">=</span> <span class="p">(</span><span class="n">iou_fg</span> <span class="o">+</span> <span class="n">iou_bg</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+        <span class="n">score</span><span class="p">[</span><span class="n">tid</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">iou_fg</span><span class="p">,</span> <span class="n">iou</span><span class="p">,</span> <span class="n">precision</span><span class="p">,</span> <span class="n">recall</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">score</span></div>
+
+
+
+<div class="viewcode-block" id="cremi_distance">
+<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.cremi_distance">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cremi_distance</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">gt</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="p">(</span><span class="mf">40.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">,</span> <span class="mf">4.0</span><span class="p">)):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the FP/FN statistics between predictions and ground truth as</span>
+<span class="sd">    in the CREMI challenge (https://cremi.org/). Both inputs (pred, gt) need</span>
+<span class="sd">    to be of the same size.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">count_false_positives</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">,</span> <span class="n">truth_clefts_edt</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
+        <span class="n">mask1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">)</span>
+        <span class="n">mask2</span> <span class="o">=</span> <span class="n">truth_clefts_edt</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+        <span class="n">false_positives</span> <span class="o">=</span> <span class="n">truth_clefts_edt</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">mask1</span><span class="p">,</span> <span class="n">mask2</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">false_positives</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">count_false_negatives</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">,</span> <span class="n">test_clefts_edt</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
+        <span class="n">mask1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">)</span>
+        <span class="n">mask2</span> <span class="o">=</span> <span class="n">test_clefts_edt</span> <span class="o">&gt;</span> <span class="n">threshold</span>
+        <span class="n">false_negatives</span> <span class="o">=</span> <span class="n">test_clefts_edt</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">logical_and</span><span class="p">(</span><span class="n">mask1</span><span class="p">,</span> <span class="n">mask2</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">false_negatives</span><span class="o">.</span><span class="n">size</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">acc_false_positives</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">,</span> <span class="n">truth_clefts_edt</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">)</span>
+        <span class="n">false_positives</span> <span class="o">=</span> <span class="n">truth_clefts_edt</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">false_positives</span><span class="p">),</span>
+            <span class="s2">&quot;std&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">false_positives</span><span class="p">),</span>
+            <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">false_positives</span><span class="p">),</span>
+            <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="n">false_positives</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+            <span class="s2">&quot;median&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">false_positives</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">stats</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">acc_false_negatives</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">,</span> <span class="n">test_clefts_edt</span><span class="p">):</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">invert</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">)</span>
+        <span class="n">false_negatives</span> <span class="o">=</span> <span class="n">test_clefts_edt</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;mean&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">false_negatives</span><span class="p">),</span>
+            <span class="s2">&quot;std&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">false_negatives</span><span class="p">),</span>
+            <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">false_negatives</span><span class="p">),</span>
+            <span class="s2">&quot;count&quot;</span><span class="p">:</span> <span class="n">false_negatives</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+            <span class="s2">&quot;median&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">false_negatives</span><span class="p">),</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">stats</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">convert_dtype</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint64</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">data</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mh">0xFFFFFFFFFFFFFFFF</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="n">test_clefts</span> <span class="o">=</span> <span class="n">convert_dtype</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
+    <span class="n">truth_clefts</span> <span class="o">=</span> <span class="n">convert_dtype</span><span class="p">(</span><span class="n">gt</span><span class="p">)</span>
+
+    <span class="n">truth_clefts_invalid</span> <span class="o">=</span> <span class="n">truth_clefts</span> <span class="o">==</span> <span class="mh">0xFFFFFFFFFFFFFFFE</span>
+
+    <span class="n">test_clefts_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">test_clefts</span> <span class="o">==</span> <span class="mh">0xFFFFFFFFFFFFFFFF</span><span class="p">,</span> <span class="n">truth_clefts_invalid</span><span class="p">)</span>
+    <span class="n">truth_clefts_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_or</span><span class="p">(</span><span class="n">truth_clefts</span> <span class="o">==</span> <span class="mh">0xFFFFFFFFFFFFFFFF</span><span class="p">,</span> <span class="n">truth_clefts_invalid</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;EDT calculation in progress&quot;</span><span class="p">)</span>
+    <span class="n">test_clefts_edt</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">distance_transform_edt</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="n">resolution</span><span class="p">)</span>
+    <span class="n">truth_clefts_edt</span> <span class="o">=</span> <span class="n">ndimage</span><span class="o">.</span><span class="n">distance_transform_edt</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">,</span> <span class="n">sampling</span><span class="o">=</span><span class="n">resolution</span><span class="p">)</span>
+
+    <span class="n">false_positive_count</span> <span class="o">=</span> <span class="n">count_false_positives</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">,</span> <span class="n">truth_clefts_edt</span><span class="p">)</span>
+    <span class="n">false_negative_count</span> <span class="o">=</span> <span class="n">count_false_negatives</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">,</span> <span class="n">test_clefts_edt</span><span class="p">)</span>
+
+    <span class="n">false_positive_stats</span> <span class="o">=</span> <span class="n">acc_false_positives</span><span class="p">(</span><span class="n">test_clefts_mask</span><span class="p">,</span> <span class="n">truth_clefts_edt</span><span class="p">)</span>
+    <span class="n">false_negative_stats</span> <span class="o">=</span> <span class="n">acc_false_negatives</span><span class="p">(</span><span class="n">truth_clefts_mask</span><span class="p">,</span> <span class="n">test_clefts_edt</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Clefts Statistics&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;======&quot;</span><span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">false positives: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">false_positive_count</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">false negatives: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">false_negative_count</span><span class="p">))</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">distance to ground truth: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">false_positive_stats</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">distance to proposal    : &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">false_negative_stats</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">false_positive_stats</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">],</span> <span class="n">false_negative_stats</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span></div>
+
+
+
+<span class="c1"># Code modified from https://github.com/stardist/stardist</span>
+
+
+<span class="c1"># Copied from https://github.com/CSBDeep/CSBDeep/blob/master/csbdeep/utils/utils.py</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_raise</span><span class="p">(</span><span class="n">e</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="ne">BaseException</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">e</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">label_are_sequential</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;returns true if y has only sequential labels from 1...&quot;&quot;&quot;</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">-</span> <span class="p">{</span><span class="mi">0</span><span class="p">})</span> <span class="o">==</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">labels</span><span class="o">.</span><span class="n">max</span><span class="p">()))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_array_of_integers</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">issubdtype</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_label_array</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">check_sequential</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">err</span> <span class="o">=</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="s2">&quot;</span><span class="si">{label}</span><span class="s2"> must be an array of </span><span class="si">{integers}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;labels&quot;</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">name</span><span class="p">,</span>
+            <span class="n">integers</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;sequential &quot;</span> <span class="k">if</span> <span class="n">check_sequential</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;non-negative integers&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">is_array_of_integers</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">check_sequential</span><span class="p">:</span>
+        <span class="n">label_are_sequential</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">y</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">label_overlap</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">check</span><span class="p">:</span>
+        <span class="n">_check_label_array</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">_check_label_array</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">x</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;x and y must have the same shape&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">_label_overlap</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_label_overlap</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+    <span class="n">overlap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">y</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)):</span>
+        <span class="n">overlap</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">overlap</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_safe_divide</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;computes a safe divide which returns 0 if y is zero&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">y</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">y</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">eps</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">broadcast</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="n">out</span><span class="p">,</span> <span class="n">where</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">y</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">eps</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">intersection_over_union</span><span class="p">(</span><span class="n">overlap</span><span class="p">):</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="s2">&quot;overlap&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">overlap</span>
+    <span class="n">n_pixels_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">n_pixels_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="p">(</span><span class="n">n_pixels_pred</span> <span class="o">+</span> <span class="n">n_pixels_true</span> <span class="o">-</span> <span class="n">overlap</span><span class="p">))</span>
+
+
+<span class="n">matching_criteria</span><span class="p">[</span><span class="s2">&quot;iou&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">intersection_over_union</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">intersection_over_true</span><span class="p">(</span><span class="n">overlap</span><span class="p">):</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="s2">&quot;overlap&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">overlap</span>
+    <span class="n">n_pixels_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="n">n_pixels_true</span><span class="p">)</span>
+
+
+<span class="n">matching_criteria</span><span class="p">[</span><span class="s2">&quot;iot&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">intersection_over_true</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">intersection_over_pred</span><span class="p">(</span><span class="n">overlap</span><span class="p">):</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="s2">&quot;overlap&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">overlap</span>
+    <span class="n">n_pixels_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">overlap</span><span class="p">,</span> <span class="n">n_pixels_pred</span><span class="p">)</span>
+
+
+<span class="n">matching_criteria</span><span class="p">[</span><span class="s2">&quot;iop&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">intersection_over_pred</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">precision</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tp</span> <span class="o">/</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">fp</span><span class="p">)</span> <span class="k">if</span> <span class="n">tp</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">recall</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">tp</span> <span class="o">/</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">tp</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">accuracy</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="c1"># also known as &quot;average precision&quot; (?)</span>
+    <span class="c1"># -&gt; https://www.kaggle.com/c/data-science-bowl-2018#evaluation</span>
+    <span class="k">return</span> <span class="n">tp</span> <span class="o">/</span> <span class="p">(</span><span class="n">tp</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">tp</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">f1</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">):</span>
+    <span class="c1"># also known as &quot;dice coefficient&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">tp</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">tp</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">+</span> <span class="n">fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">tp</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+
+
+<div class="viewcode-block" id="instance_matching">
+<a class="viewcode-back" href="../../../modules/metrics.html#connectomics.metrics.instance_matching">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">instance_matching</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s2">&quot;iou&quot;</span><span class="p">,</span> <span class="n">report_matches</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate detection/instance segmentation metrics between ground truth and predicted label images.</span>
+
+<span class="sd">    Currently, the following metrics are implemented:</span>
+
+<span class="sd">    &#39;fp&#39;, &#39;tp&#39;, &#39;fn&#39;, &#39;precision&#39;, &#39;recall&#39;, &#39;accuracy&#39;, &#39;f1&#39;, &#39;criterion&#39;, &#39;thresh&#39;, &#39;n_true&#39;, &#39;n_pred&#39;, &#39;mean_true_score&#39;, &#39;mean_matched_score&#39;, &#39;panoptic_quality&#39;</span>
+
+<span class="sd">    Corresponding objects of y_true and y_pred are counted as true positives (tp), false positives (fp), and false negatives (fn)</span>
+<span class="sd">    whether their intersection over union (IoU) &gt;= thresh (for criterion=&#39;iou&#39;, which can be changed)</span>
+
+<span class="sd">    * mean_matched_score is the mean IoUs of matched true positives</span>
+
+<span class="sd">    * mean_true_score is the mean IoUs of matched true positives but normalized by the total number of GT objects</span>
+
+<span class="sd">    * panoptic_quality defined as in Eq. 1 of Kirillov et al. &quot;Panoptic Segmentation&quot;, CVPR 2019</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    y_true: ndarray</span>
+<span class="sd">        ground truth label image (integer valued)</span>
+<span class="sd">    y_pred: ndarray</span>
+<span class="sd">        predicted label image (integer valued)</span>
+<span class="sd">    thresh: float</span>
+<span class="sd">        threshold for matching criterion (default 0.5)</span>
+<span class="sd">    criterion: string</span>
+<span class="sd">        matching criterion (default IoU)</span>
+<span class="sd">    report_matches: bool</span>
+<span class="sd">        if True, additionally calculate matched_pairs and matched_scores (note, that this returns even gt-pred pairs whose scores are below  &#39;thresh&#39;)</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Matching object with different metrics as attributes</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; y_true = np.zeros((100,100), np.uint16)</span>
+<span class="sd">    &gt;&gt;&gt; y_true[10:20,10:20] = 1</span>
+<span class="sd">    &gt;&gt;&gt; y_pred = np.roll(y_true,5,axis = 0)</span>
+
+<span class="sd">    &gt;&gt;&gt; stats = instance_matching(y_true, y_pred)</span>
+<span class="sd">    &gt;&gt;&gt; print(stats)</span>
+<span class="sd">    Matching(criterion=&#39;iou&#39;, thresh=0.5, fp=1, tp=0, fn=1, precision=0, recall=0, accuracy=0, f1=0, n_true=1, n_pred=1, mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="s2">&quot;y_true&quot;</span><span class="p">)</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="s2">&quot;y_pred&quot;</span><span class="p">)</span>
+    <span class="n">y_true</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">shape</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span>
+        <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;y_true (</span><span class="si">{y_true.shape}</span><span class="s2">) and y_pred (</span><span class="si">{y_pred.shape}</span><span class="s2">) have different shapes&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">y_true</span><span class="o">=</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">criterion</span> <span class="ow">in</span> <span class="n">matching_criteria</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span>
+        <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Matching criterion &#39;</span><span class="si">%s</span><span class="s2">&#39; not supported.&quot;</span> <span class="o">%</span> <span class="n">criterion</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">thresh</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">thresh</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">thresh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="k">else</span> <span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">thresh</span><span class="p">)</span>
+
+    <span class="n">y_true</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">map_rev_true</span> <span class="o">=</span> <span class="n">relabel_sequential</span><span class="p">(</span><span class="n">y_true</span><span class="p">)</span>
+    <span class="n">y_pred</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">map_rev_pred</span> <span class="o">=</span> <span class="n">relabel_sequential</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span>
+
+    <span class="n">map_rev_true</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">map_rev_true</span><span class="p">)</span>
+    <span class="n">map_rev_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">map_rev_pred</span><span class="p">)</span>
+
+    <span class="n">overlap</span> <span class="o">=</span> <span class="n">label_overlap</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">matching_criteria</span><span class="p">[</span><span class="n">criterion</span><span class="p">](</span><span class="n">overlap</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+
+    <span class="c1"># ignoring background</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span>
+    <span class="n">n_true</span><span class="p">,</span> <span class="n">n_pred</span> <span class="o">=</span> <span class="n">scores</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">n_matched</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_true</span><span class="p">,</span> <span class="n">n_pred</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_single</span><span class="p">(</span><span class="n">thr</span><span class="p">):</span>
+        <span class="n">not_trivial</span> <span class="o">=</span> <span class="n">n_matched</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">scores</span> <span class="o">&gt;=</span> <span class="n">thr</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">not_trivial</span><span class="p">:</span>
+            <span class="c1"># compute optimal matching with scores as tie-breaker</span>
+            <span class="n">costs</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="n">scores</span> <span class="o">&gt;=</span> <span class="n">thr</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span> <span class="o">-</span> <span class="n">scores</span> <span class="o">/</span> <span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">n_matched</span><span class="p">)</span>
+            <span class="n">true_ind</span><span class="p">,</span> <span class="n">pred_ind</span> <span class="o">=</span> <span class="n">linear_sum_assignment</span><span class="p">(</span><span class="n">costs</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">n_matched</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">true_ind</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">pred_ind</span><span class="p">)</span>
+            <span class="n">match_ok</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="n">true_ind</span><span class="p">,</span> <span class="n">pred_ind</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">thr</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">count_nonzero</span><span class="p">(</span><span class="n">match_ok</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tp</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">n_pred</span> <span class="o">-</span> <span class="n">tp</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">n_true</span> <span class="o">-</span> <span class="n">tp</span>
+        <span class="c1"># assert tp+fp == n_pred</span>
+        <span class="c1"># assert tp+fn == n_true</span>
+
+        <span class="c1"># the score sum over all matched objects (tp)</span>
+        <span class="n">sum_matched_score</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="n">true_ind</span><span class="p">,</span> <span class="n">pred_ind</span><span class="p">][</span><span class="n">match_ok</span><span class="p">])</span> <span class="k">if</span> <span class="n">not_trivial</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+        <span class="c1"># the score average over all matched objects (tp)</span>
+        <span class="n">mean_matched_score</span> <span class="o">=</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">sum_matched_score</span><span class="p">,</span> <span class="n">tp</span><span class="p">)</span>
+        <span class="c1"># the score average over all gt/true objects</span>
+        <span class="n">mean_true_score</span> <span class="o">=</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">sum_matched_score</span><span class="p">,</span> <span class="n">n_true</span><span class="p">)</span>
+        <span class="n">panoptic_quality</span> <span class="o">=</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">sum_matched_score</span><span class="p">,</span> <span class="n">tp</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">fn</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">stats_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+            <span class="n">criterion</span><span class="o">=</span><span class="n">criterion</span><span class="p">,</span>
+            <span class="n">thresh</span><span class="o">=</span><span class="n">thr</span><span class="p">,</span>
+            <span class="n">fp</span><span class="o">=</span><span class="n">fp</span><span class="p">,</span>
+            <span class="n">tp</span><span class="o">=</span><span class="n">tp</span><span class="p">,</span>
+            <span class="n">fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span>
+            <span class="n">precision</span><span class="o">=</span><span class="n">precision</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+            <span class="n">recall</span><span class="o">=</span><span class="n">recall</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+            <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+            <span class="n">f1</span><span class="o">=</span><span class="n">f1</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+            <span class="n">n_true</span><span class="o">=</span><span class="n">n_true</span><span class="p">,</span>
+            <span class="n">n_pred</span><span class="o">=</span><span class="n">n_pred</span><span class="p">,</span>
+            <span class="n">mean_true_score</span><span class="o">=</span><span class="n">mean_true_score</span><span class="p">,</span>
+            <span class="n">mean_matched_score</span><span class="o">=</span><span class="n">mean_matched_score</span><span class="p">,</span>
+            <span class="n">panoptic_quality</span><span class="o">=</span><span class="n">panoptic_quality</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">report_matches</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">not_trivial</span><span class="p">:</span>
+                <span class="n">stats_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="c1"># int() to be json serializable</span>
+                    <span class="n">matched_pairs</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span>
+                        <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">map_rev_true</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">map_rev_pred</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+                        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">true_ind</span><span class="p">,</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">pred_ind</span><span class="p">)</span>
+                    <span class="p">),</span>
+                    <span class="n">matched_scores</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">scores</span><span class="p">[</span><span class="n">true_ind</span><span class="p">,</span> <span class="n">pred_ind</span><span class="p">]),</span>
+                    <span class="n">matched_tps</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="n">match_ok</span><span class="p">))),</span>
+                    <span class="n">pred_ids</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">map_rev_pred</span><span class="p">),</span>
+                    <span class="n">gt_ids</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">map_rev_true</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">stats_dict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                    <span class="n">matched_pairs</span><span class="o">=</span><span class="p">(),</span>
+                    <span class="n">matched_scores</span><span class="o">=</span><span class="p">(),</span>
+                    <span class="n">matched_tps</span><span class="o">=</span><span class="p">(),</span>
+                    <span class="n">pred_ids</span><span class="o">=</span><span class="p">(),</span>
+                    <span class="n">gt_ids</span><span class="o">=</span><span class="p">(),</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">stats_dict</span>
+
+    <span class="k">return</span> <span class="n">_single</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="k">else</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">_single</span><span class="p">,</span> <span class="n">thresh</span><span class="p">))</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">wrapper_matching_dataset_lazy</span><span class="p">(</span><span class="n">stats_all</span><span class="p">,</span> <span class="n">thresh</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s2">&quot;iou&quot;</span><span class="p">,</span> <span class="n">by_image</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="nb">set</span><span class="p">(</span>
+        <span class="p">(</span>
+            <span class="s2">&quot;fp&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;tp&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;fn&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;precision&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;recall&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;accuracy&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;f1&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;criterion&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;thresh&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;n_true&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;n_pred&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;mean_true_score&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;mean_matched_score&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;panoptic_quality&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># accumulate results over all images for each threshold separately</span>
+    <span class="n">n_images</span><span class="p">,</span> <span class="n">n_threshs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stats_all</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span>
+    <span class="n">single_thresh</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">n_threshs</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">False</span>
+    <span class="n">accumulate</span> <span class="o">=</span> <span class="p">[{}</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_threshs</span><span class="p">)]</span>
+    <span class="k">for</span> <span class="n">stats</span> <span class="ow">in</span> <span class="n">stats_all</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">stats</span><span class="p">):</span>
+            <span class="n">acc</span> <span class="o">=</span> <span class="n">accumulate</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="o">=</span> <span class="n">item</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="o">==</span> <span class="s2">&quot;mean_true_score&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">bool</span><span class="p">(</span><span class="n">by_image</span><span class="p">):</span>
+                    <span class="c1"># convert mean_true_score to &quot;sum_matched_score&quot;</span>
+                    <span class="n">acc</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">acc</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">v</span> <span class="o">*</span> <span class="n">s</span><span class="p">[</span><span class="s2">&quot;n_true&quot;</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">acc</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">acc</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="n">v</span>
+                    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                        <span class="k">pass</span>
+
+    <span class="c1"># normalize/compute &#39;precision&#39;, &#39;recall&#39;, &#39;accuracy&#39;, &#39;f1&#39;</span>
+    <span class="k">for</span> <span class="n">thr</span><span class="p">,</span> <span class="n">acc</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">thresh</span><span class="p">,</span> <span class="n">accumulate</span><span class="p">):</span>
+        <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;criterion&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">criterion</span>
+        <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;thresh&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">thr</span>
+        <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;by_image&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">by_image</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="n">by_image</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="s2">&quot;precision&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;recall&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;accuracy&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;f1&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;mean_true_score&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;mean_matched_score&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;panoptic_quality&quot;</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="n">acc</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">/=</span> <span class="n">n_images</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">n_true</span> <span class="o">=</span> <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;tp&quot;</span><span class="p">],</span> <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;fp&quot;</span><span class="p">],</span> <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;fn&quot;</span><span class="p">],</span> <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;n_true&quot;</span><span class="p">]</span>
+            <span class="n">sum_matched_score</span> <span class="o">=</span> <span class="n">acc</span><span class="p">[</span><span class="s2">&quot;mean_true_score&quot;</span><span class="p">]</span>
+
+            <span class="n">mean_matched_score</span> <span class="o">=</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">sum_matched_score</span><span class="p">,</span> <span class="n">tp</span><span class="p">)</span>
+            <span class="n">mean_true_score</span> <span class="o">=</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">sum_matched_score</span><span class="p">,</span> <span class="n">n_true</span><span class="p">)</span>
+            <span class="n">panoptic_quality</span> <span class="o">=</span> <span class="n">_safe_divide</span><span class="p">(</span><span class="n">sum_matched_score</span><span class="p">,</span> <span class="n">tp</span> <span class="o">+</span> <span class="n">fp</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">fn</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+
+            <span class="n">acc</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="n">precision</span><span class="o">=</span><span class="n">precision</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+                <span class="n">recall</span><span class="o">=</span><span class="n">recall</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+                <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+                <span class="n">f1</span><span class="o">=</span><span class="n">f1</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+                <span class="n">mean_true_score</span><span class="o">=</span><span class="n">mean_true_score</span><span class="p">,</span>
+                <span class="n">mean_matched_score</span><span class="o">=</span><span class="n">mean_matched_score</span><span class="p">,</span>
+                <span class="n">panoptic_quality</span><span class="o">=</span><span class="n">panoptic_quality</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="n">accumulate</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+        <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;DatasetMatching&quot;</span><span class="p">,</span> <span class="n">acc</span><span class="o">.</span><span class="n">keys</span><span class="p">())(</span><span class="o">*</span><span class="n">acc</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="k">for</span> <span class="n">acc</span> <span class="ow">in</span> <span class="n">accumulate</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">accumulate</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">single_thresh</span> <span class="k">else</span> <span class="n">accumulate</span>
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../"
+    src="../../../_static/documentation_options.js"></script>
+  <script src="../../../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

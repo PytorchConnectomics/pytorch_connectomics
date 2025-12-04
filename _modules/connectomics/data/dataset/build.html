@@ -1,0 +1,950 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.data.dataset.build &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.data.dataset.build</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.data.dataset.build</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Dataset builder for PyTorch Connectomics.</span>
+
+<span class="sd">Factory functions to create various types of MONAI-based datasets for connectomics:</span>
+<span class="sd">- Base datasets (standard, cached, persistent)</span>
+<span class="sd">- Volume datasets (for 3D volumetric data)</span>
+<span class="sd">- Tile datasets (for large-scale tiled volumes)</span>
+
+<span class="sd">All factory functions follow the consistent `create_*` naming pattern.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_base</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">MonaiConnectomicsDataset</span><span class="p">,</span>
+    <span class="n">MonaiCachedConnectomicsDataset</span><span class="p">,</span>
+    <span class="n">MonaiPersistentConnectomicsDataset</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_tile</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">MonaiTileDataset</span><span class="p">,</span>
+    <span class="n">MonaiCachedTileDataset</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_volume</span><span class="w"> </span><span class="kn">import</span> <span class="n">MonaiVolumeDataset</span><span class="p">,</span> <span class="n">MonaiCachedVolumeDataset</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="c1"># Data dict creation</span>
+    <span class="s2">&quot;create_data_dicts_from_paths&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_volume_data_dicts&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_tile_data_dicts_from_json&quot;</span><span class="p">,</span>
+    <span class="c1"># Dataset creation</span>
+    <span class="s2">&quot;create_connectomics_dataset&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_volume_dataset&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;create_tile_dataset&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Data Dictionary Creation</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="create_data_dicts_from_paths">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.create_data_dicts_from_paths">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_data_dicts_from_paths</span><span class="p">(</span>
+    <span class="n">image_paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">label_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mask_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create MONAI-style data dictionaries from file paths.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image_paths: List of image file paths</span>
+<span class="sd">        label_paths: Optional list of label file paths</span>
+<span class="sd">        mask_paths: Optional list of mask file paths</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of dictionaries with &#39;image&#39;, &#39;label&#39;, and/or &#39;mask&#39; keys</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; image_paths = [&#39;img1.h5&#39;, &#39;img2.h5&#39;]</span>
+<span class="sd">        &gt;&gt;&gt; label_paths = [&#39;lbl1.h5&#39;, &#39;lbl2.h5&#39;]</span>
+<span class="sd">        &gt;&gt;&gt; data_dicts = create_data_dicts_from_paths(image_paths, label_paths)</span>
+<span class="sd">        &gt;&gt;&gt; # [{&#39;image&#39;: &#39;img1.h5&#39;, &#39;label&#39;: &#39;lbl1.h5&#39;}, ...]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data_dicts</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">image_path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">image_paths</span><span class="p">):</span>
+        <span class="n">data_dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="n">image_path</span><span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">label_paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">label_paths</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">mask_paths</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mask_paths</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="n">data_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_dict</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">data_dicts</span></div>
+
+
+
+<div class="viewcode-block" id="create_volume_data_dicts">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.create_volume_data_dicts">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_volume_data_dicts</span><span class="p">(</span>
+    <span class="n">image_paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">label_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mask_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create MONAI data dictionaries for volume datasets.</span>
+
+<span class="sd">    This is a convenience wrapper around create_data_dicts_from_paths</span>
+<span class="sd">    for volume-specific use cases.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image_paths: List of image volume file paths</span>
+<span class="sd">        label_paths: Optional list of label volume file paths</span>
+<span class="sd">        mask_paths: Optional list of valid mask file paths</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of MONAI-style data dictionaries</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; data_dicts = create_volume_data_dicts([&#39;vol1.tif&#39;], [&#39;lbl1.tif&#39;])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">create_data_dicts_from_paths</span><span class="p">(</span>
+        <span class="n">image_paths</span><span class="o">=</span><span class="n">image_paths</span><span class="p">,</span>
+        <span class="n">label_paths</span><span class="o">=</span><span class="n">label_paths</span><span class="p">,</span>
+        <span class="n">mask_paths</span><span class="o">=</span><span class="n">mask_paths</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="create_tile_data_dicts_from_json">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.create_tile_data_dicts_from_json">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_tile_data_dicts_from_json</span><span class="p">(</span>
+    <span class="n">volume_json</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">label_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mask_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">chunk_num</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+    <span class="n">chunk_indices</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create MONAI data dictionaries from tile JSON metadata files.</span>
+
+<span class="sd">    This function loads tile metadata from JSON files and creates data dictionaries</span>
+<span class="sd">    for each chunk of the volume. It&#39;s useful for preparing data before creating</span>
+<span class="sd">    a dataset, or for custom dataset implementations.</span>
+
+<span class="sd">    JSON Schema:</span>
+<span class="sd">        The JSON file should contain volume metadata in the following format:</span>
+<span class="sd">        {</span>
+<span class="sd">            &quot;depth&quot;: int,       # Volume depth in pixels/voxels</span>
+<span class="sd">            &quot;height&quot;: int,      # Volume height in pixels/voxels</span>
+<span class="sd">            &quot;width&quot;: int,       # Volume width in pixels/voxels</span>
+<span class="sd">            &quot;tiles&quot;: [          # List of tile files (optional)</span>
+<span class="sd">                {</span>
+<span class="sd">                    &quot;file&quot;: str,           # Path to tile file</span>
+<span class="sd">                    &quot;z_start&quot;: int,        # Starting z coordinate</span>
+<span class="sd">                    &quot;z_end&quot;: int,          # Ending z coordinate</span>
+<span class="sd">                    &quot;y_start&quot;: int,        # Starting y coordinate</span>
+<span class="sd">                    &quot;y_end&quot;: int,          # Ending y coordinate</span>
+<span class="sd">                    &quot;x_start&quot;: int,        # Starting x coordinate</span>
+<span class="sd">                    &quot;x_end&quot;: int           # Ending x coordinate</span>
+<span class="sd">                },</span>
+<span class="sd">                ...</span>
+<span class="sd">            ],</span>
+<span class="sd">            &quot;tile_size&quot;: [int, int, int],    # Optional: default tile size (z, y, x)</span>
+<span class="sd">            &quot;overlap&quot;: [int, int, int],      # Optional: tile overlap (z, y, x)</span>
+<span class="sd">            &quot;format&quot;: str,                   # Optional: file format (e.g., &quot;tif&quot;, &quot;h5&quot;)</span>
+<span class="sd">            &quot;metadata&quot;: {...}                # Optional: additional metadata</span>
+<span class="sd">        }</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume_json: Path to JSON metadata file for input image tiles</span>
+<span class="sd">        label_json: Optional path to JSON metadata file for label tiles</span>
+<span class="sd">        mask_json: Optional path to JSON metadata file for mask tiles</span>
+<span class="sd">        chunk_num: Volume splitting parameters (z, y, x). Default: (2, 2, 2)</span>
+<span class="sd">        chunk_indices: Optional predefined list of chunk information dicts.</span>
+<span class="sd">                      Each dict should have &#39;chunk_id&#39; and &#39;coords&#39; keys.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of MONAI-style data dictionaries for tile chunks.</span>
+<span class="sd">        Each dictionary contains nested dicts for &#39;image&#39;, &#39;label&#39; (if provided),</span>
+<span class="sd">        and &#39;mask&#39; (if provided) with metadata and chunk coordinates.</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; # Create data dicts from JSON with automatic chunking</span>
+<span class="sd">        &gt;&gt;&gt; data_dicts = create_tile_data_dicts_from_json(</span>
+<span class="sd">        ...     volume_json=&#39;tiles/image.json&#39;,</span>
+<span class="sd">        ...     label_json=&#39;tiles/label.json&#39;,</span>
+<span class="sd">        ...     chunk_num=(2, 2, 2)</span>
+<span class="sd">        ... )</span>
+<span class="sd">        &gt;&gt;&gt; len(data_dicts)  # 2*2*2 = 8 chunks</span>
+<span class="sd">        8</span>
+
+<span class="sd">        &gt;&gt;&gt; # Create with custom chunk indices</span>
+<span class="sd">        &gt;&gt;&gt; custom_chunks = [</span>
+<span class="sd">        ...     {&#39;chunk_id&#39;: (0, 0, 0), &#39;coords&#39;: (0, 100, 0, 200, 0, 200)},</span>
+<span class="sd">        ...     {&#39;chunk_id&#39;: (0, 0, 1), &#39;coords&#39;: (0, 100, 0, 200, 200, 400)},</span>
+<span class="sd">        ... ]</span>
+<span class="sd">        &gt;&gt;&gt; data_dicts = create_tile_data_dicts_from_json(</span>
+<span class="sd">        ...     &#39;tiles/image.json&#39;,</span>
+<span class="sd">        ...     chunk_indices=custom_chunks</span>
+<span class="sd">        ... )</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If JSON file doesn&#39;t exist</span>
+<span class="sd">        ValueError: If JSON is malformed or missing required fields</span>
+<span class="sd">        KeyError: If required keys are missing from JSON</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+    <span class="c1"># Load volume metadata</span>
+    <span class="n">volume_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">volume_json</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">volume_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Volume JSON file not found: </span><span class="si">{</span><span class="n">volume_json</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">volume_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">volume_metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="c1"># Validate required fields</span>
+    <span class="n">required_fields</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">,</span> <span class="s2">&quot;height&quot;</span><span class="p">,</span> <span class="s2">&quot;width&quot;</span><span class="p">]</span>
+    <span class="n">missing_fields</span> <span class="o">=</span> <span class="p">[</span><span class="n">field</span> <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">required_fields</span> <span class="k">if</span> <span class="n">field</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">volume_metadata</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">missing_fields</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Volume JSON missing required fields: </span><span class="si">{</span><span class="n">missing_fields</span><span class="si">}</span><span class="s2">. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Required fields: </span><span class="si">{</span><span class="n">required_fields</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Load label metadata if provided</span>
+    <span class="n">label_metadata</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">label_json</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">label_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">label_json</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">label_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Label JSON file not found: </span><span class="si">{</span><span class="n">label_json</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">label_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">label_metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="c1"># Load mask metadata if provided</span>
+    <span class="n">mask_metadata</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">mask_json</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">mask_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">mask_json</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mask_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mask JSON file not found: </span><span class="si">{</span><span class="n">mask_json</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">mask_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">mask_metadata</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+    <span class="c1"># Calculate chunk indices if not provided</span>
+    <span class="k">if</span> <span class="n">chunk_indices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">chunk_indices</span> <span class="o">=</span> <span class="n">_calculate_chunk_indices</span><span class="p">(</span><span class="n">volume_metadata</span><span class="p">,</span> <span class="n">chunk_num</span><span class="p">)</span>
+
+    <span class="c1"># Create data dictionaries for each chunk</span>
+    <span class="n">data_dicts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">chunk_info</span> <span class="ow">in</span> <span class="n">chunk_indices</span><span class="p">:</span>
+        <span class="n">chunk_id</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s2">&quot;chunk_id&quot;</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">]</span>
+
+        <span class="n">data_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">volume_metadata</span><span class="p">,</span>
+                <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
+                <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">label_metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">label_metadata</span><span class="p">,</span>
+                <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
+                <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">mask_metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">mask_metadata</span><span class="p">,</span>
+                <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
+                <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
+            <span class="p">}</span>
+
+        <span class="n">data_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_dict</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">data_dicts</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_calculate_chunk_indices</span><span class="p">(</span>
+    <span class="n">volume_metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
+    <span class="n">chunk_num</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Calculate chunk indices based on chunk_num and volume dimensions.</span>
+
+<span class="sd">    This is a helper function used by create_tile_data_dicts_from_json.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume_metadata: Dictionary containing &#39;depth&#39;, &#39;height&#39;, &#39;width&#39; keys</span>
+<span class="sd">        chunk_num: Number of chunks in each dimension (z, y, x)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of chunk information dictionaries, each containing:</span>
+<span class="sd">            - &#39;chunk_id&#39;: Tuple of (z, y, x) chunk indices</span>
+<span class="sd">            - &#39;coords&#39;: Tuple of (z_start, z_end, y_start, y_end, x_start, x_end)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Get volume dimensions</span>
+    <span class="n">depth</span> <span class="o">=</span> <span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span>
+    <span class="n">height</span> <span class="o">=</span> <span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span>
+    <span class="n">width</span> <span class="o">=</span> <span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Calculate chunk sizes</span>
+    <span class="n">chunk_z</span> <span class="o">=</span> <span class="n">depth</span> <span class="o">//</span> <span class="n">chunk_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">chunk_y</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="n">chunk_num</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">chunk_x</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="n">chunk_num</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="n">chunk_indices</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
+                <span class="c1"># Calculate chunk boundaries</span>
+                <span class="n">z_start</span> <span class="o">=</span> <span class="n">z</span> <span class="o">*</span> <span class="n">chunk_z</span>
+                <span class="n">z_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">z</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_z</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+                <span class="n">y_start</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">chunk_y</span>
+                <span class="n">y_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_y</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
+                <span class="n">x_start</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">chunk_x</span>
+                <span class="n">x_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_x</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
+
+                <span class="n">chunk_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span>
+                        <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">z_start</span><span class="p">,</span> <span class="n">z_end</span><span class="p">,</span> <span class="n">y_start</span><span class="p">,</span> <span class="n">y_end</span><span class="p">,</span> <span class="n">x_start</span><span class="p">,</span> <span class="n">x_end</span><span class="p">),</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">chunk_indices</span>
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Dataset Creation - Base</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="create_connectomics_dataset">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.create_connectomics_dataset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_connectomics_dataset</span><span class="p">(</span>
+    <span class="n">data_dicts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]],</span>
+    <span class="n">transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dataset_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span>
+    <span class="n">MonaiConnectomicsDataset</span><span class="p">,</span> <span class="n">MonaiCachedConnectomicsDataset</span><span class="p">,</span> <span class="n">MonaiPersistentConnectomicsDataset</span>
+<span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Factory function to create appropriate MONAI connectomics dataset.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        data_dicts: List of data dictionaries</span>
+<span class="sd">        transforms: MONAI transforms pipeline</span>
+<span class="sd">        dataset_type: Type of dataset (&#39;standard&#39;, &#39;cached&#39;, &#39;persistent&#39;)</span>
+<span class="sd">        **kwargs: Additional arguments for dataset initialization</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Appropriate MONAI connectomics dataset instance</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; data_dicts = create_data_dicts_from_paths([&#39;img.h5&#39;], [&#39;lbl.h5&#39;])</span>
+<span class="sd">        &gt;&gt;&gt; dataset = create_connectomics_dataset(</span>
+<span class="sd">        ...     data_dicts, transforms=my_transforms, dataset_type=&#39;cached&#39;</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">dataset_type</span> <span class="o">==</span> <span class="s2">&quot;cached&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiCachedConnectomicsDataset</span><span class="p">(</span>
+            <span class="n">data_dicts</span><span class="o">=</span><span class="n">data_dicts</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">elif</span> <span class="n">dataset_type</span> <span class="o">==</span> <span class="s2">&quot;persistent&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiPersistentConnectomicsDataset</span><span class="p">(</span>
+            <span class="n">data_dicts</span><span class="o">=</span><span class="n">data_dicts</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiConnectomicsDataset</span><span class="p">(</span>
+            <span class="n">data_dicts</span><span class="o">=</span><span class="n">data_dicts</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Dataset Creation - Volume</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="create_volume_dataset">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.create_volume_dataset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_volume_dataset</span><span class="p">(</span>
+    <span class="n">image_paths</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">label_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mask_paths</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dataset_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+    <span class="n">cache_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">MonaiVolumeDataset</span><span class="p">,</span> <span class="n">MonaiCachedVolumeDataset</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Factory function to create MONAI volume datasets.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        image_paths: List of image volume file paths</span>
+<span class="sd">        label_paths: Optional list of label volume file paths</span>
+<span class="sd">        mask_paths: Optional list of valid mask file paths</span>
+<span class="sd">        transforms: MONAI transforms pipeline</span>
+<span class="sd">        dataset_type: Type of dataset (&#39;standard&#39;, &#39;cached&#39;)</span>
+<span class="sd">        cache_rate: Cache rate for cached datasets</span>
+<span class="sd">        **kwargs: Additional arguments for dataset initialization</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Appropriate MONAI volume dataset instance</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; dataset = create_volume_dataset(</span>
+<span class="sd">        ...     image_paths=[&#39;train_img.tif&#39;],</span>
+<span class="sd">        ...     label_paths=[&#39;train_lbl.tif&#39;],</span>
+<span class="sd">        ...     transforms=my_transforms,</span>
+<span class="sd">        ...     dataset_type=&#39;cached&#39;,</span>
+<span class="sd">        ...     cache_rate=1.0,</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Lazy import to avoid circular dependency during module import</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_volume</span><span class="w"> </span><span class="kn">import</span> <span class="n">MonaiVolumeDataset</span><span class="p">,</span> <span class="n">MonaiCachedVolumeDataset</span>
+
+    <span class="k">if</span> <span class="n">dataset_type</span> <span class="o">==</span> <span class="s2">&quot;cached&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiCachedVolumeDataset</span><span class="p">(</span>
+            <span class="n">image_paths</span><span class="o">=</span><span class="n">image_paths</span><span class="p">,</span>
+            <span class="n">label_paths</span><span class="o">=</span><span class="n">label_paths</span><span class="p">,</span>
+            <span class="n">mask_paths</span><span class="o">=</span><span class="n">mask_paths</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="n">cache_rate</span><span class="o">=</span><span class="n">cache_rate</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiVolumeDataset</span><span class="p">(</span>
+            <span class="n">image_paths</span><span class="o">=</span><span class="n">image_paths</span><span class="p">,</span>
+            <span class="n">label_paths</span><span class="o">=</span><span class="n">label_paths</span><span class="p">,</span>
+            <span class="n">mask_paths</span><span class="o">=</span><span class="n">mask_paths</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+
+<span class="c1"># ============================================================================</span>
+<span class="c1"># Dataset Creation - Tile</span>
+<span class="c1"># ============================================================================</span>
+
+
+<div class="viewcode-block" id="create_tile_dataset">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.create_tile_dataset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_tile_dataset</span><span class="p">(</span>
+    <span class="n">volume_json</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">label_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mask_json</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Compose</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">dataset_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+    <span class="n">cache_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">MonaiTileDataset</span><span class="p">,</span> <span class="n">MonaiCachedTileDataset</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Factory function to create MONAI tile datasets.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        volume_json: JSON metadata file for input image tiles</span>
+<span class="sd">        label_json: Optional JSON metadata file for label tiles</span>
+<span class="sd">        mask_json: Optional JSON metadata file for mask tiles</span>
+<span class="sd">        transforms: MONAI transforms pipeline</span>
+<span class="sd">        dataset_type: Type of dataset (&#39;standard&#39;, &#39;cached&#39;)</span>
+<span class="sd">        cache_rate: Cache rate for cached datasets</span>
+<span class="sd">        **kwargs: Additional arguments for dataset initialization</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Appropriate MONAI tile dataset instance</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; dataset = create_tile_dataset(</span>
+<span class="sd">        ...     volume_json=&#39;tiles.json&#39;,</span>
+<span class="sd">        ...     label_json=&#39;labels.json&#39;,</span>
+<span class="sd">        ...     transforms=my_transforms,</span>
+<span class="sd">        ...     dataset_type=&#39;cached&#39;,</span>
+<span class="sd">        ... )</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">dataset_type</span> <span class="o">==</span> <span class="s2">&quot;cached&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiCachedTileDataset</span><span class="p">(</span>
+            <span class="n">volume_json</span><span class="o">=</span><span class="n">volume_json</span><span class="p">,</span>
+            <span class="n">label_json</span><span class="o">=</span><span class="n">label_json</span><span class="p">,</span>
+            <span class="n">mask_json</span><span class="o">=</span><span class="n">mask_json</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="n">cache_rate</span><span class="o">=</span><span class="n">cache_rate</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">MonaiTileDataset</span><span class="p">(</span>
+            <span class="n">volume_json</span><span class="o">=</span><span class="n">volume_json</span><span class="p">,</span>
+            <span class="n">label_json</span><span class="o">=</span><span class="n">label_json</span><span class="p">,</span>
+            <span class="n">mask_json</span><span class="o">=</span><span class="n">mask_json</span><span class="p">,</span>
+            <span class="n">transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../../"
+    src="../../../../_static/documentation_options.js"></script>
+  <script src="../../../../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

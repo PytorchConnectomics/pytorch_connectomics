@@ -1,0 +1,679 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Data Loading &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" />
+  <link rel="next" title="Migration Guide (v1.0 → v2.0)" href="migration.html" />
+  <link rel="prev" title="Configuration System" href="config.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="config.html">Configuration System</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>Data Loading</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/notes/dataloading.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="data-loading">
+<h1>Data Loading<a class="headerlink" href="#data-loading" title="Link to this heading">¶</a></h1>
+<section id="data-augmentation">
+<h2>Data Augmentation<a class="headerlink" href="#data-augmentation" title="Link to this heading">¶</a></h2>
+<p>Since many semi-supervised and unsupervised learning tasks do not require labels, the only key required in our
+data augmentor is <code class="docutils literal notranslate"><span class="pre">'image'</span></code>. Let’s look at an example for using an augmentation pipeline on input images:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augment</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="n">tranforms</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Rescale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.8</span><span class="p">),</span>
+    <span class="n">MisAlignment</span><span class="p">(</span><span class="n">displacement</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                 <span class="n">rotate_ratio</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                 <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">),</span>
+    <span class="n">CutBlur</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+            <span class="n">down_ratio_min</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>
+            <span class="n">down_ratio_max</span><span class="o">=</span><span class="mf">8.0</span><span class="p">,</span>
+            <span class="n">p</span><span class="o">=</span><span class="mf">0.7</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">(</span><span class="n">tranforms</span><span class="p">,</span>
+                    <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">))</span>
+
+<span class="n">sample</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">}</span>
+<span class="n">augmented</span> <span class="o">=</span> <span class="n">augmentor</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Then the augmented data can be retrived using the corresponding key. Our augmentor can also apply the same set
+of transformations to the input images and all other specified targets. For example, under the supervised
+segmentation setting, an label image/volume contains the segmentation masks and a valid mask indicating the
+annotated regions are required. We provide the <code class="docutils literal notranslate"><span class="pre">additional_targets</span></code> option to handle those targets:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span> <span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.augment</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+ <span class="n">additional_targets</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;mask&#39;</span><span class="p">,</span>
+                       <span class="s1">&#39;valid_mask&#39;</span><span class="p">:</span> <span class="s1">&#39;mask&#39;</span><span class="p">}</span>
+
+ <span class="n">tranforms</span> <span class="o">=</span> <span class="p">[</span>
+     <span class="n">Rescale</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+             <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">),</span>
+     <span class="n">MisAlignment</span><span class="p">(</span><span class="n">displacement</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+                  <span class="n">rotate_ratio</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                  <span class="n">p</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                  <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">),</span>
+     <span class="n">CutBlur</span><span class="p">(</span><span class="n">length_ratio</span><span class="o">=</span><span class="mf">0.6</span><span class="p">,</span>
+             <span class="n">down_ratio_min</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>
+             <span class="n">down_ratio_max</span><span class="o">=</span><span class="mf">8.0</span><span class="p">,</span>
+             <span class="n">p</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+             <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">),</span>
+ <span class="p">]</span>
+ <span class="n">augmentor</span> <span class="o">=</span> <span class="n">Compose</span><span class="p">(</span><span class="n">tranforms</span><span class="p">,</span>
+                     <span class="n">input_size</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">),</span>
+                     <span class="n">additional_targets</span><span class="o">=</span><span class="n">additional_targets</span><span class="p">)</span>
+
+ <span class="n">sample</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">image</span><span class="p">,</span>
+           <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">label</span><span class="p">,</span>
+           <span class="s1">&#39;valid_mask&#39;</span><span class="p">:</span> <span class="n">valid_mask</span><span class="p">}</span>
+ <span class="n">augmented</span> <span class="o">=</span> <span class="n">augmentor</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
+
+<span class="o">..</span> <span class="n">tip</span><span class="p">::</span>
+
+ <span class="n">Each</span> <span class="n">addition</span> <span class="n">target</span> <span class="n">need</span> <span class="n">to</span> <span class="n">be</span> <span class="n">specified</span> <span class="k">with</span> <span class="n">a</span> <span class="n">name</span> <span class="p">(</span><span class="o">*</span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.*</span><span class="p">,</span> <span class="err">``</span><span class="s1">&#39;valid_mask&#39;</span><span class="err">``</span><span class="p">)</span> <span class="ow">and</span> <span class="n">a</span> <span class="n">target</span> <span class="nb">type</span> <span class="p">(</span><span class="err">``</span><span class="s1">&#39;img&#39;</span><span class="err">``</span> <span class="ow">or</span> <span class="err">``</span><span class="s1">&#39;mask&#39;</span><span class="err">``</span><span class="p">)</span><span class="o">.</span> <span class="n">Some</span> <span class="n">augmentations</span> <span class="n">are</span> <span class="n">only</span> <span class="n">applied</span> <span class="n">to</span> <span class="err">``</span><span class="s1">&#39;img&#39;</span><span class="err">``</span><span class="p">,</span> <span class="ow">and</span> <span class="n">augmentations</span> <span class="k">for</span> <span class="n">both</span> <span class="err">``</span><span class="s1">&#39;img&#39;</span><span class="err">``</span> <span class="ow">and</span> <span class="err">``</span><span class="s1">&#39;mask&#39;</span><span class="err">``</span> <span class="n">will</span> <span class="n">use</span> <span class="n">different</span> <span class="n">interpolation</span> <span class="n">modes</span> <span class="k">for</span> <span class="n">them</span><span class="o">.</span>
+</pre></div>
+</div>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">'image'</span></code> key in the examples above is to indicate the <strong>name</strong> of the sample, which means other keys can be used to retrive corresponding samples in augmentation. However, the <code class="docutils literal notranslate"><span class="pre">'img'</span></code> and <code class="docutils literal notranslate"><span class="pre">'mask'</span></code> values indicate the <strong>type</strong> of a sample, therefore only the two values can be recognized by the augmentor.</p>
+</div>
+</div></blockquote>
+<p>The <code class="docutils literal notranslate"><span class="pre">'label'</span></code> key in <code class="docutils literal notranslate"><span class="pre">'mask'</span></code> target type is used by default in the configuration file as most of the tutorial examples belong to the supervised
+training category. For model training with partially annotated dataset under the supervised setting, we need to add:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">AUGMENTOR</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ADDITIONAL_TARGETS_NAME</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;label&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;valid_mask&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">ADDITIONAL_TARGETS_TYPE</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;mask&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;mask&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>Each transformation class is associated with an <code class="docutils literal notranslate"><span class="pre">ENABLED</span></code> key. To turn off a specific transformation (<em>e.g.</em>, mis-alignment), set:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">AUGMENTOR</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">MISALIGNMENT</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">ENABLED</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">False</span>
+</pre></div>
+</div>
+</section>
+<section id="rejection-sampling">
+<h2>Rejection Sampling<a class="headerlink" href="#rejection-sampling" title="Link to this heading">¶</a></h2>
+<p>Rejection sampling in the dataloader is applied for the following two purposes:</p>
+<p><strong>1 - Adding more attention to sparse targets</strong></p>
+<p>For some datasets/tasks, the foreground mask is sparse in the volume (<em>e.g.</em>, <a class="reference external" href="../tutorials/synapse.html">synapse detection</a>).
+Therefore we perform reject sampling to decrease the ratio of (all completely avoid) regions without foreground pixels.
+Such a design lets the model pay more attention to the foreground pixels to alleviate false negatives (but may introduce
+more false positives). There are two corresponding hyper-parameters in the configuration file:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">DATASET</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">REJECT_SAMPLING</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">SIZE_THRES</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1000</span>
+<span class="w">    </span><span class="nt">P</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.95</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">SIZE_THRES:</span> <span class="pre">1000</span></code> key-value pair means that if a random volume contains more than 1,000 non-background voxels, then
+the volume is considered as a foreground volume and is returned by the rejection sampling function. If it contains less
+than 1,000 voxels, the function will reject it with a probability <code class="docutils literal notranslate"><span class="pre">P:</span> <span class="pre">0.95</span></code> and sample another volume. <code class="docutils literal notranslate"><span class="pre">SIZE_THRES</span></code> is
+set to -1 by default to disable the rejection sampling.</p>
+<p><strong>2 - Handling partially annotated data</strong></p>
+<p>Some datasets are only partially labeled, and the unlabeled region should not be considered in loss calculation. In that case,
+the user can specify the data path to the valid mask using the <code class="docutils literal notranslate"><span class="pre">DATASET.VALID_MASK_NAME</span></code> option. The valid mask volume should
+be of the same shape as the label volume with non-zero values denoting annotated regions. A sampled volume with a valid ratio
+less than 0.5 will be rejected by default.</p>
+</section>
+<section id="tiledataset">
+<h2>TileDataset<a class="headerlink" href="#tiledataset" title="Link to this heading">¶</a></h2>
+<p>Large-scale volumetric datasets (<em>e.g.,</em> <a class="reference external" href="https://mitoem.grand-challenge.org">MitoEM</a>) are usually stored as individual
+tiles (<em>i.e.</em>, 2D patches). Directly loading them as a single array into the memory for training and inference is infeasible.
+Therefore we designed the <code class="xref py py-class docutils literal notranslate"><span class="pre">connectomics.data.dataset.TileDataset</span></code> class that reads the paths of the tiles and
+construct tractable chunks for processing. To use this dataset class, the user needs to prepare a <strong>JSON</strong> file which contains
+the information of the dataset. An example for the MitoEM dataset can be
+found <a class="reference external" href="https://raw.githubusercontent.com/zudi-lin/pytorch_connectomics/master/configs/MitoEM/im_train.json">here</a>.
+Below is a list of (incomplete) configurations exclusive for <em>TileDataset</em>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">DATASET</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">DO_CHUNK_TITLE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w"> </span><span class="c1"># set to 1 to use TileDataset (default is 0)</span>
+<span class="w">  </span><span class="nt">DATA_CHUNK_NUM</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">4</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># split the large volume into chunks</span>
+<span class="w">  </span><span class="nt">DATA_CHUNK_ITER</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5000</span><span class="w"> </span><span class="c1"># (training) number of iterations for a chunk</span>
+</pre></div>
+</div>
+<p>Suppose the input volume is of size (2000,6400,6400) in <cite>(z,y,x)</cite> order, setting <code class="docutils literal notranslate"><span class="pre">DATASET.DATA_CHUNK_NUM</span> <span class="pre">=</span> <span class="pre">[2,4,4]</span></code> will
+split the <cite>z</cite> axis by 2 and <cite>x</cite> and <cite>y</cite> axes by 4, so that the process can handle (500,1600,1600) chunks sequentially, which
+is more manageable. The actual chunk size can be larger due to overlap sampling (only for training) and padding.</p>
+<blockquote>
+<div><div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When using padding, the coordinate range of a chunk can have negative numbers, <em>e.g.</em>, <code class="docutils literal notranslate"><span class="pre">[-4,</span> <span class="pre">104,</span> <span class="pre">-64,</span> <span class="pre">864,</span> <span class="pre">-64,</span> <span class="pre">864]</span></code>, or numbers that are larger than the whole volume size, which is not an error. Those regions are padded so that the size of sampled chunks stay unchanged.</p>
+</div>
+</div></blockquote>
+<p>Below is a Python snippet for creating the JSON file for a new dataset of size (2000,6400,6400), which are stored as
+2000 individual PNG images of size (6400,6400).</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="n">data_path</span> <span class="o">=</span> <span class="s2">&quot;path/to/images&quot;</span>
+<span class="n">n_images</span> <span class="o">=</span> <span class="mi">2000</span>
+
+<span class="n">data_dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;ndim&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;dtype&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;uint8&quot;</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">data_path</span> <span class="o">+</span> <span class="s2">&quot;im</span><span class="si">%04d</span><span class="s2">.png&quot;</span> <span class="o">%</span> <span class="n">idx</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_images</span><span class="p">)]</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6400</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6400</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_images</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;tile_ratio&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;n_columns&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;n_rows&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;tile_st&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;tile_size&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6400</span>
+
+<span class="n">js_path</span> <span class="o">=</span> <span class="s1">&#39;tile_dataset.json&#39;</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">js_path</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data_dict</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Please note that the paths to <strong>all</strong> images are given as a list to <code class="docutils literal notranslate"><span class="pre">data_dict[&quot;dtype&quot;]</span></code>. For even larger datasets where
+each slice is saved as multiple non-overlapping patches, <code class="docutils literal notranslate"><span class="pre">data_dict[&quot;dtype&quot;]</span></code> is assumed to have the following format:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;path/to/images/0000/{row}_{column}.png&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;path/to/images/0001/{row}_{column}.png&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;path/to/images/0002/{row}_{column}.png&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="err">...</span>
+<span class="w">        </span><span class="s2">&quot;path/to/images/2000/{row}_{column}.png&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;n_columns&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;n_rows&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Each slice uses a folder named by the <em>z</em> index. The name <strong>{row}_{column}.png</strong> in the JSON file is just a placeholder,
+and there is no need to give an exact input number. For the case above, each 2D slice is saved as 4x4 patches, so the real
+images files in each <em>path/to/images/xxxx/</em> directory should be <em>0_0.png</em>, <em>1_0.png</em> until <em>3_3.png</em>.</p>
+</section>
+<section id="handling-2d-data">
+<h2>Handling 2D Data<a class="headerlink" href="#handling-2d-data" title="Link to this heading">¶</a></h2>
+<p>We design two ways to run inference for a trained 2D model. The first way is to directly load a 3D volume, but the inference
+pipeline will predict each slice one-by-one and stack them back to a 3D volume. For representations depend on the dimension of
+the inputs (<em>e.g.</em>, affinity map has three channels for 3D masks but only two channels for 2D masks), the number of output
+channels is consistent with the 2D model. The second way is to directly load 2D PNG or TIFF images. Below are the configurations
+for streaming 2D inputs at inference time:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">DATASET</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">DO_2D</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"> </span><span class="c1"># use 2d models</span>
+<span class="w">  </span><span class="nt">LOAD_2D</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span><span class="w"> </span><span class="c1"># load 2d images</span>
+<span class="nt">INFERENCE</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">IMAGE_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">datasets/test_path.txt</span>
+<span class="w">  </span><span class="nt">IS_ABSOLUTE_PATH</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+<span class="w">  </span><span class="nt">DO_SINGLY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">True</span>
+</pre></div>
+</div>
+<p>Please note that the <cite>test_path.txt</cite> should be a list of absolute paths like the example below to avoid ambiguity:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0001</span><span class="o">.</span><span class="n">png</span>
+<span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0002</span><span class="o">.</span><span class="n">png</span>
+<span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0003</span><span class="o">.</span><span class="n">png</span>
+<span class="o">...</span>
+<span class="o">/</span><span class="n">data</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">slice_0004</span><span class="o">.</span><span class="n">png</span>
+</pre></div>
+</div>
+<p>Additionally, <code class="docutils literal notranslate"><span class="pre">INFERENCE.DO_SINGLY</span> <span class="pre">=</span> <span class="pre">True</span></code> will let the pipeline process and save each input image separately, to
+avoid loading all files into memory at the same time. The useful Linux command to get the absolute paths of all PNG
+images in a folder is:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">ls -d $(pwd -P)/*.png &gt; path.txt</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+  <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+    
+    <a href="migration.html" class="btn btn-neutral float-right" title="Migration Guide (v1.0 → v2.0)" accesskey="n"
+      rel="next">Next <img src="../_static/images/chevron-right-orange.svg"
+        class="next-page"></a>
+    
+    
+    <a href="config.html" class="btn btn-neutral" title="Configuration System" accesskey="p"
+      rel="prev"><img src="../_static/images/chevron-right-orange.svg" class="previous-page"> Previous</a>
+    
+  </div>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">Data Loading</a><ul>
+<li><a class="reference internal" href="#data-augmentation">Data Augmentation</a></li>
+<li><a class="reference internal" href="#rejection-sampling">Rejection Sampling</a></li>
+<li><a class="reference internal" href="#tiledataset">TileDataset</a></li>
+<li><a class="reference internal" href="#handling-2d-data">Handling 2D Data</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

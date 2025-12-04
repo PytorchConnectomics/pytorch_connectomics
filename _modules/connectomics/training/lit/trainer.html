@@ -1,0 +1,731 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.training.lit.trainer &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../../../../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../../../../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../../../../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../../../../genindex.html" />
+  <link rel="search" title="Search" href="../../../../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../../../../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../../../../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../../../../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../../../../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../../../../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../../../../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+          <li><a href="../../../index.html">Module code</a> &gt;</li>
+        
+      <li>connectomics.training.lit.trainer</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <h1>Source code for connectomics.training.lit.trainer</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">PyTorch Lightning trainer utilities for PyTorch Connectomics.</span>
+
+<span class="sd">This module provides Lightning trainer factory functions with:</span>
+<span class="sd">- Hydra/OmegaConf configuration</span>
+<span class="sd">- Modern callbacks (checkpointing, early stopping, logging)</span>
+<span class="sd">- Distributed training support</span>
+<span class="sd">- Mixed precision training</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pytorch_lightning</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pl</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.callbacks</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ModelCheckpoint</span><span class="p">,</span>
+    <span class="n">EarlyStopping</span><span class="p">,</span>
+    <span class="n">LearningRateMonitor</span><span class="p">,</span>
+    <span class="n">RichProgressBar</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.loggers</span><span class="w"> </span><span class="kn">import</span> <span class="n">TensorBoardLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">DDPStrategy</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">...config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...config.hydra_config</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">SystemConfig</span><span class="p">,</span>
+    <span class="n">SystemTrainingConfig</span><span class="p">,</span>
+    <span class="n">SystemInferenceConfig</span><span class="p">,</span>
+    <span class="n">ModelConfig</span><span class="p">,</span>
+    <span class="n">DataConfig</span><span class="p">,</span>
+    <span class="n">OptimizationConfig</span><span class="p">,</span>
+    <span class="n">MonitorConfig</span><span class="p">,</span>
+    <span class="n">InferenceConfig</span><span class="p">,</span>
+    <span class="n">TestConfig</span><span class="p">,</span>
+    <span class="n">TuneConfig</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.callbacks</span><span class="w"> </span><span class="kn">import</span> <span class="n">VisualizationCallback</span><span class="p">,</span> <span class="n">EMAWeightsCallback</span>
+
+<span class="c1"># Register safe globals for PyTorch 2.6+ checkpoint loading</span>
+<span class="c1"># This allows our Config class to be unpickled from Lightning checkpoints</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">torch</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">add_safe_globals</span><span class="p">(</span>
+        <span class="p">[</span>
+            <span class="n">Config</span><span class="p">,</span>
+            <span class="n">SystemConfig</span><span class="p">,</span>
+            <span class="n">SystemTrainingConfig</span><span class="p">,</span>
+            <span class="n">SystemInferenceConfig</span><span class="p">,</span>
+            <span class="n">ModelConfig</span><span class="p">,</span>
+            <span class="n">DataConfig</span><span class="p">,</span>
+            <span class="n">OptimizationConfig</span><span class="p">,</span>
+            <span class="n">MonitorConfig</span><span class="p">,</span>
+            <span class="n">InferenceConfig</span><span class="p">,</span>
+            <span class="n">TestConfig</span><span class="p">,</span>
+            <span class="n">TuneConfig</span><span class="p">,</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+<span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+    <span class="c1"># PyTorch &lt; 2.6 doesn&#39;t have add_safe_globals</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="create_trainer">
+<a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.create_trainer">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_trainer</span><span class="p">(</span>
+    <span class="n">cfg</span><span class="p">:</span> <span class="n">Config</span><span class="p">,</span>
+    <span class="n">run_dir</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Path</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">fast_dev_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">ckpt_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;train&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Trainer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create PyTorch Lightning Trainer.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        cfg: Hydra Config object</span>
+<span class="sd">        run_dir: Directory for this training run (required for mode=&#39;train&#39;)</span>
+<span class="sd">        fast_dev_run: Whether to run quick debug mode</span>
+<span class="sd">        ckpt_path: Path to checkpoint for resuming (used to extract best_score)</span>
+<span class="sd">        mode: &#39;train&#39; or &#39;test&#39; - determines which system config to use</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Configured Trainer instance</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Creating Lightning trainer (mode=</span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Setup callbacks (only for training mode)</span>
+    <span class="n">callbacks</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;train&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">run_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;run_dir is required when mode=&#39;train&#39;&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Setup checkpoint directory</span>
+        <span class="n">checkpoint_dir</span> <span class="o">=</span> <span class="n">run_dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoints&quot;</span>
+        <span class="n">checkpoint_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Model checkpoint (in run_dir/checkpoints/)</span>
+        <span class="n">checkpoint_callback</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span>
+            <span class="n">dirpath</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">checkpoint_dir</span><span class="p">),</span>
+            <span class="n">filename</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">checkpoint_filename</span><span class="p">,</span>
+            <span class="n">monitor</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">monitor</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+            <span class="n">save_top_k</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">save_top_k</span><span class="p">,</span>
+            <span class="n">save_last</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">save_last</span><span class="p">,</span>
+            <span class="n">every_n_epochs</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">save_every_n_epochs</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">save_on_train_epoch_end</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Save based on training metrics</span>
+        <span class="p">)</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_callback</span><span class="p">)</span>
+
+        <span class="c1"># Early stopping (training only)</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+            <span class="c1"># Import here to avoid circular dependency</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">extract_best_score_from_checkpoint</span>
+
+            <span class="c1"># Extract best_score from checkpoint filename if resuming</span>
+            <span class="n">best_score</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">ckpt_path</span><span class="p">:</span>
+                <span class="n">best_score</span> <span class="o">=</span> <span class="n">extract_best_score_from_checkpoint</span><span class="p">(</span>
+                    <span class="n">ckpt_path</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">monitor</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">best_score</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;  Early stopping: Extracted best_score=</span><span class="si">{</span><span class="n">best_score</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2"> from checkpoint&quot;</span>
+                    <span class="p">)</span>
+
+            <span class="n">early_stop_callback</span> <span class="o">=</span> <span class="n">EarlyStopping</span><span class="p">(</span>
+                <span class="n">monitor</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">monitor</span><span class="p">,</span>
+                <span class="n">patience</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">patience</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
+                <span class="n">min_delta</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">min_delta</span><span class="p">,</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">check_on_train_epoch_end</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Check at end of train epoch (not validation)</span>
+                <span class="n">check_finite</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">check_finite</span><span class="p">,</span>  <span class="c1"># Stop on NaN/inf</span>
+                <span class="n">stopping_threshold</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span>
+                <span class="n">divergence_threshold</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">divergence_threshold</span><span class="p">,</span>
+                <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Don&#39;t crash if metric not available (wait for it)</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Manually set best_score if extracted from checkpoint</span>
+            <span class="k">if</span> <span class="n">best_score</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">early_stop_callback</span><span class="o">.</span><span class="n">best_score</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">best_score</span><span class="p">)</span>
+
+            <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">early_stop_callback</span><span class="p">)</span>
+
+        <span class="c1"># Learning rate monitor (training only)</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">LearningRateMonitor</span><span class="p">(</span><span class="n">logging_interval</span><span class="o">=</span><span class="s2">&quot;epoch&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Visualization callback (training only, end-of-epoch only)</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+            <span class="n">vis_callback</span> <span class="o">=</span> <span class="n">VisualizationCallback</span><span class="p">(</span>
+                <span class="n">cfg</span><span class="o">=</span><span class="n">cfg</span><span class="p">,</span>
+                <span class="n">max_images</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">max_images</span><span class="p">,</span>
+                <span class="n">num_slices</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">num_slices</span><span class="p">,</span>
+                <span class="n">log_every_n_epochs</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">log_every_n_epochs</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vis_callback</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;  Visualization: Enabled (every </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">images</span><span class="o">.</span><span class="n">log_every_n_epochs</span><span class="si">}</span><span class="s2"> epoch(s))&quot;</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Visualization: Disabled&quot;</span><span class="p">)</span>
+
+        <span class="c1"># EMA weights for stabler validation</span>
+        <span class="n">ema_cfg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s2">&quot;ema&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ema_cfg</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">ema_cfg</span><span class="p">,</span> <span class="s2">&quot;enabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">ema_callback</span> <span class="o">=</span> <span class="n">EMAWeightsCallback</span><span class="p">(</span>
+                <span class="n">decay</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ema_cfg</span><span class="p">,</span> <span class="s2">&quot;decay&quot;</span><span class="p">,</span> <span class="mf">0.999</span><span class="p">),</span>
+                <span class="n">warmup_steps</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ema_cfg</span><span class="p">,</span> <span class="s2">&quot;warmup_steps&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+                <span class="n">validate_with_ema</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ema_cfg</span><span class="p">,</span> <span class="s2">&quot;validate_with_ema&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                <span class="n">device</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ema_cfg</span><span class="p">,</span> <span class="s2">&quot;device&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+                <span class="n">copy_buffers</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">ema_cfg</span><span class="p">,</span> <span class="s2">&quot;copy_buffers&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ema_callback</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;  EMA: Enabled (decay=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">decay</span><span class="si">}</span><span class="s2">, warmup_steps=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">warmup_steps</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;validate_with_ema=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">validate_with_ema</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Progress bar (optional - requires rich package)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">RichProgressBar</span><span class="p">())</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ModuleNotFoundError</span><span class="p">):</span>
+        <span class="k">pass</span>  <span class="c1"># Use default progress bar</span>
+
+    <span class="c1"># Setup logger (training only - in run_dir/logs/)</span>
+    <span class="c1"># Always create a logger for training to avoid warnings about missing logger</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;train&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">run_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;run_dir is required when mode=&#39;train&#39;&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">TensorBoardLogger</span><span class="p">(</span>
+            <span class="n">save_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">run_dir</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>  <span class="c1"># No name subdirectory</span>
+            <span class="n">version</span><span class="o">=</span><span class="s2">&quot;logs&quot;</span><span class="p">,</span>  <span class="c1"># Logs go directly to run_dir/logs/</span>
+        <span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Logger: TensorBoard (logs saved to </span><span class="si">{</span><span class="n">run_dir</span><span class="si">}</span><span class="s2">/logs/)&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># For test/predict mode, create a minimal logger to avoid warnings</span>
+        <span class="c1"># if validation metrics are logged</span>
+        <span class="k">if</span> <span class="n">run_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span> <span class="o">=</span> <span class="n">TensorBoardLogger</span><span class="p">(</span>
+                <span class="n">save_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">run_dir</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+                <span class="n">version</span><span class="o">=</span><span class="s2">&quot;logs&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="c1"># Create trainer</span>
+    <span class="c1"># Select system config based on mode</span>
+    <span class="n">system_cfg</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">training</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;train&quot;</span> <span class="k">else</span> <span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">inference</span>
+
+    <span class="c1"># Check if GPU is actually available</span>
+    <span class="n">use_gpu</span> <span class="o">=</span> <span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+
+    <span class="c1"># Check if anomaly detection is enabled (useful for debugging NaN)</span>
+    <span class="n">detect_anomaly</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="p">,</span> <span class="s2">&quot;detect_anomaly&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">detect_anomaly</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⚠️  PyTorch anomaly detection ENABLED (training will be slower)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;      This helps pinpoint the exact operation causing NaN in backward pass&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Configure DDP strategy for multi-GPU training with deep supervision</span>
+    <span class="n">strategy</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>  <span class="c1"># Default strategy</span>
+    <span class="k">if</span> <span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="c1"># Multi-GPU training: configure DDP</span>
+        <span class="n">deep_supervision_enabled</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;deep_supervision&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">ddp_find_unused_params</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;ddp_find_unused_parameters&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">architecture</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;architecture&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">is_mednext</span> <span class="o">=</span> <span class="n">architecture</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;mednext&quot;</span><span class="p">)</span>
+
+        <span class="c1"># MedNeXt always creates deep supervision layers internally (even when disabled)</span>
+        <span class="c1"># so it always needs find_unused_parameters=True</span>
+        <span class="k">if</span> <span class="n">is_mednext</span> <span class="ow">or</span> <span class="n">deep_supervision_enabled</span> <span class="ow">or</span> <span class="n">ddp_find_unused_params</span><span class="p">:</span>
+            <span class="n">strategy</span> <span class="o">=</span> <span class="n">DDPStrategy</span><span class="p">(</span><span class="n">find_unused_parameters</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="c1"># Determine reason for using find_unused_parameters</span>
+            <span class="k">if</span> <span class="n">is_mednext</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">deep_supervision_enabled</span><span class="p">:</span>
+                <span class="n">reason</span> <span class="o">=</span> <span class="s2">&quot;MedNeXt (has unused DS layers)&quot;</span>
+            <span class="k">elif</span> <span class="n">deep_supervision_enabled</span><span class="p">:</span>
+                <span class="n">reason</span> <span class="o">=</span> <span class="s2">&quot;deep supervision enabled&quot;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">reason</span> <span class="o">=</span> <span class="s2">&quot;explicit config&quot;</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Strategy: DDP with find_unused_parameters=True (</span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">strategy</span> <span class="o">=</span> <span class="n">DDPStrategy</span><span class="p">(</span><span class="n">find_unused_parameters</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Strategy: DDP (standard)&quot;</span><span class="p">)</span>
+
+    <span class="n">trainer</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">Trainer</span><span class="p">(</span>
+        <span class="n">max_epochs</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">max_epochs</span><span class="p">,</span>
+        <span class="n">max_steps</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s2">&quot;max_steps&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="o">=</span><span class="s2">&quot;gpu&quot;</span> <span class="k">if</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span>
+        <span class="n">devices</span><span class="o">=</span><span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span> <span class="k">if</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="o">=</span><span class="n">strategy</span><span class="p">,</span>
+        <span class="n">precision</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span>
+        <span class="n">gradient_clip_val</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">gradient_clip_val</span><span class="p">,</span>
+        <span class="n">accumulate_grad_batches</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">accumulate_grad_batches</span><span class="p">,</span>
+        <span class="n">val_check_interval</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">val_check_interval</span><span class="p">,</span>
+        <span class="n">log_every_n_steps</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">log_every_n_steps</span><span class="p">,</span>
+        <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">,</span>
+        <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
+        <span class="n">deterministic</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">deterministic</span><span class="p">,</span>
+        <span class="n">benchmark</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span>
+        <span class="n">fast_dev_run</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">fast_dev_run</span><span class="p">),</span>
+        <span class="n">detect_anomaly</span><span class="o">=</span><span class="n">detect_anomaly</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Max epochs: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">max_epochs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Devices: </span><span class="si">{</span><span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> mode)&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Precision: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">precision</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">trainer</span></div>
+
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;create_trainer&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../../../../"
+    src="../../../../_static/documentation_options.js"></script>
+  <script src="../../../../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../../../../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>

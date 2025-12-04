@@ -1,0 +1,1271 @@
+
+
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en">
+<!--<![endif]-->
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>connectomics.models &mdash; connectomics latest documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+  
+
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!-- <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> -->
+  <link rel="stylesheet" href="../_static/css/pytc-theme.css" type="text/css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/readthedocs-doc-embed.css" type="text/css" />
+  <link rel="index" title="Index" href="../genindex.html" />
+  <link rel="search" title="Search" href="../search.html" /> 
+
+    <!-- Preload the theme fonts -->
+
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-book.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-Medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/FreightSans/freight-sans-medium-italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="_static/fonts/IBMPlexMono/IBMPlexMono-SemiBold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+<!-- Preload the katex fonts -->
+
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Math-Italic.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Main-Bold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size1-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size4-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size2-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Size3-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/katex@0.10.0/dist/fonts/KaTeX_Caligraphic-Regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="text.css" type="text/css" />
+
+  <!-- at the end of the HEAD -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@alpha" />
+</head>
+
+<div class="container-fluid header-holder tutorials-header" id="header-holder">
+  <div class="container">
+
+    <a class="header-logo" href="../index.html" aria-label="PyTC"></a>
+
+    <div class="header-container">
+
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="../notes/installation.html">Get Started</a>
+          </li>
+          <li>
+            <a href="../tutorials/neuron.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="../index.html">Docs</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">GitHub</a>
+          </li>
+          <li>
+            <a href="../about/team.html">About Us</a>
+          </li>
+
+        </ul>
+      </div>
+
+      <!-- <a class="main-menu-open-button" href="#" data-behavior="open-mobile-menu"></a> -->
+    </div>
+
+  </div>
+</div>
+
+
+<body class="pytorch-body">
+
+   
+
+  
+
+  <div class="table-of-contents-link-wrapper">
+    <span>Table of Contents</span>
+    <a href="#" class="toggle-table-of-contents" data-behavior="toggle-table-of-contents"></a>
+  </div>
+
+  <nav data-toggle="wy-nav-shift" class="pytorch-left-menu" id="pytorch-left-menu">
+    <div class="pytorch-side-scroll">
+      <div class="pytorch-menu pytorch-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        <div class="pytorch-left-menu-search">
+          
+
+          
+          
+          
+          <div class="version">
+            latest
+          </div>
+          
+          
+
+          <div id="docsearch"></div>
+
+          
+        </div>
+
+        
+        
+        
+        
+        
+        
+        <p class="caption" role="heading"><span class="caption-text">Get Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../notes/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/config.html">Configuration System</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/dataloading.html">Data Loading</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/migration.html">Migration Guide (v1.0 → v2.0)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../notes/faq.html">FAQ</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/neuron.html">Neuron Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/mito.html">Mitochondria Segmentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/synapse.html">Synapse Detection</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/artifact.html">Artifacts Detection (Draft)</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">External Tools</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../external/neuroglancer.html">Neuroglancer</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Package Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="lightning.html">Lightning Module API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="model.html">connectomics.models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data.html">connectomics.data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utils.html">connectomics.utils</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/team.html">About Us</a></li>
+</ul>
+
+        
+        
+      </div>
+    </div>
+
+    
+
+
+    
+
+    <!-- 
+    
+    <div class="rst-versions" data-toggle="rst-versions" role="note" aria-label="versions">
+      <span class="rst-current-version" data-toggle="rst-current-version">
+        <span class="fa fa-book"> Read the Docs</span>
+        v: latest
+        <span class="fa fa-caret-down"></span>
+      </span>
+      <div class="rst-other-versions">
+        <dl>
+          <dt>Versions</dt>
+          
+          <dd><a href="#">latest</a></dd>
+          
+        </dl>
+        <dl>
+          <dt>Downloads</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">PDF</a>
+          </dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">HTML</a></dd>
+        </dl>
+        <dl>
+          <dt>On Github</dt>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics">Home</a></dd>
+          <dd><a href="https://github.com/zudi-lin/pytorch_connectomics/">Docs</a></dd>
+        </dl>
+      </div>
+    </div>
+    
+     -->
+
+  </nav>
+
+
+  <div class="pytorch-container">
+    <div class="pytorch-page-level-bar" id="pytorch-page-level-bar">
+      <div class="pytorch-breadcrumbs-wrapper">
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="pytorch-breadcrumbs">
+    
+      <li>
+        <a href="../index.html">
+          
+            Docs
+          
+        </a> &gt;
+      </li>
+
+        
+      <li>connectomics.models</li>
+    
+    
+      <li class="pytorch-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/models.rst.txt" rel="nofollow"><img src="../_static/images/view-page-source-icon.svg"></a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+</div>
+      </div>
+
+      <div class="pytorch-shortcuts-wrapper" id="pytorch-shortcuts-wrapper">
+        Shortcuts
+      </div>
+    </div>
+
+    <section data-toggle="wy-nav-shift" id="pytorch-content-wrap" class="pytorch-content-wrap">
+      <div class="pytorch-content-left">
+
+        
+        
+          <div class="rst-content">
+            
+            <div role="main" class="main-content" itemscope="itemscope" itemtype="http://schema.org/Article">
+              <article itemprop="articleBody" id="pytorch-article" class="pytorch-article">
+                
+  <section id="connectomics-models">
+<h1>connectomics.models<a class="headerlink" href="#connectomics-models" title="Link to this heading">¶</a></h1>
+<section id="module-connectomics.models.arch">
+<span id="architectures"></span><h2>Architectures<a class="headerlink" href="#module-connectomics.models.arch" title="Link to this heading">¶</a></h2>
+<p>Architecture module for connectomics models.</p>
+<p>Provides:
+- Registry system for architecture management
+- Base model interface with deep supervision support
+- MONAI model wrappers (BasicUNet, UNet, UNETR, SwinUNETR)
+- Future: MedNeXt model wrappers</p>
+<dl>
+<dt>Usage:</dt><dd><dl class="simple">
+<dt>from connectomics.models.arch import (</dt><dd><p>register_architecture,
+list_architectures,
+ConnectomicsModel,</p>
+</dd>
+</dl>
+<p>)</p>
+<p># List available models
+print(list_architectures())</p>
+<p># Register custom model
+&#64;register_architecture(‘my_model’)
+def build_my_model(cfg):</p>
+<blockquote>
+<div><p>return MyModel(cfg)</p>
+</div></blockquote>
+</dd>
+</dl>
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.arch.ConnectomicsModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">ConnectomicsModel</span></span><a class="reference internal" href="../_modules/connectomics/models/arch/base.html#ConnectomicsModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.ConnectomicsModel" title="Link to this definition">¶</a></dt>
+<dd><p>Base class for all connectomics models.</p>
+<p>Provides common interface for:
+- Forward pass (single or multi-scale outputs)
+- Deep supervision support
+- Model information</p>
+<p>All models in the architectures module should inherit from this class
+or at least implement the same interface.</p>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.arch.ConnectomicsModel.forward">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/base.html#ConnectomicsModel.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.ConnectomicsModel.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Forward pass through the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input tensor of shape (B, C, D, H, W) for 3D or (B, C, H, W) for 2D</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>torch.Tensor: Output tensor of shape (B, num_classes, D, H, W)</p>
+<dl class="simple">
+<dt>For deep supervision models:</dt><dd><dl class="simple">
+<dt>Dict[str, torch.Tensor]: Dictionary with keys:</dt><dd><ul class="simple">
+<li><p>’output’: Main output (full resolution)</p></li>
+<li><p>’ds_1’: Deep supervision output at scale 1 (1/2 resolution)</p></li>
+<li><p>’ds_2’: Deep supervision output at scale 2 (1/4 resolution)</p></li>
+<li><p>’ds_3’: Deep supervision output at scale 3 (1/8 resolution)</p></li>
+<li><p>’ds_4’: Deep supervision output at scale 4 (1/16 resolution)</p></li>
+</ul>
+</dd>
+</dl>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>For single-scale models</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.arch.ConnectomicsModel.get_model_info">
+<span class="sig-name descname"><span class="pre">get_model_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/base.html#ConnectomicsModel.get_model_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.ConnectomicsModel.get_model_info" title="Link to this definition">¶</a></dt>
+<dd><p>Get model information and statistics.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>name: Model class name</p></li>
+<li><p>deep_supervision: Whether model supports deep supervision</p></li>
+<li><p>output_scales: Number of output scales</p></li>
+<li><p>parameters: Total trainable parameters</p></li>
+<li><p>trainable_parameters: Number of trainable parameters</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with model metadata</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.arch.ConnectomicsModel.summary">
+<span class="sig-name descname"><span class="pre">summary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/base.html#ConnectomicsModel.summary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.ConnectomicsModel.summary" title="Link to this definition">¶</a></dt>
+<dd><p>Get a summary string of the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input_shape</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><em>tuple</em></a><em> | </em><em>None</em>) – Expected input shape (optional)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Formatted string with model information</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.get_architecture_builder">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">get_architecture_builder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/registry.html#get_architecture_builder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.get_architecture_builder" title="Link to this definition">¶</a></dt>
+<dd><p>Get builder function for architecture.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Architecture name</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Builder function that takes cfg and returns a model</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If architecture not found</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><em>Callable</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.get_architecture_info">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">get_architecture_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/registry.html#get_architecture_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.get_architecture_info" title="Link to this definition">¶</a></dt>
+<dd><p>Get information about all registered architectures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Dict mapping architecture names to their metadata</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.get_available_architectures">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">get_available_architectures</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch.html#get_available_architectures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.get_available_architectures" title="Link to this definition">¶</a></dt>
+<dd><p>Get information about available architectures and their dependencies.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p>‘monai’: List of MONAI architectures (if available)</p></li>
+<li><p>’mednext’: List of MedNeXt architectures (if available)</p></li>
+<li><p>’all’: List of all registered architectures</p></li>
+</ul>
+</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary with</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.is_architecture_available">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">is_architecture_available</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/registry.html#is_architecture_available"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.is_architecture_available" title="Link to this definition">¶</a></dt>
+<dd><p>Check if architecture is available.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Architecture name</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>True if architecture is registered</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.list_architectures">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">list_architectures</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/registry.html#list_architectures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.list_architectures" title="Link to this definition">¶</a></dt>
+<dd><p>List all registered architectures.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Sorted list of architecture names</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.print_available_architectures">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">print_available_architectures</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch.html#print_available_architectures"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.print_available_architectures" title="Link to this definition">¶</a></dt>
+<dd><p>Print a formatted list of available architectures.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.register_architecture">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">register_architecture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/registry.html#register_architecture"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.register_architecture" title="Link to this definition">¶</a></dt>
+<dd><p>Decorator to register architecture builders.</p>
+<p class="rubric">Example</p>
+<p>&#64;register_architecture(‘my_model’)
+def build_my_model(cfg):</p>
+<blockquote>
+<div><p>return MyModel(…)</p>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Unique name for the architecture</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Decorator function</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.arch.unregister_architecture">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.arch.</span></span><span class="sig-name descname"><span class="pre">unregister_architecture</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/arch/registry.html#unregister_architecture"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.arch.unregister_architecture" title="Link to this definition">¶</a></dt>
+<dd><p>Unregister an architecture (useful for testing).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Architecture name</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If architecture not found</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-connectomics.models.loss">
+<span id="loss-functions"></span><h2>Loss Functions<a class="headerlink" href="#module-connectomics.models.loss" title="Link to this heading">¶</a></h2>
+<p>MONAI-native loss functions for PyTorch Connectomics.</p>
+<p>This module provides a clean interface for loss function creation using MONAI’s
+native implementations, with additional connectomics-specific losses.</p>
+<p>Design pattern follows transforms/augment/ for consistency.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.BinaryRegularization">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">BinaryRegularization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#BinaryRegularization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.BinaryRegularization" title="Link to this definition">¶</a></dt>
+<dd><p>Regularization encouraging outputs to be binary (close to 0 or 1).</p>
+<p>Penalizes predictions that are close to 0.5 (uncertain).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>min_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum threshold for clamping (default: 1e-2)</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">reg</span> <span class="o">=</span> <span class="n">BinaryRegularization</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">reg</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.BinaryRegularization.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#BinaryRegularization.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.BinaryRegularization.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute binary regularization loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Predictions (logits or probabilities)</p></li>
+<li><p><strong>mask</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a><em> | </em><em>None</em>) – Optional spatial weight mask</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Regularization loss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.ContourDistanceConsistency">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">ContourDistanceConsistency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#ContourDistanceConsistency"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.ContourDistanceConsistency" title="Link to this definition">¶</a></dt>
+<dd><p>Consistency regularization between instance contour map and signed distance transform.</p>
+<p>Encourages contour predictions (high at boundaries) to be consistent with
+distance transform predictions (low magnitude at boundaries).</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">reg</span> <span class="o">=</span> <span class="n">ContourDistanceConsistency</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">contour_logits</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dt_pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">reg</span><span class="p">(</span><span class="n">contour_logits</span><span class="p">,</span> <span class="n">dt_pred</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.ContourDistanceConsistency.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">contour_logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_transform</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#ContourDistanceConsistency.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.ContourDistanceConsistency.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute consistency loss between contour and distance transform.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>contour_logits</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Instance contour logits</p></li>
+<li><p><strong>distance_transform</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Signed distance transform predictions</p></li>
+<li><p><strong>mask</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a><em> | </em><em>None</em>) – Optional spatial weight mask</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Consistency loss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.ForegroundContourConsistency">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">ForegroundContourConsistency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">kernel_half_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">eps</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-07</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#ForegroundContourConsistency"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.ForegroundContourConsistency" title="Link to this definition">¶</a></dt>
+<dd><p>Consistency regularization between binary foreground and instance contour maps.</p>
+<p>Encourages contour predictions to align with foreground edges detected via Sobel filters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>kernel_half_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Half-size of edge detection kernel (default: 1)</p></li>
+<li><p><strong>eps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Small epsilon for numerical stability (default: 1e-7)</p></li>
+</ul>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">reg</span> <span class="o">=</span> <span class="n">ForegroundContourConsistency</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fg_logits</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">contour_logits</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">reg</span><span class="p">(</span><span class="n">fg_logits</span><span class="p">,</span> <span class="n">contour_logits</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.ForegroundContourConsistency.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">foreground_logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">contour_logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#ForegroundContourConsistency.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.ForegroundContourConsistency.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute consistency loss between foreground edges and contours.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>foreground_logits</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Binary foreground logits</p></li>
+<li><p><strong>contour_logits</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Instance contour logits</p></li>
+<li><p><strong>mask</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a><em> | </em><em>None</em>) – Optional spatial weight mask</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Consistency loss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.ForegroundDistanceConsistency">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">ForegroundDistanceConsistency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#ForegroundDistanceConsistency"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.ForegroundDistanceConsistency" title="Link to this definition">¶</a></dt>
+<dd><p>Consistency regularization between binary foreground mask and signed distance transform.</p>
+<p>Encourages foreground predictions to be consistent with distance transform predictions.</p>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">reg</span> <span class="o">=</span> <span class="n">ForegroundDistanceConsistency</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fg_logits</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dt_pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">reg</span><span class="p">(</span><span class="n">fg_logits</span><span class="p">,</span> <span class="n">dt_pred</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="field-list simple">
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.ForegroundDistanceConsistency.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">foreground_logits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_transform</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#ForegroundDistanceConsistency.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.ForegroundDistanceConsistency.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute consistency loss between foreground and distance transform.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>foreground_logits</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Binary foreground logits</p></li>
+<li><p><strong>distance_transform</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Signed distance transform predictions</p></li>
+<li><p><strong>mask</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a><em> | </em><em>None</em>) – Optional spatial weight mask</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Consistency loss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.GANLoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">GANLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gan_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'lsgan'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_real_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_fake_label</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#GANLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.GANLoss" title="Link to this definition">¶</a></dt>
+<dd><p>GAN loss for adversarial training.</p>
+<p>Supports vanilla, LSGAN, and WGAN-GP objectives.
+Based on <a class="reference external" href="https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix">https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gan_mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – GAN objective type (‘vanilla’, ‘lsgan’, ‘wgangp’)</p></li>
+<li><p><strong>target_real_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Label for real images</p></li>
+<li><p><strong>target_fake_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Label for fake images</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Do not use sigmoid as the last layer of Discriminator.
+LSGAN needs no sigmoid. Vanilla GANs will handle it with BCEWithLogitsLoss.</p>
+</div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.GANLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prediction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_is_real</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#GANLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.GANLoss.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Calculate GAN loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prediction</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Discriminator output</p></li>
+<li><p><strong>target_is_real</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether ground truth labels are for real or fake images</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Calculated loss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.GANLoss.get_target_tensor">
+<span class="sig-name descname"><span class="pre">get_target_tensor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prediction</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_is_real</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#GANLoss.get_target_tensor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.GANLoss.get_target_tensor" title="Link to this definition">¶</a></dt>
+<dd><p>Create label tensors with the same size as the input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prediction</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Discriminator prediction</p></li>
+<li><p><strong>target_is_real</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether the ground truth is real or fake</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Label tensor filled with ground truth labels</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.NonOverlapRegularization">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">NonOverlapRegularization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cleft_masked</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#NonOverlapRegularization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.NonOverlapRegularization" title="Link to this definition">¶</a></dt>
+<dd><p>Regularization preventing overlapping predictions.</p>
+<p>Specifically designed for synaptic polarity prediction where pre- and post-synaptic
+masks should not overlap. Optionally masks the regularization by the cleft prediction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cleft_masked</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to mask regularization by cleft prediction (default: True)</p>
+</dd>
+</dl>
+<p class="rubric">Example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">reg</span> <span class="o">=</span> <span class="n">NonOverlapRegularization</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># pred has shape (B, 3, Z, Y, X) with channels: [pre, post, cleft]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">reg</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.NonOverlapRegularization.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#NonOverlapRegularization.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.NonOverlapRegularization.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute non-overlap regularization loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>pred</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Predictions with shape (B, C, Z, Y, X) where:
+- Channel 0: Pre-synaptic logits
+- Channel 1: Post-synaptic logits
+- Channel 2: Cleft logits (optional, used if cleft_masked=True)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Non-overlap regularization loss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.WeightedMAELoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">WeightedMAELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tanh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#WeightedMAELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.WeightedMAELoss" title="Link to this definition">¶</a></dt>
+<dd><p>Weighted mean absolute error loss.</p>
+<p>Useful for regression tasks with spatial importance weighting.
+Supports optional tanh activation for distance transform predictions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reduction</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Reduction method (‘mean’, ‘sum’, ‘none’)</p></li>
+<li><p><strong>tanh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, apply tanh activation to predictions before computing loss.
+Useful for distance transform targets in range [-1, 1].</p></li>
+</ul>
+</dd>
+</dl>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.WeightedMAELoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#WeightedMAELoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.WeightedMAELoss.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute weighted MAE loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Predictions (logits if tanh=True, otherwise predictions)</p></li>
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Ground truth</p></li>
+<li><p><strong>weight</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a><em> | </em><em>None</em>) – Optional spatial weights</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Loss value</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.WeightedMSELoss">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">WeightedMSELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tanh</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#WeightedMSELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.WeightedMSELoss" title="Link to this definition">¶</a></dt>
+<dd><p>Weighted mean-squared error loss.</p>
+<p>Useful for regression tasks with spatial importance weighting.
+Supports optional tanh activation for distance transform predictions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>reduction</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Reduction method (‘mean’, ‘sum’, ‘none’)</p></li>
+<li><p><strong>tanh</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, apply tanh activation to predictions before computing loss.
+Useful for distance transform targets in range [-1, 1].
+With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Initialize internal Module state, shared by both nn.Module and ScriptModule.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.models.loss.WeightedMSELoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pred</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/losses.html#WeightedMSELoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.WeightedMSELoss.forward" title="Link to this definition">¶</a></dt>
+<dd><p>Compute weighted MSE loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pred</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Predictions (logits if tanh=True, otherwise predictions)</p></li>
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Ground truth (range [-1, 1] for SDT)</p></li>
+<li><p><strong>weight</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a><em> | </em><em>None</em>) – Optional spatial weights</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Loss value (should be &lt; 4 for range [-1, 1])</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.create_binary_segmentation_loss">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_binary_segmentation_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dice_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bce_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_binary_segmentation_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_binary_segmentation_loss" title="Link to this definition">¶</a></dt>
+<dd><p>Create standard loss for binary segmentation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dice_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for Dice loss</p></li>
+<li><p><strong>bce_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for BCE loss</p></li>
+<li><p><strong>include_background</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to include background in Dice</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Combined DiceLoss + BCEWithLogitsLoss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><em>Module</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.create_combined_loss">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_combined_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_names</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_combined_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_combined_loss" title="Link to this definition">¶</a></dt>
+<dd><p>Create a weighted combination of multiple loss functions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of loss function names</p></li>
+<li><p><strong>loss_weights</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><em>None</em>) – Optional weights for each loss (default: equal weights)</p></li>
+<li><p><strong>loss_kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of kwargs dicts for each loss</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Combined loss module</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><em>Module</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_combined_loss</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">loss_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;DiceLoss&#39;</span><span class="p">,</span> <span class="s1">&#39;BCEWithLogitsLoss&#39;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">loss_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">]</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_combined_loss</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">loss_names</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;DiceLoss&#39;</span><span class="p">,</span> <span class="s1">&#39;FocalLoss&#39;</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">loss_weights</span><span class="o">=</span><span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">],</span>
+<span class="gp">... </span>    <span class="n">loss_kwargs</span><span class="o">=</span><span class="p">[</span>
+<span class="gp">... </span>        <span class="p">{</span><span class="s1">&#39;include_background&#39;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
+<span class="gp">... </span>        <span class="p">{</span><span class="s1">&#39;gamma&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s1">&#39;alpha&#39;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">}</span>
+<span class="gp">... </span>    <span class="p">]</span>
+<span class="gp">... </span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.create_focal_loss">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_focal_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.25</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_focal_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_focal_loss" title="Link to this definition">¶</a></dt>
+<dd><p>Create Focal loss for handling class imbalance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gamma</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Focusing parameter</p></li>
+<li><p><strong>alpha</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weighting factor</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>FocalLoss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><em>Module</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.create_loss">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_loss" title="Link to this definition">¶</a></dt>
+<dd><p>Create a single loss function by name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the loss function</p></li>
+<li><p><strong>**kwargs</strong> – Loss-specific parameters</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initialized loss function</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><em>Module</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_loss</span><span class="p">(</span><span class="s1">&#39;DiceLoss&#39;</span><span class="p">,</span> <span class="n">include_background</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_loss</span><span class="p">(</span><span class="s1">&#39;DiceCELoss&#39;</span><span class="p">,</span> <span class="n">to_onehot_y</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">softmax</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_loss</span><span class="p">(</span><span class="s1">&#39;FocalLoss&#39;</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.create_loss_from_config">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_loss_from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_loss_from_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_loss_from_config" title="Link to this definition">¶</a></dt>
+<dd><p>Create loss function from Hydra config.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg</strong> – Hydra Config object with model.loss_functions and model.loss_weights</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initialized loss function</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><em>Module</em></a></p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_config</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cfg</span> <span class="o">=</span> <span class="n">load_config</span><span class="p">(</span><span class="s1">&#39;config.yaml&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">loss</span> <span class="o">=</span> <span class="n">create_loss_from_config</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.create_multiclass_segmentation_loss">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">create_multiclass_segmentation_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_classes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dice_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ce_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_background</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#create_multiclass_segmentation_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.create_multiclass_segmentation_loss" title="Link to this definition">¶</a></dt>
+<dd><p>Create standard loss for multi-class segmentation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_classes</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of classes</p></li>
+<li><p><strong>dice_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for Dice loss</p></li>
+<li><p><strong>ce_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for CE loss</p></li>
+<li><p><strong>include_background</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to include background in Dice</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Combined DiceLoss + CrossEntropyLoss</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><em>Module</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.list_available_losses">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">list_available_losses</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#list_available_losses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.list_available_losses" title="Link to this definition">¶</a></dt>
+<dd><p>List all available loss functions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="utility-functions">
+<h2>Utility Functions<a class="headerlink" href="#utility-functions" title="Link to this heading">¶</a></h2>
+</section>
+</section>
+
+
+              </article>
+              
+            </div>
+            <footer>
+  
+
+  
+
+  <hr>
+
+  
+
+  <div role="contentinfo">
+    <p>
+      &copy; Copyright 2019-2025, PyTorch Connectomics Contributors.
+
+    </p>
+  </div>
+  
+  <div style="margin-bottom:1cm">
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a
+      href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the
+      Docs</a>.
+  </div>
+   
+
+</footer>
+          </div>
+        </div>
+
+        <div class="pytorch-content-right" id="pytorch-content-right">
+          <div class="pytorch-right-menu" id="pytorch-right-menu">
+            <div class="pytorch-side-scroll" id="pytorch-side-scroll-right">
+              <ul>
+<li><a class="reference internal" href="#">connectomics.models</a><ul>
+<li><a class="reference internal" href="#module-connectomics.models.arch">Architectures</a><ul>
+<li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel.forward"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel.forward()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel.get_model_info"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel.get_model_info()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.ConnectomicsModel.summary"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModel.summary()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.arch.get_architecture_builder"><code class="docutils literal notranslate"><span class="pre">get_architecture_builder()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.get_architecture_info"><code class="docutils literal notranslate"><span class="pre">get_architecture_info()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.get_available_architectures"><code class="docutils literal notranslate"><span class="pre">get_available_architectures()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.is_architecture_available"><code class="docutils literal notranslate"><span class="pre">is_architecture_available()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.list_architectures"><code class="docutils literal notranslate"><span class="pre">list_architectures()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.print_available_architectures"><code class="docutils literal notranslate"><span class="pre">print_available_architectures()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.register_architecture"><code class="docutils literal notranslate"><span class="pre">register_architecture()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.arch.unregister_architecture"><code class="docutils literal notranslate"><span class="pre">unregister_architecture()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-connectomics.models.loss">Loss Functions</a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.BinaryRegularization"><code class="docutils literal notranslate"><span class="pre">BinaryRegularization</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.BinaryRegularization.forward"><code class="docutils literal notranslate"><span class="pre">BinaryRegularization.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.ContourDistanceConsistency"><code class="docutils literal notranslate"><span class="pre">ContourDistanceConsistency</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.ContourDistanceConsistency.forward"><code class="docutils literal notranslate"><span class="pre">ContourDistanceConsistency.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.ForegroundContourConsistency"><code class="docutils literal notranslate"><span class="pre">ForegroundContourConsistency</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.ForegroundContourConsistency.forward"><code class="docutils literal notranslate"><span class="pre">ForegroundContourConsistency.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.ForegroundDistanceConsistency"><code class="docutils literal notranslate"><span class="pre">ForegroundDistanceConsistency</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.ForegroundDistanceConsistency.forward"><code class="docutils literal notranslate"><span class="pre">ForegroundDistanceConsistency.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.GANLoss"><code class="docutils literal notranslate"><span class="pre">GANLoss</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.GANLoss.forward"><code class="docutils literal notranslate"><span class="pre">GANLoss.forward()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.GANLoss.get_target_tensor"><code class="docutils literal notranslate"><span class="pre">GANLoss.get_target_tensor()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.NonOverlapRegularization"><code class="docutils literal notranslate"><span class="pre">NonOverlapRegularization</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.NonOverlapRegularization.forward"><code class="docutils literal notranslate"><span class="pre">NonOverlapRegularization.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.WeightedMAELoss"><code class="docutils literal notranslate"><span class="pre">WeightedMAELoss</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.WeightedMAELoss.forward"><code class="docutils literal notranslate"><span class="pre">WeightedMAELoss.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.WeightedMSELoss"><code class="docutils literal notranslate"><span class="pre">WeightedMSELoss</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.models.loss.WeightedMSELoss.forward"><code class="docutils literal notranslate"><span class="pre">WeightedMSELoss.forward()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#connectomics.models.loss.create_binary_segmentation_loss"><code class="docutils literal notranslate"><span class="pre">create_binary_segmentation_loss()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.create_combined_loss"><code class="docutils literal notranslate"><span class="pre">create_combined_loss()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.create_focal_loss"><code class="docutils literal notranslate"><span class="pre">create_focal_loss()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.create_loss"><code class="docutils literal notranslate"><span class="pre">create_loss()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.create_loss_from_config"><code class="docutils literal notranslate"><span class="pre">create_loss_from_config()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.create_multiclass_segmentation_loss"><code class="docutils literal notranslate"><span class="pre">create_multiclass_segmentation_loss()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.list_available_losses"><code class="docutils literal notranslate"><span class="pre">list_available_losses()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#utility-functions">Utility Functions</a></li>
+</ul>
+</li>
+</ul>
+
+            </div>
+          </div>
+        </div>
+    </section>
+  </div>
+
+  
+
+  
+  <script type="text/javascript" id="documentation_options" data-url_root="../"
+    src="../_static/documentation_options.js"></script>
+  <script src="../_static/documentation_options.js?v=f4332903"></script>
+  <script src="../_static/doctools.js?v=9bcbadda"></script>
+  <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+  
+
+  
+
+  <script type="text/javascript" src="../_static/js/vendor/popper.min.js"></script>
+  <script type="text/javascript" src="../_static/js/vendor/bootstrap.min.js"></script>
+  <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+    jQuery(function () {
+      SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  <!-- Begin Footer -->
+
+  <div class="container-fluid docs-tutorials-resources" id="docs-tutorials-resources">
+    <!-- <div class="container">
+      <div class="row">
+        <div class="col-md-4 text-center">
+          <h2>Visual Computing Group</h2>
+          <p>Visual computing group (VCG) led by Prof. Hanspeter Pfister at Harvard University</p>
+          <a class="with-right-arrow" href="https://vcg.seas.harvard.edu/">View VCG</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>Lichtman Lab</h2>
+          <p>Neuroscience research lab led by Prof. Jeff Lichtman at Harvard University</p>
+          <a class="with-right-arrow" href="https://lichtmanlab.fas.harvard.edu">View Lichtman Lab</a>
+        </div>
+        <div class="col-md-4 text-center">
+          <h2>PyTorch</h2>
+          <p>An open source machine learning framework</p>
+          <a class="with-right-arrow" href="https://pytorch.org/">View PyTorch</a>
+        </div>
+      </div>
+    </div> -->
+  </div>
+
+  <div class="cookie-banner-wrapper">
+  <div class="container">
+    <p class="gdpr-notice">To analyze traffic and optimize your experience, we serve cookies on this site. By clicking or navigating, you agree to allow our usage of cookies. As the current maintainers of this site, Facebook’s Cookies Policy applies. Learn more, including about available controls: <a href="https://www.facebook.com/policies/cookies/">Cookies Policy</a>.</p>
+    <img class="close-button" src="_static/images/pytorch-x.svg">
+  </div>
+</div>
+
+  <!-- End Footer -->
+
+  <!-- Begin Mobile Menu -->
+  <!--
+  <div class="mobile-main-menu">
+    <div class="container-fluid">
+      <div class="container">
+        <div class="mobile-main-menu-header-container">
+          <a class="header-logo" href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html" aria-label="PyTorch"></a>
+          <a class="main-menu-close-button" href="#" data-behavior="close-mobile-menu"></a>
+        </div>
+      </div>
+    </div>
+    <div class="mobile-main-menu-links-container">
+      <div class="main-menu">
+        <ul>
+          <li>
+            <a href="#">Get Started</a>
+          </li>
+          <li>
+            <a href="#">Features</a>
+          </li>
+          <li>
+            <a href="#">Ecosystem</a>
+          </li>
+          <li>
+            <a href="">Blog</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/tutorials/snemi.html">Tutorials</a>
+          </li>
+          <li>
+            <a href="https://zudi-lin.github.io/pytorch_connectomics/build/html/index.html">Docs</a>
+          </li>
+          <li>
+            <a href="">Resources</a>
+          </li>
+          <li>
+            <a href="https://github.com/zudi-lin/pytorch_connectomics/tree/master">Github</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  -->
+  <!-- End Mobile Menu -->
+
+  <script type="text/javascript" src="../_static/js/vendor/anchor.min.js"></script>
+
+  <script type="text/javascript">
+    var collapsedSections = ['Notes']
+    $(document).ready(function () {
+      mobileMenu.bind();
+      mobileTOC.bind();
+      pytorchAnchors.bind();
+      sideMenus.bind();
+      scrollToAnchor.bind();
+      highlightNavigation.bind();
+
+      // Add class to links that have code blocks, since we cannot create links in code blocks
+      $("article.pytorch-article a span.pre").each(function (e) {
+        $(this).closest("a").addClass("has-code");
+      });
+    })
+  </script>
+
+  <!-- at the end of the BODY -->
+  <script src="https://cdn.jsdelivr.net/npm/@docsearch/js@alpha"></script>
+  <script>
+    /* global docsearch */
+    docsearch({
+      container: "#docsearch",
+      apiKey: "f072ddc06d4d2d86f6b26fb6f12a4699",
+      indexName: "readthedocs",
+      placeholder: "Search PyTorch Connectomics",
+    });
+  </script>
+
+</body>
+
+</html>
