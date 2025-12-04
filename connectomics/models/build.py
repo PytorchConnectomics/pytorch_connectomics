@@ -65,7 +65,7 @@ def load_external_weights(model, cfg):
         stripped_count = 0
         for key, value in state_dict.items():
             if key.startswith(key_prefix):
-                new_key = key[len(key_prefix) :]
+                new_key = key[len(key_prefix):]
                 new_state_dict[new_key] = value
                 stripped_count += 1
             else:
@@ -90,7 +90,8 @@ def load_external_weights(model, cfg):
         state_dict = new_state_dict
         if compile_stripped > 0:
             print(
-                f'    Stripped "_orig_mod." prefix from {compile_stripped} keys (torch.compile model)'
+                '    Stripped "_orig_mod." prefix from '
+                f"{compile_stripped} keys (torch.compile model)"
             )
 
     # Handle wrapped models (e.g., MedNeXtWrapper has model.model)

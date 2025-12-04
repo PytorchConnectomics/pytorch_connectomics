@@ -166,7 +166,7 @@ def stitch_3d(masks: np.ndarray, stitch_threshold: float = 0.25) -> np.ndarray:
 
     Args:
         masks (numpy.ndarray): 3D volume comprised of a 2D annotations stack
-            of shape :math:`(Z, Y, X)`.
+            of shape:math:`(Z, Y, X)`.
         stitch_threshold (float): threshold for joining 2D annotations via IOU. Default: 0.25
 
     Returns:
@@ -211,9 +211,9 @@ def intersection_over_union(masks_true: np.ndarray, masks_pred: np.ndarray) -> n
 
     Args:
         masks_true (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are
-            mask labels, shape :math:`(Y, X)`.
+            mask labels, shape:math:`(Y, X)`.
         masks_pred (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are
-            mask labels, shape :math:`(Y, X)`.
+            mask labels, shape:math:`(Y, X)`.
 
     Returns:
         numpy.ndarray: A ND-array recording the IoU score (float) for each label pair,
@@ -237,13 +237,13 @@ def _label_overlap(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
     Args:
         x (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask
-            labels, shape :math:`(Y, X)`.
+            labels, shape:math:`(Y, X)`.
         y (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask
-            labels, shape :math:`(Y, X)`.
+            labels, shape:math:`(Y, X)`.
 
     Returns:
         numpy.ndarray: A ND-array matrix recording the pixel overlaps,
-            size :math:`[x.max()+1, y.max()+1]`
+            size:math:`[x.max()+1, y.max()+1]`
     """
     # flatten the 2D label arrays
     x = x.ravel()
@@ -360,7 +360,7 @@ def apply_binary_postprocessing(
 
             if len(sizes) > cc_config.top_k:
                 # Get indices of top-k largest components
-                top_k_indices = np.argsort(sizes)[-cc_config.top_k :]
+                top_k_indices = np.argsort(sizes)[-cc_config.top_k:]
                 top_k_labels = label_ids[top_k_indices]
 
                 # Create mask keeping only top-k

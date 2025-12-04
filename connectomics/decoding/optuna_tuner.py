@@ -175,7 +175,10 @@ class OptunaDecodingTuner:
                     )
                 if mask.shape != gt.shape:
                     raise ValueError(
-                        f"Mask shape {mask.shape} doesn't match ground truth shape {gt.shape} in volume {i}"
+                        "Mask shape {mask_shape} doesn't match ground truth shape "
+                        "{gt_shape} in volume {vol_idx}".format(
+                            mask_shape=mask.shape, gt_shape=gt.shape, vol_idx=i
+                        )
                     )
 
     def optimize(self) -> optuna.Study:
@@ -351,7 +354,10 @@ class OptunaDecodingTuner:
                     import traceback
 
                     print(
-                        f"\n❌ Trial {self.trial_count} failed during post-processing (volume {vol_idx}):"
+                        "\n❌ Trial {count} failed during post-processing "
+                        "(volume {vol_idx}):".format(
+                            count=self.trial_count, vol_idx=vol_idx
+                        )
                     )
                     print(f"   Parameters: {postproc_params}")
                     print(f"   Error: {e}")
@@ -374,7 +380,10 @@ class OptunaDecodingTuner:
                 import traceback
 
                 print(
-                    f"\n❌ Trial {self.trial_count} failed during metric computation (volume {vol_idx}):"
+                    "\n❌ Trial {count} failed during metric computation "
+                    "(volume {vol_idx}):".format(
+                        count=self.trial_count, vol_idx=vol_idx
+                    )
                 )
                 print(f"   Metric: {metric_name}")
                 print(f"   Segmentation shape: {segmentation.shape}, dtype: {segmentation.dtype}")
@@ -396,7 +405,13 @@ class OptunaDecodingTuner:
             # Show per-volume and average
             vol_str = ", ".join([f"{m:.4f}" for m in volume_metrics])
             print(
-                f"Trial {self.trial_count:3d}: {metric_name}=[{vol_str}] avg={metric_value:.6f} ({direction})"
+                "Trial {count:3d}: {metric}=[{volumes}] avg={avg:.6f} ({direction})".format(
+                    count=self.trial_count,
+                    metric=metric_name,
+                    volumes=vol_str,
+                    avg=metric_value,
+                    direction=direction,
+                )
             )
 
         return metric_value
@@ -778,9 +793,8 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     print(f"✓ Loaded {len(predictions)} prediction volume(s)")
     for i, pred in enumerate(predictions):
-        print(
-            f"  Volume {i}: shape {pred.shape}, dtype {pred.dtype}, range [{pred.min():.3f}, {pred.max():.3f}]"
-        )
+        pred_range = f"[{pred.min():.3f}, {pred.max():.3f}]"
+        print(f"  Volume {i}: shape {pred.shape}, dtype {pred.dtype}, range {pred_range}")
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
@@ -816,8 +830,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     for i, gt in enumerate(ground_truth):
         unique_labels = np.unique(gt)
         n_nonzero_labels = len(unique_labels) - (1 if 0 in unique_labels else 0)
+        gt_range = f"[{gt.min()}, {gt.max()}]"
         print(
-            f"  Volume {i}: shape {gt.shape}, dtype {gt.dtype}, range [{gt.min()}, {gt.max()}], unique labels: {n_nonzero_labels}"
+            f"  Volume {i}: shape {gt.shape}, dtype {gt.dtype}, range {gt_range}, "
+            f"unique labels: {n_nonzero_labels}"
         )
 
         # Validate ground truth for this volume

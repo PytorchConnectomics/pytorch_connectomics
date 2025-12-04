@@ -12,7 +12,8 @@ Based on:
 Metrics:
     - Correctness: TP / (TP + FP) on skeleton
     - Completeness: TP / (TP + FN) on skeleton
-    - Quality: (Completeness * Correctness) / (Completeness + Correctness - Completeness * Correctness)
+    - Quality: (Completeness * Correctness) /
+      (Completeness + Correctness - Completeness * Correctness)
     - Foreground IoU: Intersection over Union of foreground regions
 
 Supports multi-CPU parallelism with Python multiprocessing for batch evaluation.

@@ -46,7 +46,10 @@ def parse_args():
         "--mode",
         choices=["train", "test", "tune", "tune-test"],
         default="train",
-        help="Mode: train, test (with optional labels for metrics), tune, or tune-test (default: train)",
+        help=(
+            "Mode: train, test (with optional labels for metrics), tune, or "
+            "tune-test (default: train)"
+        ),
     )
     parser.add_argument(
         "--checkpoint",
@@ -78,7 +81,10 @@ def parse_args():
         "--reset-max-epochs",
         type=int,
         default=None,
-        help="Override max_epochs from config (useful when resuming training with different epoch count)",
+        help=(
+            "Override max_epochs from config (useful when resuming training "
+            "with different epoch count)"
+        ),
     )
     parser.add_argument(
         "--fast-dev-run",

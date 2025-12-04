@@ -321,7 +321,8 @@ class NaNDetectionCallback(Callback):
             print("  - nan_metric_keys: List of affected metrics")
             print("\nUseful commands:")
             print(
-                "  - Check gradients: [p for n, p in pl_module.named_parameters() if p.grad is not None]"
+                "  - Check gradients: [p for n, p in pl_module.named_parameters() "
+                "if p.grad is not None]"
             )
             print("  - Check inputs: batch['image'].min(), batch['image'].max()")
             print("  - Continue: 'c' or quit: 'q'")

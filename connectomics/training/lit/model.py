@@ -310,7 +310,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         if all_exist and len(existing_predictions) == len(filenames):
             print(
-                f"  ✅ All prediction files exist! Loading {len(existing_predictions)} predictions and skipping inference."
+                f"  ✅ All prediction files exist! Loading {len(existing_predictions)} predictions "
+                "and skipping inference."
             )
             if len(existing_predictions) == 1:
                 predictions_np = existing_predictions[0]
@@ -693,7 +694,8 @@ class ConnectomicsModule(pl.LightningModule):
         Workflow:
         1. If final prediction exists → directly do evaluation
         2. If intermediate prediction exists → apply decoding → postprocessing → evaluation
-        3. Else → run inference (using cfg.test for data loading/transform) → save → decode → evaluate
+        3. Else → run inference (cfg.test for data loading/transform) →
+           save → decode → evaluate
         """
         images = batch["image"]
         labels = batch.get("label")
@@ -726,7 +728,8 @@ class ConnectomicsModule(pl.LightningModule):
             # For tune mode, skip decoding/postprocessing (only need intermediate predictions)
             if mode == "tune":
                 print(
-                    "  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)"
+                    "  ⏭️  Tune mode: skipping decoding/postprocessing "
+                    "(using intermediate predictions)"
                 )
                 return torch.tensor(0.0, device=self.device)
 

@@ -604,20 +604,22 @@ def f1(tp, fp, fn):
 
 
 def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matches=False):
-    """Calculate detection/instance segmentation metrics between ground truth and predicted label images.
+    """Calculate detection/instance segmentation metrics between ground truth and predictions.
 
     Currently, the following metrics are implemented:
+        'fp', 'tp', 'fn', 'precision', 'recall', 'accuracy', 'f1',
+        'criterion', 'thresh', 'n_true', 'n_pred', 'mean_true_score',
+        'mean_matched_score', 'panoptic_quality'
 
-    'fp', 'tp', 'fn', 'precision', 'recall', 'accuracy', 'f1', 'criterion', 'thresh', 'n_true', 'n_pred', 'mean_true_score', 'mean_matched_score', 'panoptic_quality'
-
-    Corresponding objects of y_true and y_pred are counted as true positives (tp), false positives (fp), and false negatives (fn)
-    whether their intersection over union (IoU) >= thresh (for criterion='iou', which can be changed)
+    Corresponding objects of y_true and y_pred are counted as true positives (tp),
+    false positives (fp), and false negatives (fn) when their intersection over
+    union (IoU) >= thresh (for criterion='iou', which can be changed)
 
     * mean_matched_score is the mean IoUs of matched true positives
-
-    * mean_true_score is the mean IoUs of matched true positives but normalized by the total number of GT objects
-
-    * panoptic_quality defined as in Eq. 1 of Kirillov et al. "Panoptic Segmentation", CVPR 2019
+    * mean_true_score is the mean IoUs of matched true positives but normalized
+      by the total number of GT objects
+    * panoptic_quality defined as in Eq. 1 of Kirillov et al. "Panoptic Segmentation",
+      CVPR 2019
 
     Parameters
     ----------
@@ -630,7 +632,8 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
     criterion: string
         matching criterion (default IoU)
     report_matches: bool
-        if True, additionally calculate matched_pairs and matched_scores (note, that this returns even gt-pred pairs whose scores are below  'thresh')
+        if True, additionally calculate matched_pairs and matched_scores
+        (returns gt-pred pairs even when scores are below 'thresh')
 
     Returns
     -------
@@ -644,7 +647,9 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
 
     >>> stats = instance_matching(y_true, y_pred)
     >>> print(stats)
-    Matching(criterion='iou', thresh=0.5, fp=1, tp=0, fn=1, precision=0, recall=0, accuracy=0, f1=0, n_true=1, n_pred=1, mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)
+    Matching(criterion='iou', thresh=0.5, fp=1, tp=0, fn=1, precision=0,
+             recall=0, accuracy=0, f1=0, n_true=1, n_pred=1,
+             mean_true_score=0.0, mean_matched_score=0.0, panoptic_quality=0.0)
 
     """
     _check_label_array(y_true, "y_true")
