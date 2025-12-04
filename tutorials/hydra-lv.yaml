@@ -375,7 +375,7 @@ tune:
     kwargs:
       n_startup_trials: 10              # Random trials before TPE
       n_ei_candidates: 24               # Candidates for expected improvement
-      multivariate: true                # Consider parameter interactions
+      multivariate: false               # Disable for compatibility with postprocessing params
 
   # -------------------------------------------------------------------------
   # Pruner Configuration (Early Stopping)
