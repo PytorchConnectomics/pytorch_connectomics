@@ -137,9 +137,7 @@ def create_datamodule(
                 try:
                     size_mb = DATASETS[dataset_name]["size_mb"]
                     prompt = f"   Download {dataset_name} dataset (~{size_mb} MB)? [Y/n]: "
-                    response = (
-                        input(prompt).strip().lower()
-                    )
+                    response = input(prompt).strip().lower()
                     if response in ["", "y", "yes"]:
                         if download_dataset(dataset_name, base_dir=PathLib.cwd()):
                             print("✅ Data downloaded successfully!")

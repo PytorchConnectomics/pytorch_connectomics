@@ -25,6 +25,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig
 import torchmetrics
+from torch.serialization import add_safe_globals, safe_globals
 
 # Import existing components
 from ...models import build_model
@@ -124,6 +125,37 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Prediction saving state
         self._prediction_save_counter = 0  # Track number of samples saved
+
+    @staticmethod
+    def _config_safe_globals() -> List[type]:
+        """
+        Collect config dataclasses that need to be allowlisted for safe unpickling.
+
+        PyTorch 2.6+ defaults to weights-only loading; Lightning checkpoints still
+        carry our Hydra config objects, so we have to explicitly allow these types
+        when the safe unpickler is used.
+        """
+        try:
+            from ...config import hydra_config
+        except Exception:
+            # If config cannot be imported we simply return an empty allowlist
+            return []
+
+        return [obj for obj in vars(hydra_config).values() if isinstance(obj, type)]
+
+    @classmethod
+    def load_from_checkpoint(cls, *args, **kwargs):
+        """
+        Ensure Hydra config classes are allowlisted before delegating to Lightning.
+        """
+        safe_types = cls._config_safe_globals()
+
+        if safe_types:
+            add_safe_globals(safe_types)
+            with safe_globals(safe_types):
+                return super().load_from_checkpoint(*args, **kwargs)
+
+        return super().load_from_checkpoint(*args, **kwargs)
 
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""

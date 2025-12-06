@@ -77,7 +77,7 @@ class ConfigurationError(ConnectomicsError):
             "Check YAML syntax (spaces, not tabs)",
             "Compare with example configs in tutorials/",
             (
-                "Validate config: python -c \"from connectomics.config import load_config; "
+                'Validate config: python -c "from connectomics.config import load_config; '
                 "load_config('config.yaml')\""
             ),
             "See .claude/CLAUDE.md for configuration documentation",
