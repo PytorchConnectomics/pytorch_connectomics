@@ -117,7 +117,7 @@ class TTAPredictor:
                 pass  # Keep all channels
             elif isinstance(tta_channel, int):
                 if tta_channel != -1:
-                    tensor = tensor[:, tta_channel: tta_channel + 1, ...]
+                    tensor = tensor[:, tta_channel : tta_channel + 1, ...]
             elif isinstance(tta_channel, (list, tuple, Sequence)):
                 # Convert to list of integers (handle both int and string numbers
                 # from OmegaConf)

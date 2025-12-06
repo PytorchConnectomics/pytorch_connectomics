@@ -355,9 +355,7 @@ class OptunaDecodingTuner:
 
                     print(
                         "\n❌ Trial {count} failed during post-processing "
-                        "(volume {vol_idx}):".format(
-                            count=self.trial_count, vol_idx=vol_idx
-                        )
+                        "(volume {vol_idx}):".format(count=self.trial_count, vol_idx=vol_idx)
                     )
                     print(f"   Parameters: {postproc_params}")
                     print(f"   Error: {e}")
@@ -381,9 +379,7 @@ class OptunaDecodingTuner:
 
                 print(
                     "\n❌ Trial {count} failed during metric computation "
-                    "(volume {vol_idx}):".format(
-                        count=self.trial_count, vol_idx=vol_idx
-                    )
+                    "(volume {vol_idx}):".format(count=self.trial_count, vol_idx=vol_idx)
                 )
                 print(f"   Metric: {metric_name}")
                 print(f"   Segmentation shape: {segmentation.shape}, dtype: {segmentation.dtype}")

@@ -123,7 +123,7 @@ class DeepSupervisionHandler:
             num_label_channels = 1
 
             # Extract label channels
-            task_label = labels[:, label_ch_offset: label_ch_offset + num_label_channels, ...]
+            task_label = labels[:, label_ch_offset : label_ch_offset + num_label_channels, ...]
             label_ch_offset += num_label_channels
 
             # Apply specified losses for this task
@@ -144,9 +144,7 @@ class DeepSupervisionHandler:
                     print(f"Loss value: {loss.item()}")
                     output_range = f"[{task_output.min():.4f}, {task_output.max():.4f}]"
                     label_range = f"[{task_label.min():.4f}, {task_label.max():.4f}]"
-                    print(
-                        f"Output shape: {task_output.shape}, range: {output_range}"
-                    )
+                    print(f"Output shape: {task_output.shape}, range: {output_range}")
                     print(f"Label shape: {task_label.shape}, range: {label_range}")
                     print(f"Output contains NaN: {torch.isnan(task_output).any()}")
                     print(f"Label contains NaN: {torch.isnan(task_label).any()}")
@@ -242,9 +240,7 @@ class DeepSupervisionHandler:
                         print(f"Loss value: {loss.item()}")
                         output_range = f"[{task_output.min():.4f}, {task_output.max():.4f}]"
                         target_range = f"[{task_target.min():.4f}, {task_target.max():.4f}]"
-                        print(
-                            f"Output shape: {task_output.shape}, range: {output_range}"
-                        )
+                        print(f"Output shape: {task_output.shape}, range: {output_range}")
                         print(f"Target shape: {task_target.shape}, range: {target_range}")
                         if self.debug_on_nan:
                             print("\nEntering debugger...")
@@ -282,9 +278,7 @@ class DeepSupervisionHandler:
                     print(f"Scale: {scale_idx}, Weight: {weight}")
                     out_range = f"[{output.min():.4f}, {output.max():.4f}]"
                     tgt_range = f"[{target.min():.4f}, {target.max():.4f}]"
-                    print(
-                        f"Output shape: {output.shape}, range: {out_range}"
-                    )
+                    print(f"Output shape: {output.shape}, range: {out_range}")
                     print(f"Target shape: {target.shape}, range: {tgt_range}")
                     print(f"Output contains NaN: {torch.isnan(output).any()}")
                     print(f"Target contains NaN: {torch.isnan(target).any()}")
@@ -394,9 +388,7 @@ class DeepSupervisionHandler:
                     print(f"Loss index: {i}, Weight: {weight}")
                     out_range = f"[{outputs.min():.4f}, {outputs.max():.4f}]"
                     label_range = f"[{labels.min():.4f}, {labels.max():.4f}]"
-                    print(
-                        f"Output shape: {outputs.shape}, range: {out_range}"
-                    )
+                    print(f"Output shape: {outputs.shape}, range: {out_range}")
                     print(f"Label shape: {labels.shape}, range: {label_range}")
                     print(f"Output contains NaN: {torch.isnan(outputs).any()}")
                     print(f"Label contains NaN: {torch.isnan(labels).any()}")
