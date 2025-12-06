@@ -301,6 +301,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.utilities.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">STEP_OUTPUT</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">DictConfig</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torchmetrics</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_safe_globals</span><span class="p">,</span> <span class="n">safe_globals</span>
 
 <span class="c1"># Import existing components</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...models</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_model</span>
@@ -402,6 +403,40 @@
 
         <span class="c1"># Prediction saving state</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_save_counter</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Track number of samples saved</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_config_safe_globals</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">type</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Collect config dataclasses that need to be allowlisted for safe unpickling.</span>
+
+<span class="sd">        PyTorch 2.6+ defaults to weights-only loading; Lightning checkpoints still</span>
+<span class="sd">        carry our Hydra config objects, so we have to explicitly allow these types</span>
+<span class="sd">        when the safe unpickler is used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">...config</span><span class="w"> </span><span class="kn">import</span> <span class="n">hydra_config</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># If config cannot be imported we simply return an empty allowlist</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="n">hydra_config</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)]</span>
+
+<div class="viewcode-block" id="ConnectomicsModule.load_from_checkpoint">
+<a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.ConnectomicsModule.load_from_checkpoint">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_from_checkpoint</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ensure Hydra config classes are allowlisted before delegating to Lightning.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">safe_types</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_config_safe_globals</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">safe_types</span><span class="p">:</span>
+            <span class="n">add_safe_globals</span><span class="p">(</span><span class="n">safe_types</span><span class="p">)</span>
+            <span class="k">with</span> <span class="n">safe_globals</span><span class="p">(</span><span class="n">safe_types</span><span class="p">):</span>
+                <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_from_checkpoint</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_from_checkpoint</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build model from configuration.&quot;&quot;&quot;</span>
