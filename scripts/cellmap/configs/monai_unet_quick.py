@@ -14,6 +14,9 @@ deep_supervision = False        # Disabled for speed
 # Classes to segment (just 2 classes for quick test)
 classes = ['nuc', 'mito']
 
+# Data root path
+data_root = '/projects/weilab/dataset/cellmap'
+
 # Data configuration
 input_array_info = {
     'shape': (64, 64, 64),      # Small patches for speed
