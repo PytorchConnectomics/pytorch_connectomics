@@ -22,6 +22,7 @@ input_array_info = {
     'scale': (4, 4, 4),         # 4nm isotropic (higher resolution)
 }
 target_array_info = input_array_info
+force_all_classes = 'both'        # ensure mito voxels present in both train/val splits
 
 # Output paths
 output_dir = 'outputs/cellmap_mito'
@@ -50,6 +51,9 @@ batch_size = 1                  # Smaller due to larger model + higher resolutio
 epochs = 1000                   # More epochs for single class
 num_gpus = 1                    # Number of GPUs
 precision = '16-mixed'          # Mixed precision training
+iterations_per_epoch = None     # Leave None so dataloader avoids huge subset shuffles
+train_batches_per_epoch = 2000  # Cap Lightning's epoch length instead
+val_batches_per_epoch = 200     # Limit validation passes per epoch
 
 # Learning rate scheduler
 scheduler_config = {

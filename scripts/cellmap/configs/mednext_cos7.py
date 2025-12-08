@@ -24,6 +24,7 @@ input_array_info = {
     'scale': (8, 8, 8),         # 8nm isotropic resolution
 }
 target_array_info = input_array_info
+force_all_classes = 'both'        # keep every organelle present in both splits
 
 # Output paths
 output_dir = 'outputs/cellmap_cos7'
@@ -52,6 +53,9 @@ batch_size = 2                  # Per GPU (effective batch = 2 * 4 = 8 with grad
 epochs = 500                    # Maximum epochs
 num_gpus = 1                    # Number of GPUs
 precision = '16-mixed'          # Mixed precision training
+iterations_per_epoch = None     # Keep dataloader on the cheap shuffle path
+train_batches_per_epoch = 2000  # Lightning caps epoch length at 2k steps
+val_batches_per_epoch = 200     # Limit validation passes per epoch
 
 # Learning rate scheduler (constant for MedNeXt)
 scheduler_config = {
