@@ -1,0 +1,233 @@
+# CellMap Challenge - Phase 2: Combination Approach (36 Semantic)
+#
+# PHASE 2: Full submission - Combination approach
+# Part 1 of 2: 36 semantic classes (multi-class binary mask)
+# Part 2 of 2: See cellmap_instance_full.yaml (11 instance classes with SDT)
+#
+# This config trains 36 semantic classes only (evaluated using IoU + Dice Score).
+#
+# Semantic classes (no instance post-processing needed):
+# Background + 35 organelle classes including:
+# - ne (nuclear envelope)
+# - er_mem (ER membrane)
+# - ecs (extracellular space)
+# - pm (plasma membrane)
+# - mito_mem (mitochondrial membrane)
+# - golgi_mem (Golgi membrane)
+# - ves_mem (vesicle membrane)
+# - MVB_mem (MVB membrane)
+# - lyso_mem (lysosome membrane)
+# - LD_mem (lipid droplet membrane)
+# - er_lumen (ER lumen)
+# - eres_mem (ERES membrane)
+# - nucleus (nucleoplasm - semantic)
+# - nucleolus
+# - nuclear_pore_out (NP outer)
+# - chromatin
+# - NHChrom (non-histone chromatin)
+# - EChrom (euchromatin)
+# - NEChrom (nuclear envelope chromatin)
+# - HChrom (heterochromatin)
+# - NHEChrom (non-histone euchromatin)
+# - NHHChrom (non-histone heterochromatin)
+# - NHNEChrom (non-histone NE chromatin)
+# - ribosomes
+# - cytoplasm
+# - glycogen
+# - lipid (lipid content)
+# - microtubule_out (MT outer)
+# And more...
+#
+# Strategy:
+# - Standard resolution (8nm) for semantic context
+# - Large model (MedNeXt-L) for 36-class capacity
+# - Long training (1000 epochs) for multi-class learning
+# - Softmax activation for mutually exclusive classes
+#
+# Usage:
+#   python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_semantic_full.yaml
+
+experiment_name: cellmap_semantic_full_mednext_l
+description: CellMap full semantic segmentation (36 classes) with MedNeXt-L
+
+# System
+system:
+  training:
+    num_gpus: 4                           # Multi-GPU recommended
+    num_cpus: 16
+    num_workers: 8
+    batch_size: 2                         # Per GPU (effective = 8)
+  inference:
+    num_gpus: 1
+    num_cpus: 4
+    num_workers: 2
+    batch_size: 1
+  seed: 42
+
+# Model Configuration
+model:
+  architecture: mednext                   # MedNeXt (SOTA for semantic segmentation)
+
+  # Input/output configuration
+  input_size: [128, 128, 128]             # Larger patches for semantic context
+  output_size: [128, 128, 128]
+  in_channels: 1                          # Grayscale EM
+  out_channels: 36                        # 36 semantic classes (including background)
+
+  # MedNeXt configuration (large model for 36 classes)
+  mednext_size: L                         # L (61.8M params) - needed for 36 classes
+  mednext_kernel_size: 5                  # 5x5x5 kernels (balance context/memory)
+  deep_supervision: true                  # Multi-scale loss (CRITICAL)
+
+  # Loss configuration (multi-class semantic segmentation)
+  loss_functions: [DiceCELoss]
+  loss_weights: [1.0]
+  loss_kwargs:
+    - {sigmoid: false, softmax: true, to_onehot_y: true, include_background: true}
+
+# Data - CellMap Challenge Dataset
+data:
+  # Dataset type (custom for CellMap)
+  dataset_type: cellmap
+
+  # CellMap-specific configuration
+  cellmap:
+    # Data paths
+    data_root: /projects/weilab/dataset/cellmap
+    datasplit_path: tutorials/cellmap_semantic_full_datasplit.csv  # Auto-generated
+
+    # All 36 semantic segmentation classes
+    # Note: This is a representative subset - adjust based on available labels
+    classes: [
+      # Core semantic structures
+      ne, er_mem, ecs, pm,
+      # Membrane structures
+      mito_mem, golgi_mem, ves_mem, MVB_mem, lyso_mem, LD_mem,
+      # Lumen/interior spaces
+      er_lumen, nucleus, nucleolus, cytoplasm,
+      # Nuclear components
+      nuclear_pore_out, chromatin, NHChrom, EChrom, NEChrom, HChrom,
+      NHEChrom, NHHChrom, NHNEChrom,
+      # Organelle membranes and components
+      eres_mem, ribosomes, glycogen, lipid, microtubule_out,
+      # Additional semantic classes (adjust based on dataset)
+      er, golgi, np, eres, centrosome, distal_app, subdistal_app,
+      ribosomes_free, ribosomes_bound, vesicle_lumen
+    ]
+    force_all_classes: false              # Don't require all classes (many are rare)
+
+    # Patch configuration (standard resolution for semantic)
+    input_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]                    # 8nm isotropic - good for semantic context
+    target_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]
+
+    # Spatial augmentation (moderate for semantic)
+    spatial_transforms:
+      mirror:
+        axes: {x: 0.5, y: 0.5, z: 0.5}    # 50% flip probability per axis
+      transpose:
+        axes: [x, y, z]                    # Random permutation
+      rotate:
+        axes:
+          x: [-180, 180]
+          y: [-180, 180]
+          z: [-180, 180]
+
+  # Training configuration
+  iter_num_per_epoch: 2000                # Steps per epoch
+  persistent_workers: true
+
+# Optimizer - AdamW (MedNeXt default)
+optimization:
+  max_epochs: 1000                        # Long training for 36 classes
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 2              # Effective batch = 4 GPUs * 2 * 2 = 16
+  precision: "16-mixed"                   # Mixed precision
+
+  optimizer:
+    name: AdamW
+    lr: 1e-3                              # MedNeXt default (constant LR)
+    weight_decay: 1e-4
+
+  # Scheduler - constant LR (MedNeXt recommendation)
+  scheduler:
+    name: constant                        # No decay for semantic
+
+# Monitoring
+monitor:
+  detect_anomaly: false
+
+  logging:
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 50
+      val_check_interval: 1.0
+      benchmark: true
+
+    images:
+      enabled: true
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 10
+      channel_mode: all
+
+  # Checkpointing
+  checkpoint:
+    mode: min
+    save_top_k: 5
+    save_last: true
+    save_every_n_epochs: 50
+    dirpath: outputs/cellmap_semantic_full/checkpoints/
+    use_timestamp: true
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    monitor: train_loss_total_epoch
+    patience: 100                         # Patient for 1000 epoch training
+    mode: min
+    min_delta: 1e-5
+
+# Inference configuration
+inference:
+  sliding_window:
+    window_size: [128, 128, 128]
+    sw_batch_size: 4
+    overlap: 0.25                         # Lower overlap (semantic is more robust)
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
+
+  test_time_augmentation:
+    flip_axes: [[2], [3], [4]]            # All 3 axes
+    rotation90_axes: null                 # Skip rotation for speed
+    select_channel: all
+    channel_activations:
+      - [0, 36, softmax]                  # Softmax over 36 classes
+    ensemble_mode: mean
+    apply_mask: false
+
+  save_prediction:
+    enabled: true
+    intensity_scale: -1                   # Scale to [0, 255]
+
+# Test configuration
+test:
+  data:
+    test_image: null                      # Set when running test mode
+    test_label: null
+    test_mask: null
+    test_resolution: [8, 8, 8]
+
+  evaluation:
+    enabled: false                        # Enable when test labels available
+    metrics: []
+
+# Notes for CellMap Challenge Submission:
+# 1. Semantic predictions are evaluated using IoU + Dice Score
+# 2. No post-processing needed (unlike instance segmentation)
+# 3. Output is argmax of softmax probabilities for each voxel
+# 4. Submit at original test crop resolution (varies by crop)

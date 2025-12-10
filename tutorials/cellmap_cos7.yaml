@@ -1,0 +1,182 @@
+# CellMap Challenge - Phase 1: Simple Semantic Validation
+#
+# PHASE 1: Make sure simple one works
+# - 5 semantic classes (nuc, mito, er, golgi, ves)
+# - Multi-class binary mask output
+# - No instance separation needed (semantic only)
+#
+# This config validates the semantic segmentation pipeline:
+# - Standard resolution (8nm) for semantic context
+# - Softmax activation for mutually exclusive classes
+# - Direct output (no post-processing)
+#
+# Dataset: COS7 cells from CellMap challenge
+# Classes: nuc, mito, er, golgi, ves (5 organelles)
+# Resolution: 8nm isotropic
+# Data loader: Uses cellmap-data package (official challenge library)
+#
+# Usage:
+#   python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml
+
+experiment_name: cellmap_cos7_mednext
+description: CellMap COS7 multi-organelle segmentation with MedNeXt
+
+# System
+system:
+  training:
+    num_gpus: 1
+    num_cpus: 1
+    num_workers: 1
+    batch_size: 2                      # Per GPU batch size
+  inference:
+    num_gpus: 1
+    num_cpus: 1
+    num_workers: 1
+    batch_size: 1
+  seed: 42
+
+# Model Configuration
+model:
+  architecture: mednext               # MedNeXt (recommended for CellMap)
+
+  # Input/output configuration
+  input_size: [128, 128, 128]         # Patch size
+  output_size: [128, 128, 128]
+  in_channels: 1                      # Grayscale EM
+  out_channels: 5                     # 5 organelle classes
+
+  # MedNeXt configuration
+  mednext_size: M                     # M (17.6M params) - good balance
+  mednext_kernel_size: 5              # 5x5x5 kernels
+  deep_supervision: true              # Multi-scale loss (RECOMMENDED)
+
+  # Loss configuration (multi-class segmentation)
+  loss_functions: [DiceCELoss]
+  loss_weights: [1.0]
+  loss_kwargs:
+    - {sigmoid: false, softmax: true, to_onehot_y: false, include_background: false}
+
+# Data - CellMap Challenge Dataset
+data:
+  # Dataset type (custom for CellMap)
+  dataset_type: cellmap               # Special marker for CellMap data
+
+  # CellMap-specific configuration
+  cellmap:
+    # Data paths
+    data_root: /projects/weilab/dataset/cellmap
+    datasplit_path: tutorials/cellmap_cos7_datasplit.csv  # Auto-generated next to YAML if missing
+
+    # Classes to segment
+    classes: [nuc, mito, er, golgi, ves]
+    force_all_classes: both           # Keep crops with all classes in both train/val
+
+    # Patch configuration
+    input_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]                # 8nm isotropic
+    target_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]
+
+    # Spatial augmentation (CellMap format)
+    spatial_transforms:
+      mirror:
+        axes: {x: 0.5, y: 0.5, z: 0.5}  # 50% flip probability per axis
+      transpose:
+        axes: [x, y, z]                  # Random permutation
+      rotate:
+        axes:
+          x: [-180, 180]
+          y: [-180, 180]
+          z: [-180, 180]
+
+  # Training configuration
+  iter_num_per_epoch: 2000            # Steps per epoch
+  persistent_workers: true            # Keep workers alive
+
+# Optimizer - AdamW (MedNeXt default)
+optimization:
+  max_epochs: 500
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 4          # Effective batch = 2 * 4 = 8
+  precision: "16-mixed"               # Mixed precision
+
+  optimizer:
+    name: AdamW
+    lr: 1e-3                          # MedNeXt default (constant LR)
+    weight_decay: 1e-4
+
+  # Scheduler - constant LR (MedNeXt recommendation)
+  scheduler:
+    name: constant                    # No decay
+
+# Monitoring
+monitor:
+  detect_anomaly: false
+
+  logging:
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 50
+      val_check_interval: 1.0         # Validate every epoch
+      benchmark: true
+
+    images:
+      enabled: true
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 5
+      channel_mode: all
+
+  # Checkpointing
+  checkpoint:
+    mode: min
+    save_top_k: 3
+    save_last: true
+    save_every_n_epochs: 25
+    dirpath: outputs/cellmap_cos7/checkpoints/
+    use_timestamp: true
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    monitor: train_loss_total_epoch
+    patience: 50
+    mode: min
+    min_delta: 1e-4
+
+# Inference configuration
+inference:
+  sliding_window:
+    window_size: [128, 128, 128]
+    sw_batch_size: 1
+    overlap: 0.25
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
+
+  test_time_augmentation:
+    flip_axes: null                   # All flip augmentations
+    rotation90_axes: null             # No rotation (fast inference)
+    select_channel: all
+    channel_activations:
+      - [0, 5, softmax]               # Softmax over 5 classes
+    ensemble_mode: mean
+    apply_mask: false
+
+  save_prediction:
+    enabled: true
+    intensity_scale: -1               # Scale to [0, 255]
+
+# Test configuration (optional - requires test data with labels)
+test:
+  data:
+    test_image: null                  # Set when running test mode
+    test_label: null
+    test_mask: null
+    test_resolution: [8, 8, 8]
+
+  evaluation:
+    enabled: false                    # Enable when test labels available
+    metrics: []

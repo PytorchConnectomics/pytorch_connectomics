@@ -452,6 +452,9 @@ class DataConfig:
     # Augmentation configuration (nested under data in YAML)
     augmentation: "AugmentationConfig" = field(default_factory=lambda: AugmentationConfig())
 
+    # CellMap-specific configuration (for CellMap Segmentation Challenge)
+    cellmap: Optional[Dict[str, Any]] = None  # CellMap-specific data config (see tutorials/cellmap_*.yaml)
+
 
 @dataclass
 class OptimizerConfig:

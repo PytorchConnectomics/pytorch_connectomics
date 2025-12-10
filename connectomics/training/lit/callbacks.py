@@ -102,7 +102,7 @@ class VisualizationCallback(Callback):
                 # Move all tensors to CPU for visualization to avoid device mismatch
                 image_cpu = image.cpu()
                 label_cpu = self._last_train_batch["label"].cpu()
-                pred_cpu = pred.cpu()
+                pred_cpu = self._to_tensor(pred).cpu()
                 mask_cpu = self._last_train_batch.get("mask", None)
                 if mask_cpu is not None:
                     mask_cpu = mask_cpu.cpu()
@@ -163,7 +163,7 @@ class VisualizationCallback(Callback):
                 # Move all tensors to CPU for visualization to avoid device mismatch
                 image_cpu = image.cpu()
                 label_cpu = self._last_val_batch["label"].cpu()
-                pred_cpu = pred.cpu()
+                pred_cpu = self._to_tensor(pred).cpu()
                 mask_cpu = self._last_val_batch.get("mask", None)
                 if mask_cpu is not None:
                     mask_cpu = mask_cpu.cpu()
@@ -200,6 +200,20 @@ class VisualizationCallback(Callback):
             if hasattr(e, "__traceback__"):
                 print("Traceback:")
                 traceback.print_exception(type(e), e, e.__traceback__)
+
+    @staticmethod
+    def _to_tensor(pred):
+        """Extract a tensor from possible deep-supervision dict outputs."""
+        if isinstance(pred, torch.Tensor):
+            return pred
+        if isinstance(pred, dict):
+            for key in ("out", "pred", "logits"):
+                if key in pred and isinstance(pred[key], torch.Tensor):
+                    return pred[key]
+            for value in pred.values():
+                if isinstance(value, torch.Tensor):
+                    return value
+        raise TypeError(f"Unexpected prediction type for visualization: {type(pred)}")
 
 
 class NaNDetectionCallback(Callback):
