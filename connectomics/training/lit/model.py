@@ -214,9 +214,12 @@ class ConnectomicsModule(pl.LightningModule):
         data = data.astype(np.float32)
 
         # Invert the scaling if it was applied
-        if intensity_scale is not None and intensity_scale != 1.0:
+        # Note: intensity_scale < 0 means scaling was disabled, so no inversion needed
+        if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
             data = data / float(intensity_scale)
             print(f"  🔄 Inverted intensity scaling by {intensity_scale}")
+        elif intensity_scale is not None and intensity_scale < 0:
+            print(f"  ℹ️  Intensity scaling was disabled (scale={intensity_scale}), no inversion needed")
 
         return data
 
@@ -296,14 +299,26 @@ class ConnectomicsModule(pl.LightningModule):
         pred_tensor = torch.from_numpy(decoded_predictions).float().to(self.device)
         labels_tensor = labels.float()
 
+        # Remove batch and channel dimensions
         pred_tensor = pred_tensor.squeeze()
         labels_tensor = labels_tensor.squeeze()
 
-        if pred_tensor.ndim != labels_tensor.ndim:
-            if pred_tensor.ndim == labels_tensor.ndim - 1:
-                pred_tensor = pred_tensor.unsqueeze(0)
-            elif labels_tensor.ndim == pred_tensor.ndim - 1:
-                labels_tensor = labels_tensor.unsqueeze(0)
+        # Ensure both tensors have the same shape
+        if pred_tensor.shape != labels_tensor.shape:
+            print(f"  ⚠️  Shape mismatch: pred={pred_tensor.shape}, labels={labels_tensor.shape}")
+            
+            # Try to align dimensions
+            if pred_tensor.ndim != labels_tensor.ndim:
+                if pred_tensor.ndim == labels_tensor.ndim - 1:
+                    pred_tensor = pred_tensor.unsqueeze(0)
+                elif labels_tensor.ndim == pred_tensor.ndim - 1:
+                    labels_tensor = labels_tensor.unsqueeze(0)
+            
+            # If still mismatched after dimension alignment, skip metrics
+            if pred_tensor.shape != labels_tensor.shape:
+                print(f"  ❌ Cannot compute metrics: incompatible shapes after alignment")
+                print(f"     pred={pred_tensor.shape}, labels={labels_tensor.shape}")
+                return
 
         if pred_tensor.max() <= 1.0:
             pred_binary = (pred_tensor > 0.5).long()
@@ -548,17 +563,42 @@ class ConnectomicsModule(pl.LightningModule):
         """Configure optimizers and learning rate schedulers."""
         optimizer = build_optimizer(self.cfg, self.model)
 
-        # Build scheduler if configured
-        if hasattr(self.cfg, 'scheduler') and self.cfg.scheduler is not None:
+        # Build scheduler if configured (check both cfg.scheduler and cfg.optimization.scheduler)
+        has_scheduler = (
+            (hasattr(self.cfg, 'scheduler') and self.cfg.scheduler is not None) or
+            (hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler') and self.cfg.optimization.scheduler is not None)
+        )
+        
+        if has_scheduler:
             scheduler = build_lr_scheduler(self.cfg, optimizer)
+
+            # Check if this is ReduceLROnPlateau (requires metric monitoring)
+            scheduler_config = {
+                'scheduler': scheduler,
+                'interval': 'epoch',
+                'frequency': 1,
+            }
+            
+            # ReduceLROnPlateau requires the 'monitor' key to pass the metric value
+            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                # Get monitor metric from scheduler config
+                monitor_metric = None
+                if hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler'):
+                    monitor_metric = getattr(self.cfg.optimization.scheduler, 'monitor', None)
+                elif hasattr(self.cfg, 'scheduler'):
+                    monitor_metric = getattr(self.cfg.scheduler, 'monitor', None)
+                
+                if monitor_metric:
+                    scheduler_config['monitor'] = monitor_metric
+                    print(f"  ✅ ReduceLROnPlateau will monitor: {monitor_metric}")
+                else:
+                    # Default to validation loss
+                    scheduler_config['monitor'] = 'val_loss_total'
+                    print(f"  ⚠️  ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)")
 
             return {
                 'optimizer': optimizer,
-                'lr_scheduler': {
-                    'scheduler': scheduler,
-                    'interval': 'epoch',
-                    'frequency': 1,
-                },
+                'lr_scheduler': scheduler_config,
             }
         else:
             return optimizer

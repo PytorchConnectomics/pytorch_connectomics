@@ -423,17 +423,22 @@ def install_pytorch_connectomics(
         print_success(f"Core packages installed: {', '.join(to_install)}")
     else:
         print_success("All core packages already installed")
-    print_info("Ensuring numpy and h5py are installed from conda-forge (force reinstall)...")
+    
+    # CRITICAL: Reinstall cc3d to match current numpy version
+    # This prevents "numpy.dtype size changed" binary incompatibility errors
+    print_info("Reinstalling cc3d to match current numpy version...")
     code, _, stderr = run_command(
-        f"conda install -n {env_name} -c conda-forge numpy h5py -y --force-reinstall",
-        check=False,
+        f"conda run -n {env_name} pip uninstall -y connected-components-3d", check=False
+    )
+    code, _, stderr = run_command(
+        f"conda run -n {env_name} pip install --no-cache-dir connected-components-3d", check=False
     )
     if code != 0:
-        print_warning("conda reinstall of numpy/h5py failed; please verify the environment manually")
+        print_warning("Failed to reinstall cc3d; may have binary incompatibility issues")
         if stderr.strip():
             print_warning(stderr.strip())
     else:
-        print_success("numpy and h5py verified via conda-forge")
+        print_success("cc3d reinstalled successfully")
 
     # Group 2: Optional scientific packages (nice to have, but slow to install)
     optional_packages = ["scipy", "scikit-learn", "scikit-image", "opencv"]
@@ -507,10 +512,12 @@ def install_pytorch_connectomics(
     if pip_options:
         pip_cmd += f" {pip_options}"
 
-    code, _, stderr = run_command(f"{pip_cmd} --no-build-isolation", check=False)
+    # First try without --no-build-isolation to ensure dependencies are installed
+    print_info("Installing with full dependency resolution...")
+    code, _, stderr = run_command(pip_cmd, check=False)
     if code != 0:
-        print_warning("Installation with --no-build-isolation failed, retrying without it...")
-        code, _, stderr = run_command(pip_cmd, check=False)
+        print_warning("Standard installation failed, trying with --no-build-isolation...")
+        code, _, stderr = run_command(f"{pip_cmd} --no-build-isolation", check=False)
         if code != 0:
             print_error(f"Failed to install PyTorch Connectomics: {stderr}")
             return False

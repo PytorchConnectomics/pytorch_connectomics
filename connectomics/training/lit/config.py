@@ -637,7 +637,11 @@ def create_datamodule(
         )
     else:
         # Standard data module
-        use_cache = cfg.data.use_cache
+        # Disable caching for test/tune modes to avoid issues with partial cache returning 0 length
+        use_cache = cfg.data.use_cache and mode == "train"
+        
+        if mode in ["test", "tune"] and cfg.data.use_cache:
+            print("  ⚠️  Caching disabled for test/tune mode (incompatible with partial cache)")
 
         # Note: transpose_axes is now handled in the transform builders (build_train/val/test_transforms)
         # which embed the transpose in LoadVolumed, so no need to pass it here
