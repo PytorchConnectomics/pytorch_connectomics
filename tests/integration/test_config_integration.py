@@ -24,13 +24,26 @@ def test_config_from_dict():
     assert cfg.model.architecture == 'monai_basic_unet3d'
 
 
-def test_config_from_yaml():
-    """Test loading config from YAML."""
-    try:
-        cfg = load_config('tutorials/lucchi.yaml')
-        assert cfg is not None
-    except FileNotFoundError:
-        pytest.skip("Example config not found")
+def test_config_from_yaml(tmp_path):
+    """Test loading config from a YAML file."""
+    config_path = tmp_path / "sample.yaml"
+    config_path.write_text(
+        """
+experiment_name: sample
+model:
+  architecture: monai_basic_unet3d
+  in_channels: 1
+  out_channels: 1
+system:
+  training:
+    num_gpus: 0
+"""
+    )
+
+    cfg = load_config(config_path)
+    assert cfg is not None
+    assert cfg.model.architecture == "monai_basic_unet3d"
+    assert cfg.system.training.num_gpus == 0
 
 
 def test_lightning_module_creation():

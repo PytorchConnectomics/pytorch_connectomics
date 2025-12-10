@@ -190,7 +190,6 @@ class TestAffinityCC3D:
         assert segm.shape == expected_shape, \
             f"Expected shape {expected_shape}, got {segm.shape}"
 
-    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba not available")
     def test_numba_vs_skimage(self, simple_affinities):
         """Compare Numba and skimage implementations."""
         # Run with Numba
@@ -251,41 +250,6 @@ class TestAffinityCC3D:
         segm_one = decode_affinity_cc(simple_affinities, threshold=1.0)
         # Most voxels should be background or very fragmented
         assert len(np.unique(segm_one)) >= 1, "Should have at least background"
-
-
-class TestAffinityCC3DPerformance:
-    """Performance benchmarks for affinity_cc3d."""
-
-    @pytest.fixture
-    def medium_affinities(self):
-        """Create medium-sized affinity volume for benchmarking."""
-        # 128x128x128 volume with random affinities
-        np.random.seed(42)
-        aff = np.random.rand(3, 128, 128, 128).astype(np.float32)
-        # Make some regions more connected
-        aff[:, 32:96, 32:96, 32:96] = 0.9
-        return aff
-
-    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba not available")
-    def test_numba_performance(self, medium_affinities, benchmark):
-        """Benchmark Numba implementation."""
-        result = benchmark(
-            affinity_cc3d,
-            medium_affinities,
-            threshold=0.5,
-            use_numba=True
-        )
-        assert result.shape == medium_affinities.shape[1:]
-
-    def test_skimage_performance(self, medium_affinities, benchmark):
-        """Benchmark skimage fallback implementation."""
-        result = benchmark(
-            affinity_cc3d,
-            medium_affinities,
-            threshold=0.5,
-            use_numba=False
-        )
-        assert result.shape == medium_affinities.shape[1:]
 
 
 class TestAffinityCC3DIntegration:

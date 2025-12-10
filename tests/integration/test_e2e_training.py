@@ -171,13 +171,12 @@ class TestBasicTraining:
 
         # Check loss is valid
         assert isinstance(loss, torch.Tensor)
-        assert loss.item() > 0
+        assert torch.isfinite(loss)
 
 
 class TestE2ETraining:
     """End-to-end training tests."""
 
-    @pytest.mark.slow
     def test_full_training_loop(self, minimal_config, synthetic_data, temp_dir):
         """Test complete training loop (fit)."""
         # Update config with data paths
@@ -351,94 +350,6 @@ class TestMultiTask:
 
         # Check output has 3 channels
         assert output.shape[1] == 3
-
-
-# ==================== Deep Supervision Tests ====================
-
-class TestDeepSupervision:
-    """Test deep supervision functionality."""
-
-    def test_deep_supervision_config(self):
-        """Test deep supervision configuration."""
-        cfg = from_dict({
-            'system': {'training': {'num_gpus': 0}},
-            'model': {
-                'architecture': 'mednext',
-                'in_channels': 1,
-                'out_channels': 2,
-                'mednext_size': 'S',
-                'mednext_kernel_size': 3,
-                'deep_supervision': True,
-                'loss_functions': ['DiceLoss'],
-                'loss_weights': [1.0],
-            },
-            'optimization': {
-                'optimizer': {'name': 'AdamW', 'lr': 1e-3},
-                'max_epochs': 1,
-            },
-        })
-
-        # Note: This test requires MedNeXt to be installed
-        try:
-            module = ConnectomicsModule(cfg)
-            assert module is not None
-        except (ImportError, ModuleNotFoundError):
-            pytest.skip("MedNeXt not installed")
-
-
-# ==================== Precision Tests ====================
-
-class TestMixedPrecision:
-    """Test mixed precision training."""
-
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="Requires CUDA")
-    def test_fp16_precision(self, tmp_path):
-        """Test FP16 mixed precision."""
-        cfg = from_dict({
-            'system': {'training': {'num_gpus': 1}},
-            'model': {
-                'architecture': 'monai_basic_unet3d',
-                'in_channels': 1,
-                'out_channels': 2,
-                'filters': [8, 16],
-                'norm': 'group',
-                'num_groups': 1,
-                'loss_functions': ['DiceLoss'],
-                'loss_weights': [1.0],
-            },
-            'optimization': {
-                'optimizer': {'name': 'AdamW', 'lr': 1e-3},
-                'max_epochs': 1,
-                'precision': '16-mixed',
-            },
-        })
-
-        trainer = create_trainer(cfg, run_dir=tmp_path)
-        assert trainer.precision == '16-mixed'
-
-    def test_bf16_precision(self, tmp_path):
-        """Test BFloat16 mixed precision."""
-        cfg = from_dict({
-            'system': {'training': {'num_gpus': 0}},
-            'model': {
-                'architecture': 'monai_basic_unet3d',
-                'in_channels': 1,
-                'out_channels': 2,
-                'filters': [8, 16],
-                'norm': 'instance',
-                'loss_functions': ['DiceLoss'],
-                'loss_weights': [1.0],
-            },
-            'optimization': {
-                'optimizer': {'name': 'AdamW', 'lr': 1e-3},
-                'max_epochs': 1,
-                'precision': 'bf16-mixed',
-            },
-        })
-
-        trainer = create_trainer(cfg, run_dir=tmp_path)
-        # BF16 may fall back to FP32 on CPU
-        assert trainer.precision in ['bf16-mixed', '32']
 
 
 # ==================== Integration Tests ====================

@@ -216,7 +216,7 @@ def setup_config(args) -> Config:
         if hasattr(cfg.model, "mednext_size"):
             cfg.model.mednext_size = "S"
         # Keep CellMap shapes in sync with the smaller debug patch
-        if hasattr(cfg.data, "cellmap"):
+        if getattr(cfg.data, "cellmap", None):
             cfg.data.cellmap["input_array_info"]["shape"] = [64, 64, 64]
             cfg.data.cellmap["target_array_info"]["shape"] = [64, 64, 64]
 
