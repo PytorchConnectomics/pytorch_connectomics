@@ -27,7 +27,7 @@ system:
     num_gpus: 4
     num_cpus: 8
     num_workers: 8
-    batch_size: 8                      # Per GPU batch size
+    batch_size: 8                        # Per GPU (effective = 32)
   inference:
     num_gpus: 1
     num_cpus: 1
