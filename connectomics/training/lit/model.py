@@ -438,17 +438,19 @@ class ConnectomicsModule(pl.LightningModule):
             while labels_instance.ndim > 3 and labels_instance.shape[0] == 1:
                 labels_instance = labels_instance.squeeze(0)
 
-            # Determine if we have a batch dimension in predictions
-            # decoded_predictions can be: (Z,H,W), (1,Z,H,W), or (B,Z,H,W)
-            has_batch_dim = len(original_shape) == 4 and original_shape[0] > 1
-            if not has_batch_dim and len(original_shape) == 4 and original_shape[0] == 1:
-                # Single volume with batch dimension of 1 - squeeze it
+            # Squeeze all leading dimensions of size 1 from predictions (remove batch & channel dims)
+            # Predictions can be: (B, C, Z, H, W), (B, Z, H, W), (C, Z, H, W), or (Z, H, W)
+            while pred_instance.ndim > 3 and pred_instance.shape[0] == 1:
                 pred_instance = pred_instance.squeeze(0)
+
+            # Determine if we have a batch dimension in predictions (after squeezing)
+            # After squeezing, predictions can be: (Z,H,W) or (B,Z,H,W) where B > 1
+            has_batch_dim = pred_instance.ndim == 4 and pred_instance.shape[0] > 1
 
             # Handle batch dimension - compute per-volume if multiple volumes in batch
             if has_batch_dim:
                 # Multiple volumes in batch - compute per volume
-                batch_size = original_shape[0]
+                batch_size = pred_instance.shape[0]
                 for i in range(batch_size):
                     vol_pred = pred_instance[i].cpu()
                     if labels_instance.ndim == 4:
@@ -832,7 +834,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Evaluate if labels provided
         if labels is not None:
-            self._compute_test_metrics(decoded_predictions, labels)
+            self._compute_test_metrics(decoded_predictions, labels, filenames)
 
         return torch.tensor(0.0, device=self.device)
 

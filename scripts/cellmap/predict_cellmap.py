@@ -9,14 +9,14 @@ Uses:
 
 Usage:
     python scripts/cellmap/predict_cellmap.py \
-        --checkpoint outputs/cellmap/checkpoints/mednext-epoch=100-val_dice=0.850.ckpt \
-        --config scripts/cellmap/configs/mednext_cos7.py \
-        --output outputs/cellmap/predictions
+        --checkpoint outputs/cellmap_cos7/checkpoints/last.ckpt \
+        --config tutorials/cellmap_cos7.yaml \
+        --output predictions/
 
     # Predict specific crops only
     python scripts/cellmap/predict_cellmap.py \
-        --checkpoint best.ckpt \
-        --config config.py \
+        --checkpoint outputs/cellmap_cos7/checkpoints/last.ckpt \
+        --config tutorials/cellmap_cos7.yaml \
         --crops 234,236,237
 
 Requirements:
