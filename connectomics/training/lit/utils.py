@@ -195,7 +195,9 @@ def setup_config(args) -> Config:
         print("🔧 Fast-dev-run mode: Overriding config for debugging")
         print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
         print(f"   - num_cpus: {cfg.system.training.num_cpus} → 1")
-        print(f"   - num_workers: {cfg.system.training.num_workers} → 0 (avoid multiprocessing in debug mode)")
+        print(
+            f"   - num_workers: {cfg.system.training.num_workers} → 0 (avoid multiprocessing in debug mode)"
+        )
         print(
             f"   - batch_size: Controlled by PyTorch Lightning (--fast-dev-run={args.fast_dev_run})"
         )
@@ -221,10 +223,14 @@ def setup_config(args) -> Config:
     # CPU-only fallback: avoid multiprocessing workers when no CUDA is available
     if not torch.cuda.is_available():
         if cfg.system.training.num_workers > 0:
-            print("🔧 CUDA not available, setting training num_workers=0 to avoid dataloader crashes")
+            print(
+                "🔧 CUDA not available, setting training num_workers=0 to avoid dataloader crashes"
+            )
             cfg.system.training.num_workers = 0
         if cfg.system.inference.num_workers > 0:
-            print("🔧 CUDA not available, setting inference num_workers=0 to avoid dataloader crashes")
+            print(
+                "🔧 CUDA not available, setting inference num_workers=0 to avoid dataloader crashes"
+            )
             cfg.system.inference.num_workers = 0
 
     # Apply inference-specific overrides if in test/tune mode
