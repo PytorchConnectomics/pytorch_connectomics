@@ -722,17 +722,19 @@
             <span class="k">while</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">labels_instance</span> <span class="o">=</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
-            <span class="c1"># Determine if we have a batch dimension in predictions</span>
-            <span class="c1"># decoded_predictions can be: (Z,H,W), (1,Z,H,W), or (B,Z,H,W)</span>
-            <span class="n">has_batch_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">original_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">original_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">has_batch_dim</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">original_shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">original_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="c1"># Single volume with batch dimension of 1 - squeeze it</span>
+            <span class="c1"># Squeeze all leading dimensions of size 1 from predictions (remove batch &amp; channel dims)</span>
+            <span class="c1"># Predictions can be: (B, C, Z, H, W), (B, Z, H, W), (C, Z, H, W), or (Z, H, W)</span>
+            <span class="k">while</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">pred_instance</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># Determine if we have a batch dimension in predictions (after squeezing)</span>
+            <span class="c1"># After squeezing, predictions can be: (Z,H,W) or (B,Z,H,W) where B &gt; 1</span>
+            <span class="n">has_batch_dim</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span>
 
             <span class="c1"># Handle batch dimension - compute per-volume if multiple volumes in batch</span>
             <span class="k">if</span> <span class="n">has_batch_dim</span><span class="p">:</span>
                 <span class="c1"># Multiple volumes in batch - compute per volume</span>
-                <span class="n">batch_size</span> <span class="o">=</span> <span class="n">original_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">batch_size</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
                     <span class="n">vol_pred</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
                     <span class="k">if</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
@@ -1130,7 +1132,7 @@
 
         <span class="c1"># Evaluate if labels provided</span>
         <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span></div>
 
