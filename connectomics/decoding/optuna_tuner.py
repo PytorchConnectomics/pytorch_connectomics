@@ -125,12 +125,22 @@ class OptunaDecodingTuner:
 
     def _validate_data(self):
         """Validate data shapes and types."""
+        # Handle 2D data: (C, H, W) → (C, 1, H, W)
+        if self.predictions.ndim == 3:
+            print(f"  📐 2D data detected, expanding predictions: {self.predictions.shape} → {self.predictions.shape[:1] + (1,) + self.predictions.shape[1:]}")
+            self.predictions = self.predictions[:, np.newaxis, :, :]
+        
         # Predictions should be (C, D, H, W)
         if self.predictions.ndim != 4:
             raise ValueError(
                 f"Predictions should be 4D (C, D, H, W), got shape {self.predictions.shape}"
             )
 
+        # Handle 2D ground truth: (H, W) → (1, H, W)
+        if self.ground_truth.ndim == 2:
+            print(f"  📐 2D ground truth detected, expanding: {self.ground_truth.shape} → {(1,) + self.ground_truth.shape}")
+            self.ground_truth = self.ground_truth[np.newaxis, :, :]
+        
         # Ground truth should be (D, H, W)
         if self.ground_truth.ndim != 3:
             raise ValueError(
@@ -145,8 +155,12 @@ class OptunaDecodingTuner:
                 f"ground_truth {self.ground_truth.shape}"
             )
 
-        # Check mask if provided
+        # Handle 2D mask if provided
         if self.mask is not None:
+            if self.mask.ndim == 2:
+                print(f"  📐 2D mask detected, expanding: {self.mask.shape} → {(1,) + self.mask.shape}")
+                self.mask = self.mask[np.newaxis, :, :]
+            
             if self.mask.shape != self.ground_truth.shape:
                 raise ValueError(
                     f"Mask shape {self.mask.shape} doesn't match "
@@ -170,7 +184,7 @@ class OptunaDecodingTuner:
         direction = self._get_optimization_direction()
 
         # Create storage directory if using SQLite
-        storage = self.tune_cfg.get("storage", None)
+        storage = getattr(self.tune_cfg, "storage", None)
         if storage and storage.startswith("sqlite:///"):
             # Extract database file path from SQLite URL
             db_path = storage.replace("sqlite:///", "")
@@ -204,7 +218,7 @@ class OptunaDecodingTuner:
             self._objective,
             n_trials=n_trials,
             timeout=timeout,
-            show_progress_bar=self.tune_cfg.logging.get("show_progress_bar", True),
+            show_progress_bar=getattr(self.tune_cfg.logging, "show_progress_bar", True),
         )
 
         # Print results
@@ -219,7 +233,7 @@ class OptunaDecodingTuner:
         """Create Optuna sampler from config."""
         sampler_cfg = self.tune_cfg.sampler
         sampler_name = sampler_cfg["name"]
-        sampler_kwargs = sampler_cfg.get("kwargs", {})
+        sampler_kwargs = getattr(sampler_cfg, "kwargs", {})
 
         # Convert OmegaConf to dict
         if isinstance(sampler_kwargs, DictConfig):
@@ -236,13 +250,13 @@ class OptunaDecodingTuner:
 
     def _create_pruner(self) -> Optional[optuna.pruners.BasePruner]:
         """Create Optuna pruner from config."""
-        pruner_cfg = self.tune_cfg.get("pruner", None)
+        pruner_cfg = getattr(self.tune_cfg, "pruner", None)
 
-        if pruner_cfg is None or not pruner_cfg.get("enabled", False):
+        if pruner_cfg is None or not getattr(pruner_cfg, "enabled", False):
             return None
 
-        pruner_name = pruner_cfg.get("name", "Median")
-        pruner_kwargs = pruner_cfg.get("kwargs", {})
+        pruner_name = getattr(pruner_cfg, "name", "Median")
+        pruner_kwargs = getattr(pruner_cfg, "kwargs", {})
 
         # Convert OmegaConf to dict
         if isinstance(pruner_kwargs, DictConfig):
@@ -338,7 +352,7 @@ class OptunaDecodingTuner:
             )
 
         # Print progress
-        if self.tune_cfg.logging.get("verbose", True):
+        if getattr(self.tune_cfg.logging, "verbose", True):
             print(f"Trial {self.trial_count:3d}: {metric_name}={metric_value:.4f}")
 
         return metric_value
@@ -546,7 +560,7 @@ class OptunaDecodingTuner:
         for key, value in best_decoding_params.items():
             print(f"    {key}: {value}")
 
-        if self.param_space_cfg.get("postprocessing", {}).get("enabled", False):
+        if getattr(self.param_space_cfg, "postprocessing", None) and getattr(self.param_space_cfg.postprocessing, "enabled", False):
             best_postproc_params = self._reconstruct_postproc_params(study.best_params)
             if best_postproc_params:
                 print(f"\n  Post-processing params:")
@@ -662,8 +676,13 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     print("\n[1/4] Running inference on tuning dataset...")
 
     # Get tune config sections (used later for loading predictions, ground truth, masks)
-    tune_data = cfg.tune.get("data", {})
-    tune_output = cfg.tune.get("output", {})
+    tune_data = getattr(cfg.tune, "data", None)
+    tune_output = getattr(cfg.tune, "output", None)
+    
+    if tune_data is None:
+        raise ValueError("Missing tune.data in configuration")
+    if tune_output is None:
+        raise ValueError("Missing tune.output in configuration")
 
     # Create datamodule with tune mode (reads from cfg.tune.data)
     # Uses inference settings from cfg.inference (sliding window, TTA, save_predictions, etc.)
@@ -677,8 +696,8 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Step 2: Load predictions from saved files
     print("\n[2/4] Loading predictions from saved files...")
-    output_pred_dir = tune_output.get("output_pred", str(output_dir.parent / "results"))
-    cache_suffix = tune_output.get("cache_suffix", "_tta_prediction.h5")
+    output_pred_dir = getattr(tune_output, "output_pred", str(output_dir.parent / "results"))
+    cache_suffix = getattr(tune_output, "cache_suffix", "_tta_prediction.h5")
     predictions_dir = Path(output_pred_dir)
 
     # Find all prediction files using cache_suffix from config
@@ -711,13 +730,21 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
-    tune_label_pattern = tune_data.get("tune_label", None)
+    tune_label_pattern = getattr(tune_data, "tune_label", None)
 
     if tune_label_pattern is None:
         raise ValueError("Missing tune.data.tune_label in configuration")
 
-    # Handle glob patterns (can match multiple files)
-    label_files = sorted(glob.glob(tune_label_pattern))
+    # Handle both string patterns and pre-resolved lists
+    if isinstance(tune_label_pattern, list):
+        # Already resolved to list of files
+        label_files = sorted(tune_label_pattern)
+    elif isinstance(tune_label_pattern, str):
+        # Glob pattern - expand it
+        label_files = sorted(glob.glob(tune_label_pattern))
+    else:
+        raise TypeError(f"tune_label must be string or list, got {type(tune_label_pattern)}")
+    
     if not label_files:
         raise FileNotFoundError(f"No label files found matching pattern: {tune_label_pattern}")
 
@@ -740,10 +767,16 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Load mask if available
     mask = None
-    tune_mask_pattern = tune_data.get("tune_mask", None)
+    tune_mask_pattern = getattr(tune_data, "tune_mask", None)
     if tune_mask_pattern:
-        # Handle glob patterns
-        mask_files = sorted(glob.glob(tune_mask_pattern))
+        # Handle both string patterns and pre-resolved lists
+        if isinstance(tune_mask_pattern, list):
+            mask_files = sorted(tune_mask_pattern)
+        elif isinstance(tune_mask_pattern, str):
+            mask_files = sorted(glob.glob(tune_mask_pattern))
+        else:
+            raise TypeError(f"tune_mask must be string or list, got {type(tune_mask_pattern)}")
+        
         if not mask_files:
             print(f"  ⚠️  No mask files found matching pattern: {tune_mask_pattern}")
         else:
@@ -820,12 +853,11 @@ def load_and_apply_best_params(cfg):
     print(OmegaConf.to_yaml(best_params))
 
     # Apply to test.decoding config
-    # Note: test is Dict[str, Any], so we need to handle it carefully
     if cfg.test is None:
-        cfg.test = {}
+        cfg.test = OmegaConf.create({})
 
-    if "decoding" not in cfg.test:
-        cfg.test["decoding"] = []
+    if not hasattr(cfg.test, "decoding") or cfg.test.decoding is None:
+        cfg.test.decoding = []
 
     # Find the decoding function in test.decoding that matches the tuned function
     decoding_function = best_params.get("decoding_function", None)
@@ -836,24 +868,32 @@ def load_and_apply_best_params(cfg):
     else:
         # Find decoder with matching function name
         decoder_idx = None
-        for idx, decoder in enumerate(cfg.test["decoding"]):
-            if decoder.get("name") == decoding_function:
+        for idx, decoder in enumerate(cfg.test.decoding):
+            decoder_name = decoder.get("name") if isinstance(decoder, dict) else getattr(decoder, "name", None)
+            if decoder_name == decoding_function:
                 decoder_idx = idx
                 break
 
         if decoder_idx is None:
             # Create new decoder entry
-            decoder_idx = len(cfg.test["decoding"])
-            cfg.test["decoding"].append({"name": decoding_function, "kwargs": {}})
+            decoder_idx = len(cfg.test.decoding)
+            cfg.test.decoding.append({"name": decoding_function, "kwargs": {}})
 
     # Update parameters
-    if decoder_idx < len(cfg.test["decoding"]):
-        decoder = cfg.test["decoding"][decoder_idx]
-        if "kwargs" not in decoder:
-            decoder["kwargs"] = {}
-
-        # Apply best parameters
-        decoder["kwargs"].update(OmegaConf.to_container(best_params["parameters"]))
+    if decoder_idx < len(cfg.test.decoding):
+        decoder = cfg.test.decoding[decoder_idx]
+        
+        # Handle both dict and config object
+        if isinstance(decoder, dict):
+            if "kwargs" not in decoder:
+                decoder["kwargs"] = {}
+            decoder["kwargs"].update(OmegaConf.to_container(best_params["decoding_params"]))
+        else:
+            if not hasattr(decoder, "kwargs") or decoder.kwargs is None:
+                decoder.kwargs = {}
+            # Update kwargs with best parameters
+            for key, value in best_params["decoding_params"].items():
+                decoder.kwargs[key] = value
 
         print(f"✓ Applied best parameters to test.decoding[{decoder_idx}]")
 

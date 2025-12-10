@@ -25,23 +25,28 @@ model:
   input_size: [256, 256]
   output_size: [256, 256]
   in_channels: 1
-  out_channels: 2                        # foreground + contour
+  out_channels: 3                        # binary + boundary + edt (3 channels for multi-task)
   filters: [24, 48, 96, 192]
   num_res_units: 2
   kernel_size: 3
   norm: batch
-  dropout: 0.15
+  dropout: 0.1                           # Reduced dropout (was 0.15) to prevent underfitting on small objects
+  
+  # Deep supervision clamping to prevent numerical instability
+  deep_supervision_clamp_min: -15.0      # Tighter clamping (was -20.0)
+  deep_supervision_clamp_max: 15.0       # Tighter clamping (was 20.0)
 
-  # Loss configuration - WeightedBCEWithLogitsLoss + Dice for small touching objects
-  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss]
-  loss_weights: [1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+  # Loss configuration - Optimized for small neurons with improved EDT handling
+  # Binary/Boundary: BCE+Dice (standard), EDT: WeightedMSELoss with tanh activation
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedMSELoss, WeightedMAELoss]
+  loss_weights: [0.5, 1.5, 0.5, 1.5, 1.0, 0.5]
   loss_kwargs:
-    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
-    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
-    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
-    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
-    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
-    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid (include_background for 2 channels)
+    - {reduction: mean}                            # Binary: WeightedBCE
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Binary: Dice (higher weight for overlap)
+    - {reduction: mean}                            # Boundary: WeightedBCE
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Boundary: Dice (higher weight)
+    - {reduction: mean, tanh: true}                # EDT: WeightedMSE with tanh (constrains to [-1,1])
+    - {reduction: mean, tanh: true}                # EDT: WeightedMAE with tanh (robust to outliers)
 
   # Multi-task configuration
   # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
@@ -55,15 +60,15 @@ model:
 data:
   do_2d: true
 
-  # Image/label locations
-  train_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/train/images/*.tif
-  train_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/train/labels/*.tif
+  # Image/label locations - YOUR PATHS
+  train_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/train/images/*.tif
+  train_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/train/labels/*.tif
   train_resolution: [0.365, 0.365]        # micrometers: y, x
-  val_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/val/images/*.tif
-  val_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/val/labels/*.tif
+  val_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/images/*.tif
+  val_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/labels/*.tif
   use_preloaded_cache: false              # Dataset too large for full in-memory cache
   use_cache: true                         # Partial cache for faster IO
-  cache_rate: 0.1
+  cache_rate: 0.06
   pin_memory: true
   persistent_workers: true
 
@@ -79,17 +84,20 @@ data:
     clip_percentile_low: 0.01
     clip_percentile_high: 0.99
 
-  # Label processing: binary + contour channel for instance separation
+  # Label processing: binary + boundary + distance for multi-task learning
   label_transform:
     targets:
-      - name: binary
-      - name: instance_boundary
+      - name: binary                     # Channel 0: Binary foreground
+      - name: instance_boundary          # Channel 1: Instance boundaries
         kwargs:
           thickness: 1
           edge_mode: seg-all
           mode: 2d
+      - name: instance_edt               # Channel 2: Instance Euclidean Distance Transform
+        kwargs:
+          mode: 2d
 
-  # Augmentation - soft geometric + conservative intensity tweaks for low SNR
+  # Augmentation - optimized for small neurons with low SNR
   augmentation:
     preset: some
     flip:
@@ -100,19 +108,19 @@ data:
     affine:
       enabled: false
     elastic:
-      enabled: false
+      enabled: false                     # Keep disabled for small objects
     intensity:
       enabled: true
-      shift_intensity_prob: 0.5
-      shift_intensity_offset: 0.1
-      gaussian_noise_prob: 0.0
-      gaussian_noise_std: 0.0
-      contrast_prob: 0.3
-      contrast_range: [0.95, 1.05]
+      shift_intensity_prob: 0.4          # Slightly reduced (was 0.5)
+      shift_intensity_offset: 0.08       # More conservative (was 0.1)
+      gaussian_noise_prob: 0.2           # Added mild noise augmentation
+      gaussian_noise_std: 0.02           # Very mild noise for low SNR data
+      contrast_prob: 0.4                 # Increased (was 0.3)
+      contrast_range: [0.9, 1.1]         # Wider range (was [0.95, 1.05])
 
-# Optimizer - AdamW with ReduceLROnPlateau
+# Optimizer - AdamW with improved settings for small object segmentation
 optimization:
-  max_epochs: 500
+  max_epochs: 600                    # Increased from 500 for better convergence
   val_check_interval: 1.0
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
@@ -120,8 +128,8 @@ optimization:
 
   optimizer:
     name: AdamW
-    lr: 0.001
-    weight_decay: 0.01
+    lr: 0.0005
+    weight_decay: 0.005
     betas: [0.9, 0.999]
     eps: 1.0e-8
 
@@ -130,10 +138,10 @@ optimization:
     name: ReduceLROnPlateau
     monitor: val_loss_total
     mode: min
-    factor: 0.5
-    patience: 30
-    threshold: 1.0e-4
-    min_lr: 1.0e-6
+    factor: 0.3
+    patience: 25
+    threshold: 5.0e-5
+    min_lr: 5.0e-7
 
 monitor:
   detect_anomaly: false
@@ -160,19 +168,19 @@ monitor:
     mode: min
     save_top_k: 1
     save_last: true
-    save_every_n_epochs: 10
-    dirpath: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/monai_zebrafish_neurons/checkpoints/
+    save_every_n_epochs: 1
+    dirpath: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/outputs/zebrafish_neurons/checkpoints/
     use_timestamp: true                  # Timestamped subdirectories (YYYYMMDD_HHMMSS)
 
   # Early stopping - patient for small objects
   early_stopping:
     enabled: true
     monitor: val_loss_total
-    patience: 100
+    patience: 120
     mode: min
-    min_delta: 1.0e-5
+    min_delta: 5.0e-6
     check_finite: true
-    threshold: 0.005
+    threshold: 0.003
     divergence_threshold: 5.0
 
 # Inference - Sliding window for full 1216x2048 images
@@ -185,9 +193,10 @@ inference:
     padding_mode: reflect
 
   test_time_augmentation:
-    enabled: true
+    enabled: false
     flip_axes: [[0], [1], [0, 1]]
-    channel_activations: [[0, 2, 'sigmoid']]  # Sigmoid activation for both channels (foreground + contour)
+    channel_activations: null
+    select_channel: null
     ensemble_mode: mean
 
   # Save intermediate predictions (pre-decoding)
@@ -201,10 +210,11 @@ inference:
 
 test:
   data:
-    test_image: datasets/zebrafish_neurons/image_124313.tif
-    test_label: datasets/zebrafish_neurons/label_124313.tif
+    # YOUR TEST PATHS
+    test_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/images/124313.tif
+    test_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/labels/124313.tif
     test_resolution: [0.365, 0.365]
-    output_path: outputs/zebrafish_neurons_monai_unet/results/
+    output_path: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/outputs/zebrafish_neurons/results/
     image_transform:
       normalize: "0-1"                     # Min-max normalization to [0, 1]
       clip_percentile_low: 0.01            # Clip bottom 1% (remove dark noise outliers)
@@ -214,12 +224,110 @@ test:
   decoding:
     - name: decode_instance_binary_contour_distance
       kwargs:
-        binary_threshold: [0.5, 0.3]
-        contour_threshold: [0.7, 1.1]                
-        distance_threshold: [0.5, 0]
-        min_seed_size: 4
+        binary_channels: [0]                # Channel 0: binary foreground
+        contour_channels: [1]               # Channel 1: instance boundaries
+        distance_channels: [2]              # Channel 2: distance transform
+        binary_threshold: [0.5, 0.4]
+        contour_threshold: [0.6, 0.9]
+        distance_threshold: [0.4, 0.1]
+        min_seed_size: 6
 
   # Evaluation
   evaluation:
     enabled: false
     metrics: [adapted_rand]
+
+# Parameter tuning with Optuna
+tune:
+  enabled: true                     # Disable for training mode (enable only for tune mode)
+  n_trials: 50
+  study_name: zebrafish_neurons_tuning
+  storage: "sqlite:///outputs/zebrafish_neurons/tuning/tuning.db"
+  load_if_exists: true
+  
+  sampler:
+    name: TPE
+    kwargs:
+      n_startup_trials: 10
+      multivariate: true
+  
+  pruner:
+    enabled: false
+  
+  optimization:
+    mode: single
+    single_objective:
+      metric: adapted_rand
+      direction: minimize
+  
+  data:
+    tune_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/tuning_subset/images/*.tif
+    tune_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/tuning_subset/labels/*.tif
+    image_transform:
+      normalize: "0-1"
+      clip_percentile_low: 0.01
+      clip_percentile_high: 0.99
+  
+  output:
+    output_dir: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/outputs/zebrafish_neurons/tuning
+    save_all_trials: false
+    save_best_segmentation: true
+    save_study: true
+    report:
+      enabled: true
+      top_n_trials: 10
+      format: markdown
+  
+  logging:
+    verbose: true
+    show_progress_bar: true
+  
+  parameter_space:
+    decoding:
+      function_name: decode_instance_binary_contour_distance
+      defaults:
+        binary_threshold: [0.6, 0.6]      
+        contour_threshold: [0.65, 0.85]     
+        distance_threshold: [0.45, 0.35]
+        min_seed_size: 22
+      parameters:
+        binary_threshold_seed:
+          type: float
+          range: [0.50, 0.70]              
+          step: 0.05
+          param_group: binary_threshold
+          tuple_index: 0
+        binary_threshold_foreground:
+          type: float
+          range: [0.45, 0.60]               
+          step: 0.05
+          param_group: binary_threshold
+          tuple_index: 1
+        contour_threshold_seed:
+          type: float
+          range: [0.55, 0.85]              
+          step: 0.05
+          param_group: contour_threshold
+          tuple_index: 0
+        contour_threshold_foreground:
+          type: float
+          range: [0.85, 1.0]               
+          step: 0.05
+          param_group: contour_threshold
+          tuple_index: 1
+        distance_threshold_seed:
+          type: float
+          range: [0.35, 0.65]              
+          step: 0.05
+          param_group: distance_threshold
+          tuple_index: 0
+        distance_threshold_foreground:
+          type: float
+          range: [0.30, 0.50]               
+          step: 0.05
+          param_group: distance_threshold
+          tuple_index: 1
+        min_seed_size:
+          type: int
+          range: [12, 24]                   
+          step: 2

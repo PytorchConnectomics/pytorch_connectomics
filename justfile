@@ -84,17 +84,17 @@ infer dataset ckpt *ARGS='':
 # Shows all runs (timestamped directories) for comparison
 # Usage: just tensorboard experiment [port] (default port: 6006)
 tensorboard experiment port='6006':
-    tensorboard --logdir outputs/{{experiment}} --port {{port}}
+    tensorboard --logdir /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/{{experiment}} --port {{port}}
 
 # Launch TensorBoard for all experiments
 # Usage: just tensorboard-all [port] (default port: 6006)
 tensorboard-all port='6006':
-    tensorboard --logdir outputs/ --port {{port}}
+    tensorboard --logdir /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/ --port {{port}}
 
 # Launch TensorBoard for a specific run (e.g., just tensorboard-run lucchi_monai_unet 20250203_143052)
 # Usage: just tensorboard-run experiment timestamp [port] (default port: 6006)
 tensorboard-run experiment timestamp port='6006':
-    tensorboard --logdir outputs/{{experiment}}/{{timestamp}}/logs --port {{port}}
+    tensorboard --logdir /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/{{experiment}}/{{timestamp}} --port {{port}}
 
 # Launch any just command on SLURM (e.g., just slurm weilab 8 4 "train lucchi")
 # Automatically uses srun for distributed training when num_gpu > 1
@@ -112,9 +112,9 @@ slurm partition num_cpu num_gpu cmd:
            --ntasks={{num_gpu}} \
            --gpus-per-node={{num_gpu}} \
            --cpus-per-task={{num_cpu}} \
-           --mem=32G \
-           --time=48:00:00 \
-           --wrap="export JUST_RUNTIME_DIR=\$HOME/.just && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_gpu}} --ntasks-per-node={{num_gpu}} just {{cmd}}"
+           --mem=256G \
+           --time=4:00:00 \
+           --wrap="source /orcd/data/edboyden/001/mansour/miniconda3/etc/profile.d/conda.sh && conda activate pytc && cd $PWD && srun --ntasks={{num_gpu}} --ntasks-per-node={{num_gpu}} just {{cmd}}"
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:

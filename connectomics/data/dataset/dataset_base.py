@@ -214,6 +214,24 @@ class MonaiCachedConnectomicsDataset(CacheDataset):
             self.dataset_length = len(data_dicts)
 
     def __len__(self) -> int:
+        """
+        Return dataset length.
+        
+        For CacheDataset with cache_rate < 1.0, we must return the actual
+        number of cached items, not the requested iter_num, to avoid IndexError.
+        """
+        # If using partial caching, return the actual cached data length
+        # CacheDataset stores cached indices in self._cache
+        if hasattr(self, '_cache') and len(self._cache) < len(self.data):
+            # Partial caching: return cached length for validation
+            # For training with iter_num, we still want to iterate iter_num times
+            if self.mode == 'train' and self.iter_num > 0:
+                return self.dataset_length
+            else:
+                # For validation/test, only iterate over cached items
+                return len(self._cache)
+        
+        # Full caching or no caching: use dataset_length
         return self.dataset_length
 
 

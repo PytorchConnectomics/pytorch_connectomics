@@ -265,8 +265,8 @@ def main():
 
         # Handle tune modes
         if args.mode in ["tune", "tune-test"]:
-            # Check if tune config exists (tune is Dict[str, Any])
-            if cfg.tune is None or "parameter_space" not in cfg.tune:
+            # Check if tune config exists and has parameter_space
+            if cfg.tune is None or not hasattr(cfg.tune, "parameter_space"):
                 raise ValueError("Missing tune or tune.parameter_space configuration")
 
             from connectomics.decoding import run_tuning
