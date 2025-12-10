@@ -538,9 +538,9 @@ class OptunaDecodingTuner:
             seg_masked = segmentation
 
         if metric_name == "adapted_rand":
-            # Compute adapted Rand index
+            # Compute adapted Rand error (lower is better)
             are = adapted_rand(seg_masked, gt_masked)
-            return 1.0 - are  # Return F-score (higher is better)
+            return are  # Return error directly (0 = perfect, 1 = worst)
 
         else:
             raise ValueError(f"Unknown metric: {metric_name}")

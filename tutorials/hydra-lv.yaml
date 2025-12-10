@@ -45,7 +45,7 @@
 #   - Applied after same augmentation as labels (spatial consistency)
 #   - Loss is only computed in valid (mask=1) regions
 
-experiment_name: hydra_lv_rsunet
+experiment_name: hydra-lv_rsunet
 description: Hydra large vesicle segmentation with RSUNet (EM-optimized) and multi-task learning
 
 # System
@@ -53,7 +53,7 @@ system:
   training:
     num_gpus: 4
     num_cpus: 8
-    num_workers: 8                     # More workers for parallel data loading (6x speedup)
+    num_workers: 2                     # More workers for parallel data loading (6x speedup)
     batch_size: 8                      # Reduced from 32 for larger patches (OPTION 3)
   inference:
     num_gpus: 1
@@ -520,22 +520,6 @@ tune:
           step: 4
           description: "Minimum size for watershed seeds (voxels)"
 
-    # # -------------------------------------------------------------------------
-    # # Post-Processing Function Configuration (Optional)
-    # # -------------------------------------------------------------------------
-    postprocessing:
-      enabled: true
-      function_name: remove_small_instances
-
-      # Default/fixed parameter values
-      # Parameters to optimize (only these will be searched by Optuna)
-      parameters:
-        thres_small:
-          type: int
-          range: [4, 16]
-          step: 4
-          description: "Minimum size for instance objects after watershed (voxels)"
-
 
 # ============================================================================
 # INFERENCE (STAGE 2 - Final Testing on Bouton-LV Train Data)
@@ -543,12 +527,12 @@ tune:
 test:
   data:
     # Final test data (bouton-lv train volumes with ground truth)
-    # test_image: datasets/bouton-lv/train/vol0_im.h5
-    # test_label: datasets/bouton-lv/train/vol0_lv.h5
-    # test_mask: datasets/bouton-lv/train/vol0_mask.h5    
-    test_image: "datasets/hydra-lv/vol*_im.h5"
-    test_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"
-    test_mask: "datasets/hydra-lv/vol*_mask.h5"
+    test_image: datasets/bouton-lv/train/vol0_im.h5
+    test_label: datasets/bouton-lv/train/vol0_lv.h5
+    test_mask: datasets/bouton-lv/train/vol0_mask.h5    
+    # test_image: "datasets/hydra-lv/vol*_im.h5"
+    # test_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"
+    # test_mask: "datasets/hydra-lv/vol*_mask.h5"
     
     test_resolution: [30, 8, 8]
     # Image normalization
@@ -564,9 +548,9 @@ test:
   decoding:
     - name: decode_instance_binary_contour_distance
       kwargs:
-        binary_threshold: [0.9, 0.1]
+        binary_threshold: [0.5, 0.1]
         contour_threshold: [0.8, 1.1]
-        distance_threshold: [0.5, 0.0]
+        distance_threshold: [0.2, 0.0]
         min_seed_size: 8
 
   # Evaluation

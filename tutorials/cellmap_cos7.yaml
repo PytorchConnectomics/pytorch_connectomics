@@ -26,7 +26,7 @@ system:
   training:
     num_gpus: 4
     num_cpus: 8
-    num_workers: 8
+    num_workers: 2
     batch_size: 8                        # Per GPU (effective = 32)
   inference:
     num_gpus: 1
@@ -93,7 +93,7 @@ data:
 
   # Training configuration
   iter_num_per_epoch: 2000            # Steps per epoch
-  persistent_workers: true            # Keep workers alive
+  persistent_workers: false            # Keep workers alive
 
 # Optimizer - AdamW (MedNeXt default)
 optimization:

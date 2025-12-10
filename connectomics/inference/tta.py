@@ -29,6 +29,31 @@ class TTAPredictor:
         self.cfg = cfg
         self.sliding_inferer = sliding_inferer
         self.forward_fn = forward_fn
+        # Track activation types per channel for proper masking
+        self.channel_activation_types = None
+        self._parse_channel_activations()
+
+    def _parse_channel_activations(self):
+        """Parse channel_activations config to determine activation type per channel."""
+        if not hasattr(self.cfg, "inference") or not hasattr(
+            self.cfg.inference, "test_time_augmentation"
+        ):
+            return
+
+        channel_activations = getattr(
+            self.cfg.inference.test_time_augmentation, "channel_activations", None
+        )
+
+        if channel_activations is not None:
+            # Build a list mapping each output channel to its activation type
+            self.channel_activation_types = []
+            for config_entry in channel_activations:
+                if len(config_entry) != 3:
+                    continue
+                start_ch, end_ch, act = config_entry
+                # Add activation type for each channel in this range
+                for _ in range(start_ch, end_ch):
+                    self.channel_activation_types.append(act)
 
     def apply_preprocessing(self, tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -370,6 +395,26 @@ class TTAPredictor:
                         UserWarning,
                     )
                     return ensemble_result
-            ensemble_result = ensemble_result * mask
+
+            # Apply activation-aware masking: use minimum value for each activation type
+            # - sigmoid/softmax: min=0 (masked regions should be 0)
+            # - tanh: min=-1 (masked regions should be -1)
+            if self.channel_activation_types is not None and len(self.channel_activation_types) == ensemble_result.shape[1]:
+                # Per-channel masking with activation-aware values
+                for c, act_type in enumerate(self.channel_activation_types):
+                    if act_type == "tanh":
+                        # For tanh: mask * value + (1 - mask) * (-1)
+                        # Where mask=1 keeps original value, mask=0 sets to -1
+                        ensemble_result[:, c:c+1] = (
+                            mask[:, 0:1] * ensemble_result[:, c:c+1] +
+                            (1 - mask[:, 0:1]) * (-1.0)
+                        )
+                    else:
+                        # For sigmoid/softmax/others: mask * value + (1 - mask) * 0
+                        # This is equivalent to: ensemble_result * mask
+                        ensemble_result[:, c:c+1] = mask[:, 0:1] * ensemble_result[:, c:c+1]
+            else:
+                # Fallback: simple multiplication (assumes all channels want 0 for masked regions)
+                ensemble_result = ensemble_result * mask
 
         return ensemble_result

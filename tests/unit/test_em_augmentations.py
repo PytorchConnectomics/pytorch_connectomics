@@ -9,14 +9,14 @@ import pytest
 import torch
 
 from connectomics.data.augment.monai_transforms import (
-    RandMisAlignmentd,
-    RandMissingSectiond,
-    RandMissingPartsd,
-    RandMotionBlurd,
-    RandCutNoised,
-    RandCutBlurd,
-    RandMixupd,
     RandCopyPasted,
+    RandCutBlurd,
+    RandCutNoised,
+    RandMisAlignmentd,
+    RandMissingPartsd,
+    RandMissingSectiond,
+    RandMixupd,
+    RandMotionBlurd,
 )
 
 
@@ -113,8 +113,15 @@ class TestRandMissingSectiond:
         result = transform(sample_data_dict)
 
         assert "image" in result
-        # Shape should be reduced (sections removed)
-        assert result["image"].shape[1] < sample_data_dict["image"].shape[1]
+        # Shape should be preserved (sections zeroed, not removed)
+        assert result["image"].shape == sample_data_dict["image"].shape
+        # Some sections should be zeroed out
+        # Check that at least one section is zero (with tolerance for float)
+        depth = result["image"].shape[1]
+        # Skip first/last sections
+        section_sums = result["image"][0, 1 : depth - 1, :, :].sum(dim=(1, 2))
+        # At least one middle section should be zero (or very close to zero)
+        assert (section_sums == 0).any() or (section_sums < 1e-6).any()
 
     def test_respects_boundaries(self, sample_data_dict):
         """Test that first and last sections are preserved."""
@@ -129,8 +136,14 @@ class TestRandMissingSectiond:
         # Run multiple times
         for _ in range(10):
             result = transform(sample_data_dict.copy())
-            # Should remove 1 section
-            assert result["image"].shape[1] == original_depth - 1
+            # Shape should be preserved
+            assert result["image"].shape[1] == original_depth
+            # First and last sections should not be zero (preserved)
+            first_sum = result["image"][0, 0, :, :].sum()
+            last_sum = result["image"][0, -1, :, :].sum()
+            # First and last should have non-zero values (preserved)
+            assert first_sum > 0
+            assert last_sum > 0
 
     def test_probability_control(self, sample_data_dict):
         """Test probability control."""
@@ -341,7 +354,7 @@ class TestRandCopyPasted:
         for x in range(center - radius, center + radius):
             for y in range(center - radius, center + radius):
                 for z in range(center - radius, center + radius):
-                    if (x - center)**2 + (y - center)**2 + (z - center)**2 < radius**2:
+                    if (x - center) ** 2 + (y - center) ** 2 + (z - center) ** 2 < radius**2:
                         data["label"][x, y, z] = True
 
         transform = RandCopyPasted(
@@ -393,7 +406,7 @@ class TestIntegration:
 
     def test_with_monai_transforms(self, sample_data_dict):
         """Test compatibility with MONAI transforms."""
-        from monai.transforms import RandShiftIntensityd, RandGaussianNoised
+        from monai.transforms import RandGaussianNoised, RandShiftIntensityd
 
         transforms = [
             RandMissingSectiond(keys=["image"], prob=1.0, num_sections=1),
@@ -436,7 +449,7 @@ class TestPerformance:
         end = time.time()
 
         time_per_iteration = (end - start) / num_iterations
-        print(f"\nRandMisAlignmentd: {time_per_iteration*1000:.2f} ms/iteration")
+        print(f"\nRandMisAlignmentd: {time_per_iteration * 1000:.2f} ms/iteration")
 
         # Should be reasonably fast (< 100ms)
         assert time_per_iteration < 0.1

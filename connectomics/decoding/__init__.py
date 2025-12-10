@@ -18,52 +18,44 @@ Import patterns:
     from connectomics.decoding import optimize_threshold, SkeletonMetrics
 """
 
-from .segmentation import (
-    decode_instance_binary_contour_distance,
-    decode_affinity_cc,
-    affinity_cc3d,
-)
-
 from .auto_tuning import (
-    optimize_threshold,
-    optimize_parameters,
-    grid_search_threshold,
     SkeletonMetrics,
+    grid_search_threshold,
+    optimize_parameters,
+    optimize_threshold,
 )
-
 from .optuna_tuner import (
     OptunaDecodingTuner,
-    run_tuning,
     load_and_apply_best_params,
+    run_tuning,
 )
-
+from .postprocess import (
+    add_masks,
+    binarize_and_median,
+    intersection_over_union,
+    merge_masks,
+    remove_masks,
+    stitch_3d,
+    watershed_split,
+)
+from .segmentation import (
+    decode_affinity_cc,
+    decode_instance_binary_contour_distance,
+)
 from .synapse import (
     polarity2instance,
 )
-
-from .postprocess import (
-    binarize_and_median,
-    remove_masks,
-    add_masks,
-    merge_masks,
-    watershed_split,
-    stitch_3d,
-    intersection_over_union,
-)
-
 from .utils import (
     cast2dtype,
-    remove_small_instances,
-    remove_large_instances,
     merge_small_objects,
+    remove_large_instances,
+    remove_small_instances,
 )
-
 
 __all__ = [
     # Segmentation decoding
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
-    "affinity_cc3d",
     # Auto-tuning
     "optimize_threshold",
     "optimize_parameters",

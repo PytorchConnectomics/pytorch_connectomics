@@ -223,20 +223,29 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
         "decode_affinity_cc": decode_affinity_cc,
     }
 
+    # Handle different input shapes:
+    # - 5D: (B, C, Z, H, W) - batch of multi-channel 3D volumes
+    # - 4D: (C, Z, H, W) - single multi-channel 3D volume (add batch dim)
+    # - 3D: (Z, H, W) - single-channel 3D volume (add batch and channel dims)
+    # - 2D: (H, W) - single 2D image (add batch, channel, and Z dims)
+
+    original_ndim = data.ndim
     if data.ndim == 4:
-        batch_size = data.shape[0]
+        # Assume (C, Z, H, W) - add batch dimension
+        data = data[np.newaxis, ...]  # Now (B=1, C, Z, H, W)
+        batch_size = 1
     elif data.ndim == 5:
         batch_size = data.shape[0]
     else:
         batch_size = 1
         if data.ndim == 3:
-            data = data[np.newaxis, ...]
+            data = data[np.newaxis, np.newaxis, ...]  # (Z, H, W) -> (B=1, C=1, Z, H, W)
         elif data.ndim == 2:
-            data = data[np.newaxis, np.newaxis, ...]
+            data = data[np.newaxis, np.newaxis, np.newaxis, ...]  # (H, W) -> (B=1, C=1, Z=1, H, W)
 
     results = []
     for batch_idx in range(batch_size):
-        sample = data[batch_idx]
+        sample = data[batch_idx]  # Now sample is (C, Z, H, W)
 
         for decode_cfg in decode_modes:
             fn_name = decode_cfg.name if hasattr(decode_cfg, "name") else decode_cfg.get("name")
@@ -260,8 +269,8 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
 
             try:
                 sample = decode_fn(sample, **kwargs)
-                if sample.ndim == 3:
-                    sample = sample[np.newaxis, ...]
+                # Note: decode functions return (Z, H, W) for instance segmentation
+                # Don't add extra dimensions here - let the final stacking handle it
             except Exception as e:
                 raise RuntimeError(
                     f"Error applying decode function '{fn_name}': {e}. "
@@ -270,7 +279,12 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
 
         results.append(sample)
 
-    decoded = np.stack(results, axis=0)
+    # Stack results along batch dimension
+    if len(results) > 1:
+        decoded = np.stack(results, axis=0)  # Multiple batches: (B, Z, H, W) or (B, C, Z, H, W)
+    else:
+        decoded = results[0]  # Single batch: (Z, H, W) or (C, Z, H, W)
+
     return decoded
 
 

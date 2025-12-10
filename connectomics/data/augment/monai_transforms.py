@@ -99,11 +99,11 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
 
         output = np.zeros(out_shape, img.dtype)
         if mode == "slip":
-            output = img[:, y0:y0 + out_shape[1], x0:x0 + out_shape[2]]
-            output[idx] = img[idx, y1:y1 + out_shape[1], x1:x1 + out_shape[2]]
+            output = img[:, y0 : y0 + out_shape[1], x0 : x0 + out_shape[2]]
+            output[idx] = img[idx, y1 : y1 + out_shape[1], x1 : x1 + out_shape[2]]
         else:
-            output[:idx] = img[:idx, y0:y0 + out_shape[1], x0:x0 + out_shape[2]]
-            output[idx:] = img[idx:, y1:y1 + out_shape[1], x1:x1 + out_shape[2]]
+            output[:idx] = img[:idx, y0 : y0 + out_shape[1], x0 : x0 + out_shape[2]]
+            output[idx:] = img[idx:, y1 : y1 + out_shape[1], x1 : x1 + out_shape[2]]
 
         if is_tensor:
             output = torch.from_numpy(output).to(device)
@@ -177,7 +177,12 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
     """
     Random missing section augmentation for connectomics data.
 
-    Simulates missing or damaged sections in EM volumes.
+    Simulates missing or damaged sections in EM volumes by zeroing out
+    random sections (preserves patch size for consistent batching).
+
+    Note: This zeros out sections instead of removing them to maintain
+    consistent patch sizes. If you need to remove sections (which reduces
+    patch size), you would need to increase patch_size accordingly.
     """
 
     def __init__(
@@ -213,12 +218,22 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
     def _apply_missing_section(
         self, img: Union[np.ndarray, torch.Tensor]
     ) -> Union[np.ndarray, torch.Tensor]:
-        """Remove random sections from volume."""
+        """
+        Zero out random sections from volume (preserves patch size).
+
+        Note: This zeros out sections instead of removing them to maintain
+        consistent patch sizes for batching. If you need to remove sections
+        (which reduces patch size), consider increasing patch_size accordingly.
+        """
         if img.ndim < 3:
             return img  # Skip 2D or very small volumes
 
         # Handle both numpy and torch tensors
         is_tensor = isinstance(img, torch.Tensor)
+        if is_tensor:
+            img = img.clone()
+        else:
+            img = img.copy()
 
         depth_axis = 0
         if img.ndim >= 4 and img.shape[0] <= 3:
@@ -228,20 +243,23 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
         if depth <= 3:
             return img
 
-        # Select sections to remove (avoid first and last)
-        num_to_remove = min(self.num_sections, depth - 2)
-        indices_to_remove = self.R.choice(
-            np.arange(1, depth - 1), size=num_to_remove, replace=False
-        )
+        # Select sections to zero out (avoid first and last)
+        num_to_zero = min(self.num_sections, depth - 2)
+        indices_to_zero = self.R.choice(np.arange(1, depth - 1), size=num_to_zero, replace=False)
 
+        # Zero out the selected sections (preserves patch size)
         if is_tensor:
-            keep_mask = torch.ones(depth, dtype=torch.bool, device=img.device)
-            keep_mask[indices_to_remove] = False
-            return torch.index_select(
-                img, dim=depth_axis, index=keep_mask.nonzero(as_tuple=False).squeeze(-1)
-            )
+            if depth_axis == 0:
+                img[indices_to_zero, ...] = 0
+            else:  # depth_axis == 1
+                img[:, indices_to_zero, ...] = 0
         else:
-            return np.delete(img, indices_to_remove, axis=depth_axis)
+            if depth_axis == 0:
+                img[indices_to_zero, ...] = 0
+            else:  # depth_axis == 1
+                img[:, indices_to_zero, ...] = 0
+
+        return img
 
 
 class RandMissingPartsd(RandomizableTransform, MapTransform):
@@ -299,7 +317,7 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
         x_start = self.R.randint(0, img.shape[2] - hole_w + 1)
 
         # Create hole (set to 0 or mean value)
-        img[section_idx, y_start:y_start + hole_h, x_start:x_start + hole_w] = 0
+        img[section_idx, y_start : y_start + hole_h, x_start : x_start + hole_w] = 0
 
         return img
 
@@ -452,24 +470,24 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
                 region = img[
                     :,
-                    z_start:z_start + z_len,
-                    y_start:y_start + y_len,
-                    x_start:x_start + x_len,
+                    z_start : z_start + z_len,
+                    y_start : y_start + y_len,
+                    x_start : x_start + x_len,
                 ]
                 noisy_region = np.clip(region + noise, 0, 1)
                 img[
                     :,
-                    z_start:z_start + z_len,
-                    y_start:y_start + y_len,
-                    x_start:x_start + x_len,
+                    z_start : z_start + z_len,
+                    y_start : y_start + y_len,
+                    x_start : x_start + x_len,
                 ] = noisy_region
             else:
                 # (C, H, W) - 2D with channels
                 noise_shape = (img.shape[0], y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[:, y_start:y_start + y_len, x_start:x_start + x_len]
+                region = img[:, y_start : y_start + y_len, x_start : x_start + x_len]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[:, y_start:y_start + y_len, x_start:x_start + x_len] = noisy_region
+                img[:, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
         elif img.ndim == 3:
             # 3D case: (Z, Y, X) or (C, H, W)
             # Heuristic: if first dim is small (<=4), assume it's channel (2D with channels)
@@ -478,9 +496,9 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 # (C, H, W) - 2D with channels
                 noise_shape = (img.shape[0], y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[:, y_start:y_start + y_len, x_start:x_start + x_len]
+                region = img[:, y_start : y_start + y_len, x_start : x_start + x_len]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[:, y_start:y_start + y_len, x_start:x_start + x_len] = noisy_region
+                img[:, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
             else:
                 # (Z, Y, X) - 3D
                 z_len = max(1, int(self.length_ratio * img.shape[0]))  # Ensure at least 1
@@ -488,21 +506,21 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 noise_shape = (z_len, y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
                 region = img[
-                    z_start:z_start + z_len,
-                    y_start:y_start + y_len,
-                    x_start:x_start + x_len,
+                    z_start : z_start + z_len,
+                    y_start : y_start + y_len,
+                    x_start : x_start + x_len,
                 ]
                 noisy_region = np.clip(region + noise, 0, 1)
                 img[
-                    z_start:z_start + z_len, y_start:y_start + y_len, x_start:x_start + x_len
+                    z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len
                 ] = noisy_region
         else:
             # 2D case: (H, W)
             noise_shape = (y_len, x_len)
             noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-            region = img[y_start:y_start + y_len, x_start:x_start + x_len]
+            region = img[y_start : y_start + y_len, x_start : x_start + x_len]
             noisy_region = np.clip(region + noise, 0, 1)
-            img[y_start:y_start + y_len, x_start:x_start + x_len] = noisy_region
+            img[y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
 
         if is_tensor:
             img = torch.from_numpy(img).to(device)
@@ -888,7 +906,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
                 neuron_tensor.flip(0) if neuron_tensor.ndim == 3 else neuron_tensor.flip(1)
             )
 
-        label_paste = labels[best_idx:best_idx + 1]
+        label_paste = labels[best_idx : best_idx + 1]
 
         if best_angle != 0:
             label_paste = self._rotate_3d(label_paste, best_angle)
