@@ -23,7 +23,7 @@ description: 3D axon segmentation using MONAI Residual UNet with paired data tra
 # System - Optimized for 2D training
 system:
   training:
-    num_gpus: 4                          # Single GPU
+    num_gpus: 1                          # Single GPU per task (SLURM handles multi-GPU via DDP)
     num_cpus: 8                          # Increase for better data loading
     num_workers: 8                        # Parallel data loading (2D slices are lighter)
     batch_size: 8                        # Higher batch size for 2D (vs 4 for 3D)
@@ -50,25 +50,32 @@ model:
   dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration - Dice for overlap, BCE for pixel-wise accuracy
-  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss]
+  loss_functions: [WeightedBCE, DiceLoss]
   loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
   loss_kwargs:
-    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
-    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with sigmoid
+  - {reduction: mean}
+  - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
 
-# Data - Using automatic 80/20 train/val split (DeepEM-style)
-data:  
-  # Volume configuration
-  train_image: datasets/axon_data_30pc_subset/training/training-original/volumes/*.tiff
-  train_label: datasets/axon_data_30pc_subset/training/training-original/labels/*.tiff
-  train_resolution: [5, 5]        # Lucchi EM: 5nm isotropic resolution
+# Data - Separate training and validation datasets
+data:
+  # Training data
+  train_image: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/volumes/*.tiff
+  train_label: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/labels-original-backup/*.tiff
+  train_resolution: [2, 0.8, 0.8]        # Resolution: z, y, x (applies to both train and val)
+  
+  # Validation data (separate from training)
+  val_image: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/volumes/*.tiff
+  val_label: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/labels-original-backup/*.tiff
+  
   use_preloaded_cache: true            # Load volumes into memory for fast training
+  # train_val_split: 0.8               # Not needed when using separate val_image/val_label
 
   # Patch configuration
   patch_size: [64, 64, 64]          # Larger patches for better context
   pad_size: [0, 0, 0]                 # Padding for valid convolutions
   pad_mode: reflect                    # Reflection padding at boundaries
-  iter_num_per_epoch: 1280             # 1280 random crops per epoch
+  iter_num_per_epoch: 1280             # 1280 random crops per epoch (training)
+
 
   # Data transformation (applied to image/label/mask for spatial alignment)
   # NEW: Paired transforms ensure image and label stay aligned
@@ -105,6 +112,7 @@ data:
 # Optimizer - AdamW with optimized hyperparameters
 optimization:
   max_epochs: 1000
+  val_check_interval: 1.0
   gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
@@ -116,9 +124,10 @@ optimization:
     betas: [0.9, 0.999]                  # Standard Adam betas (momentum terms)
     eps: 1.0e-8                          # Numerical stability
 
-  # Scheduler - Cosine annealing with warmup for smooth convergence
+  # Scheduler - Reduce LR when validation loss plateaus
   scheduler:
     name: ReduceLROnPlateau           # Reduce LR when validation loss plateaus
+    monitor: val_loss_total           # Monitor validation loss
     mode: min                         # Monitor minimum loss
     factor: 0.5                       # Reduce LR by 50%
     patience: 50                      # Wait 50 epochs before reducing
@@ -147,18 +156,19 @@ monitor:
   
   # Checkpointing
   checkpoint:
+    monitor: val_loss_total           # Save best model based on validation loss
     mode: min
     save_top_k: 1
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/monai_tsai/checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
+    dirpath: /orcd/scratch/bcs/002/mansour/trailmap_data/outputs/monai_tsai/checkpoints/  # Will be dynamically set to outputs/{yaml_filename}/YYYYMMDD_HHMMSS/checkpoints/
     # checkpoint_filename: auto-generated from monitor metric (epoch={epoch:03d}-{monitor}={value:.4f})
     use_timestamp: true       # Enable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
   # Early stopping - More patient for better convergence
-  early_stopping: 
+  early_stopping:
     enabled: true
-    monitor: train_loss_total_epoch
+    monitor: val_loss_total           # Monitor validation loss
     patience: 300         # Increased patience (was 200)
     mode: min
     min_delta: 1.0e-5    # Smaller threshold for finer convergence
@@ -169,10 +179,10 @@ monitor:
 # Inference - MONAI SlidingWindowInferer
 inference:
   data:
-    test_image: datasets/axon_data_30pc_subset/validation/validation-original/volumes/*.tiff
-    test_label: datasets/axon_data_30pc_subset/validation/validation-original/labels/*.tiff
-    test_resolution: [5, 5]
-    output_path: outputs/monai_tsai/results/
+    test_image: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/volumes/*.tiff
+    test_label: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/labels-original-backup/*.tiff
+    test_resolution: [2, 0.8, 0.8] 
+    output_path: /orcd/scratch/bcs/002/mansour/trailmap_data/outputs/monai_tsai/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
@@ -195,11 +205,6 @@ inference:
     # NOTE: tta_act and tta_channel are applied even with null flip_axes (no ensemble, just activation + channel selection)
     # NOTE: If tta_channel selects specific channels, loss computation will be skipped (loss needs all class channels)
 
-  # Save intermediate predictions (before decoding/postprocessing)
-  save_prediction:
-    enabled: true
-    intensity_scale: 255                 # Scale predictions to [0, 255] for saving
-    intensity_dtype: uint8               # Save as uint8
 
 # Decoding: predicted feature maps to segmetnation mask (semantic or instance segmentation)
   decoding:
@@ -210,7 +215,16 @@ inference:
         connected_components:
           enabled: true                    # Enable connected components filtering
           remove_small: 10                 # Remove small objects with size less than 10 pixels
-          connectivity: 26                 # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
+          connectivity: 6                 # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
+
+
+  # Postprocessing configuration (applied AFTER decoding)
+  postprocessing:
+
+    # Output format (intensity scaling and dtype conversion)
+    intensity_scale: 255                 # Scale predictions to [0, 255] for saving
+    intensity_dtype: uint8               # Save as uint8
+
 
   # Evaluation
   evaluation:
