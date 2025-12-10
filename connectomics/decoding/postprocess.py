@@ -360,7 +360,7 @@ def apply_binary_postprocessing(
 
             if len(sizes) > cc_config.top_k:
                 # Get indices of top-k largest components
-                top_k_indices = np.argsort(sizes)[-cc_config.top_k :]
+                top_k_indices = np.argsort(sizes)[-cc_config.top_k:]
                 top_k_labels = label_ids[top_k_indices]
 
                 # Create mask keeping only top-k

@@ -65,7 +65,7 @@ def load_external_weights(model, cfg):
         stripped_count = 0
         for key, value in state_dict.items():
             if key.startswith(key_prefix):
-                new_key = key[len(key_prefix) :]
+                new_key = key[len(key_prefix):]
                 new_state_dict[new_key] = value
                 stripped_count += 1
             else:

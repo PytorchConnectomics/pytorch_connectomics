@@ -98,11 +98,16 @@ tensorboard-run experiment timestamp port='6006':
 
 # Launch any just command on SLURM (e.g., just slurm weilab 8 4 "train lucchi")
 # Automatically uses srun for distributed training when num_gpu > 1
-slurm partition num_cpu num_gpu cmd:
+slurm partition num_cpu num_gpu cmd constraint='':
     #!/usr/bin/env bash
     # Configure for multi-GPU training with PyTorch Lightning DDP
     # Set ntasks=num_gpu and use srun to launch DDP processes
     # SLURM will set CUDA_VISIBLE_DEVICES for each task automatically
+
+    constraint_flag=""
+    if [ -n "{{constraint}}" ]; then
+        constraint_flag="--constraint={{constraint}}"
+    fi
 
     sbatch --job-name="pytc_{{cmd}}" \
            --partition={{partition}} \
@@ -114,6 +119,7 @@ slurm partition num_cpu num_gpu cmd:
            --cpus-per-task={{num_cpu}} \
            --mem=32G \
            --time=48:00:00 \
+           $constraint_flag \
            --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_gpu}} --ntasks-per-node={{num_gpu}} just {{cmd}}"
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)

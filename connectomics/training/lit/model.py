@@ -426,8 +426,6 @@ class ConnectomicsModule(pl.LightningModule):
         ):
             # Adapted Rand requires instance segmentation labels (integer labels), not binary
             # decoded_predictions should already be instance segmentation from decode_instance_*
-            # Check original shape before processing to handle batch dimension correctly
-            original_shape = decoded_predictions.shape
             pred_instance = torch.from_numpy(decoded_predictions).long()
 
             # Labels should also be instance segmentation (integer labels)
@@ -438,8 +436,10 @@ class ConnectomicsModule(pl.LightningModule):
             while labels_instance.ndim > 3 and labels_instance.shape[0] == 1:
                 labels_instance = labels_instance.squeeze(0)
 
-            # Squeeze all leading dimensions of size 1 from predictions (remove batch & channel dims)
-            # Predictions can be: (B, C, Z, H, W), (B, Z, H, W), (C, Z, H, W), or (Z, H, W)
+            # Squeeze all leading dimensions of size 1 from predictions
+            # (remove batch & channel dims)
+            # Predictions can be: (B, C, Z, H, W), (B, Z, H, W),
+            # (C, Z, H, W), or (Z, H, W)
             while pred_instance.ndim > 3 and pred_instance.shape[0] == 1:
                 pred_instance = pred_instance.squeeze(0)
 

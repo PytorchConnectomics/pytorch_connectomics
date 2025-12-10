@@ -195,9 +195,8 @@ def setup_config(args) -> Config:
         print("🔧 Fast-dev-run mode: Overriding config for debugging")
         print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
         print(f"   - num_cpus: {cfg.system.training.num_cpus} → 1")
-        print(
-            f"   - num_workers: {cfg.system.training.num_workers} → 0 (avoid multiprocessing in debug mode)"
-        )
+        print(f"   - num_workers: {cfg.system.training.num_workers} → 0 "
+              "(avoid multiprocessing in debug mode)")
         print(
             f"   - batch_size: Controlled by PyTorch Lightning (--fast-dev-run={args.fast_dev_run})"
         )
