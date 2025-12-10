@@ -301,7 +301,6 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.utilities.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">STEP_OUTPUT</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">DictConfig</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torchmetrics</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">torch.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_safe_globals</span><span class="p">,</span> <span class="n">safe_globals</span>
 
 <span class="c1"># Import existing components</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...models</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_model</span>
@@ -310,9 +309,8 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">...config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
 
 <span class="c1"># Import training/inference components</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..deep_supervision</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeepSupervisionHandler</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">..deep_supervision</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeepSupervisionHandler</span><span class="p">,</span> <span class="n">match_target_to_output</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..debugging</span><span class="w"> </span><span class="kn">import</span> <span class="n">DebugManager</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">..loss_balancing</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_loss_weighter</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...inference</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">InferenceManager</span><span class="p">,</span>
     <span class="n">apply_save_prediction_transform</span><span class="p">,</span>
@@ -349,33 +347,23 @@
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span> <span class="o">=</span> <span class="n">cfg</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">(</span><span class="n">ignore</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">(</span><span class="n">ignore</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;model&#39;</span><span class="p">])</span>
 
         <span class="c1"># Build model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span> <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_model</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
         <span class="c1"># Build loss functions</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">loss_functions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_losses</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loss_weights</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">loss_weights</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;loss_weights&quot;</span><span class="p">)</span>
-            <span class="k">else</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_functions</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">multi_task_config</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;multi_task_config&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">multi_task_enabled</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multi_task_config</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
-        <span class="n">num_tasks</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">multi_task_config</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">multi_task_config</span> <span class="k">else</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_functions</span><span class="p">)</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">loss_weighter</span> <span class="o">=</span> <span class="n">build_loss_weighter</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">num_tasks</span><span class="o">=</span><span class="n">num_tasks</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_weights</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">loss_weights</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;loss_weights&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_functions</span><span class="p">)</span>
 
         <span class="c1"># Enable inline NaN detection (can be disabled via config)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">enable_nan_detection</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;enable_nan_detection&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">debug_on_nan</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;debug_on_nan&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enable_nan_detection</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;enable_nan_detection&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">debug_on_nan</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;debug_on_nan&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># Activation clamping to prevent inf (can be configured)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clamp_activations</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;clamp_activations&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clamp_min</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;clamp_min&quot;</span><span class="p">,</span> <span class="o">-</span><span class="mf">10.0</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clamp_max</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;clamp_max&quot;</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clamp_activations</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;clamp_activations&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clamp_min</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;clamp_min&#39;</span><span class="p">,</span> <span class="o">-</span><span class="mf">10.0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clamp_max</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;clamp_max&#39;</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">)</span>
 
         <span class="c1"># Initialize specialized handlers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">deep_supervision_handler</span> <span class="o">=</span> <span class="n">DeepSupervisionHandler</span><span class="p">(</span>
@@ -384,7 +372,6 @@
             <span class="n">loss_weights</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_weights</span><span class="p">,</span>
             <span class="n">enable_nan_detection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">enable_nan_detection</span><span class="p">,</span>
             <span class="n">debug_on_nan</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">debug_on_nan</span><span class="p">,</span>
-            <span class="n">loss_weighter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_weighter</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">inference_manager</span> <span class="o">=</span> <span class="n">InferenceManager</span><span class="p">(</span>
@@ -404,52 +391,14 @@
         <span class="c1"># Prediction saving state</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_prediction_save_counter</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Track number of samples saved</span>
 
-    <span class="nd">@staticmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_config_safe_globals</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">type</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Collect config dataclasses that need to be allowlisted for safe unpickling.</span>
-
-<span class="sd">        PyTorch 2.6+ defaults to weights-only loading; Lightning checkpoints still</span>
-<span class="sd">        carry our Hydra config objects, so we have to explicitly allow these types</span>
-<span class="sd">        when the safe unpickler is used.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">...config</span><span class="w"> </span><span class="kn">import</span> <span class="n">hydra_config</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="c1"># If config cannot be imported we simply return an empty allowlist</span>
-            <span class="k">return</span> <span class="p">[]</span>
-
-        <span class="k">return</span> <span class="p">[</span><span class="n">obj</span> <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="n">hydra_config</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">type</span><span class="p">)]</span>
-
-<div class="viewcode-block" id="ConnectomicsModule.load_from_checkpoint">
-<a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.ConnectomicsModule.load_from_checkpoint">[docs]</a>
-    <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">load_from_checkpoint</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Ensure Hydra config classes are allowlisted before delegating to Lightning.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">safe_types</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_config_safe_globals</span><span class="p">()</span>
-
-        <span class="k">if</span> <span class="n">safe_types</span><span class="p">:</span>
-            <span class="n">add_safe_globals</span><span class="p">(</span><span class="n">safe_types</span><span class="p">)</span>
-            <span class="k">with</span> <span class="n">safe_globals</span><span class="p">(</span><span class="n">safe_types</span><span class="p">):</span>
-                <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_from_checkpoint</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_from_checkpoint</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
-
-
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build model from configuration.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">build_model</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_losses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build loss functions from configuration.&quot;&quot;&quot;</span>
-        <span class="n">loss_names</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">loss_functions</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;loss_functions&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="s2">&quot;DiceLoss&quot;</span><span class="p">]</span>
-        <span class="p">)</span>
-        <span class="n">loss_kwargs_list</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">loss_kwargs</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;loss_kwargs&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[{}]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">loss_names</span><span class="p">)</span>
-        <span class="p">)</span>
+        <span class="n">loss_names</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">loss_functions</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;loss_functions&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="s1">&#39;DiceLoss&#39;</span><span class="p">]</span>
+        <span class="n">loss_kwargs_list</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">loss_kwargs</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;loss_kwargs&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[{}]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">loss_names</span><span class="p">)</span>
 
         <span class="n">losses</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">loss_name</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">loss_names</span><span class="p">,</span> <span class="n">loss_kwargs_list</span><span class="p">):</span>
@@ -473,64 +422,49 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize test metrics based on test or inference config.&quot;&quot;&quot;</span>
         <span class="c1"># Check test.evaluation first, then fall back to inference.evaluation</span>
         <span class="n">evaluation_config</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;test&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">test</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">test</span><span class="p">,</span> <span class="s2">&quot;evaluation&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;test&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">test</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">test</span><span class="p">,</span> <span class="s1">&#39;evaluation&#39;</span><span class="p">):</span>
             <span class="n">evaluation_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">test</span><span class="o">.</span><span class="n">evaluation</span>
-        <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s2">&quot;evaluation&quot;</span><span class="p">):</span>
+        <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;inference&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s1">&#39;evaluation&#39;</span><span class="p">):</span>
             <span class="n">evaluation_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">evaluation</span>
-
+        
         <span class="k">if</span> <span class="ow">not</span> <span class="n">evaluation_config</span><span class="p">:</span>
             <span class="k">return</span>
 
         <span class="c1"># Check if evaluation is enabled</span>
-        <span class="n">enabled</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">evaluation_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;enabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
-            <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="s2">&quot;enabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
-        <span class="p">)</span>
+        <span class="n">enabled</span> <span class="o">=</span> <span class="n">evaluation_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;enabled&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="s1">&#39;enabled&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">enabled</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="n">metrics</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">evaluation_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;metrics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
-            <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="s2">&quot;metrics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-        <span class="p">)</span>
+        <span class="n">metrics</span> <span class="o">=</span> <span class="n">evaluation_config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;metrics&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">evaluation_config</span><span class="p">,</span> <span class="s1">&#39;metrics&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span>
 
-        <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;out_channels&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">2</span>
+        <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;out_channels&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">2</span>
 
         <span class="c1"># Create only the specified metrics</span>
-        <span class="k">if</span> <span class="s2">&quot;jaccard&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s1">&#39;jaccard&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">num_classes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="c1"># Binary segmentation - use binary metrics</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Multi-class segmentation</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span>
-                    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;multiclass&quot;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span>
-                <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="k">if</span> <span class="s2">&quot;dice&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;multiclass&#39;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;dice&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">num_classes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="c1"># Binary segmentation - use binary metrics</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Multi-class segmentation</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">&quot;macro&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">device</span>
-                <span class="p">)</span>
-        <span class="k">if</span> <span class="s2">&quot;accuracy&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s1">&#39;macro&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;accuracy&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">num_classes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="c1"># Binary segmentation - use binary metrics</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Multi-class segmentation</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span>
-                    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;multiclass&quot;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span>
-                <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="k">if</span> <span class="s2">&quot;adapted_rand&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;multiclass&#39;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;adapted_rand&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">...metrics.metrics_seg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaptedRandError</span>
-
             <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span> <span class="o">=</span> <span class="n">AdaptedRandError</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_invert_save_prediction_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
@@ -553,22 +487,24 @@
 
         <span class="n">save_pred_cfg</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">save_prediction</span>
 
-        <span class="c1"># Get the scale that was used for saving</span>
+        <span class="c1"># Get the scale and dtype that were used for saving</span>
         <span class="n">intensity_scale</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">save_pred_cfg</span><span class="p">,</span> <span class="s2">&quot;intensity_scale&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">intensity_dtype</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">save_pred_cfg</span><span class="p">,</span> <span class="s2">&quot;intensity_dtype&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
         <span class="c1"># Convert to float first</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
         <span class="c1"># Invert the scaling if it was applied</span>
-        <span class="k">if</span> <span class="n">intensity_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">intensity_scale</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="c1"># Note: intensity_scale &lt; 0 means scaling was disabled, so no inversion needed</span>
+        <span class="k">if</span> <span class="n">intensity_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">intensity_scale</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">intensity_scale</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span>
             <span class="n">data</span> <span class="o">=</span> <span class="n">data</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="n">intensity_scale</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  🔄 Inverted intensity scaling by </span><span class="si">{</span><span class="n">intensity_scale</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">intensity_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">intensity_scale</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ℹ️  Intensity scaling was disabled (scale=</span><span class="si">{</span><span class="n">intensity_scale</span><span class="si">}</span><span class="s2">), no inversion needed&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">data</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_test_output_config</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_resolve_test_output_config</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Determine mode, output dir, cache suffix, and filenames for test/tune.&quot;&quot;&quot;</span>
         <span class="n">mode</span> <span class="o">=</span> <span class="s2">&quot;test&quot;</span>
         <span class="n">output_dir_value</span> <span class="o">=</span> <span class="kc">None</span>
@@ -604,7 +540,6 @@
 
         <span class="k">for</span> <span class="n">filename</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.data.io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_hdf5</span>
-
             <span class="n">pred_file</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}{</span><span class="n">cache_suffix</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">pred_file</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="ow">and</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;test&quot;</span> <span class="ow">and</span> <span class="n">cache_suffix</span> <span class="o">!=</span> <span class="s2">&quot;_tta_prediction.h5&quot;</span><span class="p">:</span>
                 <span class="n">tta_pred_file</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">_tta_prediction.h5&quot;</span>
@@ -626,8 +561,7 @@
 
         <span class="k">if</span> <span class="n">all_exist</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
             <span class="nb">print</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;  ✅ All prediction files exist! Loading </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span><span class="si">}</span><span class="s2"> predictions &quot;</span>
-                <span class="s2">&quot;and skipping inference.&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;  ✅ All prediction files exist! Loading </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span><span class="si">}</span><span class="s2"> predictions and skipping inference.&quot;</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">existing_predictions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                 <span class="n">predictions_np</span> <span class="o">=</span> <span class="n">existing_predictions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
@@ -641,183 +575,65 @@
 
         <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">loaded_suffix</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_test_metrics</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">filenames</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update configured torchmetrics using decoded predictions.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            decoded_predictions: Instance segmentation predictions (numpy array)</span>
-<span class="sd">            labels: Ground truth labels (torch tensor)</span>
-<span class="sd">            filenames: Optional list of filenames for per-volume metrics</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_test_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update configured torchmetrics using decoded predictions.&quot;&quot;&quot;</span>
         <span class="n">pred_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
         <span class="n">labels_tensor</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
 
+        <span class="c1"># Remove batch and channel dimensions</span>
         <span class="n">pred_tensor</span> <span class="o">=</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
         <span class="n">labels_tensor</span> <span class="o">=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
 
-        <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">ndim</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">pred_tensor</span> <span class="o">=</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-            <span class="k">elif</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">labels_tensor</span> <span class="o">=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># Ensure both tensors have the same shape</span>
+        <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ⚠️  Shape mismatch: pred=</span><span class="si">{</span><span class="n">pred_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, labels=</span><span class="si">{</span><span class="n">labels_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Try to align dimensions</span>
+            <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">ndim</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">pred_tensor</span> <span class="o">=</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="n">labels_tensor</span> <span class="o">=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            
+            <span class="c1"># If still mismatched after dimension alignment, skip metrics</span>
+            <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ❌ Cannot compute metrics: incompatible shapes after alignment&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;     pred=</span><span class="si">{</span><span class="n">pred_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">, labels=</span><span class="si">{</span><span class="n">labels_tensor</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
 
         <span class="k">if</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
             <span class="n">pred_binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred_tensor</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">pred_binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">pred_tensor</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
 
-        <span class="n">labels_binary</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="p">(</span><span class="n">labels_tensor</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span> <span class="k">if</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">1.0</span> <span class="k">else</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-        <span class="p">)</span>
+        <span class="n">labels_binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">labels_tensor</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span> <span class="k">if</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mf">1.0</span> <span class="k">else</span> <span class="n">labels_tensor</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
 
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;test_jaccard&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pred_binary</span><span class="p">,</span> <span class="n">labels_binary</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                <span class="s2">&quot;test_jaccard&quot;</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span><span class="p">,</span>
-                <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;test_jaccard&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_jaccard</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;test_dice&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pred_binary</span><span class="p">,</span> <span class="n">labels_binary</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                <span class="s2">&quot;test_dice&quot;</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span><span class="p">,</span>
-                <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;test_dice&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_dice</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;test_accuracy&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pred_binary</span><span class="p">,</span> <span class="n">labels_binary</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                <span class="s2">&quot;test_accuracy&quot;</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span><span class="p">,</span>
-                <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;test_accuracy&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_accuracy</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;test_adapted_rand&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="p">,</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Metric</span>
-        <span class="p">):</span>
-            <span class="c1"># Adapted Rand requires instance segmentation labels (integer labels), not binary</span>
-            <span class="c1"># decoded_predictions should already be instance segmentation from decode_instance_*</span>
-            <span class="n">pred_instance</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-
-            <span class="c1"># Labels should also be instance segmentation (integer labels)</span>
-            <span class="n">labels_instance</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-
-            <span class="c1"># Squeeze all leading dimensions of size 1 from labels (remove batch &amp; channel dims)</span>
-            <span class="c1"># Labels can be: (B, C, Z, H, W), (B, Z, H, W), (C, Z, H, W), or (Z, H, W)</span>
-            <span class="k">while</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">labels_instance</span> <span class="o">=</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-            <span class="c1"># Squeeze all leading dimensions of size 1 from predictions</span>
-            <span class="c1"># (remove batch &amp; channel dims)</span>
-            <span class="c1"># Predictions can be: (B, C, Z, H, W), (B, Z, H, W),</span>
-            <span class="c1"># (C, Z, H, W), or (Z, H, W)</span>
-            <span class="k">while</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="ow">and</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">pred_instance</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-            <span class="c1"># Determine if we have a batch dimension in predictions (after squeezing)</span>
-            <span class="c1"># After squeezing, predictions can be: (Z,H,W) or (B,Z,H,W) where B &gt; 1</span>
-            <span class="n">has_batch_dim</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="ow">and</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span>
-
-            <span class="c1"># Handle batch dimension - compute per-volume if multiple volumes in batch</span>
-            <span class="k">if</span> <span class="n">has_batch_dim</span><span class="p">:</span>
-                <span class="c1"># Multiple volumes in batch - compute per volume</span>
-                <span class="n">batch_size</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
-                    <span class="n">vol_pred</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
-                        <span class="n">vol_label</span> <span class="o">=</span> <span class="n">labels_instance</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">vol_label</span> <span class="o">=</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span>
-
-                    <span class="c1"># Compute per-volume metric</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">vol_pred</span><span class="p">,</span> <span class="n">vol_label</span><span class="p">)</span>
-
-                    <span class="c1"># Compute and log per-volume metric</span>
-                    <span class="k">if</span> <span class="n">filenames</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
-                        <span class="n">vol_name</span> <span class="o">=</span> <span class="n">filenames</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-                        <span class="c1"># Compute metric for this volume only</span>
-                        <span class="kn">from</span><span class="w"> </span><span class="nn">...metrics.metrics_seg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaptedRandError</span>
-
-                        <span class="n">vol_metric</span> <span class="o">=</span> <span class="n">AdaptedRandError</span><span class="p">()</span>
-                        <span class="n">vol_metric</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">vol_pred</span><span class="p">,</span> <span class="n">vol_label</span><span class="p">)</span>
-                        <span class="n">vol_error</span> <span class="o">=</span> <span class="n">vol_metric</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  📊 </span><span class="si">{</span><span class="n">vol_name</span><span class="si">}</span><span class="s2">: adapted_rand = </span><span class="si">{</span><span class="n">vol_error</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                        <span class="c1"># Log per-volume metric</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;test_adapted_rand/</span><span class="si">{</span><span class="n">vol_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-                            <span class="n">vol_error</span><span class="p">,</span>
-                            <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                            <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># Single volume - ensure same dimensionality (both should be 3D: Z, H, W)</span>
-                <span class="k">if</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span><span class="p">:</span>
-                    <span class="k">if</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="n">pred_instance</span> <span class="o">=</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-                    <span class="k">elif</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="n">pred_instance</span><span class="o">.</span><span class="n">ndim</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="n">labels_instance</span> <span class="o">=</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
-                <span class="c1"># AdaptedRandError.update() expects CPU tensors (it converts to numpy internally)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pred_instance</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span>
-
-                <span class="c1"># Compute and log per-volume metric if filename available</span>
-                <span class="k">if</span> <span class="n">filenames</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">vol_name</span> <span class="o">=</span> <span class="n">filenames</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                    <span class="kn">from</span><span class="w"> </span><span class="nn">...metrics.metrics_seg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaptedRandError</span>
-
-                    <span class="n">vol_metric</span> <span class="o">=</span> <span class="n">AdaptedRandError</span><span class="p">()</span>
-                    <span class="n">vol_metric</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pred_instance</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">labels_instance</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span>
-                    <span class="n">vol_error</span> <span class="o">=</span> <span class="n">vol_metric</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  📊 </span><span class="si">{</span><span class="n">vol_name</span><span class="si">}</span><span class="s2">: adapted_rand = </span><span class="si">{</span><span class="n">vol_error</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                    <span class="c1"># Log per-volume metric</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                        <span class="sa">f</span><span class="s2">&quot;test_adapted_rand/</span><span class="si">{</span><span class="n">vol_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-                        <span class="n">vol_error</span><span class="p">,</span>
-                        <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="n">on_epoch</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                        <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                        <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                    <span class="p">)</span>
-
-            <span class="c1"># Log aggregate metric during test_step (on_test_end doesn&#39;t allow logging)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                <span class="s2">&quot;test_adapted_rand&quot;</span><span class="p">,</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="p">,</span>
-                <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="p">)</span>
-
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;test_adapted_rand&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="p">,</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Metric</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pred_binary</span><span class="o">.</span><span class="n">cpu</span><span class="p">(),</span> <span class="n">labels_binary</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span>
 <div class="viewcode-block" id="ConnectomicsModule.training_step">
 <a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.ConnectomicsModule.training_step">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">training_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">batch_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">STEP_OUTPUT</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Training step with deep supervision support.&quot;&quot;&quot;</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
 
         <span class="c1"># Forward pass</span>
         <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
         <span class="c1"># Check if model outputs deep supervision</span>
-        <span class="n">is_deep_supervision</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;ds_&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">outputs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
-        <span class="p">)</span>
+        <span class="n">is_deep_supervision</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;ds_&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">outputs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
         <span class="c1"># Compute loss using deep supervision handler</span>
         <span class="k">if</span> <span class="n">is_deep_supervision</span><span class="p">:</span>
@@ -830,9 +646,7 @@
             <span class="p">)</span>
 
         <span class="c1"># Log losses (sync across GPUs for distributed training)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log_dict</span><span class="p">(</span>
-            <span class="n">loss_dict</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_dict</span><span class="p">(</span><span class="n">loss_dict</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">total_loss</span></div>
 
@@ -841,16 +655,14 @@
 <a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.ConnectomicsModule.validation_step">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">validation_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">batch_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">STEP_OUTPUT</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validation step with deep supervision support.&quot;&quot;&quot;</span>
-        <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
-        <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
 
         <span class="c1"># Forward pass</span>
         <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
         <span class="c1"># Check if model outputs deep supervision</span>
-        <span class="n">is_deep_supervision</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
-            <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;ds_&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">outputs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
-        <span class="p">)</span>
+        <span class="n">is_deep_supervision</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;ds_&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">outputs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
 
         <span class="c1"># Compute loss using deep supervision handler</span>
         <span class="k">if</span> <span class="n">is_deep_supervision</span><span class="p">:</span>
@@ -863,21 +675,18 @@
             <span class="p">)</span>
 
         <span class="c1"># Compute evaluation metrics if enabled</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s2">&quot;evaluation&quot;</span><span class="p">):</span>
-            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">evaluation</span><span class="p">,</span> <span class="s2">&quot;enabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
-                <span class="n">metrics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">evaluation</span><span class="p">,</span> <span class="s2">&quot;metrics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;inference&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s1">&#39;evaluation&#39;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">evaluation</span><span class="p">,</span> <span class="s1">&#39;enabled&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">metrics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">evaluation</span><span class="p">,</span> <span class="s1">&#39;metrics&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">metrics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                     <span class="c1"># Get the main output for metric computation</span>
                     <span class="k">if</span> <span class="n">is_deep_supervision</span><span class="p">:</span>
-                        <span class="n">main_output</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s2">&quot;output&quot;</span><span class="p">]</span>
+                        <span class="n">main_output</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">main_output</span> <span class="o">=</span> <span class="n">outputs</span>
 
                     <span class="c1"># Check if this is multi-task learning</span>
-                    <span class="n">is_multi_task</span> <span class="o">=</span> <span class="p">(</span>
-                        <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;multi_task_config&quot;</span><span class="p">)</span>
-                        <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">multi_task_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-                    <span class="p">)</span>
+                    <span class="n">is_multi_task</span> <span class="o">=</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;multi_task_config&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">multi_task_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
 
                     <span class="c1"># Convert logits/probabilities to predictions</span>
                     <span class="k">if</span> <span class="n">is_multi_task</span><span class="p">:</span>
@@ -897,82 +706,44 @@
                         <span class="n">targets</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>  <span class="c1"># (B, D, H, W)</span>
 
                     <span class="c1"># Compute and log metrics</span>
-                    <span class="k">if</span> <span class="s2">&quot;jaccard&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;val_jaccard&quot;</span><span class="p">):</span>
-                            <span class="n">num_classes</span> <span class="o">=</span> <span class="p">(</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span>
-                                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;out_channels&quot;</span><span class="p">)</span>
-                                <span class="k">else</span> <span class="mi">2</span>
-                            <span class="p">)</span>
+                    <span class="k">if</span> <span class="s1">&#39;jaccard&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;val_jaccard&#39;</span><span class="p">):</span>
+                            <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;out_channels&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">2</span>
                             <span class="k">if</span> <span class="n">num_classes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                                 <span class="c1"># Binary segmentation - use binary metrics</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
-                                    <span class="bp">self</span><span class="o">.</span><span class="n">device</span>
-                                <span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                             <span class="k">else</span><span class="p">:</span>
                                 <span class="c1"># Multi-class segmentation</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span>
-                                    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;multiclass&quot;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span>
-                                <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">JaccardIndex</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;multiclass&#39;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                            <span class="s2">&quot;val_jaccard&quot;</span><span class="p">,</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span><span class="p">,</span>
-                            <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;val_jaccard&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_jaccard</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-                    <span class="k">if</span> <span class="s2">&quot;dice&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;val_dice&quot;</span><span class="p">):</span>
-                            <span class="n">num_classes</span> <span class="o">=</span> <span class="p">(</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span>
-                                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;out_channels&quot;</span><span class="p">)</span>
-                                <span class="k">else</span> <span class="mi">2</span>
-                            <span class="p">)</span>
+                    <span class="k">if</span> <span class="s1">&#39;dice&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;val_dice&#39;</span><span class="p">):</span>
+                            <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;out_channels&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">2</span>
                             <span class="k">if</span> <span class="n">num_classes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                                 <span class="c1"># Binary segmentation - use binary metrics</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                             <span class="k">else</span><span class="p">:</span>
                                 <span class="c1"># Multi-class segmentation</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span>
-                                    <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s2">&quot;macro&quot;</span>
-                                <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Dice</span><span class="p">(</span><span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">,</span> <span class="n">average</span><span class="o">=</span><span class="s1">&#39;macro&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                            <span class="s2">&quot;val_dice&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span>
-                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;val_dice&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_dice</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-                    <span class="k">if</span> <span class="s2">&quot;accuracy&quot;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;val_accuracy&quot;</span><span class="p">):</span>
-                            <span class="n">num_classes</span> <span class="o">=</span> <span class="p">(</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span>
-                                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;out_channels&quot;</span><span class="p">)</span>
-                                <span class="k">else</span> <span class="mi">2</span>
-                            <span class="p">)</span>
+                    <span class="k">if</span> <span class="s1">&#39;accuracy&#39;</span> <span class="ow">in</span> <span class="n">metrics</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;val_accuracy&#39;</span><span class="p">):</span>
+                            <span class="n">num_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">out_channels</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;out_channels&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="mi">2</span>
                             <span class="k">if</span> <span class="n">num_classes</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
                                 <span class="c1"># Binary segmentation - use binary metrics</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span>
-                                    <span class="bp">self</span><span class="o">.</span><span class="n">device</span>
-                                <span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;binary&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                             <span class="k">else</span><span class="p">:</span>
                                 <span class="c1"># Multi-class segmentation</span>
-                                <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span>
-                                    <span class="n">task</span><span class="o">=</span><span class="s2">&quot;multiclass&quot;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span>
-                                <span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span> <span class="o">=</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Accuracy</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s1">&#39;multiclass&#39;</span><span class="p">,</span> <span class="n">num_classes</span><span class="o">=</span><span class="n">num_classes</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                            <span class="s2">&quot;val_accuracy&quot;</span><span class="p">,</span>
-                            <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span><span class="p">,</span>
-                            <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;val_accuracy&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># Log losses (sync across GPUs for distributed training)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log_dict</span><span class="p">(</span>
-            <span class="n">loss_dict</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_dict</span><span class="p">(</span><span class="n">loss_dict</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">total_loss</span></div>
 
@@ -984,7 +755,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_setup_test_metrics</span><span class="p">()</span>
 
         <span class="c1"># Explicitly set eval mode if configured (Lightning does this by default, but be explicit)</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s2">&quot;do_eval&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;inference&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s1">&#39;do_eval&#39;</span><span class="p">,</span> <span class="kc">True</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)</span>
@@ -995,24 +766,9 @@
 <a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.ConnectomicsModule.on_test_end">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">on_test_end</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Called at the end of testing to compute and log final metrics.&quot;&quot;&quot;</span>
-        <span class="c1"># Note: Metrics are already logged during test_step() via self.log()</span>
-        <span class="c1"># This is kept as a fallback to log directly to logger if needed</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="p">,</span> <span class="n">torchmetrics</span><span class="o">.</span><span class="n">Metric</span><span class="p">):</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">metric_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="o">.</span><span class="n">compute</span><span class="p">()</span>
-                <span class="c1"># Try using self.log() first (works in newer PyTorch Lightning versions)</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;test_adapted_rand_final&quot;</span><span class="p">,</span> <span class="n">metric_value</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                    <span class="c1"># Fallback: log directly to TensorBoard using add_scalar</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span> <span class="s2">&quot;experiment&quot;</span><span class="p">):</span>
-                        <span class="n">writer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">experiment</span>
-                        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="s2">&quot;add_scalar&quot;</span><span class="p">):</span>
-                            <span class="c1"># TensorBoard SummaryWriter</span>
-                            <span class="n">writer</span><span class="o">.</span><span class="n">add_scalar</span><span class="p">(</span><span class="s2">&quot;test_adapted_rand_final&quot;</span><span class="p">,</span> <span class="n">metric_value</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="mi">0</span><span class="p">)</span>
-                        <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="s2">&quot;log&quot;</span><span class="p">):</span>
-                            <span class="c1"># WandB logger</span>
-                            <span class="n">writer</span><span class="o">.</span><span class="n">log</span><span class="p">({</span><span class="s2">&quot;test_adapted_rand_final&quot;</span><span class="p">:</span> <span class="n">metric_value</span><span class="o">.</span><span class="n">item</span><span class="p">()})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;test_adapted_rand&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">test_adapted_rand</span><span class="o">.</span><span class="n">compute</span><span class="p">(),</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not compute adapted rand metric: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span></div>
 
@@ -1026,8 +782,7 @@
 <span class="sd">        Workflow:</span>
 <span class="sd">        1. If final prediction exists → directly do evaluation</span>
 <span class="sd">        2. If intermediate prediction exists → apply decoding → postprocessing → evaluation</span>
-<span class="sd">        3. Else → run inference (cfg.test for data loading/transform) →</span>
-<span class="sd">           save → decode → evaluate</span>
+<span class="sd">        3. Else → run inference (using cfg.test for data loading/transform) → save → decode → evaluate</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
@@ -1044,95 +799,58 @@
 
         <span class="c1"># CASE 1: Final predictions exist → directly evaluate</span>
         <span class="k">if</span> <span class="n">loaded_final_predictions</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span>
-                <span class="s2">&quot;  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing&quot;</span>
-            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">predictions_np</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">predictions_np</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
         <span class="c1"># CASE 2: Intermediate predictions exist → decode and postprocess</span>
         <span class="k">if</span> <span class="n">loaded_intermediate_predictions</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ✅ Loaded intermediate predictions from disk, skipping inference&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Loaded intermediate predictions from disk, skipping inference&quot;</span><span class="p">)</span>
             <span class="c1"># Convert back from saved format to [0,1] predictions if needed</span>
             <span class="n">predictions_np</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_invert_save_prediction_transform</span><span class="p">(</span><span class="n">predictions_np</span><span class="p">)</span>
 
-            <span class="c1"># For tune mode, skip decoding/postprocessing (only need intermediate predictions)</span>
-            <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;tune&quot;</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span>
-                    <span class="s2">&quot;  ⏭️  Tune mode: skipping decoding/postprocessing &quot;</span>
-                    <span class="s2">&quot;(using intermediate predictions)&quot;</span>
-                <span class="p">)</span>
-                <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-
-            <span class="c1"># Ensure batch dimension for apply_decode_mode (expects [B, C, D, H, W] or [B, C, H, W])</span>
-            <span class="k">if</span> <span class="n">predictions_np</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>  <span class="c1"># (C, D, H, W) -&gt; (1, C, D, H, W)</span>
-                <span class="n">predictions_np_batched</span> <span class="o">=</span> <span class="n">predictions_np</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">predictions_np_batched</span> <span class="o">=</span> <span class="n">predictions_np</span>
-
             <span class="c1"># Decode and postprocess</span>
-            <span class="n">decoded_predictions</span> <span class="o">=</span> <span class="n">apply_decode_mode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np_batched</span><span class="p">)</span>
+            <span class="n">decoded_predictions</span> <span class="o">=</span> <span class="n">apply_decode_mode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np</span><span class="p">)</span>
             <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">apply_postprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">)</span>
 
-            <span class="c1"># Remove batch dimension for saving and metrics (1, D, H, W) -&gt; (D, H, W)</span>
-            <span class="n">decoded_predictions</span> <span class="o">=</span> <span class="n">decoded_predictions</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">postprocessed_predictions</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-
             <span class="c1"># Save final predictions</span>
-            <span class="n">write_outputs</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">postprocessed_predictions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span>
-            <span class="p">)</span>
+            <span class="n">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">postprocessed_predictions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
 
             <span class="c1"># Evaluate if labels provided</span>
             <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
         <span class="c1"># CASE 3: No cached predictions → run full inference pipeline</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  🔄 No cached predictions found, running inference&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  🔄 No cached predictions found, running inference&quot;</span><span class="p">)</span>
 
         <span class="c1"># Run inference (cfg.test used for data loading and transforms via datamodule)</span>
         <span class="n">predictions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inference_manager</span><span class="o">.</span><span class="n">predict_with_tta</span><span class="p">(</span><span class="n">images</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
         <span class="n">predictions_np</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
-        <span class="c1"># Save intermediate predictions if configured (always save in tune mode)</span>
+        <span class="c1"># Save intermediate predictions if configured</span>
         <span class="n">save_intermediate</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s2">&quot;save_prediction&quot;</span><span class="p">):</span>
             <span class="n">save_intermediate</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="o">.</span><span class="n">save_prediction</span><span class="p">,</span> <span class="s2">&quot;enabled&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
 
-        <span class="c1"># Always save intermediate predictions in tune mode (needed for parameter tuning)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;tune&quot;</span><span class="p">:</span>
-            <span class="n">save_intermediate</span> <span class="o">=</span> <span class="kc">True</span>
-
         <span class="k">if</span> <span class="n">save_intermediate</span><span class="p">:</span>
             <span class="c1"># Apply intensity scaling and dtype conversion before saving</span>
             <span class="n">predictions_to_save</span> <span class="o">=</span> <span class="n">apply_save_prediction_transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np</span><span class="p">)</span>
-            <span class="n">write_outputs</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_to_save</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;tta_prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span>
-            <span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  💾 Saved intermediate predictions&quot;</span><span class="p">)</span>
-
-        <span class="c1"># For tune mode, skip decoding/postprocessing (only need intermediate predictions)</span>
-        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;tune&quot;</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span>
-                <span class="s2">&quot;  ⏭️  Tune mode: skipping decoding/postprocessing (using intermediate predictions)&quot;</span>
-            <span class="p">)</span>
-            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_to_save</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;tta_prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 Saved intermediate predictions&quot;</span><span class="p">)</span>
 
         <span class="c1"># Decode and postprocess</span>
         <span class="n">decoded_predictions</span> <span class="o">=</span> <span class="n">apply_decode_mode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np</span><span class="p">)</span>
         <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">apply_postprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">)</span>
 
         <span class="c1"># Save final predictions</span>
-        <span class="n">write_outputs</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">postprocessed_predictions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span>
-        <span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  💾 Saved final predictions&quot;</span><span class="p">)</span>
+        <span class="n">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">postprocessed_predictions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 Saved final predictions&quot;</span><span class="p">)</span>
 
         <span class="c1"># Evaluate if labels provided</span>
         <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">filenames</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_compute_test_metrics</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span></div>
 
@@ -1143,38 +861,45 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure optimizers and learning rate schedulers.&quot;&quot;&quot;</span>
         <span class="n">optimizer</span> <span class="o">=</span> <span class="n">build_optimizer</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">)</span>
 
-        <span class="c1"># Build scheduler if configured</span>
-        <span class="n">sched_cfg</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;optimization&quot;</span><span class="p">):</span>
-            <span class="n">sched_cfg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s2">&quot;scheduler&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="n">sched_cfg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">scheduler_name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sched_cfg</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">scheduler_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span>
-                <span class="nb">isinstance</span><span class="p">(</span><span class="n">scheduler_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">scheduler_name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;null&quot;</span><span class="p">]</span>
-            <span class="p">):</span>
-                <span class="k">return</span> <span class="n">optimizer</span>
-
+        <span class="c1"># Build scheduler if configured (check both cfg.scheduler and cfg.optimization.scheduler)</span>
+        <span class="n">has_scheduler</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;scheduler&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">scheduler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="p">(</span><span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;optimization&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s1">&#39;scheduler&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">scheduler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">has_scheduler</span><span class="p">:</span>
             <span class="n">scheduler</span> <span class="o">=</span> <span class="n">build_lr_scheduler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">)</span>
 
-            <span class="n">lr_scheduler_dict</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s2">&quot;scheduler&quot;</span><span class="p">:</span> <span class="n">scheduler</span><span class="p">,</span>
-                <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="s2">&quot;epoch&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;frequency&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="c1"># Check if this is ReduceLROnPlateau (requires metric monitoring)</span>
+            <span class="n">scheduler_config</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;scheduler&#39;</span><span class="p">:</span> <span class="n">scheduler</span><span class="p">,</span>
+                <span class="s1">&#39;interval&#39;</span><span class="p">:</span> <span class="s1">&#39;epoch&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;frequency&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
             <span class="p">}</span>
-
-            <span class="c1"># ReduceLROnPlateau requires a monitor key</span>
-            <span class="n">name</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sched_cfg</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;reducelronplateau&quot;</span><span class="p">:</span>
-                <span class="n">monitor</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">sched_cfg</span><span class="p">,</span> <span class="s2">&quot;monitor&quot;</span><span class="p">,</span> <span class="s2">&quot;train_loss_total_epoch&quot;</span><span class="p">)</span>
-                <span class="n">lr_scheduler_dict</span><span class="p">[</span><span class="s2">&quot;monitor&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monitor</span>
+            
+            <span class="c1"># ReduceLROnPlateau requires the &#39;monitor&#39; key to pass the metric value</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scheduler</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">optim</span><span class="o">.</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">ReduceLROnPlateau</span><span class="p">):</span>
+                <span class="c1"># Get monitor metric from scheduler config</span>
+                <span class="n">monitor_metric</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;optimization&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s1">&#39;scheduler&#39;</span><span class="p">):</span>
+                    <span class="n">monitor_metric</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s1">&#39;monitor&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;scheduler&#39;</span><span class="p">):</span>
+                    <span class="n">monitor_metric</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span> <span class="s1">&#39;monitor&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                
+                <span class="k">if</span> <span class="n">monitor_metric</span><span class="p">:</span>
+                    <span class="n">scheduler_config</span><span class="p">[</span><span class="s1">&#39;monitor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">monitor_metric</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ ReduceLROnPlateau will monitor: </span><span class="si">{</span><span class="n">monitor_metric</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Default to validation loss</span>
+                    <span class="n">scheduler_config</span><span class="p">[</span><span class="s1">&#39;monitor&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;val_loss_total&#39;</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ⚠️  ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)&quot;</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="p">{</span>
-                <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="n">optimizer</span><span class="p">,</span>
-                <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">:</span> <span class="n">lr_scheduler_dict</span><span class="p">,</span>
+                <span class="s1">&#39;optimizer&#39;</span><span class="p">:</span> <span class="n">optimizer</span><span class="p">,</span>
+                <span class="s1">&#39;lr_scheduler&#39;</span><span class="p">:</span> <span class="n">scheduler_config</span><span class="p">,</span>
             <span class="p">}</span>
-
-        <span class="k">return</span> <span class="n">optimizer</span></div>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">optimizer</span></div>
 
 
 <div class="viewcode-block" id="ConnectomicsModule.on_train_epoch_end">
@@ -1186,8 +911,8 @@
             <span class="n">optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">()</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
                 <span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">lr</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;lr&quot;</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+            <span class="n">lr</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;lr&#39;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s1">&#39;lr&#39;</span><span class="p">,</span> <span class="n">lr</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 </div>
 
 

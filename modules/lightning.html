@@ -411,12 +411,6 @@
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="connectomics.training.lit.ConnectomicsModule.load_from_checkpoint">
-<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">load_from_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/training/lit/model.html#ConnectomicsModule.load_from_checkpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.training.lit.ConnectomicsModule.load_from_checkpoint" title="Link to this definition">¶</a></dt>
-<dd><p>Ensure Hydra config classes are allowlisted before delegating to Lightning.</p>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="connectomics.training.lit.ConnectomicsModule.on_test_end">
 <span class="sig-name descname"><span class="pre">on_test_end</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/training/lit/model.html#ConnectomicsModule.on_test_end"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.training.lit.ConnectomicsModule.on_test_end" title="Link to this definition">¶</a></dt>
 <dd><p>Called at the end of testing to compute and log final metrics.</p>
@@ -446,10 +440,7 @@
 <p>Workflow:
 1. If final prediction exists → directly do evaluation
 2. If intermediate prediction exists → apply decoding → postprocessing → evaluation
-3. Else → run inference (cfg.test for data loading/transform) →</p>
-<blockquote>
-<div><p>save → decode → evaluate</p>
-</div></blockquote>
+3. Else → run inference (using cfg.test for data loading/transform) → save → decode → evaluate</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -971,7 +962,6 @@ Default value is False.</p>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule</span></code></a><ul>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.configure_optimizers"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.configure_optimizers()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.forward"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.forward()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.load_from_checkpoint"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.load_from_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.on_test_end"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.on_test_end()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.on_test_start"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.on_test_start()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.on_train_epoch_end"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.on_train_epoch_end()</span></code></a></li>

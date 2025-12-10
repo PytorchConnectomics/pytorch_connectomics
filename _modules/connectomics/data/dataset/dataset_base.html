@@ -495,6 +495,24 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_dicts</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return dataset length.</span>
+<span class="sd">        </span>
+<span class="sd">        For CacheDataset with cache_rate &lt; 1.0, we must return the actual</span>
+<span class="sd">        number of cached items, not the requested iter_num, to avoid IndexError.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If using partial caching, return the actual cached data length</span>
+        <span class="c1"># CacheDataset stores cached indices in self._cache</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_cache&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">):</span>
+            <span class="c1"># Partial caching: return cached length for validation</span>
+            <span class="c1"># For training with iter_num, we still want to iterate iter_num times</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># For validation/test, only iterate over cached items</span>
+                <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+        
+        <span class="c1"># Full caching or no caching: use dataset_length</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span></div>
 
 
