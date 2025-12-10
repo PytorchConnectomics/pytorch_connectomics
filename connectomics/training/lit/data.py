@@ -187,7 +187,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             warnings.warn(
                 "Validation dataloader creation failed despite validation dataset being provided. "
                 "Skipping validation. Check your data configuration.",
-                UserWarning
+                UserWarning,
             )
             return []
 

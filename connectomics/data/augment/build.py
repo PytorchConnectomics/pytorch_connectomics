@@ -12,13 +12,10 @@ from monai.transforms import (
     RandRotate90d,
     RandFlipd,
     RandAffined,
-    RandZoomd,
     RandGaussianNoised,
     RandShiftIntensityd,
-    RandGaussianSmoothd,
     RandAdjustContrastd,
     RandSpatialCropd,
-    ScaleIntensityRanged,
     ToTensord,
     CenterSpatialCropd,
     SpatialPadd,
@@ -55,7 +52,8 @@ def build_train_transforms(
 
     Args:
         cfg: Hydra Config object
-        keys: Keys to transform (default: ['image', 'label'] or ['image', 'label', 'mask'] if masks are used)
+        keys: Keys to transform (default: ['image', 'label'] or
+            ['image', 'label', 'mask'] if masks are used)
         skip_loading: Skip LoadVolumed (for pre-cached datasets)
 
     Returns:
@@ -95,7 +93,11 @@ def build_train_transforms(
 
     # Apply resize if configured (before cropping)
     resize_size = None
-    if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "resize") and cfg.data.data_transform.resize is not None:
+    if (
+        hasattr(cfg.data, "data_transform")
+        and hasattr(cfg.data.data_transform, "resize")
+        and cfg.data.data_transform.resize is not None
+    ):
         resize_size = cfg.data.data_transform.resize
 
     if resize_size:
@@ -194,9 +196,7 @@ def build_train_transforms(
     return Compose(transforms)
 
 
-def _build_eval_transforms_impl(
-    cfg: Config, mode: str = "val", keys: list[str] = None
-) -> Compose:
+def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] = None) -> Compose:
     """
     Internal implementation for building evaluation transforms (validation or test).
 
@@ -239,7 +239,7 @@ def _build_eval_transforms_impl(
             )
             if has_test_label or has_tune_label:
                 keys.append("label")
-            
+
             # Add mask if test_mask or tune_mask is explicitly specified
             has_test_mask = (
                 hasattr(cfg, "test")
@@ -293,21 +293,40 @@ def _build_eval_transforms_impl(
         transforms.append(ApplyVolumetricSplitd(keys=keys))
 
     # Apply resize if configured (before cropping)
-    # For test/tune mode, only use test.data.image_transform or tune.data.image_transform (no fallback)
+    # For test/tune mode, only use test.data.image_transform or
+    # tune.data.image_transform (no fallback)
     # For val mode, use data.image_transform
     resize_factors = None
     if mode == "test":
-        if hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "image_transform"):
-            if hasattr(cfg.test.data.image_transform, "resize") and cfg.test.data.image_transform.resize is not None:
+        if (
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "image_transform")
+        ):
+            if (
+                hasattr(cfg.test.data.image_transform, "resize")
+                and cfg.test.data.image_transform.resize is not None
+            ):
                 resize_factors = cfg.test.data.image_transform.resize
     elif mode == "tune":
-        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data") and hasattr(cfg.tune.data, "image_transform"):
-            if hasattr(cfg.tune.data.image_transform, "resize") and cfg.tune.data.image_transform.resize is not None:
+        if (
+            hasattr(cfg, "tune")
+            and cfg.tune
+            and hasattr(cfg.tune, "data")
+            and hasattr(cfg.tune.data, "image_transform")
+        ):
+            if (
+                hasattr(cfg.tune.data.image_transform, "resize")
+                and cfg.tune.data.image_transform.resize is not None
+            ):
                 resize_factors = cfg.tune.data.image_transform.resize
     else:  # mode == "val"
-        if hasattr(cfg.data.image_transform, "resize") and cfg.data.image_transform.resize is not None:
+        if (
+            hasattr(cfg.data.image_transform, "resize")
+            and cfg.data.image_transform.resize is not None
+        ):
             resize_factors = cfg.data.image_transform.resize
-    
+
     if resize_factors is not None:
         if resize_factors:
             # Use bilinear for images, nearest for labels/masks
@@ -350,12 +369,24 @@ def _build_eval_transforms_impl(
     # else: mode == "test" -> no cropping for sliding window inference
 
     # Normalization - use smart normalization
-    # For test/tune mode, only use test.data.image_transform or tune.data.image_transform (no fallback)
+    # For test/tune mode, only use test.data.image_transform or
+    # tune.data.image_transform (no fallback)
     # For val mode, use data.image_transform
     image_transform = None
-    if mode == "test" and hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "image_transform"):
+    if (
+        mode == "test"
+        and hasattr(cfg, "test")
+        and hasattr(cfg.test, "data")
+        and hasattr(cfg.test.data, "image_transform")
+    ):
         image_transform = cfg.test.data.image_transform
-    elif mode == "tune" and hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data") and hasattr(cfg.tune.data, "image_transform"):
+    elif (
+        mode == "tune"
+        and hasattr(cfg, "tune")
+        and cfg.tune
+        and hasattr(cfg.tune, "data")
+        and hasattr(cfg.tune.data, "image_transform")
+    ):
         image_transform = cfg.tune.data.image_transform
     elif mode == "val":
         image_transform = cfg.data.image_transform
@@ -365,8 +396,8 @@ def _build_eval_transforms_impl(
             SmartNormalizeIntensityd(
                 keys=["image"],
                 mode=image_transform.normalize,
-                clip_percentile_low=getattr(image_transform, 'clip_percentile_low', 0.0),
-                clip_percentile_high=getattr(image_transform, 'clip_percentile_high', 1.0),
+                clip_percentile_low=getattr(image_transform, "clip_percentile_low", 0.0),
+                clip_percentile_high=getattr(image_transform, "clip_percentile_high", 1.0),
             )
         )
 
@@ -376,39 +407,20 @@ def _build_eval_transforms_impl(
         if getattr(cfg.data, "normalize_labels", False):
             transforms.append(NormalizeLabelsd(keys=["label"]))
 
-        # Check if we should skip label transforms (test/tune mode)
-        # Skip label transforms if test.data or tune.data has evaluation.enabled=True
-        # This preserves original instance labels for metric computation
-        skip_label_transform = False
-        if mode == "test":
-            # Check if test.evaluation or tune.evaluation is enabled (for adapted_rand, etc.)
-            evaluation_config = None
-            if hasattr(cfg, "test") and hasattr(cfg.test, "evaluation"):
-                evaluation_config = cfg.test.evaluation
-            elif hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "optimization"):
-                # For tune mode, check if we're optimizing metrics that need instance labels
-                if hasattr(cfg.tune.optimization, "single_objective"):
-                    metric = getattr(cfg.tune.optimization.single_objective, "metric", None)
-                    if metric == "adapted_rand":
-                        skip_label_transform = True
-                        print(f"  ⚠️  Skipping label transforms for Optuna tuning (keeping original labels for {metric})")
-
-            if evaluation_config:
-                evaluation_enabled = getattr(evaluation_config, "enabled", False)
-                metrics = getattr(evaluation_config, "metrics", [])
-                if evaluation_enabled and metrics:
-                    skip_label_transform = True
-                    print(
-                        f"  ⚠️  Skipping label transforms for metric evaluation (keeping original labels for {metrics})"
-                    )
-
         # Label transformations (affinity, distance transform, etc.)
-        # Only apply if not skipped AND label_transform is configured
-        if hasattr(cfg.data, "label_transform") and not skip_label_transform:
+        # For test/tune modes: NEVER apply label transforms
+        # (keep raw instance labels for evaluation)
+        # For val mode: use training label_transform config
+        label_cfg = None
+        if mode == "val":
+            # Validation always uses training label_transform
+            if hasattr(cfg.data, "label_transform"):
+                label_cfg = cfg.data.label_transform
+
+        # Apply label transforms if configured
+        if label_cfg is not None:
             from ..process.build import create_label_transform_pipeline
             from ..process.monai_transforms import SegErosionInstanced
-
-            label_cfg = cfg.data.label_transform
 
             # Apply instance erosion first if specified
             if hasattr(label_cfg, "erosion") and label_cfg.erosion > 0:
@@ -507,7 +519,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
 
     # Get preset mode
     preset = getattr(aug_cfg, "preset", "some")
-    
+
     # Validate preset choice
     valid_presets = {"none", "some", "all"}
     if preset not in valid_presets:
@@ -516,39 +528,39 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             f"Valid choices are: {', '.join(sorted(valid_presets))}. "
             f"Got: '{preset}'. Please use one of the valid options."
         )
-    
+
     # Helper function to check if augmentation should be applied
     def should_augment(aug_name: str, aug_enabled: Optional[bool]) -> bool:
         """
         Determine if augmentation should be applied based on preset mode and enabled flag.
-        
+
         All augmentations default to enabled=None (use preset default). The preset mode controls
         the behavior:
-        
+
         - "none": Disable all augmentations
         - "some": Disable all by default (only True enables)
         - "all": Enable all by default (only False disables)
-        
+
         The enabled field can be:
         - None: Use preset default (not specified in YAML)
         - True: Explicitly enable (overrides preset)
         - False: Explicitly disable (overrides preset)
-        
+
         Examples:
             preset="some" with enabled=None:
                 → Disabled (default off, must opt-in)
                 → User enables in YAML: flip.enabled: true
-            
+
             preset="some" with enabled=true:
                 → Enabled
-            
+
             preset="all" with enabled=None:
                 → Enabled (default on)
                 → User can disable: flip.enabled: false
-            
+
             preset="all" with enabled=false:
                 → Disabled (explicit override)
-            
+
             preset="none":
                 → Always disabled
         """
@@ -572,7 +584,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 return True
             else:  # None or False
                 return False
-    
+
     # Standard geometric augmentations
     if should_augment("flip", aug_cfg.flip.enabled):
         transforms.append(
@@ -609,6 +621,9 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
             scale_range = aug_cfg.affine.scale_range
             shear_range = aug_cfg.affine.shear_range
 
+        # Interpolation per key: bilinear for images, nearest for labels/masks
+        affine_modes = ["bilinear" if k == "image" else "nearest" for k in keys]
+
         transforms.append(
             RandAffined(
                 keys=keys,
@@ -616,13 +631,14 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 rotate_range=rotate_range,
                 scale_range=scale_range,
                 shear_range=shear_range,
-                mode="bilinear",
+                mode=affine_modes,
                 padding_mode="reflection",
             )
         )
 
     if should_augment("elastic", aug_cfg.elastic.enabled):
         # Unified elastic deformation that supports both 2D and 3D
+        elastic_modes = ["bilinear" if k == "image" else "nearest" for k in keys]
         transforms.append(
             RandElasticd(
                 keys=keys,
@@ -630,6 +646,7 @@ def _build_augmentations(aug_cfg: AugmentationConfig, keys: list[str], do_2d: bo
                 prob=aug_cfg.elastic.prob,
                 sigma_range=aug_cfg.elastic.sigma_range,
                 magnitude_range=aug_cfg.elastic.magnitude_range,
+                mode=elastic_modes,
             )
         )
 

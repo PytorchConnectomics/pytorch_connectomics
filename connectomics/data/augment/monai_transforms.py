@@ -6,11 +6,13 @@ augmentations, replacing the legacy custom augmentor system entirely.
 """
 
 from __future__ import annotations
-from typing import Dict, Any, List, Optional, Union, Tuple
+
 import math
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import cv2
 import numpy as np
 import torch
-import cv2
 from monai.config import KeysCollection
 from monai.transforms import MapTransform, RandomizableTransform
 
@@ -36,7 +38,11 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
         self.rotate_ratio = rotate_ratio
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
         d = dict(data)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -50,6 +56,10 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
                 else:
                     d[key] = self._apply_misalignment_translation(d[key])
         return d
+
+    def randomize(self, _: Any = None) -> None:
+        """Randomly decide whether to apply the transform."""
+        self._do_transform = self.R.rand() < self.prob
 
     def _apply_misalignment_translation(
         self, img: Union[np.ndarray, torch.Tensor]
@@ -89,11 +99,11 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
 
         output = np.zeros(out_shape, img.dtype)
         if mode == "slip":
-            output = img[:, y0 : y0 + out_shape[1], x0 : x0 + out_shape[2]]
-            output[idx] = img[idx, y1 : y1 + out_shape[1], x1 : x1 + out_shape[2]]
+            output = img[:, y0:y0 + out_shape[1], x0:x0 + out_shape[2]]
+            output[idx] = img[idx, y1:y1 + out_shape[1], x1:x1 + out_shape[2]]
         else:
-            output[:idx] = img[:idx, y0 : y0 + out_shape[1], x0 : x0 + out_shape[2]]
-            output[idx:] = img[idx:, y1 : y1 + out_shape[1], x1 : x1 + out_shape[2]]
+            output[:idx] = img[:idx, y0:y0 + out_shape[1], x0:x0 + out_shape[2]]
+            output[idx:] = img[idx:, y1:y1 + out_shape[1], x1:x1 + out_shape[2]]
 
         if is_tensor:
             output = torch.from_numpy(output).to(device)
@@ -182,7 +192,12 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
         self.num_sections = num_sections
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.prob <= 0:
+            self._do_transform = False
+            return data
+
         d = dict(data)
+        self.randomize(None)
         if not self._do_transform:
             return d
 
@@ -191,29 +206,42 @@ class RandMissingSectiond(RandomizableTransform, MapTransform):
                 d[key] = self._apply_missing_section(d[key])
         return d
 
+    def randomize(self, _: Any = None) -> None:
+        """Randomly decide whether to apply the transform."""
+        self._do_transform = self.R.rand() < self.prob
+
     def _apply_missing_section(
         self, img: Union[np.ndarray, torch.Tensor]
     ) -> Union[np.ndarray, torch.Tensor]:
         """Remove random sections from volume."""
-        if img.ndim < 3 or img.shape[0] <= 3:
+        if img.ndim < 3:
             return img  # Skip 2D or very small volumes
 
         # Handle both numpy and torch tensors
         is_tensor = isinstance(img, torch.Tensor)
 
+        depth_axis = 0
+        if img.ndim >= 4 and img.shape[0] <= 3:
+            depth_axis = 1  # Channel-first; depth is axis 1
+
+        depth = img.shape[depth_axis]
+        if depth <= 3:
+            return img
+
         # Select sections to remove (avoid first and last)
-        num_to_remove = min(self.num_sections, img.shape[0] - 2)
+        num_to_remove = min(self.num_sections, depth - 2)
         indices_to_remove = self.R.choice(
-            np.arange(1, img.shape[0] - 1), size=num_to_remove, replace=False
+            np.arange(1, depth - 1), size=num_to_remove, replace=False
         )
 
         if is_tensor:
-            # Keep sections that are NOT in indices_to_remove
-            keep_mask = torch.ones(img.shape[0], dtype=torch.bool, device=img.device)
+            keep_mask = torch.ones(depth, dtype=torch.bool, device=img.device)
             keep_mask[indices_to_remove] = False
-            return img[keep_mask]
+            return torch.index_select(
+                img, dim=depth_axis, index=keep_mask.nonzero(as_tuple=False).squeeze(-1)
+            )
         else:
-            return np.delete(img, indices_to_remove, axis=0)
+            return np.delete(img, indices_to_remove, axis=depth_axis)
 
 
 class RandMissingPartsd(RandomizableTransform, MapTransform):
@@ -271,7 +299,7 @@ class RandMissingPartsd(RandomizableTransform, MapTransform):
         x_start = self.R.randint(0, img.shape[2] - hole_w + 1)
 
         # Create hole (set to 0 or mean value)
-        img[section_idx, y_start : y_start + hole_h, x_start : x_start + hole_w] = 0
+        img[section_idx, y_start:y_start + hole_h, x_start:x_start + hole_w] = 0
 
         return img
 
@@ -422,16 +450,26 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 z_start = self.R.randint(0, max(1, img.shape[1] - z_len + 1))
                 noise_shape = (img.shape[0], z_len, y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[:, z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len]
+                region = img[
+                    :,
+                    z_start:z_start + z_len,
+                    y_start:y_start + y_len,
+                    x_start:x_start + x_len,
+                ]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[:, z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+                img[
+                    :,
+                    z_start:z_start + z_len,
+                    y_start:y_start + y_len,
+                    x_start:x_start + x_len,
+                ] = noisy_region
             else:
                 # (C, H, W) - 2D with channels
                 noise_shape = (img.shape[0], y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[:, y_start : y_start + y_len, x_start : x_start + x_len]
+                region = img[:, y_start:y_start + y_len, x_start:x_start + x_len]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[:, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+                img[:, y_start:y_start + y_len, x_start:x_start + x_len] = noisy_region
         elif img.ndim == 3:
             # 3D case: (Z, Y, X) or (C, H, W)
             # Heuristic: if first dim is small (<=4), assume it's channel (2D with channels)
@@ -440,25 +478,31 @@ class RandCutNoised(RandomizableTransform, MapTransform):
                 # (C, H, W) - 2D with channels
                 noise_shape = (img.shape[0], y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[:, y_start : y_start + y_len, x_start : x_start + x_len]
+                region = img[:, y_start:y_start + y_len, x_start:x_start + x_len]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[:, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+                img[:, y_start:y_start + y_len, x_start:x_start + x_len] = noisy_region
             else:
                 # (Z, Y, X) - 3D
                 z_len = max(1, int(self.length_ratio * img.shape[0]))  # Ensure at least 1
                 z_start = self.R.randint(0, max(1, img.shape[0] - z_len + 1))
                 noise_shape = (z_len, y_len, x_len)
                 noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-                region = img[z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len]
+                region = img[
+                    z_start:z_start + z_len,
+                    y_start:y_start + y_len,
+                    x_start:x_start + x_len,
+                ]
                 noisy_region = np.clip(region + noise, 0, 1)
-                img[z_start : z_start + z_len, y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+                img[
+                    z_start:z_start + z_len, y_start:y_start + y_len, x_start:x_start + x_len
+                ] = noisy_region
         else:
             # 2D case: (H, W)
             noise_shape = (y_len, x_len)
             noise = self.R.uniform(-self.noise_scale, self.noise_scale, noise_shape)
-            region = img[y_start : y_start + y_len, x_start : x_start + x_len]
+            region = img[y_start:y_start + y_len, x_start:x_start + x_len]
             noisy_region = np.clip(region + noise, 0, 1)
-            img[y_start : y_start + y_len, x_start : x_start + x_len] = noisy_region
+            img[y_start:y_start + y_len, x_start:x_start + x_len] = noisy_region
 
         if is_tensor:
             img = torch.from_numpy(img).to(device)
@@ -844,7 +888,7 @@ class RandCopyPasted(RandomizableTransform, MapTransform):
                 neuron_tensor.flip(0) if neuron_tensor.ndim == 3 else neuron_tensor.flip(1)
             )
 
-        label_paste = labels[best_idx : best_idx + 1]
+        label_paste = labels[best_idx:best_idx + 1]
 
         if best_angle != 0:
             label_paste = self._rotate_3d(label_paste, best_angle)
@@ -1053,9 +1097,14 @@ class SmartNormalizeIntensityd(MapTransform):
                 self.divide_value = float(mode.split("-", 1)[1])
                 self.mode = "divide"
             except ValueError:
-                raise ValueError(f"Invalid divide mode '{mode}'. Format should be 'divide-K' where K is a number (e.g., 'divide-255')")
+                raise ValueError(
+                    f"Invalid divide mode '{mode}'. Format should be 'divide-K' "
+                    f"where K is a number (e.g., 'divide-255')"
+                )
         elif mode not in ["none", "normal", "0-1"]:
-            raise ValueError(f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', or 'divide-K'")
+            raise ValueError(
+                f"Invalid mode '{mode}'. Must be 'none', 'normal', '0-1', or 'divide-K'"
+            )
         else:
             self.mode = mode
 
@@ -1194,7 +1243,8 @@ class RandStriped(RandomizableTransform, MapTransform):
 
         if orientation not in ["horizontal", "vertical", "random"]:
             raise ValueError(
-                f"Invalid orientation '{orientation}'. Must be 'horizontal', 'vertical', or 'random'"
+                f"Invalid orientation '{orientation}'. Must be 'horizontal', "
+                f"'vertical', or 'random'"
             )
         self.orientation = orientation
 
@@ -1338,7 +1388,8 @@ class ResizeByFactord(MapTransform):
 
     Args:
         keys: Keys to transform
-        scale_factors: Scale factors for each spatial dimension (e.g., [0.25, 0.25] for 2D, [0.5, 0.5, 0.5] for 3D)
+        scale_factors: Scale factors for each spatial dimension
+            (e.g., [0.25, 0.25] for 2D, [0.5, 0.5, 0.5] for 3D)
         mode: Interpolation mode ('bilinear', 'nearest', 'area', etc.)
         align_corners: Whether to align corners (True for bilinear, None for nearest)
         allow_missing_keys: Whether to allow missing keys

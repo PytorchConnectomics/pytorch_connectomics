@@ -67,11 +67,11 @@ class ConnectomicsModel(nn.Module, ABC):
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
 
         return {
-            'name': self.__class__.__name__,
-            'deep_supervision': self.supports_deep_supervision,
-            'output_scales': self.output_scales,
-            'parameters': total_params,
-            'trainable_parameters': trainable_params,
+            "name": self.__class__.__name__,
+            "deep_supervision": self.supports_deep_supervision,
+            "output_scales": self.output_scales,
+            "parameters": total_params,
+            "trainable_parameters": trainable_params,
         }
 
     def summary(self, input_shape: Optional[tuple] = None) -> str:
@@ -86,9 +86,9 @@ class ConnectomicsModel(nn.Module, ABC):
         """
         info = self.get_model_info()
 
-        summary_str = f"\n{'='*60}\n"
+        summary_str = f"\n{'=' * 60}\n"
         summary_str += f"Model: {info['name']}\n"
-        summary_str += f"{'='*60}\n"
+        summary_str += f"{'=' * 60}\n"
         summary_str += f"Parameters: {info['parameters']:,}\n"
         summary_str += f"Trainable Parameters: {info['trainable_parameters']:,}\n"
         summary_str += f"Deep Supervision: {info['deep_supervision']}\n"
@@ -97,7 +97,7 @@ class ConnectomicsModel(nn.Module, ABC):
         if input_shape:
             summary_str += f"Expected Input Shape: {input_shape}\n"
 
-        summary_str += f"{'='*60}\n"
+        summary_str += f"{'=' * 60}\n"
 
         return summary_str
 
@@ -111,4 +111,4 @@ class ConnectomicsModel(nn.Module, ABC):
         )
 
 
-__all__ = ['ConnectomicsModel']
+__all__ = ["ConnectomicsModel"]

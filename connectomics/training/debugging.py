@@ -152,19 +152,19 @@ class DebugManager:
                         print(f"⚠️  Inf in gradient: {name}, shape={param.grad.shape}")
 
         result = {
-            'nan_params': nan_params,
-            'inf_params': inf_params,
-            'nan_grads': nan_grads,
-            'inf_grads': inf_grads,
-            'has_nan': len(nan_params) > 0 or len(nan_grads) > 0,
-            'has_inf': len(inf_params) > 0 or len(inf_grads) > 0,
+            "nan_params": nan_params,
+            "inf_params": inf_params,
+            "nan_grads": nan_grads,
+            "inf_grads": inf_grads,
+            "has_nan": len(nan_params) > 0 or len(nan_grads) > 0,
+            "has_inf": len(inf_params) > 0 or len(inf_grads) > 0,
         }
 
         if verbose:
-            if not result['has_nan'] and not result['has_inf']:
+            if not result["has_nan"] and not result["has_inf"]:
                 print("✅ No NaN/Inf found in parameters or gradients")
             else:
-                print(f"\n📊 Summary:")
+                print("\n📊 Summary:")
                 print(f"   NaN parameters: {len(nan_params)}")
                 print(f"   Inf parameters: {len(inf_params)}")
                 print(f"   NaN gradients: {len(nan_grads)}")

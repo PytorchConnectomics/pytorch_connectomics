@@ -7,7 +7,6 @@ and provides lightweight torchmetrics-compatible wrappers for online evaluation.
 
 from __future__ import annotations
 
-from typing import Optional
 
 import torch
 import torchmetrics

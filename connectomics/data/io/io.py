@@ -37,7 +37,7 @@ def read_hdf5(
     Args:
         filename: Path to the HDF5 file
         dataset: Name of the dataset to read. If None, reads the first dataset
-        slice_obj: Optional slice for partial loading (e.g., np.s_[0:10, :, :])
+        slice_obj: Optional slice for partial loading (e.g., np.s_[0:10,:,:])
 
     Returns:
         Data from the HDF5 file as numpy array
@@ -171,10 +171,10 @@ def read_image_as_volume(filename: str, drop_channel: bool = False) -> np.ndarra
     Raises:
         ValueError: If file format is not supported
     """
-    image_suffix = filename[filename.rfind(".") + 1 :].lower()
+    image_suffix = filename[filename.rfind(".") + 1:].lower()
     if image_suffix not in SUPPORTED_IMAGE_FORMATS:
         raise ValueError(
-            f"Unsupported format: {image_suffix}. " f"Supported formats: {SUPPORTED_IMAGE_FORMATS}"
+            f"Unsupported format: {image_suffix}. Supported formats: {SUPPORTED_IMAGE_FORMATS}"
         )
 
     data = imageio.imread(filename)
@@ -278,10 +278,10 @@ def read_volume(
         ValueError: If file format is not recognized
     """
     # Handle .nii.gz files specially
-    if filename.endswith('.nii.gz'):
-        image_suffix = 'nii.gz'
+    if filename.endswith(".nii.gz"):
+        image_suffix = "nii.gz"
     else:
-        image_suffix = filename[filename.rfind(".") + 1 :].lower()
+        image_suffix = filename[filename.rfind(".") + 1:].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         data = read_hdf5(filename, dataset)
@@ -292,7 +292,7 @@ def read_volume(
             file_list = sorted(glob.glob(filename))
             if len(file_list) == 0:
                 raise FileNotFoundError(f"No TIFF files found matching pattern: {filename}")
-            
+
             # Read each file and stack along depth dimension
             volumes = []
             for filepath in file_list:
@@ -303,14 +303,14 @@ def read_volume(
                     vol = vol[np.newaxis, ...]  # Add depth dimension: (H, W) -> (1, H, W)
                 # vol.ndim == 3 means (D, H, W), which is what we want
                 volumes.append(vol)
-            
+
             # Stack all volumes along depth dimension
             # Each volume is (D_i, H, W), result will be (sum(D_i), H, W)
             data = np.concatenate(volumes, axis=0)  # Stack along depth (first dimension)
         else:
             # Single file or multi-page TIFF
             data = imageio.volread(filename).squeeze()
-        
+
         if data.ndim == 4:
             # Convert (D, C, H, W) to (C, D, H, W) order
             data = data.transpose(1, 0, 2, 3)
@@ -384,7 +384,9 @@ def save_volume(
         nii_img = nib.Nifti1Image(nii_data, affine=np.eye(4))
         nib.save(nii_img, filename)
     else:
-        raise ValueError(f"Unsupported format: {file_format}. " f"Supported formats: h5, png, nii, nii.gz")
+        raise ValueError(
+            f"Unsupported format: {file_format}. Supported formats: h5, png, nii, nii.gz"
+        )
 
 
 def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
@@ -415,10 +417,10 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
         raise FileNotFoundError(f"File not found: {filename}")
 
     # Handle .nii.gz files specially
-    if filename.endswith('.nii.gz'):
-        image_suffix = 'nii.gz'
+    if filename.endswith(".nii.gz"):
+        image_suffix = "nii.gz"
     else:
-        image_suffix = filename[filename.rfind(".") + 1 :].lower()
+        image_suffix = filename[filename.rfind(".") + 1:].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         # HDF5: Read shape from metadata (no data loading)

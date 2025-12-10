@@ -46,19 +46,24 @@ def polarity2instance(
         with the ``TARGET_OPT: ['1']`` configuration in training.
 
     Note:
-        The number of pre- and post-synaptic segments will be reported when setting :attr:`semantic=False`.
-        Note that the numbers can be different due to either incomplete synapses touching the volume borders,
-        or errors in the prediction. We thus make a conservative estimate of the total number of synapses
-        by using the relatively small number among the two.
+        The number of pre- and post-synaptic segments will be reported when
+        setting :attr:`semantic=False`. Note that the numbers can be different
+        due to either incomplete synapses touching the volume borders, or errors
+        in the prediction. We thus make a conservative estimate of the total
+        number of synapses by using the relatively small number among the two.
 
     Args:
         volume (numpy.ndarray): 3-channel probability map of shape :math:`(3, Z, Y, X)`.
         thres (float): probability threshold of foreground. Default: 0.5
         thres_small (int): size threshold of small objects to remove. Default: 128
-        scale_factors (tuple): scale factors for resizing the output volume in :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
-        semantic (bool): return only the semantic mask of pre- and post-synaptic regions. Default: False
-        dilate_sz (int): define a struct of size (1, dilate_sz, dilate_sz) to dilate the masks. Default: 5
-        exclusive (bool): whether the synaptic masks are exclusive (with softmax) or not. Default: False
+        scale_factors (tuple): scale factors for resizing the output volume in
+            :math:`(Z, Y, X)` order. Default: :math:`(1.0, 1.0, 1.0)`
+        semantic (bool): return only the semantic mask of pre- and post-synaptic
+            regions. Default: False
+        dilate_sz (int): define a struct of size (1, dilate_sz, dilate_sz) to
+            dilate the masks. Default: 5
+        exclusive (bool): whether the synaptic masks are exclusive (with softmax)
+            or not. Default: False
 
     Returns:
         numpy.ndarray: Instance or semantic segmentation mask.
@@ -130,9 +135,7 @@ def polarity2instance(
             int(segm.shape[2] * scale_factors[2]),
         )
         # Calculate zoom factors for target size
-        zoom_factors = [
-            out_size / in_size for out_size, in_size in zip(target_size, segm.shape)
-        ]
+        zoom_factors = [out_size / in_size for out_size, in_size in zip(target_size, segm.shape)]
         segm = zoom(segm, zoom_factors, order=0, mode="nearest")
 
     return cast2dtype(segm)

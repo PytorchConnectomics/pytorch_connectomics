@@ -54,7 +54,7 @@ system:
     num_gpus: 4
     num_cpus: 8
     num_workers: 8                     # More workers for parallel data loading (6x speedup)
-    batch_size: 4                      # Reduced from 32 for larger patches (OPTION 3)
+    batch_size: 8                      # Reduced from 32 for larger patches (OPTION 3)
   inference:
     num_gpus: 1
     num_cpus: 1
@@ -105,23 +105,26 @@ model:
   deep_supervision: false               # Enable deep supervision for MedNeXt
 
   # Multi-task loss configuration
-  # OPTION 5: Optimized loss weights for large vesicles
-  #   - Increased boundary weight: 0.5 → 1.0 (clearer boundaries)
-  #   - Increased distance weight: 2.0 → 3.0 (better watershed)
-  #   - Expected improvement: +1-2% instance segmentation accuracy
-  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSELoss]
-  loss_weights: [1.0, 1.0, 3.0]       # Binary: Dice+BCE, Boundary: Dice+BCE, Distance: MSE (OPTION 5)
+  # Adaptive balancing with uncertainty weighting across binary / boundary / distance heads
+  loss_functions: [DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, TverskyLoss, SmoothL1Loss]
+  loss_weights: [1.0, 1.0, 1.0, 1.0, 1.0]       # Base weights; adaptive weighting will balance tasks
   loss_kwargs:
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
-    - {}                                 # BCEWithLogitsLoss for binary
-    - {tanh: true}                       # WeightedMSELoss for distance (with tanh activation)
+    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for boundary
+    - {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Tversky handles sparse contours
+    - {beta: 0.1, reduction: mean, tanh: true}                       # SmoothL1 for distance (with tanh activation)
+
+  # Adaptive loss balancing between heads
+  loss_balancing:
+    strategy: uncertainty           # Options: null, uncertainty, gradnorm
 
   # Multi-task configuration
   # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
   multi_task_config:
     - [0, 1, "label", [0, 1]]          # Original labels: Dice + BCE
-    - [1, 2, "boundary", [0, 1]]       # Boundary channel: Dice + BCE  
-    - [2, 3, "edt", [2]]               # Distance channel: MSE
+    - [1, 2, "boundary", [2, 3]]       # Boundary channel: Dice + BCE  
+    - [2, 3, "edt", [4]]               # Distance channel: MSE
 
 # Data - Hydra large vesicle dataset (multiple volumes)
 data:
@@ -219,24 +222,29 @@ data:
 optimization:
   max_epochs: 10000
   gradient_clip_val: 0.5               # Conservative gradient clipping (from lucchi++)
-  accumulate_grad_batches: 1
+  accumulate_grad_batches: 2           # Effective global batch ≈32 with 4 GPUs × bs=4
   precision: "bf16-mixed"              # BFloat16 mixed precision
 
   optimizer:
     name: AdamW
-    lr: 0.001                          # Standard learning rate
+    lr: 0.0005                         # Lower LR pairs better with warmup+cosine
     weight_decay: 0.01
     betas: [0.9, 0.999]
     eps: 1.0e-8
 
-  # Scheduler - ReduceLROnPlateau for adaptive learning (from lucchi++)
+  # Scheduler - linear warmup into cosine decay (smoother than flat LR + ReduceLROnPlateau)
   scheduler:
-    name: ReduceLROnPlateau           # Reduce LR when validation loss plateaus
-    mode: min                         # Monitor minimum loss
-    factor: 0.5                       # Reduce LR by 50%
-    patience: 50                      # Wait 50 epochs before reducing
-    threshold: 1.0e-4                 # Minimum change to qualify as improvement
-    min_lr: 1.0e-6                    # Don't go below 1e-6
+    name: warmupcosine
+    warmup_epochs: 200                # Linear ramp to target LR
+    warmup_start_lr: 0.1              # Start at 10% of base LR
+    min_lr: 1.0e-6                    # Eta min for cosine tail
+
+  # Exponential Moving Average (EMA) weights for stabler validation
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 1000                # Sync EMA to model for the first N updates
+    validate_with_ema: true
 
 monitor:
   # Loss monitoring and validation frequency  
@@ -264,7 +272,7 @@ monitor:
     save_top_k: 3
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/hydra_lv_rsunet/checkpoints/
+    dirpath: outputs/hydra-lv_rsunet/checkpoints/
     use_timestamp: true
 
   # Early stopping - Patient for convergence (improved from lucchi++)
@@ -289,7 +297,7 @@ monitor:
 #   - Uses: datasets/hydra-lv/vol*_*.h5 (current test data with ground truth)
 #   - Optimizes: Decoding parameters (thresholds, min_instance_size, etc.)
 #   - Metric: adapted_rand (higher is better)
-#   - Output: outputs/optuna_hydra_lv_tuning/best_params.yaml
+#   - Output: outputs/optuna-lv_tuning/best_params.yaml
 #
 # STAGE 2: Final Testing (on bouton-lv train data with optimized parameters)
 #   - Run: python scripts/main.py --config tutorials/hydra-lv.yaml --mode test
@@ -318,9 +326,15 @@ inference:
     padding_mode: replicate            # Replicate edge values (better than reflect for z=0)
 
   # Test-Time Augmentation (TTA)
-  test_time_augmentation:
-    enabled: true        # Enable TTA for improved predictions
-    flip_axes: all      # Use all flip augmentations
+  test_time_augmentation:    
+    flip_axes: null      # Use all flip augmentations
+    # Rotation90 augmentation (optional, can significantly increase inference time)
+    # Options:
+    #   null: No rotation augmentation
+    #   all: All possible rotation planes (3 planes for 3D: D-H, D-W, H-W)
+    #   [[1, 2]]: Specific planes using spatial axes (0=D, 1=H, 2=W)
+    #             e.g., [[1, 2]] for H-W plane only
+    rotation90_axes: null  # No rotation by default (set to "all" or [[1, 2]] to enable)
     # Per-channel activations (aligned with multi_task_config)
     # Format: [[start_ch, end_ch, activation], ...]
     select_channel: all               # Use all channels
@@ -333,8 +347,7 @@ inference:
 
   save_prediction:
     enabled: true             # Save intermediate predictions (before decoding)
-    intensity_scale: 255      # Scale predictions to [0, 255] for saving
-    intensity_dtype: uint8    # Save as uint8
+    intensity_scale: -1      # Scale predictions to [0, 255] for saving    
 
   
 
@@ -350,8 +363,8 @@ tune:
   # -------------------------------------------------------------------------
   n_trials: 100                         # Number of optimization trials
   timeout: null                         # Timeout in seconds (null = no timeout)
-  study_name: "hydra_lv_decoding_optimization"
-  storage: "sqlite:///outputs/optuna_studies/hydra_lv_decoding_tuning.db"
+  study_name: "hydra-lv_decoding_optimization"
+  storage: "sqlite:///outputs/optuna_studies/hydra-lv_decoding_tuning.db"
   load_if_exists: true                  # Resume existing study if interrupted
 
   # -------------------------------------------------------------------------
@@ -362,7 +375,7 @@ tune:
     kwargs:
       n_startup_trials: 10              # Random trials before TPE
       n_ei_candidates: 24               # Candidates for expected improvement
-      multivariate: true                # Consider parameter interactions
+      multivariate: false               # Disable for compatibility with postprocessing params
 
   # -------------------------------------------------------------------------
   # Pruner Configuration (Early Stopping)
@@ -398,7 +411,9 @@ tune:
   # Output Configuration
   # -------------------------------------------------------------------------
   output:
-    output_dir: "outputs/hydra_lv_rsunet/tuning"
+    output_dir: "outputs/hydra-lv_rsunet/tuning"
+    output_pred: null                       # Will default to outputs/hydra-lv_rsunet/results
+    cache_suffix: "_tta_prediction.h5"      # Suffix for prediction files
     save_all_trials: false
     save_best_segmentation: true
     save_study: true
@@ -418,7 +433,7 @@ tune:
   # -------------------------------------------------------------------------
   logging:
     verbose: true
-    log_file: "outputs/hydra_lv_rsunet/optuna_hydra_lv_tuning/tuning.log"
+    log_file: "outputs/hydra-lv_rsunet/optuna_hydra_lv_tuning/tuning.log"
     optuna_log_level: INFO
     show_progress_bar: true
 
@@ -438,12 +453,10 @@ tune:
 
       # Default/fixed parameter values (used unless overridden by optimization)
       defaults:
-        binary_threshold: [0.9, 0.85]
+        binary_threshold: [0.9, 0.1]
         contour_threshold: [0.8, 1.1]
         distance_threshold: [0.5, 0.0]
-        min_seed_size: 8
-        min_instance_size: 16
-        remove_small_mode: "background"
+        min_seed_size: 8        
 
       # Parameters to optimize (only these will be searched by Optuna)
       # Note: Each threshold is a tuple (seed_threshold, foreground_threshold)
@@ -452,7 +465,7 @@ tune:
         # Binary threshold tuple: (seed_threshold, foreground_threshold)
         binary_threshold_seed:
           type: float
-          range: [0, 1.0]
+          range: [0.5, 1.0]
           step: 0.1
           param_group: binary_threshold
           tuple_index: 0
@@ -460,7 +473,7 @@ tune:
 
         binary_threshold_foreground:
           type: float
-          range: [0, 1.0]
+          range: [0.0, 0.5]
           step: 0.1
           param_group: binary_threshold
           tuple_index: 1
@@ -469,7 +482,7 @@ tune:
         # Contour threshold tuple: (seed_threshold, foreground_threshold)
         contour_threshold_seed:
           type: float
-          range: [0, 1]
+          range: [0.5, 1.0]
           step: 0.1
           param_group: contour_threshold
           tuple_index: 0
@@ -477,7 +490,7 @@ tune:
 
         contour_threshold_foreground:
           type: float
-          range: [0, 1]
+          range: [0.5, 1.1]
           step: 0.1
           param_group: contour_threshold
           tuple_index: 1
@@ -486,7 +499,7 @@ tune:
         # Distance threshold tuple: (seed_threshold, foreground_threshold)
         distance_threshold_seed:
           type: float
-          range: [0.0, 1.0]
+          range: [0, 1]
           step: 0.1
           param_group: distance_threshold
           tuple_index: 0
@@ -494,7 +507,7 @@ tune:
 
         distance_threshold_foreground:
           type: float
-          range: [0, 1.0]
+          range: [-0.5, 0.5]
           step: 0.1
           param_group: distance_threshold
           tuple_index: 1
@@ -503,24 +516,21 @@ tune:
         # Minimum seed size (not a tuple)
         min_seed_size:
           type: int
-          range: [4, 24]
+          range: [4, 16]
           step: 4
           description: "Minimum size for watershed seeds (voxels)"
 
-    # -------------------------------------------------------------------------
-    # Post-Processing Function Configuration (Optional)
-    # -------------------------------------------------------------------------
+    # # -------------------------------------------------------------------------
+    # # Post-Processing Function Configuration (Optional)
+    # # -------------------------------------------------------------------------
     postprocessing:
       enabled: true
       function_name: remove_small_instances
 
       # Default/fixed parameter values
-      defaults:        
-        remove_small_mode: "background"  # Options: "background", "neighbor", "none"
-
       # Parameters to optimize (only these will be searched by Optuna)
       parameters:
-        min_instance_size:
+        thres_small:
           type: int
           range: [4, 16]
           step: 4
@@ -556,7 +566,7 @@ test:
       kwargs:
         binary_threshold: [0.9, 0.1]
         contour_threshold: [0.8, 1.1]
-        distance_threshold: [0.5, 0]
+        distance_threshold: [0.5, 0.0]
         min_seed_size: 8
 
   # Evaluation

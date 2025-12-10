@@ -131,17 +131,13 @@ def create_datamodule(
 
             if dataset_name:
                 print(f"💡 Attempting to auto-download '{dataset_name}' dataset...")
-                print(f"   (You can disable auto-download by manually downloading data)")
+                print("   (You can disable auto-download by manually downloading data)")
 
                 # Prompt user
                 try:
-                    response = (
-                        input(
-                            f"   Download {dataset_name} dataset (~{DATASETS[dataset_name]['size_mb']} MB)? [Y/n]: "
-                        )
-                        .strip()
-                        .lower()
-                    )
+                    size_mb = DATASETS[dataset_name]["size_mb"]
+                    prompt = f"   Download {dataset_name} dataset (~{size_mb} MB)? [Y/n]: "
+                    response = input(prompt).strip().lower()
                     if response in ["", "y", "yes"]:
                         if download_dataset(dataset_name, base_dir=PathLib.cwd()):
                             print("✅ Data downloaded successfully!")
@@ -176,7 +172,7 @@ def create_datamodule(
     print(f"  Val transforms: {len(val_transforms.transforms)} steps")
     if mode in ["test", "tune"]:
         print(
-            f"  Test transforms: {len(test_transforms.transforms)} steps (no cropping for sliding window)"
+            f"  Test transforms: {len(test_transforms.transforms)} steps (no sliding-window crop)"
         )
 
     # For test/tune modes, skip training data setup entirely
@@ -278,12 +274,12 @@ def create_datamodule(
 
             if train_json_empty:
                 # Fallback to volume-based dataset when train_json is empty
-                print(f"  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
+                print("  ⚠️  Train JSON is empty or invalid, falling back to volume-based dataset")
                 print(f"  Train JSON: {cfg.data.train_json}")
                 dataset_type = None  # Switch to volume-based
             else:
                 # Filename-based dataset: uses JSON file lists
-                print(f"  Using filename-based dataset")
+                print("  Using filename-based dataset")
                 print(f"  Train JSON: {cfg.data.train_json}")
                 print(f"  Image key: {cfg.data.train_image_key}")
                 print(f"  Label key: {cfg.data.train_label_key}")
@@ -298,7 +294,8 @@ def create_datamodule(
             if cfg.data.train_image is None:
                 raise ValueError(
                     "For volume-based datasets, data.train_image must be specified.\n"
-                    "Either set data.train_image or use data.dataset_type='filename' with data.train_json"
+                    "Either set data.train_image or use data.dataset_type='filename' with "
+                    "data.train_json"
                 )
 
             train_image_paths = expand_file_paths(cfg.data.train_image)
@@ -354,18 +351,21 @@ def create_datamodule(
             or not hasattr(cfg.test, "data")
             or not cfg.test.data.test_image
         ):
+            test_image_val = (
+                cfg.test.data.test_image
+                if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "data")
+                else "N/A"
+            )
             raise ValueError(
                 f"Test mode requires test.data.test_image to be set in config.\n"
-                f"Current config has: test.data.test_image = {cfg.test.data.test_image if hasattr(cfg, 'test') and cfg.test and hasattr(cfg.test, 'data') else 'N/A'}"
+                f"Current config has: test.data.test_image = {test_image_val}"
             )
         print(f"  🧪 Creating test dataset from: {cfg.test.data.test_image}")
 
         # Expand glob patterns for test data (same as train data)
         test_image_paths = expand_file_paths(cfg.test.data.test_image)
         test_label_paths = (
-            expand_file_paths(cfg.test.data.test_label)
-            if cfg.test.data.test_label
-            else None
+            expand_file_paths(cfg.test.data.test_label) if cfg.test.data.test_label else None
         )
         test_mask_paths = (
             expand_file_paths(cfg.test.data.test_mask)
@@ -380,26 +380,27 @@ def create_datamodule(
             or not hasattr(cfg.tune, "data")
             or not cfg.tune.data.tune_image
         ):
+            tune_image_val = (
+                cfg.tune.data.tune_image
+                if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data")
+                else "N/A"
+            )
             raise ValueError(
                 f"Tune mode requires tune.data.tune_image to be set in config.\n"
-                f"Current config has tune.data.tune_image: {cfg.tune.data.tune_image if hasattr(cfg, 'tune') and cfg.tune and hasattr(cfg.tune, 'data') else 'N/A'}"
+                f"Current config has tune.data.tune_image: {tune_image_val}"
             )
-        
+
         print(f"  🎯 Creating tune dataset from: {cfg.tune.data.tune_image}")
 
         # Expand glob patterns for tune data
         test_image_paths = expand_file_paths(cfg.tune.data.tune_image)
         test_label_paths = (
-            expand_file_paths(cfg.tune.data.tune_label)
-            if cfg.tune.data.tune_label
-            else None
+            expand_file_paths(cfg.tune.data.tune_label) if cfg.tune.data.tune_label else None
         )
         test_mask_paths = (
-            expand_file_paths(cfg.tune.data.tune_mask)
-            if cfg.tune.data.tune_mask
-            else None
+            expand_file_paths(cfg.tune.data.tune_mask) if cfg.tune.data.tune_mask else None
         )
-    
+
     # Common printing and data dict creation for test and tune modes
     if mode in ["test", "tune"]:
         mode_label = "Test" if mode == "test" else "Tune"
@@ -643,8 +644,8 @@ def create_datamodule(
         if mode in ["test", "tune"] and cfg.data.use_cache:
             print("  ⚠️  Caching disabled for test/tune mode (incompatible with partial cache)")
 
-        # Note: transpose_axes is now handled in the transform builders (build_train/val/test_transforms)
-        # which embed the transpose in LoadVolumed, so no need to pass it here
+        # Note: transpose_axes handled in transform builders (build_train/val/test_transforms)
+        # They embed the transpose in LoadVolumed, so no need to pass it here
 
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
@@ -812,11 +813,11 @@ def modify_checkpoint_state(
     # Early return if no checkpoint or no resets requested
     if not checkpoint_path:
         return None
-    
+
     if not (reset_optimizer or reset_scheduler or reset_epoch or reset_early_stopping):
         return checkpoint_path
 
-    print(f"\n🔄 Modifying checkpoint state:")
+    print("\n🔄 Modifying checkpoint state:")
     if reset_optimizer:
         print("   - Resetting optimizer state")
     if reset_scheduler:
@@ -826,7 +827,8 @@ def modify_checkpoint_state(
     if reset_early_stopping:
         print("   - Resetting early stopping patience counter")
 
-    # Load checkpoint (weights_only=False needed for PyTorch 2.6+ to load Lightning checkpoints with custom configs)
+    # Load checkpoint (weights_only=False needed for PyTorch 2.6+ to load Lightning
+    # checkpoints with custom configs)
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
 
     # Reset optimizer state

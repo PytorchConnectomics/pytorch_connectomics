@@ -38,31 +38,36 @@ from .base import ConnectomicsModel
 
 # Import MONAI models to trigger registration
 try:
-    from . import monai_models
+    from . import monai_models  # noqa: F401
+
     _MONAI_AVAILABLE = True
 except ImportError:
     _MONAI_AVAILABLE = False
 
 # Import MedNeXt models to trigger registration
 try:
-    from . import mednext_models
+    from . import mednext_models  # noqa: F401
+
     _MEDNEXT_AVAILABLE = True
 except ImportError:
     _MEDNEXT_AVAILABLE = False
 
 # Import RSUNet models (always available - pure PyTorch)
 try:
-    from . import rsunet
+    from . import rsunet  # noqa: F401
+
     _RSUNET_AVAILABLE = True
 except ImportError:
     _RSUNET_AVAILABLE = False
 
 # Import nnUNet models to trigger registration
 try:
-    from . import nnunet_models
+    from . import nnunet_models  # noqa: F401
+
     _NNUNET_AVAILABLE = True
 except ImportError:
     _NNUNET_AVAILABLE = False
+
 
 # Check what's available
 def get_available_architectures() -> dict:
@@ -78,11 +83,11 @@ def get_available_architectures() -> dict:
     all_archs = list_architectures()
 
     info = {
-        'all': all_archs,
-        'monai': [a for a in all_archs if a.startswith('monai_')] if _MONAI_AVAILABLE else [],
-        'mednext': [a for a in all_archs if a.startswith('mednext')] if _MEDNEXT_AVAILABLE else [],
-        'rsunet': [a for a in all_archs if a.startswith('rsunet')] if _RSUNET_AVAILABLE else [],
-        'nnunet': [a for a in all_archs if a.startswith('nnunet')] if _NNUNET_AVAILABLE else [],
+        "all": all_archs,
+        "monai": [a for a in all_archs if a.startswith("monai_")] if _MONAI_AVAILABLE else [],
+        "mednext": [a for a in all_archs if a.startswith("mednext")] if _MEDNEXT_AVAILABLE else [],
+        "rsunet": [a for a in all_archs if a.startswith("rsunet")] if _RSUNET_AVAILABLE else [],
+        "nnunet": [a for a in all_archs if a.startswith("nnunet")] if _NNUNET_AVAILABLE else [],
     }
 
     return info
@@ -92,51 +97,51 @@ def print_available_architectures():
     """Print a formatted list of available architectures."""
     info = get_available_architectures()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Available Architectures")
-    print("="*60)
+    print("=" * 60)
 
-    if info['monai']:
+    if info["monai"]:
         print(f"\nMONAI Models ({len(info['monai'])}):")
-        for arch in info['monai']:
+        for arch in info["monai"]:
             print(f"  - {arch}")
     else:
         print("\nMONAI Models: Not available (install with: pip install monai)")
 
-    if info['mednext']:
+    if info["mednext"]:
         print(f"\nMedNeXt Models ({len(info['mednext'])}):")
-        for arch in info['mednext']:
+        for arch in info["mednext"]:
             print(f"  - {arch}")
     else:
         print("\nMedNeXt Models: Not available (see MEDNEXT.md for setup)")
 
-    if info['rsunet']:
+    if info["rsunet"]:
         print(f"\nRSUNet Models ({len(info['rsunet'])}):")
-        for arch in info['rsunet']:
+        for arch in info["rsunet"]:
             print(f"  - {arch}")
 
-    if info['nnunet']:
+    if info["nnunet"]:
         print(f"\nnnUNet Models ({len(info['nnunet'])}):")
-        for arch in info['nnunet']:
+        for arch in info["nnunet"]:
             print(f"  - {arch}")
     else:
         print("\nnnUNet Models: Not available (install with: pip install nnunetv2)")
 
     print(f"\nTotal: {len(info['all'])} architectures")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
 
 __all__ = [
     # Registry
-    'register_architecture',
-    'get_architecture_builder',
-    'list_architectures',
-    'is_architecture_available',
-    'unregister_architecture',
-    'get_architecture_info',
+    "register_architecture",
+    "get_architecture_builder",
+    "list_architectures",
+    "is_architecture_available",
+    "unregister_architecture",
+    "get_architecture_info",
     # Base model
-    'ConnectomicsModel',
+    "ConnectomicsModel",
     # Utilities
-    'get_available_architectures',
-    'print_available_architectures',
+    "get_available_architectures",
+    "print_available_architectures",
 ]

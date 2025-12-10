@@ -1,70 +1,40 @@
 """Tests for BANIS-inspired features (Phase 12).
 
-Tests the BANIS integration features:
-- Slice augmentations (DropSliced, ShiftSliced)
-- Numba connected components
-- Weighted dataset concatenation
-- Skeleton-based metrics (if available)
+Tests the BANIS-inspired utilities that remain in the codebase:
+- Affinity connected components decoding
+- Weighted dataset concatenation helpers
 """
 
-import pytest
 import torch
 import numpy as np
-
-
-def test_drop_sliced():
-    """Test slice dropout augmentation."""
-    from connectomics.data.augment import DropSliced
-
-    aug = DropSliced(keys=["image"], prob=1.0, drop_prob=0.5)
-    data = {"image": torch.randn(1, 128, 128, 128)}
-
-    augmented = aug(data)
-
-    assert augmented["image"].shape == data["image"].shape
-    # Check that some slices were dropped (set to zero)
-    assert (augmented["image"] == 0).any()
-
-
-def test_shift_sliced():
-    """Test slice shifting augmentation."""
-    from connectomics.data.augment import ShiftSliced
-
-    aug = ShiftSliced(keys=["image"], prob=1.0, shift_prob=0.5, max_shift=10)
-    data = {"image": torch.randn(1, 128, 128, 128)}
-
-    augmented = aug(data)
-
-    assert augmented["image"].shape == data["image"].shape
+import pytest
 
 
 def test_connected_components():
-    """Test Numba connected components."""
-    from connectomics.model.utils.connected_components import connected_components_3d
+    """Test affinity connected components using the current decoding API."""
+    from connectomics.decoding.segmentation import affinity_cc3d
 
-    # Create simple test case: two separate cubes
-    affinities = np.zeros((3, 10, 10, 10), dtype=np.float32)
+    # Construct two disjoint 2x2x2 cubes
+    affinities = np.zeros((3, 8, 8, 8), dtype=np.float32)
 
-    # First cube (0:4, 0:4, 0:4) - all connected
-    affinities[0, 0:3, 0:4, 0:4] = 1.0  # x-direction
-    affinities[1, 0:4, 0:3, 0:4] = 1.0  # y-direction
-    affinities[2, 0:4, 0:4, 0:3] = 1.0  # z-direction
+    # Cube A at origin
+    affinities[:, 1:3, 1:3, 1:3] = 1.0
+    # Cube B offset
+    affinities[:, 5:7, 5:7, 5:7] = 1.0
 
-    # Second cube (6:10, 6:10, 6:10) - all connected
-    affinities[0, 6:9, 6:10, 6:10] = 1.0
-    affinities[1, 6:10, 6:9, 6:10] = 1.0
-    affinities[2, 6:10, 6:10, 6:9] = 1.0
+    seg = affinity_cc3d(affinities, threshold=0.5, use_numba=False)
 
-    seg = connected_components_3d(affinities, threshold=0.5)
-
-    # Should have 2 components (plus background)
     unique_ids = np.unique(seg)
-    assert len(unique_ids) >= 2  # At least 2 components
+    # Expect background + two components
+    assert len(unique_ids) == 3
+    assert seg[1, 1, 1] != 0
+    assert seg[5, 5, 5] != 0
+    assert seg[1, 1, 1] != seg[5, 5, 5]
 
 
 def test_weighted_concat_dataset():
     """Test weighted dataset concatenation."""
-    from connectomics.data.dataset.weighted_concat import WeightedConcatDataset
+    from connectomics.data.dataset import WeightedConcatDataset
 
     # Create dummy datasets
     class DummyDataset(torch.utils.data.Dataset):
@@ -92,17 +62,6 @@ def test_weighted_concat_dataset():
     # Should be approximately 80/20 (with some randomness)
     assert 750 < count_1 < 850
     assert 150 < count_2 < 250
-
-
-@pytest.mark.skipif(
-    not pytest.importorskip("funlib", reason="funlib.evaluate not available"),
-    reason="Skeleton metrics require funlib.evaluate"
-)
-def test_skeleton_metrics():
-    """Test skeleton-based metrics (if funlib available)."""
-
-    # This test requires a skeleton file, so we skip if not available
-    pytest.skip("Skeleton metrics require test skeleton file")
 
 
 def test_slurm_utils_import():

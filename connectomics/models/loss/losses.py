@@ -26,13 +26,13 @@ class CrossEntropyLossWrapper(nn.Module):
         label_smoothing: Label smoothing factor (0.0 = no smoothing, 0.1 = 10% smoothing)
     """
 
-    def __init__(self, weight=None, ignore_index=-100, reduction='mean', label_smoothing=0.0):
+    def __init__(self, weight=None, ignore_index=-100, reduction="mean", label_smoothing=0.0):
         super().__init__()
         self.ce_loss = nn.CrossEntropyLoss(
             weight=weight,
             ignore_index=ignore_index,
             reduction=reduction,
-            label_smoothing=label_smoothing
+            label_smoothing=label_smoothing,
         )
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -78,7 +78,7 @@ class WeightedMSELoss(nn.Module):
               With both pred and target in [-1, 1], MSE should be < 4.
     """
 
-    def __init__(self, reduction: str = 'mean', tanh: bool = False):
+    def __init__(self, reduction: str = "mean", tanh: bool = False):
         super().__init__()
         self.reduction = reduction
         self.tanh = tanh
@@ -110,9 +110,9 @@ class WeightedMSELoss(nn.Module):
         if weight is not None:
             mse = mse * weight
 
-        if self.reduction == 'mean':
+        if self.reduction == "mean":
             return mse.mean()
-        elif self.reduction == 'sum':
+        elif self.reduction == "sum":
             return mse.sum()
         else:
             return mse
@@ -141,18 +141,16 @@ class WeightedBCEWithLogitsLoss(nn.Module):
     """
 
     def __init__(
-        self,
-        pos_weight: Union[float, torch.Tensor, None] = None,
-        reduction: str = 'mean'
+        self, pos_weight: Union[float, torch.Tensor, None] = None, reduction: str = "mean"
     ):
         super().__init__()
         self.reduction = reduction
 
         # Convert float to tensor if needed
         if pos_weight is not None and isinstance(pos_weight, (int, float)):
-            self.register_buffer('pos_weight', torch.tensor([pos_weight]))
+            self.register_buffer("pos_weight", torch.tensor([pos_weight]))
         elif pos_weight is not None:
-            self.register_buffer('pos_weight', pos_weight)
+            self.register_buffer("pos_weight", pos_weight)
         else:
             self.pos_weight = None
 
@@ -168,9 +166,7 @@ class WeightedBCEWithLogitsLoss(nn.Module):
             Loss value
         """
         return F.binary_cross_entropy_with_logits(
-            input, target,
-            pos_weight=self.pos_weight,
-            reduction=self.reduction
+            input, target, pos_weight=self.pos_weight, reduction=self.reduction
         )
 
 
@@ -187,7 +183,7 @@ class WeightedMAELoss(nn.Module):
               Useful for distance transform targets in range [-1, 1].
     """
 
-    def __init__(self, reduction: str = 'mean', tanh: bool = False):
+    def __init__(self, reduction: str = "mean", tanh: bool = False):
         super().__init__()
         self.reduction = reduction
         self.tanh = tanh
@@ -212,18 +208,53 @@ class WeightedMAELoss(nn.Module):
         # Apply tanh activation if enabled
         if self.tanh:
             pred = torch.tanh(pred)
-        
+
         mae = torch.abs(pred - target)
 
         if weight is not None:
             mae = mae * weight
 
-        if self.reduction == 'mean':
+        if self.reduction == "mean":
             return mae.mean()
-        elif self.reduction == 'sum':
+        elif self.reduction == "sum":
             return mae.sum()
         else:
             return mae
+
+
+class SmoothL1Loss(nn.Module):
+    """
+    Smooth L1 (Huber) loss with optional tanh activation and spatial weighting.
+
+    Useful for distance transform regression where large outliers should be
+    down-weighted relative to MSE.
+    """
+
+    def __init__(self, beta: float = 1.0, reduction: str = "mean", tanh: bool = False):
+        super().__init__()
+        self.beta = beta
+        self.reduction = reduction
+        self.tanh = tanh
+
+    def forward(
+        self,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        weight: torch.Tensor = None,
+    ) -> torch.Tensor:
+        if self.tanh:
+            pred = torch.tanh(pred)
+
+        loss = F.smooth_l1_loss(pred, target, beta=self.beta, reduction="none")
+
+        if weight is not None:
+            loss = loss * weight
+
+        if self.reduction == "mean":
+            return loss.mean()
+        elif self.reduction == "sum":
+            return loss.sum()
+        return loss
 
 
 class GANLoss(nn.Module):
@@ -245,23 +276,23 @@ class GANLoss(nn.Module):
 
     def __init__(
         self,
-        gan_mode: str = 'lsgan',
+        gan_mode: str = "lsgan",
         target_real_label: float = 1.0,
         target_fake_label: float = 0.0,
     ):
         super().__init__()
-        self.register_buffer('real_label', torch.tensor(target_real_label))
-        self.register_buffer('fake_label', torch.tensor(target_fake_label))
+        self.register_buffer("real_label", torch.tensor(target_real_label))
+        self.register_buffer("fake_label", torch.tensor(target_fake_label))
         self.gan_mode = gan_mode
 
-        if gan_mode == 'lsgan':
+        if gan_mode == "lsgan":
             self.loss = nn.MSELoss()
-        elif gan_mode == 'vanilla':
+        elif gan_mode == "vanilla":
             self.loss = nn.BCEWithLogitsLoss()
-        elif gan_mode in ['wgangp']:
+        elif gan_mode in ["wgangp"]:
             self.loss = None
         else:
-            raise NotImplementedError(f'GAN mode {gan_mode} not implemented')
+            raise NotImplementedError(f"GAN mode {gan_mode} not implemented")
 
     def get_target_tensor(
         self,
@@ -300,10 +331,10 @@ class GANLoss(nn.Module):
         Returns:
             Calculated loss
         """
-        if self.gan_mode in ['lsgan', 'vanilla']:
+        if self.gan_mode in ["lsgan", "vanilla"]:
             target_tensor = self.get_target_tensor(prediction, target_is_real)
             loss = self.loss(prediction, target_tensor)
-        elif self.gan_mode == 'wgangp':
+        elif self.gan_mode == "wgangp":
             if target_is_real:
                 loss = -prediction.mean()
             else:
@@ -313,7 +344,7 @@ class GANLoss(nn.Module):
 
 
 __all__ = [
-    'WeightedMSELoss',
-    'WeightedMAELoss',
-    'GANLoss',
+    "WeightedMSELoss",
+    "WeightedMAELoss",
+    "GANLoss",
 ]

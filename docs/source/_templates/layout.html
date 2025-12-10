@@ -45,7 +45,8 @@
 
   {% endif %}
 
-  <link rel="stylesheet" href="{{ pathto('_static/' + style, 1) }}" type="text/css" />
+  {# `style` is absent on newer Sphinx, so default to the theme stylesheet when undefined #}
+  <link rel="stylesheet" href="{{ pathto('_static/' + (style | default('css/theme.css')), 1) }}" type="text/css" />
   <!-- <link rel="stylesheet" href="{{ pathto('_static/pygments.css', 1) }}" type="text/css" /> -->
   {%- for css in css_files %}
   {%- if css|attr("rel") %}

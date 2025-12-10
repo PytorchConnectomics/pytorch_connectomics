@@ -1,537 +1,344 @@
 # CellMap Segmentation Challenge - PyTC Integration
 
-This directory contains standalone scripts for training PyTorch Connectomics models on CellMap Segmentation Challenge data.
+This directory provides a lightweight integration between the [CellMap Segmentation Challenge](https://www.cellmapchallenge.janelia.org/) and PyTorch Connectomics (PyTC).
 
-**Key Feature**: Zero modifications to PyTC core - completely isolated implementation.
+## 🎯 Key Features
 
----
+- **Zero PyTC modifications** - All code isolated in `scripts/cellmap/`
+- **Official CellMap tools** - Uses `cellmap-data` package for data loading
+- **Hydra YAML configs** - Standard PyTC config format (no Python configs needed)
+- **Full PyTC features** - Lightning callbacks, checkpointing, logging, TTA, etc.
+- **419 test predictions** - Complete coverage for challenge submission
 
-## Quick Start
-
-### 1. Installation (One-time)
+## 📦 Installation
 
 ```bash
-# Activate PyTC environment
+# 1. Activate PyTC environment
 source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
 
-# Install CellMap data helper (available on PyPI)
-pip install cellmap-data
+# 2. Install CellMap packages (official challenge tools)
+pip install cellmap-data cellmap-segmentation-challenge
 
-# Install CellMap segmentation challenge code from source (no PyPI wheel)
-git clone https://github.com/janelia-cellmap/cellmap-segmentation-challenge.git
-cd cellmap-segmentation-challenge
-pip install -e .
-cd ..
-
-# Verify installation
-python -c "from cellmap_segmentation_challenge.utils import TEST_CROPS; print(f'{len(TEST_CROPS)} test crops loaded')"
-
-# Point to your dataset location via CLI (preferred)
-# Example:
-#   python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/mednext_cos7.py --data-root /projects/weilab/dataset/cellmap
-# If your crops are at mixed resolutions, you can resample to a fixed shape to include all scales:
-#   python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/mednext_cos7.py --data-root /projects/weilab/dataset/cellmap --target-shape 128 128 128
+# 3. Verify installation
+python -c "from cellmap_segmentation_challenge.utils import get_dataloader; print('✅ CellMap installed')"
 ```
 
-### 2. Quick Test (10 epochs)
+## 🚀 Quick Start (5 minutes)
 
 ```bash
-# Test the pipeline with lightweight U-Net
-python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/monai_unet_quick.py
+# Train on COS7 multi-organelle (5 classes)
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml --fast-dev-run
 
-# Monitor training
-tensorboard --logdir outputs/cellmap_quick_test/tensorboard
+# Full training (8-12 hours on 1 GPU)
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml
+
+# Mitochondria-specific (optimized for instance segmentation)
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_mito.yaml
 ```
 
-### 3. Full Training
+## 📋 Configuration Files
 
-```bash
-# Train MedNeXt on COS7 cells (multi-organelle)
-python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/mednext_cos7.py
+### Hydra YAML Configs (Recommended)
 
-# Or train on mitochondria only
-python scripts/cellmap/train_cellmap.py scripts/cellmap/configs/mednext_mito.py
+All configs use PyTC's standard Hydra format:
+
+**[tutorials/cellmap_cos7.yaml](../../tutorials/cellmap_cos7.yaml)** - Multi-organelle segmentation
+- **Classes**: nuc, mito, er, golgi, ves (5 organelles)
+- **Model**: MedNeXt-M (17.6M params)
+- **Resolution**: 8nm isotropic
+- **Training**: 500 epochs, ~12 hours on 1 GPU
+- **Use case**: General-purpose baseline
+
+**[tutorials/cellmap_mito.yaml](../../tutorials/cellmap_mito.yaml)** - Mitochondria-specific
+- **Classes**: mito (single class)
+- **Model**: MedNeXt-L (61.8M params) - best for single class
+- **Resolution**: 4nm isotropic - higher res for boundaries
+- **Training**: 1000 epochs, ~24 hours on 1 GPU
+- **Use case**: Best instance segmentation quality
+
+### Key Config Sections
+
+```yaml
+# CellMap-specific data configuration
+data:
+  dataset_type: cellmap              # Special marker for CellMap
+
+  cellmap:
+    data_root: /projects/weilab/dataset/cellmap
+    datasplit_path: outputs/cellmap_cos7/datasplit.csv  # Auto-generated
+    classes: [nuc, mito, er, golgi, ves]
+    force_all_classes: both
+
+    # Patch configuration
+    input_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]                # 8nm isotropic
+
+    # CellMap-style augmentation
+    spatial_transforms:
+      mirror: {axes: {x: 0.5, y: 0.5, z: 0.5}}
+      transpose: {axes: [x, y, z]}
+      rotate: {axes: {x: [-180, 180], y: [-180, 180], z: [-180, 180]}}
 ```
 
-### 4. Inference
+## 📊 Available Datasets
+
+CellMap challenge provides 23 datasets with 60+ organelle classes:
 
 ```bash
-# Predict on test crops
+# List all available datasets
+ls /projects/weilab/dataset/cellmap/
+
+# Example datasets:
+# - jrc_cos7-1a, jrc_cos7-1b     : COS7 cells
+# - jrc_hela-2, jrc_hela-3       : HeLa cells
+# - jrc_jurkat-1                 : Jurkat cells
+# - jrc_macrophage-2             : Macrophages
+# - jrc_mus-liver, jrc_mus-kidney: Mouse organs
+```
+
+## 🎓 Training Workflow
+
+### 1. Data Preparation (Automatic)
+
+The datasplit is automatically generated on first run:
+
+```bash
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml
+# Generates: outputs/cellmap_cos7/datasplit.csv
+```
+
+The datasplit includes:
+- Train/validation split
+- Crop coordinates
+- Class availability per crop
+- Uses CellMap's official `make_datasplit_csv()`
+
+### 2. Training
+
+```bash
+# Standard training
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml
+
+# Override config from CLI
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml \
+    system.training.num_gpus=4 \
+    optimization.max_epochs=1000
+
+# Multi-GPU training (automatic DDP)
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml \
+    system.training.num_gpus=4
+```
+
+### 3. Inference (Challenge Submission)
+
+For challenge submission, use the official CellMap prediction scripts:
+
+```bash
+# 1. Run inference on all test crops (uses sliding window + TTA)
 python scripts/cellmap/predict_cellmap.py \
-    --checkpoint outputs/cellmap_cos7/checkpoints/mednext-best.ckpt \
-    --config scripts/cellmap/configs/mednext_cos7.py \
-    --output outputs/cellmap_cos7/predictions
-```
+    --checkpoint outputs/cellmap_cos7/checkpoints/last.ckpt \
+    --config tutorials/cellmap_cos7.yaml \
+    --output predictions/
 
-### 5. Submission
-
-```bash
-# Package predictions for submission
+# 2. Package predictions for submission
 python scripts/cellmap/submit_cellmap.py \
-    --predictions outputs/cellmap_cos7/predictions \
+    --predictions predictions/ \
     --output submission.zarr
 
-# Upload submission.zip to challenge portal
-# https://cellmapchallenge.janelia.org/submissions/
+# 3. Upload submission.zarr to challenge platform
 ```
 
----
-
-## File Structure
+## 📁 File Structure
 
 ```
 scripts/cellmap/
-├── README.md                      # This file
-│
-├── train_cellmap.py               # Training script (250 lines)
-├── predict_cellmap.py             # Inference script (120 lines)
-├── submit_cellmap.py              # Submission packaging (30 lines)
-│
-└── configs/                       # Training configurations
-    ├── mednext_cos7.py            # Multi-organelle (nuc, mito, er, golgi, ves)
-    ├── mednext_mito.py            # Mitochondria only (instance segmentation)
-    └── monai_unet_quick.py        # Quick test config (10 epochs)
+├── train_cellmap.py          # Training script (258 lines)
+├── predict_cellmap.py         # Inference script (for challenge submission)
+├── submit_cellmap.py          # Submission packaging (uses official tool)
+├── README.md                  # This file
+└── QUICKSTART.md              # 5-minute quickstart guide
+
+tutorials/
+├── cellmap_cos7.yaml          # Multi-organelle config (Hydra format)
+└── cellmap_mito.yaml          # Mitochondria-specific config (Hydra format)
 ```
 
-**Total: ~400 lines of code**
+## 🔧 How It Works
 
-**PyTC modifications: 0 lines** ✅
+### Simplified Architecture
 
----
+The new design is **much simpler** than the original:
 
-## Configuration Files
+**New approach** (258 lines, Hydra configs):
+- Reuses `ConnectomicsModule` from PyTC
+- Reuses `create_trainer()` from PyTC
+- Reuses all callbacks, logging, checkpointing
+- Only custom component: `CellMapDataModule` (60 lines)
 
-### `mednext_cos7.py` - Multi-Organelle Segmentation
+### Code Reuse from scripts/main.py
+
+`train_cellmap.py` reuses almost everything from `scripts/main.py`:
 
 ```python
-model_name = 'mednext'
-mednext_size = 'M'              # 17.6M params
-classes = ['nuc', 'mito', 'er', 'golgi', 'ves']
-resolution = (8, 8, 8)          # 8nm isotropic
-epochs = 500
-```
-
-**Use case**: Segment all major organelles in COS7 cells
-
-### `mednext_mito.py` - Mitochondria Segmentation
-
-```python
-model_name = 'mednext'
-mednext_size = 'L'              # 61.8M params
-classes = ['mito']
-resolution = (4, 4, 4)          # 4nm (higher resolution)
-epochs = 1000
-```
-
-**Use case**: High-quality mitochondria instance segmentation
-
-### `monai_unet_quick.py` - Quick Test
-
-```python
-model_name = 'monai_basic_unet3d'
-classes = ['nuc', 'mito']
-resolution = (8, 8, 8)
-epochs = 10                     # Fast test
-```
-
-**Use case**: Test pipeline quickly before full training
-
----
-
-## Available Models
-
-The scripts use PyTC's MONAI model registry. Available architectures:
-
-| Model | Parameters | Deep Supervision | Best For |
-|-------|-----------|------------------|----------|
-| `monai_basic_unet3d` | ~5M | No | Quick tests, baselines |
-| `monai_unet` | ~10M | No | General segmentation |
-| `mednext` (size=S) | 5.6M | Yes | Small datasets |
-| `mednext` (size=B) | 10.5M | Yes | **Recommended default** |
-| `mednext` (size=M) | 17.6M | Yes | Multi-class tasks |
-| `mednext` (size=L) | 61.8M | Yes | Single class, best quality |
-
-**Note**: Set `model_name` and `mednext_size` in config files.
-
----
-
-## Data
-
-### Data Location
-
-```
-/projects/weilab/dataset/cellmap/
-├── jrc_cos7-1a/
-│   └── jrc_cos7-1a.zarr/
-│       ├── recon-1/
-│       │   ├── em/fibsem-uint8/      # Raw EM (s0-s10)
-│       │   └── labels/groundtruth/    # Annotations
-│       │       ├── crop234/
-│       │       │   ├── nuc/
-│       │       │   ├── mito/
-│       │       │   └── ...
-│       │       └── ...
-├── jrc_hela-2/
-├── jrc_jurkat-1/
-└── ... (23 datasets total)
-```
-
-### Datasplit Generation
-
-The training script automatically generates `datasplit.csv` on first run:
-
-```bash
-# Generated automatically
-outputs/cellmap_cos7/datasplit.csv
-
-# Format:
-# raw,label,usage
-# /path/to/raw,/path/to/label,train
-# /path/to/raw,/path/to/label,validate
-```
-
-**Train/Val Split**: 85% train, 15% validation (stratified by class)
-
----
-
-## Training Details
-
-### What Happens During Training
-
-1. **Datasplit generation** (if needed)
-   - Scans `/projects/weilab/dataset/cellmap/`
-   - Finds all crops with specified classes
-   - Filters by resolution (e.g., 8nm)
-   - Splits into train/val (85/15)
-
-2. **Data loading** (CellMap's official loader)
-   - Lazy Zarr loading (memory efficient)
-   - Random patch sampling (128³ voxels)
-   - Spatial augmentations (flip, rotate, transpose)
-   - Class-weighted sampling
-
-3. **Training** (PyTorch Lightning)
-   - Mixed precision (16-bit)
-   - Gradient accumulation (4x → effective batch = 8)
-   - Gradient clipping (max norm = 1.0)
-   - Multi-GPU support (DDP)
-
-4. **Validation** (every epoch)
-   - Dice score per class
-   - Best model checkpointing
-   - TensorBoard logging
-
-5. **Checkpointing**
-   - Top 3 models (by val/dice)
-   - Last checkpoint
-   - Early stopping (patience=50)
-
-### Monitoring Training
-
-```bash
-# TensorBoard
-tensorboard --logdir outputs/cellmap_cos7/tensorboard
-
-# View logs
-tail -f outputs/cellmap_cos7/tensorboard/lightning_logs/version_0/events.out.*
-```
-
-### Expected Training Time
-
-| Config | GPUs | Time/Epoch | Total Time (500 epochs) |
-|--------|------|------------|------------------------|
-| `monai_unet_quick` | 1x A100 | ~2 min | ~20 min (10 epochs) |
-| `mednext_cos7` (M) | 1x A100 | ~5 min | ~42 hours |
-| `mednext_mito` (L) | 1x A100 | ~8 min | ~133 hours |
-| `mednext_cos7` (M) | 4x A100 | ~2 min | ~17 hours |
-
-**Note**: Times are estimates for single dataset. Multiply by number of datasets used.
-
----
-
-## Inference Details
-
-### Sliding Window Inference
-
-Uses MONAI's `SlidingWindowInferer`:
-
-```python
-inferer = SlidingWindowInferer(
-    roi_size=(128, 128, 128),   # Window size
-    sw_batch_size=4,             # Batch size for sliding window
-    overlap=0.5,                 # 50% overlap (Gaussian blending)
-    mode='gaussian',             # Blending mode
+from connectomics.training.lit import (
+    ConnectomicsModule,      # Model wrapper
+    create_trainer,          # Trainer setup
+    setup_config,            # Config loading
+    setup_run_directory,     # Directory management
+    modify_checkpoint_state, # Checkpoint handling
+    # ... and more
 )
 ```
 
-### Test Crops
+**Only custom component**: `CellMapDataModule` (60 lines)
+- Wraps CellMap's `get_dataloader()` in Lightning interface
+- Auto-generates datasplit if missing
+- Handles train/val/test splits
 
-The challenge has **~1000 test crops** across 23 datasets.
+## 🎯 Challenge Details
 
-Each test crop has:
-- `crop.id`: Crop ID (e.g., 234)
-- `crop.dataset`: Dataset name (e.g., 'jrc_cos7-1a')
-- `crop.class_label`: Class to predict (e.g., 'mito')
-- `crop.voxel_size`: Resolution in nm (e.g., [8, 8, 8])
-- `crop.shape`: Shape in voxels (e.g., [256, 256, 256])
-- `crop.translation`: Offset in world coordinates
+### Task Statistics
 
-### Prediction Output Format
+- **Total predictions**: 419 predictions
+- **Test crops**: 16 crops across 6 datasets
+- **Classes**: 47 classes (11 instance + 36 semantic)
 
-```
-outputs/cellmap_cos7/predictions/
-├── jrc_cos7-1a/
-│   ├── crop234/
-│   │   ├── nuc/
-│   │   │   └── s0/              # Zarr array
-│   │   ├── mito/
-│   │   └── ...
-│   └── crop236/
-└── jrc_hela-2/
-```
+### Instance vs Semantic Segmentation
 
----
+**Instance Segmentation** (11 classes - harder):
+- nuc, mito, ves, endo, lyso, ld, perox, np, mt, cell, vim
+- Requires unique IDs per object
+- Evaluated with Adapted Rand Error, VOI
+- **Server auto-runs connected components** on submission
 
-## Submission Format
+**Semantic Segmentation** (36 classes - easier):
+- All membrane/lumen subclasses, cytoplasm, etc.
+- Binary masks (0/1)
+- Evaluated with Dice, IoU
 
-### Official Format (Required)
+See [.claude/CELLMAP_SUBMISSION.md](../../.claude/CELLMAP_SUBMISSION.md) for detailed guide.
 
-```
-submission.zarr/
-├── crop234/
-│   ├── nuc/                     # Binary mask (uint8)
-│   ├── mito/                    # Instance mask (uint16/uint32)
-│   └── ...
-├── crop236/
-└── ...
-```
+## 💡 Tips & Best Practices
 
-**Metadata** (required for each array):
-- `voxel_size`: Resolution in nm
-- `translation`: World coordinates
-- `shape`: Array shape
+### Model Selection
 
-### Packaging
+**Multi-class segmentation** (5+ classes):
+- Use MedNeXt-M or MedNeXt-B (good balance)
+- 8nm resolution is sufficient
+- 500 epochs usually enough
 
-The `submit_cellmap.py` script uses CellMap's official `package_submission()`:
+**Single-class segmentation** (e.g., mitochondria):
+- Use MedNeXt-L (61.8M params) for best quality
+- Higher resolution (4nm) for better boundaries
+- Extended training (1000 epochs)
+- Critical for instance segmentation
 
-1. **Resamples** predictions to match test crop resolution
-2. **Validates** format and metadata
-3. **Creates** submission.zarr
-4. **Zips** to submission.zip
+### Training Strategy
 
-**This is guaranteed to work** - it's the official challenge tool!
+1. **Quick baseline** (1-2 hours):
+   ```bash
+   # Test with MONAI BasicUNet on small patch size
+   python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml \
+       model.architecture=monai_basic_unet3d \
+       model.input_size="[64, 64, 64]" \
+       optimization.max_epochs=100
+   ```
 
----
+2. **Production training** (8-12 hours):
+   ```bash
+   # Full MedNeXt training
+   python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml
+   ```
 
-## Common Issues
+3. **Mitochondria optimization** (24 hours):
+   ```bash
+   # Mito-specific config for best instance segmentation
+   python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_mito.yaml
+   ```
 
-### 1. Import Error: cellmap-data
+### Instance Segmentation Quality
+
+For best instance segmentation results:
+
+1. **Binary masks are sufficient** for initial submission
+   - Server automatically runs connected components
+   - Focus on clean boundaries
+
+2. **Optional: Watershed post-processing** for better quality
+   - Implement in `predict_cellmap.py`
+   - See `.claude/CELLMAP_SUBMISSION.md` for code examples
+
+3. **Mitochondria is the hardest task**
+   - Use dedicated config (`tutorials/cellmap_mito.yaml`)
+   - Higher resolution (4nm)
+   - Larger model (MedNeXt-L)
+   - Extended training (1000 epochs)
+
+## 📚 Additional Resources
+
+**Documentation:**
+- [QUICKSTART.md](QUICKSTART.md) - 5-minute quickstart
+- [.claude/CELLMAP_SUBMISSION.md](../../.claude/CELLMAP_SUBMISSION.md) - Instance segmentation guide
+- [.claude/CELLMAP_CHALLENGE_SUMMARY.md](../../.claude/CELLMAP_CHALLENGE_SUMMARY.md) - Challenge overview
+- [.claude/CELLMAP_INTEGRATION_DESIGN_V2.md](../../.claude/CELLMAP_INTEGRATION_DESIGN_V2.md) - Design decisions
+
+**Challenge Links:**
+- [Challenge Website](https://www.cellmapchallenge.janelia.org/)
+- [CellMap Data Package](https://github.com/janelia-cellmap/cellmap-data)
+- [Challenge Utils](https://github.com/janelia-cellmap/cellmap-segmentation-challenge)
+
+**PyTC Documentation:**
+- [Main README](../../README.md)
+- [CLAUDE.md](../../CLAUDE.md) - PyTC architecture guide
+- [PyTC Models](../../connectomics/models/arch/) - Available architectures
+
+## 🐛 Troubleshooting
+
+### Import Error: cellmap-data not found
 
 ```bash
-# Error: No module named 'cellmap_data'
-# Solution:
 pip install cellmap-data cellmap-segmentation-challenge
 ```
 
-### 2. CUDA Out of Memory
-
-```python
-# Solution 1: Reduce batch size in config
-batch_size = 1
-
-# Solution 2: Reduce patch size
-input_array_info = {'shape': (64, 64, 64), ...}
-
-# Solution 3: Use smaller model
-mednext_size = 'S'  # Instead of 'M' or 'L'
-```
-
-### 3. Datasplit Generation Fails
+### Datasplit generation fails
 
 ```bash
-# Check data path
-ls /projects/weilab/dataset/cellmap/
+# Check data exists
+ls /projects/weilab/dataset/cellmap/jrc_cos7-1a/
 
-# Check permissions
-ls -la /projects/weilab/dataset/cellmap/jrc_cos7-1a/
-
-# Manually specify datasets in config
-datasets = ['jrc_cos7-1a', 'jrc_hela-2']  # Add to config
+# Manually generate datasplit
+python -c "
+from cellmap_segmentation_challenge.utils import make_datasplit_csv
+make_datasplit_csv(
+    csv_path='outputs/cellmap_cos7/datasplit.csv',
+    raw_path='/projects/weilab/dataset/cellmap',
+    classes=['nuc', 'mito', 'er', 'golgi', 'ves'],
+)
+"
 ```
 
-### 4. Checkpoint Not Found
+### GPU out of memory
 
+Reduce batch size or patch size:
 ```bash
-# Check checkpoint path
-ls outputs/cellmap_cos7/checkpoints/
-
-# Use last checkpoint instead of best
---checkpoint outputs/cellmap_cos7/checkpoints/last.ckpt
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml \
+    system.training.batch_size=1 \
+    model.input_size="[96, 96, 96]"
 ```
 
----
+### Training too slow
 
-## Advanced Usage
-
-### Multi-GPU Training
-
+Increase workers or use multiple GPUs:
 ```bash
-# Edit config
-num_gpus = 4
-
-# Run training
-python scripts/cellmap/train_cellmap.py configs/mednext_cos7.py
+python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_cos7.yaml \
+    system.training.num_workers=8 \
+    system.training.num_gpus=4
 ```
 
-### Resume Training
+## 🙋 Getting Help
 
-```bash
-# Lightning automatically resumes from last checkpoint if it exists
-# Just run the same command again
-python scripts/cellmap/train_cellmap.py configs/mednext_cos7.py
-```
-
-### Custom Data Loading
-
-Create a new config with custom datasplit:
-
-```python
-# In config file
-datasplit_path = 'my_custom_split.csv'
-
-# Create CSV manually:
-# raw,label,usage
-# /path/to/raw1,/path/to/label1,train
-# /path/to/raw2,/path/to/label2,validate
-```
-
-### Hyperparameter Tuning
-
-Modify config files to test different hyperparameters:
-
-```python
-# Try different learning rates
-learning_rate = 5e-4  # or 1e-3, 2e-3
-
-# Try different model sizes
-mednext_size = 'B'    # or 'S', 'M', 'L'
-
-# Try different resolutions
-input_array_info = {'scale': (4, 4, 4), ...}  # Higher resolution
-```
-
----
-
-## Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│           CellMap Challenge Toolbox (Official)                   │
-│  • cellmap-data: Data loading, Zarr I/O                         │
-│  • Challenge utils: TEST_CROPS, package_submission              │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                            │ Imports
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│        Standalone Training Script (This Directory)               │
-│  • train_cellmap.py: Lightning training loop                    │
-│  • predict_cellmap.py: MONAI sliding window inference           │
-│  • submit_cellmap.py: Official submission packaging             │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                            │ Imports models
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│         PyTorch Connectomics (ZERO MODIFICATIONS)               │
-│  • connectomics.models: MONAI model zoo (8+ architectures)      │
-│  • connectomics.models.loss: Loss functions                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## What's Included
-
-### ✅ Reused from CellMap (Official)
-- `cellmap-data` package - data loading
-- `TEST_CROPS` - test metadata
-- `package_submission()` - submission format
-- `make_datasplit_csv()` - dataset splitting
-- `CellMapLossWrapper` - NaN handling
-
-### ✅ Reused from PyTC (Import Only)
-- `build_model()` - MONAI model zoo
-- `create_loss()` - loss functions
-
-### ✅ Reused from Ecosystem
-- PyTorch Lightning - training orchestration
-- MONAI - sliding window inference
-
-### ✅ New Code (This Directory)
-- Training script (250 lines)
-- Inference script (120 lines)
-- Submission script (30 lines)
-- Config files (3 × 40 lines)
-
-**Total**: ~400 lines of standalone code
-
-**PyTC core modifications**: **0 lines** ✅
-
----
-
-## Next Steps
-
-1. **Quick test**: Run `monai_unet_quick.py` (10 epochs, ~20 min)
-2. **Full training**: Run `mednext_cos7.py` (500 epochs, ~42 hours)
-3. **Inference**: Predict on test crops
-4. **Submit**: Package and upload to challenge portal
-
----
-
-## Resources
-
-- [CellMap Challenge Homepage](https://janelia.figshare.com/articles/online_resource/CellMap_Segmentation_Challenge/28034561)
-- [Challenge Documentation](https://janelia-cellmap.github.io/cellmap-segmentation-challenge/)
-- [Submission Portal](https://cellmapchallenge.janelia.org/submissions/)
-- [GitHub Discussions](https://github.com/janelia-cellmap/cellmap-segmentation-challenge/discussions)
-- [PyTC Documentation](../../CLAUDE.md)
-
----
-
-## Citation
-
-If you use this code, please cite:
-
-```bibtex
-@article{cellmap2024,
-  title={CellMap Segmentation Challenge},
-  author={CellMap Project Team},
-  journal={Janelia Research Campus},
-  year={2024}
-}
-
-@article{pytc2024,
-  title={PyTorch Connectomics},
-  author={Lin et al.},
-  year={2024}
-}
-```
-
----
-
-## Support
-
-For issues:
-- **CellMap data/submission**: [CellMap GitHub](https://github.com/janelia-cellmap/cellmap-segmentation-challenge/issues)
-- **PyTC models**: [PyTC GitHub](https://github.com/zudi-lin/pytorch_connectomics/issues)
-- **This integration**: Open issue in PyTC repo with `[CellMap]` prefix
-
----
-
-## License
-
-- CellMap tools: MIT License
-- PyTorch Connectomics: MIT License
-- This integration: MIT License
+1. Check [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md)
+2. Review [.claude/CELLMAP_*.md](../../.claude/) documentation
+3. Open an issue on [PyTC GitHub](https://github.com/zudi-lin/pytorch_connectomics/issues)
+4. Join [PyTC Slack](https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w)

@@ -8,8 +8,8 @@ This directory contains the test suite for PyTorch Connectomics, organized by te
 tests/
 ├── unit/              # Unit tests (fast, isolated)
 ├── integration/       # Integration tests (multiple components)
-├── e2e/              # End-to-end tests (complete workflows)
-└── test_banis_features.py  # BANIS Phase 12 integration tests
+├── e2e/               # End-to-end tests (complete workflows)
+└── test_banis_features.py  # BANIS feature smoke tests
 ```
 
 ## Test Categories
@@ -18,6 +18,8 @@ tests/
 
 Fast, isolated tests for individual components:
 - **test_hydra_config.py** - Configuration system (dataclasses, validation)
+- **test_lit_utils.py** - Lightning CLI utilities (setup_config, path expansion)
+- **test_connectomics_module.py** - Lightning module training/validation hooks
 - **test_architecture_registry.py** - Model registry system
 - **test_registry_basic.py** - Basic registry functionality
 - **test_loss_functions.py** - Loss function implementations
@@ -33,11 +35,9 @@ pytest tests/unit/
 ### Integration Tests (`integration/`)
 
 Tests for multiple components working together:
-- **test_lightning_integration.py** - Lightning module + model + loss
-- **test_config_integration.py** - Config system + training pipeline
+- **test_config_integration.py** - Config system + training pipeline smoke
 - **test_dataset_multi.py** - Multi-dataset loading and mixing
 - **test_auto_config.py** - Auto-configuration system
-- **test_auto_tuning.py** - Hyperparameter auto-tuning
 - **test_affinity_cc3d.py** - Connected components and post-processing
 
 Run integration tests only:
@@ -48,9 +48,7 @@ pytest tests/integration/
 ### End-to-End Tests (`e2e/`)
 
 Complete workflow tests (slowest, most comprehensive):
-- **test_lucchi_training.py** - Full training run on Lucchi dataset
-- **test_lucchi_simple.py** - Simplified training test
-- **test_main_lightning.py** - Complete main.py workflow
+- **test_lucchi_training.py** - Synthetic Lucchi-style training pipeline
 
 Run e2e tests only:
 ```bash
@@ -83,7 +81,7 @@ pytest tests/e2e/          # End-to-end tests
 ### Run Specific Test File
 ```bash
 pytest tests/unit/test_hydra_config.py
-pytest tests/integration/test_lightning_integration.py
+pytest tests/unit/test_lit_utils.py
 ```
 
 ### Run with Coverage
@@ -168,19 +166,3 @@ Use `-k` to run specific tests:
 ```bash
 pytest tests/ -k "not training"  # Skip training tests
 ```
-
-## Phase 12 Completion
-
-✅ **Completed:**
-- Reorganized tests into `unit/`, `integration/`, `e2e/` directories
-- Created `__init__.py` documentation for each category
-- Added `test_banis_features.py` for BANIS Phase 6-12 features
-- Updated test structure documentation
-
-**Test Coverage:**
-- Unit: 7 test files
-- Integration: 6 test files
-- E2E: 3 test files
-- BANIS: 1 test file
-
-Total: **17 test files** organized by category

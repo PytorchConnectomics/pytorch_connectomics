@@ -144,58 +144,43 @@ def main():
     # Setup run directory (handles DDP coordination and config saving)
     # Determine output base directory from checkpoint for test/tune modes
     if args.mode in ["test", "tune", "tune-test"] and args.checkpoint:
-        # Check if test.data.output_path is already set (skip checkpoint-based path extraction)
-        test_output_path_set = (
-            hasattr(cfg, "test")
-            and hasattr(cfg.test, "data")
-            and getattr(cfg.test.data, "output_path", None)
-        )
+        # Extract base directory from checkpoint path (same logic for all modes)
+        output_base = get_output_base_from_checkpoint(args.checkpoint)
+        output_base.mkdir(parents=True, exist_ok=True)
 
-        if args.mode == "test" and test_output_path_set:
-            # Use the config value directly, skip checkpoint-based directory creation
-            dirpath = str(cfg.test.data.output_path)
-            output_base = None  # Not needed when using config path
-        else:
-            # Extract base directory from checkpoint path
-            output_base = get_output_base_from_checkpoint(args.checkpoint)
-            output_base.mkdir(parents=True, exist_ok=True)
-
-            # Create mode-specific subdirectories
-            if args.mode in ["tune", "tune-test"]:
-                dirpath = str(output_base / "tuning")
-                results_path = str(output_base / "results")
-                # Override tune output directories in config
-                if cfg.tune is not None:
-                    cfg.tune.output.output_dir = dirpath
-                    cfg.tune.output.output_pred = results_path
-                # For tune-test, also set test output directory and cache suffix
-                if args.mode == "tune-test":
-                    print(f"🔍 Setting test config for tune-test mode")
-                    print(f"🔍 cfg.test is None: {cfg.test is None}")
-                    if cfg.test is not None:
-                        print(f"🔍 cfg.test.data is None: {cfg.test.data is None}")
-                        if cfg.test.data is not None:
-                            cfg.test.data.output_path = results_path
-                            cfg.test.data.cache_suffix = cfg.tune.output.cache_suffix
-                            print(f"📋 Test output: {cfg.test.data.output_path}")
-                            print(f"📋 Test cache suffix: {cfg.test.data.cache_suffix}")
-                        else:
-                            print(f"❌ cfg.test.data is None, cannot set cache_suffix!")
+        # Create mode-specific subdirectories
+        if args.mode in ["tune", "tune-test"]:
+            dirpath = str(output_base / "tuning")
+            results_path = str(output_base / "results")
+            # Override tune output directories in config
+            if cfg.tune is not None:
+                cfg.tune.output.output_dir = dirpath
+                cfg.tune.output.output_pred = results_path
+            # For tune-test, also set test output directory and cache suffix
+            if args.mode == "tune-test":
+                print(f"🔍 Setting test config for tune-test mode")
+                print(f"🔍 cfg.test is None: {cfg.test is None}")
+                if cfg.test is not None:
+                    print(f"🔍 cfg.test.data is None: {cfg.test.data is None}")
+                    if cfg.test.data is not None:
+                        cfg.test.data.output_path = results_path
+                        cfg.test.data.cache_suffix = cfg.tune.output.cache_suffix
+                        print(f"📋 Test output: {cfg.test.data.output_path}")
+                        print(f"📋 Test cache suffix: {cfg.test.data.cache_suffix}")
                     else:
-                        print(f"❌ cfg.test is None, cannot set cache_suffix!")
-            else:  # test mode
-                dirpath = str(output_base / "results")
-                # Override test output directory in config only if not already set
-                if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-                    if not getattr(cfg.test.data, "output_path", None):
-                        cfg.test.data.output_path = dirpath
-                    else:
-                        # Use the config value, but ensure it's a string path
-                        dirpath = str(cfg.test.data.output_path)
+                        print(f"❌ cfg.test.data is None, cannot set cache_suffix!")
+                else:
+                    print(f"❌ cfg.test is None, cannot set cache_suffix!")
+        else:  # test mode
+            # Always create results/ folder under checkpoint directory
+            results_path = str(output_base / "results")
+            dirpath = results_path
+            # Override test output directory in config
+            if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
+                cfg.test.data.output_path = results_path
 
         run_dir = setup_run_directory(args.mode, cfg, dirpath)
-        if output_base is not None:
-            print(f"📂 Output base: {output_base}")
+        print(f"📂 Output base: {output_base}")
     else:
         # Train mode or no checkpoint - use default config paths
         dirpath = cfg.monitor.checkpoint.dirpath

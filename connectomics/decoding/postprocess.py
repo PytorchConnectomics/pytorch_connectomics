@@ -8,9 +8,12 @@ This module provides utilities for:
     - IoU calculations (intersection_over_union)
 """
 
-from __future__ import print_function, division
-from typing import List
+from __future__ import print_function, division, annotations
+from typing import List, TYPE_CHECKING
 import numpy as np
+
+if TYPE_CHECKING:
+    from connectomics.config import BinaryPostprocessingConfig
 
 from scipy import ndimage
 
@@ -140,7 +143,9 @@ def watershed_split(
     mask[tuple(coords.T)] = True
     markers = cc3d.connected_components(mask)
     split_objects = mahotas.cwatershed(-distance, markers)
-    split_objects[~cropped] = 0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    split_objects[~cropped] = (
+        0  # Apply mask manually (mahotas 1.4.18 doesn't support mask parameter)
+    )
 
     seg_id = np.unique(split_objects)
     new_id = []
@@ -160,7 +165,8 @@ def stitch_3d(masks: np.ndarray, stitch_threshold: float = 0.25) -> np.ndarray:
     r"""Takes a volume stack of 2D annotations and stitches into 3D annotations using IOU.
 
     Args:
-        masks (numpy.ndarray): 3D volume comprised of a 2D annotations stack of shape :math:`(Z, Y, X)`.
+        masks (numpy.ndarray): 3D volume comprised of a 2D annotations stack
+            of shape:math:`(Z, Y, X)`.
         stitch_threshold (float): threshold for joining 2D annotations via IOU. Default: 0.25
 
     Returns:
@@ -197,16 +203,17 @@ def stitch_3d(masks: np.ndarray, stitch_threshold: float = 0.25) -> np.ndarray:
     return masks
 
 
-def intersection_over_union(
-    masks_true: np.ndarray, masks_pred: np.ndarray
-) -> np.ndarray:
+def intersection_over_union(masks_true: np.ndarray, masks_pred: np.ndarray) -> np.ndarray:
     """Calculates the intersection over union for all mask pairs.
 
-    Abducted from the cellpose repository (https://github.com/MouseLand/cellpose/blob/master/cellpose/metrics.py).
+    Abducted from the cellpose repository
+    (https://github.com/MouseLand/cellpose/blob/master/cellpose/metrics.py).
 
     Args:
-        masks_true (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math:`(Y, X)`.
-        masks_pred (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math:`(Y, X)`.
+        masks_true (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are
+            mask labels, shape:math:`(Y, X)`.
+        masks_pred (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are
+            mask labels, shape:math:`(Y, X)`.
 
     Returns:
         numpy.ndarray: A ND-array recording the IoU score (float) for each label pair,
@@ -229,17 +236,20 @@ def _label_overlap(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     between two 2D label arrays.
 
     Args:
-        x (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math:`(Y, X)`.
-        y (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask labels, shape :math:`(Y, X)`.
+        x (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask
+            labels, shape:math:`(Y, X)`.
+        y (numpy.ndarray): 2D label array where 0=NO masks; 1,2... are mask
+            labels, shape:math:`(Y, X)`.
 
     Returns:
-        numpy.ndarray: A ND-array matrix recording the pixel overlaps, size :math:`[x.max()+1, y.max()+1]`
+        numpy.ndarray: A ND-array matrix recording the pixel overlaps,
+            size:math:`[x.max()+1, y.max()+1]`
     """
     # flatten the 2D label arrays
     x = x.ravel()
     y = y.ravel()
 
-    assert len(x) == len(y), f"The label masks must have the same shape"
+    assert len(x) == len(y), "The label masks must have the same shape"
 
     # initialize the lookup table
     overlap = np.zeros((1 + x.max(), 1 + y.max()), dtype=np.uint)
@@ -253,7 +263,7 @@ def _label_overlap(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 def apply_binary_postprocessing(
-    pred: np.ndarray, config: 'BinaryPostprocessingConfig'
+    pred: np.ndarray, config: "BinaryPostprocessingConfig"
 ) -> np.ndarray:
     """Apply binary segmentation postprocessing pipeline.
 
@@ -265,8 +275,8 @@ def apply_binary_postprocessing(
         5. Extract connected components and filter by size/keep top-k
 
     Args:
-        pred (numpy.ndarray): Binary mask (values 0 or 1) or predicted probabilities in range [0, 1].
-                             Shape can be 2D (H, W) or 3D (D, H, W).
+        pred (numpy.ndarray): Binary mask (values 0 or 1) or predicted
+            probabilities in range [0, 1]. Shape can be 2D (H, W) or 3D (D, H, W).
         config (BinaryPostprocessingConfig): Configuration for postprocessing pipeline.
 
     Returns:
@@ -313,15 +323,15 @@ def apply_binary_postprocessing(
 
     # Step 3: Morphological opening (erosion + dilation) - removes small objects
     if config.opening_iterations > 0:
-        binary = ndimage.binary_opening(
-            binary, iterations=config.opening_iterations
-        ).astype(np.uint8)
+        binary = ndimage.binary_opening(binary, iterations=config.opening_iterations).astype(
+            np.uint8
+        )
 
     # Step 4: Morphological closing (dilation + erosion) - fills small holes
     if config.closing_iterations > 0:
-        binary = ndimage.binary_closing(
-            binary, iterations=config.closing_iterations
-        ).astype(np.uint8)
+        binary = ndimage.binary_closing(binary, iterations=config.closing_iterations).astype(
+            np.uint8
+        )
 
     # Step 5: Connected components filtering
     if config.connected_components is not None and config.connected_components.enabled:
@@ -356,7 +366,7 @@ def apply_binary_postprocessing(
                 # Create mask keeping only top-k
                 keep_mask = np.zeros_like(labels, dtype=bool)
                 for label_id in top_k_labels:
-                    keep_mask |= (labels == label_id)
+                    keep_mask |= labels == label_id
 
                 labels = keep_mask.astype(np.uint8)
             else:

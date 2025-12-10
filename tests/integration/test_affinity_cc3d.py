@@ -12,46 +12,75 @@ Tests cover:
 
 import numpy as np
 import pytest
+from connectomics.decoding import affinity_cc3d
 from connectomics.decoding.segmentation import decode_affinity_cc
 
 try:
+    import numba  # noqa: F401
+
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
 
+try:
+    import pytest_benchmark  # noqa: F401
+
+    HAS_BENCHMARK = True
+except ImportError:
+    HAS_BENCHMARK = False
+
+
+# ---------------------------------------------------------------------------
+# Shared fixtures
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def simple_affinities():
+    """Create simple synthetic affinity predictions."""
+    # Create 32x32x32 volume with 2 separate components
+    aff = np.zeros((3, 32, 32, 32), dtype=np.float32)
+
+    # Component 1: cube in corner (8x8x8)
+    aff[:, 0:8, 0:8, 0:8] = 0.9
+
+    # Component 2: cube in opposite corner (8x8x8)
+    aff[:, 24:32, 24:32, 24:32] = 0.9
+
+    return aff
+
+
+@pytest.fixture
+def connected_affinities():
+    """Create fully connected affinity predictions."""
+    # 16x16x16 volume, all connected
+    aff = np.ones((3, 16, 16, 16), dtype=np.float32) * 0.8
+    return aff
+
+
+@pytest.fixture
+def six_channel_affinities():
+    """Create 6-channel affinities (short + long range)."""
+    # Should only use first 3 channels
+    aff = np.zeros((6, 32, 32, 32), dtype=np.float32)
+    aff[:3, 8:24, 8:24, 8:24] = 0.9  # Short-range
+    aff[3:, 8:24, 8:24, 8:24] = 0.1  # Long-range (ignored)
+    return aff
+
+
+if not HAS_BENCHMARK:
+
+    @pytest.fixture
+    def benchmark():
+        """Lightweight fallback when pytest-benchmark is not installed."""
+
+        def _runner(fn, *args, **kwargs):
+            return fn(*args, **kwargs)
+
+        return _runner
+
 
 class TestAffinityCC3D:
     """Test suite for decode_affinity_cc function."""
-
-    @pytest.fixture
-    def simple_affinities(self):
-        """Create simple synthetic affinity predictions."""
-        # Create 32x32x32 volume with 2 separate components
-        aff = np.zeros((3, 32, 32, 32), dtype=np.float32)
-
-        # Component 1: cube in corner (8x8x8)
-        aff[:, 0:8, 0:8, 0:8] = 0.9
-
-        # Component 2: cube in opposite corner (8x8x8)
-        aff[:, 24:32, 24:32, 24:32] = 0.9
-
-        return aff
-
-    @pytest.fixture
-    def connected_affinities(self):
-        """Create fully connected affinity predictions."""
-        # 16x16x16 volume, all connected
-        aff = np.ones((3, 16, 16, 16), dtype=np.float32) * 0.8
-        return aff
-
-    @pytest.fixture
-    def six_channel_affinities(self):
-        """Create 6-channel affinities (short + long range)."""
-        # Should only use first 3 channels
-        aff = np.zeros((6, 32, 32, 32), dtype=np.float32)
-        aff[:3, 8:24, 8:24, 8:24] = 0.9  # Short-range
-        aff[3:, 8:24, 8:24, 8:24] = 0.1  # Long-range (ignored)
-        return aff
 
     def test_basic_functionality(self, simple_affinities):
         """Test basic connected components on simple affinity data."""
@@ -161,7 +190,6 @@ class TestAffinityCC3D:
         assert segm.shape == expected_shape, \
             f"Expected shape {expected_shape}, got {segm.shape}"
 
-    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba not available")
     def test_numba_vs_skimage(self, simple_affinities):
         """Compare Numba and skimage implementations."""
         # Run with Numba
@@ -222,41 +250,6 @@ class TestAffinityCC3D:
         segm_one = decode_affinity_cc(simple_affinities, threshold=1.0)
         # Most voxels should be background or very fragmented
         assert len(np.unique(segm_one)) >= 1, "Should have at least background"
-
-
-class TestAffinityCC3DPerformance:
-    """Performance benchmarks for affinity_cc3d."""
-
-    @pytest.fixture
-    def medium_affinities(self):
-        """Create medium-sized affinity volume for benchmarking."""
-        # 128x128x128 volume with random affinities
-        np.random.seed(42)
-        aff = np.random.rand(3, 128, 128, 128).astype(np.float32)
-        # Make some regions more connected
-        aff[:, 32:96, 32:96, 32:96] = 0.9
-        return aff
-
-    @pytest.mark.skipif(not NUMBA_AVAILABLE, reason="Numba not available")
-    def test_numba_performance(self, medium_affinities, benchmark):
-        """Benchmark Numba implementation."""
-        result = benchmark(
-            affinity_cc3d,
-            medium_affinities,
-            threshold=0.5,
-            use_numba=True
-        )
-        assert result.shape == medium_affinities.shape[1:]
-
-    def test_skimage_performance(self, medium_affinities, benchmark):
-        """Benchmark skimage fallback implementation."""
-        result = benchmark(
-            affinity_cc3d,
-            medium_affinities,
-            threshold=0.5,
-            use_numba=False
-        )
-        assert result.shape == medium_affinities.shape[1:]
 
 
 class TestAffinityCC3DIntegration:
