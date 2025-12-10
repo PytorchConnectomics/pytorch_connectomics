@@ -30,7 +30,10 @@ class ConnectomicsError(Exception):
                 msg += f"  {i}. {suggestion}\n"
 
         msg += "\n📚 Documentation: https://connectomics.readthedocs.io"
-        msg += "\n💬 Get help: https://join.slack.com/t/pytorchconnectomics/shared_invite/zt-obufj5d1-v5_NndNS5yog8vhxy4L12w"
+        msg += (
+            "\n💬 Get help: https://join.slack.com/t/pytorchconnectomics/shared_invite/"
+            "zt-obufj5d1-v5_NndNS5yog8vhxy4L12w"
+        )
         msg += "\n🐛 Report bug: https://github.com/zudi-lin/pytorch_connectomics/issues\n"
 
         return msg
@@ -73,7 +76,10 @@ class ConfigurationError(ConnectomicsError):
         suggestions = [
             "Check YAML syntax (spaces, not tabs)",
             "Compare with example configs in tutorials/",
-            "Validate config: python -c \"from connectomics.config import load_config; load_config('config.yaml')\"",
+            (
+                'Validate config: python -c "from connectomics.config import load_config; '
+                "load_config('config.yaml')\""
+            ),
             "See .claude/CLAUDE.md for configuration documentation",
         ]
         super().__init__(message, suggestions)
@@ -100,7 +106,7 @@ class DependencyError(ConnectomicsError):
         message = f"Missing dependency '{package}' required for {feature}"
         suggestions = [
             f"Install missing package: pip install {package}",
-            f"Install full version: pip install -e .[full]",
+            "Install full version: pip install -e .[full]",
             f"Check installation: python -c 'import {package}'",
         ]
         super().__init__(message, suggestions)
@@ -117,7 +123,10 @@ def handle_cuda_error(error: Exception) -> ConnectomicsError:
             "CUDA not available",
             suggestions=[
                 "Check GPU: nvidia-smi",
-                "Reinstall PyTorch with CUDA: pip install torch --index-url https://download.pytorch.org/whl/cu121",
+                (
+                    "Reinstall PyTorch with CUDA: pip install torch --index-url "
+                    "https://download.pytorch.org/whl/cu121"
+                ),
                 "Load CUDA module (HPC): module load cuda/12.1",
                 "Use CPU-only: system.num_gpus=0",
             ],
@@ -128,7 +137,10 @@ def handle_cuda_error(error: Exception) -> ConnectomicsError:
             suggestions=[
                 "Install cuDNN: conda install -c conda-forge cudnn",
                 "Load cuDNN module (HPC): module load cudnn/8.9.0",
-                "Verify cuDNN: python -c 'import torch; print(torch.backends.cudnn.is_available())'",
+                (
+                    "Verify cuDNN: python -c 'import torch; "
+                    "print(torch.backends.cudnn.is_available())'"
+                ),
             ],
         )
     else:
@@ -234,7 +246,9 @@ def preflight_check(cfg) -> list:
                 # Expand glob pattern
                 matched_files = glob(cfg.data.train_image)
                 if not matched_files:
-                    issues.append(f"❌ Training image pattern matched no files: {cfg.data.train_image}")
+                    issues.append(
+                        f"❌ Training image pattern matched no files: {cfg.data.train_image}"
+                    )
             elif not Path(cfg.data.train_image).exists():
                 issues.append(f"❌ Training image not found: {cfg.data.train_image}")
 
@@ -257,7 +271,9 @@ def preflight_check(cfg) -> list:
                 # Expand glob pattern
                 matched_files = glob(cfg.data.train_label)
                 if not matched_files:
-                    issues.append(f"❌ Training label pattern matched no files: {cfg.data.train_label}")
+                    issues.append(
+                        f"❌ Training label pattern matched no files: {cfg.data.train_label}"
+                    )
             elif not Path(cfg.data.train_label).exists():
                 issues.append(f"❌ Training label not found: {cfg.data.train_label}")
 
@@ -268,7 +284,8 @@ def preflight_check(cfg) -> list:
     # Check GPU count
     if cfg.system.training.num_gpus > torch.cuda.device_count():
         issues.append(
-            f"❌ {cfg.system.training.num_gpus} GPU(s) requested but only {torch.cuda.device_count()} available"
+            f"❌ {cfg.system.training.num_gpus} GPU(s) requested but only "
+            f"{torch.cuda.device_count()} available"
         )
 
     # Estimate memory requirements
@@ -286,9 +303,10 @@ def preflight_check(cfg) -> list:
 
             if estimated_gb > available_gb * 0.8:  # Leave 20% headroom
                 issues.append(
-                    f"⚠️  Estimated memory ({estimated_gb:.1f}GB) may exceed available ({available_gb:.1f}GB)"
+                    "⚠️  Estimated memory ({estimated:.1f}GB) may exceed available "
+                    "({available:.1f}GB)".format(estimated=estimated_gb, available=available_gb)
                 )
-                issues.append(f"   💡 Consider reducing batch_size or patch_size")
+                issues.append("   💡 Consider reducing batch_size or patch_size")
         except Exception:
             pass  # Skip memory estimation if it fails
 

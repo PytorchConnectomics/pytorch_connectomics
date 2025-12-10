@@ -91,7 +91,7 @@ data:
       - name: instance_boundary          # Channel 1: Instance boundaries
         kwargs:
           thickness: 1
-          edge_mode: seg-all
+          edge_mode: all
           mode: 2d
       - name: instance_edt               # Channel 2: Instance Euclidean Distance Transform
         kwargs:

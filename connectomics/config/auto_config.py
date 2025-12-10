@@ -65,7 +65,7 @@ class AutoConfigPlanner:
 
     def __init__(
         self,
-        architecture: str = 'mednext',
+        architecture: str = "mednext",
         target_spacing: Optional[List[float]] = None,
         median_shape: Optional[List[int]] = None,
         manual_overrides: Optional[Dict[str, Any]] = None,
@@ -93,33 +93,33 @@ class AutoConfigPlanner:
     def _get_architecture_defaults(self) -> Dict[str, Any]:
         """Get architecture-specific default parameters."""
         defaults = {
-            'mednext': {
-                'base_features': 32,
-                'max_features': 320,
-                'lr': 1e-3,  # MedNeXt paper recommends 1e-3
-                'use_scheduler': False,  # MedNeXt uses constant LR
+            "mednext": {
+                "base_features": 32,
+                "max_features": 320,
+                "lr": 1e-3,  # MedNeXt paper recommends 1e-3
+                "use_scheduler": False,  # MedNeXt uses constant LR
             },
-            'mednext_custom': {
-                'base_features': 32,
-                'max_features': 320,
-                'lr': 1e-3,
-                'use_scheduler': False,
+            "mednext_custom": {
+                "base_features": 32,
+                "max_features": 320,
+                "lr": 1e-3,
+                "use_scheduler": False,
             },
-            'monai_basic_unet3d': {
-                'base_features': 32,
-                'max_features': 512,
-                'lr': 1e-4,
-                'use_scheduler': True,
+            "monai_basic_unet3d": {
+                "base_features": 32,
+                "max_features": 512,
+                "lr": 1e-4,
+                "use_scheduler": True,
             },
-            'monai_unet': {
-                'base_features': 32,
-                'max_features': 512,
-                'lr': 1e-4,
-                'use_scheduler': True,
+            "monai_unet": {
+                "base_features": 32,
+                "max_features": 512,
+                "lr": 1e-4,
+                "use_scheduler": True,
             },
         }
 
-        return defaults.get(self.architecture, defaults['monai_basic_unet3d'])
+        return defaults.get(self.architecture, defaults["monai_basic_unet3d"])
 
     def plan(
         self,
@@ -149,20 +149,20 @@ class AutoConfigPlanner:
         result.planning_notes.append(f"Patch size: {patch_size}")
 
         # Step 2: Get model parameters
-        result.base_features = self.arch_defaults['base_features']
-        result.max_features = self.arch_defaults['max_features']
+        result.base_features = self.arch_defaults["base_features"]
+        result.max_features = self.arch_defaults["max_features"]
 
         # Step 3: Determine precision
         result.precision = "16-mixed" if use_mixed_precision else "32"
 
         # Step 4: Estimate memory and determine batch size
-        if not self.gpu_info['cuda_available']:
+        if not self.gpu_info["cuda_available"]:
             result.batch_size = 1
             result.precision = "32"  # CPU doesn't support mixed precision well
             result.warnings.append("CUDA not available, using CPU with batch_size=1")
             result.planning_notes.append("Training on CPU (slow!)")
         else:
-            gpu_memory_gb = self.gpu_info['available_memory_gb'][0]  # Use first GPU
+            gpu_memory_gb = self.gpu_info["available_memory_gb"][0]  # Use first GPU
             result.available_gpu_memory_gb = gpu_memory_gb
 
             # Calculate number of pooling stages (log2 of patch size / 4)
@@ -199,7 +199,7 @@ class AutoConfigPlanner:
             )
             result.planning_notes.append(
                 f"Estimated memory: {result.estimated_gpu_memory_gb:.2f} GB "
-                f"({result.estimated_gpu_memory_gb/gpu_memory_gb*100:.1f}% of GPU)"
+                f"({result.estimated_gpu_memory_gb / gpu_memory_gb * 100:.1f}% of GPU)"
             )
             result.planning_notes.append(f"Batch size: {batch_size}")
 
@@ -207,16 +207,16 @@ class AutoConfigPlanner:
             if batch_size == 1:
                 result.accumulate_grad_batches = 4
                 result.planning_notes.append(
-                    f"Using gradient accumulation (4 batches) for effective batch_size=4"
+                    "Using gradient accumulation (4 batches) for effective batch_size=4"
                 )
 
         # Step 5: Determine num_workers
-        num_gpus = self.gpu_info['num_gpus'] if self.gpu_info['cuda_available'] else 0
+        num_gpus = self.gpu_info["num_gpus"] if self.gpu_info["cuda_available"] else 0
         result.num_workers = get_optimal_num_workers(num_gpus)
         result.planning_notes.append(f"Num workers: {result.num_workers}")
 
         # Step 6: Learning rate
-        result.lr = self.arch_defaults['lr']
+        result.lr = self.arch_defaults["lr"]
         result.planning_notes.append(f"Learning rate: {result.lr}")
 
         # Step 7: Apply manual overrides
@@ -266,8 +266,8 @@ class AutoConfigPlanner:
 
         # If GPU memory is limited, may need to reduce patch size
         # (This is a simplified heuristic)
-        if self.gpu_info['cuda_available']:
-            gpu_memory_gb = self.gpu_info['available_memory_gb'][0]
+        if self.gpu_info["cuda_available"]:
+            gpu_memory_gb = self.gpu_info["available_memory_gb"][0]
             if gpu_memory_gb < 8:
                 # Very limited GPU, use smaller patches
                 patch_size = np.minimum(patch_size, [64, 64, 64])
@@ -289,8 +289,10 @@ class AutoConfigPlanner:
         print(f"  Batch Size: {result.batch_size}")
         if result.accumulate_grad_batches > 1:
             effective_bs = result.batch_size * result.accumulate_grad_batches
-            print(f"  Gradient Accumulation: {result.accumulate_grad_batches} "
-                  f"(effective batch_size={effective_bs})")
+            print(
+                f"  Gradient Accumulation: {result.accumulate_grad_batches} "
+                f"(effective batch_size={effective_bs})"
+            )
         print(f"  Num Workers: {result.num_workers}")
         print()
 
@@ -307,8 +309,10 @@ class AutoConfigPlanner:
         if result.available_gpu_memory_gb > 0:
             print("💾 GPU Memory:")
             print(f"  Available: {result.available_gpu_memory_gb:.2f} GB")
-            print(f"  Estimated Usage: {result.estimated_gpu_memory_gb:.2f} GB "
-                  f"({result.estimated_gpu_memory_gb/result.available_gpu_memory_gb*100:.1f}%)")
+            print(
+                f"  Estimated Usage: {result.estimated_gpu_memory_gb:.2f} GB "
+                f"({result.estimated_gpu_memory_gb / result.available_gpu_memory_gb * 100:.1f}%)"
+            )
             print(f"  Per Sample: {result.gpu_memory_per_sample_gb:.2f} GB")
             print()
 
@@ -349,45 +353,50 @@ def auto_plan_config(
         Updated config with auto-planned parameters
     """
     # Check if auto-planning is disabled
-    if hasattr(config, 'system') and hasattr(config.system, 'auto_plan'):
+    if hasattr(config, "system") and hasattr(config.system, "auto_plan"):
         if not config.system.auto_plan:
             print("ℹ️  Auto-planning disabled in config")
             return config
 
     # Extract relevant config values
-    architecture = config.model.architecture if hasattr(config.model, 'architecture') else 'mednext'
-    in_channels = config.model.in_channels if hasattr(config.model, 'in_channels') else 1
-    out_channels = config.model.out_channels if hasattr(config.model, 'out_channels') else 2
-    deep_supervision = config.model.deep_supervision if hasattr(config.model, 'deep_supervision') else False
+    architecture = config.model.architecture if hasattr(config.model, "architecture") else "mednext"
+    in_channels = config.model.in_channels if hasattr(config.model, "in_channels") else 1
+    out_channels = config.model.out_channels if hasattr(config.model, "out_channels") else 2
+    deep_supervision = (
+        config.model.deep_supervision if hasattr(config.model, "deep_supervision") else False
+    )
 
     # Get target spacing and median shape if provided
     target_spacing = None
-    if hasattr(config, 'data') and hasattr(config.data, 'target_spacing'):
+    if hasattr(config, "data") and hasattr(config.data, "target_spacing"):
         target_spacing = config.data.target_spacing
 
     median_shape = None
-    if hasattr(config, 'data') and hasattr(config.data, 'median_shape'):
+    if hasattr(config, "data") and hasattr(config.data, "median_shape"):
         median_shape = config.data.median_shape
 
     # Collect manual overrides (values explicitly set in config)
     manual_overrides = {}
-    if hasattr(config, 'data'):
-        if hasattr(config.data, 'batch_size') and config.data.batch_size is not None:
-            manual_overrides['batch_size'] = config.data.batch_size
-        if hasattr(config.data, 'num_workers') and config.data.num_workers is not None:
-            manual_overrides['num_workers'] = config.data.num_workers
-        if hasattr(config.data, 'patch_size') and config.data.patch_size is not None:
-            manual_overrides['patch_size'] = config.data.patch_size
+    training_cfg = getattr(config.system, "training", None) if hasattr(config, "system") else None
+    if hasattr(config, "data"):
+        if training_cfg and getattr(training_cfg, "batch_size", None) is not None:
+            manual_overrides["batch_size"] = training_cfg.batch_size
+        if training_cfg and getattr(training_cfg, "num_workers", None) is not None:
+            manual_overrides["num_workers"] = training_cfg.num_workers
+        if hasattr(config.data, "patch_size") and config.data.patch_size is not None:
+            manual_overrides["patch_size"] = config.data.patch_size
 
-    if hasattr(config, 'training'):
-        if hasattr(config.training, 'precision') and config.training.precision is not None:
-            manual_overrides['precision'] = config.training.precision
-        if hasattr(config.training, 'accumulate_grad_batches') and config.training.accumulate_grad_batches is not None:
-            manual_overrides['accumulate_grad_batches'] = config.training.accumulate_grad_batches
+    if hasattr(config, "optimization"):
+        if getattr(config.optimization, "precision", None) is not None:
+            manual_overrides["precision"] = config.optimization.precision
+        if getattr(config.optimization, "accumulate_grad_batches", None) is not None:
+            manual_overrides["accumulate_grad_batches"] = (
+                config.optimization.accumulate_grad_batches
+            )
 
-    if hasattr(config, 'optimizer'):
-        if hasattr(config.optimizer, 'lr') and config.optimizer.lr is not None:
-            manual_overrides['lr'] = config.optimizer.lr
+        opt_cfg = getattr(config.optimization, "optimizer", None)
+        if opt_cfg and getattr(opt_cfg, "lr", None) is not None:
+            manual_overrides["lr"] = opt_cfg.lr
 
     # Create planner
     planner = AutoConfigPlanner(
@@ -398,9 +407,9 @@ def auto_plan_config(
     )
 
     # Plan
-    use_mixed_precision = not (hasattr(config, 'training') and
-                               hasattr(config.training, 'precision') and
-                               config.training.precision == "32")
+    use_mixed_precision = not (
+        hasattr(config, "optimization") and getattr(config.optimization, "precision", None) == "32"
+    )
 
     result = planner.plan(
         in_channels=in_channels,
@@ -412,20 +421,20 @@ def auto_plan_config(
     # Update config with planned values (if not manually overridden)
     OmegaConf.set_struct(config, False)  # Allow adding new fields
 
-    if 'batch_size' not in manual_overrides:
-        config.data.batch_size = result.batch_size
-    if 'num_workers' not in manual_overrides:
-        config.data.num_workers = result.num_workers
-    if 'patch_size' not in manual_overrides:
+    if "batch_size" not in manual_overrides and training_cfg is not None:
+        training_cfg.batch_size = result.batch_size
+    if "num_workers" not in manual_overrides and training_cfg is not None:
+        training_cfg.num_workers = result.num_workers
+    if "patch_size" not in manual_overrides:
         config.data.patch_size = result.patch_size
 
-    if 'precision' not in manual_overrides:
-        config.training.precision = result.precision
-    if 'accumulate_grad_batches' not in manual_overrides:
-        config.training.accumulate_grad_batches = result.accumulate_grad_batches
+    if "precision" not in manual_overrides:
+        config.optimization.precision = result.precision
+    if "accumulate_grad_batches" not in manual_overrides:
+        config.optimization.accumulate_grad_batches = result.accumulate_grad_batches
 
-    if 'lr' not in manual_overrides:
-        config.optimizer.lr = result.lr
+    if "lr" not in manual_overrides and hasattr(config, "optimization"):
+        config.optimization.optimizer.lr = result.lr
 
     OmegaConf.set_struct(config, True)  # Re-enable struct mode
 
@@ -436,21 +445,20 @@ def auto_plan_config(
     return config
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Test auto planning
     from connectomics.config import Config
-    from omegaconf import OmegaConf
 
     # Create test config
     cfg = OmegaConf.structured(Config())
-    cfg.model.architecture = 'mednext'
+    cfg.model.architecture = "mednext"
     cfg.model.deep_supervision = True
 
     # Auto plan
     cfg = auto_plan_config(cfg, print_results=True)
 
     print("\nFinal Config Values:")
-    print(f"  batch_size: {cfg.data.batch_size}")
+    print(f"  batch_size: {cfg.system.training.batch_size}")
     print(f"  patch_size: {cfg.data.patch_size}")
     print(f"  precision: {cfg.optimization.precision}")
     print(f"  lr: {cfg.optimization.optimizer.lr}")

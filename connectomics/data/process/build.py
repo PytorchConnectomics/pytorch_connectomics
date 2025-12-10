@@ -62,9 +62,8 @@ def _coerce_config(cfg: Any = None, extra_kwargs: Optional[Dict[str, Any]] = Non
             setattr(namespace, key, value)
     return namespace
 
-from .monai_transforms import MultiTaskLabelTransformd
 
-
+from .monai_transforms import MultiTaskLabelTransformd  # noqa: E402
 
 
 def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> Compose:
@@ -124,30 +123,38 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> Compose:
 
     # Keys configuration
     # Note: Must check if 'keys' exists in config to avoid getting dict.keys() method
-    if hasattr(cfg, '__dict__') and 'keys' in cfg.__dict__:
+    if hasattr(cfg, "__dict__") and "keys" in cfg.__dict__:
         keys_attr = cfg.keys
-    elif hasattr(cfg, '__contains__') and 'keys' in cfg:
-        keys_attr = cfg['keys'] if isinstance(cfg, dict) else getattr(cfg, 'keys')
+    elif hasattr(cfg, "__contains__") and "keys" in cfg:
+        keys_attr = cfg["keys"] if isinstance(cfg, dict) else getattr(cfg, "keys")
     else:
         keys_attr = None
 
     if keys_attr is None or callable(keys_attr):  # Protect against dict.keys() method
-        keys_option = [getattr(cfg, 'input_key', None) or cfg.get('input_key', 'label') if isinstance(cfg, dict) else 'label']
+        keys_option = [
+            (
+                getattr(cfg, "input_key", None) or cfg.get("input_key", "label")
+                if isinstance(cfg, dict)
+                else "label"
+            )
+        ]
     elif isinstance(keys_attr, str):
         keys_option = [keys_attr]
     else:
         keys_option = list(keys_attr)
 
     # Transform configuration
-    stack_outputs = getattr(cfg, 'stack_outputs', True)
-    retain_original = getattr(cfg, 'retain_original', False)
-    output_key_format = getattr(cfg, 'output_key_format', "{key}_{task}")
-    allow_missing_keys = getattr(cfg, 'allow_missing_keys', False)
-    output_dtype_setting = getattr(cfg, 'output_dtype', "float32")
-    output_dtype = _resolve_dtype(output_dtype_setting) if output_dtype_setting is not None else None
+    stack_outputs = getattr(cfg, "stack_outputs", True)
+    retain_original = getattr(cfg, "retain_original", False)
+    output_key_format = getattr(cfg, "output_key_format", "{key}_{task}")
+    allow_missing_keys = getattr(cfg, "allow_missing_keys", False)
+    output_dtype_setting = getattr(cfg, "output_dtype", "float32")
+    output_dtype = (
+        _resolve_dtype(output_dtype_setting) if output_dtype_setting is not None else None
+    )
 
     # Get targets configuration
-    target_cfg = getattr(cfg, 'targets', None)
+    target_cfg = getattr(cfg, "targets", None)
 
     # Allow null/empty targets for no transformation (identity transform)
     if target_cfg is None or (isinstance(target_cfg, (list, tuple)) and len(target_cfg) == 0):
@@ -201,5 +208,5 @@ def create_label_transform_pipeline(cfg: Any = None, **kwargs: Any) -> Compose:
 
 
 __all__ = [
-    'create_label_transform_pipeline',
+    "create_label_transform_pipeline",
 ]

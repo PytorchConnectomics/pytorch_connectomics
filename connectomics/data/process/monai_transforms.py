@@ -109,7 +109,10 @@ class SegToInstanceBoundaryMaskd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
-                d[key] = seg_to_instance_bd(d[key], self.thickness, self.edge_mode, self.mode)
+                label = d[key]
+                if isinstance(label, torch.Tensor):
+                    label = label.detach().cpu().numpy()
+                d[key] = seg_to_instance_bd(label, self.thickness, self.edge_mode, self.mode)
         return d
 
 
@@ -602,7 +605,9 @@ class MultiTaskLabelTransformd(MapTransform):
     }
     _TASK_DEFAULTS: Dict[str, Dict[str, Any]] = {
         "binary": {},
-        "affinity": {"offsets": ["1-0-0", "0-1-0", "0-0-1"]},  # Default: 3 short-range affinities (z, y, x)
+        "affinity": {
+            "offsets": ["1-0-0", "0-1-0", "0-0-1"]
+        },  # Default: 3 short-range affinities (z, y, x)
         "instance_boundary": {"thickness": 1, "edge_mode": "seg-all", "mode": "3d"},
         "instance_edt": {"mode": "2d", "quantize": False},
         "skeleton_aware_edt": {

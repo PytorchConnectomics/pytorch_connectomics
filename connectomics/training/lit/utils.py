@@ -11,15 +11,15 @@ This module provides helper functions for:
 from __future__ import annotations
 import argparse
 import re
-import sys
 from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
+import torch
+
 from ...config import (
     Config,
     load_config,
-    save_config,
     update_from_cli,
     validate_config,
     resolve_data_paths,
@@ -48,7 +48,10 @@ def parse_args():
         "--mode",
         choices=["train", "test", "tune", "tune-test"],
         default="train",
-        help="Mode: train, test (with optional labels for metrics), tune, or tune-test (default: train)",
+        help=(
+            "Mode: train, test (with optional labels for metrics), tune, or "
+            "tune-test (default: train)"
+        ),
     )
     parser.add_argument(
         "--checkpoint",
@@ -80,12 +83,15 @@ def parse_args():
         "--reset-max-epochs",
         type=int,
         default=None,
-        help="Override max_epochs from config (useful when resuming training with different epoch count)",
+        help=(
+            "Override max_epochs from config (useful when resuming training "
+            "with different epoch count)"
+        ),
     )
     parser.add_argument(
         "--fast-dev-run",
         type=int,
-        nargs='?',
+        nargs="?",
         const=1,
         default=0,
         help="Run N batches for quick debugging (default: 0, no argument defaults to 1)",
@@ -155,7 +161,7 @@ def setup_config(args) -> Config:
         cfg.monitor.checkpoint.dirpath = str(Path(cfg.monitor.checkpoint.dirpath))
 
     # Update test output path only if test section exists and output_path not provided
-    if hasattr(cfg, 'test') and hasattr(cfg.test, 'data'):
+    if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
         if not getattr(cfg.test.data, "output_path", None):
             cfg.test.data.output_path = str(Path(output_folder) / "results")
         else:
@@ -186,19 +192,45 @@ def setup_config(args) -> Config:
 
     # Override config for fast-dev-run mode
     if args.fast_dev_run:
-        print(f"🔧 Fast-dev-run mode: Overriding config for debugging")
+        print("🔧 Fast-dev-run mode: Overriding config for debugging")
         print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
         print(f"   - num_cpus: {cfg.system.training.num_cpus} → 1")
-        print(f"   - num_workers: {cfg.system.training.num_workers} → 1")
+        print(f"   - num_workers: {cfg.system.training.num_workers} → 0 "
+              "(avoid multiprocessing in debug mode)")
         print(
             f"   - batch_size: Controlled by PyTorch Lightning (--fast-dev-run={args.fast_dev_run})"
         )
+        print("   - input patch: 64^3 for lightweight debug")
+        print("   - MedNeXt size: S for lightweight debug")
         cfg.system.training.num_gpus = 1
         cfg.system.training.num_cpus = 1
-        cfg.system.training.num_workers = 1
+        cfg.system.training.num_workers = 0
         cfg.system.inference.num_gpus = 1
         cfg.system.inference.num_cpus = 1
-        cfg.system.inference.num_workers = 1
+        cfg.system.inference.num_workers = 0
+        if hasattr(cfg.model, "input_size"):
+            cfg.model.input_size = [64, 64, 64]
+        if hasattr(cfg.model, "output_size"):
+            cfg.model.output_size = [64, 64, 64]
+        if hasattr(cfg.model, "mednext_size"):
+            cfg.model.mednext_size = "S"
+        # Keep CellMap shapes in sync with the smaller debug patch
+        if getattr(cfg.data, "cellmap", None):
+            cfg.data.cellmap["input_array_info"]["shape"] = [64, 64, 64]
+            cfg.data.cellmap["target_array_info"]["shape"] = [64, 64, 64]
+
+    # CPU-only fallback: avoid multiprocessing workers when no CUDA is available
+    if not torch.cuda.is_available():
+        if cfg.system.training.num_workers > 0:
+            print(
+                "🔧 CUDA not available, setting training num_workers=0 to avoid dataloader crashes"
+            )
+            cfg.system.training.num_workers = 0
+        if cfg.system.inference.num_workers > 0:
+            print(
+                "🔧 CUDA not available, setting inference num_workers=0 to avoid dataloader crashes"
+            )
+            cfg.system.inference.num_workers = 0
 
     # Apply inference-specific overrides if in test/tune mode
     if args.mode in ["test", "tune", "tune-test"]:
@@ -306,8 +338,8 @@ def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> O
 
 
 __all__ = [
-    'parse_args',
-    'setup_config',
-    'expand_file_paths',
-    'extract_best_score_from_checkpoint',
+    "parse_args",
+    "setup_config",
+    "expand_file_paths",
+    "extract_best_score_from_checkpoint",
 ]

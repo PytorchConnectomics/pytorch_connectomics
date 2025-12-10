@@ -13,6 +13,7 @@ from monai.transforms import Compose, RandSpatialCropd, CenterSpatialCropd
 from monai.utils import ensure_tuple_rep
 
 from .dataset_base import MonaiConnectomicsDataset
+from .build import create_data_dicts_from_paths
 from ..io.monai_transforms import LoadVolumed
 
 
@@ -52,7 +53,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
         mask_paths: Optional[List[str]] = None,
         transforms: Optional[Compose] = None,
         sample_size: Tuple[int, int, int] = (32, 256, 256),
-        mode: str = 'train',
+        mode: str = "train",
         iter_num: int = -1,
         valid_ratio: float = 0.5,
         reject_size_thres: int = 0,
@@ -104,8 +105,8 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
         )
 
         # Clean up temporary references
-        delattr(self, '_data_dicts')
-        delattr(self, '_transpose_axes')
+        delattr(self, "_data_dicts")
+        delattr(self, "_transpose_axes")
 
         # Store volume-specific parameters
         self.data_mean = data_mean
@@ -134,11 +135,11 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
         Returns:
             MONAI Compose transforms pipeline
         """
-        keys = ['image']
-        if any('label' in data_dict for data_dict in self._data_dicts):
-            keys.append('label')
-        if any('mask' in data_dict for data_dict in self._data_dicts):
-            keys.append('mask')
+        keys = ["image"]
+        if any("label" in data_dict for data_dict in self._data_dicts):
+            keys.append("label")
+        if any("mask" in data_dict for data_dict in self._data_dicts):
+            keys.append("mask")
 
         transforms = [
             # Load images using custom connectomics loader (adds channel dim)
@@ -151,7 +152,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
         if do_2d:
             crop_size = (1, sample_size[1], sample_size[2])
 
-        if mode == 'train':
+        if mode == "train":
             # Random cropping for training
             transforms.append(
                 RandSpatialCropd(
@@ -161,7 +162,7 @@ class MonaiVolumeDataset(MonaiConnectomicsDataset):
                     random_size=False,
                 )
             )
-        elif mode == 'val':
+        elif mode == "val":
             # Center cropping for validation to ensure consistent patch size
             transforms.append(
                 CenterSpatialCropd(
@@ -201,12 +202,12 @@ class MonaiCachedVolumeDataset(CacheDataset):
         **kwargs,
     ):
         # Get parameters for dataset creation
-        sample_size = kwargs.get('sample_size', (32, 256, 256))
-        mode = kwargs.get('mode', 'train')
-        do_2d = kwargs.get('do_2d', False)
-        kwargs.get('data_mean', 0.5)
-        kwargs.get('data_std', 0.5)
-        transpose_axes = kwargs.get('transpose_axes', None)
+        sample_size = kwargs.get("sample_size", (32, 256, 256))
+        mode = kwargs.get("mode", "train")
+        do_2d = kwargs.get("do_2d", False)
+        kwargs.get("data_mean", 0.5)
+        kwargs.get("data_std", 0.5)
+        transpose_axes = kwargs.get("transpose_axes", None)
 
         # Create data dictionaries
         data_dicts = create_data_dicts_from_paths(
@@ -217,11 +218,11 @@ class MonaiCachedVolumeDataset(CacheDataset):
 
         # Create transforms if not provided
         if transforms is None:
-            keys = ['image']
+            keys = ["image"]
             if label_paths:
-                keys.append('label')
+                keys.append("label")
             if mask_paths:
-                keys.append('mask')
+                keys.append("mask")
 
             transforms = [
                 # Use custom connectomics loader (adds channel dim)
@@ -233,7 +234,7 @@ class MonaiCachedVolumeDataset(CacheDataset):
             if do_2d:
                 crop_size = (1, sample_size[1], sample_size[2])
 
-            if mode == 'train':
+            if mode == "train":
                 # Random cropping for training
                 transforms.append(
                     RandSpatialCropd(
@@ -243,7 +244,7 @@ class MonaiCachedVolumeDataset(CacheDataset):
                         random_size=False,
                     )
                 )
-            elif mode == 'val':
+            elif mode == "val":
                 # Center cropping for validation
                 transforms.append(
                     CenterSpatialCropd(
@@ -270,7 +271,7 @@ class MonaiCachedVolumeDataset(CacheDataset):
 
         self.sample_size = ensure_tuple_rep(sample_size, 3)
         self.mode = mode
-        self.iter_num = kwargs.get('iter_num', -1)
+        self.iter_num = kwargs.get("iter_num", -1)
 
         # Calculate dataset length
         if self.iter_num > 0:
@@ -283,6 +284,6 @@ class MonaiCachedVolumeDataset(CacheDataset):
 
 
 __all__ = [
-    'MonaiVolumeDataset',
-    'MonaiCachedVolumeDataset',
+    "MonaiVolumeDataset",
+    "MonaiCachedVolumeDataset",
 ]

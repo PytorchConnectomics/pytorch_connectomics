@@ -26,7 +26,7 @@ def create_tile_metadata(
     num_rows: int = 3,
     tile_size: int = 4096,
     tile_ratio: int = 1,
-    tile_start: List[int] = [0, 0]
+    tile_start: List[int] = [0, 0],
 ) -> dict:
     """Create metadata dictionary for large-scale tiled volumes.
 
@@ -54,8 +54,7 @@ def create_tile_metadata(
 
     digits = int(math.log10(depth)) + 1
     metadata["image"] = [
-        data_path + str(i).zfill(digits) + r"/{row}_{column}.png"
-        for i in range(depth)
+        data_path + str(i).zfill(digits) + r"/{row}_{column}.png" for i in range(depth)
     ]
 
     metadata["height"] = height
@@ -81,7 +80,7 @@ def reconstruct_volume_from_tiles(
     tile_start: List[int] = [0, 0],
     tile_ratio: float = 1.0,
     is_image: bool = True,
-    background_value: int = 128
+    background_value: int = 128,
 ) -> np.ndarray:
     """Construct a volume from image tiles based on the given volume coordinate.
 
@@ -93,7 +92,8 @@ def reconstruct_volume_from_tiles(
         data_type: Data type of the constructed volume. Default: np.uint8
         tile_start: Start position of the tiles [row, column]. Default: [0, 0]
         tile_ratio: Scale factor for resizing the tiles. Default: 1.0
-        is_image: Whether to construct an image volume (apply linear interpolation for resizing). Default: True
+        is_image: Whether to construct an image volume
+            (apply linear interpolation for resizing). Default: True
         background_value: Background value for filling the constructed volume. Default: 128
 
     Returns:
@@ -104,9 +104,12 @@ def reconstruct_volume_from_tiles(
 
     # Calculate boundary conditions
     boundary_diffs = [
-        max(-z0_output, z0_max), max(0, z1_output - z1_max),
-        max(-y0_output, y0_max), max(0, y1_output - y1_max),
-        max(-x0_output, x0_max), max(0, x1_output - x1_max)
+        max(-z0_output, z0_max),
+        max(0, z1_output - z1_max),
+        max(-y0_output, y0_max),
+        max(0, y1_output - y1_max),
+        max(-x0_output, x0_max),
+        max(0, x1_output - x1_max),
     ]
 
     z0 = max(z0_output, z0_max)
@@ -132,21 +135,15 @@ def reconstruct_volume_from_tiles(
         pattern = tile_paths[z]
         for row in range(row_start, row_end):
             for column in range(column_start, column_end):
-                if r'{row}_{column}' in pattern:
-                    path = pattern.format(
-                        row=row + tile_start[0],
-                        column=column + tile_start[1]
-                    )
+                if r"{row}_{column}" in pattern:
+                    path = pattern.format(row=row + tile_start[0], column=column + tile_start[1])
                 else:
                     path = pattern
 
                 patch = read_image(path, add_channel=True)
                 if patch is not None:
                     if tile_ratio != 1:  # Apply scaling: image=1, label=0
-                        patch = zoom(
-                            patch, [tile_ratio, tile_ratio, 1],
-                            order=int(is_image)
-                        )
+                        patch = zoom(patch, [tile_ratio, tile_ratio, 1], order=int(is_image))
 
                     # Handle potentially different tile sizes
                     x_patch_start = column * tile_width
@@ -161,32 +158,43 @@ def reconstruct_volume_from_tiles(
                     y_actual_end = min(y1, y_patch_end)
 
                     if is_image:  # Image data
-                        result[z - z0,
-                               y_actual_start - y0:y_actual_end - y0,
-                               x_actual_start - x0:x_actual_end - x0] = \
-                            patch[y_actual_start - y_patch_start:y_actual_end - y_patch_start,
-                                  x_actual_start - x_patch_start:x_actual_end - x_patch_start, 0]
+                        result[
+                            z - z0,
+                            y_actual_start - y0:y_actual_end - y0,
+                            x_actual_start - x0:x_actual_end - x0,
+                        ] = patch[
+                            y_actual_start - y_patch_start:y_actual_end - y_patch_start,
+                            x_actual_start - x_patch_start:x_actual_end - x_patch_start,
+                            0,
+                        ]
                     else:  # Label data
-                        result[z - z0,
-                               y_actual_start - y0:y_actual_end - y0,
-                               x_actual_start - x0:x_actual_end - x0] = \
-                            rgb_to_seg(patch[y_actual_start - y_patch_start:y_actual_end - y_patch_start,
-                                             x_actual_start - x_patch_start:x_actual_end - x_patch_start])
+                        result[
+                            z - z0,
+                            y_actual_start - y0:y_actual_end - y0,
+                            x_actual_start - x0:x_actual_end - x0,
+                        ] = rgb_to_seg(
+                            patch[
+                                y_actual_start - y_patch_start:y_actual_end - y_patch_start,
+                                x_actual_start - x_patch_start:x_actual_end - x_patch_start,
+                            ]
+                        )
 
     # Apply padding for chunks touching the border of the large input volume
     if max(boundary_diffs) > 0:
         result = np.pad(
             result,
-            ((boundary_diffs[0], boundary_diffs[1]),
-             (boundary_diffs[2], boundary_diffs[3]),
-             (boundary_diffs[4], boundary_diffs[5])),
-            'reflect'
+            (
+                (boundary_diffs[0], boundary_diffs[1]),
+                (boundary_diffs[2], boundary_diffs[3]),
+                (boundary_diffs[4], boundary_diffs[5]),
+            ),
+            "reflect",
         )
 
     return result
 
 
 __all__ = [
-    'create_tile_metadata',
-    'reconstruct_volume_from_tiles',
+    "create_tile_metadata",
+    "reconstruct_volume_from_tiles",
 ]

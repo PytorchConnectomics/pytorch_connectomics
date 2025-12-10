@@ -108,6 +108,16 @@ class SystemConfig:
 
 
 @dataclass
+class LossBalancingConfig:
+    """Configuration for adaptive loss weighting."""
+
+    strategy: Optional[str] = None  # None, "uncertainty", or "gradnorm"
+    gradnorm_alpha: float = 0.5
+    gradnorm_lambda: float = 1.0
+    gradnorm_parameter_strategy: str = "last"  # "first", "last", or "all"
+
+
+@dataclass
 class ModelConfig:
     """Model architecture configuration.
 
@@ -140,14 +150,16 @@ class ModelConfig:
     activation: str = "relu"
 
     # UNet-specific parameters (MONAI UNet)
-    spatial_dims: int = (
-        3  # Spatial dimensions: 2 for 2D, 3 for 3D (auto-inferred from input_size length, not used directly)
-    )
+    spatial_dims: int = 3  # Spatial dimensions: 2 for 2D, 3 for 3D
+    # (auto-inferred from input_size length, not used directly)
     num_res_units: int = 2  # Number of residual units per block
     kernel_size: int = 3  # Convolution kernel size
     strides: Optional[List[int]] = None  # Downsampling strides (e.g., [2, 2, 2, 2] for 4 levels)
     act: str = "relu"  # Activation function: 'relu', 'prelu', 'elu', etc.
-    upsample: str = "deconv"  # Upsampling mode for MONAI BasicUNet: 'deconv' (transposed conv), 'nontrainable' (interpolation + conv), or 'pixelshuffle'
+    upsample: str = (
+        "deconv"  # Upsampling mode: 'deconv' (transposed conv),
+        # 'nontrainable' (interpolation + conv), or 'pixelshuffle'
+    )
 
     # Transformer-specific (UNETR, etc.)
     feature_size: int = 16
@@ -199,6 +211,7 @@ class ModelConfig:
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
     loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
+    loss_balancing: LossBalancingConfig = field(default_factory=LossBalancingConfig)
 
     # Multi-task learning configuration
     # Defines which output channels correspond to which targets
@@ -437,8 +450,11 @@ class DataConfig:
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 
     # Augmentation configuration (nested under data in YAML)
-    augmentation: Optional["AugmentationConfig"] = (
-        None  # Set to None for simple enabled flag, or full config for detailed control
+    augmentation: "AugmentationConfig" = field(default_factory=lambda: AugmentationConfig())
+
+    # CellMap-specific configuration (for CellMap Segmentation Challenge)
+    cellmap: Optional[Dict[str, Any]] = (
+        None  # CellMap-specific data config (see tutorials/cellmap_*.yaml)
     )
 
 
@@ -480,6 +496,18 @@ class SchedulerConfig:
 
 
 @dataclass
+class EMAConfig:
+    """Exponential Moving Average (EMA) configuration."""
+
+    enabled: bool = False
+    decay: float = 0.999
+    warmup_steps: int = 0
+    validate_with_ema: bool = True
+    device: Optional[str] = None  # e.g., "cpu" to offload EMA weights
+    copy_buffers: bool = True  # Keep BatchNorm buffers in sync with model
+
+
+@dataclass
 class OptimizationConfig:
     """Optimization configuration (optimizer + scheduler + training params).
 
@@ -511,6 +539,7 @@ class OptimizationConfig:
 
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
+    ema: EMAConfig = field(default_factory=EMAConfig)
 
 
 @dataclass
@@ -844,9 +873,7 @@ class InferenceDataConfig:
     tune_resolution: Optional[List[float]] = (
         None  # Tuning data resolution [z, y, x] in nm (e.g., [30, 8, 8])
     )
-    tune_transpose: List[int] = field(
-        default_factory=list
-    )  # Axis permutation for tuning data
+    tune_transpose: List[int] = field(default_factory=list)  # Axis permutation for tuning data
     output_path: Optional[str] = None  # Optional explicit directory for inference outputs
     output_name: str = (
         "predictions.h5"  # Output filename (auto-pathed to inference/{checkpoint}/{output_name})
@@ -881,18 +908,22 @@ class TestTimeAugmentationConfig:
     """Test-time augmentation configuration.
 
     Note: Saving predictions is now handled by SavePredictionConfig.
+
+    Axis Indexing:
+    - flip_axes: Uses full tensor indices (e.g., [2, 3] for H, W in 5D tensor (B, C, D, H, W))
+    - rotation90_axes: Uses spatial-only indices (e.g., [1, 2] for H-W plane where 0=D, 1=H, 2=W)
     """
 
-    enabled: bool = False
-    flip_axes: Any = (
-        None  # TTA flip strategy: "all" (8 flips), null (no aug), or list like [[0], [1], [2]]
-    )
+    flip_axes: Any = None  # TTA flip strategy: "all" (8 flips), null (no aug),
+    # or list like [[2], [3]] (full tensor indices)
+    rotation90_axes: Any = None  # TTA rotation90 strategy: "all" (3 planes × 4 rotations),
+    # null, or list like [[1, 2]] (spatial indices: 0=D, 1=H, 2=W)
     channel_activations: Optional[List[Any]] = (
-        None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...] e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
+        None  # Per-channel activations: [[start_ch, end_ch, 'activation'], ...]
+        # e.g., [[0, 2, 'softmax'], [2, 3, 'sigmoid'], [3, 4, 'tanh']]
     )
-    select_channel: Any = (
-        None  # Channel selection: null (all), [1] (foreground), -1 (all) (applied even with null flip_axes)
-    )
+    select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all)
+    # (applied even with null flip_axes)
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
     apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
 
@@ -911,8 +942,13 @@ class SavePredictionConfig:
     """
 
     enabled: bool = True  # Enable saving intermediate predictions
-    intensity_scale: float = -1.0  # If < 0, keep raw predictions (no normalization/scaling). If > 0, normalize to [0,1] then scale.
-    intensity_dtype: str = "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
+    intensity_scale: float = (
+        -1.0  # If < 0, keep raw predictions (no normalization/scaling).
+        # If > 0, normalize to [0,1] then scale.
+    )
+    intensity_dtype: str = (
+        "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
+    )
 
 
 @dataclass
@@ -948,9 +984,8 @@ class DecodeBinaryContourDistanceWatershedConfig:
 class DecodeModeConfig:
     """Configuration for a single decode mode/function."""
 
-    name: str = (
-        "decode_binary_watershed"  # Function name: decode_binary_cc, decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
-    )
+    name: str = "decode_binary_watershed"  # Function name: decode_binary_cc,
+    # decode_binary_watershed, decode_binary_contour_distance_watershed, etc.
     kwargs: Dict[str, Any] = field(
         default_factory=dict
     )  # Keyword arguments for the decode function
@@ -1058,20 +1093,26 @@ class InferenceConfig:
 @dataclass
 class TestDataConfig:
     """Test data configuration."""
-    test_image: Optional[str] = None
-    test_label: Optional[str] = None
-    test_mask: Optional[str] = None
+
+    # These can be strings (single file), lists (multiple files), or None
+    # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
+    test_image: Any = None  # str, List[str], or None
+    test_label: Any = None  # str, List[str], or None
+    test_mask: Any = None  # str, List[str], or None
     test_resolution: Optional[List[float]] = None
     test_transpose: Optional[List[int]] = None
     output_path: Optional[str] = None
     cache_suffix: str = "_prediction.h5"
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    # Label transformation (optional). Typically unused in test mode to preserve raw labels
+    label_transform: Optional[LabelTransformConfig] = None
 
 
 @dataclass
 class TestConfig:
     """Test-specific configuration (data paths, decoding, evaluation)."""
+
     data: TestDataConfig = field(default_factory=TestDataConfig)
     decoding: Optional[List[Dict[str, Any]]] = None
     evaluation: Optional[Dict[str, Any]] = None
@@ -1080,17 +1121,23 @@ class TestConfig:
 @dataclass
 class TuneDataConfig:
     """Tuning data configuration."""
-    tune_image: Optional[str] = None
-    tune_label: Optional[str] = None
-    tune_mask: Optional[str] = None
+
+    # These can be strings (single file), lists (multiple files), or None
+    # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
+    tune_image: Any = None  # str, List[str], or None
+    tune_label: Any = None  # str, List[str], or None
+    tune_mask: Any = None  # str, List[str], or None
     tune_resolution: Optional[List[int]] = None
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    # Label transformation (optional). Typically unused in tune mode to preserve raw labels
+    label_transform: Optional[LabelTransformConfig] = None
 
 
 @dataclass
 class TuneOutputConfig:
     """Tuning output configuration."""
+
     output_dir: str = "outputs/tuning"
     output_pred: Optional[str] = None
     cache_suffix: str = "_tta_prediction.h5"
@@ -1104,6 +1151,7 @@ class TuneOutputConfig:
 @dataclass
 class ParameterConfig:
     """Single parameter configuration for optimization."""
+
     type: str  # "float", "int", "categorical"
     range: List[Any]  # [min, max] for numeric, [options...] for categorical
     step: Optional[float] = None
@@ -1116,6 +1164,7 @@ class ParameterConfig:
 @dataclass
 class DecodingParameterSpace:
     """Decoding function parameter space configuration."""
+
     function_name: str = "decode_binary_contour_distance_watershed"
     defaults: Dict[str, Any] = field(default_factory=dict)
     parameters: Dict[str, Any] = field(default_factory=dict)  # Dict[str, ParameterConfig]
@@ -1124,6 +1173,7 @@ class DecodingParameterSpace:
 @dataclass
 class PostprocessingParameterSpace:
     """Post-processing function parameter space configuration."""
+
     enabled: bool = False
     function_name: str = "remove_small_instances"
     defaults: Dict[str, Any] = field(default_factory=dict)
@@ -1133,13 +1183,17 @@ class PostprocessingParameterSpace:
 @dataclass
 class ParameterSpaceConfig:
     """Parameter space configuration for Optuna optimization."""
+
     decoding: DecodingParameterSpace = field(default_factory=DecodingParameterSpace)
-    postprocessing: PostprocessingParameterSpace = field(default_factory=PostprocessingParameterSpace)
+    postprocessing: PostprocessingParameterSpace = field(
+        default_factory=PostprocessingParameterSpace
+    )
 
 
 @dataclass
 class TuneConfig:
     """Parameter tuning configuration (Optuna settings)."""
+
     enabled: bool = True
     n_trials: int = 100
     timeout: Optional[int] = None
@@ -1148,10 +1202,12 @@ class TuneConfig:
     load_if_exists: bool = True
     sampler: Dict[str, Any] = field(default_factory=lambda: {"name": "TPE"})
     pruner: Optional[Dict[str, Any]] = None
-    optimization: Dict[str, Any] = field(default_factory=lambda: {
-        "mode": "single",
-        "single_objective": {"metric": "adapted_rand", "direction": "minimize"}
-    })
+    optimization: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "mode": "single",
+            "single_objective": {"metric": "adapted_rand", "direction": "minimize"},
+        }
+    )
     data: TuneDataConfig = field(default_factory=TuneDataConfig)
     output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
     logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})
@@ -1206,6 +1262,36 @@ class Config:
 
     # Optional: Parameter tuning configuration (tuning data paths, optimization settings)
     tune: Optional[TuneConfig] = None
+
+
+# Allow safe loading of checkpoints with PyTorch 2.6+ weights_only defaults
+try:
+    import torch
+
+    if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
+        torch.serialization.add_safe_globals(
+            [
+                ParameterConfig,
+                DecodingParameterSpace,
+                PostprocessingParameterSpace,
+                ParameterSpaceConfig,
+                # Core config dataclasses (for Lightning checkpoints)
+                Config,
+                SystemConfig,
+                SystemTrainingConfig,
+                SystemInferenceConfig,
+                ModelConfig,
+                DataConfig,
+                OptimizationConfig,
+                MonitorConfig,
+                InferenceConfig,
+                TestConfig,
+                TuneConfig,
+            ]
+        )
+except Exception:
+    # Best-effort registration; ignore if torch not available at import time
+    pass
 
 
 # Utility functions for common configuration tasks

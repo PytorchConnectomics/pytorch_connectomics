@@ -14,7 +14,7 @@ Import patterns:
     from connectomics.metrics.metrics_skel import evaluate_directory
 """
 
-from .metrics_seg import *
+from .metrics_seg import *  # noqa: F403
 from .metrics_skel import (
     compute_skeleton_metrics,
     compute_precision_recall,
@@ -25,19 +25,19 @@ from .metrics_skel import (
     evaluate_directory,
 )
 
-__all__ = [
+__all__ = [  # noqa: F405
     # Segmentation metrics
-    'jaccard',
-    'get_binary_jaccard',
-    'adapted_rand',
-    'instance_matching',
-    'cremi_distance',
+    "jaccard",
+    "get_binary_jaccard",
+    "adapted_rand",
+    "instance_matching",
+    "cremi_distance",
     # Skeleton metrics
-    'compute_skeleton_metrics',
-    'compute_precision_recall',
-    'compute_iou',
-    'binarize_masks',
-    'evaluate_image_pair',
-    'evaluate_file_pair',
-    'evaluate_directory',
+    "compute_skeleton_metrics",
+    "compute_precision_recall",
+    "compute_iou",
+    "binarize_masks",
+    "evaluate_image_pair",
+    "evaluate_file_pair",
+    "evaluate_directory",
 ]

@@ -10,7 +10,7 @@ This module provides Lightning trainer factory functions with:
 
 from __future__ import annotations
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional
 
 import torch
 import pytorch_lightning as pl
@@ -20,17 +20,42 @@ from pytorch_lightning.callbacks import (
     LearningRateMonitor,
     RichProgressBar,
 )
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.strategies import DDPStrategy
-from omegaconf import DictConfig
 
 from ...config import Config
-from .callbacks import VisualizationCallback
+from ...config.hydra_config import (
+    SystemConfig,
+    SystemTrainingConfig,
+    SystemInferenceConfig,
+    ModelConfig,
+    DataConfig,
+    OptimizationConfig,
+    MonitorConfig,
+    InferenceConfig,
+    TestConfig,
+    TuneConfig,
+)
+from .callbacks import VisualizationCallback, EMAWeightsCallback
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
 try:
-    torch.serialization.add_safe_globals([Config])
+    torch.serialization.add_safe_globals(
+        [
+            Config,
+            SystemConfig,
+            SystemTrainingConfig,
+            SystemInferenceConfig,
+            ModelConfig,
+            DataConfig,
+            OptimizationConfig,
+            MonitorConfig,
+            InferenceConfig,
+            TestConfig,
+            TuneConfig,
+        ]
+    )
 except AttributeError:
     # PyTorch < 2.6 doesn't have add_safe_globals
     pass
@@ -130,11 +155,26 @@ def create_trainer(
                 log_every_n_epochs=cfg.monitor.logging.images.log_every_n_epochs,
             )
             callbacks.append(vis_callback)
-            print(
-                f"  Visualization: Enabled (every {cfg.monitor.logging.images.log_every_n_epochs} epoch(s))"
-            )
+            log_freq = cfg.monitor.logging.images.log_every_n_epochs
+            print(f"  Visualization: Enabled (every {log_freq} epoch(s))")
         else:
-            print(f"  Visualization: Disabled")
+            print("  Visualization: Disabled")
+
+        # EMA weights for stabler validation
+        ema_cfg = getattr(cfg.optimization, "ema", None)
+        if ema_cfg and getattr(ema_cfg, "enabled", False):
+            ema_callback = EMAWeightsCallback(
+                decay=getattr(ema_cfg, "decay", 0.999),
+                warmup_steps=getattr(ema_cfg, "warmup_steps", 0),
+                validate_with_ema=getattr(ema_cfg, "validate_with_ema", True),
+                device=getattr(ema_cfg, "device", None),
+                copy_buffers=getattr(ema_cfg, "copy_buffers", True),
+            )
+            callbacks.append(ema_callback)
+            print(
+                f"  EMA: Enabled (decay={ema_cfg.decay}, warmup_steps={ema_cfg.warmup_steps}, "
+                f"validate_with_ema={ema_cfg.validate_with_ema})"
+            )
 
     # Progress bar (optional - requires rich package)
     try:
@@ -231,5 +271,5 @@ def create_trainer(
 
 
 __all__ = [
-    'create_trainer',
+    "create_trainer",
 ]

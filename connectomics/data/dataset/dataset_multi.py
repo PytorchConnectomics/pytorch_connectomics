@@ -44,12 +44,7 @@ class WeightedConcatDataset(Dataset):
         >>> # Each batch will be 80% synthetic, 20% real on average
     """
 
-    def __init__(
-        self,
-        datasets: List[Dataset],
-        weights: List[float],
-        length: Optional[int] = None
-    ):
+    def __init__(self, datasets: List[Dataset], weights: List[float], length: Optional[int] = None):
         if len(datasets) != len(weights):
             raise ValueError(
                 f"Number of datasets ({len(datasets)}) must match "
@@ -109,11 +104,7 @@ class StratifiedConcatDataset(Dataset):
         >>> # Ensures equal representation even though dataset2 is 2x larger
     """
 
-    def __init__(
-        self,
-        datasets: List[Dataset],
-        length: Optional[int] = None
-    ):
+    def __init__(self, datasets: List[Dataset], length: Optional[int] = None):
         if len(datasets) == 0:
             raise ValueError("Must provide at least one dataset")
 
@@ -166,11 +157,7 @@ class UniformConcatDataset(Dataset):
         >>> # Each sample has equal probability (1/300) regardless of source dataset
     """
 
-    def __init__(
-        self,
-        datasets: List[Dataset],
-        length: Optional[int] = None
-    ):
+    def __init__(self, datasets: List[Dataset], length: Optional[int] = None):
         if len(datasets) == 0:
             raise ValueError("Must provide at least one dataset")
 
@@ -195,11 +182,7 @@ class UniformConcatDataset(Dataset):
         global_idx = np.random.randint(self.total_length)
 
         # Find which dataset this index belongs to
-        dataset_idx = np.searchsorted(
-            self.cumulative_lengths[1:],
-            global_idx,
-            side='right'
-        )
+        dataset_idx = np.searchsorted(self.cumulative_lengths[1:], global_idx, side="right")
 
         # Local index within the selected dataset
         sample_idx = global_idx - self.cumulative_lengths[dataset_idx]
@@ -211,7 +194,7 @@ class UniformConcatDataset(Dataset):
 
 
 __all__ = [
-    'WeightedConcatDataset',
-    'StratifiedConcatDataset',
-    'UniformConcatDataset',
+    "WeightedConcatDataset",
+    "StratifiedConcatDataset",
+    "UniformConcatDataset",
 ]

@@ -18,6 +18,7 @@ import numpy as np
 
 try:
     import optuna
+
     OPTUNA_AVAILABLE = True
 except ImportError:
     OPTUNA_AVAILABLE = False
@@ -25,16 +26,17 @@ except ImportError:
 try:
     from funlib.evaluate import rand_voi, expected_run_length
     from networkx import get_node_attributes
+
     FUNLIB_AVAILABLE = True
 except ImportError:
     FUNLIB_AVAILABLE = False
 
 
 __all__ = [
-    'optimize_threshold',
-    'optimize_parameters',
-    'grid_search_threshold',
-    'SkeletonMetrics',
+    "optimize_threshold",
+    "optimize_parameters",
+    "grid_search_threshold",
+    "SkeletonMetrics",
 ]
 
 
@@ -75,11 +77,7 @@ class SkeletonMetrics:
         with open(self.skeleton_path, "rb") as f:
             self.skeleton = pickle.load(f)
 
-    def compute(
-        self,
-        pred_seg: np.ndarray,
-        return_details: bool = False
-    ) -> Dict[str, Any]:
+    def compute(self, pred_seg: np.ndarray, return_details: bool = False) -> Dict[str, Any]:
         """
         Compute skeleton-based metrics.
 
@@ -105,12 +103,10 @@ class SkeletonMetrics:
             self.skeleton.nodes[node]["pred_id"] = pred_seg[x, y, z]
 
         # Compute VOI
-        gt_ids = np.array(
-            list(get_node_attributes(self.skeleton, "id").values())
-        ).astype(np.uint64)
-        pred_ids = np.array(
-            list(get_node_attributes(self.skeleton, "pred_id").values())
-        ).astype(np.uint64)
+        gt_ids = np.array(list(get_node_attributes(self.skeleton, "id").values())).astype(np.uint64)
+        pred_ids = np.array(list(get_node_attributes(self.skeleton, "pred_id").values())).astype(
+            np.uint64
+        )
 
         voi_report = rand_voi(
             gt_ids,
@@ -148,9 +144,7 @@ class SkeletonMetrics:
 
         # Count errors
         n_mergers = sum(len(v) for v in merge_stats.values())
-        merge_stats_no_bg = {
-            k: v for k, v in merge_stats.items() if k not in [0, 0.0]
-        }
+        merge_stats_no_bg = {k: v for k, v in merge_stats.items() if k not in [0, 0.0]}
         n_non0_mergers = sum(len(v) for v in merge_stats_no_bg.values())
         n_splits = sum(len(v) for v in split_stats.values())
 
@@ -181,7 +175,7 @@ def grid_search_threshold(
     metric: str = "nerl",
     verbose: bool = True,
     segmentation_fn: Optional[Callable] = None,
-    **seg_kwargs
+    **seg_kwargs,
 ) -> Dict[str, Any]:
     """
     Grid search over thresholds to find optimal affinity threshold.
@@ -251,9 +245,7 @@ def grid_search_threshold(
         # Check if best
         current_value = metrics_dict[metric]
         is_better = (
-            (current_value > best_value)
-            if metric == "nerl"
-            else (current_value < best_value)
+            (current_value > best_value) if metric == "nerl" else (current_value < best_value)
         )
 
         if is_better:
@@ -263,8 +255,7 @@ def grid_search_threshold(
 
         if verbose and (i + 1) % 5 == 0:
             print(
-                f"  [{i+1}/{len(thresholds)}] "
-                f"threshold={thr:.3f}, {metric}={current_value:.4f}"
+                f"  [{i + 1}/{len(thresholds)}] threshold={thr:.3f}, {metric}={current_value:.4f}"
             )
 
     if verbose:
@@ -287,7 +278,7 @@ def optimize_threshold(
     verbose: bool = True,
     segmentation_fn: Optional[Callable] = None,
     study_name: Optional[str] = None,
-    **seg_kwargs
+    **seg_kwargs,
 ) -> Dict[str, Any]:
     """
     Optimize affinity threshold using Optuna (Bayesian optimization).
@@ -335,9 +326,7 @@ def optimize_threshold(
         - :func:`optimize_parameters`: Multi-parameter optimization
     """
     if not OPTUNA_AVAILABLE:
-        raise ImportError(
-            "Optuna not found. Install with: pip install optuna>=3.0.0"
-        )
+        raise ImportError("Optuna not found. Install with: pip install optuna>=3.0.0")
 
     from .segmentation import decode_affinity_cc
 
@@ -352,11 +341,7 @@ def optimize_threshold(
     def objective(trial):
         """Optuna objective function."""
         # Suggest threshold
-        threshold = trial.suggest_float(
-            "threshold",
-            threshold_range[0],
-            threshold_range[1]
-        )
+        threshold = trial.suggest_float("threshold", threshold_range[0], threshold_range[1])
 
         # Convert affinities to segmentation
         seg = segmentation_fn(affinities, threshold=threshold, **seg_kwargs)
@@ -372,9 +357,7 @@ def optimize_threshold(
         study_name = f"affinity_threshold_{metric}"
 
     study = optuna.create_study(
-        direction=direction,
-        study_name=study_name,
-        sampler=optuna.samplers.TPESampler(seed=42)
+        direction=direction, study_name=study_name, sampler=optuna.samplers.TPESampler(seed=42)
     )
 
     # Optimize
@@ -394,7 +377,7 @@ def optimize_threshold(
     best_metrics["threshold"] = best_threshold
 
     if verbose:
-        print(f"\nOptimization complete!")
+        print("\nOptimization complete!")
         print(f"Best threshold: {best_threshold:.3f}")
         print(f"Best {metric}: {study.best_value:.4f}")
 
@@ -456,9 +439,7 @@ def optimize_parameters(
         - :func:`optimize_threshold`: Single-parameter optimization
     """
     if not OPTUNA_AVAILABLE:
-        raise ImportError(
-            "Optuna not found. Install with: pip install optuna>=3.0.0"
-        )
+        raise ImportError("Optuna not found. Install with: pip install optuna>=3.0.0")
 
     from .segmentation import decode_affinity_cc
 
@@ -476,13 +457,9 @@ def optimize_parameters(
         params = {}
         for param_name, (min_val, max_val) in param_space.items():
             if isinstance(min_val, int) and isinstance(max_val, int):
-                params[param_name] = trial.suggest_int(
-                    param_name, min_val, max_val
-                )
+                params[param_name] = trial.suggest_int(param_name, min_val, max_val)
             else:
-                params[param_name] = trial.suggest_float(
-                    param_name, float(min_val), float(max_val)
-                )
+                params[param_name] = trial.suggest_float(param_name, float(min_val), float(max_val))
 
         # Convert affinities to segmentation with suggested parameters
         try:
@@ -503,9 +480,7 @@ def optimize_parameters(
         study_name = f"affinity_multiparams_{metric}"
 
     study = optuna.create_study(
-        direction=direction,
-        study_name=study_name,
-        sampler=optuna.samplers.TPESampler(seed=42)
+        direction=direction, study_name=study_name, sampler=optuna.samplers.TPESampler(seed=42)
     )
 
     # Optimize
@@ -526,8 +501,8 @@ def optimize_parameters(
     best_metrics.update(best_params)
 
     if verbose:
-        print(f"\nOptimization complete!")
-        print(f"Best parameters:")
+        print("\nOptimization complete!")
+        print("Best parameters:")
         for k, v in best_params.items():
             print(f"  {k}: {v:.3f}" if isinstance(v, float) else f"  {k}: {v}")
         print(f"Best {metric}: {study.best_value:.4f}")

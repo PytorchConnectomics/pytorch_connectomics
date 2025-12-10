@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 from distutils.sysconfig import get_python_inc
 from setuptools import setup, Extension, find_packages
 
@@ -92,11 +93,12 @@ def getInclude():
 def setup_package():
     __version__ = "2.0.0"
     url = "https://github.com/zudi-lin/pytorch_connectomics"
+    readme_path = Path(__file__).resolve().parent / "README.md"
 
     setup(
         name="connectomics",
         description="Semantic and instance segmentation toolbox for EM connectomics",
-        long_description=open("README.md").read(),
+        long_description=readme_path.read_text(encoding="utf-8"),
         long_description_content_type="text/markdown",
         version=__version__,
         url=url,

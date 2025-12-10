@@ -28,14 +28,16 @@ def register_architecture(name: str):
     Returns:
         Decorator function
     """
+
     def decorator(builder_fn: Callable) -> Callable:
         if name in _ARCHITECTURE_REGISTRY:
             warnings.warn(
                 f"Architecture '{name}' already registered. Overwriting previous registration.",
-                UserWarning
+                UserWarning,
             )
         _ARCHITECTURE_REGISTRY[name] = builder_fn
         return builder_fn
+
     return decorator
 
 
@@ -110,18 +112,18 @@ def get_architecture_info() -> Dict[str, Dict[str, str]]:
     info = {}
     for name, builder in _ARCHITECTURE_REGISTRY.items():
         info[name] = {
-            'name': name,
-            'module': builder.__module__,
-            'doc': builder.__doc__.strip() if builder.__doc__ else 'No documentation',
+            "name": name,
+            "module": builder.__module__,
+            "doc": builder.__doc__.strip() if builder.__doc__ else "No documentation",
         }
     return info
 
 
 __all__ = [
-    'register_architecture',
-    'get_architecture_builder',
-    'list_architectures',
-    'is_architecture_available',
-    'unregister_architecture',
-    'get_architecture_info',
+    "register_architecture",
+    "get_architecture_builder",
+    "list_architectures",
+    "is_architecture_available",
+    "unregister_architecture",
+    "get_architecture_info",
 ]

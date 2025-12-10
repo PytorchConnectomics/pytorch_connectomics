@@ -13,6 +13,7 @@ import torch.nn as nn
 try:
     from monai.networks.nets import BasicUNet, UNet, UNETR, SwinUNETR
     from monai.networks.blocks import UpSample, ResidualUnit
+
     MONAI_AVAILABLE = True
 except ImportError:
     MONAI_AVAILABLE = False
@@ -41,14 +42,14 @@ class MONAIModelWrapper(ConnectomicsModel):
         # For 2D models, squeeze the depth dimension if present
         if x.dim() == 5 and x.size(2) == 1:  # [B, C, 1, H, W] -> [B, C, H, W]
             x = x.squeeze(2)
-        
+
         # Forward through model
         output = self.model(x)
-        
+
         # For 2D models, add back the depth dimension if needed for sliding window inference
         if output.dim() == 4 and x.dim() == 5:  # [B, C, H, W] -> [B, C, 1, H, W]
             output = output.unsqueeze(2)
-        
+
         return output
 
 
@@ -81,7 +82,9 @@ class UpsampleModeUNet(UNet):
         self.upsample_align_corners = upsample_align_corners
         super().__init__(**kwargs)
 
-    def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
+    def _get_up_layer(
+        self, in_channels: int, out_channels: int, strides: int, is_top: bool
+    ) -> nn.Module:
         """Override to optionally use interpolation-based upsampling instead of deconv."""
         if self.upsample_mode and self.upsample_mode != "deconv":
             conv: nn.Module = UpSample(
@@ -117,7 +120,7 @@ class UpsampleModeUNet(UNet):
         return super()._get_up_layer(in_channels, out_channels, strides, is_top)
 
 
-@register_architecture('monai_basic_unet3d')
+@register_architecture("monai_basic_unet3d")
 def build_basic_unet(cfg) -> ConnectomicsModel:
     """
     Build MONAI BasicUNet - simple and fast U-Net (2D or 3D).
@@ -150,38 +153,43 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
     in_channels = cfg.model.in_channels
     out_channels = cfg.model.out_channels
 
-    # Auto-infer spatial_dims from input_size length
-    if hasattr(cfg.model, 'input_size') and cfg.model.input_size:
+    # Auto-infer spatial_dims from input_size length; default to 3D if unspecified
+    if hasattr(cfg.model, "input_size") and cfg.model.input_size:
         spatial_dims = len(cfg.model.input_size)
     else:
-        raise ValueError(
-            "model.input_size must be specified in config. "
-            "Use [H, W] for 2D or [D, H, W] for 3D. "
-            "spatial_dims will be automatically inferred from input_size length."
-        )
+        spatial_dims = getattr(cfg.model, "spatial_dims", 3)
 
     # BasicUNet requires exactly 6 feature levels
     # Pad with last value repeated (not doubled) to keep memory usage low
-    base_features = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512, 1024]
+    base_features = (
+        list(cfg.model.filters) if hasattr(cfg.model, "filters") else [32, 64, 128, 256, 512, 1024]
+    )
     while len(base_features) < 6:
         base_features.append(base_features[-1])  # Repeat last value instead of doubling
     features = tuple(base_features[:6])
+
+    norm_type = getattr(cfg.model, "norm", "batch")
+    if norm_type == "group":
+        num_groups = getattr(cfg.model, "num_groups", 8)
+        norm = ("group", {"num_groups": num_groups})
+    else:
+        norm = norm_type
 
     model = BasicUNet(
         spatial_dims=spatial_dims,
         in_channels=in_channels,
         out_channels=out_channels,
         features=features,
-        dropout=getattr(cfg.model, 'dropout', 0.0),
-        act=getattr(cfg.model, 'activation', 'relu'),
-        norm=getattr(cfg.model, 'norm', 'batch'),
-        upsample=getattr(cfg.model, 'upsample', 'deconv'),
+        dropout=getattr(cfg.model, "dropout", 0.0),
+        act=getattr(cfg.model, "activation", "relu"),
+        norm=norm,
+        upsample=getattr(cfg.model, "upsample", "deconv"),
     )
 
     return MONAIModelWrapper(model)
 
 
-@register_architecture('monai_unet')
+@register_architecture("monai_unet")
 def build_monai_unet(cfg) -> ConnectomicsModel:
     """
     Build MONAI UNet with residual units (2D or 3D).
@@ -199,8 +207,10 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         - model.kernel_size: Kernel size for convolutions (default: 3)
         - model.norm: Normalization type (default: 'batch')
         - model.dropout: Dropout rate (default: 0.0)
-        - model.upsample_mode: Upsampling mode ('deconv' default, or 'nontrainable'/'pixelshuffle'/'deconvgroup')
-        - model.upsample_interp_mode: Interpolation mode when upsample_mode='nontrainable' (default: 'linear')
+        - model.upsample_mode: Upsampling mode ('deconv' default, or
+          'nontrainable'/'pixelshuffle'/'deconvgroup')
+        - model.upsample_interp_mode: Interpolation mode when upsample_mode='nontrainable'
+          (default: 'linear')
         - model.upsample_align_corners: align_corners flag for nontrainable upsample (default: True)
 
     Args:
@@ -211,30 +221,26 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     """
     _check_monai_available()
 
-    # Auto-infer spatial_dims from input_size length
-    if hasattr(cfg.model, 'input_size') and cfg.model.input_size:
+    # Auto-infer spatial_dims from input_size length; default to 3D if unspecified
+    if hasattr(cfg.model, "input_size") and cfg.model.input_size:
         spatial_dims = len(cfg.model.input_size)
     else:
-        raise ValueError(
-            "model.input_size must be specified in config. "
-            "Use [H, W] for 2D or [D, H, W] for 3D. "
-            "spatial_dims will be automatically inferred from input_size length."
-        )
-    channels = list(cfg.model.filters) if hasattr(cfg.model, 'filters') else [32, 64, 128, 256, 512]
+        spatial_dims = getattr(cfg.model, "spatial_dims", 3)
+    channels = list(cfg.model.filters) if hasattr(cfg.model, "filters") else [32, 64, 128, 256, 512]
     strides = [2] * (len(channels) - 1)  # 2x downsampling at each level
 
     # Handle normalization type and parameters
-    norm_type = getattr(cfg.model, 'norm', 'batch')
-    if norm_type == 'group':
+    norm_type = getattr(cfg.model, "norm", "batch")
+    if norm_type == "group":
         # For GroupNorm, we need to specify num_groups
-        num_groups = getattr(cfg.model, 'num_groups', 8)
+        num_groups = getattr(cfg.model, "num_groups", 8)
         norm = ("group", {"num_groups": num_groups})
     else:
         norm = norm_type
 
-    upsample_mode = getattr(cfg.model, 'upsample_mode', 'deconv')
-    upsample_interp_mode = getattr(cfg.model, 'upsample_interp_mode', 'linear')
-    upsample_align_corners = getattr(cfg.model, 'upsample_align_corners', True)
+    upsample_mode = getattr(cfg.model, "upsample_mode", "deconv")
+    upsample_interp_mode = getattr(cfg.model, "upsample_interp_mode", "linear")
+    upsample_align_corners = getattr(cfg.model, "upsample_align_corners", True)
 
     model = UpsampleModeUNet(
         spatial_dims=spatial_dims,
@@ -242,10 +248,10 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         out_channels=cfg.model.out_channels,
         channels=channels,
         strides=strides,
-        num_res_units=getattr(cfg.model, 'num_res_units', 2),
-        kernel_size=getattr(cfg.model, 'kernel_size', 3),
+        num_res_units=getattr(cfg.model, "num_res_units", 2),
+        kernel_size=getattr(cfg.model, "kernel_size", 3),
         norm=norm,
-        dropout=getattr(cfg.model, 'dropout', 0.0),
+        dropout=getattr(cfg.model, "dropout", 0.0),
         upsample_mode=upsample_mode,
         upsample_interp_mode=upsample_interp_mode,
         upsample_align_corners=upsample_align_corners,
@@ -254,7 +260,7 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     return MONAIModelWrapper(model)
 
 
-@register_architecture('monai_unetr')
+@register_architecture("monai_unetr")
 def build_unetr(cfg) -> ConnectomicsModel:
     """
     Build MONAI UNETR (Transformer-based U-Net).
@@ -286,19 +292,19 @@ def build_unetr(cfg) -> ConnectomicsModel:
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         img_size=cfg.model.input_size,
-        feature_size=getattr(cfg.model, 'feature_size', 16),
-        hidden_size=getattr(cfg.model, 'hidden_size', 768),
-        mlp_dim=getattr(cfg.model, 'mlp_dim', 3072),
-        num_heads=getattr(cfg.model, 'num_heads', 12),
-        pos_embed=getattr(cfg.model, 'pos_embed', 'perceptron'),
-        norm_name=getattr(cfg.model, 'norm', 'instance'),
-        dropout_rate=getattr(cfg.model, 'dropout', 0.0),
+        feature_size=getattr(cfg.model, "feature_size", 16),
+        hidden_size=getattr(cfg.model, "hidden_size", 768),
+        mlp_dim=getattr(cfg.model, "mlp_dim", 3072),
+        num_heads=getattr(cfg.model, "num_heads", 12),
+        pos_embed=getattr(cfg.model, "pos_embed", "perceptron"),
+        norm_name=getattr(cfg.model, "norm", "instance"),
+        dropout_rate=getattr(cfg.model, "dropout", 0.0),
     )
 
     return MONAIModelWrapper(model)
 
 
-@register_architecture('monai_swin_unetr')
+@register_architecture("monai_swin_unetr")
 def build_swin_unetr(cfg) -> ConnectomicsModel:
     """
     Build MONAI Swin UNETR (Swin Transformer U-Net).
@@ -328,20 +334,20 @@ def build_swin_unetr(cfg) -> ConnectomicsModel:
         img_size=cfg.model.input_size,
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
-        feature_size=getattr(cfg.model, 'feature_size', 48),
-        use_checkpoint=getattr(cfg.model, 'use_checkpoint', False),
-        drop_rate=getattr(cfg.model, 'dropout', 0.0),
-        attn_drop_rate=getattr(cfg.model, 'attn_drop_rate', 0.0),
-        dropout_path_rate=getattr(cfg.model, 'dropout_path_rate', 0.0),
+        feature_size=getattr(cfg.model, "feature_size", 48),
+        use_checkpoint=getattr(cfg.model, "use_checkpoint", False),
+        drop_rate=getattr(cfg.model, "dropout", 0.0),
+        attn_drop_rate=getattr(cfg.model, "attn_drop_rate", 0.0),
+        dropout_path_rate=getattr(cfg.model, "dropout_path_rate", 0.0),
     )
 
     return MONAIModelWrapper(model)
 
 
 __all__ = [
-    'MONAIModelWrapper',
-    'build_basic_unet',
-    'build_monai_unet',
-    'build_unetr',
-    'build_swin_unetr',
+    "MONAIModelWrapper",
+    "build_basic_unet",
+    "build_monai_unet",
+    "build_unetr",
+    "build_swin_unetr",
 ]

@@ -23,6 +23,13 @@ from connectomics.data.dataset import (
     create_data_dicts_from_paths,
 )
 from connectomics.training.lit.data import VolumeDataModule
+import pytest
+
+
+@pytest.fixture
+def data_paths(tmp_path):
+    """Provide synthetic Lucchi-style data paths for downstream tests."""
+    return create_dummy_lucchi_data(str(tmp_path))
 
 
 def create_dummy_lucchi_data(base_path):

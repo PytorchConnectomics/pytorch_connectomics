@@ -6,10 +6,12 @@ Provides TensorBoard visualization of training progress, predictions, and metric
 """
 
 from __future__ import annotations
-from typing import Optional, Dict, Any, List
+
+from typing import Any, Dict, List, Optional
+
+import numpy as np
 import torch
 import torchvision.utils as vutils
-import numpy as np
 from skimage.color import label2rgb
 
 try:
@@ -77,7 +79,8 @@ class Visualizer:
             writer: TensorBoard SummaryWriter
             prefix: Prefix for logging (train/val/test)
             channel_mode: How to handle multi-channel output ('argmax', 'all', 'selected')
-            selected_channels: List of channel indices to show (only used when channel_mode='selected')
+            selected_channels: List of channel indices to show
+                (only used when channel_mode='selected')
         """
         if not HAS_TENSORBOARD:
             return
@@ -138,9 +141,7 @@ class Visualizer:
 
         # Process output based on channel mode
         if channel_mode == "selected" and selected_channels is not None:
-            output_viz = self._process_output_channels(
-                output, channel_mode, selected_channels
-            )
+            output_viz = self._process_output_channels(output, channel_mode, selected_channels)
         else:
             output_viz = output  # Show all output channels as-is
         # output_viz = self._normalize(output_viz)
@@ -148,17 +149,13 @@ class Visualizer:
         # For labels, only apply channel selection if in 'selected' mode
         # Otherwise show all channels as-is for proper comparison
         if channel_mode == "selected" and selected_channels is not None:
-            label_viz = self._process_output_channels(
-                label, channel_mode, selected_channels
-            )
+            label_viz = self._process_output_channels(label, channel_mode, selected_channels)
         else:
             label_viz = label  # Show all label channels as-is
         label_viz = self._normalize(label_viz)
 
         # Create visualizations
-        self._log_visualization(
-            volume, label_viz, mask, output_viz, writer, iteration, prefix
-        )
+        self._log_visualization(volume, label_viz, mask, output_viz, writer, iteration, prefix)
 
     def _process_output_channels(
         self,
@@ -221,14 +218,10 @@ class Visualizer:
 
         # Single channel visualization (argmax mode)
         if output.shape[1] == 1:
-            self._log_single_channel_viz(
-                volume_rgb, label, mask, output, writer, iteration, prefix
-            )
+            self._log_single_channel_viz(volume_rgb, label, mask, output, writer, iteration, prefix)
         else:
             # Multi-channel visualization
-            self._log_multi_channel_viz(
-                volume_rgb, label, mask, output, writer, iteration, prefix
-            )
+            self._log_multi_channel_viz(volume_rgb, label, mask, output, writer, iteration, prefix)
 
     def _log_single_channel_viz(
         self,
@@ -304,15 +297,13 @@ class Visualizer:
         # Show input
         writer.add_image(
             f"{prefix}/input",
-            vutils.make_grid(
-                volume, nrow=min(8, self.max_images), normalize=True, scale_each=True
-            ),
+            vutils.make_grid(volume, nrow=min(8, self.max_images), normalize=True, scale_each=True),
             iteration,
         )
 
         # Show each output channel
         for i in range(min(output.shape[1], 12)):  # Increased limit to 12 channels
-            channel_img = output[:, i : i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
+            channel_img = output[:, i:i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
             writer.add_image(
                 f"{prefix}/output_channel_{i}",
                 vutils.make_grid(
@@ -326,7 +317,7 @@ class Visualizer:
 
         # Show each label channel
         for i in range(min(label.shape[1], 12)):  # Increased limit to 12 channels
-            channel_img = label[:, i : i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
+            channel_img = label[:, i:i + 1].repeat(1, 3, 1, 1)  # Convert to RGB
             writer.add_image(
                 f"{prefix}/label_channel_{i}",
                 vutils.make_grid(
@@ -342,7 +333,7 @@ class Visualizer:
         if mask is not None and mask.numel() > 0:
             for i in range(min(mask.shape[1], 12)):  # Show up to 12 mask channels
                 # Show mask in cyan for better visibility
-                mask_channel = mask[:, i : i + 1]
+                mask_channel = mask[:, i:i + 1]
                 mask_rgb = torch.cat(
                     [
                         torch.zeros_like(mask_channel),  # R=0
@@ -402,7 +393,7 @@ class Visualizer:
             # Multi-channel: normalize each channel independently
             normalized = []
             for c in range(tensor.shape[1]):
-                channel = tensor[:, c : c + 1]
+                channel = tensor[:, c:c + 1]
                 min_val = channel.min()
                 max_val = channel.max()
                 if max_val > min_val:
@@ -471,9 +462,7 @@ class Visualizer:
         vol_slices = vol_slices.permute(1, 0, 2, 3)
         lab_slices = lab_slices.permute(1, 0, 2, 3)
         out_slices = out_slices.permute(1, 0, 2, 3)
-        mask_slices = (
-            mask_slices.permute(1, 0, 2, 3) if mask_slices is not None else None
-        )
+        mask_slices = mask_slices.permute(1, 0, 2, 3) if mask_slices is not None else None
         # Visualize
         self._visualize_grid(
             vol_slices,
@@ -523,12 +512,8 @@ class LightningVisualizer:
         writer = trainer.logger.experiment
 
         # Get visualization options from config
-        channel_mode = getattr(
-            self.cfg.monitor.logging.images, "channel_mode", "argmax"
-        )
-        selected_channels = getattr(
-            self.cfg.monitor.logging.images, "selected_channels", None
-        )
+        channel_mode = getattr(self.cfg.monitor.logging.images, "channel_mode", "argmax")
+        selected_channels = getattr(self.cfg.monitor.logging.images, "selected_channels", None)
 
         # Visualize
         self.visualizer.visualize(
@@ -561,12 +546,8 @@ class LightningVisualizer:
         writer = trainer.logger.experiment
 
         # Get visualization options from config
-        channel_mode = getattr(
-            self.cfg.monitor.logging.images, "channel_mode", "argmax"
-        )
-        selected_channels = getattr(
-            self.cfg.monitor.logging.images, "selected_channels", None
-        )
+        channel_mode = getattr(self.cfg.monitor.logging.images, "channel_mode", "argmax")
+        selected_channels = getattr(self.cfg.monitor.logging.images, "selected_channels", None)
 
         self.visualizer.visualize(
             volume=batch["image"],

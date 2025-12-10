@@ -1,0 +1,249 @@
+# CellMap Challenge - Phase 2: Full Semantic Submission
+#
+# PHASE 2: Full submission - 47 semantic classes
+# - All 47 classes treated as SEMANTIC (multi-class binary mask)
+# - No instance separation (SDT not used)
+# - Simple unified approach
+#
+# All 47 semantic classes:
+#
+# Instance classes (11):
+# - mito, endo, ld, lyso, np, ves, peroxisome, mt, cell, nuc, vim
+#
+# Semantic classes (36):
+# - ne, er_mem, ecs, pm, mito_mem, golgi_mem, ves_mem, MVB_mem, lyso_mem, LD_mem
+# - er_lumen, eres_mem, nucleus, nucleolus, nuclear_pore_out, chromatin
+# - NHChrom, EChrom, NEChrom, HChrom, NHEChrom, NHHChrom, NHNEChrom
+# - ribosomes, cytoplasm, glycogen, lipid, microtubule_out
+# - er, golgi, np_semantic, eres, centrosome, distal_app, subdistal_app
+# - ribosomes_free, ribosomes_bound, vesicle_lumen
+#
+# Trade-offs:
+# ✅ Simpler: Single model, single training run
+# ✅ Faster: Train once instead of twice
+# ✅ Unified: Same backbone for all predictions
+# ⚠️  Lower accuracy: Jack-of-all-trades vs specialized models
+# ⚠️  Harder optimization: Multi-task learning challenges
+#
+# Strategy:
+# - Standard resolution (8nm) - compromise for both instance/semantic
+# - Large model (MedNeXt-L) for 47-class capacity
+# - Sigmoid activation (multi-label) to handle overlapping classes
+# - Mixed instance + semantic loss
+# - Post-processing only for instance classes
+#
+# Usage:
+#   python scripts/cellmap/train_cellmap.py --config tutorials/cellmap_all47_baseline.yaml
+
+experiment_name: cellmap_semantic47_mednext_l
+description: CellMap all 47 classes as semantic (multi-class binary mask) with MedNeXt-L
+
+# System
+system:
+  training:
+    num_gpus: 4                           # Multi-GPU recommended
+    num_cpus: 16
+    num_workers: 8
+    batch_size: 2                         # Per GPU (effective = 8)
+  inference:
+    num_gpus: 1
+    num_cpus: 4
+    num_workers: 2
+    batch_size: 1
+  seed: 42
+
+# Model Configuration
+model:
+  architecture: mednext                   # MedNeXt (SOTA for medical imaging)
+
+  # Input/output configuration
+  input_size: [128, 128, 128]             # Standard patches (compromise)
+  output_size: [128, 128, 128]
+  in_channels: 1                          # Grayscale EM
+  out_channels: 47                        # All 47 classes
+
+  # MedNeXt configuration (large model for 47 classes)
+  mednext_size: L                         # L (61.8M params) - needed for 47 classes
+  mednext_kernel_size: 5                  # 5x5x5 kernels (balance context/memory)
+  deep_supervision: true                  # Multi-scale loss (CRITICAL)
+
+  # Loss configuration (multi-label for overlapping instance/semantic)
+  loss_functions: [DiceLoss, BCEWithLogitsLoss]
+  loss_weights: [1.0, 1.0]
+  loss_kwargs:
+    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Dice for each class
+    - {reduction: mean}                                   # BCE for all classes
+
+# Data - CellMap Challenge Dataset
+data:
+  # Dataset type (custom for CellMap)
+  dataset_type: cellmap
+
+  # CellMap-specific configuration
+  cellmap:
+    # Data paths
+    data_root: /projects/weilab/dataset/cellmap
+    datasplit_path: tutorials/cellmap_semantic47_datasplit.csv  # Auto-generated
+
+    # All 47 classes (11 instance + 36 semantic)
+    # Note: Adjust based on available labels in your dataset
+    classes: [
+      # === 11 Instance Classes (require post-processing) ===
+      mito, endo, ld, lyso, np, ves, peroxisome, mt, cell, nuc, vim,
+
+      # === 36 Semantic Classes (direct output) ===
+      # Membrane structures
+      ne, er_mem, ecs, pm, mito_mem, golgi_mem, ves_mem, MVB_mem, lyso_mem, LD_mem,
+      # Lumen and interior spaces
+      er_lumen, nucleus, nucleolus, cytoplasm,
+      # Nuclear components
+      nuclear_pore_out, chromatin, NHChrom, EChrom, NEChrom, HChrom,
+      NHEChrom, NHHChrom, NHNEChrom,
+      # Organelle components
+      eres_mem, ribosomes, glycogen, lipid, microtubule_out,
+      # Additional semantic structures
+      er, golgi, eres, centrosome, distal_app, subdistal_app,
+      ribosomes_free, ribosomes_bound
+    ]
+    force_all_classes: false              # Don't require all classes (many are rare)
+
+    # Patch configuration (standard resolution - compromise)
+    input_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]                    # 8nm isotropic - standard resolution
+    target_array_info:
+      shape: [128, 128, 128]
+      scale: [8, 8, 8]
+
+    # Spatial augmentation (standard)
+    spatial_transforms:
+      mirror:
+        axes: {x: 0.5, y: 0.5, z: 0.5}    # 50% flip probability per axis
+      transpose:
+        axes: [x, y, z]                    # Random permutation
+      rotate:
+        axes:
+          x: [-180, 180]
+          y: [-180, 180]
+          z: [-180, 180]
+
+  # Training configuration
+  iter_num_per_epoch: 2000                # Steps per epoch
+  persistent_workers: true
+
+# Optimizer - AdamW
+optimization:
+  max_epochs: 1000                        # Extended training for 47 classes
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 2              # Effective batch = 4 GPUs * 2 * 2 = 16
+  precision: "16-mixed"                   # Mixed precision
+
+  optimizer:
+    name: AdamW
+    lr: 1e-3                              # MedNeXt default
+    weight_decay: 1e-4
+
+  # Scheduler - cosine annealing with warmup
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 20                     # Longer warmup for 47 classes
+    min_lr: 1e-6
+
+# Monitoring
+monitor:
+  detect_anomaly: false
+
+  logging:
+    scalar:
+      loss: [train_loss_total_epoch]
+      loss_every_n_steps: 50
+      val_check_interval: 1.0
+      benchmark: true
+
+    images:
+      enabled: true
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 10
+      channel_mode: all                   # Show all 47 channels
+
+  # Checkpointing
+  checkpoint:
+    mode: min
+    save_top_k: 5
+    save_last: true
+    save_every_n_epochs: 50
+    dirpath: outputs/cellmap_semantic47/checkpoints/
+    use_timestamp: true
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    monitor: train_loss_total_epoch
+    patience: 100                         # Patient for 1000 epoch training
+    mode: min
+    min_delta: 1e-5
+
+# Inference configuration
+inference:
+  sliding_window:
+    window_size: [128, 128, 128]
+    sw_batch_size: 4
+    overlap: 0.5                          # Medium overlap (compromise)
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
+
+  test_time_augmentation:
+    flip_axes: [[2], [3], [4]]            # All 3 axes
+    rotation90_axes: null                 # Skip rotation for speed
+    select_channel: all
+    channel_activations:
+      - [0, 47, sigmoid]                  # Sigmoid for multi-label (all 47 classes)
+    ensemble_mode: mean
+    apply_mask: false
+
+  save_prediction:
+    enabled: true
+    intensity_scale: -1                   # Scale to [0, 255]
+
+# Test configuration
+test:
+  data:
+    test_image: null                      # Set when running test mode
+    test_label: null
+    test_mask: null
+    test_resolution: [8, 8, 8]
+
+  evaluation:
+    enabled: false                        # Enable when test labels available
+    metrics: []
+
+# Post-processing Notes:
+#
+# For challenge submission, you need to separate predictions into:
+#
+# 1. Instance classes (11) - channels 0-10:
+#    - Apply threshold (e.g., 0.5)
+#    - Connected components (cc3d)
+#    - Watershed segmentation
+#    - Instance ID assignment
+#    - Classes: mito, endo, ld, lyso, np, ves, peroxisome, mt, cell, nuc, vim
+#    - Evaluated with: Hausdorff Distance + Accuracy
+#
+# 2. Semantic classes (36) - channels 11-46:
+#    - Apply threshold (e.g., 0.5) OR argmax across semantic channels
+#    - Direct submission (no instance IDs needed)
+#    - Classes: ne, er_mem, ecs, pm, mito_mem, golgi_mem, etc.
+#    - Evaluated with: IoU + Dice Score
+#
+# Trade-off vs Specialized Models:
+# - Baseline: Single model, faster training (~30h vs ~60h total)
+# - Specialized: Two models (instance + semantic), higher accuracy
+# - Recommendation: Start with baseline, then train specialized if needed
+
+# Expected Performance:
+# - Training time: ~30 hours on 4x A100 GPUs
+# - Memory: ~20GB per GPU with batch_size=2
+# - Expected leaderboard: Mid-tier (good baseline, not SOTA)
+# - Improvement path: Train separate instance/semantic models

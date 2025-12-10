@@ -10,7 +10,6 @@ from skimage.morphology import (
     disk,
     ball,
 )
-from skimage.measure import label as label_cc  # avoid namespace conflict
 from skimage.filters import gaussian
 
 from .bbox_processor import BBoxProcessorConfig, BBoxInstanceProcessor

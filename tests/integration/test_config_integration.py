@@ -17,26 +17,39 @@ def test_config_creation():
 def test_config_from_dict():
     """Test creating config from dict."""
     cfg = from_dict({
-        'system': {'num_gpus': 0},
+        'system': {'training': {'num_gpus': 0}},
         'model': {'architecture': 'monai_basic_unet3d'}
     })
-    assert cfg.system.num_gpus == 0
+    assert cfg.system.training.num_gpus == 0
     assert cfg.model.architecture == 'monai_basic_unet3d'
 
 
-def test_config_from_yaml():
-    """Test loading config from YAML."""
-    try:
-        cfg = load_config('tutorials/lucchi.yaml')
-        assert cfg is not None
-    except FileNotFoundError:
-        pytest.skip("Example config not found")
+def test_config_from_yaml(tmp_path):
+    """Test loading config from a YAML file."""
+    config_path = tmp_path / "sample.yaml"
+    config_path.write_text(
+        """
+experiment_name: sample
+model:
+  architecture: monai_basic_unet3d
+  in_channels: 1
+  out_channels: 1
+system:
+  training:
+    num_gpus: 0
+"""
+    )
+
+    cfg = load_config(config_path)
+    assert cfg is not None
+    assert cfg.model.architecture == "monai_basic_unet3d"
+    assert cfg.system.training.num_gpus == 0
 
 
 def test_lightning_module_creation():
     """Test creating Lightning module."""
     cfg = from_dict({
-        'system': {'num_gpus': 0},
+        'system': {'training': {'num_gpus': 0}},
         'model': {
             'architecture': 'monai_basic_unet3d',
             'in_channels': 1,
@@ -45,22 +58,24 @@ def test_lightning_module_creation():
             'loss_functions': ['DiceLoss'],
             'loss_weights': [1.0]
         },
-        'optimizer': {'name': 'AdamW', 'lr': 1e-4},
-        'training': {'max_epochs': 1}
+        'optimization': {
+            'optimizer': {'name': 'AdamW', 'lr': 1e-4},
+            'max_epochs': 1
+        }
     })
     
     module = ConnectomicsModule(cfg)
     assert module is not None
 
 
-def test_trainer_creation():
+def test_trainer_creation(tmp_path):
     """Test creating trainer."""
     cfg = from_dict({
-        'system': {'num_gpus': 0},
-        'training': {'max_epochs': 1}
+        'system': {'training': {'num_gpus': 0}},
+        'optimization': {'max_epochs': 1}
     })
     
-    trainer = create_trainer(cfg)
+    trainer = create_trainer(cfg, run_dir=tmp_path)
     assert trainer is not None
     assert trainer.max_epochs == 1
 

@@ -12,7 +12,8 @@ Based on:
 Metrics:
     - Correctness: TP / (TP + FP) on skeleton
     - Completeness: TP / (TP + FN) on skeleton
-    - Quality: (Completeness * Correctness) / (Completeness + Correctness - Completeness * Correctness)
+    - Quality: (Completeness * Correctness) /
+      (Completeness + Correctness - Completeness * Correctness)
     - Foreground IoU: Intersection over Union of foreground regions
 
 Supports multi-CPU parallelism with Python multiprocessing for batch evaluation.
@@ -60,8 +61,8 @@ def compute_skeleton_metrics(
     """
     tpcor = 0  # True positives for correctness
     tpcom = 0  # True positives for completeness
-    fn = 0     # False negatives
-    fp = 0     # False positives
+    fn = 0  # False negatives
+    fp = 0  # False positives
 
     for i in range(len(skeleton_output)):
         # Correctness: predicted skeleton matches dilated GT
@@ -71,10 +72,14 @@ def compute_skeleton_metrics(
         tpcom += ((skeleton_gt[i] == skeleton_output_dil[i]) & (skeleton_gt[i] == 1)).sum()
 
         # False negatives: GT not covered by dilated prediction
-        fn += (skeleton_gt[i] == 1).sum() - ((skeleton_gt[i] == skeleton_output_dil[i]) & (skeleton_gt[i] == 1)).sum()
+        fn += (skeleton_gt[i] == 1).sum() - (
+            (skeleton_gt[i] == skeleton_output_dil[i]) & (skeleton_gt[i] == 1)
+        ).sum()
 
         # False positives: prediction not matching dilated GT
-        fp += (skeleton_output[i] == 1).sum() - ((skeleton_output[i] == skeleton_gt_dil[i]) & (skeleton_output[i] == 1)).sum()
+        fp += (skeleton_output[i] == 1).sum() - (
+            (skeleton_output[i] == skeleton_gt_dil[i]) & (skeleton_output[i] == 1)
+        ).sum()
 
     # Calculate metrics with safety checks
     correctness = tpcor / (tpcor + fp) if (tpcor + fp) > 0 else 0.0
@@ -196,9 +201,7 @@ def evaluate_image_pair(
 
     # Compute metrics
     iou = compute_iou(pred_bin, gt_bin)
-    correctness, completeness, quality = compute_precision_recall(
-        pred_bin, gt_bin, dilation_size
-    )
+    correctness, completeness, quality = compute_precision_recall(pred_bin, gt_bin, dilation_size)
 
     return iou, correctness, completeness, quality
 
@@ -206,6 +209,7 @@ def evaluate_image_pair(
 # ============================================================================
 # Batch Evaluation Functions (for standalone script usage)
 # ============================================================================
+
 
 def evaluate_file_pair(
     pred_path: str,
@@ -227,7 +231,9 @@ def evaluate_file_pair(
         Tuple of (iou, correctness, completeness, quality) or empty list if file missing
     """
     if imageio is None:
-        raise ImportError("imageio is required for loading images. Install with: pip install imageio")
+        raise ImportError(
+            "imageio is required for loading images. Install with: pip install imageio"
+        )
 
     if not os.path.exists(pred_path):
         return []
@@ -242,8 +248,10 @@ def evaluate_file_pair(
     )
 
     if verbose:
-        print(f"{Path(pred_path).name}: IoU={iou:.4f}, Corr={correctness:.4f}, "
-              f"Comp={completeness:.4f}, Qual={quality:.4f}")
+        print(
+            f"{Path(pred_path).name}: IoU={iou:.4f}, Corr={correctness:.4f}, "
+            f"Comp={completeness:.4f}, Qual={quality:.4f}"
+        )
 
     return iou, correctness, completeness, quality
 
@@ -296,19 +304,17 @@ def evaluate_directory(
         print(f"Evaluating with {num_workers} workers...")
 
     # Prepare file pairs
-    pred_dir = pred_dir if pred_dir.endswith('/') else pred_dir + '/'
-    gt_dir = gt_dir if gt_dir.endswith('/') else gt_dir + '/'
+    pred_dir = pred_dir if pred_dir.endswith("/") else pred_dir + "/"
+    gt_dir = gt_dir if gt_dir.endswith("/") else gt_dir + "/"
 
     file_pairs = [
-        (pred_dir + (pred_pattern % i), gt_dir + (gt_pattern % i))
-        for i in range(max_index)
+        (pred_dir + (pred_pattern % i), gt_dir + (gt_pattern % i)) for i in range(max_index)
     ]
 
     # Parallel evaluation
     with multiprocessing.Pool(num_workers) as pool:
         results = pool.starmap(
-            lambda p, g: evaluate_file_pair(p, g, threshold, dilation_size, verbose),
-            file_pairs
+            lambda p, g: evaluate_file_pair(p, g, threshold, dilation_size, verbose), file_pairs
         )
 
     # Filter out missing files and compute statistics
@@ -318,43 +324,43 @@ def evaluate_directory(
     if len(results) == 0:
         print("Warning: No valid results found!")
         return {
-            'mean_iou': 0.0,
-            'mean_correctness': 0.0,
-            'mean_completeness': 0.0,
-            'mean_quality': 0.0,
-            'num_evaluated': 0,
-            'results': results_array,
+            "mean_iou": 0.0,
+            "mean_correctness": 0.0,
+            "mean_completeness": 0.0,
+            "mean_quality": 0.0,
+            "num_evaluated": 0,
+            "results": results_array,
         }
 
     mean_metrics = results_array.mean(axis=0)
 
     output = {
-        'mean_iou': mean_metrics[0],
-        'mean_correctness': mean_metrics[1],
-        'mean_completeness': mean_metrics[2],
-        'mean_quality': mean_metrics[3],
-        'num_evaluated': len(results),
-        'results': results_array,
+        "mean_iou": mean_metrics[0],
+        "mean_correctness": mean_metrics[1],
+        "mean_completeness": mean_metrics[2],
+        "mean_quality": mean_metrics[3],
+        "num_evaluated": len(results),
+        "results": results_array,
     }
 
     if verbose:
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"Evaluated {output['num_evaluated']} images")
         print(f"Mean IoU:          {output['mean_iou']:.4f}")
         print(f"Mean Correctness:  {output['mean_correctness']:.4f}")
         print(f"Mean Completeness: {output['mean_completeness']:.4f}")
         print(f"Mean Quality:      {output['mean_quality']:.4f}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
 
     return output
 
 
 __all__ = [
-    'compute_skeleton_metrics',
-    'compute_precision_recall',
-    'compute_iou',
-    'binarize_masks',
-    'evaluate_image_pair',
-    'evaluate_file_pair',
-    'evaluate_directory',
+    "compute_skeleton_metrics",
+    "compute_precision_recall",
+    "compute_iou",
+    "binarize_masks",
+    "evaluate_image_pair",
+    "evaluate_file_pair",
+    "evaluate_directory",
 ]
