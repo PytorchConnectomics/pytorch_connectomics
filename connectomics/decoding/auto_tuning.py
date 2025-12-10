@@ -9,10 +9,11 @@ Reference: BANIS baseline (threshold sweep utilities)
 """
 
 from __future__ import annotations
-from typing import Dict, Any, Callable, Optional, Union
-from pathlib import Path
+
 import pickle
 import warnings
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional, Union
 
 import numpy as np
 
@@ -24,7 +25,7 @@ except ImportError:
     OPTUNA_AVAILABLE = False
 
 try:
-    from funlib.evaluate import rand_voi, expected_run_length
+    from funlib.evaluate import expected_run_length, rand_voi
     from networkx import get_node_attributes
 
     FUNLIB_AVAILABLE = True
@@ -408,7 +409,7 @@ def optimize_parameters(
         affinities: Affinity predictions (3, D, H, W) or (6, D, H, W)
         skeleton_path: Path to skeleton .pkl file
         param_space: Dictionary mapping parameter names to (min, max) ranges.
-            Example: {"threshold": (0.1, 0.9), "thres_small": (50, 500)}
+            Example: {"threshold": (0.1, 0.9)}
         n_trials: Number of optimization trials
         metric: Metric to optimize ("nerl" or "voi_sum")
         verbose: Show Optuna progress
@@ -424,7 +425,6 @@ def optimize_parameters(
     Example:
         >>> param_space = {
         ...     "threshold": (0.1, 0.9),
-        ...     "thres_small": (50, 500),
         ... }
         >>> result = optimize_parameters(
         ...     affinities,

@@ -35,6 +35,7 @@ from ...config import Config
 # Import training/inference components
 from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
 from ..debugging import DebugManager
+from ..loss_balancing import build_loss_weighter
 from ...inference import (
     InferenceManager,
     apply_save_prediction_transform,
@@ -78,6 +79,10 @@ class ConnectomicsModule(pl.LightningModule):
         self.loss_functions = self._build_losses(cfg)
         self.loss_weights = cfg.model.loss_weights if hasattr(cfg.model, 'loss_weights') else [1.0] * len(self.loss_functions)
 
+        # Build adaptive loss weighter (for multi-task learning)
+        num_tasks = len(cfg.model.multi_task_config) if hasattr(cfg.model, 'multi_task_config') and cfg.model.multi_task_config else 1
+        self.loss_weighter = build_loss_weighter(cfg, num_tasks, model=self.model)
+
         # Enable inline NaN detection (can be disabled via config)
         self.enable_nan_detection = getattr(cfg.model, 'enable_nan_detection', True)
         self.debug_on_nan = getattr(cfg.model, 'debug_on_nan', True)
@@ -94,6 +99,7 @@ class ConnectomicsModule(pl.LightningModule):
             loss_weights=self.loss_weights,
             enable_nan_detection=self.enable_nan_detection,
             debug_on_nan=self.debug_on_nan,
+            loss_weighter=self.loss_weighter,
         )
 
         self.inference_manager = InferenceManager(
@@ -294,8 +300,8 @@ class ConnectomicsModule(pl.LightningModule):
 
         return None, False, loaded_suffix
 
-    def _compute_test_metrics(self, decoded_predictions: np.ndarray, labels: torch.Tensor):
-        """Update configured torchmetrics using decoded predictions."""
+    def _compute_test_metrics(self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None):
+        """Update configured torchmetrics using decoded predictions and print per-volume metrics."""
         pred_tensor = torch.from_numpy(decoded_predictions).float().to(self.device)
         labels_tensor = labels.float()
 
@@ -306,41 +312,78 @@ class ConnectomicsModule(pl.LightningModule):
         # Ensure both tensors have the same shape
         if pred_tensor.shape != labels_tensor.shape:
             print(f"  ⚠️  Shape mismatch: pred={pred_tensor.shape}, labels={labels_tensor.shape}")
-            
+
             # Try to align dimensions
             if pred_tensor.ndim != labels_tensor.ndim:
                 if pred_tensor.ndim == labels_tensor.ndim - 1:
                     pred_tensor = pred_tensor.unsqueeze(0)
                 elif labels_tensor.ndim == pred_tensor.ndim - 1:
                     labels_tensor = labels_tensor.unsqueeze(0)
-            
+
             # If still mismatched after dimension alignment, skip metrics
             if pred_tensor.shape != labels_tensor.shape:
                 print(f"  ❌ Cannot compute metrics: incompatible shapes after alignment")
                 print(f"     pred={pred_tensor.shape}, labels={labels_tensor.shape}")
                 return
 
-        if pred_tensor.max() <= 1.0:
-            pred_binary = (pred_tensor > 0.5).long()
+        # Compute per-volume metrics (print immediately)
+        volume_prefix = f"[{volume_name}] " if volume_name else ""
+
+        # Determine if this is instance segmentation or binary/semantic segmentation
+        # Instance segmentation: predictions have integer instance IDs (0, 1, 2, ..., N)
+        # Binary/semantic segmentation: predictions are probabilities [0, 1] or logits
+        is_instance_segmentation = (
+            pred_tensor.dtype in [torch.int8, torch.int16, torch.int32, torch.int64]
+            or (pred_tensor.dtype == torch.float32 and pred_tensor.max() > 1.0)
+        )
+
+        if is_instance_segmentation:
+            # For instance segmentation: use instance IDs directly
+            pred_instances = pred_tensor.long()
+            labels_instances = labels_tensor.long()
+
+            # Adapted Rand Error is for instance segmentation
+            if hasattr(self, "test_adapted_rand") and isinstance(self.test_adapted_rand, torchmetrics.Metric):
+                from ...metrics.metrics_seg import AdaptedRandError
+                per_volume_metric = AdaptedRandError().to(self.device)
+                per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
+                adapted_rand_value = per_volume_metric.compute()
+                print(f"  {volume_prefix}Adapted Rand Error: {adapted_rand_value.item():.6f}")
+
+                # Update running metric for epoch-level aggregation
+                self.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
+                self.log("test_adapted_rand", self.test_adapted_rand, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
         else:
-            pred_binary = (torch.sigmoid(pred_tensor) > 0.5).long()
+            # For binary/semantic segmentation: binarize predictions
+            if pred_tensor.max() <= 1.0:
+                pred_binary = (pred_tensor > 0.5).long()
+            else:
+                pred_binary = (torch.sigmoid(pred_tensor) > 0.5).long()
 
-        labels_binary = (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
+            labels_binary = (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
 
-        if hasattr(self, "test_jaccard") and self.test_jaccard is not None:
-            self.test_jaccard.update(pred_binary, labels_binary)
-            self.log("test_jaccard", self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            if hasattr(self, "test_jaccard") and self.test_jaccard is not None:
+                jaccard_value = torchmetrics.functional.jaccard_index(
+                    pred_binary, labels_binary, task='binary'
+                )
+                print(f"  {volume_prefix}Jaccard: {jaccard_value.item():.6f}")
+                self.test_jaccard.update(pred_binary, labels_binary)
+                self.log("test_jaccard", self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        if hasattr(self, "test_dice") and self.test_dice is not None:
-            self.test_dice.update(pred_binary, labels_binary)
-            self.log("test_dice", self.test_dice, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            if hasattr(self, "test_dice") and self.test_dice is not None:
+                dice_value = torchmetrics.functional.dice(pred_binary, labels_binary)
+                print(f"  {volume_prefix}Dice: {dice_value.item():.6f}")
+                self.test_dice.update(pred_binary, labels_binary)
+                self.log("test_dice", self.test_dice, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
-        if hasattr(self, "test_accuracy") and self.test_accuracy is not None:
-            self.test_accuracy.update(pred_binary, labels_binary)
-            self.log("test_accuracy", self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-
-        if hasattr(self, "test_adapted_rand") and isinstance(self.test_adapted_rand, torchmetrics.Metric):
-            self.test_adapted_rand.update(pred_binary.cpu(), labels_binary.cpu())
+            if hasattr(self, "test_accuracy") and self.test_accuracy is not None:
+                accuracy_value = torchmetrics.functional.accuracy(
+                    pred_binary, labels_binary, task='binary'
+                )
+                print(f"  {volume_prefix}Accuracy: {accuracy_value.item():.6f}")
+                self.test_accuracy.update(pred_binary, labels_binary)
+                self.log("test_accuracy", self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
         images = batch['image']
@@ -473,12 +516,11 @@ class ConnectomicsModule(pl.LightningModule):
             self.train()
 
     def on_test_end(self):
-        """Called at the end of testing to compute and log final metrics."""
-        if self.test_adapted_rand and isinstance(self.test_adapted_rand, torchmetrics.Metric):
-            try:
-                self.log('test_adapted_rand', self.test_adapted_rand.compute(), prog_bar=True, logger=True)
-            except Exception as e:
-                warnings.warn(f"Could not compute adapted rand metric: {e}", UserWarning)
+        """Called at the end of testing."""
+        # Note: Metrics are logged in test_step with on_epoch=True,
+        # which automatically computes and logs them at the end of testing.
+        # Logging here causes a Lightning warning since self.log() is not allowed in on_test_end.
+        pass
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """
@@ -502,11 +544,14 @@ class ConnectomicsModule(pl.LightningModule):
         loaded_final_predictions = loaded_from_file and loaded_suffix == "_prediction.h5"
         loaded_intermediate_predictions = loaded_from_file and loaded_suffix == "_tta_prediction.h5"
 
+        # Extract volume name for logging
+        volume_name = filenames[0] if filenames else f"volume_{batch_idx}"
+
         # CASE 1: Final predictions exist → directly evaluate
         if loaded_final_predictions:
             print(f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing")
             if labels is not None:
-                self._compute_test_metrics(predictions_np, labels)
+                self._compute_test_metrics(predictions_np, labels, volume_name=volume_name)
             return torch.tensor(0.0, device=self.device)
 
         # CASE 2: Intermediate predictions exist → decode and postprocess
@@ -524,7 +569,7 @@ class ConnectomicsModule(pl.LightningModule):
 
             # Evaluate if labels provided
             if labels is not None:
-                self._compute_test_metrics(decoded_predictions, labels)
+                self._compute_test_metrics(decoded_predictions, labels, volume_name=volume_name)
             return torch.tensor(0.0, device=self.device)
 
         # CASE 3: No cached predictions → run full inference pipeline
@@ -555,7 +600,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Evaluate if labels provided
         if labels is not None:
-            self._compute_test_metrics(decoded_predictions, labels)
+            self._compute_test_metrics(decoded_predictions, labels, volume_name=volume_name)
 
         return torch.tensor(0.0, device=self.device)
 

@@ -6,9 +6,11 @@ in memory, avoiding repeated disk I/O.
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Tuple
-import numpy as np
+
 import random  # Use random (not np.random) for thread safety
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 from monai.data import Dataset
 from monai.transforms import Compose
 from monai.utils import ensure_tuple_rep
@@ -20,6 +22,8 @@ def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...
     """
     Crop a subvolume from a volume using numpy slicing (fast!).
 
+    If the crop would go out of bounds, pads the result to the exact requested size.
+
     Args:
         volume: Input volume
                 2D: (C, H, W) or (H, W)
@@ -28,24 +32,88 @@ def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...
         start: Start position (d, h, w) for 3D or (h, w) for 2D
 
     Returns:
-        Cropped volume
+        Cropped volume with exact size (padded if necessary)
     """
     ndim = len(size)
     if ndim not in [2, 3]:
         raise ValueError(f"crop_volume only supports 2D or 3D, got {ndim}D")
 
-    # Build slicing tuple dynamically based on dimensions
-    slices = [slice(start[i], start[i] + size[i]) for i in range(ndim)]
-
     # Check if volume has channel dimension
     has_channel = volume.ndim == ndim + 1
 
+    # Get actual volume spatial dimensions
+    if has_channel:
+        vol_spatial_shape = volume.shape[1:]
+    else:
+        vol_spatial_shape = volume.shape
+
+    # Build slicing tuple dynamically based on dimensions
+    slices = []
+    pad_width = []
+    for i in range(ndim):
+        # Clamp start to valid range (can't be negative, can't be beyond volume)
+        clamped_start = max(0, min(start[i], vol_spatial_shape[i]))
+        # Calculate how much we can actually crop from this position
+        available = max(0, vol_spatial_shape[i] - clamped_start)
+        actual_crop_size = min(size[i], available)
+        actual_end = clamped_start + actual_crop_size
+        slices.append(slice(clamped_start, actual_end))
+
+        # Calculate padding needed if crop is smaller than requested
+        # This ensures we always return exactly size[i]
+        pad_after = max(0, size[i] - actual_crop_size)
+        pad_width.append((0, pad_after))
+
+    # Perform the crop
     if has_channel:
         # (C, ...) format - keep all channels, crop spatial dims
-        return volume[(slice(None),) + tuple(slices)]
+        cropped = volume[(slice(None),) + tuple(slices)]
     else:
         # No channel dimension - crop directly
-        return volume[tuple(slices)]
+        cropped = volume[tuple(slices)]
+
+    # Pad if necessary to ensure exact size
+    if any(pad > 0 for _, pad in pad_width):
+        # Build full pad_width including channel dimension if present
+        if has_channel:
+            full_pad_width = [(0, 0)] + pad_width  # No padding on channel
+        else:
+            full_pad_width = pad_width
+
+        # Use reflect padding to match the volume's edge values
+        cropped = np.pad(cropped, full_pad_width, mode="reflect")
+
+    # Final safety check: ensure output has exactly the requested size
+    # This handles any edge cases where padding calculation might be off
+    expected_spatial_shape = size
+    actual_spatial_shape = cropped.shape[-ndim:] if has_channel else cropped.shape
+
+    if actual_spatial_shape != expected_spatial_shape:
+        # Calculate how much padding is still needed
+        pad_needed = []
+        for i in range(ndim):
+            pad = max(0, expected_spatial_shape[i] - actual_spatial_shape[i])
+            pad_needed.append((0, pad))
+
+        if any(p > 0 for _, p in pad_needed):
+            if has_channel:
+                full_pad_width = [(0, 0)] + pad_needed
+            else:
+                full_pad_width = pad_needed
+            cropped = np.pad(cropped, full_pad_width, mode="reflect")
+
+        # If still wrong (shouldn't happen), trim excess
+        if has_channel:
+            current_spatial = cropped.shape[-ndim:]
+            if current_spatial != expected_spatial_shape:
+                slices = [slice(None)] + [slice(0, s) for s in expected_spatial_shape]
+                cropped = cropped[tuple(slices)]
+        else:
+            if cropped.shape != expected_spatial_shape:
+                slices = [slice(0, s) for s in expected_spatial_shape]
+                cropped = cropped[tuple(slices)]
+
+    return cropped
 
 
 class CachedVolumeDataset(Dataset):
@@ -122,6 +190,10 @@ class CachedVolumeDataset(Dataset):
             if self.pad_size is not None:
                 img = self._apply_padding(img)
 
+            # Ensure volume is at least as large as patch_size in all dimensions
+            # This prevents crops from being smaller than patch_size
+            img = self._ensure_minimum_size(img)
+
             self.cached_images.append(img)
 
             # Load label if available
@@ -139,6 +211,9 @@ class CachedVolumeDataset(Dataset):
                         lbl, mode="constant", constant_values=0
                     )  # Use constant 0 for labels
 
+                # Ensure label is at least as large as patch_size
+                lbl = self._ensure_minimum_size(lbl, mode="constant", constant_values=0)
+
                 self.cached_labels.append(lbl)
             else:
                 self.cached_labels.append(None)
@@ -152,6 +227,9 @@ class CachedVolumeDataset(Dataset):
                 # Apply padding if specified (same padding as label)
                 if self.pad_size is not None:
                     mask = self._apply_padding(mask, mode="constant", constant_values=0)
+
+                # Ensure mask is at least as large as patch_size
+                mask = self._ensure_minimum_size(mask, mode="constant", constant_values=0)
 
                 self.cached_masks.append(mask)
             else:
@@ -200,6 +278,53 @@ class CachedVolumeDataset(Dataset):
 
         return padded
 
+    def _ensure_minimum_size(
+        self, volume: np.ndarray, mode: Optional[str] = None, constant_values: float = 0
+    ) -> np.ndarray:
+        """
+        Ensure volume is at least as large as patch_size in all spatial dimensions.
+        Pads only if necessary.
+
+        Args:
+            volume: Input volume with channel dimension (C, D, H, W) or (C, H, W)
+            mode: Padding mode ('reflect', 'constant', etc.). If None, uses self.pad_mode
+            constant_values: Value for constant padding
+
+        Returns:
+            Volume padded to at least patch_size if necessary
+        """
+        ndim = len(self.patch_size)
+        has_channel = volume.ndim == ndim + 1
+
+        # Get actual volume spatial dimensions
+        if has_channel:
+            vol_spatial_shape = volume.shape[1:]
+        else:
+            vol_spatial_shape = volume.shape
+
+        # Check if padding is needed
+        needs_padding = any(vol_spatial_shape[i] < self.patch_size[i] for i in range(ndim))
+        if not needs_padding:
+            return volume
+
+        # Calculate padding needed for each dimension
+        mode = mode if mode is not None else self.pad_mode
+        pad_width = [(0, 0)]  # No padding on channel dimension
+        for i in range(ndim):
+            pad_needed = max(0, self.patch_size[i] - vol_spatial_shape[i])
+            # Distribute padding evenly on both sides
+            pad_before = pad_needed // 2
+            pad_after = pad_needed - pad_before
+            pad_width.append((pad_before, pad_after))
+
+        # Apply padding
+        if mode == "constant":
+            padded = np.pad(volume, pad_width, mode=mode, constant_values=constant_values)
+        else:
+            padded = np.pad(volume, pad_width, mode=mode)
+
+        return padded
+
     def __len__(self) -> int:
         return self.iter_num
 
@@ -218,10 +343,16 @@ class CachedVolumeDataset(Dataset):
 
         # Random position ensuring crop fits within volume
         # Support both 2D and 3D
-        positions = tuple(
-            random.randint(0, max(0, vol_size[i] - patch_size[i])) for i in range(len(patch_size))
-        )
-        return positions
+        # Ensure max_start ensures we can crop at least patch_size
+        positions = []
+        for i in range(len(patch_size)):
+            max_start = max(0, vol_size[i] - patch_size[i])
+            # Safety check: if volume is smaller than patch_size, start at 0
+            # (crop_volume will handle padding)
+            if max_start < 0:
+                max_start = 0
+            positions.append(random.randint(0, max_start))
+        return tuple(positions)
 
     def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         """

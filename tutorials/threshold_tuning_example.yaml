@@ -59,19 +59,12 @@ tuning:
   # Parameter space for multi-parameter optimization
   param_space:
     threshold: [0.1, 0.9]
-    min_instance_size: [50, 500]  # Small object removal
-    # use_numba: true  # Fixed parameter (not optimized)
 
 # Post-processing configuration
 postprocess:
   # Post-processing function to use
   # Options: 'decode_affinity_cc', 'custom_function'
   function: decode_affinity_cc
-
-  # Fixed parameters (not optimized)
-  use_numba: true
-  scale_factors: [1.0, 1.0, 1.0]
-  remove_small_mode: 'background'
 
 # Output configuration
 output:

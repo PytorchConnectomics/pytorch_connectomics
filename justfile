@@ -88,17 +88,17 @@ train-cellmap dataset *ARGS='':
 # Shows all runs (timestamped directories) for comparison
 # Usage: just tensorboard experiment [port] (default port: 6006)
 tensorboard experiment port='6006':
-    tensorboard --logdir /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/{{experiment}} --port {{port}}
+    tensorboard --logdir outputs/{{experiment}} --port {{port}}
 
 # Launch TensorBoard for all experiments
 # Usage: just tensorboard-all [port] (default port: 6006)
 tensorboard-all port='6006':
-    tensorboard --logdir /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/ --port {{port}}
+    tensorboard --logdir outputs/ --port {{port}}
 
 # Launch TensorBoard for a specific run (e.g., just tensorboard-run lucchi_monai_unet 20250203_143052)
 # Usage: just tensorboard-run experiment timestamp [port] (default port: 6006)
 tensorboard-run experiment timestamp port='6006':
-    tensorboard --logdir /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset_training/outputs/{{experiment}}/{{timestamp}} --port {{port}}
+    tensorboard --logdir outputs/{{experiment}}/{{timestamp}} --port {{port}}
 
 # Launch any just command on SLURM (e.g., just slurm short 8 4 "train lucchi")
 # Optional 5th parameter: GPU type (vr80g, vr40g, vr16g for V100s)

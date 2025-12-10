@@ -18,12 +18,11 @@ import cc3d
 import fastremap
 import mahotas
 import numpy as np
-from scipy.ndimage import zoom
 from skimage.morphology import remove_small_objects
 
 from connectomics.data.process.target import seg_to_semantic_edt
 
-from .utils import cast2dtype, remove_small_instances
+from .utils import cast2dtype
 
 try:
     from numba import jit
@@ -43,7 +42,6 @@ except ImportError:
 __all__ = [
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
-    "affinity_cc3d",
 ]
 
 
@@ -354,11 +352,6 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
 def decode_affinity_cc(
     affinities: np.ndarray,
     threshold: float = 0.5,
-    use_numba: bool = True,
-    min_instance_size: Optional[int] = None,
-    thres_small: int = 0,
-    remove_small_mode: str = "background",
-    scale_factors: Optional[Tuple[float, float, float]] = None,
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
@@ -380,21 +373,6 @@ def decode_affinity_cc(
 
         threshold (float): Threshold for binarizing affinities. Affinities > threshold
             indicate connected voxels. Default: 0.5
-        use_numba (bool): Use Numba JIT acceleration if available. Provides 10-100x speedup.
-            Falls back to skimage if Numba not available. Default: True
-        min_instance_size (int): minimum size threshold for instances to keep. Objects with fewer
-            voxels are removed. Set to 0 to keep all objects. Default: 0
-        remove_small_mode (str): Method for removing small objects:
-
-            - ``'background'``: Replace with background (0)
-            - ``'neighbor'``: Merge with nearest neighbor
-            - ``'background_2d'`` or ``'neighbor_2d'``: Apply slice-wise
-            - ``'none'``: Keep all objects
-
-            Default: ``'background'``
-        scale_factors (tuple or None): Optional anisotropic scaling factors (z, y, x).
-            When provided, the segmentation is resized with nearest-neighbor interpolation.
-            Useful for matching voxel resolutions. Default: None
 
     Returns:
         numpy.ndarray: Instance segmentation mask of shape :math:`(Z, Y, X)` with
@@ -406,19 +384,6 @@ def decode_affinity_cc(
         >>> segmentation = decode_affinity_cc(affinities, threshold=0.5)
         >>> print(segmentation.shape)  # (128, 128, 128)
         >>> print(segmentation.max())  # Number of instances
-
-        >>> # Remove small objects
-        >>> segmentation = decode_affinity_cc(
-        ...     affinities,
-        ...     threshold=0.5,
-        ...     min_instance_size=100  # Remove objects < 100 voxels
-        ... )
-        >>> # Resize to target voxel spacing
-        >>> segmentation = decode_affinity_cc(
-        ...     affinities,
-        ...     threshold=0.5,
-        ...     scale_factors=(2.0, 1.0, 0.5)
-        ... )
 
     Note:
         - **Numba acceleration**: Install numba for 10-100x speedup:
@@ -449,17 +414,16 @@ def decode_affinity_cc(
     hard_aff = short_range_aff > threshold
 
     # Connected components
-    if use_numba and NUMBA_AVAILABLE:
+    if NUMBA_AVAILABLE:
         # Fast Numba implementation (10-100x speedup)
         segmentation = _connected_components_affinity_3d_numba(hard_aff)
     else:
         # Fallback to skimage (slower but always available)
-        if use_numba and not NUMBA_AVAILABLE:
-            warnings.warn(
-                "Numba not available. Using skimage (slower). "
-                "Install numba for 10-100x speedup: pip install numba>=0.60.0",
-                UserWarning,
-            )
+        warnings.warn(
+            "Numba not available. Using skimage (slower). "
+            "Install numba for 10-100x speedup: pip install numba>=0.60.0",
+            UserWarning,
+        )
 
         # Create foreground mask (any affinity > 0)
         foreground = hard_aff.any(axis=0)
@@ -476,20 +440,7 @@ def decode_affinity_cc(
                 segmentation = segmentation.astype(np.int64, copy=False)
                 segmentation[missing_mask] = missing_labels[missing_mask] + segmentation.max()
 
-    # Remove small instances
-    min_size = min_instance_size if min_instance_size is not None else thres_small
-    if min_size is None:
-        min_size = 0
-    if min_size > 0:
-        segmentation = remove_small_instances(segmentation, min_size, remove_small_mode)
-
     segmentation = fastremap.refit(segmentation)
-
-    if scale_factors is not None:
-        if len(scale_factors) != 3:
-            raise ValueError("scale_factors must be a tuple/list of three values (z, y, x)")
-        segmentation = zoom(segmentation, zoom=scale_factors, order=0, mode="nearest")
-        segmentation = fastremap.refit(segmentation.astype(np.int64, copy=False))
 
     # Ensure background label (0) is present
     if segmentation.size > 0 and not np.any(segmentation == 0):
@@ -498,7 +449,3 @@ def decode_affinity_cc(
 
     # Cast to compact integer dtype
     return cast2dtype(segmentation)
-
-
-# Public alias used across tutorials/tests
-affinity_cc3d = decode_affinity_cc

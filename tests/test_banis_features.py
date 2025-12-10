@@ -5,14 +5,13 @@ Tests the BANIS-inspired utilities that remain in the codebase:
 - Weighted dataset concatenation helpers
 """
 
-import torch
 import numpy as np
-import pytest
+import torch
 
 
 def test_connected_components():
     """Test affinity connected components using the current decoding API."""
-    from connectomics.decoding.segmentation import affinity_cc3d
+    from connectomics.decoding.segmentation import decode_affinity_cc
 
     # Construct two disjoint 2x2x2 cubes
     affinities = np.zeros((3, 8, 8, 8), dtype=np.float32)
@@ -22,7 +21,7 @@ def test_connected_components():
     # Cube B offset
     affinities[:, 5:7, 5:7, 5:7] = 1.0
 
-    seg = affinity_cc3d(affinities, threshold=0.5, use_numba=False)
+    seg = decode_affinity_cc(affinities, threshold=0.5)
 
     unique_ids = np.unique(seg)
     # Expect background + two components
@@ -69,10 +68,10 @@ def test_slurm_utils_import():
     from connectomics.config import slurm_utils
 
     # Test basic import
-    assert hasattr(slurm_utils, 'detect_slurm_resources')
-    assert hasattr(slurm_utils, 'get_cluster_config')
-    assert hasattr(slurm_utils, 'filter_partitions')
-    assert hasattr(slurm_utils, 'get_best_partition')
+    assert hasattr(slurm_utils, "detect_slurm_resources")
+    assert hasattr(slurm_utils, "get_cluster_config")
+    assert hasattr(slurm_utils, "filter_partitions")
+    assert hasattr(slurm_utils, "get_best_partition")
 
 
 def test_slurm_detection_no_slurm():
