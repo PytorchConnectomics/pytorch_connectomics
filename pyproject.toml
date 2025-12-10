@@ -178,7 +178,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --cov=connectomics --cov-report=html --cov-report=term"
+# Keep default invocation lightweight; enable coverage locally via CLI when pytest-cov is installed.
+addopts = "-v"
 
 [tool.mypy]
 python_version = "3.8"

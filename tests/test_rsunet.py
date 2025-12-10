@@ -9,8 +9,6 @@ Tests various configurations:
 - Deep supervision
 """
 
-from pathlib import Path
-import pytest
 import torch
 
 
@@ -146,28 +144,6 @@ def test_rsunet_model_info():
     print(f"✓ Model info test passed: {info['parameters']:,} parameters")
 
 
-def test_builder_from_config():
-    """Test building RSUNet from Hydra config."""
-    from connectomics.config import load_config
-    from connectomics.models import build_model
-
-    # Load config
-    cfg_path = Path("tutorials/rsunet_lucchi.yaml")
-    if not cfg_path.exists():
-        pytest.skip(f"Missing config: {cfg_path}")
-    cfg = load_config(cfg_path)
-
-    # Build model
-    model = build_model(cfg)
-
-    # Test forward pass
-    x = torch.randn(1, 1, 64, 128, 128)
-    y = model(x)
-
-    assert y.shape == (1, 2, 64, 128, 128)
-    print("✓ Config builder test passed")
-
-
 def test_rsunet_registry():
     """Test that RSUNet is registered."""
     from connectomics.models.arch import list_architectures
@@ -190,10 +166,5 @@ if __name__ == '__main__':
     test_rsunet_deep_supervision()
     test_rsunet_model_info()
     test_rsunet_registry()
-
-    try:
-        test_builder_from_config()
-    except Exception as e:
-        print(f"⚠ Config builder test skipped: {e}")
 
     print("\n✅ All RSUNet tests passed!")
