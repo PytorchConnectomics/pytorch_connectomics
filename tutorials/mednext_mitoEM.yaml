@@ -1,31 +1,35 @@
-# Hydra big vesicle segmentation with MONAI Residual UNet
-# Multi-task learning: Binary + Boundary + Distance
+# MitoEM Dataset - 3D Mitochondria Instance Segmentation with MedNeXt
+# Single-task learning: Signed Distance Transform (SDT) only
 #
-# This config uses MONAI's UNet with residual units for big vesicle segmentation
-# with multi-task learning to predict:
-#   - Channel 0: Binary masks (sigmoid activation)
-#   - Channel 1: Boundary maps (sigmoid activation) 
-#   - Channel 2: Distance transforms (tanh activation)
+# This config uses MedNeXt for mitochondria instance segmentation with SDT-based approach:
+#   - Output: Single channel SDT (tanh activation) - WeightedMSE loss
+#   - SDT encodes both foreground/background AND instance separation in one channel
+#   - Positive values = inside instances (distance to boundary)
+#   - Negative values = outside instances (distance to nearest instance)
 #
-# Multi-task setup uses different loss functions for each channel:
-#   - Binary & Boundary: DiceLoss + BCEWithLogitsLoss
-#   - Distance: WeightedMSELoss
+# MedNeXt Configuration:
+#   - Deep supervision: CRITICAL for MedNeXt performance (5 scales)
+#   - Kernel size: 7x7x7 for better context (recommended for instance segmentation)
+#   - Size: M (17.6M params) - balanced capacity for 3D SDT learning
 #
-# Valid region masks (train_mask, val_mask):
-#   - Masks define valid regions for loss computation
-#   - Applied after same augmentation as labels (spatial consistency)
-#   - Loss is only computed in valid (mask=1) regions
+# Instance Segmentation Pipeline:
+#   SDT prediction → Watershed on SDT seeds → Instance IDs
+#
+# MitoEM Dataset:
+#   - High-resolution EM (30x8x8 nm/voxel anisotropic)
+#   - Dense mitochondria with complex shapes
+#   - Challenging instance separation requiring precise SDT
 
-experiment_name: hydra_bv_monai_unet
-description: Hydra big vesicle segmentation with MONAI Residual UNet and multi-task learning
+experiment_name: mitoem_mednext_sdt
+description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT only
 
 # System
 system:
   training:
     num_gpus: 4
     num_cpus: 8
-    num_workers: 8                     # More workers for parallel data loading (6x speedup)
-    batch_size: 32                      # Larger batch for smaller patches
+    num_workers: 8                     # Parallel data loading
+    batch_size: 16                     # Larger batch for single-channel output (vs multi-task)
   inference:
     num_gpus: 1
     num_cpus: 1
@@ -33,179 +37,167 @@ system:
     batch_size: 1
   seed: 42
 
-# Model - MONAI UNet with residual units for multi-task learning
+# Model - MedNeXt for SDT-based mitochondria instance segmentation
 model:
-  mednext_size: S                      # S (Small): ~5.6M params - good for 2D
-  mednext_kernel_size: 3               # Start with 3x3 kernels (recommended)
-  mednext_dim: "3d"                    # 2D convolutions for 2D images
-  deep_supervision: true               # STRONGLY RECOMMENDED for MedNeXt
+  architecture: mednext               # MedNeXt (SOTA for instance segmentation)
 
-  # Multi-task loss configuration
-  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSELoss]
-  loss_weights: [1.0, 0.5, 2.0]       # Binary: Dice+BCE, Contour: Dice+BCE, Distance: MSE
+  # Input/output configuration
+  input_size: [16, 256, 256]          # Anisotropic patches matching data resolution
+  output_size: [16, 256, 256]
+  in_channels: 1                      # Grayscale EM
+  out_channels: 1                     # Single channel: SDT only
+
+  # MedNeXt architecture (optimized for instance segmentation)
+  mednext_size: M                     # M (17.6M params) - balanced capacity for 3D SDT
+  mednext_kernel_size: 7              # 7x7x7 kernels for better context (RECOMMENDED)
+  mednext_dim: "3d"                   # 3D convolutions
+  deep_supervision: true              # CRITICAL for MedNeXt (5-scale deep supervision)
+
+  # Single-task loss configuration (SDT only)
+  loss_functions: [WeightedMSELoss]
+  loss_weights: [1.0]                 # Single loss for SDT prediction
   loss_kwargs:
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
-    - {}                                 # BCEWithLogitsLoss for binary
-    - {tanh: true}                       # WeightedMSELoss for distance (with tanh activation)
+    - {tanh: true}                    # WeightedMSELoss with tanh activation for SDT [-1, 1] range
 
-  # Multi-task configuration
-  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
-  multi_task_config:
-    - [0, 1, "label", [0, 1]]          # Original labels: Dice + BCE
-    - [1, 2, "boundary", [0, 1]]       # Boundary channel: Dice + BCE  
-    - [2, 3, "sdt", [2]]               # Distance channel: MSE
-
-# Data - Hydra big vesicle dataset (multiple volumes)
 data:
-  # Volume configuration - supports multiple files via glob pattern or list
-  train_image: "datasets/hydra-bv/vol*_im.h5"     # 27 training volumes
-  train_label: "datasets/hydra-bv/vol*_vesicle_ins.h5"     # 27 training labels
-  train_mask: "datasets/hydra-bv/vol*_mask.h5"     # 27 training labels
-  train_resolution: [30, 8, 8]   # NucMM: 1.0 isotropic resolution
-  use_preloaded_cache: true           # Pre-load all volumes into memory (MAJOR speedup)
-  cache_rate: 1.0                     # Cache all volumes in RAM
-  persistent_workers: true            # Keep workers alive between epochs (avoid restart overhead)
+  # Dataset configuration - MitoEM training data
+  train_path: "/projects/weilab/dataset/mito/mitoEM/"
+  train_image: ["EM30-H/im_train_val.h5"]           # MitoEM training volume
+  train_label: ["EM30-H/mito_train_val.h5"]         # Instance labels
+  train_resolution: [30, 8, 8]                      # Anisotropic: 30nm (z) x 8nm (xy)
 
-  # Patch configuration
-  patch_size: [24, 96, 96]             # 64x64x64 training patches
-  pad_size: [4, 16, 16]               # Reflection padding for context
-  pad_mode: reflect                    # Reflection padding at boundaries
-  iter_num_per_epoch: 1280              # More iterations for smaller patches
-  
+  # Data loading optimization
+  use_preloaded_cache: true                         # Pre-load entire volume into RAM (faster training)
+  cache_rate: 1.0                                   # Cache 100% of data
+  persistent_workers: true                          # Keep workers alive between epochs
+
+  # Patch configuration (anisotropic to match data resolution)
+  patch_size: [16, 256, 256]                        # 16z x 256xy - matches anisotropic resolution
+  pad_size: [4, 16, 16]                             # Reflection padding for context
+  pad_mode: reflect                                 # Reflection padding at boundaries
+  iter_num_per_epoch: 2000                          # Training iterations per epoch
+
   # Image normalization
   image_transform:
-    normalize: "0-1"                   # Min-max normalization to [0, 1]
-    clip_percentile_low: 0.0           # No clipping
-    clip_percentile_high: 1.0
+    normalize: "0-1"                                # Min-max normalization to [0, 1]
+    clip_percentile_low: 0.005                      # Clip outliers (0.5%)
+    clip_percentile_high: 0.995                     # Clip outliers (0.5%)
 
-  # Label transformation for multi-task learning
+  # Label transformation - SDT only for instance segmentation
   label_transform:
     targets:
-      - name: binary                # Channel 0: foreground mask
-      - name: instance_boundary     # Channel 1: contour map
+      - name: instance_edt                          # Signed distance transform (SDT)
         kwargs:
-          thickness: 1
-          edge_mode: "all"
-          mode: "2d"
-      - name: instance_sdt          # Channel 2: distance transform (bbox-optimized)
-        kwargs:
-          mode: "3d"              # 2D EDT with per-instance bounding box optimization
-          quantize: false
+          mode: "3d"                                # 3D EDT computation
+          quantize: false                           # Continuous values (not quantized)
+          normalize: true                           # Normalize to [-1, 1] range
 
-  # Augmentation
-  # Note: When enabled, augmentations (rotation, flip, etc.) are applied to:
-  #   - image: geometric + intensity transforms
-  #   - label: same geometric transforms as image
-  #   - mask: same geometric transforms as image and label
-  # This ensures spatial consistency across image/label/mask triplets
+  # Augmentation - crucial for generalization
   augmentation:
-    enabled: true
+    enabled: true                                   # Enable spatial + intensity augmentation
 
-# Optimizer - AdamW with NucMM-specific hyperparameters
+# Optimizer - MedNeXt recommended settings
 optimization:
-  max_epochs: 10000
+  max_epochs: 1000                      # Extended training for quality instance segmentation
   gradient_clip_val: 1.0
-  accumulate_grad_batches: 1
-  precision: "bf16-mixed"              # BFloat16 mixed precision
-  
+  accumulate_grad_batches: 4            # Effective batch size = 16 * 4 = 64
+  precision: "16-mixed"                 # FP16 mixed precision (better GPU compatibility than bf16)
+
   optimizer:
     name: AdamW
-    lr: 0.001                          # Lower LR for smaller patches (64^3)
-    weight_decay: 0.01
+    lr: 0.001                           # MedNeXt recommended: 1e-3 (constant LR)
+    weight_decay: 1e-4                  # Regularization for better generalization
     betas: [0.9, 0.999]
     eps: 1.0e-8
 
-  # Scheduler - Cosine annealing with warmup
+  # Scheduler - Constant LR (MedNeXt recommendation)
   scheduler:
-    name: CosineAnnealingLR
-    warmup_epochs: 5                   # Shorter warmup for 64^3
-    warmup_start_lr: 1.0e-5
-    min_lr: 1.0e-6
-    t_max: 9995
+    name: constant                      # Constant LR works best for MedNeXt (per paper)
 
 monitor:
-  # Loss monitoring and validation frequency  
+  # Loss monitoring and validation frequency
   detect_anomaly: false
   logging:
-    # scalar loss
+    # Scalar loss monitoring
     scalar:
       loss: [train_loss_total_epoch]
-      loss_every_n_steps: 10
-      val_check_interval: 1.0
+      loss_every_n_steps: 50            # Log every 50 steps
+      val_check_interval: 1.0           # Validate every epoch
       benchmark: true
-    
-    # visualization
+
+    # Visualization - SDT predictions
     images:
       enabled: true
-      max_images: 2
-      num_slices: 4
-      log_every_n_epochs: 1
-      channel_mode: all                 # Show all 3 channels for multi-task
+      max_images: 4                     # Show more samples for quality check
+      num_slices: 8                     # More slices for 3D visualization
+      log_every_n_epochs: 5             # Visualize every 5 epochs
+      channel_mode: all                 # Show SDT channel
       selected_channels: null
-  
+
   # Checkpointing
   checkpoint:
     mode: min
-    save_top_k: 3
+    save_top_k: 5                       # Keep top 5 checkpoints
     save_last: true
-    save_every_n_epochs: 10
-    dirpath: outputs/hydra_bv_monai_unet/checkpoints/
+    save_every_n_epochs: 25             # Save checkpoint every 25 epochs
+    dirpath: outputs/mitoem_mednext_sdt/checkpoints/
     use_timestamp: true
 
-  # Early stopping
-  early_stopping: 
+  # Early stopping (patient for SDT learning)
+  early_stopping:
     enabled: true
     monitor: train_loss_total_epoch
-    patience: 300
+    patience: 150                       # More patience for SDT convergence
     mode: min
-    min_delta: 1.0e-5
+    min_delta: 1e-6                     # Small delta for precise SDT
     check_finite: true
     threshold: 0.01
     divergence_threshold: 100.0
 
-# Inference - MONAI SlidingWindowInferer for NucMM
+# Inference - MONAI SlidingWindowInferer for MitoEM
 inference:
   data:
-    test_image: datasets/hydra-bv/vol*_im.h5
-    test_label: datasets/hydra-bv/vol*_vesicle_ins.h5
-    test_mask: datasets/hydra-bv/vol*_mask.h5
+    test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
+    test_label: /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
     test_resolution: [30, 8, 8]
-    output_path: outputs/hydra_bv_monai_unet/results/
+    output_path: outputs/mitoem_mednext_sdt/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [24, 96, 96]          # Match training patch size    
-    overlap: 0.5                       # 50% overlap between patches
-    blending: gaussian                 # Gaussian weighting for smooth blending
-    sigma_scale: 0.25
-    padding_mode: reflect              # Reflection-padding at volume boundaries
+    window_size: [16, 256, 256]         # Match training patch size
+    sw_batch_size: 4                    # Process multiple patches per batch
+    overlap: 0.5                        # 50% overlap for smooth blending
+    blending: gaussian                  # Gaussian weighting for smooth blending
+    sigma_scale: 0.25                   # Gaussian sigma scale
+    padding_mode: replicate             # Replicate padding at volume boundaries
 
-  # Test-Time Augmentation (TTA)
+  # Test-Time Augmentation (TTA) for SDT
   test_time_augmentation:
     enabled: true
-    flip_axes: null                     # Use all 8 flip augmentations
-    # Per-channel activations (aligned with multi_task_config)
-    # Format: [[start_ch, end_ch, activation], ...]
+    flip_axes: null                     # Use all 8 flip augmentations (2^3 for xyz)
+    rotation90_axes: null               # No 90-degree rotations (not isotropic)
     channel_activations:
-      - [0, 1, sigmoid]                # Channel 0: binary segmentation (sigmoid)
-      - [1, 2, sigmoid]                # Channel 1: boundary (sigmoid)
-      - [2, 3, tanh]                   # Channel 2: EDT distance (tanh)
-    select_channel: all               # Use all channels
-    ensemble_mode: mean
-    apply_mask: true                   # Multiply predictions by test_mask after ensemble
+      - [0, 1, tanh]                    # SDT channel: tanh activation [-1, 1]
+    select_channel: all
+    ensemble_mode: mean                 # Average predictions across augmentations
+    apply_mask: false                   # No mask for MitoEM
 
-  # Decoding configuration (instance segmentation postprocessing)
+  # Save intermediate predictions
+  save_prediction:
+    enabled: true                       # Save SDT predictions before decoding
+    intensity_scale: -1                 # Keep original scale (no rescaling)
+    intensity_dtype: float32            # Keep as float32 for SDT
+
+  # Decoding configuration (SDT → instances via watershed)
   decoding:
-    - name: decode_binary_contour_distance_watershed
+    - name: decode_distance_watershed   # Watershed on SDT only
       kwargs:
-        binary_threshold: [0.9, 0.85]
-        contour_threshold: [0.8, 1.1]
-        distance_threshold: [0.5, -0.5]
-        min_instance_size: 16
-        min_seed_size: 8
-        prediction_scale: 1    
+        distance_threshold: [0.5, 0]    # Threshold range for seeds (positive SDT values)
+        min_instance_size: 100          # Minimum mitochondria size (voxels)
+        min_seed_size: 50               # Minimum seed size (voxels)
+        prediction_scale: 1             # No scaling
 
   # Evaluation
   evaluation:
     enabled: true
-    metrics: [adapted_rand]
+    metrics: [adapted_rand, voi]        # Adapted Rand Score + VOI for instance segmentation

@@ -80,8 +80,15 @@ def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...
         else:
             full_pad_width = pad_width
 
-        # Use reflect padding to match the volume's edge values
-        cropped = np.pad(cropped, full_pad_width, mode="reflect")
+        # Check if cropped array is empty or has zero-sized dimensions
+        # Reflect padding cannot work on empty arrays, so fall back to constant padding
+        is_empty = cropped.size == 0 or any(s == 0 for s in cropped.shape)
+        if is_empty:
+            # Use constant padding for empty arrays (reflect padding requires at least one element)
+            cropped = np.pad(cropped, full_pad_width, mode="constant", constant_values=0)
+        else:
+            # Use reflect padding to match the volume's edge values
+            cropped = np.pad(cropped, full_pad_width, mode="reflect")
 
     # Final safety check: ensure output has exactly the requested size
     # This handles any edge cases where padding calculation might be off
@@ -100,7 +107,16 @@ def crop_volume(volume: np.ndarray, size: Tuple[int, ...], start: Tuple[int, ...
                 full_pad_width = [(0, 0)] + pad_needed
             else:
                 full_pad_width = pad_needed
-            cropped = np.pad(cropped, full_pad_width, mode="reflect")
+
+            # Check if cropped array is empty or has zero-sized dimensions
+            # Reflect padding cannot work on empty arrays, so fall back to constant padding
+            is_empty = cropped.size == 0 or any(s == 0 for s in cropped.shape)
+            if is_empty:
+                # Use constant padding for empty arrays (reflect padding requires at least one element)
+                cropped = np.pad(cropped, full_pad_width, mode="constant", constant_values=0)
+            else:
+                # Use reflect padding to match the volume's edge values
+                cropped = np.pad(cropped, full_pad_width, mode="reflect")
 
         # If still wrong (shouldn't happen), trim excess
         if has_channel:
