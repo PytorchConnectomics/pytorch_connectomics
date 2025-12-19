@@ -37,8 +37,9 @@ Example usage:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, is_dataclass
 from typing import Dict, List, Optional, Tuple, Any, Union
+import inspect
 
 # Note: MISSING can be imported from omegaconf if needed for required fields
 
@@ -1269,26 +1270,14 @@ try:
     import torch
 
     if hasattr(torch, "serialization") and hasattr(torch.serialization, "add_safe_globals"):
-        torch.serialization.add_safe_globals(
-            [
-                ParameterConfig,
-                DecodingParameterSpace,
-                PostprocessingParameterSpace,
-                ParameterSpaceConfig,
-                # Core config dataclasses (for Lightning checkpoints)
-                Config,
-                SystemConfig,
-                SystemTrainingConfig,
-                SystemInferenceConfig,
-                ModelConfig,
-                DataConfig,
-                OptimizationConfig,
-                MonitorConfig,
-                InferenceConfig,
-                TestConfig,
-                TuneConfig,
-            ]
-        )
+        # Register every dataclass defined in this module so Lightning checkpoints
+        # can be loaded safely when torch.load defaults to weights_only=True.
+        safe_dataclasses = [
+            obj
+            for obj in globals().values()
+            if inspect.isclass(obj) and obj.__module__ == __name__ and is_dataclass(obj)
+        ]
+        torch.serialization.add_safe_globals(safe_dataclasses)
 except Exception:
     # Best-effort registration; ignore if torch not available at import time
     pass
