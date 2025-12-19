@@ -83,6 +83,10 @@ class ConnectomicsModule(pl.LightningModule):
         num_tasks = len(cfg.model.multi_task_config) if hasattr(cfg.model, 'multi_task_config') and cfg.model.multi_task_config else 1
         self.loss_weighter = build_loss_weighter(cfg, num_tasks, model=self.model)
 
+        # Track multi-task configuration state for downstream logic/tests
+        self.multi_task_config = getattr(cfg.model, 'multi_task_config', None)
+        self.multi_task_enabled = bool(self.multi_task_config)
+
         # Enable inline NaN detection (can be disabled via config)
         self.enable_nan_detection = getattr(cfg.model, 'enable_nan_detection', True)
         self.debug_on_nan = getattr(cfg.model, 'debug_on_nan', True)
