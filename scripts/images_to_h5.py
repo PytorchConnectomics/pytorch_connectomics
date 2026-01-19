@@ -25,16 +25,18 @@ Examples:
 Note: Use quotes around the input pattern to prevent shell expansion.
 """
 
-import sys
 import os
-from pathlib import Path
-from connectomics.data.io import read_volume, write_hdf5
+import sys
+
+from connectomics.data.io import read_images, write_hdf5
 
 
 def main():
     """Main conversion function."""
     if len(sys.argv) < 3:
-        print("Usage: python scripts/images_to_h5.py <input_pattern> <output_file.h5> [dataset_key]")
+        print(
+            "Usage: python scripts/images_to_h5.py <input_pattern> <output_file.h5> [dataset_key]"
+        )
         print("")
         print("Examples:")
         print('  python scripts/images_to_h5.py "datasets/images/*.tiff" output.h5')
@@ -46,7 +48,8 @@ def main():
 
     input_pattern = sys.argv[1]
     output_file = sys.argv[2]
-    dataset_key = sys.argv[3] if len(sys.argv) > 3 else "main"
+    image_type = sys.argv[3] if len(sys.argv) > 3 else "image"
+    dataset_key = sys.argv[4] if len(sys.argv) > 4 else "main"
 
     # Ensure output directory exists
     output_dir = os.path.dirname(output_file)
@@ -54,40 +57,18 @@ def main():
         print(f"Creating output directory: {output_dir}")
         os.makedirs(output_dir, exist_ok=True)
 
-    # Detect file format from pattern
-    pattern_lower = input_pattern.lower()
-    if any(ext in pattern_lower for ext in ['.tif', '.tiff']):
-        format_name = "TIFF"
-    elif '.png' in pattern_lower:
-        format_name = "PNG"
-    elif any(ext in pattern_lower for ext in ['.jpg', '.jpeg']):
-        format_name = "JPEG"
-    else:
-        format_name = "image"
-
-    print(f"Reading {format_name} files matching: {input_pattern}")
-    print("This may take a while for large volumes...")
-
     # Read all image files as a 3D volume
-    try:
-        volume = read_volume(input_pattern)
-    except Exception as e:
-        print(f"Error reading images: {e}")
-        print("\nTips:")
-        print("  - Check that the file pattern is correct")
-        print("  - Ensure all images have the same dimensions")
-        print("  - Verify the image files are readable")
-        sys.exit(1)
+    volume = read_images(input_pattern, image_type=image_type)
 
-    print(f"\n{'='*60}")
-    print(f"Volume Information:")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("Volume Information:")
+    print(f"{'=' * 60}")
     print(f"  Shape:      {volume.shape}")
     print(f"  Data type:  {volume.dtype}")
     print(f"  Size:       {volume.nbytes / (1024**3):.2f} GB")
     print(f"  Min value:  {volume.min()}")
     print(f"  Max value:  {volume.max()}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     print(f"\nSaving to: {output_file}")
     print(f"Dataset key: '{dataset_key}'")

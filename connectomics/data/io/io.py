@@ -9,20 +9,18 @@ This module provides I/O functions for:
 """
 
 from __future__ import annotations
-from typing import Optional, List, Union
-import os
+
 import glob
+import os
 import pickle
+from typing import List, Optional, Union
+
 import h5py
-import numpy as np
 import imageio
 import nibabel as nib
+import numpy as np
 
-# Avoid PIL "IOError: image file truncated"
-from PIL import ImageFile
-
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-
+from .utils import rgb_to_seg
 
 # =============================================================================
 # HDF5 I/O
@@ -107,7 +105,9 @@ def list_hdf5_datasets(filename: str) -> List[str]:
 SUPPORTED_IMAGE_FORMATS = ["png", "tif", "tiff", "jpg", "jpeg"]
 
 
-def read_image(filename: str, add_channel: bool = False) -> Optional[np.ndarray]:
+def read_image(
+    filename: str, add_channel: bool = False, image_type: str = "image"
+) -> Optional[np.ndarray]:
     """Read a single image file.
 
     Args:
@@ -121,12 +121,14 @@ def read_image(filename: str, add_channel: bool = False) -> Optional[np.ndarray]
         return None
 
     image = imageio.imread(filename)
+    if image_type == "seg" and image.ndim == 3:
+        image = rgb_to_seg(image)
     if add_channel and image.ndim == 2:
         image = image[:, :, None]
     return image
 
 
-def read_images(filename_pattern: str) -> np.ndarray:
+def read_images(filename_pattern: str, image_type: str = "image") -> np.ndarray:
     """Read multiple images from a filename pattern.
 
     Args:
@@ -143,17 +145,11 @@ def read_images(filename_pattern: str) -> np.ndarray:
         raise ValueError(f"No files found matching pattern: {filename_pattern}")
 
     # Determine array shape from first image
-    first_image = imageio.imread(file_list[0])
-    if first_image.ndim == 2:
-        data = np.zeros((len(file_list), *first_image.shape), dtype=first_image.dtype)
-    elif first_image.ndim == 3:
-        data = np.zeros((len(file_list), *first_image.shape), dtype=first_image.dtype)
-    else:
-        raise ValueError(f"Unsupported image dimensions: {first_image.ndim}D")
-
+    first_image = read_image(file_list[0], image_type=image_type)
+    data = np.zeros((len(file_list), *first_image.shape), dtype=first_image.dtype)
     # Load all images
     for i, filepath in enumerate(file_list):
-        data[i] = imageio.imread(filepath)
+        data[i] = read_image(filepath, image_type=image_type)
 
     return data
 
@@ -171,7 +167,7 @@ def read_image_as_volume(filename: str, drop_channel: bool = False) -> np.ndarra
     Raises:
         ValueError: If file format is not supported
     """
-    image_suffix = filename[filename.rfind(".") + 1:].lower()
+    image_suffix = filename[filename.rfind(".") + 1 :].lower()
     if image_suffix not in SUPPORTED_IMAGE_FORMATS:
         raise ValueError(
             f"Unsupported format: {image_suffix}. Supported formats: {SUPPORTED_IMAGE_FORMATS}"
@@ -281,7 +277,7 @@ def read_volume(
     if filename.endswith(".nii.gz"):
         image_suffix = "nii.gz"
     else:
-        image_suffix = filename[filename.rfind(".") + 1:].lower()
+        image_suffix = filename[filename.rfind(".") + 1 :].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         data = read_hdf5(filename, dataset)
@@ -420,7 +416,7 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
     if filename.endswith(".nii.gz"):
         image_suffix = "nii.gz"
     else:
-        image_suffix = filename[filename.rfind(".") + 1:].lower()
+        image_suffix = filename[filename.rfind(".") + 1 :].lower()
 
     if image_suffix in ["h5", "hdf5"]:
         # HDF5: Read shape from metadata (no data loading)
