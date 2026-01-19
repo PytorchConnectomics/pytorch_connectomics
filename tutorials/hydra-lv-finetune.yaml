@@ -1,31 +1,28 @@
-# Hydra Large Vesicle Segmentation - Fine-tuning Configuration
-# 
-# This config fine-tunes a pretrained model from hydra-lv.yaml on new data.
-# 
-# ============================================================================
-# USAGE:
-# ============================================================================
+# Hydra Large Vesicle Fine-tuning V2 - IMPROVED Configuration
 #
-# Fine-tuning from pretrained checkpoint:
-#   python scripts/main.py --config tutorials/hydra-lv-finetune.yaml
+# This config implements the improvements from HYDRA_LV_FINETUNE_IMPROVEMENT_PLAN.md
+# to fix poor performance (ARE=0.471, Recall=0.389)
 #
-# The pretrained checkpoint path is specified in model.external_weights_path
-# This loads only the model weights (not optimizer/scheduler), allowing you
-# to use new hyperparameters optimized for fine-tuning.
+# KEY CHANGES FROM V1:
+# ==================
+# 1. iter_num_per_epoch: 1280 → 5000 (4x more training)
+# 2. deep_supervision: false → true (CRITICAL for small objects)
+# 3. augmentation: "some" → "all" (maximum diversity)
+# 4. lr: 1e-4 → 3e-4 (3x higher, less conservative)
+# 5. loss_weights: rebalanced to emphasize binary/boundary
+# 6. max_epochs: 500 → 1000 (more training time)
 #
-# ============================================================================
-# KEY DIFFERENCES FROM ORIGINAL CONFIG:
-# ============================================================================
-# 1. model.external_weights_path: Path to pretrained checkpoint
-# 2. Lower learning rate (typically 1e-4 to 1e-5 for fine-tuning)
-# 3. Fewer epochs (pretrained model needs less training)
-# 4. New data paths (your fine-tuning dataset)
-# 5. Optionally: Different augmentation strategy (lighter augmentations)
+# EXPECTED RESULTS:
+# ================
+# - Adapted Rand Error: < 0.1 (was: 0.471)
+# - Precision: > 0.95 (was: 0.828)
+# - Recall: > 0.95 (was: 0.389)
+# - Total Loss: < 0.2 (was: 0.555)
 #
 # ============================================================================
 
-experiment_name: hydra-lv_finetune_rsunet
-description: Fine-tuning hydra-lv pretrained model on new data
+experiment_name: hydra-lv_finetune_rsunet_v2
+description: Improved fine-tuning with deep supervision and aggressive training
 
 # System
 system:
@@ -33,7 +30,7 @@ system:
     num_gpus: 4
     num_cpus: 8
     num_workers: 2
-    batch_size: 8
+    batch_size: 4  # CHANGED FROM 8 (better gradient updates)
   inference:
     num_gpus: 1
     num_cpus: 1
@@ -43,23 +40,19 @@ system:
 
 # Model Configuration
 model:
-  architecture: rsunet  # Must match the pretrained model architecture
-  
-  # ============================================================================
+  architecture: rsunet
+
   # PRETRAINED MODEL LOADING
-  # ============================================================================
-  # Path to the pretrained checkpoint from hydra-lv.yaml training
-  # This loads only model weights (not optimizer/scheduler state)
-  external_weights_path: "outputs/hydra-lv_rsunet/20251203_012234/checkpoints/last.ckpt"  # UPDATE THIS PATH
-  external_weights_key_prefix: "model."  # Default prefix for Lightning checkpoints
-  
-  # Model architecture must match pretrained model exactly
+  external_weights_path: "outputs/hydra-lv_rsunet/20251203_012234/checkpoints/last.ckpt"
+  external_weights_key_prefix: "model."
+
+  # Model architecture
   input_size: [32, 128, 128]
   output_size: [32, 128, 128]
   in_channels: 1
-  out_channels: 3  # Must match: binary, boundary, distance
+  out_channels: 3  # binary, boundary, distance
 
-  # Architecture settings (must match pretrained model)
+  # Architecture settings
   filters: [32, 64, 128, 256, 512]
   strides: [2, 2, 2]
   num_res_units: 2
@@ -68,49 +61,61 @@ model:
   dropout: 0.1
   rsunet_norm: batch
 
-  # Loss configuration (same as pretrained for consistency)
+  # ⭐⭐⭐ CRITICAL FIX: Enable deep supervision for small objects
+  deep_supervision: true  # CHANGED FROM: false
+
+  # Loss configuration - REBALANCED to emphasize binary and boundary
   loss_functions: [DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, TverskyLoss, SmoothL1Loss]
-  loss_weights: [1.0, 1.0, 1.0, 1.0, 1.0]
+  loss_weights: [2.0, 2.0, 1.0, 1.0, 0.5]  # CHANGED FROM: [1.0, 1.0, 1.0, 1.0, 1.0]
+  # Breakdown:
+  #   - DiceLoss (binary): 2.0 ← emphasize object detection
+  #   - WeightedBCE (binary): 2.0 ← emphasize object detection
+  #   - DiceLoss (boundary): 1.0
+  #   - TverskyLoss (boundary): 1.0
+  #   - SmoothL1Loss (EDT): 0.5 ← reduce (already converged)
+
   loss_kwargs:
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
     - {reduction: mean}
     - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-    - {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}
+    - {sigmoid: true, alpha: 0.6, beta: 0.4, smooth_nr: 1e-5, smooth_dr: 1e-5}  # More recall-focused (was 0.7/0.3)
     - {beta: 0.1, reduction: mean, tanh: true}
 
   loss_balancing:
-    strategy: uncertainty
+    strategy: uncertainty  # Keep uncertainty weighting
 
   multi_task_config:
     - [0, 1, "label", [0, 1]]
     - [1, 2, "boundary", [2, 3]]
     - [2, 3, "edt", [4]]
 
-# Data - Fine-tuning dataset (UPDATE THESE PATHS)
+# Data Configuration
 data:
-  # Fine-tuning data paths (replace with your new dataset)
-  train_image: "datasets/bouton-lv/train/vol0_im.h5"  # UPDATE THIS
-  train_label: "datasets/bouton-lv/train/vol0_lv.h5"  # UPDATE THIS
-  train_mask: "datasets/bouton-lv/train/vol0_mask.h5"  # UPDATE THIS
-  train_resolution: [30, 8, 8]  # Must match your data resolution
-  
+  # Training data
+  train_image: "datasets/bouton-lv/train/vol0_im.h5"
+  train_label: "datasets/bouton-lv/train/vol0_lv.h5"
+  train_mask: "datasets/bouton-lv/train/vol0_mask.h5"
+  train_resolution: [30, 8, 8]
+
   use_preloaded_cache: true
   cache_rate: 0.0
   persistent_workers: false
 
-  # Patch configuration (should match pretrained model)
+  # Patch configuration
   patch_size: [32, 128, 128]
   pad_size: [8, 24, 24]
   pad_mode: reflect
-  iter_num_per_epoch: 1280  # Adjust based on dataset size
-  
+
+  # ⭐⭐⭐ CRITICAL FIX: 4x more iterations per epoch
+  iter_num_per_epoch: 5000  # CHANGED FROM: 1280 (severe undertraining)
+
   # Image normalization
   image_transform:
     normalize: "0-1"
     clip_percentile_low: 0.0
     clip_percentile_high: 1.0
 
-  # Label transformation (must match pretrained model)
+  # Label transformation
   label_transform:
     targets:
       - name: binary
@@ -124,34 +129,34 @@ data:
           mode: "3d"
           quantize: false
 
-  # Augmentation - can use lighter augmentations for fine-tuning
+  # ⭐⭐⭐ CRITICAL FIX: Maximum augmentation for small dataset
   augmentation:
-    preset: "some"
+    preset: "all"  # CHANGED FROM: "some"
 
     flip:
       enabled: true
-      prob: 0.5
+      prob: 0.8  # INCREASED FROM: 0.5
       spatial_axis: [0, 1, 2]
 
     rotate:
       enabled: true
-      prob: 0.5
+      prob: 0.8  # INCREASED FROM: 0.5
       spatial_axes: [1, 2]
 
     affine:
       enabled: true
-      prob: 0.3
+      prob: 0.5  # INCREASED FROM: 0.3
       rotate_range: [0.1, 0.1, 0.1]
-      scale_range: [0.05, 0.05, 0.05]
+      scale_range: [0.1, 0.1, 0.1]  # INCREASED FROM: 0.05
       shear_range: [0.05, 0.05, 0.05]
 
     intensity:
       enabled: true
-      gaussian_noise_prob: 0.2
+      gaussian_noise_prob: 0.5  # INCREASED FROM: 0.2
       gaussian_noise_std: 0.03
-      shift_intensity_prob: 0.4
+      shift_intensity_prob: 0.6  # INCREASED FROM: 0.4
       shift_intensity_offset: 0.1
-      contrast_prob: 0.4
+      contrast_prob: 0.6  # INCREASED FROM: 0.4
       contrast_range: [0.8, 1.2]
 
     misalignment:
@@ -171,39 +176,36 @@ data:
       sections: 2
       kernel_size: 9
 
-# Optimization - Fine-tuning specific settings
+# Optimization - IMPROVED settings
 optimization:
-  max_epochs: 500  # Fewer epochs than pretraining (pretrained model needs less training)
+  max_epochs: 1000  # INCREASED FROM: 500 (need more time to converge)
   gradient_clip_val: 0.5
   accumulate_grad_batches: 2
   precision: "bf16-mixed"
 
   optimizer:
     name: AdamW
-    # ============================================================================
-    # FINE-TUNING LEARNING RATE
-    # ============================================================================
-    # Lower LR for fine-tuning (typically 10x-100x smaller than pretraining)
-    # Original: 0.0005, Fine-tuning: 0.0001 to 0.00005
-    lr: 0.0001  # 5x lower than pretraining (0.0005)
-    weight_decay: 0.01
+    # ⭐⭐ HIGHER LR: More aggressive for small dataset
+    lr: 0.0003  # INCREASED FROM: 0.0001 (3x higher)
+    weight_decay: 0.001  # DECREASED FROM: 0.01 (less regularization)
     betas: [0.9, 0.999]
     eps: 1.0e-8
 
-  # Scheduler - shorter warmup for fine-tuning
+  # Scheduler - longer warmup, higher min_lr
   scheduler:
     name: warmupcosine
-    warmup_epochs: 50  # Shorter warmup (was 200 in pretraining)
+    warmup_epochs: 100  # INCREASED FROM: 50
     warmup_start_lr: 0.1
-    min_lr: 1.0e-6
+    min_lr: 1.0e-5  # INCREASED FROM: 1e-6 (stay useful longer)
 
-  # EMA - same as pretraining
+  # EMA
   ema:
     enabled: true
     decay: 0.999
     warmup_steps: 1000
     validate_with_ema: true
 
+# Monitoring
 monitor:
   detect_anomaly: false
   logging:
@@ -212,7 +214,7 @@ monitor:
       loss_every_n_steps: 10
       val_check_interval: 1.0
       benchmark: true
-    
+
     images:
       enabled: true
       max_images: 2
@@ -220,26 +222,26 @@ monitor:
       log_every_n_epochs: 1
       channel_mode: all
       selected_channels: null
-  
+
   checkpoint:
     mode: min
     save_top_k: 3
     save_last: true
     save_every_n_epochs: 10
-    dirpath: outputs/hydra-lv_rsunet_finetune/checkpoints/
+    dirpath: outputs/hydra-lv_rsunet_finetune_v2/checkpoints/
     use_timestamp: true
 
   early_stopping:
     enabled: true
     monitor: train_loss_total_epoch
-    patience: 50  # Shorter patience for fine-tuning (was 100)
+    patience: 100  # INCREASED FROM: 50 (more time since iter_num increased)
     mode: min
-    min_delta: 1.0e-4
+    min_delta: 1.0e-5  # DECREASED FROM: 1e-4 (more sensitive)
     check_finite: true
     threshold: 0.02
     divergence_threshold: 100.0
 
-# Inference configuration (same as pretrained)
+# Inference
 inference:
   sliding_window:
     window_size: [32, 128, 128]
@@ -249,9 +251,10 @@ inference:
     sigma_scale: 0.25
     padding_mode: replicate
 
-  test_time_augmentation:    
-    flip_axes: null
-    rotation90_axes: null
+  # ⭐ IMPROVEMENT: Enable TTA for better evaluation
+  test_time_augmentation:
+    flip_axes: [[0], [1], [2], [0, 1], [0, 2], [1, 2]]  # CHANGED FROM: null
+    rotation90_axes: [[1, 2]]  # CHANGED FROM: null
     select_channel: all
     channel_activations:
       - [0, 1, sigmoid]
@@ -264,26 +267,55 @@ inference:
     enabled: true
     intensity_scale: -1
 
-# Test configuration (optional - update paths as needed)
+# Test configuration
 test:
   data:
-    test_image: "datasets/bouton-lv/train/vol0_im.h5"  # UPDATE THIS
-    test_label: "datasets/bouton-lv/train/vol0_lv.h5"  # UPDATE THIS
-    test_mask: "datasets/bouton-lv/train/vol0_mask.h5"  # UPDATE THIS
+    test_image: "datasets/bouton-lv/train/vol0_im.h5"
+    test_label: "datasets/bouton-lv/train/vol0_lv.h5"
+    test_mask: "datasets/bouton-lv/train/vol0_mask.h5"
     test_resolution: [30, 8, 8]
     image_transform:
       normalize: "0-1"
       clip_percentile_low: 0.0
       clip_percentile_high: 1.0
 
+  # ⭐ IMPROVEMENT: More sensitive thresholds for better recall
   decoding:
     - name: decode_instance_binary_contour_distance
       kwargs:
-        binary_threshold: [0.5, 0.7]
-        contour_threshold: [0.8, 13.1]
+        binary_threshold: [0.3, 0.7]  # CHANGED FROM: [0.5, 0.7] (lower = more sensitive)
+        contour_threshold: [0.5, 13.1]  # CHANGED FROM: [0.8, 13.1] (lower = allow weaker boundaries)
         distance_threshold: [0.5, -0.5]
-        min_seed_size: 4
+        min_seed_size: 8  # CHANGED FROM: 4 (filter more noise)
 
   evaluation:
     enabled: true
-    metrics: [adapted_rand]
+    metrics: [adapted_rand]  # Now includes precision + recall!
+
+# ============================================================================
+# TRAINING INSTRUCTIONS:
+# ============================================================================
+#
+# 1. Train from scratch:
+#    python scripts/main.py --config tutorials/hydra-lv-finetune-v2.yaml
+#
+# 2. Monitor progress:
+#    tensorboard --logdir outputs/hydra-lv_rsunet_finetune_v2/
+#
+# 3. Expected timeline:
+#    - Epoch 50: Loss should be < 0.8
+#    - Epoch 200: Loss should be < 0.3
+#    - Epoch 500: Loss should be < 0.2
+#    - Epoch 1000: Loss should be < 0.1 (target)
+#
+# 4. Success criteria:
+#    - Loss converges to < 0.2
+#    - Training visualizations show good predictions
+#    - Test ARE < 0.1, Recall > 0.95
+#
+# 5. If still not working by epoch 500:
+#    - Try removing pretrained weights (set external_weights_path: null)
+#    - Try smaller architecture (filters: [16, 32, 64, 128, 256])
+#    - Try MedNeXt architecture (see improvement plan)
+#
+# ============================================================================

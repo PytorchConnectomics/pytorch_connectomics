@@ -48,24 +48,55 @@ class AdaptedRandError(torchmetrics.Metric):
 
     This wrapper lets us accumulate scores during Lightning `test_step` without
     manual numpy↔torch conversions in the training loop.
+
+    Args:
+        return_all_stats: If True, also compute and return precision and recall
+        dist_sync_on_step: Whether to sync across distributed processes on each step
     """
 
     full_state_update: bool = False
 
-    def __init__(self, dist_sync_on_step: bool = False) -> None:
+    def __init__(self, return_all_stats: bool = False, dist_sync_on_step: bool = False) -> None:
         super().__init__(dist_sync_on_step=dist_sync_on_step)
+        self.return_all_stats = return_all_stats
+
         self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
+
+        if return_all_stats:
+            self.add_state("total_precision", default=torch.tensor(0.0), dist_reduce_fx="sum")
+            self.add_state("total_recall", default=torch.tensor(0.0), dist_reduce_fx="sum")
 
     def update(self, preds: torch.Tensor, target: torch.Tensor) -> None:
         # Move to CPU and numpy for the underlying implementation
         preds_np = preds.detach().cpu().numpy()
         target_np = target.detach().cpu().numpy()
-        score = float(adapted_rand(preds_np, target_np))
-        self.total += torch.tensor(score, device=self.total.device)
+
+        if self.return_all_stats:
+            are, precision, recall = adapted_rand(preds_np, target_np, all_stats=True)
+            self.total += torch.tensor(are, device=self.total.device)
+            self.total_precision += torch.tensor(precision, device=self.total_precision.device)
+            self.total_recall += torch.tensor(recall, device=self.total_recall.device)
+        else:
+            score = float(adapted_rand(preds_np, target_np, all_stats=False))
+            self.total += torch.tensor(score, device=self.total.device)
+
         self.count += 1
 
     def compute(self) -> torch.Tensor:
         if self.count == 0:
+            if self.return_all_stats:
+                return {
+                    "adapted_rand_error": torch.tensor(0.0, device=self.total.device),
+                    "adapted_rand_precision": torch.tensor(0.0, device=self.total.device),
+                    "adapted_rand_recall": torch.tensor(0.0, device=self.total.device),
+                }
             return torch.tensor(0.0, device=self.total.device)
+
+        if self.return_all_stats:
+            return {
+                "adapted_rand_error": self.total / self.count,
+                "adapted_rand_precision": self.total_precision / self.count,
+                "adapted_rand_recall": self.total_recall / self.count,
+            }
         return self.total / self.count

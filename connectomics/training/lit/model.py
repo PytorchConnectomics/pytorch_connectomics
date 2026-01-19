@@ -194,7 +194,8 @@ class ConnectomicsModule(pl.LightningModule):
                 self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
         if 'adapted_rand' in metrics:
             from ...metrics.metrics_seg import AdaptedRandError
-            self.test_adapted_rand = AdaptedRandError().to(self.device)
+            # Enable all_stats to also compute precision and recall
+            self.test_adapted_rand = AdaptedRandError(return_all_stats=True).to(self.device)
 
     def _invert_save_prediction_transform(self, data: np.ndarray) -> np.ndarray:
         """
@@ -349,14 +350,30 @@ class ConnectomicsModule(pl.LightningModule):
             # Adapted Rand Error is for instance segmentation
             if hasattr(self, "test_adapted_rand") and isinstance(self.test_adapted_rand, torchmetrics.Metric):
                 from ...metrics.metrics_seg import AdaptedRandError
-                per_volume_metric = AdaptedRandError().to(self.device)
+                # Use return_all_stats=True to get precision and recall
+                per_volume_metric = AdaptedRandError(return_all_stats=True).to(self.device)
                 per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
-                adapted_rand_value = per_volume_metric.compute()
-                print(f"  {volume_prefix}Adapted Rand Error: {adapted_rand_value.item():.6f}")
+                adapted_rand_stats = per_volume_metric.compute()
+
+                # Print per-volume metrics
+                if isinstance(adapted_rand_stats, dict):
+                    print(f"  {volume_prefix}Adapted Rand Error: {adapted_rand_stats['adapted_rand_error'].item():.6f}")
+                    print(f"  {volume_prefix}Adapted Rand Precision: {adapted_rand_stats['adapted_rand_precision'].item():.6f}")
+                    print(f"  {volume_prefix}Adapted Rand Recall: {adapted_rand_stats['adapted_rand_recall'].item():.6f}")
+                else:
+                    print(f"  {volume_prefix}Adapted Rand Error: {adapted_rand_stats.item():.6f}")
 
                 # Update running metric for epoch-level aggregation
                 self.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
-                self.log("test_adapted_rand", self.test_adapted_rand, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+
+                # Log metrics - handle both dict and tensor return values
+                epoch_stats = self.test_adapted_rand.compute()
+                if isinstance(epoch_stats, dict):
+                    self.log("test_adapted_rand", epoch_stats['adapted_rand_error'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    self.log("test_adapted_rand_precision", epoch_stats['adapted_rand_precision'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    self.log("test_adapted_rand_recall", epoch_stats['adapted_rand_recall'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                else:
+                    self.log("test_adapted_rand", epoch_stats, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
         else:
             # For binary/semantic segmentation: binarize predictions
