@@ -16,7 +16,8 @@ from monai.utils import ensure_tuple_rep
 
 # Import processing functions with correct names
 from .target import seg_to_binary, seg_to_affinity, seg_to_instance_bd
-from .target import seg_to_instance_edt, seg_to_semantic_edt, seg_to_polarity, seg_to_small_seg
+from .target import seg_to_instance_edt, seg_to_semantic_edt, seg_to_signed_distance_transform
+from .target import seg_to_polarity, seg_to_small_seg
 from .segment import seg_selection
 from .quantize import energy_quantize, decode_quantize
 from .weight import seg_to_weights
@@ -138,10 +139,41 @@ class SegToInstanceEDTd(MapTransform):
         self.quantize = quantize
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        from ...utils.debug_utils import print_tensor_stats
+        
         d = dict(data)
         for key in self.key_iterator(d):
             if key in d:
+                # DEBUG: Print raw label before EDT transform
+                print_tensor_stats(
+                    d[key],
+                    stage_name="STAGE 3: RAW LABEL (instance IDs, before EDT)",
+                    tensor_name="label",
+                    print_once=True,
+                    extra_info={
+                        "transform": "instance_edt",
+                        "mode": self.mode,
+                        "quantize": self.quantize,
+                        "unique_instances": len(np.unique(d[key]))
+                    }
+                )
+                
+                # Apply EDT transform
                 d[key] = seg_to_instance_edt(d[key], mode=self.mode, quantize=self.quantize)
+                
+                # DEBUG: Print after EDT transform
+                print_tensor_stats(
+                    d[key],
+                    stage_name="STAGE 4: AFTER LABEL TRANSFORM (SDT generated)",
+                    tensor_name="label_sdt",
+                    print_once=True,
+                    extra_info={
+                        "transform_applied": "instance_edt",
+                        "expected_range": "[-1, 1]",
+                        "positive_values": "inside instances",
+                        "negative_values": "background"
+                    }
+                )
         return d
 
 
@@ -598,6 +630,7 @@ class MultiTaskLabelTransformd(MapTransform):
         "instance_edt": seg_to_instance_edt,
         "skeleton_aware_edt": skeleton_aware_distance_transform,
         "semantic_edt": seg_to_semantic_edt,
+        "signed_distance": seg_to_signed_distance_transform,
         "polarity": seg_to_polarity,
         "small_object": seg_to_small_seg,
         "energy_quantize": energy_quantize,
@@ -620,6 +653,7 @@ class MultiTaskLabelTransformd(MapTransform):
             "smooth_skeleton_only": True,
         },
         "semantic_edt": {"mode": "2d", "alpha_fore": 8.0, "alpha_back": 50.0},
+        "signed_distance": {"mode": "3d", "alpha": 8.0},
         "polarity": {"exclusive": False},
         "small_object": {"threshold": 100},
         "energy_quantize": {"levels": 10},

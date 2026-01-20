@@ -24,6 +24,7 @@ class RandMisAlignmentd(RandomizableTransform, MapTransform):
     Simulates section misalignment artifacts common in EM volumes.
     """
 
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -1141,9 +1142,23 @@ class SmartNormalizeIntensityd(MapTransform):
         self, volume: Union[np.ndarray, torch.Tensor]
     ) -> Union[np.ndarray, torch.Tensor]:
         """Apply normalization to volume."""
+        from ...utils.debug_utils import print_tensor_stats
+        
         is_numpy = isinstance(volume, np.ndarray)
         if not is_numpy:
             volume = volume.numpy()
+
+        # DEBUG: Print raw input before normalization
+        print_tensor_stats(
+            volume,
+            stage_name="STAGE 1: RAW IMAGE (before normalization)",
+            tensor_name="image",
+            print_once=True,
+            extra_info={
+                "normalization_mode": self.mode,
+                "clip_percentiles": f"[{self.clip_percentile_low}, {self.clip_percentile_high}]"
+            }
+        )
 
         # Step 1: Percentile clipping (if enabled by non-default values)
         if self.clip_percentile_low > 0.0 or self.clip_percentile_high < 1.0:
@@ -1170,6 +1185,18 @@ class SmartNormalizeIntensityd(MapTransform):
         elif self.mode == "divide":
             # Simple divide by K (e.g., divide-255 for uint8 images)
             volume = volume / self.divide_value
+
+        # DEBUG: Print after normalization
+        print_tensor_stats(
+            volume,
+            stage_name="STAGE 2: AFTER IMAGE NORMALIZATION",
+            tensor_name="image",
+            print_once=True,
+            extra_info={
+                "normalization_applied": self.mode,
+                "expected_range": "[0, 1]" if self.mode == "0-1" else "varies"
+            }
+        )
 
         return volume if is_numpy else torch.from_numpy(volume)
 

@@ -440,6 +440,7 @@ class DataConfig:
 
     # Sampling (for volumetric datasets)
     iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
+    val_iter_num: Optional[int] = None  # Validation iterations per epoch (auto-calculated if None)
     use_preloaded_cache: bool = (
         True  # Preload volumes into memory for fast random cropping (default: True)
     )
@@ -479,6 +480,10 @@ class SchedulerConfig:
     warmup_epochs: int = 10
     warmup_start_lr: float = 0.0001
     min_lr: float = 0.00001
+
+    # Scheduler interval control
+    interval: str = "epoch"  # "epoch" or "step" - controls when scheduler steps
+    frequency: int = 1  # How often to step the scheduler
 
     # CosineAnnealing-specific
     t_max: Optional[int] = None
@@ -940,6 +945,9 @@ class SavePredictionConfig:
         enabled: Enable saving intermediate predictions (default: True)
         intensity_scale: Scale factor for predictions (e.g., 255 for uint8 visualization)
         intensity_dtype: Data type for saved predictions (e.g., 'uint8', 'float32')
+        output_formats: List of output formats to save predictions in (e.g., ['h5', 'tiff', 'nii.gz'])
+                       Supported formats: 'h5', 'tiff', 'nii', 'nii.gz', 'png'
+                       Default: ['h5', 'nii.gz'] for backward compatibility
     """
 
     enabled: bool = True  # Enable saving intermediate predictions
@@ -949,6 +957,9 @@ class SavePredictionConfig:
     )
     intensity_dtype: str = (
         "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
+    )
+    output_formats: List[str] = field(
+        default_factory=lambda: ["h5", "nii.gz"]  # Default: HDF5 + NIfTI for backward compatibility
     )
 
 
