@@ -198,14 +198,16 @@ class TTAPredictor:
         if getattr(self.cfg.data, "do_2d", False) and images.size(2) == 1:
             images = images.squeeze(2)
 
-        # Get TTA configuration
+        # Get TTA configuration (respect enabled flag for augmentations)
         if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation"):
-            tta_flip_axes_config = getattr(
-                self.cfg.inference.test_time_augmentation, "flip_axes", None
-            )
-            tta_rotation90_axes_config = getattr(
-                self.cfg.inference.test_time_augmentation, "rotation90_axes", None
-            )
+            tta_cfg = self.cfg.inference.test_time_augmentation
+            tta_enabled = getattr(tta_cfg, "enabled", True)
+            if tta_enabled:
+                tta_flip_axes_config = getattr(tta_cfg, "flip_axes", None)
+                tta_rotation90_axes_config = getattr(tta_cfg, "rotation90_axes", None)
+            else:
+                tta_flip_axes_config = None
+                tta_rotation90_axes_config = None
         else:
             tta_flip_axes_config = None
             tta_rotation90_axes_config = None

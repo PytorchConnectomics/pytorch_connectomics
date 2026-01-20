@@ -172,12 +172,13 @@ optimization:
 
   # Scheduler - ReduceLROnPlateau for adaptive learning
   scheduler:
-    name: ReduceLROnPlateau           # Reduce LR when validation loss plateaus
+    name: ReduceLROnPlateau           # Reduce LR when training loss plateaus
     mode: min                         # Monitor minimum loss
     factor: 0.5                       # Reduce LR by 50%
     patience: 50                      # Wait 50 epochs before reducing
     threshold: 1.0e-4                 # Minimum change to qualify as improvement
     min_lr: 1.0e-6                    # Don't go below 1e-6
+    monitor: train_loss_total_epoch   # No validation; monitor training loss
 
 monitor:
   # Loss monitoring and validation frequency
