@@ -156,3 +156,4 @@ lib/
 .claude/
 .codex/
 .CLAUDE.md
+tmp/

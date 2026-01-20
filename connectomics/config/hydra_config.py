@@ -915,6 +915,7 @@ class TestTimeAugmentationConfig:
     - rotation90_axes: Uses spatial-only indices (e.g., [1, 2] for H-W plane where 0=D, 1=H, 2=W)
     """
 
+    enabled: bool = True  # Enable flip/rotation TTA (preprocessing still applies)
     flip_axes: Any = None  # TTA flip strategy: "all" (8 flips), null (no aug),
     # or list like [[2], [3]] (full tensor indices)
     rotation90_axes: Any = None  # TTA rotation90 strategy: "all" (3 planes × 4 rotations),
