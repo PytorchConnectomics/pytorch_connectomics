@@ -107,6 +107,36 @@ def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
     return ckpt_path.parent.parent / ckpt_stem
 
 
+def extract_step_from_checkpoint(checkpoint_path: str) -> str:
+    """
+    Extract step number from checkpoint filename.
+
+    Args:
+        checkpoint_path: Path to checkpoint file
+
+    Returns:
+        Step string (e.g., "step=195525") or empty string if not found
+
+    Examples:
+        "epoch=494-step=195525.ckpt" → "step=195525"
+        "last.ckpt" → ""
+        "model-epoch=10-step=5000.ckpt" → "step=5000"
+    """
+    import re
+
+    ckpt_path = Path(checkpoint_path)
+    filename = ckpt_path.stem  # Remove .ckpt extension
+
+    # Look for step=XXXXX pattern
+    step_pattern = re.compile(r"step=(\d+)")
+    match = step_pattern.search(filename)
+
+    if match:
+        return f"step={match.group(1)}"
+    
+    return ""
+
+
 def main():
     """Main training function."""
     # Parse arguments
@@ -148,10 +178,21 @@ def main():
         output_base = get_output_base_from_checkpoint(args.checkpoint)
         output_base.mkdir(parents=True, exist_ok=True)
 
+        # Extract step number from checkpoint filename (if available)
+        step_suffix = extract_step_from_checkpoint(args.checkpoint)
+        
         # Create mode-specific subdirectories
         if args.mode in ["tune", "tune-test"]:
-            dirpath = str(output_base / "tuning")
-            results_path = str(output_base / "results")
+            # For tuning modes, append step suffix if available
+            if step_suffix:
+                results_folder_name = f"results_{step_suffix}"
+                tuning_folder_name = f"tuning_{step_suffix}"
+            else:
+                results_folder_name = "results"
+                tuning_folder_name = "tuning"
+            
+            dirpath = str(output_base / tuning_folder_name)
+            results_path = str(output_base / results_folder_name)
             # Override tune output directories in config
             if cfg.tune is not None:
                 cfg.tune.output.output_dir = dirpath
@@ -172,8 +213,14 @@ def main():
                 else:
                     print(f"❌ cfg.test is None, cannot set cache_suffix!")
         else:  # test mode
-            # Always create results/ folder under checkpoint directory
-            results_path = str(output_base / "results")
+            # Create results/ folder with step suffix under checkpoint directory
+            if step_suffix:
+                results_folder_name = f"results_{step_suffix}"
+                print(f"📋 Using checkpoint {step_suffix} - output will be saved to: {results_folder_name}")
+            else:
+                results_folder_name = "results"
+            
+            results_path = str(output_base / results_folder_name)
             dirpath = results_path
             # Override test output directory in config
             if hasattr(cfg, "test") and hasattr(cfg.test, "data"):

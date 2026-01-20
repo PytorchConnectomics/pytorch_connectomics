@@ -132,7 +132,15 @@ class DeepSupervisionHandler:
                 loss_fn = self.loss_functions[loss_idx]
                 weight = self.loss_weights[loss_idx]
 
-                loss = loss_fn(task_output, task_label)
+                # [D3] Compute foreground-weighted mask for SDT loss
+                # Weight foreground (SDT > 0) more heavily to prevent background-dominated learning
+                # REDUCED from 5.0 to 2.0 to prevent numerical explosion
+                fg_weight = 2.0
+                loss_weight_mask = torch.ones_like(task_label)
+                loss_weight_mask[task_label > 0] = fg_weight
+
+                # [D3] Pass weight mask to loss function (WeightedMSELoss supports this)
+                loss = loss_fn(task_output, task_label, weight=loss_weight_mask)
 
                 # Check for NaN/Inf
                 if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
@@ -261,8 +269,16 @@ class DeepSupervisionHandler:
             # Clamp outputs to prevent numerical instability at coarser scales
             output_clamped = torch.clamp(output, min=self.clamp_min, max=self.clamp_max)
 
+            # [D3] Compute foreground-weighted mask for SDT loss
+            # Weight foreground (SDT > 0) more heavily to prevent background-dominated learning
+            # REDUCED from 5.0 to 2.0 to prevent numerical explosion
+            fg_weight = 2.0
+            loss_weight_mask = torch.ones_like(target)
+            loss_weight_mask[target > 0] = fg_weight
+
             for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                loss = loss_fn(output_clamped, target)
+                # [D3] Pass weight mask to loss function (WeightedMSELoss supports this)
+                loss = loss_fn(output_clamped, target, weight=loss_weight_mask)
 
                 # Check for NaN/Inf (only in training mode)
                 if (
@@ -371,8 +387,16 @@ class DeepSupervisionHandler:
             total_loss, loss_dict = self.compute_multitask_loss(outputs, labels, stage=stage)
         else:
             # Standard single-scale loss: apply all losses to all outputs
+            # [D3] Compute foreground-weighted mask for SDT loss
+            # Weight foreground (SDT > 0) more heavily to prevent background-dominated learning
+            # REDUCED from 5.0 to 2.0 to prevent numerical explosion
+            fg_weight = 2.0
+            loss_weight_mask = torch.ones_like(labels)
+            loss_weight_mask[labels > 0] = fg_weight
+
             for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                loss = loss_fn(outputs, labels)
+                # [D3] Pass weight mask to loss function (WeightedMSELoss supports this)
+                loss = loss_fn(outputs, labels, weight=loss_weight_mask)
 
                 # Check for NaN/Inf (only in training mode)
                 if (

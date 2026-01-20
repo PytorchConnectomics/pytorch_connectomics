@@ -7,7 +7,7 @@ from skimage.segmentation import relabel_sequential
 
 matching_criteria = dict()
 
-__all__ = ["jaccard", "adapted_rand", "instance_matching", "cremi_distance"]
+__all__ = ["jaccard", "adapted_rand", "instance_matching", "instance_matching_simple", "cremi_distance"]
 
 
 def adapted_rand(seg, gt, all_stats=False):
@@ -40,6 +40,34 @@ def adapted_rand(seg, gt, all_stats=False):
     ----------
     [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation
     """
+    # DEBUG: Print input to evaluation metrics
+    try:
+        from ..utils.debug_utils import print_tensor_stats
+        print_tensor_stats(
+            seg,
+            stage_name="STAGE 10: INPUT TO EVALUATION METRICS",
+            tensor_name="predicted_segmentation",
+            print_once=True,
+            extra_info={
+                "metric": "adapted_rand",
+                "unique_instances": len(np.unique(seg)),
+                "note": "Instance IDs after decoding"
+            }
+        )
+        print_tensor_stats(
+            gt,
+            stage_name="STAGE 10: INPUT TO EVALUATION METRICS",
+            tensor_name="ground_truth_segmentation",
+            print_once=True,
+            extra_info={
+                "metric": "adapted_rand",
+                "unique_instances": len(np.unique(gt)),
+                "note": "Ground truth instance IDs"
+            }
+        )
+    except:
+        pass  # Silently skip if debug utils not available
+    
     # Validate shapes match
     if seg.shape != gt.shape:
         raise ValueError(
@@ -748,6 +776,94 @@ def instance_matching(y_true, y_pred, thresh=0.5, criterion="iou", report_matche
         return stats_dict
 
     return _single(thresh) if np.isscalar(thresh) else tuple(map(_single, thresh))
+
+
+def instance_matching_simple(y_true, y_pred, thresh=0.5, criterion="iou"):
+    """Calculate relaxed instance segmentation metrics without Hungarian matching.
+    
+    WARNING: This is a RELAXED metric for debugging/analysis only, NOT for benchmark ranking.
+    Unlike instance_matching(), this does NOT use optimal bipartite matching (Hungarian algorithm).
+    Instead, it simply counts all (GT, Pred) pairs with IoU >= threshold as true positives.
+    
+    This metric is useful for:
+    - Quick debugging and sanity checks
+    - Understanding raw overlap statistics
+    - Comparing with strict Hungarian-based metrics
+    
+    Metrics computed:
+        'tp', 'fp', 'fn', 'precision', 'recall', 'accuracy', 'f1',
+        'criterion', 'thresh', 'n_true', 'n_pred'
+    
+    Parameters
+    ----------
+    y_true: ndarray
+        ground truth label image (integer valued)
+    y_pred: ndarray
+        predicted label image (integer valued)
+    thresh: float
+        threshold for matching criterion (default 0.5)
+    criterion: string
+        matching criterion (default 'iou')
+    
+    Returns
+    -------
+    Dictionary with metrics (tp, fp, fn, precision, recall, accuracy, f1, etc.)
+    
+    Examples
+    --------
+    >>> y_true = np.zeros((100,100), np.uint16)
+    >>> y_true[10:20,10:20] = 1
+    >>> y_pred = np.roll(y_true, 5, axis=0)
+    >>> stats = instance_matching_simple(y_true, y_pred)
+    >>> print(f"Accuracy: {stats['accuracy']:.3f}")
+    """
+    _check_label_array(y_true, "y_true")
+    _check_label_array(y_pred, "y_pred")
+    y_true.shape == y_pred.shape or _raise(
+        ValueError(
+            "y_true ({y_true.shape}) and y_pred ({y_pred.shape}) have different shapes".format(
+                y_true=y_true, y_pred=y_pred
+            )
+        )
+    )
+    criterion in matching_criteria or _raise(
+        ValueError("Matching criterion '%s' not supported." % criterion)
+    )
+    
+    thresh = float(thresh)
+    
+    y_true, _, map_rev_true = relabel_sequential(y_true)
+    y_pred, _, map_rev_pred = relabel_sequential(y_pred)
+    
+    overlap = label_overlap(y_true, y_pred, check=False)
+    scores = matching_criteria[criterion](overlap)
+    assert 0 <= np.min(scores) <= np.max(scores) <= 1
+    
+    # ignoring background
+    scores = scores[1:, 1:]
+    n_true, n_pred = scores.shape
+    
+    # Simple counting: any pair with IoU >= thresh counts as TP
+    # No Hungarian matching - just count all pairs above threshold
+    tp = np.sum(scores >= thresh)
+    fp = n_pred - tp
+    fn = n_true - tp
+    
+    stats_dict = dict(
+        criterion=criterion,
+        thresh=thresh,
+        fp=fp,
+        tp=tp,
+        fn=fn,
+        precision=precision(tp, fp, fn),
+        recall=recall(tp, fp, fn),
+        accuracy=accuracy(tp, fp, fn),
+        f1=f1(tp, fp, fn),
+        n_true=n_true,
+        n_pred=n_pred,
+    )
+    
+    return stats_dict
 
 
 def wrapper_matching_dataset_lazy(stats_all, thresh, criterion="iou", by_image=False):

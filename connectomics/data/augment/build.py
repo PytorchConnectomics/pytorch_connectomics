@@ -196,7 +196,7 @@ def build_train_transforms(
     return Compose(transforms)
 
 
-def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] = None) -> Compose:
+def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] = None, skip_loading: bool = False) -> Compose:
     """
     Internal implementation for building evaluation transforms (validation or test).
 
@@ -207,6 +207,7 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         cfg: Hydra Config object
         mode: 'val' or 'test' mode
         keys: Keys to transform (default: auto-detected based on mode)
+        skip_loading: Skip LoadVolumed (for pre-cached datasets)
 
     Returns:
         Composed MONAI transforms (no augmentation)
@@ -259,32 +260,34 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     transforms = []
 
     # Load images first - use appropriate loader based on dataset type
-    dataset_type = getattr(cfg.data, "dataset_type", "volume")
+    # Skip loading if using pre-cached datasets
+    if not skip_loading:
+        dataset_type = getattr(cfg.data, "dataset_type", "volume")
 
-    if dataset_type == "filename":
-        # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
-        transforms.append(LoadImaged(keys=keys, image_only=False))
-        # Ensure channel-first format [C, H, W] or [C, D, H, W]
-        transforms.append(EnsureChannelFirstd(keys=keys))
-    else:
-        # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
-        # Get transpose axes based on mode
-        if mode == "val":
-            transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
-        else:  # mode == "test"
-            # Use test.data.test_transpose
-            transpose_axes = []
-            if (
-                hasattr(cfg, "test")
-                and hasattr(cfg.test, "data")
-                and hasattr(cfg.test.data, "test_transpose")
-                and cfg.test.data.test_transpose
-            ):
-                transpose_axes = cfg.test.data.test_transpose
+        if dataset_type == "filename":
+            # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
+            transforms.append(LoadImaged(keys=keys, image_only=False))
+            # Ensure channel-first format [C, H, W] or [C, D, H, W]
+            transforms.append(EnsureChannelFirstd(keys=keys))
+        else:
+            # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
+            # Get transpose axes based on mode
+            if mode == "val":
+                transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
+            else:  # mode == "test"
+                # Use test.data.test_transpose
+                transpose_axes = []
+                if (
+                    hasattr(cfg, "test")
+                    and hasattr(cfg.test, "data")
+                    and hasattr(cfg.test.data, "test_transpose")
+                    and cfg.test.data.test_transpose
+                ):
+                    transpose_axes = cfg.test.data.test_transpose
 
-        transforms.append(
-            LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
-        )
+            transforms.append(
+                LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
+            )
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
@@ -441,18 +444,19 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     return Compose(transforms)
 
 
-def build_val_transforms(cfg: Config, keys: list[str] = None) -> Compose:
+def build_val_transforms(cfg: Config, keys: list[str] = None, skip_loading: bool = False) -> Compose:
     """
     Build validation transforms from Hydra config.
 
     Args:
         cfg: Hydra Config object
         keys: Keys to transform (default: auto-detected as ['image', 'label'])
+        skip_loading: Skip LoadVolumed (for pre-cached datasets)
 
     Returns:
         Composed MONAI transforms (no augmentation, center cropping)
     """
-    return _build_eval_transforms_impl(cfg, mode="val", keys=keys)
+    return _build_eval_transforms_impl(cfg, mode="val", keys=keys, skip_loading=skip_loading)
 
 
 def build_test_transforms(cfg: Config, keys: list[str] = None) -> Compose:

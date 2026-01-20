@@ -230,6 +230,17 @@ def _build_lr_scheduler_hydra(
             eta_min=eta_min,
         )
 
+    elif scheduler_name == "constant" or scheduler_name == "constantlr":
+        # Constant learning rate (no decay)
+        # Recommended for MedNeXt architecture
+        from torch.optim.lr_scheduler import LambdaLR
+
+        scheduler = LambdaLR(
+            optimizer,
+            lr_lambda=lambda epoch: 1.0
+        )
+        print("  ℹ️  Using constant learning rate (no decay)")
+
     else:
         # Default to CosineAnnealingLR
         if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs"):

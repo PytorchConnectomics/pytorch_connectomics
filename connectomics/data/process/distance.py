@@ -21,6 +21,7 @@ __all__ = [
     "distance_transform",
     "skeleton_aware_distance_transform",
     "smooth_edge",
+    "signed_distance_transform",
 ]
 
 
@@ -189,6 +190,86 @@ def smooth_edge(binary, smooth_sigma: float = 2.0, smooth_threshold: float = 0.5
         binary = (binary > smooth_threshold).astype(np.uint8)
 
     return binary
+
+
+def signed_distance_transform(
+    label: np.ndarray,
+    resolution: Tuple[float] = (1.0, 1.0, 1.0),
+    alpha: float = 8.0,
+) -> np.ndarray:
+    """Compute smooth signed distance transform for instance segmentation.
+    
+    This function produces a true signed distance transform where both foreground
+    and background have meaningful gradient information, solving the class imbalance
+    problem of traditional EDT approaches.
+    
+    Returns SDT in range [-1, 1]:
+    - Positive values: inside instances (distance from boundary)
+    - Negative values: outside instances (distance to nearest instance)
+    - Zero: at instance boundaries
+    
+    Args:
+        label: Instance segmentation (H, W) or (D, H, W)
+        resolution: Pixel/voxel resolution for anisotropic data (z, y, x)
+                   For 2D: (y, x)
+                   For 3D: (z, y, x)
+        alpha: Smoothness parameter for tanh normalization (default: 8.0)
+               Higher values = sharper transitions at boundaries
+               Lower values = smoother, more gradual transitions
+    
+    Returns:
+        Signed distance transform in range [-1, 1] with same shape as input
+        
+    Example:
+        >>> # 2D mitochondria segmentation
+        >>> label_2d = np.array([[0, 0, 1, 1, 0],
+        ...                       [0, 1, 1, 1, 0],
+        ...                       [0, 0, 1, 0, 0]])
+        >>> sdt_2d = signed_distance_transform(label_2d, resolution=(1.0, 1.0))
+        >>> # sdt_2d will have positive values inside instance 1, negative outside
+        
+        >>> # 3D volume with anisotropic resolution
+        >>> sdt_3d = signed_distance_transform(label_3d, resolution=(40, 16, 16), alpha=8.0)
+    
+    Notes:
+        - This approach eliminates class imbalance by ensuring both foreground
+          and background contribute meaningful gradients
+        - The tanh normalization ensures smooth, bounded values suitable for
+          regression with MSE loss
+        - For mitochondria segmentation, typical alpha values are 6-10
+    """
+    # Adjust resolution for 2D vs 3D
+    if label.ndim == 2:
+        resolution = resolution[-2:] if len(resolution) > 2 else resolution
+    elif label.ndim == 3:
+        resolution = resolution if len(resolution) == 3 else (1.0, 1.0, 1.0)
+    
+    # Create binary masks
+    foreground_mask = (label > 0).astype(np.uint8)
+    background_mask = (label == 0).astype(np.uint8)
+    
+    # Compute EDT for both foreground and background
+    if foreground_mask.any():
+        foreground_edt = distance_transform_edt(foreground_mask, sampling=resolution)
+    else:
+        # No foreground - return all negative
+        return -np.ones_like(label, dtype=np.float32)
+    
+    if background_mask.any():
+        background_edt = distance_transform_edt(background_mask, sampling=resolution)
+    else:
+        # No background - return all positive
+        return np.ones_like(label, dtype=np.float32)
+    
+    # Combine into signed distance
+    # Positive inside instances, negative outside
+    sdt = np.where(foreground_mask, foreground_edt, -background_edt)
+    
+    # Normalize to [-1, 1] using tanh
+    # This provides smooth, bounded values suitable for regression
+    sdt_normalized = np.tanh(sdt / alpha)
+    
+    return sdt_normalized.astype(np.float32)
 
 
 def skeleton_aware_distance_transform(
