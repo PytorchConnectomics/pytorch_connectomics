@@ -348,6 +348,8 @@
         <span class="n">train_transpose_axes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">val_transpose_axes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">test_transpose_axes</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">val_iter_num</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="o">**</span><span class="n">dataset_kwargs</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -371,6 +373,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">persistent_workers</span> <span class="o">=</span> <span class="n">persistent_workers</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cache_rate</span> <span class="o">=</span> <span class="n">cache_rate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">cache_dir</span> <span class="o">=</span> <span class="n">cache_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">val_iter_num</span> <span class="o">=</span> <span class="n">val_iter_num</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="n">seed</span>  <span class="c1"># [FIX 1] Store seed for validation reseeding</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dataset_kwargs</span> <span class="o">=</span> <span class="n">dataset_kwargs</span>
 
         <span class="c1"># Store mode-specific transpose axes</span>
@@ -436,6 +440,11 @@
             <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_kwargs</span><span class="p">,</span>
         <span class="p">}</span>
 
+        <span class="c1"># Use separate iter_num for validation if specified</span>
+        <span class="c1"># This MUST come after unpacking dataset_kwargs to override the training iter_num</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_iter_num</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dataset_args</span><span class="p">[</span><span class="s2">&quot;iter_num&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_iter_num</span>
+
         <span class="c1"># Note: transpose_axes should be embedded in the transforms (via LoadVolumed)</span>
         <span class="c1"># and NOT passed as a dataset parameter. The transform builders handle this.</span>
 
@@ -464,6 +473,10 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip_validation</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="c1"># NOTE: Validation reseeding is now handled by ValidationReseedingCallback</span>
+        <span class="c1"># in on_validation_epoch_start() which runs EVERY validation epoch.</span>
+        <span class="c1"># DO NOT reseed here - val_dataloader() is only called ONCE during trainer.fit() setup!</span>
 
         <span class="n">dataloader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_dataset</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 

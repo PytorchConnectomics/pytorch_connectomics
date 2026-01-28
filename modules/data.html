@@ -346,6 +346,46 @@ Not following these recommendations may lead to runtime errors or duplicated cac
 </ul>
 </dd>
 </dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiCachedConnectomicsDataset.get_sampling_fingerprint">
+<span class="sig-name descname"><span class="pre">get_sampling_fingerprint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_base.html#MonaiCachedConnectomicsDataset.get_sampling_fingerprint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset.get_sampling_fingerprint" title="Link to this definition">¶</a></dt>
+<dd><p>Generate a deterministic fingerprint of validation sampling.</p>
+<p>This allows verification that validation patches change across epochs.
+For MonaiCachedConnectomicsDataset, we sample indices that would be used.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>num_samples</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of random samples to include in fingerprint</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>String representing the sampling fingerprint</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="connectomics.data.dataset.MonaiCachedConnectomicsDataset.set_epoch">
+<span class="sig-name descname"><span class="pre">set_epoch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epoch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_seed</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/dataset_base.html#MonaiCachedConnectomicsDataset.set_epoch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset.set_epoch" title="Link to this definition">¶</a></dt>
+<dd><p>Set current epoch for epoch-based validation reseeding.</p>
+<p>This method enables validation to sample different patches each epoch
+while maintaining determinism. For training, this has no effect since
+training already uses random sampling.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>epoch</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Current training epoch</p></li>
+<li><p><strong>base_seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Base random seed (typically from cfg.system.seed)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Usage:</dt><dd><p>Called by ValidationReseedingCallback at the start of each validation epoch.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -977,7 +1017,7 @@ padding for validation regions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input volume (D, H, W) or (C, D, H, W)</p></li>
+<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>) – Input volume (D, H, W) or (C, D, H, W)</p></li>
 <li><p><strong>split_slices</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#slice" title="(in Python v3.14)"><em>slice</em></a><em>, </em><em>...</em><em>]</em>) – Tuple of slice objects</p></li>
 <li><p><strong>pad</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to pad after splitting</p></li>
 <li><p><strong>pad_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>) – Target size for padding (only if pad=True)</p></li>
@@ -988,7 +1028,7 @@ padding for validation regions.</p>
 <dd class="field-even"><p>Split (and optionally padded) volume</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><em>ndarray</em> | <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+<dd class="field-odd"><p><em>ndarray</em> | <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
 </dd>
 </dl>
 </dd></dl>
@@ -1104,7 +1144,7 @@ and needs to be padded for inference.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input volume of shape (D, H, W) or (C, D, H, W)</p></li>
+<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>) – Input volume of shape (D, H, W) or (C, D, H, W)</p></li>
 <li><p><strong>target_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – Target size (D, H, W)</p></li>
 <li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Padding mode. Options:
 - ‘constant’: Pad with constant value
@@ -1118,7 +1158,7 @@ and needs to be padded for inference.</p>
 <dd class="field-even"><p>Padded volume of shape matching target_size (+ channel dim if input had it)</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><em>ndarray</em> | <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a></p>
+<dd class="field-odd"><p><em>ndarray</em> | <a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a></p>
 </dd>
 </dl>
 <p class="rubric">Example</p>
@@ -1158,7 +1198,7 @@ volume to match model input requirements.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>Tensor</em></a>) – Input volume (D, H, W) or (C, D, H, W)</p></li>
+<li><p><strong>volume</strong> (<em>ndarray</em><em> | </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a>) – Input volume (D, H, W) or (C, D, H, W)</p></li>
 <li><p><strong>train_ratio</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Ratio for training split (default: 0.8)</p></li>
 <li><p><strong>target_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Tuple" title="(in Python v3.14)"><em>Tuple</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>] </em><em>| </em><em>None</em>) – Target size for padding validation (default: None, no padding)</p></li>
 <li><p><strong>axis</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Split axis (default: 0 for Z-axis)</p></li>
@@ -1278,7 +1318,11 @@ val_slices: Tuple of slices for validation region</p>
               <ul>
 <li><a class="reference internal" href="#">connectomics.data</a><ul>
 <li><a class="reference internal" href="#module-connectomics.data.dataset">Datasets</a><ul>
-<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedConnectomicsDataset</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedConnectomicsDataset</span></code></a><ul>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset.get_sampling_fingerprint"><code class="docutils literal notranslate"><span class="pre">MonaiCachedConnectomicsDataset.get_sampling_fingerprint()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedConnectomicsDataset.set_epoch"><code class="docutils literal notranslate"><span class="pre">MonaiCachedConnectomicsDataset.set_epoch()</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedTileDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedTileDataset</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.data.dataset.MonaiCachedVolumeDataset"><code class="docutils literal notranslate"><span class="pre">MonaiCachedVolumeDataset</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.data.dataset.MonaiConnectomicsDataset"><code class="docutils literal notranslate"><span class="pre">MonaiConnectomicsDataset</span></code></a></li>

@@ -493,7 +493,24 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_dicts</span><span class="p">)</span>
+        
+        <span class="c1"># [FIX] Add validation reseeding support</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_seed</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_epoch</span> <span class="o">=</span> <span class="mi">0</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a data sample with caching.</span>
+<span class="sd">        </span>
+<span class="sd">        When iter_num &gt; len(data), we need to map the requested index</span>
+<span class="sd">        to an actual data index by using modulo operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Map the requested index to actual data index</span>
+        <span class="n">actual_index</span> <span class="o">=</span> <span class="n">index</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        
+        <span class="c1"># Call parent&#39;s __getitem__ with the mapped index</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">actual_index</span><span class="p">)</span>
+    
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Return dataset length.</span>
@@ -507,13 +524,83 @@
             <span class="c1"># Partial caching: return cached length for validation</span>
             <span class="c1"># For training with iter_num, we still want to iterate iter_num times</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># For validation/test, only iterate over cached items</span>
-                <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cache</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Full caching or no caching: use dataset_length</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span>
         
-        <span class="c1"># Full caching or no caching: use dataset_length</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span></div>
+        <span class="k">return</span> <span class="n">result</span>
+    
+<div class="viewcode-block" id="MonaiCachedConnectomicsDataset.set_epoch">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.MonaiCachedConnectomicsDataset.set_epoch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_epoch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">base_seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Set current epoch for epoch-based validation reseeding.</span>
+<span class="sd">        </span>
+<span class="sd">        This method enables validation to sample different patches each epoch</span>
+<span class="sd">        while maintaining determinism. For training, this has no effect since</span>
+<span class="sd">        training already uses random sampling.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            epoch: Current training epoch</span>
+<span class="sd">            base_seed: Base random seed (typically from cfg.system.seed)</span>
+<span class="sd">        </span>
+<span class="sd">        Usage:</span>
+<span class="sd">            Called by ValidationReseedingCallback at the start of each validation epoch.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">base_seed</span> <span class="o">=</span> <span class="n">base_seed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_epoch</span> <span class="o">=</span> <span class="n">epoch</span>
+            <span class="n">effective_seed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_seed</span> <span class="o">+</span> <span class="n">epoch</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">effective_seed</span><span class="p">)</span>
+            
+            <span class="c1"># IMPORTANT: Print to verify reseeding is happening</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[Validation] Set epoch=</span><span class="si">{</span><span class="n">epoch</span><span class="si">}</span><span class="s2">, base_seed=</span><span class="si">{</span><span class="n">base_seed</span><span class="si">}</span><span class="s2">, effective_seed=</span><span class="si">{</span><span class="n">effective_seed</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[Validation] Dataset: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">@</span><span class="si">{</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">, mode=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="si">}</span><span class="s2">, iter_num=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+    
+<div class="viewcode-block" id="MonaiCachedConnectomicsDataset.get_sampling_fingerprint">
+<a class="viewcode-back" href="../../../../modules/data.html#connectomics.data.dataset.MonaiCachedConnectomicsDataset.get_sampling_fingerprint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_sampling_fingerprint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_samples</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a deterministic fingerprint of validation sampling.</span>
+<span class="sd">        </span>
+<span class="sd">        This allows verification that validation patches change across epochs.</span>
+<span class="sd">        For MonaiCachedConnectomicsDataset, we sample indices that would be used.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            num_samples: Number of random samples to include in fingerprint</span>
+<span class="sd">        </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            String representing the sampling fingerprint</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s2">&quot;val&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;N/A (training mode)&quot;</span>
+        
+        <span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+        <span class="c1"># Save current RNG state</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">getstate</span><span class="p">()</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Generate deterministic samples</span>
+            <span class="n">samples</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_samples</span><span class="p">):</span>
+                <span class="c1"># Sample index (same logic as __getitem__)</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">samples</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+            
+            <span class="c1"># Create fingerprint string</span>
+            <span class="n">fingerprint</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;idx</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">samples</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">fingerprint</span>
+        
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="c1"># Restore RNG state</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">setstate</span><span class="p">(</span><span class="n">state</span><span class="p">)</span></div>
+</div>
 
 
 

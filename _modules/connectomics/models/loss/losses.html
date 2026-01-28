@@ -380,9 +380,50 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Loss value (should be &lt; 4 for range [-1, 1])</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">...utils.debug_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_tensor_stats</span>
+        
+        <span class="c1"># DEBUG: Print input to loss function (before tanh)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_debug_loss_printed&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_debug_loss_printed</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">print_tensor_stats</span><span class="p">(</span>
+                <span class="n">pred</span><span class="p">,</span>
+                <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 7: LOSS FUNCTION INPUT (before tanh)&quot;</span><span class="p">,</span>
+                <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;pred&quot;</span><span class="p">,</span>
+                <span class="n">print_once</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;tanh_enabled&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tanh</span><span class="p">,</span>
+                    <span class="s2">&quot;reduction&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span><span class="p">,</span>
+                    <span class="s2">&quot;weight_provided&quot;</span><span class="p">:</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">print_tensor_stats</span><span class="p">(</span>
+                <span class="n">target</span><span class="p">,</span>
+                <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 7: LOSS FUNCTION INPUT (target)&quot;</span><span class="p">,</span>
+                <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;target&quot;</span><span class="p">,</span>
+                <span class="n">print_once</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s2">&quot;expected_range&quot;</span><span class="p">:</span> <span class="s2">&quot;[-1, 1] for SDT&quot;</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+        
         <span class="c1"># Apply tanh activation if enabled (constrains pred to [-1, 1])</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tanh</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
+            
+            <span class="c1"># DEBUG: Print after tanh activation</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_debug_tanh_printed&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_debug_tanh_printed</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">print_tensor_stats</span><span class="p">(</span>
+                    <span class="n">pred</span><span class="p">,</span>
+                    <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 6: PREDICTION AFTER TANH&quot;</span><span class="p">,</span>
+                    <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;pred_after_tanh&quot;</span><span class="p">,</span>
+                    <span class="n">print_once</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s2">&quot;activation_applied&quot;</span><span class="p">:</span> <span class="s2">&quot;tanh&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;expected_range&quot;</span><span class="p">:</span> <span class="s2">&quot;[-1, 1]&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Should now match target range&quot;</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
 
         <span class="c1"># Compute MSE (for range [-1,1], max error is (1-(-1))^2 = 4)</span>
         <span class="n">mse</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
@@ -391,11 +432,27 @@
             <span class="n">mse</span> <span class="o">=</span> <span class="n">mse</span> <span class="o">*</span> <span class="n">weight</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">mse</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">loss_value</span> <span class="o">=</span> <span class="n">mse</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">mse</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+            <span class="n">loss_value</span> <span class="o">=</span> <span class="n">mse</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">mse</span></div>
+            <span class="n">loss_value</span> <span class="o">=</span> <span class="n">mse</span>
+        
+        <span class="c1"># DEBUG: Print loss output</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_debug_loss_output_printed&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_debug_loss_output_printed</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="o">*</span><span class="mi">80</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[DEBUG NORM] STAGE 8: LOSS FUNCTION OUTPUT&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="o">*</span><span class="mi">80</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;LOSS VALUE: </span><span class="si">{</span><span class="n">loss_value</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Expected range: [0, 4] for MSE with values in [-1, 1]&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">loss_value</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ⚠️  WARNING: Loss &gt; 4 suggests tanh might not be working!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Loss is reasonable&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="o">*</span><span class="mi">80</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">loss_value</span></div>
 </div>
 
 

@@ -313,6 +313,7 @@
     <span class="n">TuneConfig</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.callbacks</span><span class="w"> </span><span class="kn">import</span> <span class="n">VisualizationCallback</span><span class="p">,</span> <span class="n">EMAWeightsCallback</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.validation_callbacks.validation_reseeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationReseedingCallback</span>
 
 <span class="c1"># Register safe globals for PyTorch 2.6+ checkpoint loading</span>
 <span class="c1"># This allows our Config class to be unpickled from Lightning checkpoints</span>
@@ -453,6 +454,18 @@
                 <span class="sa">f</span><span class="s2">&quot;  EMA: Enabled (decay=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">decay</span><span class="si">}</span><span class="s2">, warmup_steps=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">warmup_steps</span><span class="si">}</span><span class="s2">, &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;validate_with_ema=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">validate_with_ema</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
+        
+        <span class="c1"># [FIX 1 - PROPER IMPLEMENTATION] Validation reseeding callback</span>
+        <span class="c1"># This ensures validation datasets are reseeded at the start of EACH validation epoch</span>
+        <span class="c1"># Previous fix in val_dataloader() only ran once during setup</span>
+        <span class="n">validation_reseeding_callback</span> <span class="o">=</span> <span class="n">ValidationReseedingCallback</span><span class="p">(</span>
+            <span class="n">base_seed</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+            <span class="n">log_fingerprint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">log_all_ranks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">validation_reseeding_callback</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Validation Reseeding: Enabled (base_seed=</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">seed</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
 
     <span class="c1"># Progress bar (optional - requires rich package)</span>
     <span class="k">try</span><span class="p">:</span>
@@ -522,9 +535,24 @@
             <span class="n">strategy</span> <span class="o">=</span> <span class="n">DDPStrategy</span><span class="p">(</span><span class="n">find_unused_parameters</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Strategy: DDP (standard)&quot;</span><span class="p">)</span>
 
+    <span class="c1"># [FIX 2] Implement TRUE step-based training</span>
+    <span class="c1"># PyTorch Lightning stops when EITHER max_epochs OR max_steps is reached</span>
+    <span class="c1"># To ensure step-based training works correctly, we must disable epochs when using steps</span>
+    <span class="n">max_steps_cfg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s2">&quot;max_steps&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">max_steps_cfg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">max_steps_cfg</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="c1"># Step-based training: disable epoch limit</span>
+        <span class="n">max_epochs</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># -1 means unlimited epochs</span>
+        <span class="n">max_steps</span> <span class="o">=</span> <span class="n">max_steps_cfg</span>
+        <span class="n">training_mode</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;step-based (</span><span class="si">{</span><span class="n">max_steps</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> steps)&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Epoch-based training: disable step limit</span>
+        <span class="n">max_epochs</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">max_epochs</span>
+        <span class="n">max_steps</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># -1 means unlimited steps</span>
+        <span class="n">training_mode</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;epoch-based (</span><span class="si">{</span><span class="n">max_epochs</span><span class="si">}</span><span class="s2"> epochs)&quot;</span>
+
     <span class="n">trainer</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">Trainer</span><span class="p">(</span>
-        <span class="n">max_epochs</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">max_epochs</span><span class="p">,</span>
-        <span class="n">max_steps</span><span class="o">=</span><span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="p">,</span> <span class="s2">&quot;max_steps&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">max_epochs</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span>
+        <span class="n">max_steps</span><span class="o">=</span><span class="n">max_steps</span><span class="p">,</span>
         <span class="n">accelerator</span><span class="o">=</span><span class="s2">&quot;gpu&quot;</span> <span class="k">if</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">,</span>
         <span class="n">devices</span><span class="o">=</span><span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span> <span class="k">if</span> <span class="n">use_gpu</span> <span class="k">else</span> <span class="mi">1</span><span class="p">,</span>
         <span class="n">strategy</span><span class="o">=</span><span class="n">strategy</span><span class="p">,</span>
@@ -541,7 +569,7 @@
         <span class="n">detect_anomaly</span><span class="o">=</span><span class="n">detect_anomaly</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Max epochs: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">max_epochs</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Training mode: </span><span class="si">{</span><span class="n">training_mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Devices: </span><span class="si">{</span><span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> mode)&quot;</span><span class="p">)</span>
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Precision: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">precision</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 

@@ -283,7 +283,7 @@
 
 <span class="n">matching_criteria</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
 
-<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;jaccard&quot;</span><span class="p">,</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span> <span class="s2">&quot;instance_matching&quot;</span><span class="p">,</span> <span class="s2">&quot;cremi_distance&quot;</span><span class="p">]</span>
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;jaccard&quot;</span><span class="p">,</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span> <span class="s2">&quot;instance_matching&quot;</span><span class="p">,</span> <span class="s2">&quot;instance_matching_simple&quot;</span><span class="p">,</span> <span class="s2">&quot;cremi_distance&quot;</span><span class="p">]</span>
 
 
 <div class="viewcode-block" id="adapted_rand">
@@ -318,6 +318,34 @@
 <span class="sd">    ----------</span>
 <span class="sd">    [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># DEBUG: Print input to evaluation metrics</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">..utils.debug_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_tensor_stats</span>
+        <span class="n">print_tensor_stats</span><span class="p">(</span>
+            <span class="n">seg</span><span class="p">,</span>
+            <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 10: INPUT TO EVALUATION METRICS&quot;</span><span class="p">,</span>
+            <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;predicted_segmentation&quot;</span><span class="p">,</span>
+            <span class="n">print_once</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;unique_instances&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg</span><span class="p">)),</span>
+                <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Instance IDs after decoding&quot;</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+        <span class="n">print_tensor_stats</span><span class="p">(</span>
+            <span class="n">gt</span><span class="p">,</span>
+            <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 10: INPUT TO EVALUATION METRICS&quot;</span><span class="p">,</span>
+            <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;ground_truth_segmentation&quot;</span><span class="p">,</span>
+            <span class="n">print_once</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;unique_instances&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">gt</span><span class="p">)),</span>
+                <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Ground truth instance IDs&quot;</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">pass</span>  <span class="c1"># Silently skip if debug utils not available</span>
+    
     <span class="c1"># Validate shapes match</span>
     <span class="k">if</span> <span class="n">seg</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">gt</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -1036,6 +1064,94 @@
 
     <span class="k">return</span> <span class="n">_single</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span> <span class="k">else</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="n">_single</span><span class="p">,</span> <span class="n">thresh</span><span class="p">))</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">instance_matching_simple</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s2">&quot;iou&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate relaxed instance segmentation metrics without Hungarian matching.</span>
+<span class="sd">    </span>
+<span class="sd">    WARNING: This is a RELAXED metric for debugging/analysis only, NOT for benchmark ranking.</span>
+<span class="sd">    Unlike instance_matching(), this does NOT use optimal bipartite matching (Hungarian algorithm).</span>
+<span class="sd">    Instead, it simply counts all (GT, Pred) pairs with IoU &gt;= threshold as true positives.</span>
+<span class="sd">    </span>
+<span class="sd">    This metric is useful for:</span>
+<span class="sd">    - Quick debugging and sanity checks</span>
+<span class="sd">    - Understanding raw overlap statistics</span>
+<span class="sd">    - Comparing with strict Hungarian-based metrics</span>
+<span class="sd">    </span>
+<span class="sd">    Metrics computed:</span>
+<span class="sd">        &#39;tp&#39;, &#39;fp&#39;, &#39;fn&#39;, &#39;precision&#39;, &#39;recall&#39;, &#39;accuracy&#39;, &#39;f1&#39;,</span>
+<span class="sd">        &#39;criterion&#39;, &#39;thresh&#39;, &#39;n_true&#39;, &#39;n_pred&#39;</span>
+<span class="sd">    </span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    y_true: ndarray</span>
+<span class="sd">        ground truth label image (integer valued)</span>
+<span class="sd">    y_pred: ndarray</span>
+<span class="sd">        predicted label image (integer valued)</span>
+<span class="sd">    thresh: float</span>
+<span class="sd">        threshold for matching criterion (default 0.5)</span>
+<span class="sd">    criterion: string</span>
+<span class="sd">        matching criterion (default &#39;iou&#39;)</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Dictionary with metrics (tp, fp, fn, precision, recall, accuracy, f1, etc.)</span>
+<span class="sd">    </span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; y_true = np.zeros((100,100), np.uint16)</span>
+<span class="sd">    &gt;&gt;&gt; y_true[10:20,10:20] = 1</span>
+<span class="sd">    &gt;&gt;&gt; y_pred = np.roll(y_true, 5, axis=0)</span>
+<span class="sd">    &gt;&gt;&gt; stats = instance_matching_simple(y_true, y_pred)</span>
+<span class="sd">    &gt;&gt;&gt; print(f&quot;Accuracy: {stats[&#39;accuracy&#39;]:.3f}&quot;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="s2">&quot;y_true&quot;</span><span class="p">)</span>
+    <span class="n">_check_label_array</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="s2">&quot;y_pred&quot;</span><span class="p">)</span>
+    <span class="n">y_true</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">shape</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span>
+        <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;y_true (</span><span class="si">{y_true.shape}</span><span class="s2">) and y_pred (</span><span class="si">{y_pred.shape}</span><span class="s2">) have different shapes&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">y_true</span><span class="o">=</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="n">y_pred</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+    <span class="n">criterion</span> <span class="ow">in</span> <span class="n">matching_criteria</span> <span class="ow">or</span> <span class="n">_raise</span><span class="p">(</span>
+        <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Matching criterion &#39;</span><span class="si">%s</span><span class="s2">&#39; not supported.&quot;</span> <span class="o">%</span> <span class="n">criterion</span><span class="p">)</span>
+    <span class="p">)</span>
+    
+    <span class="n">thresh</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span>
+    
+    <span class="n">y_true</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">map_rev_true</span> <span class="o">=</span> <span class="n">relabel_sequential</span><span class="p">(</span><span class="n">y_true</span><span class="p">)</span>
+    <span class="n">y_pred</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">map_rev_pred</span> <span class="o">=</span> <span class="n">relabel_sequential</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span>
+    
+    <span class="n">overlap</span> <span class="o">=</span> <span class="n">label_overlap</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">matching_criteria</span><span class="p">[</span><span class="n">criterion</span><span class="p">](</span><span class="n">overlap</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+    
+    <span class="c1"># ignoring background</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span>
+    <span class="n">n_true</span><span class="p">,</span> <span class="n">n_pred</span> <span class="o">=</span> <span class="n">scores</span><span class="o">.</span><span class="n">shape</span>
+    
+    <span class="c1"># Simple counting: any pair with IoU &gt;= thresh counts as TP</span>
+    <span class="c1"># No Hungarian matching - just count all pairs above threshold</span>
+    <span class="n">tp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">scores</span> <span class="o">&gt;=</span> <span class="n">thresh</span><span class="p">)</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">n_pred</span> <span class="o">-</span> <span class="n">tp</span>
+    <span class="n">fn</span> <span class="o">=</span> <span class="n">n_true</span> <span class="o">-</span> <span class="n">tp</span>
+    
+    <span class="n">stats_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
+        <span class="n">criterion</span><span class="o">=</span><span class="n">criterion</span><span class="p">,</span>
+        <span class="n">thresh</span><span class="o">=</span><span class="n">thresh</span><span class="p">,</span>
+        <span class="n">fp</span><span class="o">=</span><span class="n">fp</span><span class="p">,</span>
+        <span class="n">tp</span><span class="o">=</span><span class="n">tp</span><span class="p">,</span>
+        <span class="n">fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span>
+        <span class="n">precision</span><span class="o">=</span><span class="n">precision</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+        <span class="n">recall</span><span class="o">=</span><span class="n">recall</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+        <span class="n">accuracy</span><span class="o">=</span><span class="n">accuracy</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+        <span class="n">f1</span><span class="o">=</span><span class="n">f1</span><span class="p">(</span><span class="n">tp</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fn</span><span class="p">),</span>
+        <span class="n">n_true</span><span class="o">=</span><span class="n">n_true</span><span class="p">,</span>
+        <span class="n">n_pred</span><span class="o">=</span><span class="n">n_pred</span><span class="p">,</span>
+    <span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">stats_dict</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">wrapper_matching_dataset_lazy</span><span class="p">(</span><span class="n">stats_all</span><span class="p">,</span> <span class="n">thresh</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s2">&quot;iou&quot;</span><span class="p">,</span> <span class="n">by_image</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
