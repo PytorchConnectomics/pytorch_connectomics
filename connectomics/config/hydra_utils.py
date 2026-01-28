@@ -183,8 +183,14 @@ def validate_config(cfg: Config) -> None:
         raise ValueError("optimization.optimizer.weight_decay must be non-negative")
 
     # Training validation
-    if cfg.optimization.max_epochs <= 0:
-        raise ValueError("optimization.max_epochs must be positive")
+    # [FIX 2] Allow max_epochs to be 0 or negative when using step-based training
+    max_steps_cfg = getattr(cfg.optimization, "max_steps", None)
+    if max_steps_cfg is None or max_steps_cfg <= 0:
+        # Epoch-based training: max_epochs must be positive
+        if cfg.optimization.max_epochs <= 0:
+            raise ValueError("optimization.max_epochs must be positive when max_steps is not set")
+    # If max_steps is set, max_epochs can be anything (will be overridden to -1 in trainer)
+    
     if cfg.optimization.gradient_clip_val < 0:
         raise ValueError("optimization.gradient_clip_val must be non-negative")
     if cfg.optimization.accumulate_grad_batches <= 0:

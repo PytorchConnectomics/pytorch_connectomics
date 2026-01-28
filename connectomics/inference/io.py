@@ -16,6 +16,56 @@ from omegaconf import DictConfig
 from ..config import Config
 
 
+# ============================================================
+# PART 3: Automatic .h5 Output Analysis Function
+# ============================================================
+def analyze_h5_array(data: np.ndarray, name: str) -> None:
+    """
+    Analyze and print statistics about a saved prediction array.
+    
+    This provides immediate feedback on data quality without requiring
+    external tools or manual scripting.
+    
+    Args:
+        data: Numpy array to analyze (already loaded from .h5)
+        name: Descriptive name for logging
+    """
+    print(f"\n  {'─'*66}")
+    print(f"  H5 ANALYSIS: {name}")
+    print(f"  {'─'*66}")
+    print(f"  Shape:              {data.shape}")
+    print(f"  Dtype:              {data.dtype}")
+    print(f"  Min:                {data.min()}")
+    print(f"  Max:                {data.max()}")
+    print(f"  Mean:               {data.mean():.6f}")
+    
+    # Unique values (computed once)
+    unique_vals = np.unique(data)
+    num_unique = len(unique_vals)
+    print(f"  Unique values:      {num_unique}")
+    
+    # First 30 unique values
+    if num_unique <= 30:
+        print(f"  Values:             {sorted(unique_vals.tolist())}")
+    else:
+        first_30 = sorted(unique_vals[:30].tolist())
+        print(f"  First 30 values:    {first_30}")
+    
+    # Non-zero statistics
+    nonzero_count = np.count_nonzero(data)
+    nonzero_pct = 100.0 * nonzero_count / data.size
+    print(f"  Non-zero voxels:    {nonzero_count:,} / {data.size:,}")
+    print(f"  Non-zero %:         {nonzero_pct:.2f}%")
+    
+    # Warnings for common issues
+    if data.max() == 0:
+        print(f"  ⚠️  WARNING: All zeros - empty output!")
+    elif data.max() == data.min():
+        print(f"  ⚠️  WARNING: Constant array (all values = {data.min()})")
+    
+    print(f"  {'─'*66}\n")
+
+
 def apply_save_prediction_transform(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
     """
     Apply intensity scaling and dtype conversion from save_prediction config.
@@ -216,11 +266,13 @@ def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
     from connectomics.decoding import (
         decode_instance_binary_contour_distance,
         decode_affinity_cc,
+        decode_distance_watershed,
     )
 
     decode_fn_map = {
         "decode_instance_binary_contour_distance": decode_instance_binary_contour_distance,
         "decode_affinity_cc": decode_affinity_cc,
+        "decode_distance_watershed": decode_distance_watershed,
     }
 
     # Handle different input shapes:
@@ -425,10 +477,96 @@ def write_outputs(
                 print(f"  WARNING: write_outputs - transpose failed: {e}, keeping original shape")
 
         sample = np.squeeze(sample)
-        write_hdf5(
-            output_path,
-            sample.astype(np.float32) if not np.issubdtype(sample.dtype, np.integer) else sample,
-            dataset="main",
-        )
-
-        print(f"  ✓ Saved prediction: {output_path}")
+        
+        # ============================================================
+        # Get output formats from config (default: ['h5', 'nii.gz'] for backward compatibility)
+        # ============================================================
+        output_formats = ["h5", "nii.gz"]  # Default
+        if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
+            save_pred_cfg = cfg.inference.save_prediction
+            if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
+                output_formats = save_pred_cfg.output_formats
+        
+        # ============================================================
+        # Save in all requested formats
+        # ============================================================
+        for fmt in output_formats:
+            fmt_lower = fmt.lower()
+            
+            if fmt_lower == "h5":
+                # HDF5 format
+                h5_path = output_dir / f"{filename}_{suffix}.h5"
+                write_hdf5(
+                    h5_path,
+                    sample.astype(np.float32) if not np.issubdtype(sample.dtype, np.integer) else sample,
+                    dataset="main",
+                )
+                print(f"  ✓ Saved HDF5: {h5_path.name}")
+                
+                # ============================================================
+                # PART 3: Automatic .h5 Output Analysis
+                # ============================================================
+                try:
+                    analyze_h5_array(sample, f"{filename}_{suffix}")
+                except Exception as e:
+                    print(f"  ⚠️  HDF5 analysis failed: {e}")
+            
+            elif fmt_lower in ["tif", "tiff"]:
+                # TIFF format
+                tiff_path = output_dir / f"{filename}_{suffix}.tiff"
+                try:
+                    from connectomics.data.io import save_volume
+                    save_volume(
+                        str(tiff_path),
+                        sample,
+                        file_format="tiff"
+                    )
+                    print(f"  ✓ Saved TIFF: {tiff_path.name} (shape: {sample.shape})")
+                except ImportError as e:
+                    print(f"  ⚠️  TIFF export failed (missing tifffile): {e}")
+                except Exception as e:
+                    print(f"  ⚠️  TIFF export failed: {e}")
+            
+            elif fmt_lower in ["nii", "nii.gz"]:
+                # NIfTI format
+                nifti_path = output_dir / f"{filename}_{suffix}.nii.gz"
+                try:
+                    import nibabel as nib
+                    # Use identity affine
+                    affine = np.eye(4)
+                    
+                    # FIX: Convert from internal (Z, Y, X) back to NIfTI (X, Y, Z) convention
+                    # This reverses the transpose from read_volume() to match original input orientation
+                    if sample.ndim == 3:
+                        nifti_data = sample.transpose(2, 1, 0)  # (Z,Y,X) → (X,Y,Z)
+                    elif sample.ndim == 4:
+                        nifti_data = sample.transpose(3, 2, 1, 0)  # (C,Z,Y,X) → (X,Y,Z,C)
+                    else:
+                        nifti_data = sample  # Fallback for unexpected dimensions
+                        print(f"  ⚠️  Unexpected NIfTI dimension: {sample.ndim}D, saving without transpose")
+                    
+                    # Preserve dtype
+                    nifti_img = nib.Nifti1Image(nifti_data, affine)
+                    nib.save(nifti_img, str(nifti_path))
+                    print(f"  ✓ Saved NIfTI: {nifti_path.name} (shape: {nifti_data.shape})")
+                except ImportError:
+                    print(f"  ⚠️  NIfTI export skipped (nibabel not available)")
+                except Exception as e:
+                    print(f"  ⚠️  NIfTI export failed: {e}")
+            
+            elif fmt_lower == "png":
+                # PNG format (saves as slice stack in a subdirectory)
+                png_dir = output_dir / f"{filename}_{suffix}_png"
+                try:
+                    from connectomics.data.io import save_volume
+                    save_volume(
+                        str(png_dir),
+                        sample,
+                        file_format="png"
+                    )
+                    print(f"  ✓ Saved PNG stack: {png_dir.name}/")
+                except Exception as e:
+                    print(f"  ⚠️  PNG export failed: {e}")
+            
+            else:
+                print(f"  ⚠️  Unknown format '{fmt}' - skipping. Supported: h5, tiff, nii.gz, png")

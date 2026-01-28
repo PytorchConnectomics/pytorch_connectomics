@@ -37,6 +37,7 @@ from ...config.hydra_config import (
     TuneConfig,
 )
 from .callbacks import VisualizationCallback, EMAWeightsCallback
+from .validation_callbacks.validation_reseeding import ValidationReseedingCallback
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # This allows our Config class to be unpickled from Lightning checkpoints
@@ -175,6 +176,18 @@ def create_trainer(
                 f"  EMA: Enabled (decay={ema_cfg.decay}, warmup_steps={ema_cfg.warmup_steps}, "
                 f"validate_with_ema={ema_cfg.validate_with_ema})"
             )
+        
+        # [FIX 1 - PROPER IMPLEMENTATION] Validation reseeding callback
+        # This ensures validation datasets are reseeded at the start of EACH validation epoch
+        # Previous fix in val_dataloader() only ran once during setup
+        validation_reseeding_callback = ValidationReseedingCallback(
+            base_seed=cfg.system.seed,
+            log_fingerprint=True,
+            log_all_ranks=False,
+            verbose=True,
+        )
+        callbacks.append(validation_reseeding_callback)
+        print(f"  Validation Reseeding: Enabled (base_seed={cfg.system.seed})")
 
     # Progress bar (optional - requires rich package)
     try:
@@ -244,9 +257,24 @@ def create_trainer(
             strategy = DDPStrategy(find_unused_parameters=False)
             print("  Strategy: DDP (standard)")
 
+    # [FIX 2] Implement TRUE step-based training
+    # PyTorch Lightning stops when EITHER max_epochs OR max_steps is reached
+    # To ensure step-based training works correctly, we must disable epochs when using steps
+    max_steps_cfg = getattr(cfg.optimization, "max_steps", None)
+    if max_steps_cfg is not None and max_steps_cfg > 0:
+        # Step-based training: disable epoch limit
+        max_epochs = -1  # -1 means unlimited epochs
+        max_steps = max_steps_cfg
+        training_mode = f"step-based ({max_steps:,} steps)"
+    else:
+        # Epoch-based training: disable step limit
+        max_epochs = cfg.optimization.max_epochs
+        max_steps = -1  # -1 means unlimited steps
+        training_mode = f"epoch-based ({max_epochs} epochs)"
+
     trainer = pl.Trainer(
-        max_epochs=cfg.optimization.max_epochs,
-        max_steps=getattr(cfg.optimization, "max_steps", None) or -1,
+        max_epochs=max_epochs,
+        max_steps=max_steps,
         accelerator="gpu" if use_gpu else "cpu",
         devices=system_cfg.num_gpus if use_gpu else 1,
         strategy=strategy,
@@ -263,7 +291,7 @@ def create_trainer(
         detect_anomaly=detect_anomaly,
     )
 
-    print(f"  Max epochs: {cfg.optimization.max_epochs}")
+    print(f"  Training mode: {training_mode}")
     print(f"  Devices: {system_cfg.num_gpus if system_cfg.num_gpus > 0 else 1} ({mode} mode)")
     print(f"  Precision: {cfg.optimization.precision}")
 

@@ -357,13 +357,39 @@ def save_volume(
         filename: Output filename or directory path
         volume: Volume data to save
         dataset: Dataset name for HDF5 format
-        file_format: Output format ('h5', 'png', 'nii', or 'nii.gz')
+        file_format: Output format ('h5', 'tiff', 'png', 'nii', or 'nii.gz')
 
     Raises:
         ValueError: If file format is not supported
     """
     if file_format == "h5":
         write_hdf5(filename, volume, dataset=dataset)
+    elif file_format in ["tif", "tiff"]:
+        # TIFF format - supports both 2D and 3D multi-page TIFF
+        import tifffile
+        
+        # Convert from our internal format to TIFF-compatible format
+        # Internal: (D, H, W) or (C, D, H, W)
+        # TIFF: (D, H, W) for single-channel or (D, H, W, C) for multi-channel
+        if volume.ndim == 3:
+            # Single-channel 3D: (D, H, W) - can save directly
+            tiff_data = volume
+        elif volume.ndim == 4:
+            # Multi-channel 3D: (C, D, H, W) -> (D, H, W, C)
+            tiff_data = volume.transpose(1, 2, 3, 0)
+        elif volume.ndim == 2:
+            # Single 2D image: (H, W) - can save directly
+            tiff_data = volume
+        else:
+            tiff_data = volume
+        
+        # Save with compression for efficiency
+        tifffile.imwrite(
+            filename, 
+            tiff_data,
+            compression='zlib',  # Good balance of speed and compression
+            photometric='minisblack'  # Grayscale interpretation
+        )
     elif file_format == "png":
         save_images(filename, volume)
     elif file_format in ["nii", "nii.gz"]:
@@ -381,7 +407,7 @@ def save_volume(
         nib.save(nii_img, filename)
     else:
         raise ValueError(
-            f"Unsupported format: {file_format}. Supported formats: h5, png, nii, nii.gz"
+            f"Unsupported format: {file_format}. Supported formats: h5, tiff, png, nii, nii.gz"
         )
 
 
