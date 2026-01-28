@@ -41,6 +41,7 @@ from .postprocess import (
 from .segmentation import (
     decode_affinity_cc,
     decode_instance_binary_contour_distance,
+    decode_distance_watershed,
 )
 from .synapse import (
     polarity2instance,
@@ -56,6 +57,7 @@ __all__ = [
     # Segmentation decoding
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
+    "decode_distance_watershed",
     # Auto-tuning
     "optimize_threshold",
     "optimize_parameters",

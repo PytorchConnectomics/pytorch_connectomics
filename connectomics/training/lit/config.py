@@ -12,6 +12,7 @@ from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
+import numpy as np
 import torch
 
 # Import data and model utilities
@@ -78,6 +79,82 @@ def expand_file_paths(path_or_pattern) -> List[str]:
     else:
         # Single file path
         return [path_or_pattern]
+
+
+def _calculate_validation_iter_num(
+    val_data_dicts: List[Dict[str, Any]],
+    patch_size: Tuple[int, int, int],
+    min_iter: int = 50,
+    max_iter: int = 200,
+) -> int:
+    """
+    Calculate validation iter_num based on validation volume size and patch size.
+    
+    Args:
+        val_data_dicts: Validation data dictionaries
+        patch_size: Patch size (D, H, W)
+        min_iter: Minimum iterations per epoch
+        max_iter: Maximum iterations per epoch
+    
+    Returns:
+        Calculated validation iter_num
+    """
+    try:
+        import nibabel as nib
+        import h5py
+        import tifffile
+        
+        # Get first validation volume size
+        img_path = Path(val_data_dicts[0]["image"])
+        
+        # Load volume to get shape
+        if img_path.suffix in [".nii", ".gz"]:
+            # NIfTI file
+            vol = nib.load(str(img_path))
+            vol_shape = vol.shape
+        elif img_path.suffix in [".h5", ".hdf5"]:
+            # HDF5 file
+            with h5py.File(img_path, "r") as f:
+                vol_shape = f[list(f.keys())[0]].shape
+        elif img_path.suffix in [".tif", ".tiff"]:
+            # TIFF file
+            vol = tifffile.imread(img_path)
+            vol_shape = vol.shape
+        else:
+            # Unknown format, use default
+            print(f"  ⚠️  Unknown file format {img_path.suffix}, using default val_iter_num=100")
+            return 100
+        
+        # Handle channel dimension if present
+        if len(vol_shape) == 4:
+            vol_shape = vol_shape[1:]  # Remove channel dim: (C, D, H, W) -> (D, H, W)
+        
+        # Calculate number of possible patches (with 50% overlap)
+        stride = tuple(p // 2 for p in patch_size)  # 50% overlap
+        num_patches_per_dim = [
+            max(1, (vol_shape[i] - patch_size[i]) // stride[i] + 1)
+            for i in range(3)
+        ]
+        total_possible_patches = num_patches_per_dim[0] * num_patches_per_dim[1] * num_patches_per_dim[2]
+        
+        # Calculate validation iter_num as a fraction of possible patches
+        # Use 5-10% of possible patches, but clamp to [min_iter, max_iter]
+        val_iter_num = int(total_possible_patches * 0.075)  # 7.5% of possible patches
+        val_iter_num = max(min_iter, min(max_iter, val_iter_num))
+        
+        print(f"    Validation volume shape: {vol_shape}")
+        print(f"    Patch size: {patch_size}")
+        print(f"    Stride (50% overlap): {stride}")
+        print(f"    Possible patches per dim: {num_patches_per_dim}")
+        print(f"    Total possible patches: {total_possible_patches}")
+        print(f"    Using 7.5% of patches: {val_iter_num}")
+        
+        return val_iter_num
+        
+    except Exception as e:
+        print(f"  ⚠️  Error calculating validation iter_num: {e}")
+        print(f"  ℹ️  Using default val_iter_num=100")
+        return 100
 
 
 def create_datamodule(
@@ -543,16 +620,96 @@ def create_datamodule(
             persistent_workers=preloaded_num_workers > 0,
         )
 
+        # Create validation dataset and loader if validation data exists
+        val_loader = None
+        if val_data_dicts and len(val_data_dicts) > 0:
+            print("  Creating validation dataset with pre-loaded cache...")
+            
+            # Build validation transforms (no augmentation, only normalization)
+            val_only_transforms = build_val_transforms(cfg, skip_loading=True)
+            
+            # Get validation iter_num (auto-calculate if not specified)
+            val_iter_num = cfg.data.val_iter_num if hasattr(cfg.data, 'val_iter_num') and cfg.data.val_iter_num else None
+            
+            if val_iter_num is None:
+                # Auto-calculate validation iter_num from volume size
+                print("  📊 Auto-calculating validation iter_num from volume size...")
+                import h5py
+                import tifffile
+                from pathlib import Path
+                
+                # Get first validation volume shape
+                val_img_path = Path(val_data_dicts[0]["image"])
+                if val_img_path.suffix in [".h5", ".hdf5"]:
+                    with h5py.File(val_img_path, "r") as f:
+                        val_vol_shape = f[list(f.keys())[0]].shape
+                elif val_img_path.suffix in [".tif", ".tiff"]:
+                    val_vol = tifffile.imread(val_img_path)
+                    val_vol_shape = val_vol.shape
+                else:
+                    val_vol_shape = (100, 4096, 4096)  # Default fallback
+                
+                # Handle both (z, y, x) and (c, z, y, x)
+                if len(val_vol_shape) == 4:
+                    val_vol_shape = val_vol_shape[1:]  # Skip channel dim
+                
+                patch_size = tuple(cfg.data.patch_size)
+                stride = tuple([p // 2 for p in patch_size])  # 50% overlap
+                
+                # Calculate possible patches
+                possible_patches = [
+                    max(1, (vol_dim - patch_dim) // stride_dim + 1)
+                    for vol_dim, patch_dim, stride_dim in zip(val_vol_shape, patch_size, stride)
+                ]
+                total_possible = int(np.prod(possible_patches))
+                
+                # Use 7.5% of patches (same as before)
+                val_iter_num = max(1, int(total_possible * 0.075))
+                
+                print(f"    Validation volume shape: {val_vol_shape}")
+                print(f"    Patch size: {patch_size}")
+                print(f"    Stride (50% overlap): {stride}")
+                print(f"    Possible patches per dim: {possible_patches}")
+                print(f"    Total possible patches: {total_possible}")
+                print(f"    Using 7.5% of patches: {val_iter_num}")
+                print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
+            
+            # Create validation dataset
+            val_dataset = CachedVolumeDataset(
+                image_paths=[d["image"] for d in val_data_dicts],
+                label_paths=[d.get("label") for d in val_data_dicts],
+                patch_size=tuple(cfg.data.patch_size),
+                iter_num=val_iter_num,
+                transforms=val_only_transforms,
+                mode="val",
+                pad_size=tuple(pad_size) if pad_size else None,
+                pad_mode=pad_mode,
+            )
+            
+            # Create validation dataloader
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=preloaded_num_workers,
+                pin_memory=cfg.data.pin_memory,
+                persistent_workers=preloaded_num_workers > 0,
+            )
+            print(f"  ✅ Validation dataloader created with {val_iter_num} iterations")
+
         # Create data module wrapper that inherits from LightningDataModule
         class SimpleDataModule(pl.LightningDataModule):
-            def __init__(self, train_loader):
+            def __init__(self, train_loader, val_loader=None):
                 super().__init__()
                 self.train_loader = train_loader
+                self._val_loader = val_loader
 
             def train_dataloader(self):
                 return self.train_loader
 
             def val_dataloader(self):
+                if self._val_loader is not None:
+                    return self._val_loader
                 return []
 
             def test_dataloader(self):
@@ -562,7 +719,7 @@ def create_datamodule(
             def setup(self, stage=None):
                 pass
 
-        datamodule = SimpleDataModule(train_loader)
+        datamodule = SimpleDataModule(train_loader, val_loader)
     elif dataset_type == "filename":
         # Filename-based dataset using JSON file lists
         print("  Creating filename-based datamodule...")
@@ -647,6 +804,19 @@ def create_datamodule(
         # Note: transpose_axes handled in transform builders (build_train/val/test_transforms)
         # They embed the transpose in LoadVolumed, so no need to pass it here
 
+        # Get validation iter_num (separate from training iter_num)
+        val_iter_num = getattr(cfg.data, 'val_iter_num', None)
+        if val_iter_num is None and val_data_dicts:
+            # Auto-calculate validation iter_num based on volume size and patch size
+            print("  📊 Auto-calculating validation iter_num from volume size...")
+            val_iter_num = _calculate_validation_iter_num(
+                val_data_dicts=val_data_dicts,
+                patch_size=tuple(cfg.data.patch_size),
+                min_iter=50,
+                max_iter=200,
+            )
+            print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
+
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
             val_data_dicts=val_data_dicts,
@@ -663,6 +833,8 @@ def create_datamodule(
             persistent_workers=cfg.data.persistent_workers,
             cache_rate=cfg.data.cache_rate if use_cache else 0.0,
             iter_num=iter_num_for_dataset,
+            val_iter_num=val_iter_num,
+            seed=cfg.system.seed,  # [FIX 1] Pass seed for validation reseeding
             sample_size=tuple(cfg.data.patch_size),
             do_2d=cfg.data.do_2d,
         )

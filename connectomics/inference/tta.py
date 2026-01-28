@@ -66,6 +66,12 @@ class TTAPredictor:
             0-1, sigmoid for channel 2
           - [[0, 1, 'sigmoid'], [1, 2, 'sigmoid']]  # Sigmoid for channels 0
             and 1 separately
+        
+        MEMORY OPTIMIZATION: Activations are applied in-place to avoid creating
+        intermediate tensors that would double/triple GPU memory usage.
+        For a volume with shape (1, 7, 1022, 545, 1082):
+          - OLD: Creates 3 separate tensors (pred + affinity + edt) = ~47 GB
+          - NEW: Modifies tensor in-place = ~16 GB
         """
         if not hasattr(self.cfg, "inference") or not hasattr(
             self.cfg.inference, "test_time_augmentation"
@@ -77,7 +83,8 @@ class TTAPredictor:
         )
 
         if channel_activations is not None:
-            activated_channels = []
+            # MEMORY OPTIMIZATION: Apply activations in-place instead of creating
+            # intermediate tensors and concatenating them
             for config_entry in channel_activations:
                 if len(config_entry) != 3:
                     raise ValueError(
@@ -86,17 +93,24 @@ class TTAPredictor:
                     )
 
                 start_ch, end_ch, act = config_entry
-                channel_tensor = tensor[:, start_ch:end_ch, ...]
 
                 if act == "sigmoid":
-                    channel_tensor = torch.sigmoid(channel_tensor)
+                    tensor[:, start_ch:end_ch, ...] = torch.sigmoid(
+                        tensor[:, start_ch:end_ch, ...]
+                    )
                 elif act == "scale_sigmoid":
-                    channel_tensor = torch.sigmoid(0.2 * channel_tensor)
+                    tensor[:, start_ch:end_ch, ...] = torch.sigmoid(
+                        0.2 * tensor[:, start_ch:end_ch, ...]
+                    )
                 elif act == "tanh":
-                    channel_tensor = torch.tanh(channel_tensor)
+                    tensor[:, start_ch:end_ch, ...] = torch.tanh(
+                        tensor[:, start_ch:end_ch, ...]
+                    )
                 elif act == "softmax":
                     if end_ch - start_ch > 1:
-                        channel_tensor = torch.softmax(channel_tensor, dim=1)
+                        tensor[:, start_ch:end_ch, ...] = torch.softmax(
+                            tensor[:, start_ch:end_ch, ...], dim=1
+                        )
                     else:
                         warnings.warn(
                             f"Softmax activation for single channel "
@@ -110,10 +124,8 @@ class TTAPredictor:
                         f"Unknown activation '{act}' for channels {start_ch}:{end_ch}. "
                         f"Supported: 'sigmoid', 'scale_sigmoid', 'softmax', 'tanh', None"
                     )
-
-                activated_channels.append(channel_tensor)
-
-            tensor = torch.cat(activated_channels, dim=1)
+            
+            # No need for torch.cat - tensor was modified in-place
         else:
             tta_act = getattr(self.cfg.inference.test_time_augmentation, "act", None)
             if tta_act is None:

@@ -6,7 +6,7 @@ import numpy as np
 from scipy.ndimage import grey_dilation, grey_erosion
 from skimage.morphology import binary_dilation, dilation, disk, erosion
 
-from .distance import edt_instance, edt_semantic
+from .distance import edt_instance, edt_semantic, signed_distance_transform
 from .flow import seg2d_to_flows
 
 RATES_TYPE = Optional[Union[List[int], int]]
@@ -20,6 +20,7 @@ __all__ = [
     "seg_to_instance_bd",
     "seg_to_instance_edt",
     "seg_to_semantic_edt",
+    "seg_to_signed_distance_transform",
     "seg_to_generic_semantic",
     "seg_erosion_dilation",
 ]
@@ -493,6 +494,50 @@ def seg_to_semantic_edt(
         Semantic EDT array
     """
     return edt_semantic(seg, mode=mode, alpha_fore=alpha_fore, alpha_back=alpha_back)
+
+
+def seg_to_signed_distance_transform(
+    seg: np.ndarray, 
+    mode: str = "3d",
+    alpha: float = 8.0,
+) -> np.ndarray:
+    """Convert segmentation to signed distance transform.
+    
+    This function produces a smooth signed distance transform that solves the
+    class imbalance problem of traditional EDT approaches by ensuring both
+    foreground and background have meaningful gradient information.
+    
+    Args:
+        seg: Input segmentation array (H, W) for 2D or (D, H, W) for 3D
+        mode: EDT computation mode: '2d' or '3d' (default: '3d')
+        alpha: Smoothness parameter for tanh normalization (default: 8.0)
+               Higher values = sharper transitions at boundaries
+               Lower values = smoother, more gradual transitions
+    
+    Returns:
+        Signed distance transform in range [-1, 1]:
+        - Positive values: inside instances (distance from boundary)
+        - Negative values: outside instances (distance to nearest instance)
+        - Zero: at instance boundaries
+    
+    Example:
+        >>> # For mitochondria instance segmentation
+        >>> sdt = seg_to_signed_distance_transform(seg, mode="3d", alpha=8.0)
+        >>> # sdt will have smooth transitions across boundaries
+        >>> # No class imbalance: ~50% positive, ~50% negative values
+    
+    Notes:
+        - Recommended for instance segmentation with severe class imbalance
+        - Use with tanh activation in loss function (WeightedMSELoss with tanh=True)
+        - Typical alpha values: 6-10 for mitochondria, 4-8 for larger objects
+        - This approach eliminates the need for weighted loss functions
+    """
+    if mode == "2d":
+        resolution = (1.0, 1.0)  # 2D resolution
+    else:
+        resolution = (1.0, 1.0, 1.0)  # 3D resolution
+    
+    return signed_distance_transform(seg, resolution=resolution, alpha=alpha)
 
 
 def seg_erosion_dilation(

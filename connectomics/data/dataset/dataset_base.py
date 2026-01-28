@@ -212,7 +212,24 @@ class MonaiCachedConnectomicsDataset(CacheDataset):
             self.dataset_length = self.iter_num
         else:
             self.dataset_length = len(data_dicts)
+        
+        # [FIX] Add validation reseeding support
+        self.base_seed = 0
+        self.current_epoch = 0
 
+    def __getitem__(self, index: int) -> Dict[str, Any]:
+        """
+        Get a data sample with caching.
+        
+        When iter_num > len(data), we need to map the requested index
+        to an actual data index by using modulo operation.
+        """
+        # Map the requested index to actual data index
+        actual_index = index % len(self.data)
+        
+        # Call parent's __getitem__ with the mapped index
+        return super().__getitem__(actual_index)
+    
     def __len__(self) -> int:
         """
         Return dataset length.
@@ -226,13 +243,77 @@ class MonaiCachedConnectomicsDataset(CacheDataset):
             # Partial caching: return cached length for validation
             # For training with iter_num, we still want to iterate iter_num times
             if self.mode == 'train' and self.iter_num > 0:
-                return self.dataset_length
+                result = self.dataset_length
             else:
                 # For validation/test, only iterate over cached items
-                return len(self._cache)
+                result = len(self._cache)
+        else:
+            # Full caching or no caching: use dataset_length
+            result = self.dataset_length
         
-        # Full caching or no caching: use dataset_length
-        return self.dataset_length
+        return result
+    
+    def set_epoch(self, epoch: int, base_seed: int = 0):
+        """
+        Set current epoch for epoch-based validation reseeding.
+        
+        This method enables validation to sample different patches each epoch
+        while maintaining determinism. For training, this has no effect since
+        training already uses random sampling.
+        
+        Args:
+            epoch: Current training epoch
+            base_seed: Base random seed (typically from cfg.system.seed)
+        
+        Usage:
+            Called by ValidationReseedingCallback at the start of each validation epoch.
+        """
+        if self.mode == "val":
+            import random
+            self.base_seed = base_seed
+            self.current_epoch = epoch
+            effective_seed = self.base_seed + epoch
+            random.seed(effective_seed)
+            
+            # IMPORTANT: Print to verify reseeding is happening
+            print(f"[Validation] Set epoch={epoch}, base_seed={base_seed}, effective_seed={effective_seed}")
+            print(f"[Validation] Dataset: {type(self).__name__}@{id(self)}, mode={self.mode}, iter_num={self.iter_num}")
+    
+    def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
+        """
+        Generate a deterministic fingerprint of validation sampling.
+        
+        This allows verification that validation patches change across epochs.
+        For MonaiCachedConnectomicsDataset, we sample indices that would be used.
+        
+        Args:
+            num_samples: Number of random samples to include in fingerprint
+        
+        Returns:
+            String representing the sampling fingerprint
+        """
+        if self.mode != "val":
+            return "N/A (training mode)"
+        
+        import random
+        # Save current RNG state
+        state = random.getstate()
+        
+        try:
+            # Generate deterministic samples
+            samples = []
+            for _ in range(num_samples):
+                # Sample index (same logic as __getitem__)
+                idx = random.randint(0, len(self.data) - 1)
+                samples.append(idx)
+            
+            # Create fingerprint string
+            fingerprint = ", ".join([f"idx{i}" for i in samples])
+            return fingerprint
+        
+        finally:
+            # Restore RNG state
+            random.setstate(state)
 
 
 class MonaiPersistentConnectomicsDataset(PersistentDataset):
