@@ -93,7 +93,7 @@ data:
 
   # Augmentation
   augmentation:
-    enabled: true
+    preset: "all"                         # Legacy `enabled: true` -> modern preset mode
 
 # Optimizer - AdamW (MedNeXt paper recommendation)
 optimization:
@@ -158,21 +158,25 @@ monitor:
     threshold: 0.05
     divergence_threshold: 2.0
 
-# Inference - For testing on held-out images
-inference:
+# Test data paths (schema-compliant location)
+test:
   data:
     test_image: datasets/cem-mitolab/test.json  # JSON file for filename-based dataset
-    test_label: null                   # Labels loaded from JSON
+    test_label: null                             # Labels loaded from JSON
     test_resolution: [0, 5, 5]
     output_path: outputs/cem-mitolab_mednext2d/results/
-  
+
+# Inference - For testing on held-out images
+inference:
   # No sliding window needed - images are already tiles (direct inference)
   
   # Test-Time Augmentation (TTA)
   test_time_augmentation:
     enabled: false                     # No TTA for pre-tiled images
     flip_axes: null
-    act: sigmoid                       # Sigmoid activation
+    channel_activations:
+      - [0, 2, sigmoid]                # Binary + boundary channels
+      - [2, 3, tanh]                   # Distance channel
     select_channel: null
     ensemble_mode: mean
 
