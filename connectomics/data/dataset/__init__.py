@@ -10,40 +10,44 @@ Inference Strategy:
     .claude/INFERENCE_DESIGN.md for details.
 """
 
+# Dataset factory functions (builder pattern)
+from .build import (
+    create_connectomics_dataset,
+    create_tile_data_dicts_from_json,
+    create_tile_dataset,
+    create_volume_dataset,
+)
+
+# Shared data-dict helpers
+from .data_dicts import (
+    create_data_dicts_from_paths,
+    create_volume_data_dicts,
+)
+
 # MONAI base datasets
 from .dataset_base import (
-    MonaiConnectomicsDataset,
     MonaiCachedConnectomicsDataset,
+    MonaiConnectomicsDataset,
     MonaiPersistentConnectomicsDataset,
-)
-
-# Volume datasets
-from .dataset_volume import (
-    MonaiVolumeDataset,
-    MonaiCachedVolumeDataset,
-)
-
-# Tile datasets
-from .dataset_tile import (
-    MonaiTileDataset,
-    MonaiCachedTileDataset,
 )
 
 # Multi-dataset utilities
 from .dataset_multi import (
-    WeightedConcatDataset,
     StratifiedConcatDataset,
     UniformConcatDataset,
+    WeightedConcatDataset,
 )
 
-# Dataset factory functions (builder pattern)
-from .build import (
-    create_data_dicts_from_paths,
-    create_volume_data_dicts,
-    create_tile_data_dicts_from_json,
-    create_connectomics_dataset,
-    create_volume_dataset,
-    create_tile_dataset,
+# Tile datasets
+from .dataset_tile import (
+    MonaiCachedTileDataset,
+    MonaiTileDataset,
+)
+
+# Volume datasets
+from .dataset_volume import (
+    MonaiCachedVolumeDataset,
+    MonaiVolumeDataset,
 )
 
 __all__ = [
