@@ -6,15 +6,16 @@ infrastructure with connectomics-specific sampling and augmentation strategies.
 """
 
 from __future__ import annotations
+
 from typing import List, Optional, Tuple
 
 from monai.data import CacheDataset
-from monai.transforms import Compose, RandSpatialCropd, CenterSpatialCropd
+from monai.transforms import CenterSpatialCropd, Compose, RandSpatialCropd
 from monai.utils import ensure_tuple_rep
 
-from .dataset_base import MonaiConnectomicsDataset
-from .build import create_data_dicts_from_paths
 from ..io.monai_transforms import LoadVolumed
+from .data_dicts import create_data_dicts_from_paths
+from .dataset_base import MonaiConnectomicsDataset
 
 
 class MonaiVolumeDataset(MonaiConnectomicsDataset):

@@ -1,7 +1,12 @@
 import argparse
 from pathlib import Path
 
+import pytest
+
 from connectomics.config import Config, save_config
+from connectomics.training.lit.config import expand_file_paths as config_expand_file_paths
+from connectomics.training.lit.data_factory import _calculate_validation_iter_num
+from connectomics.training.lit.path_utils import expand_file_paths as canonical_expand_file_paths
 from connectomics.training.lit.utils import (
     expand_file_paths,
     extract_best_score_from_checkpoint,
@@ -63,6 +68,40 @@ def test_expand_file_paths_handles_globs_and_lists(tmp_path):
 
     # Passing a list should be returned unchanged
     assert expand_file_paths([str(data_dir / "a.txt")]) == [str(data_dir / "a.txt")]
+
+    # Compatibility wrappers in config and utils should match canonical helper behavior
+    assert config_expand_file_paths(str(data_dir / "*.txt")) == expanded
+    assert canonical_expand_file_paths(str(data_dir / "*.txt")) == expanded
+
+    with pytest.raises(FileNotFoundError):
+        canonical_expand_file_paths(str(data_dir / "*.missing"))
+
+
+def test_calculate_validation_iter_num_unknown_suffix_defaults():
+    val_data_dicts = [{"image": "dummy.unknown"}]
+
+    assert (
+        _calculate_validation_iter_num(
+            val_data_dicts=val_data_dicts,
+            patch_size=(16, 16, 16),
+        )
+        == 100
+    )
+
+
+def test_calculate_validation_iter_num_uses_fallback_shape_without_clamp():
+    val_data_dicts = [{"image": "dummy.unknown"}]
+
+    val_iter_num = _calculate_validation_iter_num(
+        val_data_dicts=val_data_dicts,
+        patch_size=(32, 32, 32),
+        min_iter=1,
+        max_iter=None,
+        fallback_volume_shape=(100, 4096, 4096),
+        return_default_on_error=False,
+    )
+
+    assert val_iter_num == 24384
 
 
 def test_extract_best_score_from_checkpoint():

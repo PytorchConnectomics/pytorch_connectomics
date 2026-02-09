@@ -225,17 +225,15 @@ monitor:
     threshold: 0.01
     divergence_threshold: 100.0
 
-# Inference - MONAI SlidingWindowInferer for fiber segmentation (based on barcode-R-Base.yaml)
-inference:
+test:
   data:
     # Test on all available volumes (matches barcode INFERENCE IMAGE_NAME)
-    # Note: test_path will be combined with these relative paths
-    test_path: "/projects/weilab/dataset/barcode/train_r2/"
-    test_image: ["DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
-    test_label: ["DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
+    test_image: ["/projects/weilab/dataset/barcode/train_r2/DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif"]
+    test_label: ["/projects/weilab/dataset/barcode/train_r2/DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif"]
     test_resolution: [40, 16, 16]   # Isotropic resolution
-    # Output filename (auto-pathed based on the checkpoint folder)
-    output_name: DG_train.h5
+
+# Inference - MONAI SlidingWindowInferer for fiber segmentation (based on barcode-R-Base.yaml)
+inference:
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
