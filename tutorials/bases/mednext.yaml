@@ -1,0 +1,22 @@
+_base_: common.yaml
+
+model:
+  architecture: mednext
+
+optimization:
+  gradient_clip_val: 1.0
+  optimizer:
+    name: AdamW
+
+monitor:
+  early_stopping:
+    enabled: true
+    mode: min
+    check_finite: true
+  logging:
+    images:
+      channel_mode: all
+
+inference:
+  test_time_augmentation:
+    flip_axes: null
