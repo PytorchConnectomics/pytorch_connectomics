@@ -356,9 +356,11 @@ def resolve_data_paths(cfg: Config) -> Config:
 
         # Handle list of paths
         if isinstance(file_path, list):
-            result = []
+            result: List[str] = []
             for p in file_path:
                 resolved = _combine_path(base_path, p)
+                if resolved is None:
+                    continue
                 # If resolved is a list (from glob expansion), extend
                 if isinstance(resolved, list):
                     result.extend(resolved)
@@ -432,42 +434,40 @@ def resolve_data_paths(cfg: Config) -> Config:
     cfg.data.train_image = _combine_path(train_base, cfg.data.train_image)
     cfg.data.train_label = _combine_path(train_base, cfg.data.train_label)
     cfg.data.train_mask = _combine_path(train_base, cfg.data.train_mask)
-    cfg.data.train_json = _combine_path(train_base, cfg.data.train_json)
+    train_json_resolved = _combine_path(train_base, cfg.data.train_json)
+    if isinstance(train_json_resolved, list):
+        cfg.data.train_json = train_json_resolved[0] if train_json_resolved else None
+    else:
+        cfg.data.train_json = train_json_resolved
 
     # Resolve validation paths (always expand globs, use val_path as base if available)
     val_base = cfg.data.val_path if cfg.data.val_path else ""
     cfg.data.val_image = _combine_path(val_base, cfg.data.val_image)
     cfg.data.val_label = _combine_path(val_base, cfg.data.val_label)
     cfg.data.val_mask = _combine_path(val_base, cfg.data.val_mask)
-    cfg.data.val_json = _combine_path(val_base, cfg.data.val_json)
+    val_json_resolved = _combine_path(val_base, cfg.data.val_json)
+    if isinstance(val_json_resolved, list):
+        cfg.data.val_json = val_json_resolved[0] if val_json_resolved else None
+    else:
+        cfg.data.val_json = val_json_resolved
 
     # Resolve test data paths (cfg.test.data.test_*)
-    if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-        test_base = (
-            cfg.test.data.test_path
-            if hasattr(cfg.test.data, "test_path") and cfg.test.data.test_path
-            else ""
-        )
-        if hasattr(cfg.test.data, "test_image"):
-            cfg.test.data.test_image = _combine_path(test_base, cfg.test.data.test_image)
-        if hasattr(cfg.test.data, "test_label"):
-            cfg.test.data.test_label = _combine_path(test_base, cfg.test.data.test_label)
-        if hasattr(cfg.test.data, "test_mask"):
-            cfg.test.data.test_mask = _combine_path(test_base, cfg.test.data.test_mask)
+    if cfg.test is not None:
+        test_data = cfg.test.data
+        test_path_value = getattr(test_data, "test_path", "")
+        test_base = test_path_value if isinstance(test_path_value, str) else ""
+        test_data.test_image = _combine_path(test_base, test_data.test_image)
+        test_data.test_label = _combine_path(test_base, test_data.test_label)
+        test_data.test_mask = _combine_path(test_base, test_data.test_mask)
 
     # Resolve tuning data paths (cfg.tune.data.tune_*)
-    if hasattr(cfg, "tune") and hasattr(cfg.tune, "data"):
-        tune_base = (
-            cfg.tune.data.test_path
-            if hasattr(cfg.tune.data, "test_path") and cfg.tune.data.test_path
-            else ""
-        )
-        if hasattr(cfg.tune.data, "tune_image"):
-            cfg.tune.data.tune_image = _combine_path(tune_base, cfg.tune.data.tune_image)
-        if hasattr(cfg.tune.data, "tune_label"):
-            cfg.tune.data.tune_label = _combine_path(tune_base, cfg.tune.data.tune_label)
-        if hasattr(cfg.tune.data, "tune_mask"):
-            cfg.tune.data.tune_mask = _combine_path(tune_base, cfg.tune.data.tune_mask)
+    if cfg.tune is not None:
+        tune_data = cfg.tune.data
+        tune_path_value = getattr(tune_data, "test_path", "")
+        tune_base = tune_path_value if isinstance(tune_path_value, str) else ""
+        tune_data.tune_image = _combine_path(tune_base, tune_data.tune_image)
+        tune_data.tune_label = _combine_path(tune_base, tune_data.tune_label)
+        tune_data.tune_mask = _combine_path(tune_base, tune_data.tune_mask)
 
     return cfg
 
