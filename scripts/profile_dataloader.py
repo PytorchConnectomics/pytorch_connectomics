@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from connectomics.config import load_config
 from scripts.main import create_datamodule
 
+
 def profile_dataloader(config_path: str, num_batches: int = 10):
     """Profile dataloader performance."""
 
@@ -22,8 +23,8 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     # Load config
     cfg = load_config(config_path)
     print(f"Config: {config_path}")
-    print(f"Batch size: {cfg.data.batch_size}")
-    print(f"Num workers: {cfg.data.num_workers}")
+    print(f"Batch size: {cfg.system.training.batch_size}")
+    print(f"Num workers: {cfg.system.training.num_workers}")
     print(f"Iter num per epoch: {cfg.data.iter_num_per_epoch}")
     print()
 
@@ -77,7 +78,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     print(f"Min batch time: {min(batch_times):.3f}s")
     print(f"Max batch time: {max(batch_times):.3f}s")
     print(f"Throughput: {num_batches/total_time:.2f} batches/sec")
-    print(f"Samples/sec: {num_batches * cfg.data.batch_size / total_time:.2f}")
+    print(f"Samples/sec: {num_batches * cfg.system.training.batch_size / total_time:.2f}")
     print()
 
     # Recommendations
@@ -90,14 +91,14 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     if avg_time > 1.0:
         print("⚠️  SLOW: Average batch time > 1s")
         print("   Recommendations:")
-        print(f"   - Increase num_workers (current: {cfg.data.num_workers})")
+        print(f"   - Increase num_workers (current: {cfg.system.training.num_workers})")
         print("   - Enable caching if possible")
         print("   - Check disk I/O performance")
         print("   - Simplify transform pipeline")
     elif avg_time > 0.5:
         print("⚠️  MODERATE: Average batch time 0.5-1.0s")
         print("   Could be improved with:")
-        print(f"   - More workers (current: {cfg.data.num_workers})")
+        print(f"   - More workers (current: {cfg.system.training.num_workers})")
         print("   - Caching strategy")
     else:
         print("✓ GOOD: Average batch time < 0.5s")
@@ -105,7 +106,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     print()
 
 if __name__ == "__main__":
-    config_path = "tutorials/monai_lucchi.yaml"
+    config_path = "tutorials/mito_lucchi++.yaml"
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
 

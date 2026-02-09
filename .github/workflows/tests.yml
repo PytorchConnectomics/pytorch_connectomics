@@ -28,6 +28,10 @@ jobs:
         pip install pytest pytest-cov
         pip install -e .
 
+    - name: Validate tutorial configs
+      run: |
+        python scripts/validate_tutorial_configs.py
+
     - name: Run tests
       run: |
         pytest tests/ -v --cov=connectomics --cov-report=xml

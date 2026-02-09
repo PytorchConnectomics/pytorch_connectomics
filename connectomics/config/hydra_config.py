@@ -24,7 +24,7 @@ Example usage:
     from connectomics.config.hydra_utils import load_config
 
     # Load configuration from YAML
-    cfg = load_config("tutorials/monai_lucchi++.yaml")
+    cfg = load_config("tutorials/mito_lucchi++.yaml")
 
     # Access configuration sections
     print(f"Model architecture: {cfg.model.architecture}")
@@ -37,9 +37,10 @@ Example usage:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from typing import Dict, List, Optional, Tuple, Any, Union
+
 import inspect
+from dataclasses import dataclass, field, is_dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Note: MISSING can be imported from omegaconf if needed for required fields
 
@@ -946,7 +947,8 @@ class SavePredictionConfig:
         enabled: Enable saving intermediate predictions (default: True)
         intensity_scale: Scale factor for predictions (e.g., 255 for uint8 visualization)
         intensity_dtype: Data type for saved predictions (e.g., 'uint8', 'float32')
-        output_formats: List of output formats to save predictions in (e.g., ['h5', 'tiff', 'nii.gz'])
+        output_formats: List of output formats to save predictions
+                       (e.g., ['h5', 'tiff', 'nii.gz'])
                        Supported formats: 'h5', 'tiff', 'nii', 'nii.gz', 'png'
                        Default: ['h5', 'nii.gz'] for backward compatibility
     """
