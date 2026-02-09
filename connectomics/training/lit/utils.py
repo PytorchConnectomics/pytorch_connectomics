@@ -9,9 +9,9 @@ This module provides helper functions for:
 """
 
 from __future__ import annotations
+
 import argparse
 import re
-from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
@@ -20,10 +20,11 @@ import torch
 from ...config import (
     Config,
     load_config,
+    resolve_data_paths,
     update_from_cli,
     validate_config,
-    resolve_data_paths,
 )
+from .path_utils import expand_file_paths as _expand_file_paths
 
 
 def parse_args():
@@ -195,8 +196,10 @@ def setup_config(args) -> Config:
         print("🔧 Fast-dev-run mode: Overriding config for debugging")
         print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
         print(f"   - num_cpus: {cfg.system.training.num_cpus} → 1")
-        print(f"   - num_workers: {cfg.system.training.num_workers} → 0 "
-              "(avoid multiprocessing in debug mode)")
+        print(
+            f"   - num_workers: {cfg.system.training.num_workers} → 0 "
+            "(avoid multiprocessing in debug mode)"
+        )
         print(
             f"   - batch_size: Controlled by PyTorch Lightning (--fast-dev-run={args.fast_dev_run})"
         )
@@ -269,7 +272,7 @@ def setup_config(args) -> Config:
 
 def expand_file_paths(path_or_pattern) -> List[str]:
     """
-    Expand glob patterns to list of file paths.
+    Backward-compatible wrapper for shared path expansion helper.
 
     Args:
         path_or_pattern: Single file path, glob pattern, or list of paths/patterns
@@ -277,20 +280,7 @@ def expand_file_paths(path_or_pattern) -> List[str]:
     Returns:
         List of expanded file paths, sorted alphabetically
     """
-    # If already a list, return it (may have been expanded by resolve_data_paths)
-    if isinstance(path_or_pattern, list):
-        return path_or_pattern
-
-    # Check if pattern contains wildcards
-    if "*" in path_or_pattern or "?" in path_or_pattern:
-        # Expand glob pattern
-        paths = sorted(glob(path_or_pattern))
-        if not paths:
-            raise FileNotFoundError(f"No files found matching pattern: {path_or_pattern}")
-        return paths
-    else:
-        # Single file path
-        return [path_or_pattern]
+    return _expand_file_paths(path_or_pattern)
 
 
 def extract_best_score_from_checkpoint(ckpt_path: str, monitor_metric: str) -> Optional[float]:
