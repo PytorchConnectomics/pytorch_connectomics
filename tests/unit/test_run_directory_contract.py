@@ -9,6 +9,9 @@ from connectomics.training.lit.config import (
     modify_checkpoint_state,
     setup_run_directory,
 )
+from connectomics.training.lit.runtime import (
+    modify_checkpoint_state as runtime_modify_checkpoint_state,
+)
 
 
 def test_setup_run_directory_train_creates_timestamped_layout(tmp_path):
@@ -70,6 +73,7 @@ def test_modify_checkpoint_state_returns_original_when_no_resets_requested(tmp_p
 
     assert modify_checkpoint_state(None, run_dir) is None
     assert modify_checkpoint_state(str(checkpoint), run_dir) == str(checkpoint)
+    assert runtime_modify_checkpoint_state(None, run_dir) is None
 
 
 def test_modify_checkpoint_state_applies_selected_resets(tmp_path):
