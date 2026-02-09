@@ -4,27 +4,25 @@ Lightning training package.
 Exports Lightning-specific modules (model, data, trainer, callbacks, config/utils).
 """
 
-from .model import ConnectomicsModule
-from .data import ConnectomicsDataModule, VolumeDataModule, TileDataModule
-from .trainer import create_trainer
 from .callbacks import (
-    VisualizationCallback,
-    NaNDetectionCallback,
     EMAWeightsCallback,
+    NaNDetectionCallback,
+    VisualizationCallback,
     create_callbacks,
 )
 from .config import (
     create_datamodule,
     expand_file_paths,
     setup_seed_everything,
-    setup_run_directory,
-    cleanup_run_directory,
-    modify_checkpoint_state,
 )
+from .data import ConnectomicsDataModule, TileDataModule, VolumeDataModule
+from .model import ConnectomicsModule
+from .runtime import cleanup_run_directory, modify_checkpoint_state, setup_run_directory
+from .trainer import create_trainer
 from .utils import (
+    extract_best_score_from_checkpoint,
     parse_args,
     setup_config,
-    extract_best_score_from_checkpoint,
 )
 
 __all__ = [
