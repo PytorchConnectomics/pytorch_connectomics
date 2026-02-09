@@ -44,7 +44,6 @@ from .utils import remove_small_instances
 from connectomics.metrics.metrics_seg import adapted_rand
 from omegaconf import OmegaConf
 
-
 __all__ = ["OptunaDecodingTuner", "run_tuning", "load_and_apply_best_params"]
 
 
@@ -127,9 +126,11 @@ class OptunaDecodingTuner:
         """Validate data shapes and types."""
         # Handle 2D data: (C, H, W) → (C, 1, H, W)
         if self.predictions.ndim == 3:
-            print(f"  📐 2D data detected, expanding predictions: {self.predictions.shape} → {self.predictions.shape[:1] + (1,) + self.predictions.shape[1:]}")
+            print(
+                f"  📐 2D data detected, expanding predictions: {self.predictions.shape} → {self.predictions.shape[:1] + (1,) + self.predictions.shape[1:]}"
+            )
             self.predictions = self.predictions[:, np.newaxis, :, :]
-        
+
         # Predictions should be (C, D, H, W)
         if self.predictions.ndim != 4:
             raise ValueError(
@@ -138,9 +139,11 @@ class OptunaDecodingTuner:
 
         # Handle 2D ground truth: (H, W) → (1, H, W)
         if self.ground_truth.ndim == 2:
-            print(f"  📐 2D ground truth detected, expanding: {self.ground_truth.shape} → {(1,) + self.ground_truth.shape}")
+            print(
+                f"  📐 2D ground truth detected, expanding: {self.ground_truth.shape} → {(1,) + self.ground_truth.shape}"
+            )
             self.ground_truth = self.ground_truth[np.newaxis, :, :]
-        
+
         # Ground truth should be (D, H, W)
         if self.ground_truth.ndim != 3:
             raise ValueError(
@@ -158,9 +161,11 @@ class OptunaDecodingTuner:
         # Handle 2D mask if provided
         if self.mask is not None:
             if self.mask.ndim == 2:
-                print(f"  📐 2D mask detected, expanding: {self.mask.shape} → {(1,) + self.mask.shape}")
+                print(
+                    f"  📐 2D mask detected, expanding: {self.mask.shape} → {(1,) + self.mask.shape}"
+                )
                 self.mask = self.mask[np.newaxis, :, :]
-            
+
             if self.mask.shape != self.ground_truth.shape:
                 raise ValueError(
                     f"Mask shape {self.mask.shape} doesn't match "
@@ -560,7 +565,9 @@ class OptunaDecodingTuner:
         for key, value in best_decoding_params.items():
             print(f"    {key}: {value}")
 
-        if getattr(self.param_space_cfg, "postprocessing", None) and getattr(self.param_space_cfg.postprocessing, "enabled", False):
+        if getattr(self.param_space_cfg, "postprocessing", None) and getattr(
+            self.param_space_cfg.postprocessing, "enabled", False
+        ):
             best_postproc_params = self._reconstruct_postproc_params(study.best_params)
             if best_postproc_params:
                 print(f"\n  Post-processing params:")
@@ -678,7 +685,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     # Get tune config sections (used later for loading predictions, ground truth, masks)
     tune_data = getattr(cfg.tune, "data", None)
     tune_output = getattr(cfg.tune, "output", None)
-    
+
     if tune_data is None:
         raise ValueError("Missing tune.data in configuration")
     if tune_output is None:
@@ -744,7 +751,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         label_files = sorted(glob.glob(tune_label_pattern))
     else:
         raise TypeError(f"tune_label must be string or list, got {type(tune_label_pattern)}")
-    
+
     if not label_files:
         raise FileNotFoundError(f"No label files found matching pattern: {tune_label_pattern}")
 
@@ -776,7 +783,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
             mask_files = sorted(glob.glob(tune_mask_pattern))
         else:
             raise TypeError(f"tune_mask must be string or list, got {type(tune_mask_pattern)}")
-        
+
         if not mask_files:
             print(f"  ⚠️  No mask files found matching pattern: {tune_mask_pattern}")
         else:
@@ -869,7 +876,9 @@ def load_and_apply_best_params(cfg):
         # Find decoder with matching function name
         decoder_idx = None
         for idx, decoder in enumerate(cfg.test.decoding):
-            decoder_name = decoder.get("name") if isinstance(decoder, dict) else getattr(decoder, "name", None)
+            decoder_name = (
+                decoder.get("name") if isinstance(decoder, dict) else getattr(decoder, "name", None)
+            )
             if decoder_name == decoding_function:
                 decoder_idx = idx
                 break
@@ -882,7 +891,7 @@ def load_and_apply_best_params(cfg):
     # Update parameters
     if decoder_idx < len(cfg.test.decoding):
         decoder = cfg.test.decoding[decoder_idx]
-        
+
         # Handle both dict and config object
         if isinstance(decoder, dict):
             if "kwargs" not in decoder:
