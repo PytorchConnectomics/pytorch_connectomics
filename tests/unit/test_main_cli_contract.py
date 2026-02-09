@@ -37,13 +37,13 @@ def test_parse_args_preserves_overrides_passthrough(monkeypatch):
         monkeypatch,
         [
             "--config",
-            "tutorials/lucchi++.yaml",
+            "tutorials/mito_lucchi++.yaml",
             "data.batch_size=8",
             "optimization.max_epochs=3",
         ],
     )
 
-    assert args.config == "tutorials/lucchi++.yaml"
+    assert args.config == "tutorials/mito_lucchi++.yaml"
     assert args.overrides == ["data.batch_size=8", "optimization.max_epochs=3"]
 
 
