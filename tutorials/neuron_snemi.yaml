@@ -115,7 +115,7 @@ data:
 
   # Augmentation
   augmentation:
-    enabled: true
+    preset: "some"
 
     # Standard augmentations
     flip:
@@ -234,14 +234,16 @@ monitor:
   early_stopping:
     enabled: false             # Train for full duration
 
-# Inference
-inference:
+# Test data paths (schema-compliant location)
+test:
   data:
     test_image: datasets/SNEMI/train-input.tif
     test_label: datasets/SNEMI/train-labels.tif
     test_resolution: [30, 6, 6]
     output_path: outputs/rsunet_snemi_aug3_long/results/
 
+# Inference
+inference:
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [16, 180, 180]  # Patch size extracted from volume
@@ -255,7 +257,7 @@ inference:
   test_time_augmentation:
     enabled: true
     flip_axes: null              # Flip strategy: "all" (8 flips), null (no aug), or custom list
-    act: softmax                 # Activation: 'softmax', 'sigmoid', null
+    channel_activations: [[0, 12, softmax]]
     select_channel: [1]          # Channel selection: [1] (foreground only), null (all)
     ensemble_mode: mean          # Ensemble strategy: 'mean', 'min', 'max'
 

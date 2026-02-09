@@ -98,7 +98,7 @@ data:
 
   # Augmentation
   augmentation:
-    enabled: true
+    preset: "all"                         # Legacy `enabled: true` -> modern preset mode
 
 # Optimizer - AdamW with NucMM-specific hyperparameters
 optimization:
@@ -161,13 +161,15 @@ monitor:
     threshold: 0.01
     divergence_threshold: 100.0
 
-# Inference - MONAI SlidingWindowInferer for NucMM
-inference:
+# Test data paths (schema-compliant location)
+test:
   data:
     test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
     test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
     test_resolution: [1.0, 1.0, 1.0]
 
+# Inference - MONAI SlidingWindowInferer for NucMM
+inference:
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [64, 64, 64]          # Match training patch size
@@ -181,7 +183,9 @@ inference:
   test_time_augmentation:
     enabled: true
     flip_axes: null                    # No augmentation for NucMM
-    act: sigmoid                       # Primary activation (binary segmentation)
+    channel_activations:
+      - [0, 2, sigmoid]                # Binary + boundary channels
+      - [2, 3, tanh]                   # Distance channel
     select_channel: null               # Use all channels
     ensemble_mode: mean
 
