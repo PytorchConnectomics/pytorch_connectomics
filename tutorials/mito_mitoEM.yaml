@@ -94,7 +94,7 @@ data:
 
   # Augmentation - crucial for generalization
   augmentation:
-    enabled: true                                   # Enable spatial + intensity augmentation
+    preset: "all"                                   # Legacy `enabled: true` -> modern preset mode
 
 # Optimizer - MedNeXt recommended settings
 optimization:
@@ -154,14 +154,16 @@ monitor:
     threshold: 0.01
     divergence_threshold: 100.0
 
-# Inference - MONAI SlidingWindowInferer for MitoEM
-inference:
+# Test data paths (schema-compliant location)
+test:
   data:
     test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
     test_label: /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
     test_resolution: [30, 8, 8]
     output_path: outputs/mitoem_mednext_sdt/results/
 
+# Inference - MONAI SlidingWindowInferer for MitoEM
+inference:
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [16, 256, 256]         # Match training patch size
