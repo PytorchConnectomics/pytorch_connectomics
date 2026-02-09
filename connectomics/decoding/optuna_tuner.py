@@ -14,7 +14,7 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Dict, Any, Optional, Tuple, List, Callable
+from typing import Dict, Any, Optional
 from pathlib import Path
 import warnings
 from collections import defaultdict
@@ -42,7 +42,6 @@ from .utils import remove_small_instances
 
 # Import metrics
 from connectomics.metrics.metrics_seg import adapted_rand
-from omegaconf import OmegaConf
 
 __all__ = ["OptunaDecodingTuner", "run_tuning", "load_and_apply_best_params"]
 
@@ -126,8 +125,10 @@ class OptunaDecodingTuner:
         """Validate data shapes and types."""
         # Handle 2D data: (C, H, W) → (C, 1, H, W)
         if self.predictions.ndim == 3:
+            expanded_shape = self.predictions.shape[:1] + (1,) + self.predictions.shape[1:]
             print(
-                f"  📐 2D data detected, expanding predictions: {self.predictions.shape} → {self.predictions.shape[:1] + (1,) + self.predictions.shape[1:]}"
+                "  📐 2D data detected, expanding predictions: "
+                f"{self.predictions.shape} → {expanded_shape}"
             )
             self.predictions = self.predictions[:, np.newaxis, :, :]
 
@@ -139,8 +140,10 @@ class OptunaDecodingTuner:
 
         # Handle 2D ground truth: (H, W) → (1, H, W)
         if self.ground_truth.ndim == 2:
+            expanded_shape = (1,) + self.ground_truth.shape
             print(
-                f"  📐 2D ground truth detected, expanding: {self.ground_truth.shape} → {(1,) + self.ground_truth.shape}"
+                f"  📐 2D ground truth detected, expanding: {self.ground_truth.shape} → "
+                f"{expanded_shape}"
             )
             self.ground_truth = self.ground_truth[np.newaxis, :, :]
 
@@ -558,7 +561,7 @@ class OptunaDecodingTuner:
         print(f"Number of finished trials: {len(study.trials)}")
         print(f"\nBest trial: #{study.best_trial.number}")
         print(f"  Value: {study.best_value:.4f}")
-        print(f"\n  Params:")
+        print("\n  Params:")
 
         # Reconstruct and print parameters
         best_decoding_params = self._reconstruct_decoding_params(study.best_params)
@@ -570,7 +573,7 @@ class OptunaDecodingTuner:
         ):
             best_postproc_params = self._reconstruct_postproc_params(study.best_params)
             if best_postproc_params:
-                print(f"\n  Post-processing params:")
+                print("\n  Post-processing params:")
                 for key, value in best_postproc_params.items():
                     print(f"    {key}: {value}")
 
@@ -815,7 +818,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     print("TUNING COMPLETED")
     print(f"{'='*80}")
     print(f"✓ Best parameters saved to: {best_params_file}")
-    print(f"\nBest trial:")
+    print("\nBest trial:")
     print(f"  Value: {study.best_value:.4f}")
     print(f"  Parameters: {study.best_params}")
 
@@ -856,7 +859,7 @@ def load_and_apply_best_params(cfg):
     # Load best parameters
     best_params = OmegaConf.load(best_params_file)
 
-    print(f"✓ Loaded best parameters:")
+    print("✓ Loaded best parameters:")
     print(OmegaConf.to_yaml(best_params))
 
     # Apply to test.decoding config

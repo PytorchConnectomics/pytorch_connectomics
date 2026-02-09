@@ -946,7 +946,8 @@ class SavePredictionConfig:
         enabled: Enable saving intermediate predictions (default: True)
         intensity_scale: Scale factor for predictions (e.g., 255 for uint8 visualization)
         intensity_dtype: Data type for saved predictions (e.g., 'uint8', 'float32')
-        output_formats: List of output formats to save predictions in (e.g., ['h5', 'tiff', 'nii.gz'])
+        output_formats: List of output formats to save predictions
+                       (e.g., ['h5', 'tiff', 'nii.gz'])
                        Supported formats: 'h5', 'tiff', 'nii', 'nii.gz', 'png'
                        Default: ['h5', 'nii.gz'] for backward compatibility
     """
