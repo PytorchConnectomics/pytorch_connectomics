@@ -11,21 +11,26 @@ All factory functions follow the consistent `create_*` naming pattern.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
+
 from monai.transforms import Compose
 
+from .data_dicts import (
+    create_data_dicts_from_paths,
+    create_volume_data_dicts,
+)
 from .dataset_base import (
-    MonaiConnectomicsDataset,
     MonaiCachedConnectomicsDataset,
+    MonaiConnectomicsDataset,
     MonaiPersistentConnectomicsDataset,
 )
 from .dataset_tile import (
-    MonaiTileDataset,
     MonaiCachedTileDataset,
+    MonaiTileDataset,
 )
 
 if TYPE_CHECKING:
-    from .dataset_volume import MonaiVolumeDataset, MonaiCachedVolumeDataset
+    from .dataset_volume import MonaiCachedVolumeDataset, MonaiVolumeDataset
 
 
 __all__ = [
@@ -38,78 +43,6 @@ __all__ = [
     "create_volume_dataset",
     "create_tile_dataset",
 ]
-
-
-# ============================================================================
-# Data Dictionary Creation
-# ============================================================================
-
-
-def create_data_dicts_from_paths(
-    image_paths: List[str],
-    label_paths: Optional[List[str]] = None,
-    mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    """
-    Create MONAI-style data dictionaries from file paths.
-
-    Args:
-        image_paths: List of image file paths
-        label_paths: Optional list of label file paths
-        mask_paths: Optional list of mask file paths
-
-    Returns:
-        List of dictionaries with 'image', 'label', and/or 'mask' keys
-
-    Examples:
-        >>> image_paths = ['img1.h5', 'img2.h5']
-        >>> label_paths = ['lbl1.h5', 'lbl2.h5']
-        >>> data_dicts = create_data_dicts_from_paths(image_paths, label_paths)
-        >>> # [{'image': 'img1.h5', 'label': 'lbl1.h5'}, ...]
-    """
-    data_dicts = []
-
-    for i, image_path in enumerate(image_paths):
-        data_dict = {"image": image_path}
-
-        if label_paths is not None:
-            data_dict["label"] = label_paths[i]
-
-        if mask_paths is not None:
-            data_dict["mask"] = mask_paths[i]
-
-        data_dicts.append(data_dict)
-
-    return data_dicts
-
-
-def create_volume_data_dicts(
-    image_paths: List[str],
-    label_paths: Optional[List[str]] = None,
-    mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    """
-    Create MONAI data dictionaries for volume datasets.
-
-    This is a convenience wrapper around create_data_dicts_from_paths
-    for volume-specific use cases.
-
-    Args:
-        image_paths: List of image volume file paths
-        label_paths: Optional list of label volume file paths
-        mask_paths: Optional list of valid mask file paths
-
-    Returns:
-        List of MONAI-style data dictionaries
-
-    Examples:
-        >>> data_dicts = create_volume_data_dicts(['vol1.tif'], ['lbl1.tif'])
-    """
-    return create_data_dicts_from_paths(
-        image_paths=image_paths,
-        label_paths=label_paths,
-        mask_paths=mask_paths,
-    )
 
 
 def create_tile_data_dicts_from_json(
@@ -403,7 +336,7 @@ def create_volume_dataset(
         ... )
     """
     # Lazy import to avoid circular dependency during module import
-    from .dataset_volume import MonaiVolumeDataset, MonaiCachedVolumeDataset
+    from .dataset_volume import MonaiCachedVolumeDataset, MonaiVolumeDataset
 
     if dataset_type == "cached":
         return MonaiCachedVolumeDataset(
