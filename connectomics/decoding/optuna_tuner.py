@@ -466,8 +466,8 @@ class OptunaDecodingTuner:
         decoding_params = dict(decoding_defaults)  # Start with defaults
 
         # Group tuple parameters
-        tuple_params = defaultdict(dict)
-        scalar_params = {}
+        tuple_params: Dict[str, Dict[int, Any]] = defaultdict(dict)
+        scalar_params: Dict[str, Any] = {}
 
         for param_name, value in sampled_params.items():
             # Skip post-processing parameters
