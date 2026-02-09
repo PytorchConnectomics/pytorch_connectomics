@@ -14,7 +14,7 @@ def create_data_dicts_from_paths(
     image_paths: List[str],
     label_paths: Optional[List[str]] = None,
     mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, object]]:
     """
     Create MONAI-style data dictionaries from file paths.
 
@@ -26,10 +26,10 @@ def create_data_dicts_from_paths(
     Returns:
         List of dictionaries with 'image', 'label', and/or 'mask' keys
     """
-    data_dicts = []
+    data_dicts: List[Dict[str, object]] = []
 
     for i, image_path in enumerate(image_paths):
-        data_dict = {"image": image_path}
+        data_dict: Dict[str, object] = {"image": image_path}
 
         if label_paths is not None:
             data_dict["label"] = label_paths[i]
@@ -46,7 +46,7 @@ def create_volume_data_dicts(
     image_paths: List[str],
     label_paths: Optional[List[str]] = None,
     mask_paths: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
+) -> List[Dict[str, object]]:
     """
     Create MONAI data dictionaries for volume datasets.
 

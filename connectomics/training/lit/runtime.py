@@ -57,7 +57,7 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
             import time
 
             max_wait = 30  # Maximum 30 seconds
-            waited = 0
+            waited = 0.0
             while not timestamp_file.exists() and waited < max_wait:
                 time.sleep(0.1)
                 waited += 0.1
