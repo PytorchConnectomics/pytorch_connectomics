@@ -8,22 +8,23 @@ This module contains all "create" functions that build training components:
 """
 
 from __future__ import annotations
+
 from glob import glob
 from pathlib import Path
 from typing import List, Optional
 
-import numpy as np
 import torch
 
 # Import data and model utilities
 from ...config import Config
-from ...data.dataset import create_data_dicts_from_paths
 from ...data.augment.build import (
+    build_test_transforms,
     build_train_transforms,
     build_val_transforms,
-    build_test_transforms,
 )
+from ...data.dataset import create_data_dicts_from_paths
 from .data import ConnectomicsDataModule
+from .path_utils import expand_file_paths as _expand_file_paths
 
 
 def setup_seed_everything():
@@ -46,6 +47,7 @@ def setup_seed_everything():
             # Fallback for older versions
             def seed_everything(seed, workers=True):
                 import random
+
                 import numpy as np
 
                 random.seed(seed)
@@ -57,7 +59,7 @@ def setup_seed_everything():
 
 def expand_file_paths(path_or_pattern) -> List[str]:
     """
-    Expand glob patterns to list of file paths.
+    Backward-compatible wrapper for shared path expansion helper.
 
     Args:
         path_or_pattern: Single file path, glob pattern, or list of paths/patterns
@@ -65,96 +67,100 @@ def expand_file_paths(path_or_pattern) -> List[str]:
     Returns:
         List of expanded file paths, sorted alphabetically
     """
-    # If already a list, return it (may have been expanded by resolve_data_paths)
-    if isinstance(path_or_pattern, list):
-        return path_or_pattern
-
-    # Check if pattern contains wildcards
-    if "*" in path_or_pattern or "?" in path_or_pattern:
-        # Expand glob pattern
-        paths = sorted(glob(path_or_pattern))
-        if not paths:
-            raise FileNotFoundError(f"No files found matching pattern: {path_or_pattern}")
-        return paths
-    else:
-        # Single file path
-        return [path_or_pattern]
+    return _expand_file_paths(path_or_pattern)
 
 
 def _calculate_validation_iter_num(
-    val_data_dicts: List[Dict[str, Any]],
-    patch_size: Tuple[int, int, int],
+    val_data_dicts: List[dict],
+    patch_size: tuple[int, int, int],
     min_iter: int = 50,
-    max_iter: int = 200,
+    max_iter: Optional[int] = 200,
+    default_iter_num: int = 100,
+    fallback_volume_shape: Optional[tuple[int, int, int]] = None,
+    return_default_on_error: bool = True,
 ) -> int:
     """
     Calculate validation iter_num based on validation volume size and patch size.
-    
+
     Args:
         val_data_dicts: Validation data dictionaries
         patch_size: Patch size (D, H, W)
         min_iter: Minimum iterations per epoch
         max_iter: Maximum iterations per epoch
-    
+        default_iter_num: Default iter_num when calculation fails
+        fallback_volume_shape: Volume shape fallback for unknown file formats
+        return_default_on_error: Return default_iter_num on errors instead of raising
+
     Returns:
         Calculated validation iter_num
     """
     try:
-        import nibabel as nib
-        import h5py
-        import tifffile
-        
         # Get first validation volume size
         img_path = Path(val_data_dicts[0]["image"])
-        
+
         # Load volume to get shape
         if img_path.suffix in [".nii", ".gz"]:
             # NIfTI file
+            import nibabel as nib
+
             vol = nib.load(str(img_path))
             vol_shape = vol.shape
         elif img_path.suffix in [".h5", ".hdf5"]:
             # HDF5 file
+            import h5py
+
             with h5py.File(img_path, "r") as f:
                 vol_shape = f[list(f.keys())[0]].shape
         elif img_path.suffix in [".tif", ".tiff"]:
             # TIFF file
+            import tifffile
+
             vol = tifffile.imread(img_path)
             vol_shape = vol.shape
+        elif fallback_volume_shape is not None:
+            vol_shape = fallback_volume_shape
         else:
             # Unknown format, use default
-            print(f"  ⚠️  Unknown file format {img_path.suffix}, using default val_iter_num=100")
-            return 100
-        
+            print(
+                f"  ⚠️  Unknown file format {img_path.suffix}, "
+                f"using default val_iter_num={default_iter_num}"
+            )
+            return default_iter_num
+
         # Handle channel dimension if present
         if len(vol_shape) == 4:
             vol_shape = vol_shape[1:]  # Remove channel dim: (C, D, H, W) -> (D, H, W)
-        
+
         # Calculate number of possible patches (with 50% overlap)
         stride = tuple(p // 2 for p in patch_size)  # 50% overlap
         num_patches_per_dim = [
-            max(1, (vol_shape[i] - patch_size[i]) // stride[i] + 1)
-            for i in range(3)
+            max(1, (vol_shape[i] - patch_size[i]) // stride[i] + 1) for i in range(3)
         ]
-        total_possible_patches = num_patches_per_dim[0] * num_patches_per_dim[1] * num_patches_per_dim[2]
-        
+        total_possible_patches = (
+            num_patches_per_dim[0] * num_patches_per_dim[1] * num_patches_per_dim[2]
+        )
+
         # Calculate validation iter_num as a fraction of possible patches
-        # Use 5-10% of possible patches, but clamp to [min_iter, max_iter]
         val_iter_num = int(total_possible_patches * 0.075)  # 7.5% of possible patches
-        val_iter_num = max(min_iter, min(max_iter, val_iter_num))
-        
+        val_iter_num = max(min_iter, val_iter_num)
+        if max_iter is not None:
+            val_iter_num = min(max_iter, val_iter_num)
+
         print(f"    Validation volume shape: {vol_shape}")
         print(f"    Patch size: {patch_size}")
         print(f"    Stride (50% overlap): {stride}")
         print(f"    Possible patches per dim: {num_patches_per_dim}")
         print(f"    Total possible patches: {total_possible_patches}")
         print(f"    Using 7.5% of patches: {val_iter_num}")
-        
+
         return val_iter_num
-        
+
     except Exception as e:
+        if not return_default_on_error:
+            raise
         print(f"  ⚠️  Error calculating validation iter_num: {e}")
-        print(f"  ℹ️  Using default val_iter_num=100")
-        return 100
+        print(f"  ℹ️  Using default val_iter_num={default_iter_num}")
+        return default_iter_num
 
 
 def create_datamodule(
@@ -259,11 +265,11 @@ def create_datamodule(
     # Check if automatic train/val split is enabled
     elif cfg.data.split_enabled and not cfg.data.val_image:
         print("🔀 Using automatic train/val split (DeepEM-style)")
-        from ...data.utils.split import split_volume_train_val
-
         # Load full volume
         import h5py
         import tifffile
+
+        from ...data.utils.split import split_volume_train_val
 
         train_path = Path(cfg.data.train_image)
         if train_path.suffix in [".h5", ".hdf5"]:
@@ -512,9 +518,10 @@ def create_datamodule(
         if iter_num == -1 and dataset_type != "filename":
             # For filename datasets, iter_num is determined by the number of files
             print("📊 Auto-computing iter_num from volume size...")
-            from ...data.utils import compute_total_samples
             import h5py
             import tifffile
+
+            from ...data.utils import compute_total_samples
 
             # Get volume sizes
             volume_sizes = []
@@ -583,9 +590,10 @@ def create_datamodule(
 
     if use_preloaded:
         print("  ⚡ Using pre-loaded volume cache (loads once, crops in memory)")
-        from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
-        from torch.utils.data import DataLoader
         import pytorch_lightning as pl
+        from torch.utils.data import DataLoader
+
+        from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
 
         # Build transforms without loading/cropping (handled by dataset)
         augment_only_transforms = build_train_transforms(cfg, skip_loading=True)
@@ -624,56 +632,31 @@ def create_datamodule(
         val_loader = None
         if val_data_dicts and len(val_data_dicts) > 0:
             print("  Creating validation dataset with pre-loaded cache...")
-            
+
             # Build validation transforms (no augmentation, only normalization)
             val_only_transforms = build_val_transforms(cfg, skip_loading=True)
-            
+
             # Get validation iter_num (auto-calculate if not specified)
-            val_iter_num = cfg.data.val_iter_num if hasattr(cfg.data, 'val_iter_num') and cfg.data.val_iter_num else None
-            
+            val_iter_num = (
+                cfg.data.val_iter_num
+                if hasattr(cfg.data, "val_iter_num") and cfg.data.val_iter_num
+                else None
+            )
+
             if val_iter_num is None:
                 # Auto-calculate validation iter_num from volume size
                 print("  📊 Auto-calculating validation iter_num from volume size...")
-                import h5py
-                import tifffile
-                from pathlib import Path
-                
-                # Get first validation volume shape
-                val_img_path = Path(val_data_dicts[0]["image"])
-                if val_img_path.suffix in [".h5", ".hdf5"]:
-                    with h5py.File(val_img_path, "r") as f:
-                        val_vol_shape = f[list(f.keys())[0]].shape
-                elif val_img_path.suffix in [".tif", ".tiff"]:
-                    val_vol = tifffile.imread(val_img_path)
-                    val_vol_shape = val_vol.shape
-                else:
-                    val_vol_shape = (100, 4096, 4096)  # Default fallback
-                
-                # Handle both (z, y, x) and (c, z, y, x)
-                if len(val_vol_shape) == 4:
-                    val_vol_shape = val_vol_shape[1:]  # Skip channel dim
-                
-                patch_size = tuple(cfg.data.patch_size)
-                stride = tuple([p // 2 for p in patch_size])  # 50% overlap
-                
-                # Calculate possible patches
-                possible_patches = [
-                    max(1, (vol_dim - patch_dim) // stride_dim + 1)
-                    for vol_dim, patch_dim, stride_dim in zip(val_vol_shape, patch_size, stride)
-                ]
-                total_possible = int(np.prod(possible_patches))
-                
-                # Use 7.5% of patches (same as before)
-                val_iter_num = max(1, int(total_possible * 0.075))
-                
-                print(f"    Validation volume shape: {val_vol_shape}")
-                print(f"    Patch size: {patch_size}")
-                print(f"    Stride (50% overlap): {stride}")
-                print(f"    Possible patches per dim: {possible_patches}")
-                print(f"    Total possible patches: {total_possible}")
-                print(f"    Using 7.5% of patches: {val_iter_num}")
+                val_iter_num = _calculate_validation_iter_num(
+                    val_data_dicts=val_data_dicts,
+                    patch_size=tuple(cfg.data.patch_size),
+                    min_iter=1,
+                    max_iter=None,
+                    default_iter_num=100,
+                    fallback_volume_shape=(100, 4096, 4096),
+                    return_default_on_error=False,
+                )
                 print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
-            
+
             # Create validation dataset
             val_dataset = CachedVolumeDataset(
                 image_paths=[d["image"] for d in val_data_dicts],
@@ -685,7 +668,7 @@ def create_datamodule(
                 pad_size=tuple(pad_size) if pad_size else None,
                 pad_mode=pad_mode,
             )
-            
+
             # Create validation dataloader
             val_loader = DataLoader(
                 val_dataset,
@@ -723,9 +706,10 @@ def create_datamodule(
     elif dataset_type == "filename":
         # Filename-based dataset using JSON file lists
         print("  Creating filename-based datamodule...")
-        from ...data.dataset.dataset_filename import create_filename_datasets
-        from torch.utils.data import DataLoader
         import pytorch_lightning as pl
+        from torch.utils.data import DataLoader
+
+        from ...data.dataset.dataset_filename import create_filename_datasets
 
         # Create train and val datasets from JSON
         train_dataset, val_dataset = create_filename_datasets(
@@ -797,7 +781,7 @@ def create_datamodule(
         # Standard data module
         # Disable caching for test/tune modes to avoid issues with partial cache returning 0 length
         use_cache = cfg.data.use_cache and mode == "train"
-        
+
         if mode in ["test", "tune"] and cfg.data.use_cache:
             print("  ⚠️  Caching disabled for test/tune mode (incompatible with partial cache)")
 
@@ -805,7 +789,7 @@ def create_datamodule(
         # They embed the transpose in LoadVolumed, so no need to pass it here
 
         # Get validation iter_num (separate from training iter_num)
-        val_iter_num = getattr(cfg.data, 'val_iter_num', None)
+        val_iter_num = getattr(cfg.data, "val_iter_num", None)
         if val_iter_num is None and val_data_dicts:
             # Auto-calculate validation iter_num based on volume size and patch size
             print("  📊 Auto-calculating validation iter_num from volume size...")
@@ -870,6 +854,7 @@ def setup_run_directory(mode: str, cfg, checkpoint_dirpath: str):
     """
     import os
     from datetime import datetime
+
     from ...config import save_config
 
     checkpoint_dir = Path(checkpoint_dirpath)
