@@ -244,7 +244,7 @@ def validate_config(cfg: Config) -> None:
         if cfg.optimization.max_epochs <= 0:
             raise ValueError("optimization.max_epochs must be positive when max_steps is not set")
     # If max_steps is set, max_epochs can be anything (will be overridden to -1 in trainer)
-    
+
     if cfg.optimization.gradient_clip_val < 0:
         raise ValueError("optimization.gradient_clip_val must be non-negative")
     if cfg.optimization.accumulate_grad_batches <= 0:
