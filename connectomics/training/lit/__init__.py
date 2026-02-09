@@ -11,11 +11,11 @@ from .callbacks import (
     create_callbacks,
 )
 from .config import (
-    create_datamodule,
     expand_file_paths,
     setup_seed_everything,
 )
 from .data import ConnectomicsDataModule, TileDataModule, VolumeDataModule
+from .data_factory import create_datamodule
 from .model import ConnectomicsModule
 from .runtime import cleanup_run_directory, modify_checkpoint_state, setup_run_directory
 from .trainer import create_trainer
