@@ -1,201 +1,141 @@
-# NucMM Zebrafish nucleus segmentation with MONAI Residual UNet
-# Multi-task learning: Binary + Contour + Distance
-#
-# This config uses MONAI's UNet with residual units for nucleus segmentation
-# with multi-task learning to predict:
-#   - Channel 0: Binary masks (sigmoid activation)
-#   - Channel 1: Contour maps (sigmoid activation) 
-#   - Channel 2: Distance transforms (tanh activation)
-#
-# Based on NucMM-Zebrafish-UNet-BCD.yaml configuration from pytorch_connectomics_v1.
-# The multi-task setup uses different loss functions for each channel:
-#   - Binary & Contour: DiceLoss + BCEWithLogitsLoss
-#   - Distance: WeightedMSE
-
+_base_: bases/monai_unet.yaml
 experiment_name: nucmm_zebrafish_monai_unet
 description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
-
-# System
 system:
   training:
-    num_gpus: 4                        
-    num_cpus: 8
-    num_workers: 8                     # More workers for parallel data loading (6x speedup)
-    batch_size: 32                      # Larger batch for smaller patches
+    batch_size: 32
   inference:
-    num_gpus: 1
     num_cpus: 4
     num_workers: 4
     batch_size: 4
-  seed: 42
-
-# Model - MONAI UNet with residual units for multi-task learning
 model:
-  architecture: monai_unet
-  input_size: [64, 64, 64]             # 64x64x64 input patches
-  output_size: [64, 64, 64]            # 64x64x64 output patches
-  in_channels: 1
-  out_channels: 3                      # 3 channels: binary, contour, distance
-
-  # UNet architecture configuration (optimized for 64^3)
-  filters: [32, 64, 128, 256]          # 4 levels for 64^3 (64->32->16->8->4)
-  strides: [2, 2, 2]                   # 3 downsampling levels
-  num_res_units: 2                     # Residual units per block
-  kernel_size: 3                       # Convolution kernel size
+  input_size:
+  - 64
+  - 64
+  - 64
+  output_size:
+  - 64
+  - 64
+  - 64
+  out_channels: 3
+  strides:
+  - 2
+  - 2
+  - 2
+  num_res_units: 2
+  kernel_size: 3
   norm: batch
-  dropout: 0.0                         # No dropout for nucleus segmentation
-
-  # Multi-task loss configuration
-  loss_functions: [DiceLoss, BCEWithLogitsLoss, WeightedMSELoss]
-  loss_weights: [1.0, 0.5, 2.0]       # Binary: Dice+BCE, Contour: Dice+BCE, Distance: MSE
+  dropout: 0.0
+  loss_functions:
+  - DiceLoss
+  - BCEWithLogitsLoss
+  - WeightedMSELoss
+  loss_weights:
+  - 1.0
+  - 0.5
+  - 2.0
   loss_kwargs:
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
-    - {}                                 # BCEWithLogitsLoss for binary
-    - {tanh: true}                       # WeightedMSELoss for distance (with tanh activation)
-
-  # Multi-task configuration
-  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+  - {}
+  - tanh: true
   multi_task_config:
-    - [0, 1, "label", [0, 1]]          # Original labels: Dice + BCE
-    - [1, 2, "boundary", [0, 1]]       # Boundary channel: Dice + BCE  
-    - [2, 3, "edt", [2]]               # Distance channel: MSE
-
-# Data - NucMM Zebrafish dataset (multiple volumes)
+  - - 0
+    - 1
+    - label
+    - - 0
+      - 1
+  - - 1
+    - 2
+    - boundary
+    - - 0
+      - 1
+  - - 2
+    - 3
+    - edt
+    - - 2
 data:
-  # Volume configuration - supports multiple files via glob pattern or list
-  train_image: "datasets/NucMM-Z/Image/train/img_*.h5"     # 27 training volumes
-  train_label: "datasets/NucMM-Z/Label/train/seg_*.h5"     # 27 training labels
-  train_resolution: [1.0, 1.0, 1.0]   # NucMM: 1.0 isotropic resolution
-  use_preloaded_cache: true           # Pre-load all volumes into memory (MAJOR speedup)
-  cache_rate: 1.0                     # Cache all volumes in RAM
-  persistent_workers: true            # Keep workers alive between epochs (avoid restart overhead)
-
-  # Patch configuration
-  patch_size: [64, 64, 64]             # 64x64x64 training patches
-  pad_size: [16, 16, 16]               # Reflection padding for context
-  pad_mode: reflect                    # Reflection padding at boundaries
-  iter_num_per_epoch: 1280              # More iterations for smaller patches
-  
-  # Image normalization
-  image_transform:
-    normalize: "0-1"                   # Min-max normalization to [0, 1]
-    clip_percentile_low: 0.0           # No clipping
-    clip_percentile_high: 1.0
-
-  # Label transformation for multi-task learning
+  train_image: datasets/NucMM-Z/Image/train/img_*.h5
+  train_label: datasets/NucMM-Z/Label/train/seg_*.h5
+  train_resolution:
+  - 1.0
+  - 1.0
+  - 1.0
+  cache_rate: 1.0
+  persistent_workers: true
+  patch_size:
+  - 64
+  - 64
+  - 64
+  pad_size:
+  - 16
+  - 16
+  - 16
+  pad_mode: reflect
   label_transform:
     targets:
-      - name: binary                # Channel 0: foreground mask
-      - name: instance_boundary     # Channel 1: contour map
-        kwargs:
-          thickness: 5
-          edge_mode: "seg-no-bg"
-          mode: "3d"
-      - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
-        kwargs:
-          mode: "3d"              # 2D EDT with per-instance bounding box optimization
-          quantize: false
-
-  # Augmentation
+    - name: binary
+    - name: instance_boundary
+      kwargs:
+        thickness: 5
+        edge_mode: seg-no-bg
+        mode: 3d
+    - name: instance_edt
+      kwargs:
+        mode: 3d
+        quantize: false
   augmentation:
-    preset: "all"                         # Legacy `enabled: true` -> modern preset mode
-
-# Optimizer - AdamW with NucMM-specific hyperparameters
+    preset: all
 optimization:
-  max_epochs: 1000
   gradient_clip_val: 1.0
-  accumulate_grad_batches: 1
-  precision: "bf16-mixed"              # BFloat16 mixed precision
-  
   optimizer:
     name: AdamW
-    lr: 0.001                          # Lower LR for smaller patches (64^3)
     weight_decay: 0.01
-    betas: [0.9, 0.999]
-    eps: 1.0e-8
-
-  # Scheduler - Cosine annealing with warmup
   scheduler:
     name: CosineAnnealingLR
-    warmup_epochs: 5                   # Shorter warmup for 64^3
-    warmup_start_lr: 1.0e-5
-    min_lr: 1.0e-6
+    warmup_epochs: 5
+    warmup_start_lr: 1.0e-05
     t_max: 995
-
 monitor:
-  # Loss monitoring and validation frequency  
-  detect_anomaly: false
   logging:
-    # scalar loss
-    scalar:
-      loss: [train_loss_total_epoch]
-      loss_every_n_steps: 10
-      val_check_interval: 1.0
-      benchmark: true
-    
-    # visualization
     images:
-      enabled: true
       max_images: 2
       num_slices: 4
-      log_every_n_epochs: 1
-      channel_mode: all                 # Show all 3 channels for multi-task
-      selected_channels: null
-  
-  # Checkpointing
-  checkpoint:
-    mode: min
-    save_top_k: 1
-    save_last: true
-    save_every_n_epochs: 10
-    use_timestamp: true
-
-  # Early stopping
-  early_stopping: 
-    enabled: true
-    monitor: train_loss_total_epoch
+      channel_mode: all
+  early_stopping:
     patience: 300
-    mode: min
-    min_delta: 1.0e-5
-    check_finite: true
+    min_delta: 1.0e-05
     threshold: 0.01
     divergence_threshold: 100.0
-
-# Test data paths (schema-compliant location)
 test:
   data:
     test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
     test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
-    test_resolution: [1.0, 1.0, 1.0]
-
-# Inference - MONAI SlidingWindowInferer for NucMM
+    test_resolution:
+    - 1.0
+    - 1.0
+    - 1.0
 inference:
-  # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [64, 64, 64]          # Match training patch size
-    sw_batch_size: 8                   # More patches for smaller window
-    overlap: 0.5                       # 50% overlap between patches
-    blending: gaussian                 # Gaussian weighting for smooth blending
-    sigma_scale: 0.25
-    padding_mode: reflect              # Reflection-padding at volume boundaries
-
-  # Test-Time Augmentation (TTA)
+    window_size:
+    - 64
+    - 64
+    - 64
+    sw_batch_size: 8
+    overlap: 0.5
+    padding_mode: reflect
   test_time_augmentation:
-    enabled: true
-    flip_axes: null                    # No augmentation for NucMM
+    flip_axes: null
     channel_activations:
-      - [0, 2, sigmoid]                # Binary + boundary channels
-      - [2, 3, tanh]                   # Distance channel
-    select_channel: null               # Use all channels
-    ensemble_mode: mean
-
-  # Save intermediate predictions
-  save_prediction:
-    enabled: true
-    intensity_scale: 255
-    intensity_dtype: uint8
-
-  # Evaluation
+    - - 0
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
   evaluation:
     enabled: true
-    metrics: [jaccard, dice]           # Multiple metrics for nucleus segmentation
+    metrics:
+    - jaccard
+    - dice

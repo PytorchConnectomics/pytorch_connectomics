@@ -6,10 +6,68 @@ Provides helpers for loading, saving, validating, and manipulating configs.
 
 from __future__ import annotations
 from pathlib import Path
-from typing import Optional, Union, Dict, Any, List
-from omegaconf import OmegaConf, DictConfig
+from typing import Optional, Union, Dict, Any, List, Tuple
+from omegaconf import OmegaConf, DictConfig, ListConfig
 
 from .hydra_config import Config
+
+
+def _normalize_base_paths(base_field: Any, config_path: Path) -> List[Path]:
+    """Normalize `_base_` field to an ordered list of absolute paths."""
+    if base_field is None:
+        return []
+
+    if isinstance(base_field, (str, Path)):
+        base_entries = [str(base_field)]
+    elif isinstance(base_field, (list, tuple, ListConfig)):
+        base_entries = [str(item) for item in base_field]
+    else:
+        raise TypeError(
+            f"Invalid _base_ value in {config_path}: expected string or list, got {type(base_field)}"
+        )
+
+    resolved_paths: List[Path] = []
+    for base_entry in base_entries:
+        base_path = Path(base_entry)
+        if not base_path.is_absolute():
+            base_path = (config_path.parent / base_path).resolve()
+        if not base_path.exists():
+            raise FileNotFoundError(
+                f"Base config not found: {base_entry} (resolved to {base_path}) in {config_path}"
+            )
+        resolved_paths.append(base_path)
+
+    return resolved_paths
+
+
+def _load_config_with_bases(config_path: Path, loading_stack: Tuple[Path, ...] = ()) -> DictConfig:
+    """Load YAML config recursively with `_base_` inheritance."""
+    config_path = config_path.resolve()
+    if config_path in loading_stack:
+        cycle = " -> ".join(str(p) for p in (*loading_stack, config_path))
+        raise ValueError(f"Detected cyclic _base_ config inheritance: {cycle}")
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
+    yaml_conf = OmegaConf.load(config_path)
+    if yaml_conf is None:
+        yaml_conf = OmegaConf.create({})
+    if not isinstance(yaml_conf, DictConfig):
+        raise TypeError(
+            f"Config root must be a mapping in {config_path}, got {type(yaml_conf)} instead"
+        )
+
+    base_field = yaml_conf.get("_base_", None)
+    if "_base_" in yaml_conf:
+        del yaml_conf["_base_"]
+
+    merged_base = OmegaConf.create({})
+    for base_path in _normalize_base_paths(base_field, config_path):
+        base_conf = _load_config_with_bases(base_path, (*loading_stack, config_path))
+        merged_base = OmegaConf.merge(merged_base, base_conf)
+
+    return OmegaConf.merge(merged_base, yaml_conf)
 
 
 def load_config(config_path: Union[str, Path]) -> Config:
@@ -22,12 +80,8 @@ def load_config(config_path: Union[str, Path]) -> Config:
     Returns:
         Config object with defaults merged
     """
-    config_path = Path(config_path)
-    if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
-
-    # Load YAML
-    yaml_conf = OmegaConf.load(config_path)
+    config_path = Path(config_path).resolve()
+    yaml_conf = _load_config_with_bases(config_path)
 
     # Merge with structured config defaults
     default_conf = OmegaConf.structured(Config)

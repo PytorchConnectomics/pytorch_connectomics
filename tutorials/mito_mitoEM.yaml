@@ -1,205 +1,147 @@
-# MitoEM Dataset - 3D Mitochondria Instance Segmentation with MedNeXt
-# Single-task learning: Signed Distance Transform (SDT) only
-#
-# This config uses MedNeXt for mitochondria instance segmentation with SDT-based approach:
-#   - Output: Single channel SDT (tanh activation) - WeightedMSE loss
-#   - SDT encodes both foreground/background AND instance separation in one channel
-#   - Positive values = inside instances (distance to boundary)
-#   - Negative values = outside instances (distance to nearest instance)
-#
-# MedNeXt Configuration:
-#   - Deep supervision: CRITICAL for MedNeXt performance (5 scales)
-#   - Kernel size: 7x7x7 for better context (recommended for instance segmentation)
-#   - Size: M (17.6M params) - balanced capacity for 3D SDT learning
-#
-# Instance Segmentation Pipeline:
-#   SDT prediction → Watershed on SDT seeds → Instance IDs
-#
-# MitoEM Dataset:
-#   - High-resolution EM (30x8x8 nm/voxel anisotropic)
-#   - Dense mitochondria with complex shapes
-#   - Challenging instance separation requiring precise SDT
-
+_base_: bases/mednext.yaml
 experiment_name: mitoem_mednext_sdt
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT only
-
-# System
 system:
   training:
     num_gpus: 4
     num_cpus: 8
-    num_workers: 8                     # Parallel data loading
-    batch_size: 16                     # Larger batch for single-channel output (vs multi-task)
+    num_workers: 8
+    batch_size: 16
   inference:
-    num_gpus: 1
     num_cpus: 1
     num_workers: 1
     batch_size: 1
   seed: 42
-
-# Model - MedNeXt for SDT-based mitochondria instance segmentation
 model:
-  architecture: mednext               # MedNeXt (SOTA for instance segmentation)
-
-  # Input/output configuration
-  input_size: [16, 256, 256]          # Anisotropic patches matching data resolution
-  output_size: [16, 256, 256]
-  in_channels: 1                      # Grayscale EM
-  out_channels: 1                     # Single channel: SDT only
-
-  # MedNeXt architecture (optimized for instance segmentation)
-  mednext_size: M                     # M (17.6M params) - balanced capacity for 3D SDT
-  mednext_kernel_size: 7              # 7x7x7 kernels for better context (RECOMMENDED)
-  mednext_dim: "3d"                   # 3D convolutions
-  deep_supervision: true              # CRITICAL for MedNeXt (5-scale deep supervision)
-
-  # Single-task loss configuration (SDT only)
-  loss_functions: [WeightedMSELoss]
-  loss_weights: [1.0]                 # Single loss for SDT prediction
+  input_size:
+  - 16
+  - 256
+  - 256
+  output_size:
+  - 16
+  - 256
+  - 256
+  out_channels: 1
+  mednext_size: M
+  mednext_kernel_size: 7
+  mednext_dim: 3d
+  deep_supervision: true
+  loss_functions:
+  - WeightedMSELoss
+  loss_weights:
+  - 1.0
   loss_kwargs:
-    - {tanh: true}                    # WeightedMSELoss with tanh activation for SDT [-1, 1] range
-
+  - tanh: true
 data:
-  # Dataset configuration - MitoEM training data
-  train_path: "/projects/weilab/dataset/mito/mitoEM/"
-  train_image: ["EM30-H/im_train_val.h5"]           # MitoEM training volume
-  train_label: ["EM30-H/mito_train_val.h5"]         # Instance labels
-  train_resolution: [30, 8, 8]                      # Anisotropic: 30nm (z) x 8nm (xy)
-
-  # Data loading optimization
-  use_preloaded_cache: true                         # Pre-load entire volume into RAM (faster training)
-  cache_rate: 1.0                                   # Cache 100% of data
-  persistent_workers: true                          # Keep workers alive between epochs
-
-  # Patch configuration (anisotropic to match data resolution)
-  patch_size: [16, 256, 256]                        # 16z x 256xy - matches anisotropic resolution
-  pad_size: [4, 16, 16]                             # Reflection padding for context
-  pad_mode: reflect                                 # Reflection padding at boundaries
-  iter_num_per_epoch: 2000                          # Training iterations per epoch
-
-  # Image normalization
+  train_path: /projects/weilab/dataset/mito/mitoEM/
+  train_image:
+  - EM30-H/im_train_val.h5
+  train_label:
+  - EM30-H/mito_train_val.h5
+  train_resolution:
+  - 30
+  - 8
+  - 8
+  use_preloaded_cache: true
+  cache_rate: 1.0
+  persistent_workers: true
+  patch_size:
+  - 16
+  - 256
+  - 256
+  pad_size:
+  - 4
+  - 16
+  - 16
+  pad_mode: reflect
+  iter_num_per_epoch: 2000
   image_transform:
-    normalize: "0-1"                                # Min-max normalization to [0, 1]
-    clip_percentile_low: 0.005                      # Clip outliers (0.5%)
-    clip_percentile_high: 0.995                     # Clip outliers (0.5%)
-
-  # Label transformation - SDT only for instance segmentation
+    clip_percentile_low: 0.005
+    clip_percentile_high: 0.995
   label_transform:
     targets:
-      - name: instance_edt                          # Signed distance transform (SDT)
-        kwargs:
-          mode: "3d"                                # 3D EDT computation
-          quantize: false                           # Continuous values (not quantized)
-          normalize: true                           # Normalize to [-1, 1] range
-
-  # Augmentation - crucial for generalization
+    - name: instance_edt
+      kwargs:
+        mode: 3d
+        quantize: false
+        normalize: true
   augmentation:
-    preset: "all"                                   # Legacy `enabled: true` -> modern preset mode
-
-# Optimizer - MedNeXt recommended settings
+    preset: all
 optimization:
-  max_epochs: 1000                      # Extended training for quality instance segmentation
-  gradient_clip_val: 1.0
-  accumulate_grad_batches: 4            # Effective batch size = 16 * 4 = 64
-  precision: "16-mixed"                 # FP16 mixed precision (better GPU compatibility than bf16)
-
+  max_epochs: 1000
+  accumulate_grad_batches: 4
+  precision: 16-mixed
   optimizer:
-    name: AdamW
-    lr: 0.001                           # MedNeXt recommended: 1e-3 (constant LR)
-    weight_decay: 1e-4                  # Regularization for better generalization
-    betas: [0.9, 0.999]
-    eps: 1.0e-8
-
-  # Scheduler - Constant LR (MedNeXt recommendation)
+    lr: 0.001
+    weight_decay: 1e-4
+    eps: 1.0e-08
   scheduler:
-    name: constant                      # Constant LR works best for MedNeXt (per paper)
-
+    name: constant
 monitor:
-  # Loss monitoring and validation frequency
-  detect_anomaly: false
   logging:
-    # Scalar loss monitoring
     scalar:
-      loss: [train_loss_total_epoch]
-      loss_every_n_steps: 50            # Log every 50 steps
-      val_check_interval: 1.0           # Validate every epoch
-      benchmark: true
-
-    # Visualization - SDT predictions
+      loss:
+      - train_loss_total_epoch
+      loss_every_n_steps: 50
+      val_check_interval: 1.0
     images:
-      enabled: true
-      max_images: 4                     # Show more samples for quality check
-      num_slices: 8                     # More slices for 3D visualization
-      log_every_n_epochs: 5             # Visualize every 5 epochs
-      channel_mode: all                 # Show SDT channel
-      selected_channels: null
-
-  # Checkpointing
+      max_images: 4
+      num_slices: 8
+      log_every_n_epochs: 5
   checkpoint:
-    mode: min
-    save_top_k: 5                       # Keep top 5 checkpoints
-    save_last: true
-    save_every_n_epochs: 25             # Save checkpoint every 25 epochs
+    save_top_k: 5
+    save_every_n_epochs: 25
     dirpath: outputs/mitoem_mednext_sdt/checkpoints/
-    use_timestamp: true
-
-  # Early stopping (patient for SDT learning)
   early_stopping:
-    enabled: true
     monitor: train_loss_total_epoch
-    patience: 150                       # More patience for SDT convergence
-    mode: min
-    min_delta: 1e-6                     # Small delta for precise SDT
-    check_finite: true
+    patience: 150
+    min_delta: 1e-6
     threshold: 0.01
     divergence_threshold: 100.0
-
-# Test data paths (schema-compliant location)
 test:
   data:
     test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
     test_label: /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
-    test_resolution: [30, 8, 8]
+    test_resolution:
+    - 30
+    - 8
+    - 8
     output_path: outputs/mitoem_mednext_sdt/results/
-
-# Inference - MONAI SlidingWindowInferer for MitoEM
 inference:
-  # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: [16, 256, 256]         # Match training patch size
-    sw_batch_size: 4                    # Process multiple patches per batch
-    overlap: 0.5                        # 50% overlap for smooth blending
-    blending: gaussian                  # Gaussian weighting for smooth blending
-    sigma_scale: 0.25                   # Gaussian sigma scale
-    padding_mode: replicate             # Replicate padding at volume boundaries
-
-  # Test-Time Augmentation (TTA) for SDT
+    window_size:
+    - 16
+    - 256
+    - 256
+    sw_batch_size: 4
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
   test_time_augmentation:
     enabled: true
-    flip_axes: null                     # Use all 8 flip augmentations (2^3 for xyz)
-    rotation90_axes: null               # No 90-degree rotations (not isotropic)
+    rotation90_axes: null
     channel_activations:
-      - [0, 1, tanh]                    # SDT channel: tanh activation [-1, 1]
+    - - 0
+      - 1
+      - tanh
     select_channel: all
-    ensemble_mode: mean                 # Average predictions across augmentations
-    apply_mask: false                   # No mask for MitoEM
-
-  # Save intermediate predictions
+    apply_mask: false
   save_prediction:
-    enabled: true                       # Save SDT predictions before decoding
-    intensity_scale: -1                 # Keep original scale (no rescaling)
-    intensity_dtype: float32            # Keep as float32 for SDT
-
-  # Decoding configuration (SDT → instances via watershed)
+    enabled: true
+    intensity_scale: -1
+    intensity_dtype: float32
   decoding:
-    - name: decode_distance_watershed   # Watershed on SDT only
-      kwargs:
-        distance_threshold: [0.5, 0]    # Threshold range for seeds (positive SDT values)
-        min_instance_size: 100          # Minimum mitochondria size (voxels)
-        min_seed_size: 50               # Minimum seed size (voxels)
-        prediction_scale: 1             # No scaling
-
-  # Evaluation
+  - name: decode_distance_watershed
+    kwargs:
+      distance_threshold:
+      - 0.5
+      - 0
+      min_instance_size: 100
+      min_seed_size: 50
+      prediction_scale: 1
   evaluation:
     enabled: true
-    metrics: [adapted_rand, voi]        # Adapted Rand Score + VOI for instance segmentation
+    metrics:
+    - adapted_rand
+    - voi
