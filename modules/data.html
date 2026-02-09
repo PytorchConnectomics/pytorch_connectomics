@@ -744,7 +744,7 @@ ratio of synthetic vs. real data regardless of dataset sizes.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="connectomics.data.dataset.create_data_dicts_from_paths">
-<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_data_dicts_from_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_data_dicts_from_paths"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_data_dicts_from_paths" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_data_dicts_from_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/data_dicts.html#create_data_dicts_from_paths"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_data_dicts_from_paths" title="Link to this definition">¶</a></dt>
 <dd><p>Create MONAI-style data dictionaries from file paths.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -758,16 +758,9 @@ ratio of synthetic vs. real data regardless of dataset sizes.</p>
 <dd class="field-even"><p>List of dictionaries with ‘image’, ‘label’, and/or ‘mask’ keys</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)">object</a>]]</p>
 </dd>
 </dl>
-<p class="rubric">Examples</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">image_paths</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;img1.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;img2.h5&#39;</span><span class="p">]</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">label_paths</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;lbl1.h5&#39;</span><span class="p">,</span> <span class="s1">&#39;lbl2.h5&#39;</span><span class="p">]</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_data_dicts_from_paths</span><span class="p">(</span><span class="n">image_paths</span><span class="p">,</span> <span class="n">label_paths</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># [{&#39;image&#39;: &#39;img1.h5&#39;, &#39;label&#39;: &#39;lbl1.h5&#39;}, ...]</span>
-</pre></div>
-</div>
 </dd></dl>
 
 <dl class="py function">
@@ -907,29 +900,22 @@ and ‘mask’ (if provided) with metadata and chunk coordinates.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="connectomics.data.dataset.create_volume_data_dicts">
-<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_volume_data_dicts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/build.html#create_volume_data_dicts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_volume_data_dicts" title="Link to this definition">¶</a></dt>
+<span class="sig-prename descclassname"><span class="pre">connectomics.data.dataset.</span></span><span class="sig-name descname"><span class="pre">create_volume_data_dicts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_paths</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/data/dataset/data_dicts.html#create_volume_data_dicts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.data.dataset.create_volume_data_dicts" title="Link to this definition">¶</a></dt>
 <dd><p>Create MONAI data dictionaries for volume datasets.</p>
-<p>This is a convenience wrapper around create_data_dicts_from_paths
+<p>This is a convenience wrapper around <code class="docutils literal notranslate"><span class="pre">create_data_dicts_from_paths</span></code>
 for volume-specific use cases.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>image_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of image volume file paths</p></li>
-<li><p><strong>label_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of label volume file paths</p></li>
-<li><p><strong>mask_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – Optional list of valid mask file paths</p></li>
+<li><p><strong>image_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>label_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>mask_paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>List of MONAI-style data dictionaries</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.List" title="(in Python v3.14)"><em>List</em></a>[<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)">object</a>]]</p>
 </dd>
 </dl>
-<p class="rubric">Examples</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_volume_data_dicts</span><span class="p">([</span><span class="s1">&#39;vol1.tif&#39;</span><span class="p">],</span> <span class="p">[</span><span class="s1">&#39;lbl1.tif&#39;</span><span class="p">])</span>
-</pre></div>
-</div>
 </dd></dl>
 
 <dl class="py function">

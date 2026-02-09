@@ -282,15 +282,16 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">monai.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheDataset</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span><span class="p">,</span> <span class="n">RandSpatialCropd</span><span class="p">,</span> <span class="n">CenterSpatialCropd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">CenterSpatialCropd</span><span class="p">,</span> <span class="n">Compose</span><span class="p">,</span> <span class="n">RandSpatialCropd</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">monai.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_tuple_rep</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">MonaiConnectomicsDataset</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.build</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_data_dicts_from_paths</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..io.monai_transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">LoadVolumed</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.data_dicts</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_data_dicts_from_paths</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">MonaiConnectomicsDataset</span>
 
 
 <div class="viewcode-block" id="MonaiVolumeDataset">
