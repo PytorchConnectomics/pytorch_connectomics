@@ -23,7 +23,8 @@ def _normalize_base_paths(base_field: Any, config_path: Path) -> List[Path]:
         base_entries = [str(item) for item in base_field]
     else:
         raise TypeError(
-            f"Invalid _base_ value in {config_path}: expected string or list, got {type(base_field)}"
+            f"Invalid _base_ value in {config_path}: expected string or list, "
+            f"got {type(base_field)}"
         )
 
     resolved_paths: List[Path] = []
