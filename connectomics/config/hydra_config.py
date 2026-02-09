@@ -24,7 +24,7 @@ Example usage:
     from connectomics.config.hydra_utils import load_config
 
     # Load configuration from YAML
-    cfg = load_config("tutorials/monai_lucchi++.yaml")
+    cfg = load_config("tutorials/mito_lucchi++.yaml")
 
     # Access configuration sections
     print(f"Model architecture: {cfg.model.architecture}")

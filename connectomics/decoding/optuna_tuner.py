@@ -827,7 +827,7 @@ def load_and_apply_best_params(cfg):
         cfg: Updated configuration object with best parameters applied
 
     Example:
-        >>> cfg = load_config('tutorials/hydra-lv.yaml')
+        >>> cfg = load_config('tutorials/misc/hydra-lv.yaml')
         >>> cfg = load_and_apply_best_params(cfg)
         >>> # cfg.test now has optimized decoding parameters
     """
