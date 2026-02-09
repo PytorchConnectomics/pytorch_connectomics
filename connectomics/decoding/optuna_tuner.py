@@ -14,19 +14,20 @@ Usage:
 """
 
 from __future__ import annotations
-from typing import Dict, Any, Optional
-from pathlib import Path
+
 import warnings
 from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, Optional
 
-import numpy as np
 import h5py
+import numpy as np
 from omegaconf import DictConfig, OmegaConf
 
 try:
     import optuna
-    from optuna.samplers import TPESampler, CmaEsSampler, RandomSampler
-    from optuna.pruners import MedianPruner, HyperbandPruner
+    from optuna.pruners import HyperbandPruner, MedianPruner
+    from optuna.samplers import CmaEsSampler, RandomSampler, TPESampler
 
     OPTUNA_AVAILABLE = True
 except ImportError:
@@ -36,12 +37,12 @@ except ImportError:
         "Parameter tuning will not work without Optuna."
     )
 
+# Import metrics
+from connectomics.metrics.metrics_seg import adapted_rand
+
 # Import decoding functions
 from .segmentation import decode_instance_binary_contour_distance
 from .utils import remove_small_instances
-
-# Import metrics
-from connectomics.metrics.metrics_seg import adapted_rand
 
 __all__ = ["OptunaDecodingTuner", "run_tuning", "load_and_apply_best_params"]
 
@@ -679,9 +680,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     print(f"Output directory: {output_dir}")
 
     # Step 1: Run inference on tune dataset
-    from connectomics.training.lit import create_datamodule
-    from connectomics.data.io import read_volume
     import glob
+
+    from connectomics.data.io import read_volume
+    from connectomics.training.lit import create_datamodule
 
     print("\n[1/4] Running inference on tuning dataset...")
 
