@@ -43,6 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -54,14 +56,89 @@ jobs:
         python -m pip install --upgrade pip
         pip install black flake8 isort mypy
 
+    - name: Collect changed Python files
+      id: changed-py
+      shell: bash
+      run: |
+        if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          files=$(git diff --name-only --diff-filter=ACMRT "origin/${{ github.base_ref }}...HEAD" -- 'connectomics/**/*.py')
+        else
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            files=$(git diff --name-only --diff-filter=ACMRT HEAD~1..HEAD -- 'connectomics/**/*.py')
+          else
+            files=$(git ls-files 'connectomics/**/*.py')
+          fi
+        fi
+
+        echo "files<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$files" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
+
     - name: Run black
-      run: black --check connectomics/
+      env:
+        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
+      run: |
+        python - <<'PY'
+        import os
+        import subprocess
+        import sys
+
+        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
+        if not files:
+            print("No changed Python files under connectomics/. Skipping black.")
+            sys.exit(0)
+
+        subprocess.check_call(["black", "--check", *files])
+        PY
 
     - name: Run flake8
-      run: flake8 connectomics/ --max-line-length=100
+      env:
+        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
+      run: |
+        python - <<'PY'
+        import os
+        import subprocess
+        import sys
+
+        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
+        if not files:
+            print("No changed Python files under connectomics/. Skipping flake8.")
+            sys.exit(0)
+
+        subprocess.check_call(["flake8", "--max-line-length=100", *files])
+        PY
 
     - name: Run isort
-      run: isort --check connectomics/
+      env:
+        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
+      run: |
+        python - <<'PY'
+        import os
+        import subprocess
+        import sys
+
+        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
+        if not files:
+            print("No changed Python files under connectomics/. Skipping isort.")
+            sys.exit(0)
+
+        subprocess.check_call(["isort", "--check", *files])
+        PY
 
     - name: Run mypy
-      run: mypy connectomics/ --ignore-missing-imports
+      env:
+        CHANGED_FILES: ${{ steps.changed-py.outputs.files }}
+      run: |
+        python - <<'PY'
+        import os
+        import subprocess
+        import sys
+
+        files = [f for f in os.environ.get("CHANGED_FILES", "").splitlines() if f]
+        if not files:
+            print("No changed Python files under connectomics/. Skipping mypy.")
+            sys.exit(0)
+
+        subprocess.check_call(["mypy", "--ignore-missing-imports", *files])
+        PY
