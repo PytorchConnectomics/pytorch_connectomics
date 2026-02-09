@@ -264,19 +264,6 @@ If PyTorch Connectomics helps your research, please cite:
 
 ---
 
-## Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Areas where we need help:**
-- 🏗️ New model architectures
-- 🧩 Additional loss functions
-- 🔧 Data augmentation techniques
-- 📖 Documentation improvements
-- 🐛 Bug fixes and optimizations
-
----
-
 ## Acknowledgements
 
 **Powered by:**
