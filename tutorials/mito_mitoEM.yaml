@@ -3,7 +3,6 @@ experiment_name: mitoem_mednext_sdt
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT only
 system:
   training:
-    num_gpus: 4
     num_cpus: 8
     num_workers: 8
     batch_size: 16
