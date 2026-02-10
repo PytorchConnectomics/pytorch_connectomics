@@ -5,9 +5,7 @@ system:
   training:
     batch_size: 16
   inference:
-    num_cpus: 1
-    num_workers: 1
-    batch_size: 1
+    batch_size: 16
 model:
   input_size:
   - 112
