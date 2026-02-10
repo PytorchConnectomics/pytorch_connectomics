@@ -143,8 +143,8 @@ optimization:
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: bf16-mixed
-  deterministic: true
-  benchmark: false
+  deterministic: false
+  benchmark: true
   optimizer:
     name: AdamW
     lr: 0.004
