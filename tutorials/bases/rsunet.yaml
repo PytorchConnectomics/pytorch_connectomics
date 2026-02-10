@@ -1,4 +1,16 @@
 _base_: common.yaml
 
+
+system:
+  training:
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8
+  inference:
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8
+  seed: 42
+
 model:
   architecture: rsunet
