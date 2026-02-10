@@ -210,6 +210,16 @@ test:
   data:
     test_image: datasets/mito2d/test_images.h5
     test_label: datasets/mito2d/test_labels.h5
+    # Physical voxel spacing [z, y, x] (required for spacing-aware resampling)
+    test_resolution: [30.0, 8.0, 8.0]
+    nnunet_preprocessing:
+      enabled: true
+      crop_to_nonzero: true
+      # Keep null to skip spacing resampling; set explicit spacing to match model plans.
+      target_spacing: null
+      normalization: zscore
+      normalization_use_nonzero_mask: true
+      restore_to_input_space: true
 
   evaluation:
     enabled: true

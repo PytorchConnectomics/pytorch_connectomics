@@ -350,6 +350,31 @@ class ImageTransformConfig:
 
 
 @dataclass
+class NNUNetPreprocessingConfig:
+    """nnU-Net-style preprocessing configuration.
+
+    This block controls preprocessing that should mirror nnU-Net's behavior:
+    - foreground crop
+    - spacing-aware resampling
+    - z-score or simple intensity normalization
+    - optional restoration to input space before saving predictions
+    """
+
+    enabled: bool = False
+    crop_to_nonzero: bool = True
+    target_spacing: Optional[List[float]] = None  # [z, y, x] for 3D, [y, x] for 2D
+    source_spacing: Optional[List[float]] = None  # If None, falls back to *_resolution fields
+    normalization: str = "zscore"  # "zscore", "none", "0-1", or "divide-K"
+    normalization_use_nonzero_mask: bool = True
+    force_separate_z: Optional[bool] = None  # None = auto
+    anisotropy_threshold: float = 3.0
+    image_order: int = 3
+    label_order: int = 0
+    order_z: int = 0
+    restore_to_input_space: bool = True
+
+
+@dataclass
 class DataConfig:
     """Dataset and data loading configuration.
 
@@ -438,6 +463,9 @@ class DataConfig:
 
     # Image transformation (applied to image only)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
 
     # Sampling (for volumetric datasets)
     iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
@@ -888,6 +916,9 @@ class InferenceDataConfig:
 
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
 
     # 2D data support
     do_2d: bool = False  # Enable 2D data processing for inference
@@ -1120,6 +1151,9 @@ class TestDataConfig:
     cache_suffix: str = "_prediction.h5"
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
     # Label transformation (optional). Typically unused in test mode to preserve raw labels
     label_transform: Optional[LabelTransformConfig] = None
 
@@ -1145,6 +1179,9 @@ class TuneDataConfig:
     tune_resolution: Optional[List[int]] = None
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
     # Label transformation (optional). Typically unused in tune mode to preserve raw labels
     label_transform: Optional[LabelTransformConfig] = None
 

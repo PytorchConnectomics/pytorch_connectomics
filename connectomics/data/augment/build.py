@@ -26,6 +26,7 @@ from monai.transforms import (
 
 # Import custom loader for HDF5/TIFF volumes
 from connectomics.data.dataset.dataset_volume import LoadVolumed
+from connectomics.data.io import NNUNetPreprocessd
 
 from .monai_transforms import (
     RandMisAlignmentd,
@@ -84,6 +85,32 @@ def build_train_transforms(
             transforms.append(
                 LoadVolumed(keys=keys, transpose_axes=train_transpose if train_transpose else None)
             )
+
+    nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
+    nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
+    if not skip_loading and nnunet_pre_enabled:
+        source_spacing = (
+            getattr(nnunet_pre_cfg, "source_spacing", None) or getattr(cfg.data, "train_resolution", None)
+        )
+        transforms.append(
+            NNUNetPreprocessd(
+                keys=keys,
+                image_key="image",
+                enabled=True,
+                crop_to_nonzero=getattr(nnunet_pre_cfg, "crop_to_nonzero", True),
+                source_spacing=source_spacing,
+                target_spacing=getattr(nnunet_pre_cfg, "target_spacing", None),
+                normalization=getattr(nnunet_pre_cfg, "normalization", "zscore"),
+                normalization_use_nonzero_mask=getattr(
+                    nnunet_pre_cfg, "normalization_use_nonzero_mask", True
+                ),
+                force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
+                anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
+                image_order=getattr(nnunet_pre_cfg, "image_order", 3),
+                label_order=getattr(nnunet_pre_cfg, "label_order", 0),
+                order_z=getattr(nnunet_pre_cfg, "order_z", 0),
+            )
+        )
 
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
@@ -144,7 +171,7 @@ def build_train_transforms(
             )
 
     # Normalization - use smart normalization
-    if cfg.data.image_transform.normalize != "none":
+    if (not nnunet_pre_enabled) and cfg.data.image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=["image"],
@@ -289,6 +316,43 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
                 LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
             )
 
+    nnunet_pre_cfg = None
+    source_spacing = None
+    if mode == "test":
+        if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
+            nnunet_pre_cfg = getattr(cfg.test.data, "nnunet_preprocessing", None)
+            source_spacing = getattr(cfg.test.data, "test_resolution", None)
+    elif mode == "tune":
+        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
+            nnunet_pre_cfg = getattr(cfg.tune.data, "nnunet_preprocessing", None)
+            source_spacing = getattr(cfg.tune.data, "tune_resolution", None)
+    else:
+        nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
+        source_spacing = getattr(cfg.data, "train_resolution", None)
+
+    nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
+    if not skip_loading and nnunet_pre_enabled:
+        source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
+        transforms.append(
+            NNUNetPreprocessd(
+                keys=keys,
+                image_key="image",
+                enabled=True,
+                crop_to_nonzero=getattr(nnunet_pre_cfg, "crop_to_nonzero", True),
+                source_spacing=source_spacing,
+                target_spacing=getattr(nnunet_pre_cfg, "target_spacing", None),
+                normalization=getattr(nnunet_pre_cfg, "normalization", "zscore"),
+                normalization_use_nonzero_mask=getattr(
+                    nnunet_pre_cfg, "normalization_use_nonzero_mask", True
+                ),
+                force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
+                anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
+                image_order=getattr(nnunet_pre_cfg, "image_order", 3),
+                label_order=getattr(nnunet_pre_cfg, "label_order", 0),
+                order_z=getattr(nnunet_pre_cfg, "order_z", 0),
+            )
+        )
+
     # Apply volumetric split if enabled
     if cfg.data.split_enabled:
         from connectomics.data.utils import ApplyVolumetricSplitd
@@ -394,7 +458,7 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     elif mode == "val":
         image_transform = cfg.data.image_transform
 
-    if image_transform is not None and image_transform.normalize != "none":
+    if (not nnunet_pre_enabled) and image_transform is not None and image_transform.normalize != "none":
         transforms.append(
             SmartNormalizeIntensityd(
                 keys=["image"],
