@@ -98,6 +98,14 @@ def parse_args():
         help="Run N batches for quick debugging (default: 0, no argument defaults to 1)",
     )
     parser.add_argument(
+        "--nnunet-preprocess",
+        action="store_true",
+        help=(
+            "Enable nnU-Net-style preprocessing (foreground crop, spacing-aware "
+            "resampling, normalization) for this run"
+        ),
+    )
+    parser.add_argument(
         "--external-prefix",
         type=str,
         default=None,
@@ -249,6 +257,18 @@ def setup_config(args) -> Config:
         if cfg.inference.num_workers >= 0:
             print(f"🔧 Inference override: num_workers={cfg.inference.num_workers}")
             cfg.system.inference.num_workers = cfg.inference.num_workers
+
+    # Optional convenience toggle to enable nnU-Net preprocessing via CLI
+    if getattr(args, "nnunet_preprocess", False):
+        print("🔧 Enabling nnU-Net preprocessing from CLI flag")
+        if hasattr(cfg, "data") and hasattr(cfg.data, "nnunet_preprocessing"):
+            cfg.data.nnunet_preprocessing.enabled = True
+        if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "data"):
+            if hasattr(cfg.test.data, "nnunet_preprocessing"):
+                cfg.test.data.nnunet_preprocessing.enabled = True
+        if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
+            if hasattr(cfg.tune.data, "nnunet_preprocessing"):
+                cfg.tune.data.nnunet_preprocessing.enabled = True
 
     # Auto-planning (if enabled)
     if hasattr(cfg.system, "auto_plan") and cfg.system.auto_plan:
