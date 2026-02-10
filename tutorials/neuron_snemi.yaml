@@ -1,12 +1,12 @@
 _base_: bases/rsunet.yaml
-experiment_name: rsunet_snemi_aug3_long
-description: SNEMI3D neuron segmentation with RSUNet (long-range affinities, EM augmentations)
+experiment_name: rsunet_snemi_lee2017_modern
+description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 system:
   training:
     num_gpus: 4
     num_cpus: 8
     num_workers: 8
-    batch_size: 8
+    batch_size: 4
   inference:
     num_cpus: 1
     num_workers: 4
@@ -40,21 +40,27 @@ model:
   deep_supervision: false
   loss_functions:
   - WeightedBCEWithLogitsLoss
+  - DiceLoss
   loss_weights:
   - 1.0
+  - 0.5
   loss_kwargs:
   - pos_weight: 10.0
+    reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-05
+    smooth_dr: 1e-05
 data:
   train_image: datasets/SNEMI/train-input.tif
   train_label: datasets/SNEMI/train-labels.tif
   patch_size:
   - 16
-  - 160
-  - 160
+  - 224
+  - 224
   pad_size:
-  - 0
-  - 0
-  - 0
+  - 4
+  - 64
+  - 64
   iter_num_per_epoch: 1280
   use_preloaded_cache: true
   image_transform:
@@ -112,45 +118,55 @@ data:
       - 1.5
     misalignment:
       enabled: true
-      prob: 0.5
-      displacement: 17
-      rotate_ratio: 0.5
+      prob: 0.6
+      displacement: 25
+      rotate_ratio: 0.3
     missing_section:
       enabled: true
-      prob: 0.3
-      num_sections: 5
+      prob: 0.4
+      num_sections: 7
     motion_blur:
       enabled: true
-      prob: 0.3
-      sections: 2
+      prob: 0.4
+      sections: 3
       kernel_size: 11
     cut_noise:
       enabled: false
     cut_blur:
       enabled: false
     missing_parts:
-      enabled: false
+      enabled: true
+      prob: 0.2
+      hole_range:
+      - 0.1
+      - 0.25
 optimization:
   max_epochs: 500
-  gradient_clip_val: 0.0
+  gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: bf16-mixed
-  deterministic: false
-  benchmark: true
+  deterministic: true
+  benchmark: false
   optimizer:
-    name: Adam
-    lr: 0.01
-    eps: 0.01
-    weight_decay: 0.0
+    name: AdamW
+    lr: 0.004
+    eps: 1.0e-08
+    betas:
+    - 0.9
+    - 0.999
+    weight_decay: 0.0001
   scheduler:
-    name: ReduceLROnPlateau
-    mode: min
-    factor: 0.5
-    patience: 10000
-    min_lr: 6.25e-05
-    threshold: 0.0001
-    cooldown: 0
-    monitor: train_loss_total_epoch
+    name: WarmupCosineLR
+    warmup_epochs: 10
+    warmup_start_lr: 0.001
+    min_lr: 1.0e-05
+    interval: epoch
+    frequency: 1
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 500
+    validate_with_ema: true
 monitor:
   logging:
     scalar:
@@ -167,7 +183,7 @@ monitor:
     monitor: val/loss
     save_top_k: 3
     save_every_n_epochs: 10
-    dirpath: outputs/rsunet_snemi_aug3_long/checkpoints/
+    dirpath: outputs/rsunet_snemi_lee2017_modern/checkpoints/
     checkpoint_filename: epoch={epoch:03d}-step={step:07d}-val_loss={val/loss:.4f}
   early_stopping:
     enabled: false
@@ -179,31 +195,44 @@ test:
     - 30
     - 6
     - 6
-    output_path: outputs/rsunet_snemi_aug3_long/results/
+    output_path: outputs/rsunet_snemi_lee2017_modern/results/
+  decoding:
+  - name: decode_affinity_cc
+    kwargs:
+      threshold: 0.5
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand
+    - voi
 inference:
   sliding_window:
     window_size:
     - 16
-    - 180
-    - 180
-    sw_batch_size: 4
+    - 256
+    - 256
+    sw_batch_size: 2
     overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
     padding_mode: reflect
   test_time_augmentation:
     enabled: true
-    flip_axes: null
+    flip_axes: all
+    ensemble_mode: min
     channel_activations:
     - - 0
       - 12
-      - softmax
-    select_channel:
-    - 1
+      - sigmoid
+    select_channel: null
   save_prediction:
     enabled: true
-    intensity_scale: 255
-    intensity_dtype: uint8
+    intensity_scale: -1.0
+    intensity_dtype: float32
+  decoding:
+  - name: decode_affinity_cc
+    kwargs:
+      threshold: 0.5
   evaluation:
     enabled: false
     metrics:
