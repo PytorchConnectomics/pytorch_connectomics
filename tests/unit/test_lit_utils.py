@@ -14,7 +14,13 @@ from connectomics.training.lit.utils import (
 )
 
 
-def _make_args(config_path: Path, overrides=None, fast_dev_run: int = 0, mode: str = "train"):
+def _make_args(
+    config_path: Path,
+    overrides=None,
+    fast_dev_run: int = 0,
+    mode: str = "train",
+    nnunet_preprocess: bool = False,
+):
     return argparse.Namespace(
         config=str(config_path),
         demo=False,
@@ -29,6 +35,7 @@ def _make_args(config_path: Path, overrides=None, fast_dev_run: int = 0, mode: s
         params=None,
         param_source=None,
         tune_trials=None,
+        nnunet_preprocess=nnunet_preprocess,
         overrides=overrides or [],
     )
 
@@ -54,6 +61,19 @@ def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
     assert updated.optimization.max_epochs == 5
     assert updated.system.training.batch_size == 2
     assert updated.system.training.num_workers == 0  # forced by fast-dev-run
+
+
+def test_setup_config_enables_nnunet_preprocess_from_cli_switch(tmp_path):
+    cfg = Config()
+    assert cfg.data.nnunet_preprocessing.enabled is False
+
+    cfg_path = tmp_path / "config.yaml"
+    save_config(cfg, cfg_path)
+
+    args = _make_args(cfg_path, nnunet_preprocess=True)
+    updated = setup_config(args)
+
+    assert updated.data.nnunet_preprocessing.enabled is True
 
 
 def test_expand_file_paths_handles_globs_and_lists(tmp_path):

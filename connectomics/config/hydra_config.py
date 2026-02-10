@@ -24,7 +24,7 @@ Example usage:
     from connectomics.config.hydra_utils import load_config
 
     # Load configuration from YAML
-    cfg = load_config("tutorials/monai_lucchi++.yaml")
+    cfg = load_config("tutorials/mito_lucchi++.yaml")
 
     # Access configuration sections
     print(f"Model architecture: {cfg.model.architecture}")
@@ -37,9 +37,10 @@ Example usage:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field, is_dataclass
-from typing import Dict, List, Optional, Tuple, Any, Union
+
 import inspect
+from dataclasses import dataclass, field, is_dataclass
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Note: MISSING can be imported from omegaconf if needed for required fields
 
@@ -349,6 +350,31 @@ class ImageTransformConfig:
 
 
 @dataclass
+class NNUNetPreprocessingConfig:
+    """nnU-Net-style preprocessing configuration.
+
+    This block controls preprocessing that should mirror nnU-Net's behavior:
+    - foreground crop
+    - spacing-aware resampling
+    - z-score or simple intensity normalization
+    - optional restoration to input space before saving predictions
+    """
+
+    enabled: bool = False
+    crop_to_nonzero: bool = True
+    target_spacing: Optional[List[float]] = None  # [z, y, x] for 3D, [y, x] for 2D
+    source_spacing: Optional[List[float]] = None  # If None, falls back to *_resolution fields
+    normalization: str = "zscore"  # "zscore", "none", "0-1", or "divide-K"
+    normalization_use_nonzero_mask: bool = True
+    force_separate_z: Optional[bool] = None  # None = auto
+    anisotropy_threshold: float = 3.0
+    image_order: int = 3
+    label_order: int = 0
+    order_z: int = 0
+    restore_to_input_space: bool = True
+
+
+@dataclass
 class DataConfig:
     """Dataset and data loading configuration.
 
@@ -437,6 +463,9 @@ class DataConfig:
 
     # Image transformation (applied to image only)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
 
     # Sampling (for volumetric datasets)
     iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
@@ -887,6 +916,9 @@ class InferenceDataConfig:
 
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
 
     # 2D data support
     do_2d: bool = False  # Enable 2D data processing for inference
@@ -946,7 +978,8 @@ class SavePredictionConfig:
         enabled: Enable saving intermediate predictions (default: True)
         intensity_scale: Scale factor for predictions (e.g., 255 for uint8 visualization)
         intensity_dtype: Data type for saved predictions (e.g., 'uint8', 'float32')
-        output_formats: List of output formats to save predictions in (e.g., ['h5', 'tiff', 'nii.gz'])
+        output_formats: List of output formats to save predictions
+                       (e.g., ['h5', 'tiff', 'nii.gz'])
                        Supported formats: 'h5', 'tiff', 'nii', 'nii.gz', 'png'
                        Default: ['h5', 'nii.gz'] for backward compatibility
     """
@@ -1118,6 +1151,9 @@ class TestDataConfig:
     cache_suffix: str = "_prediction.h5"
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
     # Label transformation (optional). Typically unused in test mode to preserve raw labels
     label_transform: Optional[LabelTransformConfig] = None
 
@@ -1143,6 +1179,9 @@ class TuneDataConfig:
     tune_resolution: Optional[List[int]] = None
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    nnunet_preprocessing: NNUNetPreprocessingConfig = field(
+        default_factory=NNUNetPreprocessingConfig
+    )
     # Label transformation (optional). Typically unused in tune mode to preserve raw labels
     label_transform: Optional[LabelTransformConfig] = None
 

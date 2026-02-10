@@ -1,0 +1,245 @@
+_base_: bases/mednext.yaml
+experiment_name: fiber_mednext_bcs
+description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
+system:
+  training:
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8
+    batch_size: 4
+  inference:
+    num_cpus: 1
+    num_workers: 1
+    batch_size: 8
+  seed: 42
+model:
+  out_channels: 3
+  input_size:
+  - 32
+  - 96
+  - 96
+  output_size:
+  - 32
+  - 96
+  - 96
+  mednext_size: S
+  mednext_kernel_size: 3
+  deep_supervision: false
+  loss_functions:
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  - WeightedMSELoss
+  loss_weights:
+  - 1.0
+  - 0.5
+  - 1.0
+  - 0.5
+  - 4.0
+  loss_kwargs:
+  - reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+  - reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+  - tanh: true
+  multi_task_config:
+  - - 0
+    - 1
+    - binary
+    - - 0
+      - 1
+  - - 1
+    - 2
+    - instance_boundary
+    - - 2
+      - 3
+  - - 2
+    - 3
+    - skeleton_aware_edt
+    - - 4
+data:
+  train_path: /projects/weilab/dataset/barcode/train_r2/
+  train_image:
+  - PT37/*_raw.tif
+  - CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif
+  - DG_LZ58/*-raw.tif
+  train_label:
+  - PT37/*-mask.tif
+  - CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif
+  - DG_LZ58/*-mask.tif
+  train_resolution:
+  - 40
+  - 16
+  - 16
+  use_preloaded_cache: true
+  persistent_workers: false
+  patch_size:
+  - 32
+  - 96
+  - 96
+  iter_num_per_epoch: 1000
+  image_transform:
+    clip_percentile_low: 0.005
+    clip_percentile_high: 0.995
+    pad_size:
+    - 8
+    - 16
+    - 16
+    pad_mode: reflect
+  label_transform:
+    targets:
+    - name: binary
+      kwargs: {}
+    - name: instance_boundary
+      kwargs:
+        thickness: 1
+        edge_mode: all
+        mode: 2d
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution:
+        - 40
+        - 16
+        - 16
+        alpha: 1
+        bg_value: -1.0
+        relabel: true
+  augmentation:
+    preset: some
+    flip:
+      enabled: true
+    rotate:
+      enabled: true
+      spatial_axes:
+      - 1
+      - 2
+    affine:
+      enabled: true
+      prob: 0.5
+      rotate_range:
+      - 0.2
+      - 0.2
+      - 0.2
+      scale_range:
+      - 0.1
+      - 0.1
+      - 0.1
+      shear_range:
+      - 0.1
+      - 0.1
+      - 0.1
+    elastic:
+      enabled: true
+      prob: 0.3
+      sigma_range:
+      - 8.0
+      - 10.0
+      magnitude_range:
+      - 20.0
+      - 50.0
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0
+      shift_intensity_prob: 0.3
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.3
+      contrast_range:
+      - 0.7
+      - 1.4
+optimization:
+  max_epochs: 100
+  accumulate_grad_batches: 1
+  precision: 16-mixed
+  optimizer:
+    lr: 0.001
+    weight_decay: 0.01
+    eps: 1.0e-08
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+    warmup_start_lr: 1.0e-05
+    min_lr: 1.0e-06
+    t_max: 95
+monitor:
+  logging:
+    scalar:
+      loss:
+      - train_loss_total_epoch
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+    images:
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 1
+  checkpoint:
+    save_top_k: 3
+    save_every_n_epochs: 5
+  early_stopping:
+    monitor: train_loss_total_epoch
+    patience: 100
+    min_delta: 1.0e-05
+    threshold: 0.01
+    divergence_threshold: 100.0
+test:
+  data:
+    test_image:
+    - /projects/weilab/dataset/barcode/train_r2/DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif
+    test_label:
+    - /projects/weilab/dataset/barcode/train_r2/DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif
+    test_resolution:
+    - 40
+    - 16
+    - 16
+inference:
+  sliding_window:
+    window_size:
+    - 32
+    - 256
+    - 256
+    stride:
+    - 16
+    - 128
+    - 128
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: reflect
+    pad_size:
+    - 16
+    - 32
+    - 32
+  test_time_augmentation:
+    enabled: true
+    channel_activations:
+    - - 0
+      - 1
+      - sigmoid
+    - - 1
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
+  decoding:
+  - name: decode_binary_contour_distance_watershed
+    kwargs:
+      binary_threshold:
+      - 0.9
+      - 0.85
+      contour_threshold:
+      - 0.8
+      - 1.1
+      distance_threshold:
+      - 0.5
+      - -0.5
+      min_instance_size: 100
+      min_seed_size: 20
+      prediction_scale: 1
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand

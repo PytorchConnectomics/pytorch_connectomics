@@ -1,0 +1,157 @@
+_base_: bases/monai_unet.yaml
+experiment_name: lucchi++
+description: Mitochondria segmentation on Lucchi++ EM dataset
+system:
+  training:
+    batch_size: 16
+  inference:
+    num_cpus: 1
+    num_workers: 1
+    batch_size: 1
+model:
+  input_size:
+  - 112
+  - 112
+  - 112
+  output_size:
+  - 112
+  - 112
+  - 112
+  out_channels: 1
+  dropout: 0.1
+  upsample: deconv
+  rsunet_norm: batch
+  mednext_size: S
+  mednext_kernel_size: 3
+  deep_supervision: false
+  loss_functions:
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  loss_weights:
+  - 1.0
+  - 1.0
+  loss_kwargs:
+  - reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+data:
+  train_image: datasets/lucchi++/train_im.h5
+  train_label: datasets/lucchi++/train_mito.h5
+  train_resolution:
+  - 5
+  - 5
+  - 5
+  patch_size:
+  - 112
+  - 112
+  - 112
+  pad_size:
+  - 0
+  - 0
+  - 0
+  augmentation:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis:
+      - 0
+      - 1
+      - 2
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes:
+      - 0
+      - 1
+      - 2
+    affine:
+      enabled: true
+      prob: 0.3
+      rotate_range:
+      - 0.1
+      - 0.1
+      - 0.1
+      scale_range:
+      - 0.05
+      - 0.05
+      - 0.05
+      shear_range:
+      - 0.05
+      - 0.05
+      - 0.05
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.2
+      gaussian_noise_std: 0.03
+      shift_intensity_prob: 0.4
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.4
+      contrast_range:
+      - 0.8
+      - 1.2
+    misalignment:
+      enabled: true
+      prob: 0.4
+      displacement: 8
+      rotate_ratio: 0.3
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 2
+    motion_blur:
+      enabled: true
+      prob: 0.3
+      sections: 2
+      kernel_size: 9
+optimization:
+  gradient_clip_val: 0.5
+  optimizer:
+    name: Adam
+    weight_decay: 0.0
+  scheduler:
+    name: ReduceLROnPlateau
+    mode: min
+    factor: 0.5
+    patience: 50
+    threshold: 0.0001
+    monitor: train_loss_total_epoch
+monitor:
+  logging:
+    images:
+      max_images: 8
+      num_slices: 2
+      channel_mode: argmax
+  early_stopping:
+    patience: 100
+    min_delta: 0.0001
+    threshold: 0.02
+    divergence_threshold: 2.0
+inference:
+  sliding_window:
+    window_size:
+    - 112
+    - 112
+    - 112
+    sw_batch_size: 1
+    overlap: 0.25
+    padding_mode: replicate
+  test_time_augmentation:
+    flip_axes: all
+    channel_activations:
+    - - 0
+      - 1
+      - sigmoid
+test:
+  data:
+    test_image: datasets/lucchi++/test_im.h5
+    test_label: datasets/lucchi++/test_mito.h5
+    test_resolution:
+    - 5
+    - 5
+    - 5
+  evaluation:
+    enabled: true
+    metrics:
+    - jaccard

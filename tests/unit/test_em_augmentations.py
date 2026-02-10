@@ -131,6 +131,8 @@ class TestRandMissingSectiond:
             num_sections=1,
         )
 
+        original_first = sample_data_dict["image"][0, 0, :, :].clone()
+        original_last = sample_data_dict["image"][0, -1, :, :].clone()
         original_depth = sample_data_dict["image"].shape[1]
 
         # Run multiple times
@@ -138,12 +140,9 @@ class TestRandMissingSectiond:
             result = transform(sample_data_dict.copy())
             # Shape should be preserved
             assert result["image"].shape[1] == original_depth
-            # First and last sections should not be zero (preserved)
-            first_sum = result["image"][0, 0, :, :].sum()
-            last_sum = result["image"][0, -1, :, :].sum()
-            # First and last should have non-zero values (preserved)
-            assert first_sum > 0
-            assert last_sum > 0
+            # First and last sections should be unchanged (preserved)
+            assert torch.equal(result["image"][0, 0, :, :], original_first)
+            assert torch.equal(result["image"][0, -1, :, :], original_last)
 
     def test_probability_control(self, sample_data_dict):
         """Test probability control."""

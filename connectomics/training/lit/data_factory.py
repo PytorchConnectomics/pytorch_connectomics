@@ -478,7 +478,7 @@ def create_datamodule(
             # Get volume sizes
             volume_sizes = []
             for data_dict in train_data_dicts:
-                img_path = Path(data_dict["image"])
+                img_path = Path(str(data_dict["image"]))
                 if img_path.suffix in [".h5", ".hdf5"]:
                     with h5py.File(img_path, "r") as f:
                         vol_shape = f[list(f.keys())[0]].shape
@@ -516,7 +516,7 @@ def create_datamodule(
 
     # For test/tune modes, disable iter_num (process full volumes once)
     if mode in ["test", "tune"]:
-        iter_num_for_dataset = -1  # Process full volumes without random sampling
+        iter_num_for_dataset: int | None = -1  # Process full volumes without random sampling
     else:
         iter_num_for_dataset = iter_num
 

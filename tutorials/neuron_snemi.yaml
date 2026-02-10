@@ -1,0 +1,239 @@
+_base_: bases/rsunet.yaml
+experiment_name: rsunet_snemi_lee2017_modern
+description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
+system:
+  training:
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8
+    batch_size: 4
+  inference:
+    num_cpus: 1
+    num_workers: 4
+    batch_size: 1
+  seed: 42
+model:
+  out_channels: 12
+  filters:
+  - 36
+  - 48
+  - 64
+  - 80
+  rsunet_norm: batch
+  rsunet_activation: elu
+  rsunet_num_groups: 8
+  rsunet_down_factors:
+  - - 1
+    - 2
+    - 2
+  - - 1
+    - 2
+    - 2
+  - - 1
+    - 2
+    - 2
+  rsunet_depth_2d: 1
+  rsunet_kernel_2d:
+  - 1
+  - 3
+  - 3
+  deep_supervision: false
+  loss_functions:
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  loss_weights:
+  - 1.0
+  - 0.5
+  loss_kwargs:
+  - pos_weight: 10.0
+    reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-05
+    smooth_dr: 1e-05
+data:
+  train_image: datasets/SNEMI/train-input.tif
+  train_label: datasets/SNEMI/train-labels.tif
+  patch_size:
+  - 16
+  - 224
+  - 224
+  pad_size:
+  - 4
+  - 64
+  - 64
+  iter_num_per_epoch: 1280
+  use_preloaded_cache: true
+  image_transform:
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+  label_transform:
+    erosion: 1
+    targets:
+    - name: affinity
+      kwargs:
+        offsets:
+        - 0-0-1
+        - 0-1-0
+        - 1-0-0
+        - 2-0-0
+        - 3-0-0
+        - 4-0-0
+        - 0-0-3
+        - 0-0-9
+        - 0-0-27
+        - 0-3-0
+        - 0-9-0
+        - 0-27-0
+  augmentation:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis:
+      - 0
+      - 1
+      - 2
+    rotate:
+      enabled: true
+      prob: 0.5
+      max_angle: 90.0
+    elastic:
+      enabled: true
+      prob: 0.7
+      sigma_range:
+      - 4.0
+      - 8.0
+      magnitude_range:
+      - 8.0
+      - 16.0
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05
+      shift_intensity_prob: 0.7
+      shift_intensity_offset: 0.2
+      contrast_prob: 0.7
+      contrast_range:
+      - 0.5
+      - 1.5
+    misalignment:
+      enabled: true
+      prob: 0.6
+      displacement: 25
+      rotate_ratio: 0.3
+    missing_section:
+      enabled: true
+      prob: 0.4
+      num_sections: 7
+    motion_blur:
+      enabled: true
+      prob: 0.4
+      sections: 3
+      kernel_size: 11
+    cut_noise:
+      enabled: false
+    cut_blur:
+      enabled: false
+    missing_parts:
+      enabled: true
+      prob: 0.2
+      hole_range:
+      - 0.1
+      - 0.25
+optimization:
+  max_epochs: 500
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: bf16-mixed
+  deterministic: true
+  benchmark: false
+  optimizer:
+    name: AdamW
+    lr: 0.004
+    eps: 1.0e-08
+    betas:
+    - 0.9
+    - 0.999
+    weight_decay: 0.0001
+  scheduler:
+    name: WarmupCosineLR
+    warmup_epochs: 10
+    warmup_start_lr: 0.001
+    min_lr: 1.0e-05
+    interval: epoch
+    frequency: 1
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 500
+    validate_with_ema: true
+monitor:
+  logging:
+    scalar:
+      loss:
+      - train_loss_total_epoch
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+    images:
+      max_images: 8
+      num_slices: 8
+      log_every_n_epochs: 1
+      channel_mode: all
+  checkpoint:
+    monitor: val/loss
+    save_top_k: 3
+    save_every_n_epochs: 10
+    dirpath: outputs/rsunet_snemi_lee2017_modern/checkpoints/
+    checkpoint_filename: epoch={epoch:03d}-step={step:07d}-val_loss={val/loss:.4f}
+  early_stopping:
+    enabled: false
+test:
+  data:
+    test_image: datasets/SNEMI/train-input.tif
+    test_label: datasets/SNEMI/train-labels.tif
+    test_resolution:
+    - 30
+    - 6
+    - 6
+    output_path: outputs/rsunet_snemi_lee2017_modern/results/
+  decoding:
+  - name: decode_affinity_cc
+    kwargs:
+      threshold: 0.5
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand
+    - voi
+inference:
+  sliding_window:
+    window_size:
+    - 16
+    - 256
+    - 256
+    sw_batch_size: 2
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: reflect
+  test_time_augmentation:
+    enabled: true
+    flip_axes: all
+    ensemble_mode: min
+    channel_activations:
+    - - 0
+      - 12
+      - sigmoid
+    select_channel: null
+  save_prediction:
+    enabled: true
+    intensity_scale: -1.0
+    intensity_dtype: float32
+  decoding:
+  - name: decode_affinity_cc
+    kwargs:
+      threshold: 0.5
+  evaluation:
+    enabled: false
+    metrics:
+    - adapted_rand

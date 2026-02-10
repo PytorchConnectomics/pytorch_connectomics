@@ -1,0 +1,33 @@
+# Shared tutorial defaults used by top-level tutorials/*.yaml.
+
+system:
+  inference:
+    num_gpus: 1
+
+model:
+  in_channels: 1
+
+data:
+  image_transform:
+    normalize: "0-1"
+
+optimization:
+  optimizer:
+    betas: [0.9, 0.999]
+
+monitor:
+  detect_anomaly: false
+  logging:
+    scalar:
+      benchmark: true
+    images:
+      enabled: true
+      selected_channels: null
+  checkpoint:
+    mode: min
+    save_last: true
+    use_timestamp: true
+
+inference:
+  test_time_augmentation:
+    ensemble_mode: mean

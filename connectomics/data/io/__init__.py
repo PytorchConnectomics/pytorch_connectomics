@@ -52,6 +52,7 @@ from .utils import (
 # MONAI transforms
 from .monai_transforms import (
     LoadVolumed,
+    NNUNetPreprocessd,
     SaveVolumed,
     TileLoaderd,
 )
@@ -87,6 +88,7 @@ __all__ = [
     "squeeze_arrays",
     # MONAI transforms
     "LoadVolumed",
+    "NNUNetPreprocessd",
     "SaveVolumed",
     "TileLoaderd",
 ]
