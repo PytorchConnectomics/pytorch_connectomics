@@ -1,0 +1,313 @@
+# Optuna-based Decoding Parameter Tuning
+#
+# This configuration demonstrates automated hyperparameter optimization for
+# post-processing/decoding parameters using Optuna (Bayesian optimization).
+#
+# Usage:
+#   python scripts/tune_decoding.py --config tutorials/optuna_decoding_tuning.yaml
+#
+# Features:
+#   - Automatic hyperparameter optimization using Optuna TPE sampler
+#   - Multi-objective optimization support (e.g., maximize precision AND recall)
+#   - Smart parameter space definition with categorical, integer, and float ranges
+#   - Early stopping with pruning for inefficient trials
+#   - Visualization of optimization history and parameter importance
+#   - Integration with ground truth metrics (adapted_rand, VOI, etc.)
+
+experiment_name: optuna_decoding_tuning
+description: Automated optimization of decoding parameters using Optuna
+
+# ============================================================================
+# SYSTEM CONFIGURATION
+# ============================================================================
+system:
+  num_gpus: 1
+  num_cpus: 8
+  seed: 42
+
+# ============================================================================
+# DATA CONFIGURATION
+# ============================================================================
+data:
+  # Validation data for parameter tuning
+  val_image: "datasets/hydra/val_image.h5"
+  val_label: "datasets/hydra/val_label.h5"
+
+  # Optional: skeleton file for skeleton-based metrics (NERL, VOI)
+  skeleton_path: null  # "datasets/hydra/val_skeleton.pkl"
+
+  # Data properties
+  patch_size: [128, 128, 128]
+  batch_size: 1
+
+  # Resolution for evaluation (optional)
+  val_resolution: [30, 6, 6]  # [z, y, x] in nm
+
+# ============================================================================
+# MODEL CONFIGURATION
+# ============================================================================
+model:
+  # Pre-trained model checkpoint to use for predictions
+  checkpoint: "outputs/hydra_lv_rsunet/checkpoints/best_model.ckpt"
+
+  # Architecture (must match trained model)
+  architecture: rsunet
+  in_channels: 1
+  out_channels: 3  # Binary + Boundary + Distance
+
+# ============================================================================
+# INFERENCE CONFIGURATION
+# ============================================================================
+inference:
+  # Test-time augmentation for better predictions
+  test_time_augmentation:
+    enabled: true
+    flip_axes: null  # Use all flips
+    ensemble_mode: mean
+    channel_activations:
+      - [0, 1, sigmoid]  # Binary
+      - [1, 2, sigmoid]  # Boundary
+      - [2, 3, tanh]     # Distance
+
+  # Run inference once before tuning (set to false to load pre-computed predictions)
+  run_inference: true
+
+  # Path to pre-computed predictions (if run_inference=false)
+  prediction_path: null  # "outputs/predictions/val_prediction.h5"
+
+# ============================================================================
+# OPTUNA OPTIMIZATION CONFIGURATION
+# ============================================================================
+optuna:
+  # -------------------------------------------------------------------------
+  # General Settings
+  # -------------------------------------------------------------------------
+
+  # Number of optimization trials
+  n_trials: 100
+
+  # Timeout for optimization (in seconds, null for no timeout)
+  timeout: null  # 3600  # 1 hour
+
+  # Study name (for resuming optimization)
+  study_name: "hydra_lv_decoding_optimization"
+
+  # Storage backend for study (for distributed optimization or resuming)
+  # Options: "sqlite:///optuna_study.db", "postgresql://...", null (in-memory)
+  storage: "sqlite:///outputs/optuna_studies/decoding_tuning.db"
+
+  # Load existing study if found (resume optimization)
+  load_if_exists: true
+
+  # -------------------------------------------------------------------------
+  # Sampler Configuration
+  # -------------------------------------------------------------------------
+  sampler:
+    name: TPE  # Tree-structured Parzen Estimator (recommended)
+    # Other options: Random, CmaEs, NSGAIIISampler (for multi-objective)
+
+    # TPE sampler settings
+    kwargs:
+      n_startup_trials: 10  # Random trials before TPE kicks in
+      n_ei_candidates: 24   # Number of candidates for expected improvement
+      multivariate: true    # Consider parameter interactions
+
+  # -------------------------------------------------------------------------
+  # Pruner Configuration (Early Stopping)
+  # -------------------------------------------------------------------------
+  pruner:
+    enabled: false  # Disable for post-processing (no intermediate values)
+    name: MedianPruner
+    kwargs:
+      n_startup_trials: 5
+      n_warmup_steps: 0
+
+  # -------------------------------------------------------------------------
+  # Optimization Objective
+  # -------------------------------------------------------------------------
+  optimization:
+    # Optimization mode: 'single' or 'multi'
+    mode: single
+
+    # ========================================================================
+    # SINGLE-OBJECTIVE OPTIMIZATION
+    # ========================================================================
+    single_objective:
+      # Metric to optimize
+      # Options: adapted_rand, voi_sum, nerl, precision, recall, f1_score, iou
+      metric: adapted_rand
+
+      # Direction: 'maximize' or 'minimize'
+      direction: maximize
+
+    # ========================================================================
+    # MULTI-OBJECTIVE OPTIMIZATION (Pareto front)
+    # ========================================================================
+    multi_objective:
+      # Multiple metrics to optimize simultaneously
+      objectives:
+        - metric: adapted_rand
+          direction: maximize
+          weight: 1.0  # For scalarization (if needed)
+
+        - metric: voi_sum
+          direction: minimize
+          weight: 1.0
+
+      # Sampler for multi-objective (overrides sampler.name)
+      sampler: NSGAIIISampler  # NSGA-III for Pareto optimization
+
+# ============================================================================
+# PARAMETER SEARCH SPACE
+# ============================================================================
+parameter_space:
+  # Decoding function to optimize
+  # Options: decode_binary_contour_distance_watershed, decode_binary_watershed, etc.
+  decoder_name: decode_binary_contour_distance_watershed
+
+  # -------------------------------------------------------------------------
+  # Parameters to optimize
+  # -------------------------------------------------------------------------
+  # Format for each parameter:
+  #   param_name:
+  #     type: float | int | categorical | log_float | log_int
+  #     range: [min, max]  # For float/int
+  #     choices: [...]     # For categorical
+  #     step: X            # Optional step size for int/float
+  #     log: true/false    # Use log scale (for float/int)
+
+  parameters:
+    # Binary threshold (for foreground/background separation)
+    binary_threshold:
+      type: float
+      range: [0.5, 0.95]
+      step: 0.05
+      description: "Threshold for binary segmentation mask"
+
+    # Contour/boundary threshold (for instance separation)
+    contour_threshold:
+      type: float
+      range: [0.6, 1.2]
+      step: 0.05
+      description: "Threshold for boundary/contour detection"
+
+    # Distance threshold (for watershed seed placement)
+    distance_threshold:
+      type: float
+      range: [0.0, 0.8]
+      step: 0.05
+      description: "Threshold for distance transform (seed detection)"
+
+    # Minimum instance size (small object removal)
+    min_instance_size:
+      type: int
+      range: [8, 128]
+      step: 8
+      log: false
+      description: "Minimum size for instance objects (voxels)"
+
+    # Minimum seed size (for watershed)
+    min_seed_size:
+      type: int
+      range: [4, 64]
+      step: 4
+      log: false
+      description: "Minimum size for watershed seeds (voxels)"
+
+  # -------------------------------------------------------------------------
+  # Fixed parameters (not optimized)
+  # -------------------------------------------------------------------------
+  fixed_parameters:
+    use_numba: true
+    scale_factors: [1.0, 1.0, 1.0]
+    remove_small_mode: "background"
+
+# ============================================================================
+# EVALUATION CONFIGURATION
+# ============================================================================
+evaluation:
+  # Metrics to compute for each trial
+  metrics:
+    - adapted_rand      # Adapted Rand Error (0-1, higher better)
+    - voi_sum          # Variation of Information (lower better)
+    - voi_split        # Split component of VOI
+    - voi_merge        # Merge component of VOI
+
+  # Optional: skeleton-based metrics (requires skeleton_path)
+  skeleton_metrics:
+    enabled: false
+    metrics:
+      - nerl           # Normalized Expected Run Length (0-1, higher better)
+      - erl            # Expected Run Length
+      - n_mergers      # Number of merge errors
+      - n_splits       # Number of split errors
+
+  # Evaluation settings
+  foreground_only: true      # Only evaluate on foreground instances
+  ignore_background: true    # Ignore background in metrics
+
+  # Optional: custom metric weights for multi-objective scalarization
+  metric_weights:
+    adapted_rand: 1.0
+    voi_sum: -0.5  # Negative weight (lower is better)
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+output:
+  # Output directory for results
+  output_dir: "outputs/optuna_decoding_tuning"
+
+  # Save detailed results
+  save_all_trials: true          # Save metrics for all trials
+  save_best_segmentation: true   # Save segmentation from best trial
+  save_study: true               # Save Optuna study object
+
+  # Visualizations
+  visualizations:
+    enabled: true
+
+    # Optimization history plot
+    plot_optimization_history: true
+
+    # Parameter importance plot (which params matter most)
+    plot_param_importance: true
+
+    # Parallel coordinate plot (visualize parameter interactions)
+    plot_parallel_coordinate: true
+
+    # Slice plot (2D parameter space visualization)
+    plot_slice: true
+
+    # Contour plot (for 2-parameter interactions)
+    plot_contour: true
+
+    # Pareto front (for multi-objective optimization)
+    plot_pareto_front: true
+
+    # Format: png, pdf, html
+    format: png
+
+  # Reporting
+  report:
+    # Generate final report with best parameters
+    enabled: true
+
+    # Include top N trials in report
+    top_n_trials: 10
+
+    # Report format: markdown, html, json
+    format: markdown
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+logging:
+  verbose: true
+  log_file: "outputs/optuna_decoding_tuning/tuning.log"
+
+  # Optuna logging level
+  optuna_log_level: INFO  # DEBUG, INFO, WARNING, ERROR
+
+  # Progress bar for trials
+  show_progress_bar: true
