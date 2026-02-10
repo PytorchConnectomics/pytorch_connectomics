@@ -26,35 +26,18 @@ download-list:
 # Training Commands
 # ============================================================================
 
-# Train (e.g., just train fiber, just train lucchi++ monai_unet -- system.training.num_gpus=1)
-# If arch is omitted, uses default from config. Architecture options: monai_unet, monai_basic_unet3d, rsunet, mednext
-train dataset arch='' *ARGS='':
-    #!/usr/bin/env bash
-    if [ -z "{{arch}}" ]; then
-        python scripts/main.py --config tutorials/{{dataset}}.yaml {{ARGS}}
-    else
-        python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch}} {{ARGS}}
-    fi
+# Train (e.g., just train fiber, just train lucchi++ -- system.training.num_gpus=1)
+# Uses architecture specified in tutorials/{{dataset}}.yaml
+train dataset *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml {{ARGS}}
 
-# Resume training (e.g., just resume fiber ckpt.pt, just resume lucchi++ monai_unet ckpt.pt)
-resume dataset arch_or_ckpt ckpt_or_args='' *ARGS='':
-    #!/usr/bin/env bash
-    # Check if second arg looks like a checkpoint path
-    if [[ "{{arch_or_ckpt}}" == *.ckpt ]] || [[ "{{arch_or_ckpt}}" == */* ]]; then
-        python scripts/main.py --config tutorials/{{dataset}}.yaml --checkpoint {{arch_or_ckpt}} {{ckpt_or_args}} {{ARGS}}
-    else
-        python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch_or_ckpt}} --checkpoint {{ckpt_or_args}} {{ARGS}}
-    fi
+# Resume training (e.g., just resume fiber ckpt.pt)
+resume dataset ckpt *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --checkpoint {{ckpt}} {{ARGS}}
 
-# Test model (e.g., just test fiber ckpt.pt, just test lucchi++ monai_unet ckpt.pt)
-test dataset arch_or_ckpt ckpt_or_args='' *ARGS='':
-    #!/usr/bin/env bash
-    # Check if second arg looks like a checkpoint path
-    if [[ "{{arch_or_ckpt}}" == *.ckpt ]] || [[ "{{arch_or_ckpt}}" == */* ]]; then
-        python scripts/main.py --config tutorials/{{dataset}}.yaml --mode test --checkpoint {{arch_or_ckpt}} {{ckpt_or_args}} {{ARGS}}
-    else
-        python scripts/main.py --config tutorials/{{dataset}}.yaml model.architecture={{arch_or_ckpt}} --mode test --checkpoint {{ckpt_or_args}} {{ARGS}}
-    fi
+# Test model (e.g., just test fiber ckpt.pt)
+test dataset ckpt *ARGS='':
+    python scripts/main.py --config tutorials/{{dataset}}.yaml --mode test --checkpoint {{ckpt}} {{ARGS}}
 
 # Tune decoding parameters on validation set (e.g., just tune fiber ckpt.pt)
 tune dataset ckpt *ARGS='':
