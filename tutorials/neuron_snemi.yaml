@@ -3,10 +3,7 @@ experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 system:
   training:
-    num_gpus: 4
-    num_cpus: 8
-    num_workers: 8
-    batch_size: 4
+    batch_size: 8
   inference:
     batch_size: 1
   seed: 42
