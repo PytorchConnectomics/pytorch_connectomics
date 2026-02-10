@@ -1110,7 +1110,14 @@
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 [STAGE: Saving Final Predictions]&quot;</span><span class="p">)</span>
             <span class="n">save_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
             
-            <span class="n">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">postprocessed_predictions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+            <span class="n">write_outputs</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+                <span class="n">postprocessed_predictions</span><span class="p">,</span>
+                <span class="n">filenames</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
             
             <span class="n">save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">save_start</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Final predictions saved (</span><span class="si">{</span><span class="n">save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
@@ -1206,7 +1213,14 @@
             
             <span class="c1"># Apply intensity scaling and dtype conversion before saving</span>
             <span class="n">predictions_to_save</span> <span class="o">=</span> <span class="n">apply_save_prediction_transform</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np</span><span class="p">)</span>
-            <span class="n">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_to_save</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;tta_prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+            <span class="n">write_outputs</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+                <span class="n">predictions_to_save</span><span class="p">,</span>
+                <span class="n">filenames</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;tta_prediction&quot;</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
             
             <span class="n">save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">save_start</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Intermediate predictions saved (</span><span class="si">{</span><span class="n">save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
@@ -1240,7 +1254,14 @@
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 [STAGE: Saving Final Predictions]&quot;</span><span class="p">)</span>
         <span class="n">final_save_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         
-        <span class="n">write_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">postprocessed_predictions</span><span class="p">,</span> <span class="n">filenames</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+        <span class="n">write_outputs</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+            <span class="n">postprocessed_predictions</span><span class="p">,</span>
+            <span class="n">filenames</span><span class="p">,</span>
+            <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+            <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
+        <span class="p">)</span>
         
         <span class="n">final_save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">final_save_start</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Final predictions saved (</span><span class="si">{</span><span class="n">final_save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
