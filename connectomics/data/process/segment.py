@@ -5,6 +5,7 @@ Segmentation processing functions for PyTorch Connectomics.
 from __future__ import print_function, division
 from typing import Optional, Union, List
 import numpy as np
+import torch
 from skimage.morphology import binary_dilation, dilation, erosion
 import cc3d
 
@@ -33,23 +34,38 @@ def seg_erosion_instance(seg, tsz_h=1):
     # seg=0: background
     tsz = 2 * tsz_h + 1
     sz = seg.shape
+    is_tensor = torch.is_tensor(seg)
+
+    def _to_numpy(x):
+        if torch.is_tensor(x):
+            return x.detach().cpu().numpy()
+        return np.asarray(x)
+
+    def _apply_mask(x, mask):
+        if torch.is_tensor(x):
+            mask_t = torch.as_tensor(mask, device=x.device, dtype=x.dtype)
+            return x * mask_t
+        return x * mask
+
     if len(sz) == 3:
         for z in range(sz[0]):
-            mm = seg[z].max()
+            seg_z = _to_numpy(seg[z]) if is_tensor else seg[z]
+            mm = seg_z.max()
             patch = im_to_col(
-                np.pad(seg[z], ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz]
+                np.pad(seg_z, ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz]
             )
             p0 = patch.max(axis=1)
             patch[patch == 0] = mm + 1
             p1 = patch.min(axis=1)
-            seg[z] = seg[z] * ((p0 == p1).reshape(sz[1:]))
+            seg[z] = _apply_mask(seg[z], (p0 == p1).reshape(sz[1:]))
     else:
-        mm = seg.max()
-        patch = im_to_col(np.pad(seg, ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz])
+        seg_np = _to_numpy(seg) if is_tensor else seg
+        mm = seg_np.max()
+        patch = im_to_col(np.pad(seg_np, ((tsz_h, tsz_h), (tsz_h, tsz_h)), "reflect"), [tsz, tsz])
         p0 = patch.max(axis=1)
         patch[patch == 0] = mm + 1
         p1 = patch.min(axis=1)
-        seg = seg * ((p0 == p1).reshape(sz))
+        seg = _apply_mask(seg, (p0 == p1).reshape(sz))
     return seg
 
 
