@@ -1,0 +1,258 @@
+_base_: bases/mednext.yaml
+experiment_name: betaseg_mednext_s_sdt_affinity
+description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SDT+affinity (1+6 channels)
+system:
+  training:
+    num_gpus: 1
+    num_cpus: 8
+    num_workers: 8
+    batch_size: 2
+  inference:
+    num_cpus: 8
+    num_workers: 8
+    batch_size: 1
+  seed: 0
+model:
+  input_size:
+  - 128
+  - 128
+  - 128
+  output_size:
+  - 128
+  - 128
+  - 128
+  out_channels: 7
+  mednext_size: S
+  mednext_kernel_size: 3
+  mednext_dim: 3d
+  deep_supervision: true
+  loss_functions:
+  - WeightedBCEWithLogitsLoss
+  - WeightedMSELoss
+  loss_weights:
+  - 1.0
+  - 1.0
+  loss_kwargs:
+  - {}
+  - tanh: true
+  multi_task_config:
+  - - 0
+    - 6
+    - affinity
+    - - 0
+  - - 6
+    - 7
+    - sdt
+    - - 1
+data:
+  train_path: /projects/weilab/qiongwang/datasets/betaseg/tif
+  train_image:
+  - high_c3_im.tiff
+  - low_c1_im.tiff
+  - low_c2_im.tiff
+  train_label:
+  - high_c3_mito.tiff
+  - low_c1_mito.tiff
+  - low_c2_mito.tiff
+  train_resolution:
+  - 16
+  - 16
+  - 16
+  val_path: /projects/weilab/qiongwang/datasets/betaseg/tif
+  val_image:
+  - high_c1_im.tiff
+  val_label:
+  - high_c1_mito.tiff
+  use_preloaded_cache: false
+  use_cache: true
+  cache_rate: 1.0
+  persistent_workers: true
+  patch_size:
+  - 128
+  - 128
+  - 128
+  pad_size:
+  - 16
+  - 16
+  - 16
+  pad_mode: reflect
+  iter_num_per_epoch: 790
+  image_transform:
+    clip_percentile_low: 0.005
+    clip_percentile_high: 0.995
+  label_transform:
+    targets:
+    - name: affinity
+      kwargs:
+        offsets:
+        - 0-0-1
+        - 0-1-0
+        - 1-0-0
+        - 0-0-10
+        - 0-10-0
+        - 10-0-0
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution:
+        - 16
+        - 16
+        - 16
+        alpha: 0.8
+        bg_value: -1.0
+        relabel: true
+  augmentation:
+    preset: some
+    affine:
+      enabled: true
+      prob: 0.5
+      rotate_range:
+      - 0.2
+      - 0.2
+      - 0.2
+      scale_range:
+      - 0.2
+      - 0.2
+      - 0.2
+      shear_range:
+      - 0.5
+      - 0.5
+      - 0.5
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.5
+      shift_intensity_prob: 0.3
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.3
+      contrast_range:
+      - 0.7
+      - 1.4
+    missing_section:
+      enabled: true
+      prob: 0.05
+      num_sections: 2
+    misalignment:
+      enabled: true
+      prob: 0.05
+      displacement: 10
+      rotate_ratio: 0.0
+    flip:
+      enabled: true
+      prob: 0.5
+    rotate:
+      enabled: true
+      prob: 0.5
+    elastic:
+      enabled: true
+      prob: 0.3
+optimization:
+  max_steps: 1000000
+  accumulate_grad_batches: 1
+  precision: 16-mixed
+  optimizer:
+    lr: 1e-3
+    weight_decay: 1e-2
+    eps: 0.0001
+  scheduler:
+    name: CosineAnnealingLR
+    t_max: 1000000
+    min_lr: 0.0
+    interval: step
+    frequency: 1
+monitor:
+  logging:
+    scalar:
+      loss:
+      - train_loss_total_epoch
+      - val_loss_total_epoch
+      - train_loss_affinity_total
+      - train_loss_sdt_total
+      loss_every_n_steps: 100
+      val_check_interval: 1.0
+    images:
+      max_images: 10
+      num_slices: 10
+      log_every_n_epochs: 5
+  checkpoint:
+    monitor: val_loss_total
+    save_top_k: 10
+    save_every_n_epochs: 5
+    dirpath: outputs/betaseg_mednext_affinity_sdt/checkpoints/
+  early_stopping:
+    monitor: val_loss_total
+    patience: 150
+    min_delta: 1e-6
+    threshold: 0.001
+    divergence_threshold: 100.0
+test:
+  data:
+    test_image:
+    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c2_im.tiff
+    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c4_im.tiff
+    - /projects/weilab/qiongwang/datasets/betaseg/tif/low_c3_im.tiff
+    test_label:
+    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c2_mito.tiff
+    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c4_mito.tiff
+    - /projects/weilab/qiongwang/datasets/betaseg/tif/low_c3_mito.tiff
+    test_resolution:
+    - 16
+    - 16
+    - 16
+    output_path: outputs/betaseg_mednext_affinity_sdt/results/
+    image_transform:
+      normalize: 0-1
+      clip_percentile_low: 0.005
+      clip_percentile_high: 0.995
+  decoding:
+  - name: decode_distance_watershed
+    kwargs:
+      distance_channels:
+      - 6
+      distance_threshold:
+      - 0.5
+      - 0
+      min_seed_size: 50
+      min_instance_size: 100
+      use_fast_edt: true
+      edt_parallel: 8
+      edt_anisotropy:
+      - 1.0
+      - 1.0
+      - 1.0
+      edt_downsample_factor: 1
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand
+    - voi
+    - instance_accuracy
+    - instance_accuracy_detail
+inference:
+  sliding_window:
+    window_size:
+    - 128
+    - 128
+    - 128
+    sw_batch_size: 4
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
+  test_time_augmentation:
+    rotation90_axes: null
+    channel_activations:
+    - - 0
+      - 6
+      - sigmoid
+    - - 6
+      - 7
+      - tanh
+    select_channel: all
+    apply_mask: false
+  save_prediction:
+    enabled: true
+    intensity_scale: -1
+    intensity_dtype: float32
+    output_formats:
+    - h5
+    - tiff

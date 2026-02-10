@@ -10,20 +10,20 @@ This script provides modern deep learning training with:
 
 Usage:
     # Basic training
-    python scripts/main.py --config tutorials/lucchi.yaml
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml
 
     # Testing mode
-    python scripts/main.py --config tutorials/lucchi.yaml --mode test --checkpoint path/to/checkpoint.ckpt
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml --mode test --checkpoint path/to/checkpoint.ckpt
 
     # Fast dev run (1 batch for debugging, auto-sets num_gpus=1, num_cpus=1, num_workers=1)
-    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run
-    python scripts/main.py --config tutorials/lucchi.yaml --fast-dev-run 2  # Run 2 batches
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run 2  # Run 2 batches
 
     # Override config parameters
-    python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=8 optimization.max_epochs=200
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml data.batch_size=8 optimization.max_epochs=200
 
     # Resume training with different max_epochs
-    python scripts/main.py --config tutorials/lucchi.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
 """
 
 import sys
@@ -153,7 +153,7 @@ def main():
     if not args.config:
         print("❌ Error: --config is required (or use --demo for a quick test)")
         print("\nUsage:")
-        print("  python scripts/main.py --config tutorials/lucchi.yaml")
+        print("  python scripts/main.py --config tutorials/mito_lucchi++.yaml")
         print("  python scripts/main.py --demo")
         sys.exit(1)
 

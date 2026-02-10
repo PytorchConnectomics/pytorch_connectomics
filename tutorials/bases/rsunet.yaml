@@ -1,0 +1,4 @@
+_base_: common.yaml
+
+model:
+  architecture: rsunet

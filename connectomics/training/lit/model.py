@@ -815,7 +815,14 @@ class ConnectomicsModule(pl.LightningModule):
             print(f"  💾 [STAGE: Saving Final Predictions]")
             save_start = time.time()
             
-            write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
+            write_outputs(
+                self.cfg,
+                postprocessed_predictions,
+                filenames,
+                suffix="prediction",
+                mode=mode,
+                batch_meta=batch.get("image_meta_dict"),
+            )
             
             save_duration = time.time() - save_start
             print(f"  ✅ Final predictions saved ({save_duration:.1f}s)")
@@ -911,7 +918,14 @@ class ConnectomicsModule(pl.LightningModule):
             
             # Apply intensity scaling and dtype conversion before saving
             predictions_to_save = apply_save_prediction_transform(self.cfg, predictions_np)
-            write_outputs(self.cfg, predictions_to_save, filenames, suffix="tta_prediction", mode=mode)
+            write_outputs(
+                self.cfg,
+                predictions_to_save,
+                filenames,
+                suffix="tta_prediction",
+                mode=mode,
+                batch_meta=batch.get("image_meta_dict"),
+            )
             
             save_duration = time.time() - save_start
             print(f"  ✅ Intermediate predictions saved ({save_duration:.1f}s)")
@@ -945,7 +959,14 @@ class ConnectomicsModule(pl.LightningModule):
         print(f"  💾 [STAGE: Saving Final Predictions]")
         final_save_start = time.time()
         
-        write_outputs(self.cfg, postprocessed_predictions, filenames, suffix="prediction", mode=mode)
+        write_outputs(
+            self.cfg,
+            postprocessed_predictions,
+            filenames,
+            suffix="prediction",
+            mode=mode,
+            batch_meta=batch.get("image_meta_dict"),
+        )
         
         final_save_duration = time.time() - final_save_start
         print(f"  ✅ Final predictions saved ({final_save_duration:.1f}s)")

@@ -28,6 +28,10 @@ jobs:
         pip install pytest pytest-cov
         pip install -e .
 
+    - name: Validate tutorial configs
+      run: |
+        python scripts/validate_tutorial_configs.py
+
     - name: Run tests
       run: |
         pytest tests/ -v --cov=connectomics --cov-report=xml
@@ -140,5 +144,5 @@ jobs:
             print("No changed Python files under connectomics/. Skipping mypy.")
             sys.exit(0)
 
-        subprocess.check_call(["mypy", "--ignore-missing-imports", *files])
+        subprocess.check_call(["mypy", "--config-file", ".github/mypy_changed.ini", *files])
         PY

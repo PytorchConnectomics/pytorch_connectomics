@@ -1,0 +1,141 @@
+_base_: bases/monai_unet.yaml
+experiment_name: nucmm_zebrafish_monai_unet
+description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
+system:
+  training:
+    batch_size: 32
+  inference:
+    num_cpus: 4
+    num_workers: 4
+    batch_size: 4
+model:
+  input_size:
+  - 64
+  - 64
+  - 64
+  output_size:
+  - 64
+  - 64
+  - 64
+  out_channels: 3
+  strides:
+  - 2
+  - 2
+  - 2
+  num_res_units: 2
+  kernel_size: 3
+  norm: batch
+  dropout: 0.0
+  loss_functions:
+  - DiceLoss
+  - BCEWithLogitsLoss
+  - WeightedMSELoss
+  loss_weights:
+  - 1.0
+  - 0.5
+  - 2.0
+  loss_kwargs:
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+  - {}
+  - tanh: true
+  multi_task_config:
+  - - 0
+    - 1
+    - label
+    - - 0
+      - 1
+  - - 1
+    - 2
+    - boundary
+    - - 0
+      - 1
+  - - 2
+    - 3
+    - edt
+    - - 2
+data:
+  train_image: datasets/NucMM-Z/Image/train/img_*.h5
+  train_label: datasets/NucMM-Z/Label/train/seg_*.h5
+  train_resolution:
+  - 1.0
+  - 1.0
+  - 1.0
+  cache_rate: 1.0
+  persistent_workers: true
+  patch_size:
+  - 64
+  - 64
+  - 64
+  pad_size:
+  - 16
+  - 16
+  - 16
+  pad_mode: reflect
+  label_transform:
+    targets:
+    - name: binary
+    - name: instance_boundary
+      kwargs:
+        thickness: 5
+        edge_mode: seg-no-bg
+        mode: 3d
+    - name: instance_edt
+      kwargs:
+        mode: 3d
+        quantize: false
+  augmentation:
+    preset: all
+optimization:
+  gradient_clip_val: 1.0
+  optimizer:
+    name: AdamW
+    weight_decay: 0.01
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+    warmup_start_lr: 1.0e-05
+    t_max: 995
+monitor:
+  logging:
+    images:
+      max_images: 2
+      num_slices: 4
+      channel_mode: all
+  early_stopping:
+    patience: 300
+    min_delta: 1.0e-05
+    threshold: 0.01
+    divergence_threshold: 100.0
+test:
+  data:
+    test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
+    test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
+    test_resolution:
+    - 1.0
+    - 1.0
+    - 1.0
+inference:
+  sliding_window:
+    window_size:
+    - 64
+    - 64
+    - 64
+    sw_batch_size: 8
+    overlap: 0.5
+    padding_mode: reflect
+  test_time_augmentation:
+    flip_axes: null
+    channel_activations:
+    - - 0
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
+  evaluation:
+    enabled: true
+    metrics:
+    - jaccard
+    - dice
