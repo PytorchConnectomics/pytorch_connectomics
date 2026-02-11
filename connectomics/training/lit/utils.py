@@ -157,11 +157,10 @@ def setup_config(args) -> Config:
     cfg = resolve_data_paths(cfg)
 
     # Extract config file name and set output folder
-    # Include architecture name for unified configs (e.g., lucchi++_rsunet)
+    # Use config name only (e.g., mito_lucchi++).
     config_path = Path(args.config)
     config_name = config_path.stem  # Get filename without extension
-    arch_name = cfg.model.architecture
-    output_folder = f"outputs/{config_name}_{arch_name}/"
+    output_folder = f"outputs/{config_name}/"
 
     # Update checkpoint dirpath only if not provided by the user
     if not getattr(cfg.monitor.checkpoint, "dirpath", None):

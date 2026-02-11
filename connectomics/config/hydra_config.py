@@ -978,10 +978,11 @@ class SavePredictionConfig:
         enabled: Enable saving intermediate predictions (default: True)
         intensity_scale: Scale factor for predictions (e.g., 255 for uint8 visualization)
         intensity_dtype: Data type for saved predictions (e.g., 'uint8', 'float32')
+        analyze_h5: Print HDF5 summary statistics after saving each .h5 file
         output_formats: List of output formats to save predictions
                        (e.g., ['h5', 'tiff', 'nii.gz'])
                        Supported formats: 'h5', 'tiff', 'nii', 'nii.gz', 'png'
-                       Default: ['h5', 'nii.gz'] for backward compatibility
+                       Default: ['h5']
     """
 
     enabled: bool = True  # Enable saving intermediate predictions
@@ -992,8 +993,9 @@ class SavePredictionConfig:
     intensity_dtype: str = (
         "uint8"  # Save as uint8 for visualization (ignored if intensity_scale < 0)
     )
+    analyze_h5: bool = False  # Print H5 analysis summary after saving HDF5 output
     output_formats: List[str] = field(
-        default_factory=lambda: ["h5", "nii.gz"]  # Default: HDF5 + NIfTI for backward compatibility
+        default_factory=lambda: ["h5"]  # Default: HDF5 only (NIfTI is opt-in)
     )
 
 
