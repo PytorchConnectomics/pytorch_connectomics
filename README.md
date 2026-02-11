@@ -104,7 +104,7 @@ Train on real mitochondria segmentation data:
 
 ```bash
 # Download tutorial data (~50 MB)
-just download mito_lucchi++
+just download lucchi++
 
 # Quick test (1 batch)
 just train mito_lucchi++ --fast-dev-run
