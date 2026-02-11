@@ -104,28 +104,28 @@ Train on real mitochondria segmentation data:
 
 ```bash
 # Download tutorial data (~50 MB)
-just download lucchi++
+just download mito_lucchi++
 
 # Quick test (1 batch)
-just train lucchi++ monai_unet --fast-dev-run
+just train mito_lucchi++ --fast-dev-run
 
-# Full training on a single GPU (choose your architecture: monai_unet, rsunet, mednext)
-just train lucchi++ monai_unet -- system.training.num_gpus=1
+# Full training on a single GPU
+just train mito_lucchi++ system.training.num_gpus=1
 ```
 
 **Monitor progress:**
 ```bash
-just tensorboard lucchi++_monai_unet
+just tensorboard lucchi++
 ```
 
 **Resume training from checkpoint:**
 ```bash
-just resume lucchi++ monai_unet outputs/lucchi++_monai_unet/*/checkpoints/last.ckpt
+just resume lucchi++ outputs/lucchi++_monai_unet/*/checkpoints/last.ckpt
 ```
 
 **Run inference:**
 ```bash
-just test lucchi++ monai_unet outputs/lucchi++_monai_unet/*/checkpoints/best.ckpt
+just test lucchi++ outputs/lucchi++_monai_unet/*/checkpoints/best.ckpt
 ```
 
 ---
