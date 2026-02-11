@@ -4,8 +4,11 @@
 # Model robustness: Excellent for resolution variations
 
 system:
-  num_gpus: 1
-  num_cpus: 4
+  training:
+    num_gpus: 1
+    num_cpus: 4
+    batch_size: 2
+    num_workers: 4
   seed: 42
 
 model:
@@ -28,68 +31,54 @@ data:
   val_label: "datasets/lucchi/val_label.h5"
 
   patch_size: [128, 128, 128]
-  batch_size: 2
-  num_workers: 4
 
   # Super-resolution focused augmentation
   augmentation:
-    use_augmentation: true
-    transforms:
-      # CutBlur (primary augmentation for super-resolution)
-      # Forces model to learn from degraded (low-res) regions
-      - RandCutBlurd:
-          keys: ["image"]
-          prob: 0.8  # High probability
-          length_ratio: 0.5  # Larger regions (50% of volume)
-          down_ratio_range: [2.0, 8.0]  # 2x-8x downsampling
-          downsample_z: false  # Keep z-resolution (anisotropic)
+    preset: some
+    # CutBlur (primary augmentation for super-resolution)
+    # Forces model to learn from degraded (low-res) regions
+    cut_blur:
+      enabled: true
+      prob: 0.8  # High probability
+      length_ratio: 0.5  # Larger regions (50% of volume)
+      down_ratio_range: [2.0, 8.0]  # 2x-8x downsampling
+      downsample_z: false  # Keep z-resolution (anisotropic)
+    # Misalignment (mild, to prevent oversmoothing)
+    misalignment:
+      enabled: true
+      prob: 0.3
+      displacement: 10
+      rotate_ratio: 0.0
+    # Motion blur (creates directional blur)
+    motion_blur:
+      enabled: true
+      prob: 0.4
+      sections: [1, 2]
+      kernel_size: 7  # Smaller kernel
+    # Standard intensity augmentation
+    intensity:
+      enabled: true
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05  # Lower noise
 
-      # Misalignment (mild, to prevent oversmoothing)
-      - RandMisAlignmentd:
-          keys: ["image"]
-          prob: 0.3
-          displacement: 10
-          rotate_ratio: 0.0
-
-      # Motion blur (creates directional blur)
-      - RandMotionBlurd:
-          keys: ["image"]
-          prob: 0.4
-          sections: [1, 2]
-          kernel_size: 7  # Smaller kernel
-
-      # Standard intensity augmentation
-      - RandShiftIntensityd:
-          keys: ["image"]
-          prob: 0.5
-          offsets: 0.1
-
-      - RandGaussianNoised:
-          keys: ["image"]
-          prob: 0.3
-          mean: 0.0
-          std: 0.05  # Lower noise
-
-optimizer:
-  name: AdamW
-  lr: 1e-4
-  weight_decay: 1e-4
-
-scheduler:
-  name: CosineAnnealingLR
-  warmup_epochs: 5
-
-training:
+optimization:
   max_epochs: 100
   precision: "16-mixed"
   gradient_clip_val: 1.0
-
-checkpoint:
-  monitor: "val/loss"
-  mode: "min"
-  save_top_k: 3
-  save_last: true
-
-logging:
   log_every_n_steps: 50
-  save_dir: "outputs"
+  optimizer:
+    name: AdamW
+    lr: 1e-4
+    weight_decay: 1e-4
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+
+monitor:
+  checkpoint:
+    monitor: "val/loss"
+    mode: "min"
+    save_top_k: 3
+    save_last: true
