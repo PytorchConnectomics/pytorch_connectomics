@@ -99,18 +99,34 @@ python scripts/main.py --demo
 ---
 
 ### 3. Try a Tutorial
-
-Train on real mitochondria segmentation data:
-
 ```bash
 # Download tutorial data (~50 MB)
 just download lucchi++
+```
 
+#### 3.1 Run inference with a pretrained checkpoint (no training required):
+
+- Ours: 0.913 Jaccard index (Foreground-IoU)
+- Prior art: 0.907 (systematic comparsions in [Casser et.al 20](https://arxiv.org/abs/1812.06024))
+```bash
+# Download pretrained checkpoint
+mkdir -p checkpoints
+curl -L "https://huggingface.co/pytc/tutorial2.0/resolve/main/mito_lucchi%2B%2B_15k.ckpt?download=true" \
+  -o checkpoints/mito_lucchi_pp_15k.ckpt
+
+# Run inference
+just test mito_lucchi++ checkpoints/mito_lucchi_pp_15k.ckpt
+```
+
+#### 3.2 Train from scratch
+- current settings: num_gpus=4, num_cpus=8, batch_size=16
+- change settings in [tutorials/mito_lucchi++.yaml](https://github.com/PytorchConnectomics/pytorch_connectomics/blob/master/tutorials/mito_lucchi%2B%2B.yaml#L6)
+```bash
 # Quick test (1 batch)
 just train mito_lucchi++ --fast-dev-run
 
-# Full training on a single GPU
-just train mito_lucchi++ system.training.num_gpus=1
+# Full training
+just train mito_lucchi++
 ```
 
 **Monitor progress:**
@@ -118,16 +134,10 @@ just train mito_lucchi++ system.training.num_gpus=1
 just tensorboard lucchi++
 ```
 
-**Resume training from checkpoint:**
+**Run inference from your trained checkpoint:**
 ```bash
-just resume lucchi++ outputs/lucchi++_monai_unet/*/checkpoints/last.ckpt
+just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
 ```
-
-**Run inference:**
-```bash
-just test lucchi++ outputs/lucchi++_monai_unet/*/checkpoints/best.ckpt
-```
-
 ---
 
 ## Key Features
