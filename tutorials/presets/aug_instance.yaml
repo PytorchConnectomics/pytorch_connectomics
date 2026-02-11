@@ -4,8 +4,11 @@
 # Model robustness: Excellent for instance segmentation
 
 system:
-  num_gpus: 1
-  num_cpus: 4
+  training:
+    num_gpus: 1
+    num_cpus: 4
+    batch_size: 2
+    num_workers: 4
   seed: 42
 
 model:
@@ -28,89 +31,66 @@ data:
   val_label: "datasets/lucchi/val_label.h5"
 
   patch_size: [128, 128, 128]
-  batch_size: 2
-  num_workers: 4
 
   # Instance segmentation focused augmentation
   augmentation:
-    use_augmentation: true
-    transforms:
-      # Copy-paste (primary augmentation for instance segmentation)
-      # Copies objects, transforms them, pastes in non-overlapping regions
-      - RandCopyPasted:
-          keys: ["image"]
-          label_key: "label"
-          prob: 0.6
-          max_obj_ratio: 0.7  # Skip if object too large
-          rotation_angles: [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
-          border: 3
+    preset: some
+    # Copy-paste (primary augmentation for instance segmentation)
+    # Copies objects, transforms them, pastes in non-overlapping regions
+    copy_paste:
+      enabled: true
+      prob: 0.6
+      max_obj_ratio: 0.7  # Skip if object too large
+      rotation_angles: [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
+      border: 3
+    # Misalignment and missing_section apply to both image and label in train pipeline
+    misalignment:
+      enabled: true
+      prob: 0.5
+      displacement: 16
+      rotate_ratio: 0.5
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 1
+    # Mixup (regularization for small datasets)
+    # Note: This requires batch size > 1
+    mixup:
+      enabled: true
+      prob: 0.3
+      alpha_range: [0.7, 0.9]
+    # Standard intensity augmentation (image only)
+    intensity:
+      enabled: true
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.5
+      contrast_range: [0.9, 1.1]
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.1
+    # Spatial augmentation (apply to both)
+    # affine:
+    #   enabled: true
+    #   prob: 0.5
+    #   rotate_range: [0.2, 0.2, 0.2]
+    #   scale_range: [0.1, 0.1, 0.1]
 
-      # Misalignment (apply to both image and label)
-      - RandMisAlignmentd:
-          keys: ["image", "label"]  # Important: apply to both!
-          prob: 0.5
-          displacement: 16
-          rotate_ratio: 0.5
-
-      # Missing sections (apply to both)
-      - RandMissingSectiond:
-          keys: ["image", "label"]
-          prob: 0.3
-          num_sections: 1
-
-      # Mixup (regularization for small datasets)
-      # Note: This requires batch size > 1
-      - RandMixupd:
-          keys: ["image"]
-          prob: 0.3
-          alpha_range: [0.7, 0.9]
-
-      # Standard intensity augmentation (image only)
-      - RandShiftIntensityd:
-          keys: ["image"]
-          prob: 0.5
-          offsets: 0.1
-
-      - RandScaleIntensityd:
-          keys: ["image"]
-          prob: 0.5
-          factors: 0.1
-
-      - RandGaussianNoised:
-          keys: ["image"]
-          prob: 0.5
-          mean: 0.0
-          std: 0.1
-
-      # Spatial augmentation (apply to both)
-      # - RandAffined:
-      #     keys: ["image", "label"]
-      #     prob: 0.5
-      #     rotate_range: [0.2, 0.2, 0.2]
-      #     scale_range: [0.1, 0.1, 0.1]
-      #     mode: ["bilinear", "nearest"]
-      #     padding_mode: "reflection"
-
-optimizer:
-  name: AdamW
-  lr: 1e-4
-  weight_decay: 1e-4
-
-scheduler:
-  name: CosineAnnealingLR
-  warmup_epochs: 5
-
-training:
+optimization:
   max_epochs: 100
   precision: "16-mixed"
   gradient_clip_val: 1.0
-
-checkpoint:
-  monitor: "val/loss"
-  mode: "min"
-  save_top_k: 3
-  save_last: true
-
-logging:
   log_every_n_steps: 50
-  save_dir: "outputs"
+  optimizer:
+    name: AdamW
+    lr: 1e-4
+    weight_decay: 1e-4
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+
+monitor:
+  checkpoint:
+    monitor: "val/loss"
+    mode: "min"
+    save_top_k: 3
+    save_last: true

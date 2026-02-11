@@ -114,12 +114,18 @@ Increase or decrease `prob` for each transform:
 
 ```yaml
 # More aggressive
-- RandMissingSectiond:
-    prob: 0.9  # Increased from 0.5
+data:
+  augmentation:
+    missing_section:
+      enabled: true
+      prob: 0.9  # Increased from 0.5
 
 # Less aggressive
-- RandMissingSectiond:
-    prob: 0.2  # Decreased from 0.5
+data:
+  augmentation:
+    missing_section:
+      enabled: true
+      prob: 0.2  # Decreased from 0.5
 ```
 
 ### Mix Presets
@@ -129,18 +135,17 @@ Combine augmentations from different presets:
 # Custom config
 data:
   augmentation:
-    transforms:
-      # From aug_realistic.yaml
-      - RandMissingSectiond:
-          keys: ["image"]
-          prob: 0.5
-          num_sections: 2
-
-      # From aug_superres.yaml
-      - RandCutBlurd:
-          keys: ["image"]
-          prob: 0.5
-          length_ratio: 0.25
+    preset: some
+    # From aug_realistic.yaml
+    missing_section:
+      enabled: true
+      prob: 0.5
+      num_sections: 2
+    # From aug_superres.yaml
+    cut_blur:
+      enabled: true
+      prob: 0.5
+      length_ratio: 0.25
 ```
 
 ---

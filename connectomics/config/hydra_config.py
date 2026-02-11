@@ -758,7 +758,7 @@ class MotionBlurConfig:
 
     enabled: Optional[bool] = None
     prob: float = 0.3
-    sections: int = 2
+    sections: Any = 2
     kernel_size: int = 11
 
 
