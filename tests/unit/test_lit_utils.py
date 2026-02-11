@@ -55,7 +55,7 @@ def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
 
     updated = setup_config(args)
 
-    expected_dir = f"outputs/{cfg_path.stem}_{cfg.model.architecture}/checkpoints"
+    expected_dir = f"outputs/{cfg_path.stem}/checkpoints"
     assert Path(updated.monitor.checkpoint.dirpath).as_posix() == expected_dir
     assert updated.optimization.optimizer.lr == 0.01
     assert updated.optimization.max_epochs == 5
