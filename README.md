@@ -120,12 +120,12 @@ just tensorboard lucchi++
 
 **Resume training from checkpoint:**
 ```bash
-just resume lucchi++ outputs/lucchi++_monai_unet/*/checkpoints/last.ckpt
+just resume lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/last.ckpt
 ```
 
 **Run inference:**
 ```bash
-just test lucchi++ outputs/lucchi++_monai_unet/*/checkpoints/best.ckpt
+just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
 ```
 
 ---
