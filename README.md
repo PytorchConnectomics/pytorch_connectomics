@@ -123,9 +123,23 @@ just tensorboard lucchi++
 just resume lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/last.ckpt
 ```
 
-**Run inference:**
+**Run inference from your trained checkpoint:**
 ```bash
 just test lucchi++ outputs/lucchi++/$EXPERIMENT_DATE/checkpoints/best.ckpt
+```
+
+**Run inference with a pretrained checkpoint (no training required):**
+```bash
+# Download tutorial data (~50 MB)
+just download lucchi++
+
+# Download pretrained checkpoint
+mkdir -p checkpoints
+curl -L "https://huggingface.co/pytc/tutorial2.0/resolve/main/mito_lucchi%2B%2B_15k.ckpt?download=true" \
+  -o checkpoints/mito_lucchi_pp_15k.ckpt
+
+# Run inference
+just test mito_lucchi++ checkpoints/mito_lucchi_pp_15k.ckpt
 ```
 
 ---
