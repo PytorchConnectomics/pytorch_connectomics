@@ -5,7 +5,7 @@ system:
   training:
     batch_size: 8
   inference:
-    batch_size: 1
+    batch_size: 8
   seed: 42
 model:
   out_channels: 12

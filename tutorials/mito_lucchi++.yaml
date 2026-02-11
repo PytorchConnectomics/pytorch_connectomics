@@ -5,6 +5,9 @@ system:
   training:
     batch_size: 16
   inference:
+    num_gpus: 1
+    num_cpus: 1
+    num_workers: 1
     batch_size: 16
 model:
   input_size:
@@ -18,10 +21,6 @@ model:
   out_channels: 1
   dropout: 0.1
   upsample: deconv
-  rsunet_norm: batch
-  mednext_size: S
-  mednext_kernel_size: 3
-  deep_supervision: false
   loss_functions:
   - WeightedBCEWithLogitsLoss
   - DiceLoss
