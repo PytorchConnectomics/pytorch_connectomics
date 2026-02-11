@@ -4,8 +4,11 @@
 # Model robustness: Basic
 
 system:
-  num_gpus: 1
-  num_cpus: 4
+  training:
+    num_gpus: 1
+    num_cpus: 4
+    batch_size: 2
+    num_workers: 4
   seed: 42
 
 model:
@@ -28,52 +31,38 @@ data:
   val_label: "datasets/lucchi/val_label.h5"
 
   patch_size: [128, 128, 128]
-  batch_size: 2
-  num_workers: 4
 
   # Light augmentation strategy
   augmentation:
-    use_augmentation: true
-    transforms:
-      # Missing sections (low probability)
-      - RandMissingSectiond:
-          keys: ["image"]
-          prob: 0.3
-          num_sections: 1
+    preset: some
+    # Missing sections (low probability)
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 1
+    # Misalignment (translation only, low probability)
+    misalignment:
+      enabled: true
+      prob: 0.3
+      displacement: 8
+      rotate_ratio: 0.0  # Translation only (faster)
 
-      # Misalignment (translation only, low probability)
-      - RandMisAlignmentd:
-          keys: ["image"]
-          prob: 0.3
-          displacement: 8
-          rotate_ratio: 0.0  # Translation only (faster)
-
-      # Standard MONAI transforms (optional, can be added)
-      # - RandShiftIntensityd:
-      #     keys: ["image"]
-      #     prob: 0.3
-      #     offsets: 0.1
-
-optimizer:
-  name: AdamW
-  lr: 1e-4
-  weight_decay: 1e-4
-
-scheduler:
-  name: CosineAnnealingLR
-  warmup_epochs: 5
-
-training:
+optimization:
   max_epochs: 100
   precision: "16-mixed"
   gradient_clip_val: 1.0
-
-checkpoint:
-  monitor: "val/loss"
-  mode: "min"
-  save_top_k: 3
-  save_last: true
-
-logging:
   log_every_n_steps: 50
-  save_dir: "outputs"
+  optimizer:
+    name: AdamW
+    lr: 1e-4
+    weight_decay: 1e-4
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+
+monitor:
+  checkpoint:
+    monitor: "val/loss"
+    mode: "min"
+    save_top_k: 3
+    save_last: true

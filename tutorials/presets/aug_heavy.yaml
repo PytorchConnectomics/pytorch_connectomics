@@ -4,8 +4,11 @@
 # Model robustness: Excellent (maximum robustness)
 
 system:
-  num_gpus: 1
-  num_cpus: 4
+  training:
+    num_gpus: 1
+    num_cpus: 4
+    batch_size: 2
+    num_workers: 4
   seed: 42
 
 model:
@@ -28,111 +31,84 @@ data:
   val_label: "datasets/lucchi/val_label.h5"
 
   patch_size: [128, 128, 128]
-  batch_size: 2
-  num_workers: 4
 
   # Heavy augmentation strategy (all EM-specific transforms)
   augmentation:
-    use_augmentation: true
-    transforms:
-      # EM-specific transforms (PyTC unique features)
-      # --------------------------------------------
+    preset: some
+    # EM-specific transforms (PyTC unique features)
+    # --------------------------------------------
+    # Missing sections (high probability)
+    missing_section:
+      enabled: true
+      prob: 0.7
+      num_sections: 3
+    # Misalignment (translation + rotation)
+    misalignment:
+      enabled: true
+      prob: 0.7
+      displacement: 20
+      rotate_ratio: 0.5  # 50% rotation, 50% translation
+    # Missing parts (rectangular holes)
+    missing_parts:
+      enabled: true
+      prob: 0.5
+      hole_range: [0.1, 0.3]  # 10%-30% of section
+    # Motion blur
+    motion_blur:
+      enabled: true
+      prob: 0.5
+      sections: [1, 3]
+      kernel_size: 11
+    # CutBlur (super-resolution)
+    cut_blur:
+      enabled: true
+      prob: 0.5
+      length_ratio: 0.25
+      down_ratio_range: [2.0, 8.0]
+      downsample_z: false
+    # CutNoise (cuboid noise)
+    cut_noise:
+      enabled: true
+      prob: 0.3
+      length_ratio: 0.25
+      noise_scale: 0.2
+    # Standard intensity augmentation
+    intensity:
+      enabled: true
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.5
+      contrast_range: [0.9, 1.1]
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.1
+    # Spatial augmentation (optional, can be expensive)
+    # elastic:
+    #   enabled: true
+    #   prob: 0.3
+    #   sigma_range: [5.0, 7.0]
+    #   magnitude_range: [50.0, 150.0]
+    # affine:
+    #   enabled: true
+    #   prob: 0.5
+    #   rotate_range: [0.1, 0.1, 0.1]
+    #   scale_range: [0.1, 0.1, 0.1]
 
-      # Missing sections (high probability)
-      - RandMissingSectiond:
-          keys: ["image"]
-          prob: 0.7
-          num_sections: 3
-
-      # Misalignment (translation + rotation)
-      - RandMisAlignmentd:
-          keys: ["image"]
-          prob: 0.7
-          displacement: 20
-          rotate_ratio: 0.5  # 50% rotation, 50% translation
-
-      # Missing parts (rectangular holes)
-      - RandMissingPartsd:
-          keys: ["image"]
-          prob: 0.5
-          hole_range: [0.1, 0.3]  # 10%-30% of section
-
-      # Motion blur
-      - RandMotionBlurd:
-          keys: ["image"]
-          prob: 0.5
-          sections: [1, 3]  # 1-3 sections
-          kernel_size: 11
-
-      # CutBlur (super-resolution)
-      - RandCutBlurd:
-          keys: ["image"]
-          prob: 0.5
-          length_ratio: 0.25
-          down_ratio_range: [2.0, 8.0]
-          downsample_z: false
-
-      # CutNoise (cuboid noise)
-      - RandCutNoised:
-          keys: ["image"]
-          prob: 0.3
-          length_ratio: 0.25
-          noise_scale: 0.2
-
-      # Standard MONAI transforms
-      # --------------------------
-
-      # Intensity augmentation
-      - RandShiftIntensityd:
-          keys: ["image"]
-          prob: 0.5
-          offsets: 0.1
-
-      - RandScaleIntensityd:
-          keys: ["image"]
-          prob: 0.5
-          factors: 0.1
-
-      - RandGaussianNoised:
-          keys: ["image"]
-          prob: 0.5
-          mean: 0.0
-          std: 0.1
-
-      # Spatial augmentation (optional, can be expensive)
-      # - Rand3DElasticd:
-      #     keys: ["image", "label"]
-      #     prob: 0.3
-      #     sigma_range: [5, 7]
-      #     magnitude_range: [50, 150]
-
-      # - RandAffined:
-      #     keys: ["image", "label"]
-      #     prob: 0.5
-      #     rotate_range: [0.1, 0.1, 0.1]
-      #     scale_range: [0.1, 0.1, 0.1]
-      #     mode: ["bilinear", "nearest"]
-
-optimizer:
-  name: AdamW
-  lr: 1e-4
-  weight_decay: 1e-4
-
-scheduler:
-  name: CosineAnnealingLR
-  warmup_epochs: 5
-
-training:
+optimization:
   max_epochs: 150  # Need more epochs with heavy augmentation
   precision: "16-mixed"
   gradient_clip_val: 1.0
-
-checkpoint:
-  monitor: "val/loss"
-  mode: "min"
-  save_top_k: 3
-  save_last: true
-
-logging:
   log_every_n_steps: 50
-  save_dir: "outputs"
+  optimizer:
+    name: AdamW
+    lr: 1e-4
+    weight_decay: 1e-4
+  scheduler:
+    name: CosineAnnealingLR
+    warmup_epochs: 5
+
+monitor:
+  checkpoint:
+    monitor: "val/loss"
+    mode: "min"
+    save_top_k: 3
+    save_last: true
