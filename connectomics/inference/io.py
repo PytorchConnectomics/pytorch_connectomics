@@ -656,13 +656,15 @@ def write_outputs(
         sample = np.squeeze(sample)
         
         # ============================================================
-        # Get output formats from config (default: ['h5', 'nii.gz'] for backward compatibility)
+        # Get output formats from config (default: ['h5'])
         # ============================================================
-        output_formats = ["h5", "nii.gz"]  # Default
+        output_formats = ["h5"]  # Default
+        analyze_h5 = False  # Default: disable verbose HDF5 analysis
         if hasattr(cfg, "inference") and hasattr(cfg.inference, "save_prediction"):
             save_pred_cfg = cfg.inference.save_prediction
             if hasattr(save_pred_cfg, "output_formats") and save_pred_cfg.output_formats:
                 output_formats = save_pred_cfg.output_formats
+            analyze_h5 = getattr(save_pred_cfg, "analyze_h5", False)
         
         # ============================================================
         # Save in all requested formats
@@ -680,13 +682,14 @@ def write_outputs(
                 )
                 print(f"  ✓ Saved HDF5: {h5_path.name}")
                 
-                # ============================================================
-                # PART 3: Automatic .h5 Output Analysis
-                # ============================================================
-                try:
-                    analyze_h5_array(sample, f"{filename}_{suffix}")
-                except Exception as e:
-                    print(f"  ⚠️  HDF5 analysis failed: {e}")
+                if analyze_h5:
+                    # ============================================================
+                    # Optional .h5 output analysis (opt-in via config)
+                    # ============================================================
+                    try:
+                        analyze_h5_array(sample, f"{filename}_{suffix}")
+                    except Exception as e:
+                        print(f"  ⚠️  HDF5 analysis failed: {e}")
             
             elif fmt_lower in ["tif", "tiff"]:
                 # TIFF format
