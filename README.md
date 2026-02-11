@@ -22,7 +22,7 @@
 
 ---
 
-## What is PyTorch Connectomics?
+## What is PyTorch Connectomics (PyTC)?
 
 **Automatic segmentation of neural structures in electron microscopy images** 🔬🧠
 
