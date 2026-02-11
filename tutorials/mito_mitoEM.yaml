@@ -1,5 +1,3 @@
-_base_: bases/mednext.yaml
-experiment_name: mitoem_mednext_sdt
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT only
 system:
   training:
