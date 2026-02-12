@@ -98,6 +98,7 @@ monitor:
       num_slices: 8
       log_every_n_epochs: 5
   checkpoint:
+    monitor: val_loss_total_epoch
     save_top_k: 5
     save_every_n_epochs: 10
   early_stopping:
