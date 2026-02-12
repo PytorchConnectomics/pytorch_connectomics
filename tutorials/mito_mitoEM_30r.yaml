@@ -6,6 +6,10 @@ data:
   - EM30-R/im_train_val.h5
   train_label:
   - EM30-R/mito_train_val.h5
+  val_image:
+  - EM30-R/im_val.h5
+  val_label:
+  - EM30-R/mito_val.h5
 monitor:
   checkpoint:
     dirpath: outputs/mitoem30r_mednext_sdt/checkpoints/
