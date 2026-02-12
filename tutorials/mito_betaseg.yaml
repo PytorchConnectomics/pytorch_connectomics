@@ -45,106 +45,40 @@ model:
     - sdt
     - - 1
 data:
-  train_path: /projects/weilab/qiongwang/datasets/betaseg/tif
+  train_path: /projects/weilab/dataset/mito/mitoEM/
   train_image:
-  - high_c3_im.tiff
-  - low_c1_im.tiff
-  - low_c2_im.tiff
+  - EM30-H/im_train_val.h5
   train_label:
-  - high_c3_mito.tiff
-  - low_c1_mito.tiff
-  - low_c2_mito.tiff
+  - EM30-H/mito_train_val.h5
   train_resolution:
-  - 16
-  - 16
-  - 16
-  val_path: /projects/weilab/qiongwang/datasets/betaseg/tif
-  val_image:
-  - high_c1_im.tiff
-  val_label:
-  - high_c1_mito.tiff
-  use_preloaded_cache: false
-  use_cache: true
+  - 30
+  - 8
+  - 8
+  use_preloaded_cache: true
   cache_rate: 1.0
   persistent_workers: true
   patch_size:
-  - 128
-  - 128
-  - 128
-  pad_size:
   - 16
+  - 256
+  - 256
+  pad_size:
+  - 4
   - 16
   - 16
   pad_mode: reflect
-  iter_num_per_epoch: 790
+  iter_num_per_epoch: 2000
   image_transform:
     clip_percentile_low: 0.005
     clip_percentile_high: 0.995
   label_transform:
     targets:
-    - name: affinity
+    - name: instance_edt
       kwargs:
-        offsets:
-        - 0-0-1
-        - 0-1-0
-        - 1-0-0
-        - 0-0-10
-        - 0-10-0
-        - 10-0-0
-    - name: skeleton_aware_edt
-      kwargs:
-        resolution:
-        - 16
-        - 16
-        - 16
-        alpha: 0.8
-        bg_value: -1.0
-        relabel: true
+        mode: 3d
+        quantize: false
+        normalize: true
   augmentation:
-    preset: some
-    affine:
-      enabled: true
-      prob: 0.5
-      rotate_range:
-      - 0.2
-      - 0.2
-      - 0.2
-      scale_range:
-      - 0.2
-      - 0.2
-      - 0.2
-      shear_range:
-      - 0.5
-      - 0.5
-      - 0.5
-    intensity:
-      enabled: true
-      gaussian_noise_prob: 0.3
-      gaussian_noise_std: 0.5
-      shift_intensity_prob: 0.3
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.3
-      contrast_range:
-      - 0.7
-      - 1.4
-    missing_section:
-      enabled: true
-      prob: 0.05
-      num_sections: 2
-    misalignment:
-      enabled: true
-      prob: 0.05
-      displacement: 10
-      rotate_ratio: 0.0
-    flip:
-      enabled: true
-      prob: 0.5
-    rotate:
-      enabled: true
-      prob: 0.5
-    elastic:
-      enabled: true
-      prob: 0.3
+    preset: all
 optimization:
   max_steps: 1000000
   accumulate_grad_batches: 1
@@ -186,23 +120,13 @@ monitor:
     divergence_threshold: 100.0
 test:
   data:
-    test_image:
-    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c2_im.tiff
-    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c4_im.tiff
-    - /projects/weilab/qiongwang/datasets/betaseg/tif/low_c3_im.tiff
-    test_label:
-    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c2_mito.tiff
-    - /projects/weilab/qiongwang/datasets/betaseg/tif/high_c4_mito.tiff
-    - /projects/weilab/qiongwang/datasets/betaseg/tif/low_c3_mito.tiff
+    test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
+    test_label: /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
     test_resolution:
-    - 16
-    - 16
-    - 16
-    output_path: outputs/betaseg_mednext_affinity_sdt/results/
-    image_transform:
-      normalize: 0-1
-      clip_percentile_low: 0.005
-      clip_percentile_high: 0.995
+    - 30
+    - 8
+    - 8
+    output_path: outputs/mitoem_mednext_sdt/results/
   decoding:
   - name: decode_distance_watershed
     kwargs:

@@ -1,9 +1,11 @@
+_base_: bases/mednext.yaml
+
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT only
 system:
   training:
     num_cpus: 8
     num_workers: 8
-    batch_size: 16
+    batch_size: 4
   inference:
     num_cpus: 1
     num_workers: 1
@@ -11,11 +13,11 @@ system:
   seed: 42
 model:
   input_size:
-  - 16
+  - 32
   - 256
   - 256
   output_size:
-  - 16
+  - 32
   - 256
   - 256
   out_channels: 1
@@ -31,10 +33,6 @@ model:
   - tanh: true
 data:
   train_path: /projects/weilab/dataset/mito/mitoEM/
-  train_image:
-  - EM30-H/im_train_val.h5
-  train_label:
-  - EM30-H/mito_train_val.h5
   train_resolution:
   - 30
   - 8
@@ -43,7 +41,7 @@ data:
   cache_rate: 1.0
   persistent_workers: true
   patch_size:
-  - 16
+  - 32
   - 256
   - 256
   pad_size:
@@ -66,48 +64,55 @@ data:
     preset: all
 optimization:
   max_epochs: 1000
-  accumulate_grad_batches: 4
-  precision: 16-mixed
+  accumulate_grad_batches: 2
+  precision: bf16-mixed
+  deterministic: false
+  benchmark: true
   optimizer:
-    lr: 0.001
+    lr: 0.0003
     weight_decay: 1e-4
     eps: 1.0e-08
   scheduler:
-    name: constant
+    name: WarmupCosineLR
+    warmup_epochs: 20
+    warmup_start_lr: 3.0e-05
+    min_lr: 1.0e-06
+    interval: epoch
+    frequency: 1
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 500
+    validate_with_ema: true
 monitor:
   logging:
     scalar:
       loss:
       - train_loss_total_epoch
-      loss_every_n_steps: 50
+      - val_loss_total
+      - val_loss_total_epoch
+      loss_every_n_steps: 100
       val_check_interval: 1.0
     images:
       max_images: 4
       num_slices: 8
       log_every_n_epochs: 5
   checkpoint:
+    monitor: val_loss_total_epoch
     save_top_k: 5
-    save_every_n_epochs: 25
-    dirpath: outputs/mitoem_mednext_sdt/checkpoints/
+    save_every_n_epochs: 10
   early_stopping:
-    monitor: train_loss_total_epoch
-    patience: 150
-    min_delta: 1e-6
-    threshold: 0.01
-    divergence_threshold: 100.0
+    enabled: false
 test:
   data:
-    test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
-    test_label: /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
     test_resolution:
     - 30
     - 8
     - 8
-    output_path: outputs/mitoem_mednext_sdt/results/
 inference:
   sliding_window:
     window_size:
-    - 16
+    - 32
     - 256
     - 256
     sw_batch_size: 4
