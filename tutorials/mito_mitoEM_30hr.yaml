@@ -3,11 +3,11 @@ _base_: mito_mitoEM_common.yaml
 experiment_name: mitoem30hr_mednext_sdt
 data:
   train_image:
-  - EM30-H/im_train_val.h5
-  - EM30-R/im_train_val.h5
+  - EM30-H/im_train.h5
+  - EM30-R/im_train.h5
   train_label:
-  - EM30-H/mito_train_val.h5
-  - EM30-R/mito_train_val.h5
+  - EM30-H/mito_train.h5
+  - EM30-R/mito_train.h5
 monitor:
   checkpoint:
     dirpath: outputs/mitoem30hr_mednext_sdt/checkpoints/
