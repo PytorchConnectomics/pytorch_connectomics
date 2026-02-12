@@ -9,7 +9,10 @@ python scripts/main.py --config tutorials/<config>.yaml
 ## Active top-level configs
 
 - `tutorials/mito_lucchi++.yaml`: Lucchi++ mitochondria segmentation (MONAI UNet).
-- `tutorials/mito_mitoEM.yaml`: MitoEM mitochondria instance segmentation (MedNeXt, SDT).
+- `tutorials/mito_mitoEM.yaml`: Backward-compatible alias to `mito_mitoEM_30h.yaml`.
+- `tutorials/mito_mitoEM_30h.yaml`: MitoEM-Human (EM30-H) instance segmentation (MedNeXt, SDT).
+- `tutorials/mito_mitoEM_30r.yaml`: MitoEM-Rat (EM30-R) instance segmentation (MedNeXt, SDT).
+- `tutorials/mito_mitoEM_30hr.yaml`: Joint EM30-H + EM30-R training (MedNeXt, SDT).
 - `tutorials/mito_mitolab.yaml`: CEM-MitoLab 2D mitochondria segmentation (MedNeXt).
 - `tutorials/mito_betaseg.yaml`: BetaSeg mitochondria instance segmentation (MedNeXt, affinity+SDT).
 - `tutorials/neuron_snemi.yaml`: SNEMI3D neuron segmentation (RSUNet, affinities).
