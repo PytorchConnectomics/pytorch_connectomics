@@ -1,0 +1,16 @@
+_base_: mito_mitoEM_common.yaml
+
+experiment_name: mitoem30h_mednext_sdt
+data:
+  train_image:
+  - EM30-H/im_train_val.h5
+  train_label:
+  - EM30-H/mito_train_val.h5
+monitor:
+  checkpoint:
+    dirpath: outputs/mitoem30h_mednext_sdt/checkpoints/
+test:
+  data:
+    test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
+    test_label: /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
+    output_path: outputs/mitoem30h_mednext_sdt/results/
