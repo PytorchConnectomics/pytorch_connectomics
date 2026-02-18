@@ -1,7 +1,28 @@
 _base_: mito_mitoEM_common.yaml
 
 experiment_name: mitoem30h_mednext_sdt
+system:
+  training:
+    num_workers: 2
+    batch_size: 2
+  inference:
+    batch_size: 1
+model:
+  input_size:
+  - 16
+  - 256
+  - 256
+  output_size:
+  - 16
+  - 256
+  - 256
 data:
+  use_preloaded_cache: false
+  persistent_workers: false
+  patch_size:
+  - 16
+  - 256
+  - 256
   train_image:
   - EM30-H/im_train.h5
   train_label:
@@ -10,6 +31,15 @@ data:
   - EM30-H/im_val.h5
   val_label:
   - EM30-H/mito_val-v2.h5
+optimization:
+  accumulate_grad_batches: 4
+inference:
+  sliding_window:
+    window_size:
+    - 16
+    - 256
+    - 256
+    sw_batch_size: 1
 monitor:
   checkpoint:
     dirpath: outputs/mitoem30h_mednext_sdt/checkpoints/
