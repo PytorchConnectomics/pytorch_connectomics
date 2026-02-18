@@ -1,0 +1,228 @@
+_base_: bases/rsunet.yaml
+experiment_name: rsunet_cremi_synapse_cleft
+description: CREMI synapse cleft detection (binary semantic segmentation with RSUNet, anisotropic)
+system:
+  training:
+    batch_size: 2
+  inference:
+    batch_size: 1
+  seed: 42
+model:
+  out_channels: 1
+  filters:
+  - 32
+  - 64
+  - 96
+  - 128
+  - 160
+  rsunet_norm: batch
+  rsunet_activation: elu
+  rsunet_num_groups: 8
+  rsunet_down_factors:
+  - - 1
+    - 2
+    - 2
+  - - 1
+    - 2
+    - 2
+  - - 1
+    - 2
+    - 2
+  - - 1
+    - 2
+    - 2
+  rsunet_depth_2d: 1
+  rsunet_kernel_2d:
+  - 1
+  - 3
+  - 3
+  deep_supervision: false
+  loss_functions:
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  loss_weights:
+  - 1.0
+  - 1.0
+  loss_kwargs:
+  - reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-05
+    smooth_dr: 1e-05
+data:
+  train_image:
+  - datasets/corrected/im_A.h5
+  - datasets/corrected/im_B.h5
+  - datasets/corrected/im_C.h5
+  train_label:
+  - datasets/corrected/syn_A.h5
+  - datasets/corrected/syn_B.h5
+  - datasets/corrected/syn_C.h5
+  patch_size:
+  - 18
+  - 256
+  - 256
+  pad_size:
+  - 0
+  - 32
+  - 32
+  pad_mode: reflect
+  iter_num_per_epoch: 1280
+  use_preloaded_cache: true
+  reject_sampling:
+    size_thres: 1000
+    p: 0.95
+  image_transform:
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+  augmentation:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis:
+      - 1
+      - 2
+    rotate:
+      enabled: true
+      prob: 0.5
+      max_angle: 90.0
+    elastic:
+      enabled: true
+      prob: 0.3
+      sigma_range:
+      - 5.0
+      - 8.0
+      magnitude_range:
+      - 50.0
+      - 150.0
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05
+      shift_intensity_prob: 0.3
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.3
+      contrast_range:
+      - 0.7
+      - 1.4
+    misalignment:
+      enabled: true
+      prob: 0.5
+      displacement: 16
+      rotate_ratio: 0.0
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 2
+    motion_blur:
+      enabled: true
+      prob: 0.3
+      sections: 2
+      kernel_size: 11
+    cut_noise:
+      enabled: false
+    cut_blur:
+      enabled: false
+    missing_parts:
+      enabled: false
+optimization:
+  max_steps: 150000
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: bf16-mixed
+  deterministic: false
+  benchmark: true
+  optimizer:
+    name: AdamW
+    lr: 0.001
+    eps: 1.0e-08
+    betas:
+    - 0.9
+    - 0.999
+    weight_decay: 0.01
+  scheduler:
+    name: CosineAnnealingLR
+    t_max: 150000
+    min_lr: 1.0e-05
+    interval: step
+    frequency: 1
+  ema:
+    enabled: true
+    decay: 0.999
+    warmup_steps: 500
+    validate_with_ema: true
+monitor:
+  logging:
+    scalar:
+      loss:
+      - train_loss_total_epoch
+      loss_every_n_steps: 10
+      val_check_interval: 1.0
+    images:
+      max_images: 8
+      num_slices: 9
+      log_every_n_epochs: 1
+  checkpoint:
+    monitor: train_loss_total_epoch
+    save_top_k: 3
+    save_every_n_epochs: 10
+    dirpath: outputs/rsunet_cremi_synapse_cleft/checkpoints/
+    checkpoint_filename: epoch={epoch:03d}-step={step:07d}-loss={train_loss_total_epoch:.4f}
+  early_stopping:
+    enabled: false
+test:
+  data:
+    # For local evaluation (labels available): use training volumes
+    test_image:
+    - datasets/corrected/im_A.h5
+    - datasets/corrected/im_B.h5
+    - datasets/corrected/im_C.h5
+    test_label:
+    - datasets/corrected/syn_A.h5
+    - datasets/corrected/syn_B.h5
+    - datasets/corrected/syn_C.h5
+    # For CREMI challenge submission (no labels): uncomment below, comment above
+    # test_image:
+    # - datasets/corrected/im_A+.h5
+    # - datasets/corrected/im_B+.h5
+    # - datasets/corrected/im_C+.h5
+    test_resolution:
+    - 40
+    - 4
+    - 4
+    output_path: outputs/rsunet_cremi_synapse_cleft/results/
+    image_transform:
+      normalize: "0-1"
+      clip_percentile_low: 0.0
+      clip_percentile_high: 1.0
+  evaluation:
+    enabled: true
+    metrics:
+    - cremi_distance
+    - jaccard
+inference:
+  sliding_window:
+    window_size:
+    - 18
+    - 256
+    - 256
+    sw_batch_size: 4
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: reflect
+  test_time_augmentation:
+    enabled: true
+    flip_axes: all
+    ensemble_mode: mean
+    channel_activations:
+    - - 0
+      - 1
+      - sigmoid
+    select_channel: null
+  save_prediction:
+    enabled: true
+    intensity_scale: -1
+    intensity_dtype: float32
+    output_formats:
+    - h5
