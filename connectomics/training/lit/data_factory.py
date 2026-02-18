@@ -550,9 +550,13 @@ def create_datamodule(
         # Build transforms without loading/cropping (handled by dataset)
         augment_only_transforms = build_train_transforms(cfg, skip_loading=True)
 
-        # Get padding parameters from config
-        pad_size = getattr(cfg.data.image_transform, "pad_size", None)
-        pad_mode = getattr(cfg.data.image_transform, "pad_mode", "reflect")
+        # Get padding parameters from config (image_transform overrides top-level data.pad_size)
+        pad_size = getattr(cfg.data.image_transform, "pad_size", None) or getattr(
+            cfg.data, "pad_size", None
+        )
+        pad_mode = getattr(
+            cfg.data.image_transform, "pad_mode", None
+        ) or getattr(cfg.data, "pad_mode", "reflect")
 
         # Create optimized cached datasets
         train_dataset = CachedVolumeDataset(

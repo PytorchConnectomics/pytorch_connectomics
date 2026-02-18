@@ -1,15 +1,17 @@
 _base_: bases/mednext.yaml
 
-description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT only
+description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
 system:
   training:
     num_cpus: 8
+    num_gpus: 4
     num_workers: 8
     batch_size: 4
   inference:
-    num_cpus: 1
-    num_workers: 1
-    batch_size: 1
+    num_gpus: 4
+    num_cpus: 8
+    num_workers: 8
+    batch_size: 4
   seed: 42
 model:
   input_size:
@@ -20,46 +22,65 @@ model:
   - 32
   - 256
   - 256
-  out_channels: 1
+  out_channels: 7
   mednext_size: M
   mednext_kernel_size: 7
   mednext_dim: 3d
   deep_supervision: true
   loss_functions:
+  - WeightedBCEWithLogitsLoss
   - WeightedMSELoss
   loss_weights:
   - 1.0
+  - 1.0
   loss_kwargs:
+  - {}
   - tanh: true
+  multi_task_config:
+  - - 0
+    - 6
+    - affinity
+    - - 0
+  - - 6
+    - 7
+    - sdt
+    - - 1
 data:
   train_path: /projects/weilab/dataset/mito/mitoEM/
+  val_path: /projects/weilab/dataset/mito/mitoEM/
   train_resolution:
   - 30
   - 8
   - 8
+  val_resolution:
+  - 30
+  - 8
+  - 8
   use_preloaded_cache: true
-  cache_rate: 1.0
+  use_cache: false  # keep false so every batch gets fresh random crop + augmentation  
   persistent_workers: true
   patch_size:
   - 32
   - 256
   - 256
-  pad_size:
-  - 4
-  - 16
-  - 16
-  pad_mode: reflect
   iter_num_per_epoch: 2000
   image_transform:
     clip_percentile_low: 0.005
     clip_percentile_high: 0.995
   label_transform:
     targets:
-    - name: instance_edt
+    - name: affinity
       kwargs:
-        mode: 3d
-        quantize: false
-        normalize: true
+        long_range: 3
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution:
+        - 30
+        - 8
+        - 8
+        alpha: 1
+        bg_value: -1.0
+        relabel: true    
   augmentation:
     preset: all
 optimization:
@@ -91,6 +112,8 @@ monitor:
       - train_loss_total_epoch
       - val_loss_total
       - val_loss_total_epoch
+      - train_loss_affinity_total
+      - train_loss_sdt_total
       loss_every_n_steps: 100
       val_check_interval: 1.0
     images:
@@ -125,7 +148,10 @@ inference:
     rotation90_axes: null
     channel_activations:
     - - 0
-      - 1
+      - 6
+      - sigmoid
+    - - 6
+      - 7
       - tanh
     select_channel: all
     apply_mask: false

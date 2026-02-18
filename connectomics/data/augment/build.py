@@ -326,6 +326,11 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
             nnunet_pre_cfg = getattr(cfg.tune.data, "nnunet_preprocessing", None)
             source_spacing = getattr(cfg.tune.data, "tune_resolution", None)
+    elif mode == "val":
+        nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
+        source_spacing = (
+            getattr(cfg.data, "val_resolution", None) or getattr(cfg.data, "train_resolution", None)
+        )
     else:
         nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
         source_spacing = getattr(cfg.data, "train_resolution", None)

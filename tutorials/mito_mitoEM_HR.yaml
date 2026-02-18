@@ -6,14 +6,14 @@ data:
   - EM30-H/im_train.h5
   - EM30-R/im_train.h5
   train_label:
-  - EM30-H/mito_train.h5
-  - EM30-R/mito_train.h5
+  - EM30-H/mito_train-v2.h5
+  - EM30-R/mito_train-v2.h5
   val_image:
   - EM30-H/im_val.h5
   - EM30-R/im_val.h5
   val_label:
-  - EM30-H/mito_val.h5
-  - EM30-R/mito_val.h5
+  - EM30-H/mito_val-v2.h5
+  - EM30-R/mito_val-v2.h5
 monitor:
   checkpoint:
     dirpath: outputs/mitoem30hr_mednext_sdt/checkpoints/
@@ -23,6 +23,6 @@ test:
     - /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
     - /projects/weilab/dataset/mito/mitoEM/EM30-R/im_test.h5
     test_label:
-    - /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test.h5
-    - /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test.h5
+    - /projects/weilab/dataset/mito/mitoEM/EM30-H/mito_test-v2.h5
+    - /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test-v2.h5
     output_path: outputs/mitoem30hr_mednext_sdt/results/
