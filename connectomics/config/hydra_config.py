@@ -430,6 +430,9 @@ class DataConfig:
     train_resolution: Optional[List[float]] = (
         None  # Training data resolution [z, y, x] in nm (e.g., [30, 6, 6])
     )
+    val_resolution: Optional[List[float]] = (
+        None  # Validation data resolution [z, y, x] in nm; if None, falls back to train_resolution
+    )
 
     # Axis transposition (empty list = no transpose)
     train_transpose: List[int] = field(
