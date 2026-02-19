@@ -484,7 +484,7 @@ class DataConfig:
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 
     # Augmentation configuration (nested under data in YAML)
-    augmentation: "AugmentationConfig" = field(default_factory=lambda: AugmentationConfig())
+    augmentation: AugmentationConfig = field(default_factory=lambda: AugmentationConfig())
 
     # CellMap-specific configuration (for CellMap Segmentation Challenge)
     cellmap: Optional[Dict[str, Any]] = (
@@ -574,7 +574,7 @@ class OptimizationConfig:
     # Validation and logging
     val_check_interval: Union[int, float] = 1.0
     log_every_n_steps: int = 50
-    num_sanity_val_steps: int = 2
+    num_sanity_val_steps: int = 0
 
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
@@ -1062,7 +1062,7 @@ class BinaryPostprocessingConfig:
     )
     opening_iterations: int = 0  # Number of morphological opening iterations
     closing_iterations: int = 0  # Number of morphological closing iterations
-    connected_components: Optional["ConnectedComponentsConfig"] = None  # CC filtering config
+    connected_components: Optional[ConnectedComponentsConfig] = None  # CC filtering config
 
 
 @dataclass
