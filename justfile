@@ -121,13 +121,13 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G':
            --output=slurm_outputs/slurm-%j.out \
            --error=slurm_outputs/slurm-%j.err \
            --nodes=1 \
-           --ntasks-per-node={{num_gpu}} \
-           --gpus-per-task=1 \
+           --ntasks=1 \
+           --gpus-per-task={{num_gpu}} \
            --cpus-per-task={{num_cpu}} \
            --mem={{mem}} \
            --time=$time_limit \
            $constraint_flag \
-           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_gpu}} {{cmd}}"
+           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} {{cmd}}"
 
 # Alias for slurm (kept for backward compatibility)
 slurm-sh partition num_cpu num_gpu cmd constraint='' mem='32G':

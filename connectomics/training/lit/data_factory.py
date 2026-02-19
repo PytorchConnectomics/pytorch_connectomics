@@ -531,9 +531,13 @@ def create_datamodule(
         num_workers = cfg.system.training.num_workers
         print(f"  Using training settings: batch_size={batch_size}, num_workers={num_workers}")
 
-    # Use optimized pre-loaded cache when iter_num > 0 (only for training mode and volume datasets)
+    # Explicit preload settings (no legacy fallback).
+    train_preload_cfg = cfg.data.use_preloaded_cache_train
+    val_preload_cfg = cfg.data.use_preloaded_cache_val
+
+    # Use optimized pre-loaded cache for train dataset when iter_num > 0.
     use_preloaded = (
-        cfg.data.use_preloaded_cache
+        train_preload_cfg
         and iter_num is not None
         and iter_num > 0
         and mode == "train"
@@ -572,9 +576,8 @@ def create_datamodule(
             foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
         )
 
-        # Use fewer workers since we're loading from memory
-        preloaded_num_workers = min(num_workers, 2)
-        print(f"  Using {preloaded_num_workers} workers (in-memory operations are fast)")
+        preloaded_num_workers = num_workers
+        print(f"  Using {preloaded_num_workers} workers")
 
         # Create simple dataloader
         train_loader = DataLoader(
@@ -586,10 +589,17 @@ def create_datamodule(
             persistent_workers=preloaded_num_workers > 0,
         )
 
+        print(
+            f"  Preload policy: train={train_preload_cfg}, val={val_preload_cfg}"
+        )
+
         # Create validation dataset and loader if validation data exists
         val_loader = None
         if val_data_dicts and len(val_data_dicts) > 0:
-            print("  Creating validation dataset with pre-loaded cache...")
+            if val_preload_cfg:
+                print("  Creating validation dataset with pre-loaded cache...")
+            else:
+                print("  Creating validation dataset without pre-loaded cache...")
 
             # Build validation transforms (no augmentation, only normalization)
             val_only_transforms = build_val_transforms(cfg, skip_loading=True)
@@ -616,18 +626,40 @@ def create_datamodule(
                 print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
 
             # Create validation dataset
-            val_dataset = CachedVolumeDataset(
-                image_paths=[d["image"] for d in val_data_dicts],
-                label_paths=[d.get("label") for d in val_data_dicts],
-                patch_size=tuple(cfg.data.patch_size),
-                iter_num=val_iter_num,
-                transforms=val_only_transforms,
-                mode="val",
-                pad_size=tuple(pad_size) if pad_size else None,
-                pad_mode=pad_mode,
-                max_attempts=cfg.data.cached_sampling_max_attempts,
-                foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
-            )
+            if val_preload_cfg:
+                val_dataset = CachedVolumeDataset(
+                    image_paths=[d["image"] for d in val_data_dicts],
+                    label_paths=[d.get("label") for d in val_data_dicts],
+                    patch_size=tuple(cfg.data.patch_size),
+                    iter_num=val_iter_num,
+                    transforms=val_only_transforms,
+                    mode="val",
+                    pad_size=tuple(pad_size) if pad_size else None,
+                    pad_mode=pad_mode,
+                    max_attempts=cfg.data.cached_sampling_max_attempts,
+                    foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
+                )
+            else:
+                from ...data.dataset import create_volume_dataset
+
+                val_label_paths = [d.get("label") for d in val_data_dicts]
+                if all(p is None for p in val_label_paths):
+                    val_label_paths = None
+                val_mask_paths = [d.get("mask") for d in val_data_dicts]
+                if all(p is None for p in val_mask_paths):
+                    val_mask_paths = None
+
+                val_dataset = create_volume_dataset(
+                    image_paths=[d["image"] for d in val_data_dicts],
+                    label_paths=val_label_paths,
+                    mask_paths=val_mask_paths,
+                    transforms=val_transforms,
+                    dataset_type="cached" if cfg.data.use_cache else "standard",
+                    cache_rate=cfg.data.cache_rate,
+                    sample_size=tuple(cfg.data.patch_size),
+                    mode="val",
+                    iter_num=val_iter_num,
+                )
 
             # Create validation dataloader
             val_loader = DataLoader(

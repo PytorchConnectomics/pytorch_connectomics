@@ -5,7 +5,8 @@ model:
   filters: [32, 64, 128, 256]
 
 data:
-  use_preloaded_cache: true
+  use_preloaded_cache_train: true
+  use_preloaded_cache_val: true
   iter_num_per_epoch: 1280
   image_transform:
     clip_percentile_low: 0.0

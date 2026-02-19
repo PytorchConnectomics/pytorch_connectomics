@@ -9,6 +9,7 @@ This module provides Lightning trainer factory functions with:
 """
 
 from __future__ import annotations
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,7 @@ from pytorch_lightning.callbacks import (
     RichProgressBar,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.plugins.environments import LightningEnvironment
 from pytorch_lightning.strategies import DDPStrategy
 
 from ...config import Config
@@ -293,6 +295,14 @@ def create_trainer(
 
     print(f"  Validation: every {check_val_every_n_epoch} epoch(s)")
 
+    # In Slurm jobs launched with ntasks=1, force local process spawning for multi-GPU
+    # so Lightning uses world_size=devices instead of treating Slurm as externally launched DDP.
+    plugins = None
+    slurm_ntasks = os.environ.get("SLURM_NTASKS")
+    if use_gpu and system_cfg.num_gpus > 1 and slurm_ntasks == "1":
+        plugins = [LightningEnvironment()]
+        print("  Launch mode: local multi-GPU spawn (SLURM_NTASKS=1)")
+
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         max_steps=max_steps,
@@ -312,6 +322,7 @@ def create_trainer(
         benchmark=cfg.optimization.benchmark,
         fast_dev_run=bool(fast_dev_run),
         detect_anomaly=detect_anomaly,
+        plugins=plugins,
     )
 
     print(f"  Training mode: {training_mode}")

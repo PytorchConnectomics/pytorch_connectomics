@@ -469,9 +469,8 @@ class DataConfig:
     # Sampling (for volumetric datasets)
     iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
     val_iter_num: Optional[int] = None  # Validation iterations per epoch (auto-calculated if None)
-    use_preloaded_cache: bool = (
-        True  # Preload volumes into memory for fast random cropping (default: True)
-    )
+    use_preloaded_cache_train: bool = True  # Preload training volumes into memory
+    use_preloaded_cache_val: bool = True  # Preload validation volumes into memory
     cached_sampling_max_attempts: int = 10  # Retry attempts for foreground-aware sampling
     cached_sampling_foreground_threshold: float = (
         0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
