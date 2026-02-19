@@ -27,7 +27,6 @@ description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SD
 system:
   training:
     num_gpus: 1
-    num_cpus: 8
     num_workers: 8                     # Parallel data loading
     batch_size: 2                     # Larger batch for single-channel output (vs multi-task)
   inference:
