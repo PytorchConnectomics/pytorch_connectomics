@@ -31,7 +31,6 @@ system:
     batch_size: 2                     # Larger batch for single-channel output (vs multi-task)
   inference:
     num_gpus: 1
-    num_cpus: 8
     num_workers: 8
     batch_size: 1
     # num_cpus: 1
