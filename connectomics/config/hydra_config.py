@@ -574,6 +574,7 @@ class OptimizationConfig:
     # Validation and logging
     val_check_interval: Union[int, float] = 1.0
     log_every_n_steps: int = 50
+    num_sanity_val_steps: int = 2
 
     optimizer: OptimizerConfig = field(default_factory=OptimizerConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
