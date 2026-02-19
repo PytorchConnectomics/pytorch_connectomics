@@ -2,9 +2,8 @@ _base_: mito_mitoEM_common.yaml
 
 experiment_name: mitoem30h_mednext_sdt
 system:
-  training:
-    num_gpus: 1
-    batch_size: 6
+  training:    
+    batch_size: 4
   inference:
     batch_size: 1
 model:

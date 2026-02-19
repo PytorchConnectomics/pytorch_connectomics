@@ -3,6 +3,8 @@ experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 system:
   training:    
+    num_gpus: 4
+    num_workers: 2
     batch_size: 8
   inference:
     batch_size: 8
@@ -230,24 +232,16 @@ inference:
     flip_axes: all
     ensemble_mode: min
     select_channel: [0,1,2]
-    channel_activations:
-    - - 0
-      - 12
-      - sigmoid
-    
+    channel_activations: [[0, 3, sigmoid]]
   save_prediction:
     enabled: true
     intensity_scale: -1.0
     intensity_dtype: float32
-  decoding:
-  - name: decode_affinity_cc
-    kwargs:
-      threshold: 0.5
-  # Example (same as test.decoding):
+  # decoding:  
   # - name: decode_abiss
   #   kwargs:
   #     command: "python scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
-  evaluation:
-    enabled: false
-    metrics:
-    - adapted_rand
+  # evaluation:
+  #   enabled: false
+  #   metrics:
+  #   - adapted_rand
