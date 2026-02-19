@@ -454,7 +454,7 @@
                 <span class="sa">f</span><span class="s2">&quot;  EMA: Enabled (decay=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">decay</span><span class="si">}</span><span class="s2">, warmup_steps=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">warmup_steps</span><span class="si">}</span><span class="s2">, &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;validate_with_ema=</span><span class="si">{</span><span class="n">ema_cfg</span><span class="o">.</span><span class="n">validate_with_ema</span><span class="si">}</span><span class="s2">)&quot;</span>
             <span class="p">)</span>
-        
+
         <span class="c1"># [FIX 1 - PROPER IMPLEMENTATION] Validation reseeding callback</span>
         <span class="c1"># This ensures validation datasets are reseeded at the start of EACH validation epoch</span>
         <span class="c1"># Previous fix in val_dataloader() only ran once during setup</span>
@@ -550,6 +550,27 @@
         <span class="n">max_steps</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>  <span class="c1"># -1 means unlimited steps</span>
         <span class="n">training_mode</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;epoch-based (</span><span class="si">{</span><span class="n">max_epochs</span><span class="si">}</span><span class="s2"> epochs)&quot;</span>
 
+    <span class="c1"># Treat optimization.val_check_interval as epoch interval (legacy key name).</span>
+    <span class="c1"># Accept values like 1.0 from existing YAMLs, but reject non-integer floats.</span>
+    <span class="n">val_check_cfg</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">val_check_interval</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val_check_cfg</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">val_check_cfg</span><span class="o">.</span><span class="n">is_integer</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;optimization.val_check_interval must be an integer number of epochs &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(got </span><span class="si">{</span><span class="n">val_check_cfg</span><span class="si">}</span><span class="s2">).&quot;</span>
+            <span class="p">)</span>
+        <span class="n">check_val_every_n_epoch</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val_check_cfg</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">check_val_every_n_epoch</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">val_check_cfg</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">check_val_every_n_epoch</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">&quot;optimization.val_check_interval must be &gt;= 1 &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(got </span><span class="si">{</span><span class="n">check_val_every_n_epoch</span><span class="si">}</span><span class="s2">).&quot;</span>
+        <span class="p">)</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Validation: every </span><span class="si">{</span><span class="n">check_val_every_n_epoch</span><span class="si">}</span><span class="s2"> epoch(s)&quot;</span><span class="p">)</span>
+
     <span class="n">trainer</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">Trainer</span><span class="p">(</span>
         <span class="n">max_epochs</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span>
         <span class="n">max_steps</span><span class="o">=</span><span class="n">max_steps</span><span class="p">,</span>
@@ -560,7 +581,8 @@
         <span class="n">precision</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">precision</span><span class="p">,</span>
         <span class="n">gradient_clip_val</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">gradient_clip_val</span><span class="p">,</span>
         <span class="n">accumulate_grad_batches</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">accumulate_grad_batches</span><span class="p">,</span>
-        <span class="n">val_check_interval</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">val_check_interval</span><span class="p">,</span>
+        <span class="n">val_check_interval</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">check_val_every_n_epoch</span><span class="o">=</span><span class="n">check_val_every_n_epoch</span><span class="p">,</span>
         <span class="n">log_every_n_steps</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">log_every_n_steps</span><span class="p">,</span>
         <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">,</span>
         <span class="n">logger</span><span class="o">=</span><span class="n">logger</span><span class="p">,</span>
