@@ -1,22 +1,19 @@
-"""
-Decoding package for PyTorch Connectomics.
+"""Decoding package for PyTorch Connectomics."""
 
-This package provides post-processing functions to convert model predictions
-into final instance segmentation masks for various biological structures.
-
-Modules:
-    - segmentation: Mitochondria and organelle instance decoding
-    - synapse: Synaptic polarity instance decoding
-    - postprocess: General post-processing utilities
-    - utils: Shared utility functions
-    - auto_tuning: Hyperparameter optimization for post-processing
-
-Import patterns:
-    from connectomics.decoding import decode_binary_watershed, decode_binary_contour_watershed
-    from connectomics.decoding import polarity2instance
-    from connectomics.decoding import stitch_3d, watershed_split
-    from connectomics.decoding import optimize_threshold, SkeletonMetrics
-"""
+from .base import DecodeStep
+from .pipeline import (
+    apply_decode_mode,
+    apply_decode_pipeline,
+    normalize_decode_modes,
+    resolve_decode_modes_from_cfg,
+)
+from .registry import (
+    DecoderRegistry,
+    get_decoder,
+    list_decoders,
+    register_builtin_decoders,
+    register_decoder,
+)
 
 from .auto_tuning import (
     SkeletonMetrics,
@@ -53,7 +50,19 @@ from .utils import (
     remove_small_instances,
 )
 
+register_builtin_decoders()
+
 __all__ = [
+    # Registry / pipeline
+    "DecodeStep",
+    "DecoderRegistry",
+    "register_decoder",
+    "get_decoder",
+    "list_decoders",
+    "normalize_decode_modes",
+    "apply_decode_pipeline",
+    "resolve_decode_modes_from_cfg",
+    "apply_decode_mode",
     # Segmentation decoding
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
