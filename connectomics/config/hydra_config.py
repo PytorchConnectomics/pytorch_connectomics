@@ -54,13 +54,11 @@ class SystemTrainingConfig:
 
     Attributes:
         num_gpus: Number of GPUs to use for training (0 for CPU-only)
-        num_cpus: Number of CPU cores available for data loading
         num_workers: Number of parallel data loading workers
         batch_size: Training batch size (per GPU)
     """
 
     num_gpus: int = 1
-    num_cpus: int = 4
     num_workers: int = 8
     batch_size: int = 4
 
@@ -74,13 +72,11 @@ class SystemInferenceConfig:
 
     Attributes:
         num_gpus: Number of GPUs to use for inference (0 for CPU-only)
-        num_cpus: Number of CPU cores available for data loading
         num_workers: Number of parallel data loading workers
         batch_size: Inference batch size (usually 1 for large volumes)
     """
 
     num_gpus: int = 1
-    num_cpus: int = 1
     num_workers: int = 1
     batch_size: int = 1
 
@@ -422,7 +418,7 @@ class DataConfig:
 
     # Data properties
     patch_size: List[int] = field(default_factory=lambda: [128, 128, 128])
-    pad_size: List[int] = field(default_factory=lambda: [8, 32, 32])
+    pad_size: List[int] = field(default_factory=lambda: [0, 0, 0])
     pad_mode: str = "reflect"  # Padding mode: 'reflect', 'replicate', 'constant', 'edge'
     stride: List[int] = field(default_factory=lambda: [1, 1, 1])  # Sampling stride (z, y, x)
 
@@ -475,6 +471,10 @@ class DataConfig:
     val_iter_num: Optional[int] = None  # Validation iterations per epoch (auto-calculated if None)
     use_preloaded_cache: bool = (
         True  # Preload volumes into memory for fast random cropping (default: True)
+    )
+    cached_sampling_max_attempts: int = 10  # Retry attempts for foreground-aware sampling
+    cached_sampling_foreground_threshold: float = (
+        0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
     )
 
     # Reject sampling configuration (for volumetric patch sampling)
@@ -572,7 +572,7 @@ class OptimizationConfig:
     benchmark: bool = True
 
     # Validation and logging
-    val_check_interval: Union[int, float] = 1.0
+    val_check_interval: Union[int, float] = 1.0  # Validate every N epochs (legacy key name)
     log_every_n_steps: int = 50
     num_sanity_val_steps: int = 0
 
@@ -1137,7 +1137,6 @@ class InferenceConfig:
     # Inference-specific overrides (override system settings during inference)
     # Use -1 to keep training values, or >= 0 to override
     num_gpus: int = -1  # Override system.training.num_gpus if >= 0
-    num_cpus: int = -1  # Override system.training.num_cpus if >= 0
     batch_size: int = -1  # Override system.training.batch_size if >= 0 (typically 1 for inference)
     num_workers: int = -1  # Override system.training.num_workers if >= 0
 

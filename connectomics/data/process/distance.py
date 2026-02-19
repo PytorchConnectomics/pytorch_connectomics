@@ -306,6 +306,10 @@ def skeleton_aware_distance_transform(
     """
     eps = 1e-6
 
+    # Fast-path: empty label should produce all background energy.
+    if np.sum(label > 0) == 0:
+        return np.full(label.shape, bg_value, dtype=np.float32)
+
     # Configure bbox processor
     config = BBoxProcessorConfig(
         bg_value=bg_value,

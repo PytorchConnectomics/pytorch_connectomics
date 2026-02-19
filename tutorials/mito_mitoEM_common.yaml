@@ -2,15 +2,11 @@ _base_: bases/mednext.yaml
 
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
 system:
-  training:
-    num_cpus: 8
-    num_gpus: 4
-    num_workers: 0
-    batch_size: 2
-  inference:
-    num_gpus: 4
-    num_cpus: 8
-    num_workers: 0
+  training:    
+    num_workers: 4
+    batch_size: 6
+  inference:    
+    num_workers: 1
     batch_size: 2
   seed: 42
 model:
@@ -57,6 +53,7 @@ data:
   - 8
   - 8
   use_preloaded_cache: true
+  cached_sampling_foreground_threshold: 0
   use_cache: false  # keep false so every batch gets fresh random crop + augmentation  
   persistent_workers: true
   patch_size:
@@ -82,10 +79,20 @@ data:
         bg_value: -1.0
         relabel: true    
   augmentation:
-    preset: all
+    preset: some
+    flip:
+      enabled: true
+    rotate:
+      enabled: true
+    elastic:
+      enabled: true
+    intensity:
+      enabled: true
 optimization:
   max_epochs: 1000
-  accumulate_grad_batches: 2
+  accumulate_grad_batches: 1
+  val_check_interval: 10
+  num_sanity_val_steps: 0
   precision: bf16-mixed
   deterministic: false
   benchmark: true
@@ -111,17 +118,15 @@ monitor:
       loss:
       - train_loss_total_epoch
       - val_loss_total
-      - val_loss_total_epoch
       - train_loss_affinity_total
       - train_loss_sdt_total
       loss_every_n_steps: 100
-      val_check_interval: 1.0
     images:
       max_images: 4
       num_slices: 8
-      log_every_n_epochs: 5
+      log_every_n_epochs: 10
   checkpoint:
-    monitor: val_loss_total_epoch
+    monitor: val_loss_total
     save_top_k: 5
     save_every_n_epochs: 10
   early_stopping:

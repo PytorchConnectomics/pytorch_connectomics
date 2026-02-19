@@ -24,12 +24,10 @@ description: 2D worm segmentation using MONAI Residual UNet with paired data tra
 system:
   training:
     num_gpus: 1                          # Single GPU
-    num_cpus: 1                          # Increase for better data loading
     num_workers: 1                        # Parallel data loading (2D slices are lighter)
     batch_size: 32                        # Higher batch size for 2D (vs 4 for 3D)
   inference:
     num_gpus: 1
-    num_cpus: 4
     num_workers: 4
     batch_size: 32                       # Process multiple 2D slices in parallel
   seed: 42                               # Reproducibility

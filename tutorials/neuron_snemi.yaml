@@ -2,7 +2,7 @@ _base_: bases/rsunet.yaml
 experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 system:
-  training:
+  training:    
     batch_size: 8
   inference:
     batch_size: 8
@@ -192,23 +192,19 @@ test:
     - 6
     output_path: outputs/rsunet_snemi_lee2017_modern/results/
   decoding:
-  - name: decode_affinity_cc
+  - name: decode_abiss
     kwargs:
-      threshold: 0.5
-  # Example: external ABISS wrapper (replace decode_affinity_cc above)
-  # - name: decode_abiss
-  #   kwargs:
-  #     command:
-  #       - python
-  #       - scripts/run_abiss_single.py
-  #       - --input
-  #       - "{input_h5}"
-  #       - --input-dataset
-  #       - "{input_dataset}"
-  #       - --output
-  #       - "{output_h5}"
-  #       - --output-dataset
-  #       - "{output_dataset}"
+      command:
+        - python
+        - scripts/run_abiss_single.py
+        - --input
+        - "{input_h5}"
+        - --input-dataset
+        - "{input_dataset}"
+        - --output
+        - "{output_h5}"
+        - --output-dataset
+        - "{output_dataset}"
   evaluation:
     enabled: true
     metrics:
@@ -218,22 +214,27 @@ inference:
   sliding_window:
     window_size:
     - 16
-    - 256
-    - 256
+    - 224
+    - 224
     sw_batch_size: 2
     overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
     padding_mode: reflect
+    pad_size:
+    - 4
+    - 64
+    - 64
   test_time_augmentation:
     enabled: true
     flip_axes: all
     ensemble_mode: min
+    select_channel: [0,1,2]
     channel_activations:
     - - 0
       - 12
       - sigmoid
-    select_channel: null
+    
   save_prediction:
     enabled: true
     intensity_scale: -1.0

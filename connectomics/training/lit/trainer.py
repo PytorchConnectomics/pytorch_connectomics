@@ -176,7 +176,7 @@ def create_trainer(
                 f"  EMA: Enabled (decay={ema_cfg.decay}, warmup_steps={ema_cfg.warmup_steps}, "
                 f"validate_with_ema={ema_cfg.validate_with_ema})"
             )
-        
+
         # [FIX 1 - PROPER IMPLEMENTATION] Validation reseeding callback
         # This ensures validation datasets are reseeded at the start of EACH validation epoch
         # Previous fix in val_dataloader() only ran once during setup
@@ -272,6 +272,27 @@ def create_trainer(
         max_steps = -1  # -1 means unlimited steps
         training_mode = f"epoch-based ({max_epochs} epochs)"
 
+    # Treat optimization.val_check_interval as epoch interval (legacy key name).
+    # Accept values like 1.0 from existing YAMLs, but reject non-integer floats.
+    val_check_cfg = cfg.optimization.val_check_interval
+    if isinstance(val_check_cfg, float):
+        if not val_check_cfg.is_integer():
+            raise ValueError(
+                "optimization.val_check_interval must be an integer number of epochs "
+                f"(got {val_check_cfg})."
+            )
+        check_val_every_n_epoch = int(val_check_cfg)
+    else:
+        check_val_every_n_epoch = int(val_check_cfg)
+
+    if check_val_every_n_epoch < 1:
+        raise ValueError(
+            "optimization.val_check_interval must be >= 1 "
+            f"(got {check_val_every_n_epoch})."
+        )
+
+    print(f"  Validation: every {check_val_every_n_epoch} epoch(s)")
+
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         max_steps=max_steps,
@@ -282,7 +303,8 @@ def create_trainer(
         precision=cfg.optimization.precision,
         gradient_clip_val=cfg.optimization.gradient_clip_val,
         accumulate_grad_batches=cfg.optimization.accumulate_grad_batches,
-        val_check_interval=cfg.optimization.val_check_interval,
+        val_check_interval=1.0,
+        check_val_every_n_epoch=check_val_every_n_epoch,
         log_every_n_steps=cfg.optimization.log_every_n_steps,
         callbacks=callbacks,
         logger=logger,

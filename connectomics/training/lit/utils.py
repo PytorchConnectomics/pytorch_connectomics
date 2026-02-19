@@ -202,7 +202,6 @@ def setup_config(args) -> Config:
     if args.fast_dev_run:
         print("🔧 Fast-dev-run mode: Overriding config for debugging")
         print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
-        print(f"   - num_cpus: {cfg.system.training.num_cpus} → 1")
         print(
             f"   - num_workers: {cfg.system.training.num_workers} → 0 "
             "(avoid multiprocessing in debug mode)"
@@ -213,10 +212,8 @@ def setup_config(args) -> Config:
         print("   - input patch: 64^3 for lightweight debug")
         print("   - MedNeXt size: S for lightweight debug")
         cfg.system.training.num_gpus = 1
-        cfg.system.training.num_cpus = 1
         cfg.system.training.num_workers = 0
         cfg.system.inference.num_gpus = 1
-        cfg.system.inference.num_cpus = 1
         cfg.system.inference.num_workers = 0
         if hasattr(cfg.model, "input_size"):
             cfg.model.input_size = [64, 64, 64]
@@ -247,9 +244,6 @@ def setup_config(args) -> Config:
         if cfg.inference.num_gpus >= 0:
             print(f"🔧 Inference override: num_gpus={cfg.inference.num_gpus}")
             cfg.system.training.num_gpus = cfg.inference.num_gpus
-        if cfg.inference.num_cpus >= 0:
-            print(f"🔧 Inference override: num_cpus={cfg.inference.num_cpus}")
-            cfg.system.training.num_cpus = cfg.inference.num_cpus
         if cfg.inference.batch_size >= 0:
             print(f"🔧 Inference override: batch_size={cfg.inference.batch_size}")
             cfg.system.inference.batch_size = cfg.inference.batch_size

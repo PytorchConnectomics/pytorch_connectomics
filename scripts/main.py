@@ -69,6 +69,31 @@ from connectomics.training.lit import (
 seed_everything = setup_seed_everything()
 
 
+def configure_matmul_precision(cfg: Config) -> None:
+    """Enable Tensor Core matmul precision when supported by available CUDA devices."""
+    requested_gpus = max(cfg.system.training.num_gpus, cfg.system.inference.num_gpus)
+    if requested_gpus <= 0 or not torch.cuda.is_available():
+        return
+
+    try:
+        visible_gpus = torch.cuda.device_count()
+        check_gpus = min(requested_gpus, visible_gpus)
+
+        has_tensor_cores = False
+        for idx in range(check_gpus):
+            major, _minor = torch.cuda.get_device_capability(idx)
+            # Tensor Cores are available on NVIDIA Volta (SM 7.0) and newer.
+            if major >= 7:
+                has_tensor_cores = True
+                break
+
+        if has_tensor_cores:
+            torch.set_float32_matmul_precision("medium")
+            print("⚙️  Enabled float32 matmul precision='medium' (Tensor Cores detected)")
+    except Exception as exc:
+        print(f"⚠️  Could not configure float32 matmul precision automatically: {exc}")
+
+
 def get_output_base_from_checkpoint(checkpoint_path: str) -> Path:
     """
     Determine the output base directory from checkpoint path.
@@ -162,6 +187,7 @@ def main():
     print("🚀 PyTorch Connectomics Hydra Training")
     print("=" * 60)
     cfg = setup_config(args)
+    configure_matmul_precision(cfg)
 
     # Run preflight checks for training mode
     if args.mode == "train":

@@ -3,12 +3,10 @@
 system:
   training:
     num_gpus: 1
-    num_cpus: 1
     num_workers: 1
     batch_size: 1
   inference:
     num_gpus: 1
-    num_cpus: 1
     num_workers: 1
     batch_size: 1
   seed: 42
