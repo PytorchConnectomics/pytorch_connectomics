@@ -285,6 +285,7 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 
@@ -297,6 +298,7 @@
     <span class="n">RichProgressBar</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.loggers</span><span class="w"> </span><span class="kn">import</span> <span class="n">TensorBoardLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.plugins.environments</span><span class="w"> </span><span class="kn">import</span> <span class="n">LightningEnvironment</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">DDPStrategy</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
@@ -571,6 +573,14 @@
 
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Validation: every </span><span class="si">{</span><span class="n">check_val_every_n_epoch</span><span class="si">}</span><span class="s2"> epoch(s)&quot;</span><span class="p">)</span>
 
+    <span class="c1"># In Slurm jobs launched with ntasks=1, force local process spawning for multi-GPU</span>
+    <span class="c1"># so Lightning uses world_size=devices instead of treating Slurm as externally launched DDP.</span>
+    <span class="n">plugins</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">slurm_ntasks</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SLURM_NTASKS&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_gpu</span> <span class="ow">and</span> <span class="n">system_cfg</span><span class="o">.</span><span class="n">num_gpus</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">slurm_ntasks</span> <span class="o">==</span> <span class="s2">&quot;1&quot;</span><span class="p">:</span>
+        <span class="n">plugins</span> <span class="o">=</span> <span class="p">[</span><span class="n">LightningEnvironment</span><span class="p">()]</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Launch mode: local multi-GPU spawn (SLURM_NTASKS=1)&quot;</span><span class="p">)</span>
+
     <span class="n">trainer</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">Trainer</span><span class="p">(</span>
         <span class="n">max_epochs</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span>
         <span class="n">max_steps</span><span class="o">=</span><span class="n">max_steps</span><span class="p">,</span>
@@ -590,6 +600,7 @@
         <span class="n">benchmark</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span>
         <span class="n">fast_dev_run</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">fast_dev_run</span><span class="p">),</span>
         <span class="n">detect_anomaly</span><span class="o">=</span><span class="n">detect_anomaly</span><span class="p">,</span>
+        <span class="n">plugins</span><span class="o">=</span><span class="n">plugins</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Training mode: </span><span class="si">{</span><span class="n">training_mode</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
