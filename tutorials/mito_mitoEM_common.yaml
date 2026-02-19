@@ -5,12 +5,12 @@ system:
   training:
     num_cpus: 8
     num_gpus: 4
-    num_workers: 2
+    num_workers: 0
     batch_size: 2
   inference:
     num_gpus: 4
     num_cpus: 8
-    num_workers: 2
+    num_workers: 0
     batch_size: 2
   seed: 42
 model:
