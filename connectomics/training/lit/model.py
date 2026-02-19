@@ -36,11 +36,11 @@ from ...config import Config
 from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
 from ..debugging import DebugManager
 from ..loss_balancing import build_loss_weighter
+from ...decoding import apply_decode_mode
 from ...inference import (
     InferenceManager,
     apply_save_prediction_transform,
     apply_postprocessing,
-    apply_decode_mode,
     resolve_output_filenames,
     write_outputs,
 )

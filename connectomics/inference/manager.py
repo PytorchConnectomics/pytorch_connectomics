@@ -17,12 +17,6 @@ from omegaconf import DictConfig
 from ..config import Config
 from .sliding import build_sliding_inferer
 from .tta import TTAPredictor
-from .io import (
-    apply_postprocessing,
-    apply_decode_mode,
-    resolve_output_filenames,
-    write_outputs,
-)
 
 
 class InferenceManager:
@@ -59,10 +53,4 @@ class InferenceManager:
         return self.tta.predict(images, mask=mask)
 
 
-__all__ = [
-    "InferenceManager",
-    "apply_postprocessing",
-    "apply_decode_mode",
-    "resolve_output_filenames",
-    "write_outputs",
-]
+__all__ = ["InferenceManager"]

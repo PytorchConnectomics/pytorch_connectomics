@@ -6,7 +6,7 @@ import numpy as np
 
 from connectomics.config import Config
 from connectomics.data.io import NNUNetPreprocessd, read_hdf5
-from connectomics.inference.io import _restore_prediction_to_input_space, write_outputs
+from connectomics.inference.output import _restore_prediction_to_input_space, write_outputs
 
 
 def test_nnunet_preprocess_crops_and_tracks_metadata():
