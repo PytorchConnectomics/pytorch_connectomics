@@ -291,6 +291,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -301,6 +302,9 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.utilities.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">STEP_OUTPUT</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">omegaconf</span><span class="w"> </span><span class="kn">import</span> <span class="n">DictConfig</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torchmetrics</span>
+
+
+<span class="n">DEBUG_D1</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;PYTC_DEBUG_D1&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;1&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;on&quot;</span><span class="p">}</span>
 
 <span class="c1"># Import existing components</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...models</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_model</span>
@@ -882,7 +886,7 @@
 
         <span class="c1"># [D1] Training diagnostics: log prediction and target statistics to detect SDT collapse</span>
         <span class="c1"># Print every 50 global steps to monitor if model learns positive SDT values</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span> <span class="o">%</span> <span class="mi">50</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">DEBUG_D1</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span> <span class="o">%</span> <span class="mi">50</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
                 <span class="c1"># Get main output for diagnostics (use &#39;output&#39; key for deep supervision, or outputs directly)</span>
                 <span class="n">pred_raw</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">is_deep_supervision</span> <span class="k">else</span> <span class="n">outputs</span>
