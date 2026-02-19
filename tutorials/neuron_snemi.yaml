@@ -195,6 +195,20 @@ test:
   - name: decode_affinity_cc
     kwargs:
       threshold: 0.5
+  # Example: external ABISS wrapper (replace decode_affinity_cc above)
+  # - name: decode_abiss
+  #   kwargs:
+  #     command:
+  #       - python
+  #       - scripts/run_abiss_single.py
+  #       - --input
+  #       - "{input_h5}"
+  #       - --input-dataset
+  #       - "{input_dataset}"
+  #       - --output
+  #       - "{output_h5}"
+  #       - --output-dataset
+  #       - "{output_dataset}"
   evaluation:
     enabled: true
     metrics:
@@ -228,6 +242,10 @@ inference:
   - name: decode_affinity_cc
     kwargs:
       threshold: 0.5
+  # Example (same as test.decoding):
+  # - name: decode_abiss
+  #   kwargs:
+  #     command: "python scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
   evaluation:
     enabled: false
     metrics:
