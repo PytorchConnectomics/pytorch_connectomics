@@ -15,6 +15,7 @@ The implementation delegates to specialized modules:
 
 from __future__ import annotations
 from typing import Dict, List, Any, Optional, Union
+import os
 import warnings
 from pathlib import Path
 
@@ -25,6 +26,9 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig
 import torchmetrics
+
+
+DEBUG_D1 = os.environ.get("PYTC_DEBUG_D1", "0").lower() in {"1", "true", "yes", "on"}
 
 # Import existing components
 from ...models import build_model
@@ -599,7 +603,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # [D1] Training diagnostics: log prediction and target statistics to detect SDT collapse
         # Print every 50 global steps to monitor if model learns positive SDT values
-        if self.global_step % 50 == 0:
+        if DEBUG_D1 and self.global_step % 50 == 0:
             with torch.no_grad():
                 # Get main output for diagnostics (use 'output' key for deep supervision, or outputs directly)
                 pred_raw = outputs['output'] if is_deep_supervision else outputs
