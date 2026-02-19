@@ -3,8 +3,8 @@ _base_: mito_mitoEM_common.yaml
 experiment_name: mitoem30h_mednext_sdt
 system:
   training:
-    num_cpus: 4
-    num_gpus: 2
+    num_cpus: 8
+    num_gpus: 4
     num_workers: 2
     batch_size: 2
   inference:
