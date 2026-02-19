@@ -52,12 +52,10 @@ description: Hydra large vesicle segmentation with RSUNet (EM-optimized) and mul
 system:
   training:
     num_gpus: 4
-    num_cpus: 8
     num_workers: 2                     # More workers for parallel data loading (6x speedup)
     batch_size: 8                      # Reduced from 32 for larger patches (OPTION 3)
   inference:
     num_gpus: 1
-    num_cpus: 1
     num_workers: 1
     batch_size: 1
   seed: 42

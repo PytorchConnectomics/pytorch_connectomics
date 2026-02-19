@@ -162,6 +162,8 @@ class CachedVolumeDataset(Dataset):
         mode: str = "train",
         pad_size: Optional[Tuple[int, ...]] = None,
         pad_mode: str = "reflect",
+        max_attempts: int = 10,
+        foreground_threshold: float = 0.05,
     ):
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
@@ -194,6 +196,8 @@ class CachedVolumeDataset(Dataset):
         self._d2_rejected_patches = 0
         self._d2_foreground_fracs = []
         self._d2_last_report_step = 0
+        self.max_attempts = max_attempts
+        self.foreground_threshold = foreground_threshold
 
         # Load all volumes into memory
         print(f"  Loading {len(image_paths)} volumes into memory...")
@@ -271,13 +275,16 @@ class CachedVolumeDataset(Dataset):
         # Support both 2D and 3D: get last N dimensions matching patch_size
         ndim = len(self.patch_size)
         self.volume_sizes = [img.shape[-ndim:] for img in self.cached_images]  # (Z, Y, X) or (Y, X)
-        
+
         # [D2 DIAGNOSTIC] Print foreground sampling configuration
         if self.mode == "train":
-            print(f"  [D2] Foreground sampling ENABLED:")
-            print(f"    - Minimum foreground threshold: 5.0%")
-            print(f"    - Max retry attempts: 10")
-            print(f"    - Will report statistics every 100 batches")
+            if self.foreground_threshold > 0:
+                print("  [D2] Foreground sampling ENABLED:")
+                print(f"    - Minimum foreground threshold: {self.foreground_threshold * 100:.1f}%")
+                print(f"    - Max retry attempts: {self.max_attempts}")
+                print("    - Will report statistics every 100 batches")
+            else:
+                print("  [D2] Foreground sampling DISABLED (threshold <= 0)")
 
     def _apply_padding(
         self, volume: np.ndarray, mode: Optional[str] = None, constant_values: float = 0
@@ -366,15 +373,15 @@ class CachedVolumeDataset(Dataset):
     def set_epoch(self, epoch: int, base_seed: int = 0):
         """
         Set current epoch for epoch-based validation reseeding.
-        
+
         This method enables validation to sample different patches each epoch
         while maintaining determinism. For training, this has no effect since
         training already uses random sampling.
-        
+
         Args:
             epoch: Current training epoch
             base_seed: Base random seed (typically from cfg.system.seed)
-        
+
         Usage:
             Called by ValidationReseedingCallback at the start of each validation epoch:
                 if hasattr(dataset, 'set_epoch'):
@@ -387,32 +394,36 @@ class CachedVolumeDataset(Dataset):
             self.current_epoch = epoch
             effective_seed = self.base_seed + epoch
             random.seed(effective_seed)
-            
+
             # IMPORTANT: Print to verify reseeding is happening
             # This should appear in logs at the start of EACH validation epoch
-            print(f"[Validation] Set epoch={epoch}, base_seed={base_seed}, effective_seed={effective_seed}")
-            print(f"[Validation] Dataset: {type(self).__name__}@{id(self)}, mode={self.mode}, iter_num={self.iter_num}")
-    
+            print(
+                f"[Validation] Set epoch={epoch}, base_seed={base_seed}, effective_seed={effective_seed}"
+            )
+            print(
+                f"[Validation] Dataset: {type(self).__name__}@{id(self)}, mode={self.mode}, iter_num={self.iter_num}"
+            )
+
     def get_sampling_fingerprint(self, num_samples: int = 5) -> str:
         """
         Generate a deterministic fingerprint of validation sampling.
-        
+
         This allows verification that validation patches change across epochs.
         The fingerprint is based on the first N random samples that would be
         generated with the current RNG state.
-        
+
         Args:
             num_samples: Number of random samples to include in fingerprint
-        
+
         Returns:
             String representing the sampling fingerprint
         """
         if self.mode != "val":
             return "N/A (training mode)"
-        
+
         # Save current RNG state
         state = random.getstate()
-        
+
         try:
             # Generate deterministic samples
             samples = []
@@ -422,11 +433,11 @@ class CachedVolumeDataset(Dataset):
                 # Sample patch position
                 pos = self._get_random_crop_position(vol_idx)
                 samples.append((vol_idx, pos))
-            
+
             # Create fingerprint string
             fingerprint = ", ".join([f"v{v}@{p}" for v, p in samples])
             return fingerprint
-        
+
         finally:
             # Restore RNG state
             random.setstate(state)
@@ -488,25 +499,46 @@ class CachedVolumeDataset(Dataset):
         label = self.cached_labels[vol_idx]
         mask = self.cached_masks[vol_idx]
 
-        # [D2] Foreground-aware patch sampling: ensure patches contain sufficient mitochondria
-        # This prevents SDT collapse by avoiding background-only patches
-        max_attempts = 10
-        foreground_threshold = 0.05  # Require at least 5% foreground (SDT > 0)
-        
-        # [D2 DIAGNOSTIC] Track sampling attempts
-        attempts_used = 0
+        # [D2] Foreground-aware patch sampling: optional retry loop for training.
+        # Disabled by default when foreground_threshold <= 0.
+        max_attempts = self.max_attempts
+        foreground_threshold = self.foreground_threshold
+        use_foreground_sampling = (
+            self.mode == "train" and label is not None and foreground_threshold > 0
+        )
+
+        # [D2 DIAGNOSTIC] Track sampling attempts only when foreground sampling is active.
+        attempts_used = 1
         final_foreground_frac = 0.0
-        
-        for attempt in range(max_attempts):
-            attempts_used = attempt + 1
-            
-            # Get crop position
+
+        if use_foreground_sampling:
+            for attempt in range(max_attempts):
+                attempts_used = attempt + 1
+                pos = self._get_random_crop_position(vol_idx)
+
+                # Crop using fast numpy slicing (like v1)
+                image_crop = crop_volume(image, self.patch_size, pos)
+                label_crop = crop_volume(label, self.patch_size, pos)
+                if mask is not None:
+                    mask_crop = crop_volume(mask, self.patch_size, pos)
+                else:
+                    mask_crop = np.zeros_like(image_crop)
+
+                foreground_frac = (label_crop > 0).sum() / label_crop.size
+                final_foreground_frac = foreground_frac
+
+                if foreground_frac >= foreground_threshold:
+                    break
+
+                # [D2 DIAGNOSTIC] Patch rejected, increment counter
+                self._d2_rejected_patches += 1
+        else:
+            # Standard single-crop behavior (no foreground-based retry)
             if self.mode == "train":
                 pos = self._get_random_crop_position(vol_idx)
             else:
                 pos = self._get_center_crop_position(vol_idx)
 
-            # Crop using fast numpy slicing (like v1)
             image_crop = crop_volume(image, self.patch_size, pos)
             if label is not None:
                 label_crop = crop_volume(label, self.patch_size, pos)
@@ -518,39 +550,30 @@ class CachedVolumeDataset(Dataset):
             else:
                 mask_crop = np.zeros_like(image_crop)
 
-            # [D2] Check if patch has sufficient foreground (only during training)
-            if self.mode == "train" and label is not None:
-                foreground_frac = (label_crop > 0).sum() / label_crop.size
-                final_foreground_frac = foreground_frac
-                
-                if foreground_frac >= foreground_threshold:
-                    # [D2 DIAGNOSTIC] Good patch found
-                    break
-                else:
-                    # [D2 DIAGNOSTIC] Patch rejected, increment counter
-                    self._d2_rejected_patches += 1
-            else:
-                # Val/test mode or no label: accept any patch
-                break
+        # [D2 DIAGNOSTIC] Record/report sampling stats only when enabled.
+        if use_foreground_sampling:
+            self._d2_total_samples += 1
+            self._d2_total_attempts += attempts_used
+            self._d2_foreground_fracs.append(final_foreground_frac * 100)  # percentage
 
-        # [D2 DIAGNOSTIC] Record statistics
-        self._d2_total_samples += 1
-        self._d2_total_attempts += attempts_used
-        self._d2_foreground_fracs.append(final_foreground_frac * 100)  # Convert to percentage
-        
         # [D2 DIAGNOSTIC] Print report every 100 samples (not too verbose)
-        if self.mode == "train" and self._d2_total_samples % 100 == 0:
+        if use_foreground_sampling and self._d2_total_samples % 100 == 0:
             avg_attempts = self._d2_total_attempts / self._d2_total_samples
             reject_rate = (self._d2_rejected_patches / self._d2_total_attempts) * 100
             avg_fg = sum(self._d2_foreground_fracs) / len(self._d2_foreground_fracs)
             min_fg = min(self._d2_foreground_fracs)
             max_fg = max(self._d2_foreground_fracs)
-            
+
             print(f"[D2 Sampling Stats after {self._d2_total_samples} batches]")
             print(f"  Avg attempts per patch: {avg_attempts:.2f}/{max_attempts}")
-            print(f"  Patches rejected: {self._d2_rejected_patches}/{self._d2_total_attempts} ({reject_rate:.1f}%)")
+            print(
+                f"  Patches rejected: {self._d2_rejected_patches}/{self._d2_total_attempts} ({reject_rate:.1f}%)"
+            )
             print(f"  Final foreground %: avg={avg_fg:.1f}%, min={min_fg:.1f}%, max={max_fg:.1f}%")
-            print(f"  Threshold: {foreground_threshold*100:.1f}% (5% minimum)")
+            print(
+                f"  Threshold: {foreground_threshold * 100:.1f}% "
+                f"({self.foreground_threshold * 100:.1f}% minimum)"
+            )
 
         # Create data dict
         data = {

@@ -22,7 +22,6 @@ description: Automated optimization of decoding parameters using Optuna
 # ============================================================================
 system:
   num_gpus: 1
-  num_cpus: 8
   seed: 42
 
 # ============================================================================

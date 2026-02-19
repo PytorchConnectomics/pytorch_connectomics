@@ -31,12 +31,10 @@ description: Fine-tuning hydra-lv pretrained model on new data
 system:
   training:
     num_gpus: 4
-    num_cpus: 8
     num_workers: 2
     batch_size: 8
   inference:
     num_gpus: 1
-    num_cpus: 1
     num_workers: 1
     batch_size: 1
   seed: 42

@@ -29,12 +29,10 @@ description: Mitochondria 2D semantic segmentation using pretrained nnUNet model
 system:
   training:
     num_gpus: 1
-    num_cpus: 4
     num_workers: 4           # Data loading workers
     batch_size: 8            # Batch size for training (2D slices)
   inference:
     num_gpus: 1
-    num_cpus: 2
     num_workers: 2
     batch_size: 1            # Process one volume at a time
   seed: 42

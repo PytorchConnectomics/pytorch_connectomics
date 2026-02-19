@@ -28,7 +28,6 @@ cluster:
 # System configuration for SLURM jobs
 system:
   num_gpus: 1       # GPUs to request per job
-  num_cpus: 4       # CPUs to request per job
   seed: 42
 
 # Training configuration

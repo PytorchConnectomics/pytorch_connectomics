@@ -4,11 +4,9 @@ description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
 system:
   training:
     num_gpus: 1
-    num_cpus: 1
     num_workers: 0
     batch_size: 16
   inference:
-    num_cpus: 4
     num_workers: 4
     batch_size: 32
   seed: 42

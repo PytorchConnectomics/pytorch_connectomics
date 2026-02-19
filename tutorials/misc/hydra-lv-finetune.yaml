@@ -28,12 +28,10 @@ description: Improved fine-tuning with deep supervision and aggressive training
 system:
   training:
     num_gpus: 4
-    num_cpus: 8
     num_workers: 2
     batch_size: 4  # CHANGED FROM 8 (better gradient updates)
   inference:
     num_gpus: 1
-    num_cpus: 1
     num_workers: 1
     batch_size: 1
   seed: 42

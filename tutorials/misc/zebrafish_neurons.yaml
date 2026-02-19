@@ -9,12 +9,10 @@ description: 2D zebrafish neuron instance segmentation with MONAI UNet and water
 system:
   training:
     num_gpus: 1
-    num_cpus: 16
     num_workers: 16
     batch_size: 128
   inference:
     num_gpus: 1
-    num_cpus: 4
     num_workers: 4
     batch_size: 64
   seed: 42

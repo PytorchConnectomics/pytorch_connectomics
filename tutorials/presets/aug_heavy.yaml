@@ -6,7 +6,6 @@
 system:
   training:
     num_gpus: 1
-    num_cpus: 4
     batch_size: 2
     num_workers: 4
   seed: 42

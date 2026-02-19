@@ -568,6 +568,8 @@ def create_datamodule(
             mode="train",
             pad_size=tuple(pad_size) if pad_size else None,
             pad_mode=pad_mode,
+            max_attempts=cfg.data.cached_sampling_max_attempts,
+            foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
         )
 
         # Use fewer workers since we're loading from memory
@@ -623,6 +625,8 @@ def create_datamodule(
                 mode="val",
                 pad_size=tuple(pad_size) if pad_size else None,
                 pad_mode=pad_mode,
+                max_attempts=cfg.data.cached_sampling_max_attempts,
+                foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
             )
 
             # Create validation dataloader
