@@ -1,6 +1,7 @@
 """Decoding package for PyTorch Connectomics."""
 
 from .base import DecodeStep
+from .abiss import decode_abiss
 from .pipeline import (
     apply_decode_mode,
     apply_decode_pipeline,
@@ -67,6 +68,7 @@ __all__ = [
     "decode_instance_binary_contour_distance",
     "decode_affinity_cc",
     "decode_distance_watershed",
+    "decode_abiss",
     # Auto-tuning
     "optimize_threshold",
     "optimize_parameters",

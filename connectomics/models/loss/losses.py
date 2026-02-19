@@ -100,10 +100,10 @@ class WeightedMSELoss(nn.Module):
         Returns:
             Loss value (should be < 4 for range [-1, 1])
         """
-        from ...utils.debug_utils import print_tensor_stats
+        from ...utils.debug_utils import DEBUG_NORM, print_tensor_stats
         
         # DEBUG: Print input to loss function (before tanh)
-        if not hasattr(self, '_debug_loss_printed'):
+        if DEBUG_NORM and not hasattr(self, '_debug_loss_printed'):
             self._debug_loss_printed = True
             print_tensor_stats(
                 pred,
@@ -131,7 +131,7 @@ class WeightedMSELoss(nn.Module):
             pred = torch.tanh(pred)
             
             # DEBUG: Print after tanh activation
-            if not hasattr(self, '_debug_tanh_printed'):
+            if DEBUG_NORM and not hasattr(self, '_debug_tanh_printed'):
                 self._debug_tanh_printed = True
                 print_tensor_stats(
                     pred,
@@ -159,7 +159,7 @@ class WeightedMSELoss(nn.Module):
             loss_value = mse
         
         # DEBUG: Print loss output
-        if not hasattr(self, '_debug_loss_output_printed'):
+        if DEBUG_NORM and not hasattr(self, '_debug_loss_output_printed'):
             self._debug_loss_output_printed = True
             print(f"\n{'='*80}")
             print(f"[DEBUG NORM] STAGE 8: LOSS FUNCTION OUTPUT")
