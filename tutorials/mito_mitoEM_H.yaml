@@ -3,7 +3,7 @@ _base_: mito_mitoEM_common.yaml
 experiment_name: mitoem30h_mednext_sdt
 system:
   training:
-    num_workers: 2
+    num_workers: 0
     batch_size: 2
   inference:
     batch_size: 1
@@ -19,6 +19,7 @@ model:
 data:
   use_preloaded_cache: false
   persistent_workers: false
+  val_iter_num: 20
   patch_size:
   - 16
   - 256
@@ -33,6 +34,12 @@ data:
   - EM30-H/mito_val-v2.h5
 optimization:
   accumulate_grad_batches: 4
+monitor:
+  logging:
+    scalar:
+      loss_every_n_steps: 10
+  checkpoint:
+    dirpath: outputs/mitoem30h_mednext_sdt/checkpoints/
 inference:
   sliding_window:
     window_size:
@@ -40,9 +47,6 @@ inference:
     - 256
     - 256
     sw_batch_size: 1
-monitor:
-  checkpoint:
-    dirpath: outputs/mitoem30h_mednext_sdt/checkpoints/
 test:
   data:
     test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5
