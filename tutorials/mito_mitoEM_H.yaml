@@ -34,6 +34,7 @@ data:
   - EM30-H/mito_val-v2.h5
 optimization:
   accumulate_grad_batches: 4
+  num_sanity_val_steps: 0
 monitor:
   logging:
     scalar:

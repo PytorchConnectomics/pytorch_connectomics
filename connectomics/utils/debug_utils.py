@@ -5,12 +5,14 @@ This module provides utilities to debug normalization behavior across
 the entire training pipeline without modifying training logic.
 """
 
+import os
 import torch
 import numpy as np
 from typing import Union, Optional
 
-# Global debug flag - set to True to enable debug prints
-DEBUG_NORM = True
+# Global debug flag. Enabled only when explicitly requested.
+# Set `PYTC_DEBUG_NORM=1` to turn on normalization debug prints.
+DEBUG_NORM = os.environ.get("PYTC_DEBUG_NORM", "0").lower() in {"1", "true", "yes", "on"}
 
 # Track which stages have been printed (to avoid spam)
 _printed_stages = set()
@@ -163,4 +165,3 @@ __all__ = [
     "print_normalization_check",
     "reset_debug_state",
 ]
-

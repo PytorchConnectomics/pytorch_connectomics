@@ -275,6 +275,7 @@ def create_trainer(
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         max_steps=max_steps,
+        num_sanity_val_steps=cfg.optimization.num_sanity_val_steps,
         accelerator="gpu" if use_gpu else "cpu",
         devices=system_cfg.num_gpus if use_gpu else 1,
         strategy=strategy,
