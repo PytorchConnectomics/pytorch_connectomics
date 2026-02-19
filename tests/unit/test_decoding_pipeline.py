@@ -38,6 +38,7 @@ def test_builtin_decoders_are_registered():
     assert "decode_affinity_cc" in names
     assert "decode_distance_watershed" in names
     assert "decode_instance_binary_contour_distance" in names
+    assert "decode_abiss" in names
 
 
 def test_decode_pipeline_dict_mode_matches_direct_decoder(affinity_with_redundant_channels):
@@ -62,4 +63,3 @@ def test_decode_pipeline_unknown_decoder_raises(affinity_with_redundant_channels
     decode_modes = [{"name": "decode_not_exists", "kwargs": {}}]
     with pytest.raises(ValueError, match="Unknown decode function"):
         apply_decode_pipeline(affinity_with_redundant_channels, decode_modes)
-
