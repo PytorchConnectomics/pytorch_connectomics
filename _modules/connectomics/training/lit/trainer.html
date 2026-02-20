@@ -295,7 +295,6 @@
     <span class="n">ModelCheckpoint</span><span class="p">,</span>
     <span class="n">EarlyStopping</span><span class="p">,</span>
     <span class="n">LearningRateMonitor</span><span class="p">,</span>
-    <span class="n">RichProgressBar</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.loggers</span><span class="w"> </span><span class="kn">import</span> <span class="n">TensorBoardLogger</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pytorch_lightning.plugins.environments</span><span class="w"> </span><span class="kn">import</span> <span class="n">LightningEnvironment</span>
@@ -384,7 +383,7 @@
             <span class="n">save_top_k</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">save_top_k</span><span class="p">,</span>
             <span class="n">save_last</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">save_last</span><span class="p">,</span>
             <span class="n">every_n_epochs</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">save_every_n_epochs</span><span class="p">,</span>
-            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">save_on_train_epoch_end</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Save based on training metrics</span>
         <span class="p">)</span>
         <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_callback</span><span class="p">)</span>
@@ -410,7 +409,7 @@
                 <span class="n">patience</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">patience</span><span class="p">,</span>
                 <span class="n">mode</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span>
                 <span class="n">min_delta</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">min_delta</span><span class="p">,</span>
-                <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="n">check_on_train_epoch_end</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Check at end of train epoch (not validation)</span>
                 <span class="n">check_finite</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">check_finite</span><span class="p">,</span>  <span class="c1"># Stop on NaN/inf</span>
                 <span class="n">stopping_threshold</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">monitor</span><span class="o">.</span><span class="n">early_stopping</span><span class="o">.</span><span class="n">threshold</span><span class="p">,</span>
@@ -462,18 +461,12 @@
         <span class="c1"># Previous fix in val_dataloader() only ran once during setup</span>
         <span class="n">validation_reseeding_callback</span> <span class="o">=</span> <span class="n">ValidationReseedingCallback</span><span class="p">(</span>
             <span class="n">base_seed</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
-            <span class="n">log_fingerprint</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">log_fingerprint</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="n">log_all_ranks</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">validation_reseeding_callback</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Validation Reseeding: Enabled (base_seed=</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">system</span><span class="o">.</span><span class="n">seed</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Progress bar (optional - requires rich package)</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">RichProgressBar</span><span class="p">())</span>
-    <span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">ModuleNotFoundError</span><span class="p">):</span>
-        <span class="k">pass</span>  <span class="c1"># Use default progress bar</span>
 
     <span class="c1"># Setup logger (training only - in run_dir/logs/)</span>
     <span class="c1"># Always create a logger for training to avoid warnings about missing logger</span>
@@ -600,6 +593,7 @@
         <span class="n">benchmark</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">optimization</span><span class="o">.</span><span class="n">benchmark</span><span class="p">,</span>
         <span class="n">fast_dev_run</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">fast_dev_run</span><span class="p">),</span>
         <span class="n">detect_anomaly</span><span class="o">=</span><span class="n">detect_anomaly</span><span class="p">,</span>
+        <span class="n">enable_progress_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">plugins</span><span class="o">=</span><span class="n">plugins</span><span class="p">,</span>
     <span class="p">)</span>
 
