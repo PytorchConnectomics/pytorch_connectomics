@@ -19,7 +19,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
     LearningRateMonitor,
-    RichProgressBar,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins.environments import LightningEnvironment
@@ -106,7 +105,7 @@ def create_trainer(
             save_top_k=cfg.monitor.checkpoint.save_top_k,
             save_last=cfg.monitor.checkpoint.save_last,
             every_n_epochs=cfg.monitor.checkpoint.save_every_n_epochs,
-            verbose=True,
+            verbose=False,
             save_on_train_epoch_end=True,  # Save based on training metrics
         )
         callbacks.append(checkpoint_callback)
@@ -132,7 +131,7 @@ def create_trainer(
                 patience=cfg.monitor.early_stopping.patience,
                 mode=cfg.monitor.early_stopping.mode,
                 min_delta=cfg.monitor.early_stopping.min_delta,
-                verbose=True,
+                verbose=False,
                 check_on_train_epoch_end=True,  # Check at end of train epoch (not validation)
                 check_finite=cfg.monitor.early_stopping.check_finite,  # Stop on NaN/inf
                 stopping_threshold=cfg.monitor.early_stopping.threshold,
@@ -184,18 +183,12 @@ def create_trainer(
         # Previous fix in val_dataloader() only ran once during setup
         validation_reseeding_callback = ValidationReseedingCallback(
             base_seed=cfg.system.seed,
-            log_fingerprint=True,
+            log_fingerprint=False,
             log_all_ranks=False,
-            verbose=True,
+            verbose=False,
         )
         callbacks.append(validation_reseeding_callback)
         print(f"  Validation Reseeding: Enabled (base_seed={cfg.system.seed})")
-
-    # Progress bar (optional - requires rich package)
-    try:
-        callbacks.append(RichProgressBar())
-    except (ImportError, ModuleNotFoundError):
-        pass  # Use default progress bar
 
     # Setup logger (training only - in run_dir/logs/)
     # Always create a logger for training to avoid warnings about missing logger
@@ -322,6 +315,7 @@ def create_trainer(
         benchmark=cfg.optimization.benchmark,
         fast_dev_run=bool(fast_dev_run),
         detect_anomaly=detect_anomaly,
+        enable_progress_bar=False,
         plugins=plugins,
     )
 
