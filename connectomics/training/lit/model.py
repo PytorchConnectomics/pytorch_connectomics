@@ -634,8 +634,15 @@ class ConnectomicsModule(pl.LightningModule):
                 print(f"[D1 Step {self.global_step}] TARGET: min={target_min:.3f}, max={target_max:.3f}, "
                       f"mean={target_mean:.3f}, >0: {target_positive_frac:.1f}%")
 
-        # Log losses (sync across GPUs for distributed training)
-        self.log_dict(loss_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        # Keep full training curves in TensorBoard while avoiding console spam.
+        self.log_dict(
+            loss_dict,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=False,
+        )
 
         return total_loss
 
@@ -728,8 +735,27 @@ class ConnectomicsModule(pl.LightningModule):
                         self.val_accuracy(preds, targets)
                         self.log('val_accuracy', self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
 
-        # Log losses (sync across GPUs for distributed training)
-        self.log_dict(loss_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        # Show only validation total loss on the progress bar.
+        if "val_loss_total" in loss_dict:
+            self.log(
+                "val_loss",
+                loss_dict["val_loss_total"],
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True,
+                logger=False,
+                sync_dist=True,
+            )
+
+        # Log full validation losses to logger at epoch granularity.
+        self.log_dict(
+            loss_dict,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=False,
+            logger=True,
+            sync_dist=True,
+        )
 
         return total_loss
 

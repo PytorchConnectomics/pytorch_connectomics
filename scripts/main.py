@@ -26,6 +26,7 @@ Usage:
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -67,6 +68,23 @@ from connectomics.training.lit import (
 
 # Setup seed_everything with version fallback
 seed_everything = setup_seed_everything()
+
+_RANK_STDOUT_REDIRECT = None
+
+
+def suppress_nonzero_rank_stdout() -> None:
+    """Reduce duplicate stdout spam from DDP subprocesses.
+
+    In local multi-GPU spawn, each subprocess executes this script and prints
+    the same setup logs. Keep rank 0 stdout visible and silence stdout on
+    non-zero ranks. stderr is untouched for error visibility.
+    """
+    global _RANK_STDOUT_REDIRECT
+    local_rank = os.environ.get("LOCAL_RANK")
+    if local_rank is None or local_rank == "0":
+        return
+    _RANK_STDOUT_REDIRECT = open(os.devnull, "w")
+    sys.stdout = _RANK_STDOUT_REDIRECT
 
 
 def configure_matmul_precision(cfg: Config) -> None:
@@ -164,6 +182,8 @@ def extract_step_from_checkpoint(checkpoint_path: str) -> str:
 
 def main():
     """Main training function."""
+    suppress_nonzero_rank_stdout()
+
     # Parse arguments
     args = parse_args()
 
