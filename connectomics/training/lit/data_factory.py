@@ -299,7 +299,7 @@ def create_datamodule(
                         train_json_empty = True
                     else:
                         # Check if JSON file is empty or has no images
-                        with open(json_path, "r") as f:
+                        with open(json_path) as f:
                             json_data = json.load(f)
                         image_files = json_data.get(cfg.data.train_image_key, [])
                         if not image_files:
@@ -463,11 +463,23 @@ def create_datamodule(
         if val_data_dicts:
             print(f"  Val dataset size: {len(val_data_dicts)}")
 
-    # Auto-compute iter_num from volume size if not specified (only for training)
+    # Auto-compute iter_num from volume size if not specified (only for training).
+    # IMPORTANT: cfg.data.iter_num_per_epoch is interpreted as optimizer steps/epoch.
+    # Dataset iter_num is sample-count based, so we convert steps -> samples.
     iter_num = None
     if mode == "train":
-        iter_num = cfg.data.iter_num_per_epoch
-        if iter_num == -1 and dataset_type != "filename":
+        iter_num_cfg = cfg.data.iter_num_per_epoch
+        if iter_num_cfg > 0:
+            # Convert requested steps/epoch to per-epoch sample count expected by datasets.
+            # Account for per-device batch size and number of training devices.
+            num_devices = cfg.system.training.num_gpus if cfg.system.training.num_gpus > 0 else 1
+            iter_num = int(iter_num_cfg * cfg.system.training.batch_size * num_devices)
+            print(
+                f"  Requested iter_num_per_epoch={iter_num_cfg} steps -> "
+                f"dataset samples={iter_num} "
+                f"(batch_size={cfg.system.training.batch_size}, devices={num_devices})"
+            )
+        elif iter_num_cfg == -1 and dataset_type != "filename":
             # For filename datasets, iter_num is determined by the number of files
             print("📊 Auto-computing iter_num from volume size...")
             import h5py
@@ -506,8 +518,11 @@ def create_datamodule(
             print(f"  Stride: {cfg.data.stride}")
             print(f"  Samples per volume: {samples_per_vol}")
             print(f"  ✅ Total possible samples (iter_num): {iter_num:,}")
-            print(f"  ✅ Batches per epoch: {iter_num // cfg.system.training.batch_size:,}")
-        elif iter_num == -1 and dataset_type == "filename":
+            # Approximate steps/epoch for informational logging.
+            num_devices = cfg.system.training.num_gpus if cfg.system.training.num_gpus > 0 else 1
+            denom = max(1, cfg.system.training.batch_size * num_devices)
+            print(f"  ✅ Approx steps per epoch: {iter_num // denom:,}")
+        elif iter_num_cfg == -1 and dataset_type == "filename":
             # For filename datasets, iter_num will be determined by dataset length
             print("  Filename dataset: iter_num will be determined by number of files in JSON")
 
@@ -558,9 +573,9 @@ def create_datamodule(
         pad_size = getattr(cfg.data.image_transform, "pad_size", None) or getattr(
             cfg.data, "pad_size", None
         )
-        pad_mode = getattr(
-            cfg.data.image_transform, "pad_mode", None
-        ) or getattr(cfg.data, "pad_mode", "reflect")
+        pad_mode = getattr(cfg.data.image_transform, "pad_mode", None) or getattr(
+            cfg.data, "pad_mode", "reflect"
+        )
 
         # Create optimized cached datasets
         train_dataset = CachedVolumeDataset(
@@ -589,9 +604,7 @@ def create_datamodule(
             persistent_workers=preloaded_num_workers > 0,
         )
 
-        print(
-            f"  Preload policy: train={train_preload_cfg}, val={val_preload_cfg}"
-        )
+        print(f"  Preload policy: train={train_preload_cfg}, val={val_preload_cfg}")
 
         # Create validation dataset and loader if validation data exists
         val_loader = None

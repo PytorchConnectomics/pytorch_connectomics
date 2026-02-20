@@ -21,6 +21,7 @@ from ...config import (
     Config,
     load_config,
     resolve_data_paths,
+    resolve_runtime_resource_sentinels,
     update_from_cli,
     validate_config,
 )
@@ -225,6 +226,9 @@ def setup_config(args) -> Config:
         if getattr(cfg.data, "cellmap", None):
             cfg.data.cellmap["input_array_info"]["shape"] = [64, 64, 64]
             cfg.data.cellmap["target_array_info"]["shape"] = [64, 64, 64]
+
+    # Resolve -1 sentinels (auto-max resources for current runtime allocation).
+    cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
 
     # CPU-only fallback: avoid multiprocessing workers when no CUDA is available
     if not torch.cuda.is_available():

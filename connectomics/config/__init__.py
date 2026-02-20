@@ -23,6 +23,7 @@ from .auto_config import (
     auto_plan_config,
     AutoConfigPlanner,
     AutoPlanResult,
+    resolve_runtime_resource_sentinels,
 )
 
 # GPU utilities
@@ -53,6 +54,7 @@ __all__ = [
     "auto_plan_config",
     "AutoConfigPlanner",
     "AutoPlanResult",
+    "resolve_runtime_resource_sentinels",
     # GPU utilities
     "get_gpu_info",
     "print_gpu_info",

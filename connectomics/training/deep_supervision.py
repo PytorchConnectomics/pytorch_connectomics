@@ -34,6 +34,16 @@ def _loss_supports_weight(loss_fn: nn.Module) -> bool:
         return False
 
 
+def _is_class_index_loss(loss_fn: nn.Module) -> bool:
+    """Return True if loss expects class-index labels (1 channel target).
+
+    Cross-entropy style losses consume dense logits [B, C, ...] and class-index
+    targets [B, 1, ...] or [B, ...], unlike BCE/MSE-style losses that require
+    channel-aligned dense targets [B, C, ...].
+    """
+    return loss_fn.__class__.__name__ in {"CrossEntropyLoss", "CrossEntropyLossWrapper"}
+
+
 class DeepSupervisionHandler:
     """
     Handler for deep supervision and multi-task learning.
@@ -130,15 +140,33 @@ class DeepSupervisionHandler:
 
             # Extract channels for this task from outputs
             task_output = outputs[:, start_ch:end_ch, ...]
-            end_ch - start_ch
+            task_output_channels = end_ch - start_ch
 
-            # Determine number of label channels needed
-            # For softmax-based losses (2+ output channels), label has 1 channel
-            # For sigmoid-based losses (1 output channel), label has 1 channel
-            # So labels always use 1 channel per task
-            num_label_channels = 1
+            # Determine label channel convention per task:
+            # - CE-style losses use class-index labels (1 channel)
+            # - Dense losses (BCE/MSE/MAE/Dice/etc.) use channel-aligned labels
+            task_loss_fns = [self.loss_functions[idx] for idx in loss_indices]
+            uses_class_index_targets = any(_is_class_index_loss(fn) for fn in task_loss_fns)
+            uses_dense_targets = any(not _is_class_index_loss(fn) for fn in task_loss_fns)
+
+            if uses_class_index_targets and uses_dense_targets:
+                raise ValueError(
+                    f"Task '{task_name}' mixes class-index and dense target losses. "
+                    "Use either CE-style losses only, or dense losses only, per task."
+                )
+
+            num_label_channels = 1 if uses_class_index_targets else task_output_channels
 
             # Extract label channels
+            if label_ch_offset + num_label_channels > labels.shape[1]:
+                raise ValueError(
+                    f"Label channel mismatch for task '{task_name}': expected "
+                    f"{num_label_channels} channel(s) at offset {label_ch_offset}, "
+                    f"but label tensor has {labels.shape[1]} total channels. "
+                    f"Task output slice is [{start_ch}:{end_ch}] "
+                    f"({task_output_channels} channel(s))."
+                )
+
             task_label = labels[:, label_ch_offset:label_ch_offset + num_label_channels, ...]
             label_ch_offset += num_label_channels
 
