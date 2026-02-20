@@ -49,7 +49,7 @@ data:
   train_label: seed*/data.zarr/seg_40-36-36nm.h5
   val_image: seed*/data.zarr/img_40-36-36nm.h5
   val_label: seed*/data.zarr/seg_40-36-36nm.h5
-  iter_num_per_epoch: 1000
+  iter_num_per_epoch: 200
 
   train_resolution: [36, 36, 40]
   val_resolution: [36, 36, 40]
@@ -104,19 +104,9 @@ data:
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
 
-    missing_section:
-      enabled: true
-      prob: 0.05
-      num_sections: 2
-
-    misalignment:
-      enabled: true
-      prob: 0.05
-      displacement: 10
-      rotate_ratio: 0.0
 
 optimization:
-  max_epochs: 100
+  max_epochs: 500
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"
