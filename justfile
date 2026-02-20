@@ -5,6 +5,29 @@
 default:
     @just --list
 
+# Resolve SLURM time limit for a partition (fallback to sensible defaults).
+_slurm-time-limit partition:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    time_limit=$(sinfo -p {{partition}} -h -o "%l" | head -1)
+    if [ -z "$time_limit" ] || [ "$time_limit" = "infinite" ]; then
+        case "{{partition}}" in
+            short|interactive)
+                time_limit="12:00:00"
+                ;;
+            medium)
+                time_limit="2-00:00:00"
+                ;;
+            long)
+                time_limit="5-00:00:00"
+                ;;
+            *)
+                time_limit="7-00:00:00"
+                ;;
+        esac
+    fi
+    echo "$time_limit"
+
 # ============================================================================
 # Setup & Data
 # ============================================================================
@@ -89,6 +112,8 @@ tensorboard-run experiment timestamp port='6006':
 #   just slurm short 8 4 "python scripts/main.py --config tutorials/lucchi.yaml"
 #   just slurm short 8 4 "just train lucchi++" "" "64G"    # override memory
 # Time limits: short=12h, medium=2d, long=5d
+# CPU-only convenience wrapper for single-task jobs.
+#   just slurm-cpu short 8 0 "python scripts/downsample_nisb.py --splits train"
 slurm partition num_cpu num_gpu cmd constraint='' mem='32G':
     #!/usr/bin/env bash
     constraint_flag=""
@@ -96,24 +121,8 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G':
         constraint_flag="--constraint={{constraint}}"
     fi
 
-    # Set time limit to partition maximum
-    time_limit=$(sinfo -p {{partition}} -h -o "%l" | head -1)
-    if [ -z "$time_limit" ] || [ "$time_limit" = "infinite" ]; then
-        case "{{partition}}" in
-            short|interactive)
-                time_limit="12:00:00"
-                ;;
-            medium)
-                time_limit="2-00:00:00"
-                ;;
-            long)
-                time_limit="5-00:00:00"
-                ;;
-            *)
-                time_limit="7-00:00:00"
-                ;;
-        esac
-    fi
+    # Resolve partition time limit (with fallback defaults)
+    time_limit=$(just _slurm-time-limit {{partition}})
 
     # Run the command exactly as provided (no auto "just" wrapping).
     sbatch --job-name="pytc_{{cmd}}" \
@@ -129,9 +138,57 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G':
            $constraint_flag \
            --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} {{cmd}}"
 
-# Alias for slurm (kept for backward compatibility)
-slurm-sh partition num_cpu num_gpu cmd constraint='' mem='32G':
-    just slurm {{partition}} {{num_cpu}} {{num_gpu}} {{cmd}} {{constraint}} {{mem}}
+# Generic CPU-only multi-task launcher (single node, no GPU).
+# Example:
+#   just slurm-cpu-parallel short 7 1 "python scripts/downsample_nisb.py --task \$SLURM_PROCID"
+slurm-cpu-parallel partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' mem='64G':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p slurm_outputs
+    cmd_value='{{cmd}}'
+    if [ -z "$cmd_value" ]; then
+        echo "Error: cmd must be provided. Usage:"
+        echo "  just slurm-cpu-parallel <partition> <num_tasks> <cpu_per_task> \"<command>\" [constraint] [mem]"
+        exit 2
+    fi
+
+    constraint_value='{{constraint}}'
+    constraint_flag=""
+    if [ -n "$constraint_value" ]; then
+        constraint_flag="--constraint=$constraint_value"
+    fi
+
+    # Resolve partition time limit (with fallback defaults)
+    time_limit=$(just _slurm-time-limit {{partition}})
+
+    sbatch --job-name="pytc_cpu_{{num_tasks}}t" \
+           --partition={{partition}} \
+           --output=slurm_outputs/slurm-%j.out \
+           --error=slurm_outputs/slurm-%j.err \
+           --nodes=1 \
+           --ntasks={{num_tasks}} \
+           --gpus-per-task=0 \
+           --cpus-per-task={{cpu_per_task}} \
+           --mem={{mem}} \
+           --time=$time_limit \
+           $constraint_flag \
+           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_tasks}} --gpus-per-task=0 --cpus-per-task={{cpu_per_task}} bash -c '$cmd_value'"
+
+# Generic CPU-only multi-task launcher for sharded scripts.
+# Automatically appends:
+#   --num-shards $SLURM_NTASKS --shard-index $SLURM_PROCID
+# Example:
+#   just slurm-cpu-sharded short 7 1 "python scripts/downsample_nisb.py"
+slurm-cpu-sharded partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' mem='64G':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cmd_value='{{cmd}}'
+    if [ -z "$cmd_value" ]; then
+        echo "Error: cmd must be provided. Usage:"
+        echo "  just slurm-cpu-sharded <partition> <num_tasks> <cpu_per_task> \"<command>\" [constraint] [mem]"
+        exit 2
+    fi
+    just slurm-cpu-parallel {{partition}} {{num_tasks}} {{cpu_per_task}} "{{cmd}} --num-shards \$SLURM_NTASKS --shard-index \$SLURM_PROCID" "{{constraint}}" "{{mem}}"
 
 # Launch parameter sweep from config (e.g., just sweep tutorials/sweep_example.yaml)
 sweep config:

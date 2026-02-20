@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from omegaconf import OmegaConf, DictConfig
 import warnings
+import os
 
 from .gpu_utils import (
     get_gpu_info,
@@ -23,6 +24,78 @@ from .gpu_utils import (
     get_optimal_num_workers,
     estimate_gpu_memory_required,
 )
+
+
+def _available_cpus_for_current_run() -> int:
+    """
+    Detect CPU slots available to the current process (SLURM/cgroup aware).
+
+    Priority:
+    1) CPU affinity mask (best under cgroups/SLURM)
+    2) SLURM_CPUS_PER_TASK
+    3) os.cpu_count()
+    """
+    try:
+        affinity = os.sched_getaffinity(0)
+        if affinity:
+            return len(affinity)
+    except Exception:
+        pass
+
+    slurm_cpus_per_task = os.environ.get("SLURM_CPUS_PER_TASK")
+    if slurm_cpus_per_task and slurm_cpus_per_task.isdigit():
+        return max(int(slurm_cpus_per_task), 1)
+
+    return max(os.cpu_count() or 1, 1)
+
+
+def resolve_runtime_resource_sentinels(
+    config: DictConfig,
+    print_results: bool = True,
+) -> DictConfig:
+    """
+    Resolve runtime resource sentinels in system.{training,inference}.
+
+    Sentinel convention:
+      - num_gpus = -1 -> use all GPUs visible to this run
+      - num_workers = -1 -> use all CPU slots available to this run
+
+    This is runtime-oriented (SLURM/cgroup aware) and complements auto-planning.
+    """
+    if not hasattr(config, "system"):
+        return config
+
+    gpu_info = get_gpu_info()
+    available_gpus = gpu_info["num_gpus"] if gpu_info["cuda_available"] else 0
+    available_cpus = _available_cpus_for_current_run()
+
+    for section_name in ("training", "inference"):
+        section = getattr(config.system, section_name, None)
+        if section is None:
+            continue
+
+        if getattr(section, "num_gpus", None) == -1:
+            section.num_gpus = available_gpus
+            if print_results:
+                print(
+                    f"🔧 Auto-detected system.{section_name}.num_gpus: "
+                    f"-1 → {section.num_gpus}"
+                )
+
+        if getattr(section, "num_workers", None) == -1:
+            section.num_workers = available_cpus
+            if print_results:
+                print(
+                    f"🔧 Auto-detected system.{section_name}.num_workers: "
+                    f"-1 → {section.num_workers}"
+                )
+
+        if getattr(section, "num_gpus", 0) < -1:
+            raise ValueError(f"system.{section_name}.num_gpus must be >= -1")
+        if getattr(section, "num_workers", 0) < -1:
+            raise ValueError(f"system.{section_name}.num_workers must be >= -1")
+
+    return config
 
 
 @dataclass

@@ -1,0 +1,204 @@
+_base_: bases/mednext.yaml
+
+experiment_name: neuron_nisb_base_40nm_mednext_b_sdt
+description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT
+
+system:
+  training:
+    num_gpus: 4
+    num_workers: -1
+    batch_size: 4
+  inference:
+    num_gpus: 1
+    num_workers: 8
+    batch_size: 1
+  seed: 42
+
+model:
+  input_size: [128, 128, 128]
+  output_size: [128, 128, 128]
+  in_channels: 1
+  out_channels: 7
+  mednext_size: B
+  mednext_kernel_size: 3
+  mednext_dim: 3d
+  mednext_checkpoint_style: outside_block
+  deep_supervision: false
+
+  loss_functions:
+    - WeightedBCEWithLogitsLoss
+    - WeightedMSELoss
+  loss_weights: [1.0, 1.0]
+  loss_kwargs:
+    - {}
+    - {tanh: true}
+
+  multi_task_config:
+    - [0, 6, affinity, [0]]
+    - [6, 7, sdt, [1]]
+
+data:
+  # BANIS command mapping:
+  # --base_data_path /projects/weilab/dataset/nisb
+  # --data_setting base
+  train_path: /projects/weilab/dataset/nisb/base/train
+  val_path: /projects/weilab/dataset/nisb/base/val
+
+  # BANIS data.zarr arrays are under each seed directory.
+  train_image: seed*/data.zarr/img_40-36-36nm.h5
+  train_label: seed*/data.zarr/seg_40-36-36nm.h5
+  val_image: seed*/data.zarr/img_40-36-36nm.h5
+  val_label: seed*/data.zarr/seg_40-36-36nm.h5
+  iter_num_per_epoch: 1000
+
+  train_resolution: [36, 36, 40]
+  val_resolution: [36, 36, 40]
+
+  patch_size: [128, 128, 128]
+  use_preloaded_cache_train: true
+  use_preloaded_cache_val: true
+  use_cache: false
+  persistent_workers: true
+
+  image_transform:
+    normalize: "0-1"
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+
+  label_transform:
+    targets:
+      - name: affinity
+        kwargs:
+          long_range: 10
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution: [36, 36, 40]
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+
+  augmentation:
+    preset: some
+
+    flip:
+      enabled: true
+      prob: 0.5
+
+    rotate:
+      enabled: true
+      prob: 0.5
+
+    affine:
+      enabled: true
+      prob: 0.5
+      rotate_range: [3.1416, 3.1416, 3.1416]
+      scale_range: [0.2, 0.2, 0.2]
+      shear_range: [0.5, 0.5, 0.5]
+
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.5
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.5
+      contrast_range: [0.9, 1.1]
+
+    missing_section:
+      enabled: true
+      prob: 0.05
+      num_sections: 2
+
+    misalignment:
+      enabled: true
+      prob: 0.05
+      displacement: 10
+      rotate_ratio: 0.0
+
+optimization:
+  max_epochs: 100
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+  precision: "16-mixed"
+  log_every_n_steps: 100
+  val_check_interval: 1
+  num_sanity_val_steps: 0
+
+  optimizer:
+    name: AdamW
+    lr: 1.0e-3
+    weight_decay: 1.0e-2
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+
+  scheduler:
+    name: CosineAnnealingLR
+    t_max: 50000
+    interval: step
+    frequency: 1
+
+monitor:
+  logging:
+    scalar:
+      loss: [train_loss_total_epoch, val_loss_total, train_loss_affinity_total, train_loss_sdt_total]
+      loss_every_n_steps: 100
+      val_check_interval: 1.0
+    images:
+      enabled: true
+      max_images: 8
+      num_slices: 8
+      log_every_n_epochs: 1
+      channel_mode: all
+
+  checkpoint:
+    monitor: val_loss_total
+    mode: min
+    save_top_k: 100
+    save_last: true
+    save_every_n_epochs: 1
+    dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
+    use_timestamp: true
+
+  early_stopping:
+    enabled: false
+
+test:
+  data:
+    test_image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img_40-36-36nm.h5
+    test_label: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/seg_40-36-36nm.h5
+    test_resolution: [9, 9, 20]
+    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results/
+
+  decoding:
+    - name: decode_affinity_cc
+      kwargs:
+        threshold: 0.5
+
+  evaluation:
+    enabled: false
+
+inference:
+  sliding_window:
+    window_size: [128, 128, 128]
+    sw_batch_size: 1
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: replicate
+
+  test_time_augmentation:
+    enabled: false
+    flip_axes: null
+    rotation90_axes: null
+    channel_activations:
+      - [0, 6, sigmoid]
+      - [6, 7, tanh]
+    select_channel: all
+    ensemble_mode: mean
+    apply_mask: false
+
+  save_prediction:
+    enabled: true
+    intensity_scale: -1.0
+    intensity_dtype: float32
+    output_formats: [h5]

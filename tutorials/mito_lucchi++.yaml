@@ -3,8 +3,8 @@ experiment_name: lucchi++
 description: Mitochondria segmentation on Lucchi++ EM dataset
 system:
   training:
-    num_gpus: 4
-    num_workers: 2
+    num_gpus: -1
+    num_workers: -1
     batch_size: 16
   inference:
     batch_size: 16

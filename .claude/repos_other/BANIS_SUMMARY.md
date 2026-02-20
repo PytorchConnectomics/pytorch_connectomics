@@ -4,7 +4,7 @@
 
 BANIS is a baseline implementation for the **Neuron Instance Segmentation Benchmark (NISB)**, providing an easily adaptable framework for neuron instance segmentation in electron microscopy (EM) images. The project combines affinity prediction with modern deep learning architectures (MedNeXt) and simple connected components for post-processing.
 
-**Repository Location**: `/projects/weilab/weidf/lib/banis`
+**Repository Location**: `/projects/weilab/weidf/lib/seg/banis`
 
 **Key Features**:
 - Affinity-based segmentation approach with short and long-range affinities

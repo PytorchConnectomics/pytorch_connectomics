@@ -3,8 +3,8 @@ _base_: bases/mednext.yaml
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
 system:
   training:    
-    num_gpus: 4
-    num_workers: 8
+    num_gpus: -1
+    num_workers: -1
     batch_size: 4
   inference:    
     num_gpus: 1
@@ -23,8 +23,9 @@ model:
   out_channels: 7
   mednext_size: M
   mednext_kernel_size: 7
-  mednext_dim: 3d
-  deep_supervision: true
+  mednext_dim: 3d  
+  mednext_checkpoint_style: outside_block
+  deep_supervision: false
   loss_functions:
   - WeightedBCEWithLogitsLoss
   - WeightedMSELoss
@@ -55,7 +56,7 @@ data:
   - 8
   - 8
   use_preloaded_cache_train: true
-  use_preloaded_cache_val: false
+  use_preloaded_cache_val: true
   cached_sampling_foreground_threshold: 0
   use_cache: false  # keep false so every batch gets fresh random crop + augmentation  
   persistent_workers: true
@@ -71,7 +72,7 @@ data:
     targets:
     - name: affinity
       kwargs:
-        long_range: 3
+        long_range: 5
     - name: skeleton_aware_edt
       kwargs:
         resolution:
