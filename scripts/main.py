@@ -15,7 +15,7 @@ Usage:
     # Testing mode
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --mode test --checkpoint path/to/checkpoint.ckpt
 
-    # Fast dev run (1 batch for debugging, auto-sets num_gpus=1, num_cpus=1, num_workers=1)
+    # Fast dev run (1 batch for debugging, auto-sets num_workers=0 and uses GPU only if CUDA is available)
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run 2  # Run 2 batches
 

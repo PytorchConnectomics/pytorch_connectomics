@@ -201,8 +201,9 @@ def setup_config(args) -> Config:
 
     # Override config for fast-dev-run mode
     if args.fast_dev_run:
+        fast_dev_num_gpus = 1 if torch.cuda.is_available() else 0
         print("🔧 Fast-dev-run mode: Overriding config for debugging")
-        print(f"   - num_gpus: {cfg.system.training.num_gpus} → 1")
+        print(f"   - num_gpus: {cfg.system.training.num_gpus} → {fast_dev_num_gpus}")
         print(
             f"   - num_workers: {cfg.system.training.num_workers} → 0 "
             "(avoid multiprocessing in debug mode)"
@@ -212,9 +213,9 @@ def setup_config(args) -> Config:
         )
         print("   - input patch: 64^3 for lightweight debug")
         print("   - MedNeXt size: S for lightweight debug")
-        cfg.system.training.num_gpus = 1
+        cfg.system.training.num_gpus = fast_dev_num_gpus
         cfg.system.training.num_workers = 0
-        cfg.system.inference.num_gpus = 1
+        cfg.system.inference.num_gpus = fast_dev_num_gpus
         cfg.system.inference.num_workers = 0
         if hasattr(cfg.model, "input_size"):
             cfg.model.input_size = [64, 64, 64]
@@ -230,19 +231,6 @@ def setup_config(args) -> Config:
     # Resolve -1 sentinels (auto-max resources for current runtime allocation).
     cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
 
-    # CPU-only fallback: avoid multiprocessing workers when no CUDA is available
-    if not torch.cuda.is_available():
-        if cfg.system.training.num_workers > 0:
-            print(
-                "🔧 CUDA not available, setting training num_workers=0 to avoid dataloader crashes"
-            )
-            cfg.system.training.num_workers = 0
-        if cfg.system.inference.num_workers > 0:
-            print(
-                "🔧 CUDA not available, setting inference num_workers=0 to avoid dataloader crashes"
-            )
-            cfg.system.inference.num_workers = 0
-
     # Apply inference-specific overrides if in test/tune mode
     if args.mode in ["test", "tune", "tune-test"]:
         if cfg.inference.num_gpus >= 0:
@@ -254,6 +242,25 @@ def setup_config(args) -> Config:
         if cfg.inference.num_workers >= 0:
             print(f"🔧 Inference override: num_workers={cfg.inference.num_workers}")
             cfg.system.inference.num_workers = cfg.inference.num_workers
+
+    # CPU-only fallback after all overrides: ensure no CUDA-only settings remain.
+    if not torch.cuda.is_available():
+        if cfg.system.training.num_gpus > 0:
+            print("🔧 CUDA not available, setting training num_gpus=0")
+            cfg.system.training.num_gpus = 0
+        if cfg.system.inference.num_gpus > 0:
+            print("🔧 CUDA not available, setting inference num_gpus=0")
+            cfg.system.inference.num_gpus = 0
+        if cfg.system.training.num_workers > 0:
+            print(
+                "🔧 CUDA not available, setting training num_workers=0 to avoid dataloader crashes"
+            )
+            cfg.system.training.num_workers = 0
+        if cfg.system.inference.num_workers > 0:
+            print(
+                "🔧 CUDA not available, setting inference num_workers=0 to avoid dataloader crashes"
+            )
+            cfg.system.inference.num_workers = 0
 
     # Optional convenience toggle to enable nnU-Net preprocessing via CLI
     if getattr(args, "nnunet_preprocess", False):
