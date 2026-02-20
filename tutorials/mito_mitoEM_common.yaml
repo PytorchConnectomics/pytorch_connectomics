@@ -64,7 +64,7 @@ data:
   - 32
   - 256
   - 256
-  iter_num_per_epoch: 2000
+  iter_num_per_epoch: 200
   image_transform:
     clip_percentile_low: 0.005
     clip_percentile_high: 0.995
@@ -93,7 +93,7 @@ data:
     intensity:
       enabled: true
 optimization:
-  max_epochs: 1000
+  max_epochs: 500
   accumulate_grad_batches: 1
   val_check_interval: 10
   num_sanity_val_steps: 0

@@ -49,6 +49,37 @@ def _available_cpus_for_current_run() -> int:
     return max(os.cpu_count() or 1, 1)
 
 
+def _infer_local_process_count(
+    *,
+    requested_num_gpus: int,
+    available_gpus: int,
+) -> int:
+    """
+    Estimate how many trainer processes will run on this node for a config section.
+
+    In this codebase, when running under Slurm with ``SLURM_NTASKS=1`` and
+    ``num_gpus > 1``, Lightning uses local multi-GPU spawn (one process per GPU).
+    For externally launched distributed jobs (``SLURM_NTASKS>1``), each task
+    should use its own worker budget, so we keep process count at 1 here.
+    """
+    slurm_ntasks = os.environ.get("SLURM_NTASKS", "1")
+    try:
+        slurm_ntasks_int = int(slurm_ntasks)
+    except ValueError:
+        slurm_ntasks_int = 1
+
+    resolved_num_gpus = requested_num_gpus
+    if requested_num_gpus == -1:
+        resolved_num_gpus = available_gpus
+
+    # CPU-only / single-GPU / externally launched distributed: no local spawn fan-out.
+    if resolved_num_gpus <= 1 or slurm_ntasks_int != 1:
+        return 1
+
+    # Local spawn fan-out: one process per GPU.
+    return int(resolved_num_gpus)
+
+
 def resolve_runtime_resource_sentinels(
     config: DictConfig,
     print_results: bool = True,
@@ -83,11 +114,16 @@ def resolve_runtime_resource_sentinels(
                 )
 
         if getattr(section, "num_workers", None) == -1:
-            section.num_workers = available_cpus
+            process_count = _infer_local_process_count(
+                requested_num_gpus=getattr(section, "num_gpus", 0),
+                available_gpus=available_gpus,
+            )
+            section.num_workers = max(1, available_cpus // process_count)
             if print_results:
                 print(
                     f"🔧 Auto-detected system.{section_name}.num_workers: "
-                    f"-1 → {section.num_workers}"
+                    f"-1 → {section.num_workers} "
+                    f"(available_cpus={available_cpus}, local_processes={process_count})"
                 )
 
         if getattr(section, "num_gpus", 0) < -1:
