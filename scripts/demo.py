@@ -111,13 +111,11 @@ def create_demo_config():
             seed=42,
             training=SystemTrainingConfig(
                 num_gpus=1 if torch.cuda.is_available() else 0,
-                num_cpus=2,
                 batch_size=2,
                 num_workers=0,  # 0 for demo to avoid multiprocessing issues
             ),
             inference=SystemInferenceConfig(
                 num_gpus=1 if torch.cuda.is_available() else 0,
-                num_cpus=2,
                 batch_size=2,
                 num_workers=0,
             ),
@@ -142,7 +140,8 @@ def create_demo_config():
             stride=[16, 32, 32],
             iter_num_per_epoch=10,  # Just 10 iterations per epoch
             use_cache=False,
-            use_preloaded_cache=False,
+            use_preloaded_cache_train=False,
+            use_preloaded_cache_val=False,
             pin_memory=False,
             persistent_workers=False,
         ),
@@ -187,7 +186,6 @@ def create_demo_config():
         ),
         inference=InferenceConfig(
             num_gpus=-1,
-            num_cpus=-1,
             batch_size=-1,
             num_workers=-1,
         ),
@@ -403,4 +401,3 @@ def run_demo():
 
 if __name__ == "__main__":
     run_demo()
-
