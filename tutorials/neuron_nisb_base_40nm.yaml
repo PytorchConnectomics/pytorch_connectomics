@@ -5,7 +5,7 @@ description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B
 
 system:
   training:
-    num_gpus: 4
+    num_gpus: -1
     num_workers: -1
     batch_size: 4
   inference:

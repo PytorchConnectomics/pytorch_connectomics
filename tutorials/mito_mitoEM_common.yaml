@@ -47,6 +47,7 @@ model:
 data:
   train_path: /projects/weilab/dataset/mito/mitoEM/
   val_path: /projects/weilab/dataset/mito/mitoEM/
+  val_iter_num: 20
   train_resolution:
   - 30
   - 8

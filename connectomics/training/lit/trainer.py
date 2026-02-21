@@ -315,7 +315,7 @@ def create_trainer(
         benchmark=cfg.optimization.benchmark,
         fast_dev_run=bool(fast_dev_run),
         detect_anomaly=detect_anomaly,
-        enable_progress_bar=False,
+        enable_progress_bar=True,
         plugins=plugins,
     )
 

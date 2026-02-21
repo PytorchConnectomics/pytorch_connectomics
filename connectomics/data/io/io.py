@@ -438,6 +438,26 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
     if not os.path.exists(filename):
         raise FileNotFoundError(f"File not found: {filename}")
 
+    # Zarr array/group paths (e.g., ".../data.zarr/img").
+    # Check before suffix parsing because zarr array paths often have no suffix.
+    if ".zarr" in filename:
+        try:
+            import zarr  # type: ignore
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "Reading zarr shapes requires `zarr`. Install with: pip install zarr"
+            ) from exc
+
+        obj = zarr.open(filename, mode="r")
+        if hasattr(obj, "shape"):
+            return tuple(obj.shape)
+        if dataset is not None:
+            return tuple(obj[dataset].shape)
+        keys = list(obj.keys())
+        if not keys:
+            raise ValueError(f"No arrays found in zarr group: {filename}")
+        return tuple(obj[keys[0]].shape)
+
     # Handle .nii.gz files specially
     if filename.endswith(".nii.gz"):
         image_suffix = "nii.gz"
