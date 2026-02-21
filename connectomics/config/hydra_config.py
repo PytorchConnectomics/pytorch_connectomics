@@ -471,6 +471,7 @@ class DataConfig:
     val_iter_num: Optional[int] = None  # Validation iterations per epoch (auto-calculated if None)
     use_preloaded_cache_train: bool = True  # Preload training volumes into memory
     use_preloaded_cache_val: bool = True  # Preload validation volumes into memory
+    use_lazy_zarr: bool = False  # Lazy crop-on-read for zarr volumes (no full preload)
     cached_sampling_max_attempts: int = 10  # Retry attempts for foreground-aware sampling
     cached_sampling_foreground_threshold: float = (
         0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling

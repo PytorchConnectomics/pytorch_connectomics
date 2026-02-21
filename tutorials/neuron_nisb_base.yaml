@@ -1,22 +1,22 @@
 _base_: bases/mednext.yaml
 
-experiment_name: neuron_nisb_base_mednext_b_sdt
+experiment_name: neuron_nisb_base_40nm_mednext_b_sdt
 description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT
 
 system:
   training:
-    num_gpus: 1
-    num_workers: 8
-    batch_size: 8
+    num_gpus: -1
+    num_workers: -1
+    batch_size: 2
   inference:
     num_gpus: 1
     num_workers: 8
     batch_size: 1
-  seed: 0
+  seed: 42
 
 model:
-  input_size: [128, 128, 128]
-  output_size: [128, 128, 128]
+  input_size: [32, 256, 256]
+  output_size: [32, 256, 256]
   in_channels: 1
   out_channels: 7
   mednext_size: B
@@ -49,13 +49,18 @@ data:
   train_label: seed*/data.zarr/seg
   val_image: seed*/data.zarr/img
   val_label: seed*/data.zarr/seg
+  iter_num_per_epoch: 200
 
-  train_resolution: [9, 9, 20]
-  val_resolution: [9, 9, 20]
+  train_resolution: [20, 9, 9]
+  val_resolution: [20, 9, 9]
+  # NISB zarr arrays are stored as XYZ; model/data pipeline expects ZYX.
+  train_transpose: [2, 1, 0]
+  val_transpose: [2, 1, 0]
 
-  patch_size: [128, 128, 128]
+  patch_size: [32, 256, 256]
   use_preloaded_cache_train: false
   use_preloaded_cache_val: false
+  use_lazy_zarr: true
   use_cache: false
   persistent_workers: true
 
@@ -71,7 +76,7 @@ data:
           long_range: 10
       - name: skeleton_aware_edt
         kwargs:
-          resolution: [9, 9, 20]
+          resolution: [20, 9, 9]
           alpha: 0.8
           bg_value: -1.0
           relabel: true
@@ -103,19 +108,9 @@ data:
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
 
-    missing_section:
-      enabled: true
-      prob: 0.05
-      num_sections: 2
-
-    misalignment:
-      enabled: true
-      prob: 0.05
-      displacement: 10
-      rotate_ratio: 0.0
 
 optimization:
-  max_steps: 50000
+  max_epochs: 500
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"
@@ -155,7 +150,7 @@ monitor:
     save_top_k: 100
     save_last: true
     save_every_n_epochs: 1
-    dirpath: outputs/neuron_nisb_base_mednext_b_sdt/checkpoints/
+    dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
     use_timestamp: true
 
   early_stopping:
@@ -165,8 +160,9 @@ test:
   data:
     test_image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img
     test_label: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/seg
-    test_resolution: [9, 9, 20]
-    output_path: outputs/neuron_nisb_base_mednext_b_sdt/results/
+    test_resolution: [20, 9, 9]
+    test_transpose: [2, 1, 0]
+    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results/
 
   decoding:
     - name: decode_affinity_cc
@@ -178,7 +174,7 @@ test:
 
 inference:
   sliding_window:
-    window_size: [128, 128, 128]
+    window_size: [32, 256, 256]
     sw_batch_size: 1
     overlap: 0.5
     blending: gaussian

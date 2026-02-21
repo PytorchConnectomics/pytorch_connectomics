@@ -1,6 +1,11 @@
 _base_: mito_mitoEM_common.yaml
 
 experiment_name: mitoem30r_mednext_sdt
+system:
+  training:    
+    batch_size: 4
+  inference:
+    batch_size: 1
 data:
   train_image:
   - EM30-R/im_train.h5

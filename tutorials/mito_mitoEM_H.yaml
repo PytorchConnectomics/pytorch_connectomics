@@ -6,21 +6,8 @@ system:
     batch_size: 4
   inference:
     batch_size: 1
-model:
-  input_size:
-  - 16
-  - 256
-  - 256
-  output_size:
-  - 16
-  - 256
-  - 256
+
 data:
-  val_iter_num: 20
-  patch_size:
-  - 16
-  - 256
-  - 256
   train_image:
   - EM30-H/im_train.h5
   train_label:
@@ -29,21 +16,9 @@ data:
   - EM30-H/im_val.h5
   val_label:
   - EM30-H/mito_val-v2.h5
-optimization:
-  accumulate_grad_batches: 4
 monitor:
-  logging:
-    scalar:
-      loss_every_n_steps: 10
   checkpoint:
     dirpath: outputs/mitoem30h_mednext_sdt/checkpoints/
-inference:
-  sliding_window:
-    window_size:
-    - 16
-    - 256
-    - 256
-    sw_batch_size: 1
 test:
   data:
     test_image: /projects/weilab/dataset/mito/mitoEM/EM30-H/im_test.h5

@@ -482,23 +482,14 @@ def create_datamodule(
         elif iter_num_cfg == -1 and dataset_type != "filename":
             # For filename datasets, iter_num is determined by the number of files
             print("📊 Auto-computing iter_num from volume size...")
-            import h5py
-            import tifffile
 
             from ...data.utils import compute_total_samples
+            from ...data.io import get_vol_shape
 
             # Get volume sizes
             volume_sizes = []
             for data_dict in train_data_dicts:
-                img_path = Path(str(data_dict["image"]))
-                if img_path.suffix in [".h5", ".hdf5"]:
-                    with h5py.File(img_path, "r") as f:
-                        vol_shape = f[list(f.keys())[0]].shape
-                elif img_path.suffix in [".tif", ".tiff"]:
-                    vol = tifffile.imread(img_path)
-                    vol_shape = vol.shape
-                else:
-                    raise ValueError(f"Unsupported file format: {img_path.suffix}")
+                vol_shape = get_vol_shape(str(data_dict["image"]))
 
                 # Handle both (z, y, x) and (c, z, y, x)
                 if len(vol_shape) == 4:
@@ -553,6 +544,13 @@ def create_datamodule(
     # Use optimized pre-loaded cache for train dataset when iter_num > 0.
     use_preloaded = (
         train_preload_cfg
+        and iter_num is not None
+        and iter_num > 0
+        and mode == "train"
+        and dataset_type != "filename"
+    )
+    use_lazy_zarr = (
+        getattr(cfg.data, "use_lazy_zarr", False)
         and iter_num is not None
         and iter_num > 0
         and mode == "train"
@@ -702,6 +700,117 @@ def create_datamodule(
 
             def test_dataloader(self):
                 # For test mode, return empty list (user should use standard datamodule)
+                return []
+
+            def setup(self, stage=None):
+                pass
+
+        datamodule = SimpleDataModule(train_loader, val_loader)
+    elif use_lazy_zarr:
+        # Lazy zarr crop loading: keep zarr handles, read only sampled patches.
+        train_images = [d["image"] for d in train_data_dicts]
+        train_labels = [d.get("label") for d in train_data_dicts]
+        train_masks = [d.get("mask") for d in train_data_dicts]
+        zarr_like = all(".zarr" in str(p) for p in train_images)
+        if not zarr_like:
+            raise ValueError(
+                "data.use_lazy_zarr=true requires zarr image paths (containing '.zarr'). "
+                f"Got: {train_images[:3]}"
+            )
+
+        print("  ⚡ Using lazy zarr volume loading (crop-on-read, no full preload)")
+        import pytorch_lightning as pl
+        from torch.utils.data import DataLoader
+
+        from ...data.dataset.dataset_volume_zarr_lazy import LazyZarrVolumeDataset
+
+        train_transforms_lazy = build_train_transforms(cfg, skip_loading=True)
+
+        train_dataset = LazyZarrVolumeDataset(
+            image_paths=train_images,
+            label_paths=None if all(p is None for p in train_labels) else train_labels,
+            mask_paths=None if all(p is None for p in train_masks) else train_masks,
+            patch_size=tuple(cfg.data.patch_size),
+            iter_num=iter_num,
+            transforms=train_transforms_lazy,
+            mode="train",
+            max_attempts=cfg.data.cached_sampling_max_attempts,
+            foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
+            transpose_axes=cfg.data.train_transpose if cfg.data.train_transpose else None,
+        )
+
+        lazy_num_workers = num_workers
+        print(f"  Using {lazy_num_workers} workers")
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=lazy_num_workers,
+            pin_memory=cfg.data.pin_memory,
+            persistent_workers=lazy_num_workers > 0,
+        )
+
+        val_loader = None
+        if val_data_dicts and len(val_data_dicts) > 0:
+            val_images = [d["image"] for d in val_data_dicts]
+            val_labels = [d.get("label") for d in val_data_dicts]
+            val_masks = [d.get("mask") for d in val_data_dicts]
+            if not all(".zarr" in str(p) for p in val_images):
+                raise ValueError(
+                    "data.use_lazy_zarr=true requires zarr val image paths "
+                    "(containing '.zarr')."
+                )
+
+            val_transforms_lazy = build_val_transforms(cfg, skip_loading=True)
+            val_iter_num = getattr(cfg.data, "val_iter_num", None)
+            if val_iter_num is None:
+                print("  📊 Auto-calculating validation iter_num from volume size...")
+                val_iter_num = _calculate_validation_iter_num(
+                    val_data_dicts=val_data_dicts,
+                    patch_size=tuple(cfg.data.patch_size),
+                    min_iter=50,
+                    max_iter=200,
+                )
+                print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
+
+            val_dataset = LazyZarrVolumeDataset(
+                image_paths=val_images,
+                label_paths=None if all(p is None for p in val_labels) else val_labels,
+                mask_paths=None if all(p is None for p in val_masks) else val_masks,
+                patch_size=tuple(cfg.data.patch_size),
+                iter_num=val_iter_num,
+                transforms=val_transforms_lazy,
+                mode="val",
+                max_attempts=cfg.data.cached_sampling_max_attempts,
+                foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
+                transpose_axes=cfg.data.val_transpose if cfg.data.val_transpose else None,
+            )
+
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=lazy_num_workers,
+                pin_memory=cfg.data.pin_memory,
+                persistent_workers=lazy_num_workers > 0,
+            )
+            print(f"  ✅ Validation dataloader created with {val_iter_num} iterations")
+
+        class SimpleDataModule(pl.LightningDataModule):
+            def __init__(self, train_loader, val_loader=None):
+                super().__init__()
+                self.train_loader = train_loader
+                self._val_loader = val_loader
+
+            def train_dataloader(self):
+                return self.train_loader
+
+            def val_dataloader(self):
+                if self._val_loader is not None:
+                    return self._val_loader
+                return []
+
+            def test_dataloader(self):
                 return []
 
             def setup(self, stage=None):
