@@ -151,21 +151,37 @@ class ConnectomicsModule(pl.LightningModule):
         """
         return self.model(x)
 
+    def _get_test_evaluation_config(self):
+        """Resolve test evaluation config, falling back to inference evaluation if needed."""
+        if hasattr(self.cfg, "test") and self.cfg.test is not None:
+            test_eval = getattr(self.cfg.test, "evaluation", None)
+            if test_eval is not None:
+                return test_eval
+
+        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "evaluation"):
+            return self.cfg.inference.evaluation
+
+        return None
+
+    def _is_test_evaluation_enabled(self) -> bool:
+        """Return whether test-time metric computation is enabled."""
+        evaluation_config = self._get_test_evaluation_config()
+        if evaluation_config is None:
+            return False
+
+        if isinstance(evaluation_config, dict):
+            return bool(evaluation_config.get("enabled", False))
+
+        return bool(getattr(evaluation_config, "enabled", False))
+
     def _setup_test_metrics(self):
         """Initialize test metrics based on test or inference config."""
-        # Check test.evaluation first, then fall back to inference.evaluation
-        evaluation_config = None
-        if hasattr(self.cfg, 'test') and self.cfg.test and hasattr(self.cfg.test, 'evaluation'):
-            evaluation_config = self.cfg.test.evaluation
-        elif hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
-            evaluation_config = self.cfg.inference.evaluation
-        
-        if not evaluation_config:
+        evaluation_config = self._get_test_evaluation_config()
+        if evaluation_config is None:
             return
 
         # Check if evaluation is enabled
-        enabled = evaluation_config.get('enabled', False) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'enabled', False)
-        if not enabled:
+        if not self._is_test_evaluation_enabled():
             return
 
         metrics = evaluation_config.get('metrics', None) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'metrics', None)
@@ -324,6 +340,10 @@ class ConnectomicsModule(pl.LightningModule):
         Args:
             metrics_dict: Dictionary containing metric names and values
         """
+        metric_keys = [k for k in metrics_dict.keys() if k != 'volume_name']
+        if not metric_keys:
+            return
+
         # Get output path from config
         output_path = None
         if hasattr(self.cfg, 'test') and hasattr(self.cfg.test, 'data'):
@@ -395,6 +415,9 @@ class ConnectomicsModule(pl.LightningModule):
     
     def _compute_test_metrics(self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None):
         """Update configured torchmetrics using decoded predictions and print per-volume metrics."""
+        if not self._is_test_evaluation_enabled():
+            return
+
         pred_tensor = torch.from_numpy(decoded_predictions).float().to(self.device)
         labels_tensor = labels.float().to(pred_tensor.device)
 
@@ -849,7 +872,7 @@ class ConnectomicsModule(pl.LightningModule):
         # CASE 1: Final predictions exist → directly evaluate
         if loaded_final_predictions:
             print(f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing")
-            if labels is not None:
+            if labels is not None and self._is_test_evaluation_enabled():
                 self._compute_test_metrics(predictions_np, labels, volume_name=volume_name)
             return torch.tensor(0.0, device=self.device)
 
@@ -902,7 +925,7 @@ class ConnectomicsModule(pl.LightningModule):
             print(f"  ✅ Final predictions saved ({save_duration:.1f}s)")
 
             # Evaluate if labels provided
-            if labels is not None:
+            if labels is not None and self._is_test_evaluation_enabled():
                 print(f"\n  📈 [STAGE: Computing Evaluation Metrics]")
                 eval_start = time.time()
                 
@@ -910,8 +933,10 @@ class ConnectomicsModule(pl.LightningModule):
                 
                 eval_duration = time.time() - eval_start
                 print(f"  ✅ Evaluation completed ({eval_duration:.1f}s)")
-            else:
+            elif labels is None:
                 print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
+            else:
+                print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
             
             print(f"\n{'='*70}")
             print(f"VOLUME COMPLETE: {volume_name}")
@@ -1054,7 +1079,7 @@ class ConnectomicsModule(pl.LightningModule):
         # PART 6: Evaluation Stage
         # ============================================================
         # Evaluate if labels provided
-        if labels is not None:
+        if labels is not None and self._is_test_evaluation_enabled():
             print(f"\n  📈 [STAGE: Computing Evaluation Metrics]")
             eval_start = time.time()
             
@@ -1062,8 +1087,10 @@ class ConnectomicsModule(pl.LightningModule):
             
             eval_duration = time.time() - eval_start
             print(f"  ✅ Evaluation completed ({eval_duration:.1f}s)")
-        else:
+        elif labels is None:
             print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
+        else:
+            print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
         
         print(f"\n{'='*70}")
         print(f"VOLUME COMPLETE: {volume_name}")

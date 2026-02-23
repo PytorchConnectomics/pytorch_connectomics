@@ -1172,7 +1172,7 @@ class TestConfig:
 
     data: TestDataConfig = field(default_factory=TestDataConfig)
     decoding: Optional[List[Dict[str, Any]]] = None
-    evaluation: Optional[Dict[str, Any]] = None
+    evaluation: Optional[Dict[str, Any]] = field(default_factory=lambda: {"enabled": False})
 
 
 @dataclass
