@@ -10,8 +10,8 @@ system:
     batch_size: 4
   inference:
     num_gpus: 1
-    num_workers: 8
-    batch_size: 1
+    num_workers: 4
+    batch_size: 4
   seed: 42
 
 model:
@@ -154,10 +154,10 @@ monitor:
 
 test:
   data:
-    test_image: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/img_40-36-36nm.h5
-    test_label: /projects/weilab/dataset/nisb/base/test/seed*/data.zarr/seg_40-36-36nm.h5
-    test_resolution: [9, 9, 20]
-    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results/
+    test_image: /projects/weilab/dataset/nisb/base/test/seed101/data.zarr/img_40-36-36nm.h5
+    test_label: /projects/weilab/dataset/nisb/base/test/seed101/data.zarr/seg_40-36-36nm.h5
+    test_resolution: [36, 36, 40]
+    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results_seed101/
 
   decoding:
     - name: decode_affinity_cc
@@ -170,7 +170,7 @@ test:
 inference:
   sliding_window:
     window_size: [128, 128, 128]
-    sw_batch_size: 1
+    sw_batch_size: 4
     overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
@@ -183,7 +183,7 @@ inference:
     channel_activations:
       - [0, 6, sigmoid]
       - [6, 7, tanh]
-    select_channel: all
+    select_channel: [0,1,2,6]
     ensemble_mode: mean
     apply_mask: false
 
