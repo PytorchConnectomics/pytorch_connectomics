@@ -170,11 +170,14 @@ test:
 inference:
   sliding_window:
     window_size: [128, 128, 128]
-    sw_batch_size: 4
+    sw_batch_size: 1
     overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
     padding_mode: replicate
+    keep_input_on_cpu: true
+    sw_device: cuda
+    output_device: cpu
 
   test_time_augmentation:
     enabled: false

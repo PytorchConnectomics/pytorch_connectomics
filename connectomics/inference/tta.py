@@ -168,6 +168,18 @@ class TTAPredictor:
         with torch.no_grad():
             if self.sliding_inferer is not None:
                 return self.sliding_inferer(inputs=images, network=self._sliding_window_predict)
+            keep_input_on_cpu = bool(
+                getattr(
+                    getattr(getattr(self.cfg, "inference", None), "sliding_window", None),
+                    "keep_input_on_cpu",
+                    False,
+                )
+            )
+            if keep_input_on_cpu and images.device.type == "cpu":
+                raise RuntimeError(
+                    "inference.sliding_window.keep_input_on_cpu=True requires sliding-window "
+                    "inference to be enabled (set inference.sliding_window.window_size or model output size)."
+                )
             return self._sliding_window_predict(images)
 
     def _sliding_window_predict(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -399,6 +411,8 @@ class TTAPredictor:
             else False
         )
         if apply_mask and mask is not None:
+            if mask.device != ensemble_result.device:
+                mask = mask.to(device=ensemble_result.device, non_blocking=True)
             if mask.shape != ensemble_result.shape:
                 if not (mask.shape[1] == 1 and mask.shape[0] == ensemble_result.shape[0]):
                     warnings.warn(

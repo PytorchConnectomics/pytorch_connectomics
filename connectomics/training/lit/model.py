@@ -396,7 +396,7 @@ class ConnectomicsModule(pl.LightningModule):
     def _compute_test_metrics(self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None):
         """Update configured torchmetrics using decoded predictions and print per-volume metrics."""
         pred_tensor = torch.from_numpy(decoded_predictions).float().to(self.device)
-        labels_tensor = labels.float()
+        labels_tensor = labels.float().to(pred_tensor.device)
 
         # Remove batch and channel dimensions
         pred_tensor = pred_tensor.squeeze()
@@ -770,12 +770,56 @@ class ConnectomicsModule(pl.LightningModule):
             # Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)
             self.train()
 
+        sliding_cfg = getattr(getattr(self.cfg, "inference", None), "sliding_window", None)
+        if bool(getattr(sliding_cfg, "keep_input_on_cpu", False)):
+            print(
+                "  Sliding-window CPU input mode enabled: keeping test image tensors on CPU "
+                "and letting MONAI move window batches to the configured sw_device."
+            )
+
     def on_test_end(self):
         """Called at the end of testing."""
         # Note: Metrics are logged in test_step with on_epoch=True,
         # which automatically computes and logs them at the end of testing.
         # Logging here causes a Lightning warning since self.log() is not allowed in on_test_end.
         pass
+
+    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
+        """Keep large test/predict input volumes on CPU for MONAI sliding-window inference."""
+        sliding_cfg = getattr(getattr(self.cfg, "inference", None), "sliding_window", None)
+        keep_input_on_cpu = bool(getattr(sliding_cfg, "keep_input_on_cpu", False))
+
+        trainer = getattr(self, "_trainer", None)
+        is_test_or_predict = bool(
+            getattr(trainer, "testing", False) or getattr(trainer, "predicting", False)
+        )
+
+        preserve_cpu_input = keep_input_on_cpu and is_test_or_predict and isinstance(batch, dict)
+        cpu_image = None
+        cpu_label = None
+        cpu_mask = None
+        if preserve_cpu_input:
+            image = batch.get("image")
+            label = batch.get("label")
+            mask = batch.get("mask")
+            if torch.is_tensor(image):
+                cpu_image = image
+            if torch.is_tensor(label):
+                cpu_label = label
+            if torch.is_tensor(mask):
+                cpu_mask = mask
+
+        moved_batch = super().transfer_batch_to_device(batch, device, dataloader_idx)
+
+        if preserve_cpu_input and isinstance(moved_batch, dict):
+            if cpu_image is not None:
+                moved_batch["image"] = cpu_image
+            if cpu_label is not None:
+                moved_batch["label"] = cpu_label
+            if cpu_mask is not None:
+                moved_batch["mask"] = cpu_mask
+
+        return moved_batch
 
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """
@@ -885,6 +929,7 @@ class ConnectomicsModule(pl.LightningModule):
         print(f"INFERENCE PLAN: {volume_name}")
         print(f"{'='*70}")
         print(f"Input shape:       {tuple(images.shape)}")
+        print(f"Input device:      {images.device}")
         
         # Extract sliding window parameters if available
         if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'sliding_window'):

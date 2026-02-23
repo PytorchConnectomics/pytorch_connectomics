@@ -943,6 +943,9 @@ class SlidingWindowConfig:
     padding_mode: str = "constant"  # Padding mode at volume boundaries
     pad_size: Optional[List[int]] = None  # Padding size for context (e.g., [16, 32, 32])
     save_channels: Optional[List[int]] = None  # Channel indices to save (None = all channels)
+    keep_input_on_cpu: bool = False  # Keep full input volume on CPU; MONAI moves windows to sw_device
+    sw_device: Optional[str] = None  # MONAI window compute device (e.g., "cuda")
+    output_device: Optional[str] = None  # MONAI stitched output device (e.g., "cpu")
 
 
 @dataclass
