@@ -312,8 +312,99 @@ Interactive mode (with -i flag):
         help="Select specific file from glob patterns by index (e.g., '0', '-1') or filename (e.g., 'volume_001'). "
         "Default: '0' (first file). Use 'all' to load all files.",
     )
+    parser.add_argument(
+        "--bbox",
+        type=str,
+        default=None,
+        help=(
+            "Crop all loaded volumes to a spatial bounding box before visualization. "
+            "Format: 'zmin,ymin,xmin,zmax,ymax,xmax' (Python slicing, end-exclusive)."
+        ),
+    )
 
     return parser.parse_args()
+
+
+def parse_bbox_arg(bbox_str: str) -> Tuple[int, int, int, int, int, int]:
+    """Parse bbox string 'zmin,ymin,xmin,zmax,ymax,xmax' into integer coordinates."""
+    parts = [p.strip() for p in bbox_str.split(",")]
+    if len(parts) != 6:
+        raise ValueError(
+            "bbox must have 6 comma-separated integers: zmin,ymin,xmin,zmax,ymax,xmax"
+        )
+
+    try:
+        zmin, ymin, xmin, zmax, ymax, xmax = (int(p) for p in parts)
+    except ValueError as e:
+        raise ValueError(
+            "bbox values must be integers in format zmin,ymin,xmin,zmax,ymax,xmax"
+        ) from e
+
+    if min(zmin, ymin, xmin, zmax, ymax, xmax) < 0:
+        raise ValueError("bbox values must be non-negative")
+    if not (zmin < zmax and ymin < ymax and xmin < xmax):
+        raise ValueError("bbox min values must be strictly less than max values")
+
+    return zmin, ymin, xmin, zmax, ymax, xmax
+
+
+def crop_volumes_to_bbox(
+    volumes: Dict[str, Tuple],
+    bbox: Tuple[int, int, int, int, int, int],
+    default_offset: Tuple[int, int, int],
+) -> Dict[str, Tuple]:
+    """
+    Crop all volumes to the same bbox and update voxel offsets accordingly.
+
+    Args:
+        volumes: Mapping of volume names to (data, type[, resolution, offset]) tuples.
+        bbox: (zmin, ymin, xmin, zmax, ymax, xmax), end-exclusive.
+        default_offset: Fallback offset used when a volume has no explicit offset.
+
+    Returns:
+        New volume mapping with cropped arrays and adjusted offsets.
+    """
+    zmin, ymin, xmin, zmax, ymax, xmax = bbox
+    cropped_volumes: Dict[str, Tuple] = {}
+
+    print(f"\nApplying bbox crop to all volumes: {bbox} (end-exclusive)")
+
+    for name, vol_data in volumes.items():
+        if len(vol_data) == 2:
+            data, vol_type = vol_data
+            vol_resolution = None
+            vol_offset = None
+        else:
+            data, vol_type, vol_resolution, vol_offset = vol_data
+
+        if data.ndim == 3:
+            spatial_shape = data.shape
+            crop_slices = (slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
+        elif data.ndim == 4:
+            spatial_shape = data.shape[-3:]
+            crop_slices = (slice(None), slice(zmin, zmax), slice(ymin, ymax), slice(xmin, xmax))
+        else:
+            raise ValueError(
+                f"Volume '{name}' has unsupported ndim={data.ndim} for bbox cropping (expected 3D or 4D)"
+            )
+
+        if not (
+            0 <= zmin < zmax <= spatial_shape[0]
+            and 0 <= ymin < ymax <= spatial_shape[1]
+            and 0 <= xmin < xmax <= spatial_shape[2]
+        ):
+            raise ValueError(
+                f"bbox {bbox} is out of bounds for volume '{name}' spatial shape {spatial_shape}"
+            )
+
+        cropped_data = data[crop_slices]
+        base_offset = vol_offset if vol_offset is not None else default_offset
+        new_offset = (base_offset[0] + zmin, base_offset[1] + ymin, base_offset[2] + xmin)
+
+        print(f"  {name}: {data.shape} -> {cropped_data.shape}, offset {base_offset} -> {new_offset}")
+        cropped_volumes[name] = (cropped_data, vol_type, vol_resolution, new_offset)
+
+    return cropped_volumes
 
 
 def load_volumes_from_config(
@@ -1101,6 +1192,14 @@ def main():
     except (ValueError, AttributeError) as e:
         print(f"ERROR: Invalid offset format '{args.offset}'. Expected format: 'z-y-x' or 'y-x' for 2D (e.g., '0-0-0' or '0-0')")
         sys.exit(1)
+
+    if args.bbox:
+        try:
+            bbox = parse_bbox_arg(args.bbox)
+            volumes = crop_volumes_to_bbox(volumes, bbox, default_offset=offset)
+        except ValueError as e:
+            print(f"ERROR: Invalid bbox '{args.bbox}': {e}")
+            sys.exit(1)
 
     # Start visualization (returns viewer for interactive access)
     viewer = visualize_volumes(

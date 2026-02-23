@@ -200,12 +200,22 @@ sweep config:
 # Visualize volumes with Neuroglancer from config (e.g., just visualize tutorials/monai_lucchi.yaml test --volumes prediction:path.h5)
 # Port defaults to 9999. Override with: just visualize config mode --port 8080 --volumes ...
 # Default selects first file from globs. Use --select to change: --select 1, --select filename, --select all
-visualize config mode *ARGS='':
+# Optional bbox shortcut (auto-expands to --bbox): just visualize config mode 0,0,0,32,256,256
+visualize config mode bbox='' *ARGS='':
     #!/usr/bin/env bash
     args="--config {{config}} --mode {{mode}}"
+    extra_args="{{bbox}} {{ARGS}}"
     # Check if --port is in ARGS, otherwise add default
-    if [[ ! "{{ARGS}}" =~ --port ]]; then
+    if [[ ! "$extra_args" =~ --port ]]; then
         args="$args --port 9999"
+    fi
+    if [ -n "{{bbox}}" ]; then
+        if [[ "{{bbox}}" == --* ]]; then
+            # Backward compatibility: first extra CLI flag may be captured in bbox slot
+            args="$args {{bbox}}"
+        else
+            args="$args --bbox {{bbox}}"
+        fi
     fi
     python -i scripts/visualize_neuroglancer.py $args {{ARGS}}
 
