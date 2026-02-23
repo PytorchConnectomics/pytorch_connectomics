@@ -472,6 +472,24 @@
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="connectomics.training.lit.ConnectomicsModule.transfer_batch_to_device">
+<span class="sig-name descname"><span class="pre">transfer_batch_to_device</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataloader_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/training/lit/model.html#ConnectomicsModule.transfer_batch_to_device"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.training.lit.ConnectomicsModule.transfer_batch_to_device" title="Link to this definition">¶</a></dt>
+<dd><p>Keep large test/predict input volumes on CPU for MONAI sliding-window inference.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a>)</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensor_attributes.html#torch.device" title="(in PyTorch v2.10)"><em>device</em></a>)</p></li>
+<li><p><strong>dataloader_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="connectomics.training.lit.ConnectomicsModule.validation_step">
 <span class="sig-name descname"><span class="pre">validation_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/training/lit/model.html#ConnectomicsModule.validation_step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.training.lit.ConnectomicsModule.validation_step" title="Link to this definition">¶</a></dt>
 <dd><p>Validation step with deep supervision support.</p>
@@ -969,6 +987,7 @@ Default value is False.</p>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.on_train_epoch_end"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.on_train_epoch_end()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.test_step"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.test_step()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.training_step"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.training_step()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.transfer_batch_to_device"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.transfer_batch_to_device()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.training.lit.ConnectomicsModule.validation_step"><code class="docutils literal notranslate"><span class="pre">ConnectomicsModule.validation_step()</span></code></a></li>
 </ul>
 </li>

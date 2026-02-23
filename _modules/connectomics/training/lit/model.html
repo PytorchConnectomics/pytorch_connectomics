@@ -677,7 +677,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_test_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">labels</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">volume_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Update configured torchmetrics using decoded predictions and print per-volume metrics.&quot;&quot;&quot;</span>
         <span class="n">pred_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-        <span class="n">labels_tensor</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="n">labels_tensor</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">pred_tensor</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
 
         <span class="c1"># Remove batch and channel dimensions</span>
         <span class="n">pred_tensor</span> <span class="o">=</span> <span class="n">pred_tensor</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
@@ -1057,7 +1057,14 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">train</span><span class="p">()</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+        <span class="n">sliding_cfg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;sliding_window&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">sliding_cfg</span><span class="p">,</span> <span class="s2">&quot;keep_input_on_cpu&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)):</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="s2">&quot;  Sliding-window CPU input mode enabled: keeping test image tensors on CPU &quot;</span>
+                <span class="s2">&quot;and letting MONAI move window batches to the configured sw_device.&quot;</span>
+            <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ConnectomicsModule.on_test_end">
@@ -1068,6 +1075,46 @@
         <span class="c1"># which automatically computes and logs them at the end of testing.</span>
         <span class="c1"># Logging here causes a Lightning warning since self.log() is not allowed in on_test_end.</span>
         <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ConnectomicsModule.transfer_batch_to_device">
+<a class="viewcode-back" href="../../../../modules/lightning.html#connectomics.training.lit.ConnectomicsModule.transfer_batch_to_device">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transfer_batch_to_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dataloader_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Keep large test/predict input volumes on CPU for MONAI sliding-window inference.&quot;&quot;&quot;</span>
+        <span class="n">sliding_cfg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s2">&quot;inference&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;sliding_window&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">keep_input_on_cpu</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">sliding_cfg</span><span class="p">,</span> <span class="s2">&quot;keep_input_on_cpu&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+
+        <span class="n">trainer</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_trainer&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">is_test_or_predict</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="n">trainer</span><span class="p">,</span> <span class="s2">&quot;testing&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">trainer</span><span class="p">,</span> <span class="s2">&quot;predicting&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">preserve_cpu_input</span> <span class="o">=</span> <span class="n">keep_input_on_cpu</span> <span class="ow">and</span> <span class="n">is_test_or_predict</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+        <span class="n">cpu_image</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cpu_label</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">cpu_mask</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">preserve_cpu_input</span><span class="p">:</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image&quot;</span><span class="p">)</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
+                <span class="n">cpu_image</span> <span class="o">=</span> <span class="n">image</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">label</span><span class="p">):</span>
+                <span class="n">cpu_label</span> <span class="o">=</span> <span class="n">label</span>
+            <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">mask</span><span class="p">):</span>
+                <span class="n">cpu_mask</span> <span class="o">=</span> <span class="n">mask</span>
+
+        <span class="n">moved_batch</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">transfer_batch_to_device</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="n">dataloader_idx</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">preserve_cpu_input</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">moved_batch</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">cpu_image</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">moved_batch</span><span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cpu_image</span>
+            <span class="k">if</span> <span class="n">cpu_label</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">moved_batch</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cpu_label</span>
+            <span class="k">if</span> <span class="n">cpu_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">moved_batch</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cpu_mask</span>
+
+        <span class="k">return</span> <span class="n">moved_batch</span></div>
 
 
 <div class="viewcode-block" id="ConnectomicsModule.test_step">
@@ -1180,6 +1227,7 @@
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;INFERENCE PLAN: </span><span class="si">{</span><span class="n">volume_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="o">*</span><span class="mi">70</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input shape:       </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input device:      </span><span class="si">{</span><span class="n">images</span><span class="o">.</span><span class="n">device</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         
         <span class="c1"># Extract sliding window parameters if available</span>
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="s1">&#39;inference&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="o">.</span><span class="n">inference</span><span class="p">,</span> <span class="s1">&#39;sliding_window&#39;</span><span class="p">):</span>
