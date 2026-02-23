@@ -47,7 +47,7 @@ model:
 data:
   train_path: /projects/weilab/dataset/mito/mitoEM/
   val_path: /projects/weilab/dataset/mito/mitoEM/
-  val_iter_num: 20
+ 
   train_resolution:
   - 30
   - 8
@@ -96,7 +96,7 @@ data:
 optimization:
   max_epochs: 500
   accumulate_grad_batches: 1
-  val_check_interval: 10
+  val_check_interval: 5
   num_sanity_val_steps: 0
   precision: bf16-mixed
   deterministic: false
