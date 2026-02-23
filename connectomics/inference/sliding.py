@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Optional, Tuple, Union
 import warnings
 
+import torch
 from monai.inferers import SlidingWindowInferer
 
 
@@ -97,6 +98,28 @@ def build_sliding_inferer(cfg):
     mode = getattr(sliding_cfg, "blending", "gaussian") if sliding_cfg else "gaussian"
     sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125)) if sliding_cfg else 0.125
     padding_mode = getattr(sliding_cfg, "padding_mode", "constant") if sliding_cfg else "constant"
+    keep_input_on_cpu = bool(getattr(sliding_cfg, "keep_input_on_cpu", False)) if sliding_cfg else False
+    sw_device = getattr(sliding_cfg, "sw_device", None) if sliding_cfg else None
+    output_device = getattr(sliding_cfg, "output_device", None) if sliding_cfg else None
+
+    if isinstance(sw_device, str) and sw_device.lower() in {"", "none", "null"}:
+        sw_device = None
+    if isinstance(output_device, str) and output_device.lower() in {"", "none", "null"}:
+        output_device = None
+
+    if keep_input_on_cpu:
+        # MONAI defaults both devices to inputs.device; when inputs stay on CPU,
+        # explicitly route windows to CUDA and stitch on CPU unless overridden.
+        if sw_device is None and torch.cuda.is_available():
+            sw_device = "cuda"
+        if output_device is None:
+            output_device = "cpu"
+        if sw_device is None:
+            warnings.warn(
+                "inference.sliding_window.keep_input_on_cpu=True but no sw_device was set "
+                "and CUDA is unavailable. Sliding-window inference will run on CPU.",
+                UserWarning,
+            )
 
     inferer = SlidingWindowInferer(
         roi_size=roi_size,
@@ -105,13 +128,16 @@ def build_sliding_inferer(cfg):
         mode=mode,
         sigma_scale=sigma_scale,
         padding_mode=padding_mode,
+        sw_device=sw_device,
+        device=output_device,
         progress=True,
     )
 
     print(
         "  Sliding-window inference configured: "
         f"roi_size={roi_size}, overlap={overlap}, sw_batch={sw_batch_size}, "
-        f"mode={mode}, sigma_scale={sigma_scale}, padding={padding_mode}"
+        f"mode={mode}, sigma_scale={sigma_scale}, padding={padding_mode}, "
+        f"keep_input_on_cpu={keep_input_on_cpu}, sw_device={sw_device}, output_device={output_device}"
     )
 
     return inferer
