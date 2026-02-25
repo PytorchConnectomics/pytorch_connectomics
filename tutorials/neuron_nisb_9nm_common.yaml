@@ -1,0 +1,53 @@
+_base_: neuron_nisb_common.yaml
+
+experiment_name: neuron_nisb_9nm_common_mednext_b_sdt
+description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (9nm)
+
+
+model:
+  input_size: [32, 256, 256]
+  output_size: [32, 256, 256]
+
+
+data:
+  train_image: seed*/data.zarr/img
+  train_label: seed*/data.zarr/seg
+  val_image: seed*/data.zarr/img
+  val_label: seed*/data.zarr/seg
+  patch_size: [32, 256, 256]
+  train_resolution: [20, 9, 9]
+  val_resolution: [20, 9, 9]
+  # NISB zarr arrays are stored as XYZ; model/data pipeline expects ZYX.
+  train_transpose: [2, 1, 0]
+  val_transpose: [2, 1, 0]
+  
+  
+  use_lazy_zarr: true
+  use_preloaded_cache_train: false
+  use_preloaded_cache_val: false
+  
+  label_transform:
+    targets:
+      - name: affinity
+        kwargs:
+          long_range: 3
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution: [20, 9, 9]
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+
+monitor:
+  checkpoint:
+    dirpath: outputs/neuron_nisb_9nm_mednext_b_sdt/checkpoints/
+  
+test:
+  data:
+    test_image: seed101/data.zarr/img
+    test_label: seed101/data.zarr/seg
+    test_resolution: [20, 9, 9]
+
+inference:
+  sliding_window:
+    window_size: [32, 256, 256]
