@@ -491,7 +491,7 @@ class CachedVolumeDataset(Dataset):
         # [D2] Foreground-aware patch sampling: ensure patches contain sufficient mitochondria
         # This prevents SDT collapse by avoiding background-only patches
         max_attempts = 10
-        foreground_threshold = 0.05  # Require at least 5% foreground (SDT > 0)
+        foreground_threshold = 0.01  # Require at least 1% foreground (fibers are sparse ~2% density)
         
         # [D2 DIAGNOSTIC] Track sampling attempts
         attempts_used = 0
@@ -550,7 +550,7 @@ class CachedVolumeDataset(Dataset):
             print(f"  Avg attempts per patch: {avg_attempts:.2f}/{max_attempts}")
             print(f"  Patches rejected: {self._d2_rejected_patches}/{self._d2_total_attempts} ({reject_rate:.1f}%)")
             print(f"  Final foreground %: avg={avg_fg:.1f}%, min={min_fg:.1f}%, max={max_fg:.1f}%")
-            print(f"  Threshold: {foreground_threshold*100:.1f}% (5% minimum)")
+            print(f"  Threshold: {foreground_threshold*100:.1f}% (1% minimum)")
 
         # Create data dict
         data = {
