@@ -204,6 +204,8 @@ class ModelConfig:
     )
     deep_supervision_clamp_min: float = -20.0  # Clamp logits to prevent numerical instability
     deep_supervision_clamp_max: float = 20.0  # Especially important at coarser scales
+    enable_nan_detection: bool = True  # Detect NaN/Inf losses and print diagnostics
+    debug_on_nan: bool = True  # Enter pdb on NaN/Inf detection (disable for non-interactive jobs)
 
     # Loss configuration
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
@@ -362,6 +364,8 @@ class NNUNetPreprocessingConfig:
     source_spacing: Optional[List[float]] = None  # If None, falls back to *_resolution fields
     normalization: str = "zscore"  # "zscore", "none", "0-1", or "divide-K"
     normalization_use_nonzero_mask: bool = True
+    clip_percentile_low: float = 0.0  # Optional clipping before normalization (fraction)
+    clip_percentile_high: float = 1.0  # Optional clipping before normalization (fraction)
     force_separate_z: Optional[bool] = None  # None = auto
     anisotropy_threshold: float = 3.0
     image_order: int = 3
@@ -894,7 +898,6 @@ class InferenceDataConfig:
     - Inference: outputs/experiment_name/YYYYMMDD_HHMMSS/inference/last.ckpt/{output_name}
     """
 
-    test_path: str = ""  # Base path for test data (e.g., "/path/to/dataset/test/")
     test_image: Any = None  # str, List[str], or None - Can be single file or list of files
     test_label: Any = None  # str, List[str], or None - Can be single file or list of files
     test_mask: Any = None  # str, List[str], or None - Optional mask for inference
@@ -1150,6 +1153,7 @@ class TestDataConfig:
 
     # These can be strings (single file), lists (multiple files), or None
     # Using Any to support both str and List[str] (OmegaConf doesn't support Union of containers)
+    test_path: str = ""  # Base path for test data (prepended to test_* paths if set)
     test_image: Any = None  # str, List[str], or None
     test_label: Any = None  # str, List[str], or None
     test_mask: Any = None  # str, List[str], or None

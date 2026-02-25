@@ -101,6 +101,7 @@ class NNUNetPreprocessd(MapTransform):
     This transform optionally applies:
     - foreground crop
     - spacing-aware resampling
+    - optional percentile clipping
     - intensity normalization
 
     It stores enough metadata in ``image_meta_dict['nnunet_preprocess']`` to
@@ -117,6 +118,8 @@ class NNUNetPreprocessd(MapTransform):
         target_spacing: Optional[Sequence[float]] = None,
         normalization: str = "zscore",
         normalization_use_nonzero_mask: bool = True,
+        clip_percentile_low: float = 0.0,
+        clip_percentile_high: float = 1.0,
         force_separate_z: Optional[bool] = None,
         anisotropy_threshold: float = 3.0,
         image_order: int = 3,
@@ -132,11 +135,27 @@ class NNUNetPreprocessd(MapTransform):
         self.target_spacing = list(target_spacing) if target_spacing is not None else None
         self.normalization = normalization
         self.normalization_use_nonzero_mask = normalization_use_nonzero_mask
+        self.clip_percentile_low = float(clip_percentile_low)
+        self.clip_percentile_high = float(clip_percentile_high)
         self.force_separate_z = force_separate_z
         self.anisotropy_threshold = anisotropy_threshold
         self.image_order = image_order
         self.label_order = label_order
         self.order_z = order_z
+        self._debug_stats_printed = False  # Print one-line pre/post stats once per transform instance
+        if not (0.0 <= self.clip_percentile_low <= 1.0):
+            raise ValueError(
+                f"clip_percentile_low must be in [0, 1], got {self.clip_percentile_low}"
+            )
+        if not (0.0 <= self.clip_percentile_high <= 1.0):
+            raise ValueError(
+                f"clip_percentile_high must be in [0, 1], got {self.clip_percentile_high}"
+            )
+        if self.clip_percentile_low > self.clip_percentile_high:
+            raise ValueError(
+                "clip_percentile_low must be <= clip_percentile_high, got "
+                f"{self.clip_percentile_low} > {self.clip_percentile_high}"
+            )
 
     def __call__(self, data: Dict[str, Any]) -> Dict[str, Any]:
         d = dict(data)
@@ -164,6 +183,8 @@ class NNUNetPreprocessd(MapTransform):
             "target_spacing": target_spacing,
             "normalization": self.normalization,
             "normalization_use_nonzero_mask": self.normalization_use_nonzero_mask,
+            "clip_percentile_low": self.clip_percentile_low,
+            "clip_percentile_high": self.clip_percentile_high,
             "crop_bbox": None,
             "cropped_spatial_shape": list(image_spatial_shape),
             "resampled_spatial_shape": list(image_spatial_shape),
@@ -230,13 +251,37 @@ class NNUNetPreprocessd(MapTransform):
                     self._get_spatial_shape(image_np, spatial_dims)
                 )
 
-        # Normalize image after spatial transforms.
+        pre_stats = None
+        if not self._debug_stats_printed:
+            pre_stats = self._format_debug_stats(image_np)
+
+        # Optional clipping before normalization (mirrors SmartNormalizeIntensityd order).
+        image_np = self._clip_image_percentiles(
+            image_np,
+            spatial_dims=spatial_dims,
+            low=self.clip_percentile_low,
+            high=self.clip_percentile_high,
+            use_nonzero_mask=self.normalization_use_nonzero_mask,
+        )
+
+        # Normalize image after spatial transforms and clipping.
         image_np = self._normalize_image(
             image_np,
             spatial_dims=spatial_dims,
             mode=self.normalization,
             use_nonzero_mask=self.normalization_use_nonzero_mask,
         )
+        if not self._debug_stats_printed:
+            post_stats = self._format_debug_stats(image_np)
+            print(
+                "[NNUNetPreprocessd] "
+                f"key={self.image_key} mode={self.normalization} "
+                f"clip=({self.clip_percentile_low:.3f},{self.clip_percentile_high:.3f}) "
+                f"nonzero_mask={self.normalization_use_nonzero_mask} "
+                f"pre={pre_stats} post={post_stats}",
+                flush=True,
+            )
+            self._debug_stats_printed = True
         d[self.image_key] = self._from_numpy(image_np, image_state)
 
         meta_dict["nnunet_preprocess"] = preprocess_meta
@@ -298,6 +343,20 @@ class NNUNetPreprocessd(MapTransform):
         if len(values) > spatial_dims:
             return values[-spatial_dims:]
         return None
+
+    @staticmethod
+    def _format_debug_stats(array: np.ndarray) -> str:
+        arr = np.asarray(array, dtype=np.float32)
+        if arr.size == 0:
+            return "empty"
+        finite = arr[np.isfinite(arr)]
+        if finite.size == 0:
+            return "all_nonfinite"
+        return (
+            f"shape={tuple(int(v) for v in arr.shape)} "
+            f"min={float(finite.min()):.4f} max={float(finite.max()):.4f} "
+            f"mean={float(finite.mean()):.4f} std={float(finite.std()):.4f}"
+        )
 
     @staticmethod
     def _create_nonzero_mask(image: np.ndarray, spatial_dims: int) -> Optional[np.ndarray]:
@@ -448,6 +507,48 @@ class NNUNetPreprocessd(MapTransform):
                 prefilter=(self.order_z > 1) and (not is_seg),
             )
         return stacked
+
+    @staticmethod
+    def _clip_image_percentiles(
+        image: np.ndarray,
+        spatial_dims: int,
+        low: float,
+        high: float,
+        use_nonzero_mask: bool,
+    ) -> np.ndarray:
+        if low <= 0.0 and high >= 1.0:
+            return image
+
+        image = image.astype(np.float32, copy=False)
+        low_q = float(low) * 100.0
+        high_q = float(high) * 100.0
+
+        def _apply(volume: np.ndarray, mask: Optional[np.ndarray]) -> np.ndarray:
+            if mask is not None and np.any(mask):
+                values = volume[mask]
+            else:
+                values = volume.reshape(-1)
+            if values.size == 0:
+                return volume
+            low_val = float(np.percentile(values, low_q))
+            high_val = float(np.percentile(values, high_q))
+            if high_val < low_val:
+                low_val, high_val = high_val, low_val
+            return np.clip(volume, low_val, high_val)
+
+        if image.ndim == spatial_dims + 1:
+            nonzero_mask = np.any(image != 0, axis=0) if use_nonzero_mask else None
+            for c in range(image.shape[0]):
+                image[c] = _apply(image[c], nonzero_mask)
+                if nonzero_mask is not None:
+                    image[c][~nonzero_mask] = 0
+            return image
+
+        mask = image != 0 if use_nonzero_mask else None
+        image = _apply(image, mask)
+        if mask is not None:
+            image[~mask] = 0
+        return image
 
     @staticmethod
     def _normalize_image(

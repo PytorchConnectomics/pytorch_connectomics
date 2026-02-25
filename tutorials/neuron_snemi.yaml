@@ -11,30 +11,6 @@ system:
   seed: 42
 model:
   out_channels: 12
-  filters:
-  - 36
-  - 48
-  - 64
-  - 80
-  rsunet_norm: batch
-  rsunet_activation: elu
-  rsunet_num_groups: 8
-  rsunet_down_factors:
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  rsunet_depth_2d: 1
-  rsunet_kernel_2d:
-  - 1
-  - 3
-  - 3
-  deep_supervision: false
   loss_functions:
   - WeightedBCEWithLogitsLoss
   - DiceLoss
@@ -58,11 +34,9 @@ data:
   - 4
   - 64
   - 64
-  iter_num_per_epoch: 1280
-  use_preloaded_cache: true
-  image_transform:
-    clip_percentile_low: 0.0
-    clip_percentile_high: 1.0
+  iter_num_per_epoch: 40
+  use_preloaded_cache_train: true
+  use_preloaded_cache_val: true
   label_transform:
     erosion: 1
     targets:
@@ -138,7 +112,7 @@ data:
       - 0.1
       - 0.25
 optimization:
-  max_epochs: 500
+  max_epochs: 1000
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: bf16-mixed
@@ -170,48 +144,47 @@ monitor:
       loss:
       - train_loss_total_epoch
       loss_every_n_steps: 10
-      val_check_interval: 1.0
     images:
       max_images: 8
       num_slices: 8
-      log_every_n_epochs: 1
+      log_every_n_epochs: 50
       channel_mode: all
   checkpoint:
-    monitor: val/loss
+    monitor: train_loss_total_epoch
     save_top_k: 3
     save_every_n_epochs: 10
-    dirpath: outputs/rsunet_snemi_lee2017_modern/checkpoints/
-    checkpoint_filename: epoch={epoch:03d}-step={step:07d}-val_loss={val/loss:.4f}
+    dirpath: outputs/neuron_snemi/checkpoints/
+    checkpoint_filename: epoch={epoch:03d}-step={step:07d}
   early_stopping:
     enabled: false
 test:
   data:
-    test_image: datasets/SNEMI/train-input.tif
-    test_label: datasets/SNEMI/train-labels.tif
+    test_path: datasets/SNEMI/
+    test_image: [train-input.tif, test-input_z29.h5] 
+    test_label: [train-labels.tif, test-labels.h5]
     test_resolution:
     - 30
     - 6
     - 6
-    output_path: outputs/rsunet_snemi_lee2017_modern/results/
-  decoding:
-  - name: decode_abiss
-    kwargs:
-      command:
-        - python
-        - scripts/run_abiss_single.py
-        - --input
-        - "{input_h5}"
-        - --input-dataset
-        - "{input_dataset}"
-        - --output
-        - "{output_h5}"
-        - --output-dataset
-        - "{output_dataset}"
-  evaluation:
-    enabled: true
-    metrics:
-    - adapted_rand
-    - voi
+    output_path: outputs/neuron_snemi/results/
+  # decoding:
+  # - name: decode_abiss
+  #   kwargs:
+  #     command:
+  #       - python
+  #       - scripts/run_abiss_single.py
+  #       - --input
+  #       - "{input_h5}"
+  #       - --input-dataset
+  #       - "{input_dataset}"
+  #       - --output
+  #       - "{output_h5}"
+  #       - --output-dataset
+  #       - "{output_dataset}"
+  # evaluation:
+  #   enabled: true
+  #   metrics:
+  #   - adapted_rand
 inference:
   sliding_window:
     window_size:

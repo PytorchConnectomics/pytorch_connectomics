@@ -40,7 +40,7 @@ from ...config import Config
 from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
 from ..debugging import DebugManager
 from ..loss_balancing import build_loss_weighter
-from ...decoding import apply_decode_mode
+from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
 from ...inference import (
     InferenceManager,
     apply_save_prediction_transform,
@@ -890,39 +890,46 @@ class ConnectomicsModule(pl.LightningModule):
             import time
             print(f"\n  🔄 [STAGE: Decoding Instances]")
             decode_start = time.time()
-            
+
+            has_decoding_cfg = bool(resolve_decode_modes_from_cfg(self.cfg))
             decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
-            postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
-            
+
             decode_duration = time.time() - decode_start
             print(f"  ✅ Decoding completed ({decode_duration:.1f}s)")
-            
-            # Summary of decoded output
-            print(f"\n  📊 Decoded Segmentation Summary:")
-            print(f"      Shape:      {decoded_predictions.shape}")
-            print(f"      Dtype:      {decoded_predictions.dtype}")
-            print(f"      Min:        {decoded_predictions.min()}")
-            print(f"      Max:        {decoded_predictions.max()}")
-            print(f"      Instances:  {decoded_predictions.max()} (max label)")
-            unique_count = len(np.unique(decoded_predictions))
-            print(f"      Unique IDs: {unique_count}")
-            print(f"")
 
-            # Save final predictions
-            print(f"  💾 [STAGE: Saving Final Predictions]")
-            save_start = time.time()
-            
-            write_outputs(
-                self.cfg,
-                postprocessed_predictions,
-                filenames,
-                suffix="prediction",
-                mode=mode,
-                batch_meta=batch.get("image_meta_dict"),
-            )
-            
-            save_duration = time.time() - save_start
-            print(f"  ✅ Final predictions saved ({save_duration:.1f}s)")
+            if has_decoding_cfg:
+                postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
+
+                # Summary of decoded output
+                print(f"\n  📊 Decoded Segmentation Summary:")
+                print(f"      Shape:      {decoded_predictions.shape}")
+                print(f"      Dtype:      {decoded_predictions.dtype}")
+                print(f"      Min:        {decoded_predictions.min()}")
+                print(f"      Max:        {decoded_predictions.max()}")
+                print(f"      Instances:  {decoded_predictions.max()} (max label)")
+                unique_count = len(np.unique(decoded_predictions))
+                print(f"      Unique IDs: {unique_count}")
+                print(f"")
+
+                # Save final predictions
+                print(f"  💾 [STAGE: Saving Final Predictions]")
+                save_start = time.time()
+
+                write_outputs(
+                    self.cfg,
+                    postprocessed_predictions,
+                    filenames,
+                    suffix="prediction",
+                    mode=mode,
+                    batch_meta=batch.get("image_meta_dict"),
+                )
+
+                save_duration = time.time() - save_start
+                print(f"  ✅ Final predictions saved ({save_duration:.1f}s)")
+            else:
+                print("  ⏭️  Skipping postprocessing (no decoding configuration)")
+                print("  ⏭️  Skipping decoded segmentation summary (no decoding configuration)")
+                print("  ⏭️  Skipping final prediction save (no decoding configuration)")
 
             # Evaluate if labels provided
             if labels is not None and self._is_test_evaluation_enabled():
@@ -1035,41 +1042,48 @@ class ConnectomicsModule(pl.LightningModule):
         # ============================================================
         print(f"\n  🔄 [STAGE: Decoding Instances]")
         decode_start = time.time()
-        
+
+        has_decoding_cfg = bool(resolve_decode_modes_from_cfg(self.cfg))
         decoded_predictions = apply_decode_mode(self.cfg, predictions_np)
-        postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
-        
+
         decode_duration = time.time() - decode_start
         print(f"  ✅ Decoding completed ({decode_duration:.1f}s)")
-        
-        # Summary of decoded output
-        print(f"\n  📊 Decoded Segmentation Summary:")
-        print(f"      Shape:      {decoded_predictions.shape}")
-        print(f"      Dtype:      {decoded_predictions.dtype}")
-        print(f"      Min:        {decoded_predictions.min()}")
-        print(f"      Max:        {decoded_predictions.max()}")
-        print(f"      Instances:  {decoded_predictions.max()} (max label)")
-        unique_count = len(np.unique(decoded_predictions))
-        print(f"      Unique IDs: {unique_count}")
-        print(f"")
 
-        # ============================================================
-        # PART 5: Saving Final Predictions
-        # ============================================================
-        print(f"  💾 [STAGE: Saving Final Predictions]")
-        final_save_start = time.time()
-        
-        write_outputs(
-            self.cfg,
-            postprocessed_predictions,
-            filenames,
-            suffix="prediction",
-            mode=mode,
-            batch_meta=batch.get("image_meta_dict"),
-        )
-        
-        final_save_duration = time.time() - final_save_start
-        print(f"  ✅ Final predictions saved ({final_save_duration:.1f}s)")
+        if has_decoding_cfg:
+            postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
+
+            # Summary of decoded output
+            print(f"\n  📊 Decoded Segmentation Summary:")
+            print(f"      Shape:      {decoded_predictions.shape}")
+            print(f"      Dtype:      {decoded_predictions.dtype}")
+            print(f"      Min:        {decoded_predictions.min()}")
+            print(f"      Max:        {decoded_predictions.max()}")
+            print(f"      Instances:  {decoded_predictions.max()} (max label)")
+            unique_count = len(np.unique(decoded_predictions))
+            print(f"      Unique IDs: {unique_count}")
+            print(f"")
+
+            # ============================================================
+            # PART 5: Saving Final Predictions
+            # ============================================================
+            print(f"  💾 [STAGE: Saving Final Predictions]")
+            final_save_start = time.time()
+
+            write_outputs(
+                self.cfg,
+                postprocessed_predictions,
+                filenames,
+                suffix="prediction",
+                mode=mode,
+                batch_meta=batch.get("image_meta_dict"),
+            )
+
+            final_save_duration = time.time() - final_save_start
+            print(f"  ✅ Final predictions saved ({final_save_duration:.1f}s)")
+        else:
+            print("  ⏭️  Skipping postprocessing (no decoding configuration)")
+            print("  ⏭️  Skipping decoded segmentation summary (no decoding configuration)")
+            print("  ⏭️  Skipping final prediction save (no decoding configuration)")
 
         # ============================================================
         # PART 6: Evaluation Stage

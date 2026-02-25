@@ -3,23 +3,25 @@ experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
 system:
   training:
-    num_gpus: 4
-    num_workers: 8
-    batch_size: 4
+    num_gpus: -1
+    num_workers: -1
+    batch_size: 8
   inference:
     num_workers: 1
     batch_size: 8
   seed: 42
 model:
+  debug_on_nan: false
+  enable_nan_detection: true
   out_channels: 3
   input_size:
   - 32
-  - 96
-  - 96
+  - 128
+  - 128
   output_size:
   - 32
-  - 96
-  - 96
+  - 128
+  - 128
   mednext_size: S
   mednext_kernel_size: 3
   deep_supervision: false
@@ -61,34 +63,27 @@ model:
     - skeleton_aware_edt
     - - 4
 data:
-  train_path: /projects/weilab/dataset/barcode/train_r2/
+  train_path: /projects/weilab/dataset/barcode/2026/PT37_round2/
   train_image:
-  - PT37/*_raw.tif
-  - CA1_LZ58/raw_p1-w2-CA1-8d-1-fiber-1.tif
-  - DG_LZ58/*-raw.tif
+  - "*raw.tif"  
   train_label:
-  - PT37/*-mask.tif
-  - CA1_LZ58/final_p1-w2-CA1-8d-1-segmentation-1.tif
-  - DG_LZ58/*-mask.tif
+  - "*mask.tif"
   train_resolution:
   - 40
   - 16
   - 16
-  use_preloaded_cache: true
-  persistent_workers: false
-  patch_size:
-  - 32
-  - 96
-  - 96
-  iter_num_per_epoch: 1000
-  image_transform:
+  use_preloaded_cache_train: true  
+  persistent_workers: true
+  patch_size: [32, 128, 128]
+  iter_num_per_epoch: 1000 
+  nnunet_preprocessing:
+    enabled: true
+    crop_to_nonzero: true
+    normalization: zscore
+    normalization_use_nonzero_mask: true
     clip_percentile_low: 0.005
     clip_percentile_high: 0.995
-    pad_size:
-    - 8
-    - 16
-    - 16
-    pad_mode: reflect
+
   label_transform:
     targets:
     - name: binary
@@ -115,65 +110,44 @@ data:
       enabled: true
       spatial_axes:
       - 1
-      - 2
-    affine:
-      enabled: true
-      prob: 0.5
-      rotate_range:
-      - 0.2
-      - 0.2
-      - 0.2
-      scale_range:
-      - 0.1
-      - 0.1
-      - 0.1
-      shear_range:
-      - 0.1
-      - 0.1
-      - 0.1
-    elastic:
-      enabled: true
-      prob: 0.3
-      sigma_range:
-      - 8.0
-      - 10.0
-      magnitude_range:
-      - 20.0
-      - 50.0
+      - 2    
     intensity:
       enabled: true
       gaussian_noise_prob: 0
-      shift_intensity_prob: 0.3
+      gaussian_noise_std: 0.5
+      shift_intensity_prob: 0.5
       shift_intensity_offset: 0.1
-      contrast_prob: 0.3
-      contrast_range:
-      - 0.7
-      - 1.4
+      contrast_prob: 0.5
+      contrast_range: [0.9, 1.1]
 optimization:
-  max_epochs: 100
+  max_epochs: 500
+  gradient_clip_val: 0.5
   accumulate_grad_batches: 1
-  precision: 16-mixed
+  precision: "16-mixed"
+  log_every_n_steps: 100  
   optimizer:
-    lr: 0.001
+    lr: 0.0003
     weight_decay: 0.01
     eps: 1.0e-08
   scheduler:
-    name: CosineAnnealingLR
-    warmup_epochs: 5
+    name: WarmupCosineLR
+    warmup_epochs: 3
     warmup_start_lr: 1.0e-05
     min_lr: 1.0e-06
-    t_max: 95
+  ema:
+    enabled: true
+    decay: 0.999
+    validate_with_ema: true    
 monitor:
   logging:
     scalar:
       loss:
       - train_loss_total_epoch
-      loss_every_n_steps: 10
-      val_check_interval: 1.0
+      loss_every_n_steps: 10      
     images:
       max_images: 2
       num_slices: 4
-      log_every_n_epochs: 1
+      log_every_n_epochs: 5
   checkpoint:
     save_top_k: 3
     save_every_n_epochs: 5
@@ -183,12 +157,14 @@ monitor:
     min_delta: 1.0e-05
     threshold: 0.01
     divergence_threshold: 100.0
+
 test:
   data:
+    test_path: /projects/weilab/dataset/barcode/2026/PT37_round2/
     test_image:
-    - /projects/weilab/dataset/barcode/train_r2/DG_LZ58/0702-2-C4-DG-40X002_1-raw.tif
+    - "*raw.tif"
     test_label:
-    - /projects/weilab/dataset/barcode/train_r2/DG_LZ58/0702-2-C4-DG-40X002_1-mask.tif
+    - "*mask.tif"
     test_resolution:
     - 40
     - 16
@@ -197,19 +173,12 @@ inference:
   sliding_window:
     window_size:
     - 32
-    - 256
-    - 256
-    stride:
-    - 16
     - 128
     - 128
+    overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
-    padding_mode: reflect
-    pad_size:
-    - 16
-    - 32
-    - 32
+    padding_mode: reflect    
   test_time_augmentation:
     enabled: true
     channel_activations:

@@ -113,7 +113,7 @@ tensorboard-run experiment timestamp port='6006':
 #   just slurm short 8 4 "just train lucchi++" "" "64G"    # override memory
 # Time limits: short=12h, medium=2d, long=5d
 # CPU-only convenience wrapper for single-task jobs.
-#   just slurm-cpu short 8 0 "python scripts/downsample_nisb.py --splits train"
+#   just slurm short 8 0 "python scripts/downsample_nisb.py --splits train"
 slurm partition num_cpu num_gpu cmd constraint='' mem='32G':
     #!/usr/bin/env bash
     constraint_flag=""
@@ -140,7 +140,6 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G':
 
 # Generic CPU-only multi-task launcher (single node, no GPU).
 # Example:
-#   just slurm-cpu-parallel short 7 1 "python scripts/downsample_nisb.py --task \$SLURM_PROCID"
 slurm-cpu-parallel partition num_tasks='7' cpu_per_task='4' cmd='' constraint='' mem='64G':
     #!/usr/bin/env bash
     set -euo pipefail
@@ -203,7 +202,7 @@ sweep config:
 # Optional bbox shortcut (auto-expands to --bbox): just visualize config mode 0,0,0,32,256,256
 visualize config mode bbox='' *ARGS='':
     #!/usr/bin/env bash
-    args="--config {{config}} --mode {{mode}}"
+    args="--config tutorials/{{config}}.yaml --mode {{mode}}"
     extra_args="{{bbox}} {{ARGS}}"
     # Check if --port is in ARGS, otherwise add default
     if [[ ! "$extra_args" =~ --port ]]; then
@@ -234,4 +233,4 @@ visualize-volumes +volumes:
 
 # Visualize with remote access (use 0.0.0.0 for public IP, e.g., just visualize-remote 8080 tutorials/monai_lucchi.yaml)
 visualize-remote port config *ARGS='':
-    python -i scripts/visualize_neuroglancer.py --config {{config}} --ip 0.0.0.0 --port {{port}} {{ARGS}}
+    python -i scripts/visualize_neuroglancer.py --config tutorials/{{config}}.yaml --ip 0.0.0.0 --port {{port}} {{ARGS}}

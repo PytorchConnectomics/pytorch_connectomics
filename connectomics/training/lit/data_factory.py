@@ -563,9 +563,46 @@ def create_datamodule(
         from torch.utils.data import DataLoader
 
         from ...data.dataset.dataset_volume_cached import CachedVolumeDataset
+        from ...data.io import NNUNetPreprocessd
+
+        def _build_preloaded_nnunet_preprocess(split: str):
+            nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
+            if not bool(getattr(nnunet_pre_cfg, "enabled", False)):
+                return None
+
+            if split == "val":
+                source_spacing = getattr(cfg.data, "val_resolution", None) or getattr(
+                    cfg.data, "train_resolution", None
+                )
+            else:
+                source_spacing = getattr(cfg.data, "train_resolution", None)
+            source_spacing = getattr(nnunet_pre_cfg, "source_spacing", None) or source_spacing
+
+            print(f"  🧪 Applying nnU-Net preprocessing before caching ({split})")
+            return NNUNetPreprocessd(
+                keys=["image", "label", "mask"],
+                image_key="image",
+                enabled=True,
+                crop_to_nonzero=getattr(nnunet_pre_cfg, "crop_to_nonzero", True),
+                source_spacing=source_spacing,
+                target_spacing=getattr(nnunet_pre_cfg, "target_spacing", None),
+                normalization=getattr(nnunet_pre_cfg, "normalization", "zscore"),
+                normalization_use_nonzero_mask=getattr(
+                    nnunet_pre_cfg, "normalization_use_nonzero_mask", True
+                ),
+                clip_percentile_low=getattr(nnunet_pre_cfg, "clip_percentile_low", 0.0),
+                clip_percentile_high=getattr(nnunet_pre_cfg, "clip_percentile_high", 1.0),
+                force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
+                anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
+                image_order=getattr(nnunet_pre_cfg, "image_order", 3),
+                label_order=getattr(nnunet_pre_cfg, "label_order", 0),
+                order_z=getattr(nnunet_pre_cfg, "order_z", 0),
+                allow_missing_keys=True,
+            )
 
         # Build transforms without loading/cropping (handled by dataset)
         augment_only_transforms = build_train_transforms(cfg, skip_loading=True)
+        train_pre_cache_transforms = _build_preloaded_nnunet_preprocess("train")
 
         # Get padding parameters from config (image_transform overrides top-level data.pad_size)
         pad_size = getattr(cfg.data.image_transform, "pad_size", None) or getattr(
@@ -579,9 +616,11 @@ def create_datamodule(
         train_dataset = CachedVolumeDataset(
             image_paths=[d["image"] for d in train_data_dicts],
             label_paths=[d.get("label") for d in train_data_dicts],
+            mask_paths=[d.get("mask") for d in train_data_dicts],
             patch_size=tuple(cfg.data.patch_size),
             iter_num=iter_num,
             transforms=augment_only_transforms,
+            pre_cache_transforms=train_pre_cache_transforms,
             mode="train",
             pad_size=tuple(pad_size) if pad_size else None,
             pad_mode=pad_mode,
@@ -614,6 +653,7 @@ def create_datamodule(
 
             # Build validation transforms (no augmentation, only normalization)
             val_only_transforms = build_val_transforms(cfg, skip_loading=True)
+            val_pre_cache_transforms = _build_preloaded_nnunet_preprocess("val")
 
             # Get validation iter_num (auto-calculate if not specified)
             val_iter_num = (
@@ -641,9 +681,11 @@ def create_datamodule(
                 val_dataset = CachedVolumeDataset(
                     image_paths=[d["image"] for d in val_data_dicts],
                     label_paths=[d.get("label") for d in val_data_dicts],
+                    mask_paths=[d.get("mask") for d in val_data_dicts],
                     patch_size=tuple(cfg.data.patch_size),
                     iter_num=val_iter_num,
                     transforms=val_only_transforms,
+                    pre_cache_transforms=val_pre_cache_transforms,
                     mode="val",
                     pad_size=tuple(pad_size) if pad_size else None,
                     pad_mode=pad_mode,

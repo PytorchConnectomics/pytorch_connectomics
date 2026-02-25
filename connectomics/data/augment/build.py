@@ -104,6 +104,8 @@ def build_train_transforms(
                 normalization_use_nonzero_mask=getattr(
                     nnunet_pre_cfg, "normalization_use_nonzero_mask", True
                 ),
+                clip_percentile_low=getattr(nnunet_pre_cfg, "clip_percentile_low", 0.0),
+                clip_percentile_high=getattr(nnunet_pre_cfg, "clip_percentile_high", 1.0),
                 force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
                 anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
                 image_order=getattr(nnunet_pre_cfg, "image_order", 3),
@@ -350,6 +352,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
                 normalization_use_nonzero_mask=getattr(
                     nnunet_pre_cfg, "normalization_use_nonzero_mask", True
                 ),
+                clip_percentile_low=getattr(nnunet_pre_cfg, "clip_percentile_low", 0.0),
+                clip_percentile_high=getattr(nnunet_pre_cfg, "clip_percentile_high", 1.0),
                 force_separate_z=getattr(nnunet_pre_cfg, "force_separate_z", None),
                 anisotropy_threshold=getattr(nnunet_pre_cfg, "anisotropy_threshold", 3.0),
                 image_order=getattr(nnunet_pre_cfg, "image_order", 3),

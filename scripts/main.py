@@ -29,6 +29,7 @@ Usage:
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -180,6 +181,196 @@ def extract_step_from_checkpoint(checkpoint_path: str) -> str:
     return ""
 
 
+def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None, int]:
+    """Check if all test outputs already exist so inference (and ckpt restore) can be skipped."""
+    if not hasattr(cfg, "test") or cfg.test is None or not hasattr(cfg.test, "data"):
+        return False, None, 0
+
+    output_dir_value = getattr(cfg.test.data, "output_path", None)
+    if not output_dir_value:
+        return False, None, 0
+
+    test_data_dicts = getattr(datamodule, "test_data_dicts", None)
+    if not test_data_dicts:
+        return False, None, 0
+
+    cache_suffix = getattr(cfg.test.data, "cache_suffix", "_prediction.h5")
+    output_dir = Path(output_dir_value)
+
+    filenames = []
+    for data_dict in test_data_dicts:
+        if not isinstance(data_dict, dict):
+            return False, None, 0
+        image_path = data_dict.get("image")
+        if not image_path:
+            return False, None, 0
+        filenames.append(Path(str(image_path)).stem)
+
+    if not filenames:
+        return False, None, 0
+
+    loaded_suffix = cache_suffix
+    for filename in filenames:
+        pred_file = output_dir / f"{filename}{cache_suffix}"
+        current_suffix = cache_suffix
+
+        if not pred_file.exists() and cache_suffix != "_tta_prediction.h5":
+            tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
+            if tta_pred_file.exists():
+                pred_file = tta_pred_file
+                current_suffix = "_tta_prediction.h5"
+
+        if not pred_file.exists():
+            return False, None, len(filenames)
+
+        if current_suffix == "_tta_prediction.h5":
+            loaded_suffix = "_tta_prediction.h5"
+
+    return True, loaded_suffix, len(filenames)
+
+
+def _is_test_evaluation_enabled(cfg: Config) -> bool:
+    """Return whether test-time evaluation is enabled."""
+    evaluation_cfg: Any = None
+    if hasattr(cfg, "test") and cfg.test is not None:
+        evaluation_cfg = getattr(cfg.test, "evaluation", None)
+
+    if evaluation_cfg is None and hasattr(cfg, "inference") and hasattr(cfg.inference, "evaluation"):
+        evaluation_cfg = cfg.inference.evaluation
+
+    if evaluation_cfg is None:
+        return False
+    if isinstance(evaluation_cfg, dict):
+        return bool(evaluation_cfg.get("enabled", False))
+    return bool(getattr(evaluation_cfg, "enabled", False))
+
+
+def _invert_save_prediction_transform(cfg: Config, data):
+    """Invert save_prediction intensity scaling (matches ConnectomicsModule behavior)."""
+    import numpy as np
+
+    if not hasattr(cfg, "inference") or not hasattr(cfg.inference, "save_prediction"):
+        return data.astype(np.float32)
+
+    save_pred_cfg = cfg.inference.save_prediction
+    intensity_scale = getattr(save_pred_cfg, "intensity_scale", None)
+
+    data = data.astype(np.float32)
+    if intensity_scale is not None and intensity_scale > 0 and intensity_scale != 1.0:
+        data = data / float(intensity_scale)
+        print(f"  🔄 Inverted intensity scaling by {intensity_scale}")
+    elif intensity_scale is not None and intensity_scale < 0:
+        print(f"  ℹ️  Intensity scaling was disabled (scale={intensity_scale}), no inversion needed")
+
+    return data
+
+
+def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
+    """Run cache-only test path before model/trainer/datamodule creation when possible.
+
+    Returns True if test processing completed and caller should exit early.
+    """
+    if mode != "test":
+        return False
+    if not hasattr(cfg, "test") or cfg.test is None or not hasattr(cfg.test, "data"):
+        return False
+
+    output_dir_value = getattr(cfg.test.data, "output_path", None)
+    test_image = getattr(cfg.test.data, "test_image", None)
+    if not output_dir_value or not test_image:
+        return False
+
+    from connectomics.training.lit.path_utils import expand_file_paths
+    from connectomics.data.io import read_hdf5
+    from connectomics.decoding import apply_decode_mode, resolve_decode_modes_from_cfg
+    from connectomics.inference.postprocessing import apply_postprocessing
+    from connectomics.inference.output import write_outputs
+
+    try:
+        test_image_paths = expand_file_paths(test_image)
+    except Exception as exc:
+        print(f"  ⚠️  Cache-only preflight skipped: failed to resolve test_image paths: {exc}")
+        return False
+
+    if not test_image_paths:
+        return False
+
+    output_dir = Path(output_dir_value)
+    cache_suffix = getattr(cfg.test.data, "cache_suffix", "_prediction.h5")
+    filenames = [Path(str(p)).stem for p in test_image_paths]
+
+    # Check whether all outputs are present and what type they are.
+    loaded_suffix = cache_suffix
+    cached_arrays = []
+    for filename in filenames:
+        pred_file = output_dir / f"{filename}{cache_suffix}"
+        current_suffix = cache_suffix
+
+        if not pred_file.exists() and cache_suffix != "_tta_prediction.h5":
+            tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
+            if tta_pred_file.exists():
+                pred_file = tta_pred_file
+                current_suffix = "_tta_prediction.h5"
+
+        if not pred_file.exists():
+            return False
+
+        try:
+            cached_arrays.append(read_hdf5(str(pred_file), dataset="main"))
+        except Exception as exc:
+            print(f"  ⚠️  Cache-only preflight skipped: failed to read {pred_file.name}: {exc}")
+            return False
+
+        if current_suffix == "_tta_prediction.h5":
+            loaded_suffix = "_tta_prediction.h5"
+
+    if loaded_suffix != "_tta_prediction.h5":
+        print(
+            f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+        )
+        print(f"  ℹ️  Cache preflight hit for {len(filenames)} volume(s); skipping trainer.test().")
+        print("✅ Test completed successfully (cache-only preflight).")
+        return True
+
+    print("  ✅ Loaded intermediate predictions from disk, skipping inference")
+    print(f"  ℹ️  Cache preflight hit for {len(filenames)} volume(s).")
+
+    if _is_test_evaluation_enabled(cfg):
+        print("  ℹ️  Test evaluation is enabled; using trainer.test() for decode/eval pipeline.")
+        return False
+
+    import numpy as np
+
+    if len(cached_arrays) == 1:
+        predictions_np = cached_arrays[0]
+        if predictions_np.ndim < 4:
+            predictions_np = predictions_np[np.newaxis, ...]
+    else:
+        predictions_np = np.stack(
+            [arr[np.newaxis, ...] if arr.ndim < 4 else arr for arr in cached_arrays], axis=0
+        )
+
+    print("  🔄 Cache-only decode/postprocess/save path (evaluation disabled)")
+    predictions_np = _invert_save_prediction_transform(cfg, predictions_np)
+    has_decoding_cfg = bool(resolve_decode_modes_from_cfg(cfg))
+    decoded_predictions = apply_decode_mode(cfg, predictions_np)
+    if has_decoding_cfg:
+        postprocessed_predictions = apply_postprocessing(cfg, decoded_predictions)
+        write_outputs(
+            cfg,
+            postprocessed_predictions,
+            filenames,
+            suffix="prediction",
+            mode="test",
+            batch_meta=None,
+        )
+    else:
+        print("  ⏭️  Skipping postprocessing (no decoding configuration)")
+        print("  ⏭️  Skipping final prediction save (no decoding configuration)")
+    print("✅ Test completed successfully (cache-only decode/postprocess).")
+    return True
+
+
 def main():
     """Main training function."""
     suppress_nonzero_rank_stdout()
@@ -285,6 +476,10 @@ def main():
         print(f"🎲 Random seed set to: {cfg.system.seed}")
         seed_everything(cfg.system.seed, workers=True)
 
+    # Cache-only preflight path for test mode (can skip model/trainer/dataloader entirely).
+    if try_cache_only_test_execution(cfg, args.mode):
+        return
+
     # Create model
     print(f"Creating model: {cfg.model.architecture}")
     model = ConnectomicsModule(cfg)
@@ -371,10 +566,34 @@ def main():
                 # Load and apply best parameters
                 cfg = load_and_apply_best_params(cfg)
 
+            test_ckpt_path = ckpt_path
+            cache_hit, cached_suffix, cache_count = preflight_test_cache_hit(cfg, datamodule)
+            if cache_hit:
+                if cached_suffix == "_tta_prediction.h5":
+                    print("  ✅ Loaded intermediate predictions from disk, skipping inference")
+                else:
+                    print(
+                        "  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+                    )
+                if ckpt_path:
+                    print(
+                        f"  ℹ️  Cache preflight hit for {cache_count} volume(s); "
+                        "skipping checkpoint weight restore for test."
+                    )
+                # In plain test mode, fully skip only when final predictions already exist.
+                # If only intermediate predictions exist, we still need the test loop to
+                # decode/postprocess/save final outputs (and optionally evaluate).
+                if args.mode == "test" and cached_suffix != "_tta_prediction.h5":
+                    print("  ⏭️  Skipping trainer.test() entirely (cache preflight hit).")
+                    print("✅ Test completed successfully (cache-only preflight).")
+                    return
+
+                test_ckpt_path = None
+
             trainer.test(
                 model,
                 datamodule=datamodule,
-                ckpt_path=ckpt_path,
+                ckpt_path=test_ckpt_path,
             )
 
     except Exception as e:

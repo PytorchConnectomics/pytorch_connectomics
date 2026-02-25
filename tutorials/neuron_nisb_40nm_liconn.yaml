@@ -1,0 +1,34 @@
+_base_: neuron_nisb_40nm_common.yaml
+
+experiment_name: neuron_nisb_40nm_liconn_mednext_b_sdt
+description: NISB Liconn neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
+
+system:
+  training:    
+    batch_size: 4
+ 
+
+  
+data:
+  train_path: /projects/weilab/dataset/nisb/liconn/train
+  val_path: /projects/weilab/dataset/nisb/liconn/val
+
+  label_transform:
+    targets:
+      - name: affinity
+        kwargs:
+          long_range: 3
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution: [36, 36, 40]
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+monitor:
+  checkpoint:
+    dirpath: outputs/neuron_nisb_40nm_liconn_mednext_b_sdt/checkpoints/
+
+test:
+  data:
+    test_path: /projects/weilab/dataset/nisb/liconn/test/    
+    output_path: outputs/neuron_nisb_40nm_liconn_mednext_b_sdt/results_seed101/
