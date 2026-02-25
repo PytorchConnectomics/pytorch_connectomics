@@ -252,10 +252,10 @@ def apply_postprocessing(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarr
 def apply_decode_mode(cfg: Config | DictConfig, data: np.ndarray) -> np.ndarray:
     """Apply decode mode transformations to convert probability maps to instance segmentation."""
     decode_modes = None
-    if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding"):
+    if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding") and cfg.test.decoding:
         decode_modes = cfg.test.decoding
         print(f"  🔧 Using test.decoding: {decode_modes}")
-    elif hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding"):
+    elif hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding") and cfg.inference.decoding:
         decode_modes = cfg.inference.decoding
         print(f"  🔧 Using inference.decoding: {decode_modes}")
 
