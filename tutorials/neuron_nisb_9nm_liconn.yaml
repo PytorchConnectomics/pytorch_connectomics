@@ -1,0 +1,53 @@
+_base_: neuron_nisb_9nm_common.yaml
+
+experiment_name: neuron_nisb_9nm_liconn_mednext_b_sdt
+description: NISB Liconn neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (9nm)
+
+system:
+  training:
+    batch_size: 1
+
+
+
+model:
+  input_size: [192, 192, 192]
+  output_size: [192, 192, 192]
+
+data:
+  train_path: /projects/weilab/dataset/nisb/liconn/train
+  val_path: /projects/weilab/dataset/nisb/liconn/val
+
+  train_resolution: [12, 9, 9]
+  val_resolution: [12, 9, 9]  
+  patch_size: [192, 192, 192]
+  
+  
+
+  image_transform:
+    normalize: "0-1"
+    clip_percentile_low: 0.0
+    clip_percentile_high: 1.0
+
+  label_transform:
+    targets:
+      - name: affinity
+        kwargs:
+          long_range: 3
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution: [12, 9, 9]
+          alpha: 0.8
+          bg_value: -1.0
+          relabel: true
+optimization:
+  accumulate_grad_batches: 2
+
+monitor:
+  checkpoint:
+    dirpath: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/checkpoints/
+
+test:
+  data:
+    test_path: /projects/weilab/dataset/nisb/liconn/test/
+    test_resolution: [12, 9, 9]
+    output_path: outputs/neuron_nisb_9nm_liconn_mednext_b_sdt/results_seed101/

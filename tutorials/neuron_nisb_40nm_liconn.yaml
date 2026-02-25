@@ -8,7 +8,6 @@ system:
     batch_size: 4
  
 
-  
 data:
   train_path: /projects/weilab/dataset/nisb/liconn/train
   val_path: /projects/weilab/dataset/nisb/liconn/val
@@ -20,7 +19,7 @@ data:
           long_range: 3
       - name: skeleton_aware_edt
         kwargs:
-          resolution: [36, 36, 40]
+          resolution: [36, 36, 24]
           alpha: 0.8
           bg_value: -1.0
           relabel: true
