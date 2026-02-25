@@ -316,7 +316,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">..deep_supervision</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeepSupervisionHandler</span><span class="p">,</span> <span class="n">match_target_to_output</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..debugging</span><span class="w"> </span><span class="kn">import</span> <span class="n">DebugManager</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..loss_balancing</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_loss_weighter</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">...decoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_decode_mode</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">...decoding</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_decode_mode</span><span class="p">,</span> <span class="n">resolve_decode_modes_from_cfg</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...inference</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">InferenceManager</span><span class="p">,</span>
     <span class="n">apply_save_prediction_transform</span><span class="p">,</span>
@@ -1188,39 +1188,46 @@
             <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  🔄 [STAGE: Decoding Instances]&quot;</span><span class="p">)</span>
             <span class="n">decode_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-            
+
+            <span class="n">has_decoding_cfg</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">resolve_decode_modes_from_cfg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">))</span>
             <span class="n">decoded_predictions</span> <span class="o">=</span> <span class="n">apply_decode_mode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np</span><span class="p">)</span>
-            <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">apply_postprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">)</span>
-            
+
             <span class="n">decode_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">decode_start</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Decoding completed (</span><span class="si">{</span><span class="n">decode_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
-            
-            <span class="c1"># Summary of decoded output</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  📊 Decoded Segmentation Summary:&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Shape:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Dtype:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Min:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Max:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Instances:  </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2"> (max label)&quot;</span><span class="p">)</span>
-            <span class="n">unique_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">))</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Unique IDs: </span><span class="si">{</span><span class="n">unique_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
 
-            <span class="c1"># Save final predictions</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 [STAGE: Saving Final Predictions]&quot;</span><span class="p">)</span>
-            <span class="n">save_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-            
-            <span class="n">write_outputs</span><span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
-                <span class="n">postprocessed_predictions</span><span class="p">,</span>
-                <span class="n">filenames</span><span class="p">,</span>
-                <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span>
-                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
-                <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
-            <span class="p">)</span>
-            
-            <span class="n">save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">save_start</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Final predictions saved (</span><span class="si">{</span><span class="n">save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">has_decoding_cfg</span><span class="p">:</span>
+                <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">apply_postprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">)</span>
+
+                <span class="c1"># Summary of decoded output</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  📊 Decoded Segmentation Summary:&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Shape:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Dtype:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Min:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Max:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Instances:  </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2"> (max label)&quot;</span><span class="p">)</span>
+                <span class="n">unique_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">))</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Unique IDs: </span><span class="si">{</span><span class="n">unique_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Save final predictions</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 [STAGE: Saving Final Predictions]&quot;</span><span class="p">)</span>
+                <span class="n">save_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+                <span class="n">write_outputs</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+                    <span class="n">postprocessed_predictions</span><span class="p">,</span>
+                    <span class="n">filenames</span><span class="p">,</span>
+                    <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span>
+                    <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                    <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
+                <span class="p">)</span>
+
+                <span class="n">save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">save_start</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Final predictions saved (</span><span class="si">{</span><span class="n">save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⏭️  Skipping postprocessing (no decoding configuration)&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⏭️  Skipping decoded segmentation summary (no decoding configuration)&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⏭️  Skipping final prediction save (no decoding configuration)&quot;</span><span class="p">)</span>
 
             <span class="c1"># Evaluate if labels provided</span>
             <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_test_evaluation_enabled</span><span class="p">():</span>
@@ -1333,41 +1340,48 @@
         <span class="c1"># ============================================================</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  🔄 [STAGE: Decoding Instances]&quot;</span><span class="p">)</span>
         <span class="n">decode_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        
+
+        <span class="n">has_decoding_cfg</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">resolve_decode_modes_from_cfg</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">))</span>
         <span class="n">decoded_predictions</span> <span class="o">=</span> <span class="n">apply_decode_mode</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">predictions_np</span><span class="p">)</span>
-        <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">apply_postprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">)</span>
-        
+
         <span class="n">decode_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">decode_start</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Decoding completed (</span><span class="si">{</span><span class="n">decode_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
-        
-        <span class="c1"># Summary of decoded output</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  📊 Decoded Segmentation Summary:&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Shape:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Dtype:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Min:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Max:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Instances:  </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2"> (max label)&quot;</span><span class="p">)</span>
-        <span class="n">unique_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">))</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Unique IDs: </span><span class="si">{</span><span class="n">unique_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
 
-        <span class="c1"># ============================================================</span>
-        <span class="c1"># PART 5: Saving Final Predictions</span>
-        <span class="c1"># ============================================================</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 [STAGE: Saving Final Predictions]&quot;</span><span class="p">)</span>
-        <span class="n">final_save_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        
-        <span class="n">write_outputs</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
-            <span class="n">postprocessed_predictions</span><span class="p">,</span>
-            <span class="n">filenames</span><span class="p">,</span>
-            <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span>
-            <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
-            <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
-        <span class="p">)</span>
-        
-        <span class="n">final_save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">final_save_start</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Final predictions saved (</span><span class="si">{</span><span class="n">final_save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">has_decoding_cfg</span><span class="p">:</span>
+            <span class="n">postprocessed_predictions</span> <span class="o">=</span> <span class="n">apply_postprocessing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span> <span class="n">decoded_predictions</span><span class="p">)</span>
+
+            <span class="c1"># Summary of decoded output</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  📊 Decoded Segmentation Summary:&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Shape:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Dtype:      </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">dtype</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Min:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Max:        </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Instances:  </span><span class="si">{</span><span class="n">decoded_predictions</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">}</span><span class="s2"> (max label)&quot;</span><span class="p">)</span>
+            <span class="n">unique_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">decoded_predictions</span><span class="p">))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;      Unique IDs: </span><span class="si">{</span><span class="n">unique_count</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+            <span class="c1"># ============================================================</span>
+            <span class="c1"># PART 5: Saving Final Predictions</span>
+            <span class="c1"># ============================================================</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  💾 [STAGE: Saving Final Predictions]&quot;</span><span class="p">)</span>
+            <span class="n">final_save_start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+
+            <span class="n">write_outputs</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">cfg</span><span class="p">,</span>
+                <span class="n">postprocessed_predictions</span><span class="p">,</span>
+                <span class="n">filenames</span><span class="p">,</span>
+                <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;prediction&quot;</span><span class="p">,</span>
+                <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+                <span class="n">batch_meta</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_meta_dict&quot;</span><span class="p">),</span>
+            <span class="p">)</span>
+
+            <span class="n">final_save_duration</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">final_save_start</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  ✅ Final predictions saved (</span><span class="si">{</span><span class="n">final_save_duration</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">s)&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⏭️  Skipping postprocessing (no decoding configuration)&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⏭️  Skipping decoded segmentation summary (no decoding configuration)&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⏭️  Skipping final prediction save (no decoding configuration)&quot;</span><span class="p">)</span>
 
         <span class="c1"># ============================================================</span>
         <span class="c1"># PART 6: Evaluation Stage</span>
