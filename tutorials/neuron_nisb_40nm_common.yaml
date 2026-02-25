@@ -1,7 +1,7 @@
 _base_: bases/mednext.yaml
 
-experiment_name: neuron_nisb_base_40nm_mednext_b_sdt
-description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT
+experiment_name: neuron_nisb_40nm_common_mednext_b_sdt
+description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
 
 system:
   training:
@@ -41,8 +41,6 @@ data:
   # BANIS command mapping:
   # --base_data_path /projects/weilab/dataset/nisb
   # --data_setting base
-  train_path: /projects/weilab/dataset/nisb/base/train
-  val_path: /projects/weilab/dataset/nisb/base/val
 
   # BANIS data.zarr arrays are under each seed directory.
   train_image: seed*/data.zarr/img_40-36-36nm.h5
@@ -145,7 +143,7 @@ monitor:
     mode: min
     save_top_k: 100
     save_last: true
-    save_every_n_epochs: 1
+    save_every_n_epochs: 5
     dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
     use_timestamp: true
 
@@ -154,15 +152,15 @@ monitor:
 
 test:
   data:
-    test_image: /projects/weilab/dataset/nisb/base/test/seed101/data.zarr/img_40-36-36nm.h5
-    test_label: /projects/weilab/dataset/nisb/base/test/seed101/data.zarr/seg_40-36-36nm.h5
+    test_image: seed101/data.zarr/img_40-36-36nm.h5
+    test_label: seed101/data.zarr/seg_40-36-36nm.h5
     test_resolution: [36, 36, 40]
     output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results_seed101/
 
   decoding:
     - name: decode_affinity_cc
       kwargs:
-        threshold: 0.5
+        threshold: 0.95        
 
   evaluation:
     enabled: false

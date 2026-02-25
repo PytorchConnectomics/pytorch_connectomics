@@ -159,6 +159,7 @@ class CachedVolumeDataset(Dataset):
         patch_size: Tuple[int, int, int] = (112, 112, 112),
         iter_num: int = 500,
         transforms: Optional[Compose] = None,
+        pre_cache_transforms: Optional[Any] = None,
         mode: str = "train",
         pad_size: Optional[Tuple[int, ...]] = None,
         pad_mode: str = "reflect",
@@ -181,6 +182,7 @@ class CachedVolumeDataset(Dataset):
 
         self.iter_num = iter_num if iter_num > 0 else len(image_paths)
         self.transforms = transforms
+        self.pre_cache_transforms = pre_cache_transforms
         self.mode = mode
         self.pad_size = pad_size
         self.pad_mode = pad_mode
@@ -218,17 +220,8 @@ class CachedVolumeDataset(Dataset):
             elif img.ndim == 3:
                 img = img[None, ...]  # Add channel for 3D
 
-            # Apply padding if specified
-            if self.pad_size is not None:
-                img = self._apply_padding(img)
-
-            # Ensure volume is at least as large as patch_size in all dimensions
-            # This prevents crops from being smaller than patch_size
-            img = self._ensure_minimum_size(img)
-
-            self.cached_images.append(img)
-
             # Load label if available
+            lbl = None
             if lbl_path:
                 lbl = read_volume(lbl_path)
                 # Add channel dimension for both 2D and 3D
@@ -237,6 +230,37 @@ class CachedVolumeDataset(Dataset):
                 elif lbl.ndim == 3:
                     lbl = lbl[None, ...]  # Add channel for 3D
 
+            # Load mask if available
+            mask = None
+            if mask_path:
+                mask = read_volume(mask_path)
+                if mask.ndim == 2:
+                    mask = mask[None, ...]
+                elif mask.ndim == 3:
+                    mask = mask[None, ...]
+
+            # Apply one-time preprocessing before caching (e.g., nnU-Net crop/resample/normalize).
+            if self.pre_cache_transforms is not None:
+                sample = {"image": img}
+                if lbl is not None:
+                    sample["label"] = lbl
+                if mask is not None:
+                    sample["mask"] = mask
+                sample = self.pre_cache_transforms(sample)
+                img = sample["image"]
+                lbl = sample.get("label")
+                mask = sample.get("mask")
+
+            # Apply padding if specified
+            if self.pad_size is not None:
+                img = self._apply_padding(img)
+
+            # Ensure volume is at least as large as patch_size in all dimensions
+            # This prevents crops from being smaller than patch_size
+            img = self._ensure_minimum_size(img)
+            self.cached_images.append(img)
+
+            if lbl is not None:
                 # Apply padding if specified (same padding as image)
                 if self.pad_size is not None:
                     lbl = self._apply_padding(
@@ -245,24 +269,17 @@ class CachedVolumeDataset(Dataset):
 
                 # Ensure label is at least as large as patch_size
                 lbl = self._ensure_minimum_size(lbl, mode="constant", constant_values=0)
-
                 self.cached_labels.append(lbl)
             else:
                 self.cached_labels.append(None)
 
-            # Load mask if available
-            if mask_path:
-                mask = read_volume(mask_path)
-                if mask.ndim == 3:
-                    mask = mask[None, ...]
-
+            if mask is not None:
                 # Apply padding if specified (same padding as label)
                 if self.pad_size is not None:
                     mask = self._apply_padding(mask, mode="constant", constant_values=0)
 
                 # Ensure mask is at least as large as patch_size
                 mask = self._ensure_minimum_size(mask, mode="constant", constant_values=0)
-
                 self.cached_masks.append(mask)
             else:
                 self.cached_masks.append(None)

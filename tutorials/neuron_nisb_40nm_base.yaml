@@ -1,0 +1,20 @@
+_base_: neuron_nisb_40nm_common.yaml
+
+experiment_name: neuron_nisb_base_40nm_mednext_b_sdt
+description: NISB base neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
+
+data:
+  # BANIS command mapping:
+  # --base_data_path /projects/weilab/dataset/nisb
+  # --data_setting base
+  train_path: /projects/weilab/dataset/nisb/base/train
+  val_path: /projects/weilab/dataset/nisb/base/val
+
+  checkpoint:
+    dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
+
+
+test:
+  data:
+    test_path: /projects/weilab/dataset/nisb/base/test/    
+    output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results_seed101/

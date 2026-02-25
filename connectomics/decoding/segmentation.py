@@ -551,7 +551,7 @@ def decode_distance_watershed(
 # ==============================================================================
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
     """
     Numba-accelerated connected components from 3D affinities.
@@ -576,6 +576,11 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
     visited = np.zeros(hard_aff.shape[1:], dtype=np.uint8)
     seg = np.zeros(hard_aff.shape[1:], dtype=np.uint32)
     cur_id = 1
+    max_stack = visited.shape[0] * visited.shape[1] * visited.shape[2]
+    # Allocate flood-fill stacks once and reuse for every component.
+    stack_x = np.zeros(max_stack, dtype=np.int32)
+    stack_y = np.zeros(max_stack, dtype=np.int32)
+    stack_z = np.zeros(max_stack, dtype=np.int32)
 
     # Flood-fill from each foreground voxel
     for i in range(visited.shape[0]):
@@ -585,10 +590,6 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
                 if hard_aff[:, i, j, k].any() and not visited[i, j, k]:
                     # Start new component - use arrays for stack (Numba compatible)
                     stack_size = 0
-                    max_stack = visited.shape[0] * visited.shape[1] * visited.shape[2]
-                    stack_x = np.zeros(max_stack, dtype=np.int32)
-                    stack_y = np.zeros(max_stack, dtype=np.int32)
-                    stack_z = np.zeros(max_stack, dtype=np.int32)
 
                     # Push initial voxel
                     stack_x[stack_size] = i
@@ -676,6 +677,7 @@ def _connected_components_affinity_3d_numba(hard_aff: np.ndarray) -> np.ndarray:
 def decode_affinity_cc(
     affinities: np.ndarray,
     threshold: float = 0.5,
+    backend: str = "cc3d",
 ) -> np.ndarray:
     r"""Convert affinity predictions to instance segmentation via connected components.
 
@@ -697,6 +699,12 @@ def decode_affinity_cc(
 
         threshold (float): Threshold for binarizing affinities. Affinities > threshold
             indicate connected voxels. Default: 0.5
+        backend (str): Connected-components backend. Options:
+            - ``"cc3d"`` (default): Fast, predictable startup; ignores directed affinity graph
+              and runs connected components on foreground voxels.
+            - ``"numba"``: Uses the directed affinity flood-fill implementation (first call may
+              incur JIT compile overhead).
+            - ``"auto"``: Use Numba if available, else cc3d.
 
     Returns:
         numpy.ndarray: Instance segmentation mask of shape :math:`(Z, Y, X)` with
@@ -710,8 +718,7 @@ def decode_affinity_cc(
         >>> print(segmentation.max())  # Number of instances
 
     Note:
-        - **Numba acceleration**: Install numba for 10-100x speedup:
-          ``pip install numba>=0.60.0``
+        - ``backend="numba"`` may incur substantial one-time JIT compilation latency on first use.
         - **6-connectivity**: Uses face neighbors only (not edges/corners)
         - **Short-range only**: Only first 3 channels used, long-range ignored
         - **Memory efficient**: Processes in-place when possible
@@ -738,20 +745,28 @@ def decode_affinity_cc(
     hard_aff = short_range_aff > threshold
 
     # Connected components
-    if NUMBA_AVAILABLE:
-        # Fast Numba implementation (10-100x speedup)
-        segmentation = _connected_components_affinity_3d_numba(hard_aff)
-    else:
-        # Fallback to skimage (slower but always available)
-        warnings.warn(
-            "Numba not available. Using skimage (slower). "
-            "Install numba for 10-100x speedup: pip install numba>=0.60.0",
-            UserWarning,
-        )
+    backend_normalized = str(backend).lower()
+    if backend_normalized == "auto":
+        backend_normalized = "numba" if NUMBA_AVAILABLE else "cc3d"
 
-        # Create foreground mask (any affinity > 0)
-        foreground = hard_aff.any(axis=0)
-        segmentation = cc3d.connected_components(foreground)
+    if backend_normalized == "numba":
+        if not NUMBA_AVAILABLE:
+            warnings.warn(
+                "Numba backend requested but numba is not available; falling back to cc3d. "
+                "Install numba>=0.60.0 or set backend='cc3d'.",
+                UserWarning,
+            )
+            segmentation = cc3d.connected_components(hard_aff.any(axis=0))
+        else:
+            # Numba implementation (directed affinity flood-fill; first call triggers JIT compile)
+            segmentation = _connected_components_affinity_3d_numba(hard_aff)
+    elif backend_normalized == "cc3d":
+        # Fast fallback used historically when numba was unavailable.
+        segmentation = cc3d.connected_components(hard_aff.any(axis=0))
+    else:
+        raise ValueError(
+            f"Unknown backend '{backend}'. Expected one of ['cc3d', 'numba', 'auto']."
+        )
 
     # Fill any foreground voxels that lost all connections at high thresholds
     if foreground_mask.any():

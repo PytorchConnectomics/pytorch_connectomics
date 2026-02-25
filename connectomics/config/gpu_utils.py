@@ -7,6 +7,7 @@ and estimate memory requirements for training.
 
 import torch
 import psutil
+import warnings
 from typing import Dict, Tuple
 
 
@@ -33,26 +34,39 @@ def get_gpu_info() -> Dict[str, any]:
     if not torch.cuda.is_available():
         return info
 
-    info["num_gpus"] = torch.cuda.device_count()
+    try:
+        info["num_gpus"] = torch.cuda.device_count()
+    except Exception as e:
+        warnings.warn(f"Failed to query CUDA device count: {e}")
+        return info
 
     for i in range(info["num_gpus"]):
-        # Get GPU name
-        info["gpu_names"].append(torch.cuda.get_device_name(i))
-
-        # Get memory info
-        props = torch.cuda.get_device_properties(i)
-        total_memory = props.total_memory / (1024**3)  # Convert to GB
-        info["total_memory_gb"].append(total_memory)
-
-        # Try to get available memory (may require GPU to be initialized)
         try:
-            torch.cuda.set_device(i)
-            torch.cuda.empty_cache()
-            available_memory = (props.total_memory - torch.cuda.memory_allocated(i)) / (1024**3)
-            info["available_memory_gb"].append(available_memory)
-        except Exception:
-            # Fallback: assume 90% is available
-            info["available_memory_gb"].append(total_memory * 0.9)
+            # Get GPU name
+            info["gpu_names"].append(torch.cuda.get_device_name(i))
+
+            # Get memory info
+            props = torch.cuda.get_device_properties(i)
+            total_memory = props.total_memory / (1024**3)  # Convert to GB
+            info["total_memory_gb"].append(total_memory)
+
+            # Try to get available memory (may require GPU to be initialized)
+            try:
+                torch.cuda.set_device(i)
+                torch.cuda.empty_cache()
+                available_memory = (props.total_memory - torch.cuda.memory_allocated(i)) / (1024**3)
+                info["available_memory_gb"].append(available_memory)
+            except Exception:
+                # Fallback: assume 90% is available
+                info["available_memory_gb"].append(total_memory * 0.9)
+        except Exception as e:
+            # Keep the process alive when a specific GPU index is invalid/broken.
+            # This is especially useful on clusters with dead devices or mismatched
+            # CUDA_VISIBLE_DEVICES / SLURM GPU cgroup mappings.
+            warnings.warn(f"Skipping GPU index {i} during CUDA probe: {e}")
+            info["gpu_names"].append(f"<unavailable:{i}>")
+            info["total_memory_gb"].append(0.0)
+            info["available_memory_gb"].append(0.0)
 
     return info
 

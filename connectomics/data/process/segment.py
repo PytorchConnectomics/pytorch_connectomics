@@ -2,12 +2,12 @@
 Segmentation processing functions for PyTorch Connectomics.
 """
 
-from __future__ import print_function, division
-from typing import Optional, Union, List
+from typing import List, Optional, Union
+
+import cc3d
 import numpy as np
 import torch
 from skimage.morphology import binary_dilation, dilation, erosion
-import cc3d
 
 RATES_TYPE = Optional[Union[List[int], int]]
 
