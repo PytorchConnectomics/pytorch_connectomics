@@ -520,6 +520,10 @@ class SchedulerConfig:
     # CosineAnnealing-specific
     t_max: Optional[int] = None
 
+    # CosineAnnealingWarmRestarts-specific
+    T_0: int = 200
+    T_mult: int = 1
+
     # ReduceLROnPlateau-specific
     mode: str = "min"  # 'min' or 'max'
     patience: int = 10
@@ -1195,7 +1199,7 @@ class TuneDataConfig:
 class TuneOutputConfig:
     """Tuning output configuration."""
 
-    output_dir: str = "outputs/tuning"
+    output_dir: Optional[str] = None
     output_pred: Optional[str] = None
     cache_suffix: str = "_tta_prediction.h5"
     save_all_trials: bool = False
