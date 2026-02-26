@@ -21,7 +21,7 @@
 #   - Challenging instance separation requiring precise SDT
 
 experiment_name: betaseg_mednext_s_sdt_affinity
-description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SDT+affinity (1+6 channels) 
+description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SDT+affinity (1+6 channels)
 
 # System
 system:
@@ -30,10 +30,10 @@ system:
     num_workers: 8                     # Parallel data loading
     batch_size: 4                     # Larger batch for single-channel output (vs multi-task)
   inference:
-    num_gpus: 4    
+    num_gpus: 4
     num_workers: 8
     batch_size: 1
-  seed: 0 
+  seed: 0
 
 # Model - MedNeXt for SDT-based mitochondria instance segmentation
 model:
@@ -61,14 +61,19 @@ model:
     - {}                              # BCEWithLogitsLoss: default (no pos_weight)
     - {tanh: true}                    # WeightedMSELoss: tanh activation for [-1, 1] range
 
-  # Multi-task channel mapping: [start_ch, end_ch, task_name, loss_indices]
-  # This tells the training loop which channels use which losses
-  multi_task_config:
-    - [0, 6, "affinity", [0]]         # Channels 0-5: affinity → BCEWithLogitsLoss
-    - [6, 7, "sdt", [1]]              # Channel 6: SDT → WeightedMSELoss(tanh=True)
-
-
-
+  # Multi-task loss terms (explicit channel/target routing)
+  # This tells the training loop which channels/targets use which losses
+  loss_terms:
+    - name: affinity_loss_0
+      loss_index: 0
+      pred_slice: [0, 6]
+      target_slice: [0, 6]
+      task_name: affinity
+    - name: sdt_loss_1
+      loss_index: 1
+      pred_slice: [6, 7]
+      target_slice: [6, 7]
+      task_name: sdt
 data:
   # Dataset configuration - BetaSeg training data
   train_path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
@@ -78,7 +83,6 @@ data:
   train_label:
     - "high_c3_mito.tiff"
   train_resolution: [16, 16, 16]                      # 16nm x 16nm x 16nm isotropic
-  
   #  Validation: 1 volume (high_c1) - for monitoring generalization
   val_path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
   val_image:
@@ -94,10 +98,10 @@ data:
   persistent_workers: true                          # Keep workers alive between epochs
 
   # Patch configuration (isotropic cubic patches for isotropic data)
-  patch_size: [128, 128, 128]                      
+  patch_size: [128, 128, 128]
   pad_size: [16, 16, 16]                             # from resolution
   pad_mode: reflect                                 # Reflection padding at boundaries
-  iter_num_per_epoch: 50                         
+  iter_num_per_epoch: 50
   # val_iter_num: auto-calculated based on validation volume size and patch size
 
 
@@ -129,14 +133,13 @@ data:
             - "0-10-0"             # y-direction, distance 10
             - "10-0-0"             # z-direction, distance 10
         # Total: 6 affinity channels (3 short + 3 long)
-      
       # Target 2: Signed Distance Transform (1 channel)
       - name: skeleton_aware_edt    # [1][skeleton_aware_edt]New Version of SDT; [2][signed_distance] TRUE Signed Distance Transform (solves class imbalance!); [3][instance_edt] for edt only
         kwargs:
           resolution: [16, 16, 16]     # Physical voxel resolution (z, y, x)
           alpha: 0.8                     # Affinity-based (alpha=1 for skeleton-aware distance)
           bg_value: -1.0               # Background value for distance map
-          relabel: true      
+          relabel: true
 
 
 
@@ -146,15 +149,14 @@ data:
 
     affine:
       enabled: true
-      prob: 0.5 
+      prob: 0.5
       rotate_range: [0.2, 0.2, 0.2]
       scale_range: [0.2, 0.2, 0.2]
       shear_range: [0.5, 0.5, 0.5]
-    
     intensity:
-      enabled: true  
+      enabled: true
       gaussian_noise_prob: 0.3
-      gaussian_noise_std: 0.5  
+      gaussian_noise_std: 0.5
       shift_intensity_prob: 0.3
       shift_intensity_offset: 0.1
       contrast_prob: 0.3
@@ -163,19 +165,19 @@ data:
 
     missing_section:
       enabled: true
-      prob: 0.05 
+      prob: 0.05
       num_sections: 2
 
     misalignment:
       enabled: true
-      prob: 0.05  
+      prob: 0.05
       displacement: 10
       rotate_ratio: 0.0
 
     flip:
       enabled: true
       prob: 0.5
-    
+
     rotate:
       enabled: true
       prob: 0.5
@@ -187,15 +189,15 @@ data:
 
 # Optimizer - MedNeXt recommended settings
 optimization:
-  max_steps: 1000000 
+  max_steps: 1000000
   gradient_clip_val: 1.0
-  accumulate_grad_batches: 1          
+  accumulate_grad_batches: 1
   precision: "16-mixed"                 # FP16 mixed precision (better GPU compatibility than bf16)，"16-mixed"   
 
   optimizer:
     name: AdamW
     lr: 1e-3                           # MedNeXt recommended: 1e-3 (constant LR)
-    weight_decay: 1e-2                 
+    weight_decay: 1e-2
     betas: [0.9, 0.999]
     eps: 1.0e-4                      # 1.0e-8 -> 1.0e-4. 1e-8 cause nans in fp16
 
@@ -222,7 +224,7 @@ monitor:
       num_slices: 10                     # More slices for 3D visualization
       log_every_n_epochs: 5             # Visualize every 5 epochs
       channel_mode: all                 # Show SDT channel
-      selected_channels: null
+      selected_channels:
 
   # Checkpointing -  Save best models based on validation loss
   checkpoint:
@@ -242,7 +244,7 @@ monitor:
     mode: min
     min_delta: 1e-6                     # Small delta for precise SDT
     check_finite: true
-    threshold: 0.01                   
+    threshold: 0.01
     divergence_threshold: 100.0
 
 # Inference - MONAI SlidingWindowInferer for BetaSeg
@@ -252,13 +254,12 @@ test:
     test_label: /projects/weilab/liupeng/banis/data/mito_data/betaSeg/high_c2_mito.tiff
     test_resolution: [16, 16, 16]
     output_path: outputs/betaseg_mednext_affinity_sdt/results/
-    
+
     #  Inference normalization (must match training normalization!)
     image_transform:
       normalize: "0-1"                              # Min-max normalization [0,1] (same as training)
       clip_percentile_low: 0.005                    # Clip bottom 0.5% outliers (same as training)
       clip_percentile_high: 0.995                   # Clip top 0.5% outliers (same as training)
-  
   # Decoding configuration (SDT → instances via watershed)
   decoding:
     - name: decode_distance_watershed  # ← Changed from decode_instance_binary_contour_distance
@@ -266,7 +267,7 @@ test:
         distance_channels: [6]            # Use SDT channel only for now
         distance_threshold: [0.5, 0]       # Seeds: SDT>0.5, Foreground: SDT>0
         min_seed_size: 100
-        min_instance_size: 50             
+        min_instance_size: 50
         use_fast_edt: true                 # Enable fast EDT (10-50x speedup)
         edt_parallel: 8                    # Use 8 CPU cores
         edt_downsample_factor: 1           # Full resolution (use 2 for large volumes)
@@ -289,11 +290,11 @@ inference:
 
   # Test-Time Augmentation (TTA) for SDT
   test_time_augmentation:
-    flip_axes: null                     # Use all 8 flip augmentations (2^3 for xyz)
-    rotation90_axes: null               # No 90-degree rotations
+    flip_axes:                          # Use all 8 flip augmentations (2^3 for xyz)
+    rotation90_axes:                    # No 90-degree rotations
     channel_activations:
       - [0, 6, sigmoid]               # Affinity channels: sigmoid activation
-      - [6, 7, tanh]   
+      - [6, 7, tanh]
     select_channel: all
     ensemble_mode: mean                 # Average predictions across augmentations
     apply_mask: false                   # No mask for BetaSeg
@@ -303,4 +304,4 @@ inference:
     enabled: true                       # Save SDT predictions before decoding
     intensity_scale: -1                 # Keep original scale (no rescaling)
     intensity_dtype: float32            # Keep as float32 for SDT
-    output_formats: [h5] 
+    output_formats: [h5]

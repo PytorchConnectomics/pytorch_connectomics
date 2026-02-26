@@ -33,10 +33,17 @@ model:
     - {}
     - {tanh: true}
 
-  multi_task_config:
-    - [0, 6, affinity, [0]]
-    - [6, 7, sdt, [1]]
-
+  loss_terms:
+    - name: affinity_loss_0
+      loss_index: 0
+      pred_slice: [0, 6]
+      target_slice: [0, 6]
+      task_name: affinity
+    - name: sdt_loss_1
+      loss_index: 1
+      pred_slice: [6, 7]
+      target_slice: [6, 7]
+      task_name: sdt
 data:
   # BANIS command mapping:
   # --base_data_path /projects/weilab/dataset/nisb
@@ -183,8 +190,8 @@ inference:
 
   test_time_augmentation:
     enabled: false
-    flip_axes: null
-    rotation90_axes: null
+    flip_axes:
+    rotation90_axes:
     channel_activations:
       - [0, 6, sigmoid]
       - [6, 7, tanh]

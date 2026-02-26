@@ -31,10 +31,17 @@ model:
     - {}
     - {tanh: true}
 
-  multi_task_config:
-    - [0, 6, affinity, [0]]
-    - [6, 7, sdt, [1]]
-
+  loss_terms:
+    - name: affinity_loss_0
+      loss_index: 0
+      pred_slice: [0, 6]
+      target_slice: [0, 6]
+      task_name: affinity
+    - name: sdt_loss_1
+      loss_index: 1
+      pred_slice: [6, 7]
+      target_slice: [6, 7]
+      task_name: sdt
 data:
   # BANIS command mapping:
   # --base_data_path /projects/weilab/dataset/nisb
@@ -52,7 +59,7 @@ data:
   image_transform:
     normalize: "0-1"
     clip_percentile_low: 0.0
-    clip_percentile_high: 1.0  
+    clip_percentile_high: 1.0
 
   augmentation:
     preset: some
@@ -122,7 +129,7 @@ monitor:
     mode: min
     save_top_k: 5
     save_last: true
-    save_every_n_epochs: 10    
+    save_every_n_epochs: 10
     use_timestamp: true
 
   early_stopping:
@@ -134,7 +141,7 @@ test:
   decoding:
     - name: decode_affinity_cc
       kwargs:
-        threshold: 0.95        
+        threshold: 0.95
 
   evaluation:
     enabled: false
@@ -152,12 +159,12 @@ inference:
 
   test_time_augmentation:
     enabled: false
-    flip_axes: null
-    rotation90_axes: null
+    flip_axes:
+    rotation90_axes:
     channel_activations:
       - [0, 6, sigmoid]
       - [6, 7, tanh]
-    select_channel: [0,1,2,6]
+    select_channel: [0, 1, 2, 6]
     ensemble_mode: mean
     apply_mask: false
 

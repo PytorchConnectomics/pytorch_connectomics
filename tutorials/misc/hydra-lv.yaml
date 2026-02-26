@@ -117,14 +117,34 @@ model:
   loss_balancing:
     strategy: uncertainty           # Options: null, uncertainty, gradnorm
 
-  # Multi-task configuration
-  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
-  multi_task_config:
-    - [0, 1, "label", [0, 1]]          # Original labels: Dice + BCE
-    - [1, 2, "boundary", [2, 3]]       # Boundary channel: Dice + BCE  
-    - [2, 3, "edt", [4]]               # Distance channel: MSE
-
-# Data - Hydra large vesicle dataset (multiple volumes)
+  # Multi-task loss terms (explicit channel/target routing)
+  # Format: list of {loss_index, pred_slice, target_slice, task_name, ...}
+  loss_terms:
+    - name: label_loss_0
+      loss_index: 0
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: label_loss_1
+      loss_index: 1
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: boundary_loss_2
+      loss_index: 2
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: boundary_loss_3
+      loss_index: 3
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: edt_loss_4
+      loss_index: 4
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: edt
 data:
   # Volume configuration - supports multiple files via glob pattern or list
   train_image: "datasets/hydra-lv/vol*_im.h5"     # Training volumes
@@ -140,7 +160,6 @@ data:
   pad_size: [8, 24, 24]                # Reflection padding for context (scaled proportionally)
   pad_mode: reflect                    # Reflection padding at boundaries
   iter_num_per_epoch: 1280              # More iterations for smaller patches
-  
   # Image normalization
   image_transform:
     normalize: "0-1"                   # Min-max normalization to [0, 1]
@@ -254,7 +273,7 @@ monitor:
       loss_every_n_steps: 10
       val_check_interval: 1.0
       benchmark: true
-    
+
     # visualization
     images:
       enabled: true
@@ -262,8 +281,8 @@ monitor:
       num_slices: 4
       log_every_n_epochs: 1
       channel_mode: all                 # Show all 3 channels for multi-task
-      selected_channels: null
-  
+      selected_channels:
+
   # Checkpointing
   checkpoint:
     mode: min
@@ -324,16 +343,16 @@ inference:
     padding_mode: replicate            # Replicate edge values (better than reflect for z=0)
 
   # Test-Time Augmentation (TTA)
-  test_time_augmentation:    
-    flip_axes: null      # Use all flip augmentations
+  test_time_augmentation:
+    flip_axes:           # Use all flip augmentations
     # Rotation90 augmentation (optional, can significantly increase inference time)
     # Options:
     #   null: No rotation augmentation
     #   all: All possible rotation planes (3 planes for 3D: D-H, D-W, H-W)
     #   [[1, 2]]: Specific planes using spatial axes (0=D, 1=H, 2=W)
     #             e.g., [[1, 2]] for H-W plane only
-    rotation90_axes: null  # No rotation by default (set to "all" or [[1, 2]] to enable)
-    # Per-channel activations (aligned with multi_task_config)
+    rotation90_axes:       # No rotation by default (set to "all" or [[1, 2]] to enable)
+    # Per-channel activations (aligned with loss_terms)
     # Format: [[start_ch, end_ch, activation], ...]
     select_channel: all               # Use all channels
     channel_activations:
@@ -347,7 +366,6 @@ inference:
     enabled: true             # Save intermediate predictions (before decoding)
     intensity_scale: -1      # Scale predictions to [0, 255] for saving    
 
-  
 
 # ============================================================================
 # PARAMETER TUNING CONFIGURATION (STAGE 1)
@@ -360,7 +378,7 @@ tune:
   # General Settings
   # -------------------------------------------------------------------------
   n_trials: 100                         # Number of optimization trials
-  timeout: null                         # Timeout in seconds (null = no timeout)
+  timeout:                              # Timeout in seconds (null = no timeout)
   study_name: "hydra-lv_decoding_optimization"
   storage: "sqlite:///outputs/optuna_studies/hydra-lv_decoding_tuning.db"
   load_if_exists: true                  # Resume existing study if interrupted
@@ -410,7 +428,7 @@ tune:
   # -------------------------------------------------------------------------
   output:
     output_dir: "outputs/hydra-lv_rsunet/tuning"
-    output_pred: null                       # Will default to outputs/hydra-lv_rsunet/results
+    output_pred:                            # Will default to outputs/hydra-lv_rsunet/results
     cache_suffix: "_tta_prediction.h5"      # Suffix for prediction files
     save_all_trials: false
     save_best_segmentation: true
@@ -454,7 +472,7 @@ tune:
         binary_threshold: [0.9, 0.1]
         contour_threshold: [0.8, 1.1]
         distance_threshold: [0.5, 0.0]
-        min_seed_size: 8        
+        min_seed_size: 8
 
       # Parameters to optimize (only these will be searched by Optuna)
       # Note: Each threshold is a tuple (seed_threshold, foreground_threshold)
@@ -527,11 +545,10 @@ test:
     # Final test data (bouton-lv train volumes with ground truth)
     test_image: datasets/bouton-lv/train/vol0_im.h5
     test_label: datasets/bouton-lv/train/vol0_lv.h5
-    test_mask: datasets/bouton-lv/train/vol0_mask.h5    
+    test_mask: datasets/bouton-lv/train/vol0_mask.h5
     # test_image: "datasets/hydra-lv/vol*_im.h5"
     # test_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"
     # test_mask: "datasets/hydra-lv/vol*_mask.h5"
-    
     test_resolution: [30, 8, 8]
     # Image normalization
     image_transform:
@@ -540,7 +557,7 @@ test:
       clip_percentile_high: 1.0
 
 
-  
+
   # Decoding configuration (instance segmentation postprocessing)
   # NOTE: These are initial values - will be replaced by Optuna optimized values
   decoding:

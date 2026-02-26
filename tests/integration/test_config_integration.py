@@ -4,8 +4,8 @@
 import pytest
 
 from connectomics.config import Config, from_dict, load_config
-from connectomics.training.lit import ConnectomicsModule, create_datamodule, create_trainer
-from connectomics.training.lit.data_factory import create_datamodule as create_datamodule_impl
+from connectomics.training.lightning import ConnectomicsModule, create_datamodule, create_trainer
+from connectomics.training.lightning.data_factory import create_datamodule as create_datamodule_impl
 
 
 def test_config_creation():
@@ -57,6 +57,15 @@ def test_lightning_module_creation():
                 "filters": [8, 16],
                 "loss_functions": ["DiceLoss"],
                 "loss_weights": [1.0],
+                "loss_terms": [
+                    {
+                        "name": "seg",
+                        "loss_index": 0,
+                        "pred_slice": [0, 2],
+                        "target_slice": [0, 2],
+                        "task_name": "seg",
+                    }
+                ],
             },
             "optimization": {"optimizer": {"name": "AdamW", "lr": 1e-4}, "max_epochs": 1},
         }

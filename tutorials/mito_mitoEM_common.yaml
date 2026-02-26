@@ -2,87 +2,89 @@ _base_: bases/mednext.yaml
 
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
 system:
-  training:    
+  training:
     num_gpus: -1
     num_workers: -1
     batch_size: 4
-  inference:    
+  inference:
     num_gpus: 1
     num_workers: 2
     batch_size: 6
   seed: 42
 model:
   input_size:
-  - 32
-  - 256
-  - 256
+    - 32
+    - 256
+    - 256
   output_size:
-  - 32
-  - 256
-  - 256
+    - 32
+    - 256
+    - 256
   out_channels: 7
   mednext_size: M
   mednext_kernel_size: 7
-  mednext_dim: 3d  
+  mednext_dim: 3d
   mednext_checkpoint_style: outside_block
   deep_supervision: false
   loss_functions:
-  - WeightedBCEWithLogitsLoss
-  - WeightedMSELoss
+    - WeightedBCEWithLogitsLoss
+    - WeightedMSELoss
   loss_weights:
-  - 1.0
-  - 1.0
+    - 1.0
+    - 1.0
   loss_kwargs:
-  - {}
-  - tanh: true
-  multi_task_config:
-  - - 0
-    - 6
-    - affinity
-    - - 0
-  - - 6
-    - 7
-    - sdt
-    - - 1
+    - {}
+    - tanh: true
+  loss_terms:
+    - name: affinity_loss_0
+      loss_index: 0
+      pred_slice: [0, 6]
+      target_slice: [0, 6]
+      task_name: affinity
+    - name: sdt_loss_1
+      loss_index: 1
+      pred_slice: [6, 7]
+      target_slice: [6, 7]
+      task_name: sdt
 data:
   train_path: /projects/weilab/dataset/mito/mitoEM/
   val_path: /projects/weilab/dataset/mito/mitoEM/
- 
+
   train_resolution:
-  - 30
-  - 8
-  - 8
+    - 30
+    - 8
+    - 8
   val_resolution:
-  - 30
-  - 8
-  - 8
+    - 30
+    - 8
+    - 8
   use_preloaded_cache_train: true
   use_preloaded_cache_val: true
   cached_sampling_foreground_threshold: 0
   use_cache: false  # keep false so every batch gets fresh random crop + augmentation  
   persistent_workers: true
   patch_size:
-  - 32
-  - 256
-  - 256
+    - 32
+    - 256
+    - 256
   iter_num_per_epoch: 200
   image_transform:
     clip_percentile_low: 0.005
     clip_percentile_high: 0.995
   label_transform:
     targets:
-    - name: affinity
-      kwargs:
-        long_range: 5
-    - name: skeleton_aware_edt
-      kwargs:
-        resolution:
-        - 30
-        - 8
-        - 8
-        alpha: 1
-        bg_value: -1.0
-        relabel: true    
+      - name: affinity
+        kwargs:
+          long_range: 5
+      - name: skeleton_aware_edt
+        kwargs:
+          resolution:
+            - 30
+            - 8
+            - 8
+          alpha: 1
+          bg_value: -1.0
+          relabel: true
   augmentation:
     preset: some
     flip:
@@ -121,10 +123,10 @@ monitor:
   logging:
     scalar:
       loss:
-      - train_loss_total_epoch
-      - val_loss_total
-      - train_loss_affinity_total
-      - train_loss_sdt_total
+        - train_loss_total_epoch
+        - val_loss_total
+        - train_loss_affinity_total
+        - train_loss_sdt_total
       loss_every_n_steps: 100
     images:
       max_images: 4
@@ -139,15 +141,15 @@ monitor:
 test:
   data:
     test_resolution:
-    - 30
-    - 8
-    - 8
+      - 30
+      - 8
+      - 8
 inference:
   sliding_window:
     window_size:
-    - 32
-    - 256
-    - 256
+      - 32
+      - 256
+      - 256
     sw_batch_size: 4
     overlap: 0.5
     blending: gaussian
@@ -155,14 +157,14 @@ inference:
     padding_mode: replicate
   test_time_augmentation:
     enabled: true
-    rotation90_axes: null
+    rotation90_axes:
     channel_activations:
-    - - 0
-      - 6
-      - sigmoid
-    - - 6
-      - 7
-      - tanh
+      -   - 0
+          - 6
+          - sigmoid
+      -   - 6
+          - 7
+          - tanh
     select_channel: all
     apply_mask: false
   save_prediction:
@@ -170,16 +172,16 @@ inference:
     intensity_scale: -1
     intensity_dtype: float32
   decoding:
-  - name: decode_distance_watershed
-    kwargs:
-      distance_threshold:
-      - 0.5
-      - 0
-      min_instance_size: 100
-      min_seed_size: 50
-      prediction_scale: 1
+    - name: decode_distance_watershed
+      kwargs:
+        distance_threshold:
+          - 0.5
+          - 0
+        min_instance_size: 100
+        min_seed_size: 50
+        prediction_scale: 1
   evaluation:
     enabled: true
     metrics:
-    - adapted_rand
-    - voi
+      - adapted_rand
+      - voi

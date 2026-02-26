@@ -54,9 +54,9 @@ def print_tensor_stats(
         tensor = torch.from_numpy(tensor)
     
     # Convert to float for statistics computation if needed
-    # (uint8, int types don't support mean/std operations)
+    # (uint8, uint16, int types don't support mean/std operations)
     original_dtype = tensor.dtype
-    if tensor.dtype in [torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64]:
+    if tensor.dtype in [torch.uint8, torch.uint16, torch.int8, torch.int16, torch.int32, torch.int64]:
         tensor = tensor.float()
     
     # Mark as printed

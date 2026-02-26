@@ -2,7 +2,7 @@ import sys
 
 import pytest
 
-from connectomics.training.lit.utils import parse_args
+from connectomics.training.lightning.utils import parse_args
 
 
 def _parse_with_argv(monkeypatch, argv):
