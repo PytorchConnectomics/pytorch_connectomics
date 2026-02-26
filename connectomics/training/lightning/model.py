@@ -8,7 +8,7 @@ This module implements the Lightning interface with:
 - Automatic distributed training, mixed precision, checkpointing
 
 The implementation delegates to specialized modules:
-- connectomics.training.deep_supervision: Deep supervision and multi-task learning
+- connectomics.training.loss: Loss orchestration and weighting (PyTorch-only)
 - connectomics.inference: Sliding window inference and test-time augmentation
 - connectomics.training.debugging: NaN detection and debugging utilities
 """
@@ -32,14 +32,14 @@ DEBUG_D1 = os.environ.get("PYTC_DEBUG_D1", "0").lower() in {"1", "true", "yes", 
 
 # Import existing components
 from ...models import build_model
-from ...models.loss import create_loss
-from ...models.solver import build_optimizer, build_lr_scheduler
+from ...models.loss import create_loss, get_loss_metadata_for_module
 from ...config import Config
 
 # Import training/inference components
-from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
+from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
 from ..debugging import DebugManager
-from ..loss_balancing import build_loss_weighter
+from ..model_weights import load_external_weights
+from ..optim import build_optimizer, build_lr_scheduler
 from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
 from ...inference import (
     InferenceManager,
@@ -81,15 +81,16 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Build loss functions
         self.loss_functions = self._build_losses(cfg)
-        self.loss_weights = cfg.model.loss_weights if hasattr(cfg.model, 'loss_weights') else [1.0] * len(self.loss_functions)
+        self.loss_weights = (
+            cfg.model.loss_weights
+            if hasattr(cfg.model, 'loss_weights')
+            else [1.0] * len(self.loss_functions)
+        )
+        self.loss_metadata = [get_loss_metadata_for_module(loss_fn) for loss_fn in self.loss_functions]
 
         # Build adaptive loss weighter (for multi-task learning)
-        num_tasks = len(cfg.model.multi_task_config) if hasattr(cfg.model, 'multi_task_config') and cfg.model.multi_task_config else 1
+        num_tasks = infer_num_loss_tasks_from_config(cfg)
         self.loss_weighter = build_loss_weighter(cfg, num_tasks, model=self.model)
-
-        # Track multi-task configuration state for downstream logic/tests
-        self.multi_task_config = getattr(cfg.model, 'multi_task_config', None)
-        self.multi_task_enabled = bool(self.multi_task_config)
 
         # Enable inline NaN detection (can be disabled via config)
         self.enable_nan_detection = getattr(cfg.model, 'enable_nan_detection', True)
@@ -101,13 +102,14 @@ class ConnectomicsModule(pl.LightningModule):
         self.clamp_max = getattr(cfg.model, 'clamp_max', 10.0)
 
         # Initialize specialized handlers
-        self.deep_supervision_handler = DeepSupervisionHandler(
+        self.loss_orchestrator = LossOrchestrator(
             cfg=cfg,
             loss_functions=self.loss_functions,
             loss_weights=self.loss_weights,
             enable_nan_detection=self.enable_nan_detection,
             debug_on_nan=self.debug_on_nan,
             loss_weighter=self.loss_weighter,
+            loss_metadata=self.loss_metadata,
         )
 
         self.inference_manager = InferenceManager(
@@ -129,12 +131,26 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""
-        return build_model(cfg)
+        model = build_model(cfg)
+        external_weights_path = getattr(cfg.model, "external_weights_path", None)
+        if external_weights_path:
+            print(f"\n  Loading external weights from: {external_weights_path}")
+            model = load_external_weights(model, cfg)
+            print("")
+        return model
 
     def _build_losses(self, cfg) -> nn.ModuleList:
         """Build loss functions from configuration."""
         loss_names = cfg.model.loss_functions if hasattr(cfg.model, 'loss_functions') else ['DiceLoss']
-        loss_kwargs_list = cfg.model.loss_kwargs if hasattr(cfg.model, 'loss_kwargs') else [{}] * len(loss_names)
+        if hasattr(cfg.model, 'loss_kwargs') and cfg.model.loss_kwargs is not None:
+            loss_kwargs_list = list(cfg.model.loss_kwargs)
+        else:
+            loss_kwargs_list = []
+
+        if len(loss_kwargs_list) < len(loss_names):
+            loss_kwargs_list = loss_kwargs_list + [{}] * (len(loss_names) - len(loss_kwargs_list))
+        elif len(loss_kwargs_list) > len(loss_names):
+            loss_kwargs_list = loss_kwargs_list[:len(loss_names)]
 
         losses = nn.ModuleList()
         for loss_name, kwargs in zip(loss_names, loss_kwargs_list):
@@ -173,6 +189,15 @@ class ConnectomicsModule(pl.LightningModule):
             return bool(evaluation_config.get("enabled", False))
 
         return bool(getattr(evaluation_config, "enabled", False))
+
+    def _has_multiple_supervised_loss_tasks(self) -> bool:
+        """Infer multi-task supervised setup from compiled explicit loss terms."""
+        task_names = {
+            (term.task_name or term.name)
+            for term in self.loss_orchestrator.loss_term_specs
+            if term.call_kind == "pred_target"
+        }
+        return len(task_names) > 1
 
     def _setup_test_metrics(self):
         """Initialize test metrics based on test or inference config."""
@@ -469,10 +494,19 @@ class ConnectomicsModule(pl.LightningModule):
                 per_volume_metric = AdaptedRandError(return_all_stats=True).to(self.device)
                 per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
                 adapted_rand_value = per_volume_metric.compute()
-                print(f"  {volume_prefix}Adapted Rand Error: {adapted_rand_value.item():.6f}")
+                if isinstance(adapted_rand_value, dict):
+                    are_score = adapted_rand_value.get('adapted_rand_error', adapted_rand_value.get('are', list(adapted_rand_value.values())[0]))
+                    are_score = are_score.item() if hasattr(are_score, 'item') else float(are_score)
+                else:
+                    are_score = adapted_rand_value.item()
+                print(f"  {volume_prefix}Adapted Rand Error: {are_score:.6f}")
+                if isinstance(adapted_rand_value, dict):
+                    for k, v in adapted_rand_value.items():
+                        val = v.item() if hasattr(v, 'item') else float(v)
+                        print(f"  {volume_prefix}  {k}: {val:.6f}")
                 
                 # Collect metric
-                metrics_dict['adapted_rand_error'] = adapted_rand_value.item()
+                metrics_dict['adapted_rand_error'] = are_score
 
                 # Update running metric for epoch-level aggregation
                 self.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
@@ -597,9 +631,6 @@ class ConnectomicsModule(pl.LightningModule):
         # Binarize mask: (B, 1, D, H, W) float, 1 = valid, 0 = ignore
         mask = (raw_mask > 0).float() if raw_mask is not None else None
 
-        if batch_idx == 0 and self.current_epoch == 0:
-            import pdb; pdb.set_trace()
-
         # Forward pass
         outputs = self(images)
 
@@ -620,13 +651,13 @@ class ConnectomicsModule(pl.LightningModule):
                 }
             )
 
-        # Compute loss using deep supervision handler
+        # Compute loss using the loss orchestrator
         if is_deep_supervision:
-            total_loss, loss_dict = self.deep_supervision_handler.compute_deep_supervision_loss(
+            total_loss, loss_dict = self.loss_orchestrator.compute_deep_supervision_loss(
                 outputs, labels, stage="train", mask=mask
             )
         else:
-            total_loss, loss_dict = self.deep_supervision_handler.compute_standard_loss(
+            total_loss, loss_dict = self.loss_orchestrator.compute_standard_loss(
                 outputs, labels, stage="train", mask=mask
             )
 
@@ -688,13 +719,13 @@ class ConnectomicsModule(pl.LightningModule):
         # Check if model outputs deep supervision
         is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
 
-        # Compute loss using deep supervision handler
+        # Compute loss using the loss orchestrator
         if is_deep_supervision:
-            total_loss, loss_dict = self.deep_supervision_handler.compute_deep_supervision_loss(
+            total_loss, loss_dict = self.loss_orchestrator.compute_deep_supervision_loss(
                 outputs, labels, stage="val", mask=mask
             )
         else:
-            total_loss, loss_dict = self.deep_supervision_handler.compute_standard_loss(
+            total_loss, loss_dict = self.loss_orchestrator.compute_standard_loss(
                 outputs, labels, stage="val", mask=mask
             )
 
@@ -709,8 +740,8 @@ class ConnectomicsModule(pl.LightningModule):
                     else:
                         main_output = outputs
 
-                    # Check if this is multi-task learning
-                    is_multi_task = hasattr(self.cfg.model, 'multi_task_config') and self.cfg.model.multi_task_config is not None
+                    # Check if this is a multi-task supervised loss setup.
+                    is_multi_task = self._has_multiple_supervised_loss_tasks()
 
                     # Convert logits/probabilities to predictions
                     if is_multi_task:

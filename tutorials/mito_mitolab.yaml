@@ -17,34 +17,41 @@ model:
   mednext_dim: 2d
   deep_supervision: true
   loss_functions:
-  - DiceLoss
-  - BCEWithLogitsLoss
-  - WeightedMSELoss
+    - DiceLoss
+    - BCEWithLogitsLoss
+    - WeightedMSELoss
   loss_weights:
-  - 1.0
-  - 0.5
-  - 1.0
+    - 1.0
+    - 0.5
+    - 1.0
   loss_kwargs:
-  - include_background: false
-    sigmoid: true
-    smooth_nr: 1e-5
-    smooth_dr: 1e-5
-  - {}
-  - tanh: true
-  multi_task_config:
-  - - 0
-    - 1
-    - binary
-    - - 0
-      - 1
-  - - 1
-    - 2
-    - boundary
-    - - 1
-  - - 2
-    - 3
-    - sdt
-    - - 2
+    - include_background: false
+      sigmoid: true
+      smooth_nr: 1e-5
+      smooth_dr: 1e-5
+    - {}
+    - tanh: true
+  loss_terms:
+    - name: binary_loss_0
+      loss_index: 0
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: binary
+    - name: binary_loss_1
+      loss_index: 1
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: binary
+    - name: boundary_loss_1
+      loss_index: 1
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: sdt_loss_2
+      loss_index: 2
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: sdt
 data:
   dataset_type: filename
   train_json: datasets/cem-mitolab/files.json
@@ -52,15 +59,15 @@ data:
   train_label_key: masks
   train_val_split: 0.9
   train_resolution:
-  - 0
-  - 5
-  - 5
+    - 0
+    - 5
+    - 5
   patch_size:
-  - 224
-  - 224
+    - 224
+    - 224
   pad_size:
-  - 0
-  - 0
+    - 0
+    - 0
   iter_num_per_epoch: -1
   use_preloaded_cache: false
   image_transform:
@@ -68,16 +75,16 @@ data:
     clip_percentile_high: 1.0
   label_transform:
     targets:
-    - name: binary
-    - name: instance_boundary
-      kwargs:
-        thickness: 1
-        edge_mode: seg-all
-        mode: 2d
-    - name: instance_edt
-      kwargs:
-        mode: 2d
-        quantize: false
+      - name: binary
+      - name: instance_boundary
+        kwargs:
+          thickness: 1
+          edge_mode: seg-all
+          mode: 2d
+      - name: instance_edt
+        kwargs:
+          mode: 2d
+          quantize: false
   augmentation:
     preset: all
 optimization:
@@ -96,7 +103,7 @@ monitor:
   logging:
     scalar:
       loss:
-      - train_loss_total_epoch
+        - train_loss_total_epoch
       loss_every_n_steps: 50
     images:
       max_images: 16
@@ -117,23 +124,23 @@ monitor:
 test:
   data:
     test_image: datasets/cem-mitolab/test.json
-    test_label: null
+    test_label:
     test_resolution:
-    - 0
-    - 5
-    - 5
+      - 0
+      - 5
+      - 5
     output_path: outputs/cem-mitolab_mednext2d/results/
 inference:
   test_time_augmentation:
     enabled: false
     channel_activations:
-    - - 0
-      - 2
-      - sigmoid
-    - - 2
-      - 3
-      - tanh
-    select_channel: null
+      -   - 0
+          - 2
+          - sigmoid
+      -   - 2
+          - 3
+          - tanh
+    select_channel:
   save_prediction:
     enabled: true
     intensity_scale: 255

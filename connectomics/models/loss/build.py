@@ -12,6 +12,13 @@ from typing import List, Dict, Optional
 import torch
 import torch.nn as nn
 
+from .metadata import (
+    LossMetadata,
+    attach_loss_metadata,
+    get_loss_metadata,
+    get_loss_metadata_for_module,
+)
+
 # Import MONAI losses
 from monai.losses import (
     DiceLoss,
@@ -91,7 +98,8 @@ def create_loss(loss_name: str, **kwargs) -> nn.Module:
         available = list(loss_registry.keys())
         raise ValueError(f"Unknown loss: {loss_name}. Available losses: {available}")
 
-    return loss_registry[loss_name](**kwargs)
+    loss_fn = loss_registry[loss_name](**kwargs)
+    return attach_loss_metadata(loss_fn, loss_name)
 
 
 def create_combined_loss(
@@ -323,4 +331,7 @@ __all__ = [
     "create_multiclass_segmentation_loss",
     "create_focal_loss",
     "list_available_losses",
+    "LossMetadata",
+    "get_loss_metadata",
+    "get_loss_metadata_for_module",
 ]

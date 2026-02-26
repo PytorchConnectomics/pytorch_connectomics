@@ -9,81 +9,92 @@ system:
     batch_size: 4
 model:
   input_size:
-  - 64
-  - 64
-  - 64
+    - 64
+    - 64
+    - 64
   output_size:
-  - 64
-  - 64
-  - 64
+    - 64
+    - 64
+    - 64
   out_channels: 3
   strides:
-  - 2
-  - 2
-  - 2
+    - 2
+    - 2
+    - 2
   num_res_units: 2
   kernel_size: 3
   norm: batch
   dropout: 0.0
   loss_functions:
-  - DiceLoss
-  - BCEWithLogitsLoss
-  - WeightedMSELoss
+    - DiceLoss
+    - BCEWithLogitsLoss
+    - WeightedMSELoss
   loss_weights:
-  - 1.0
-  - 0.5
-  - 2.0
+    - 1.0
+    - 0.5
+    - 2.0
   loss_kwargs:
-  - sigmoid: true
-    smooth_nr: 1e-5
-    smooth_dr: 1e-5
-  - {}
-  - tanh: true
-  multi_task_config:
-  - - 0
-    - 1
-    - label
-    - - 0
-      - 1
-  - - 1
-    - 2
-    - boundary
-    - - 0
-      - 1
-  - - 2
-    - 3
-    - edt
-    - - 2
+    - sigmoid: true
+      smooth_nr: 1e-5
+      smooth_dr: 1e-5
+    - {}
+    - tanh: true
+  loss_terms:
+    - name: label_loss_0
+      loss_index: 0
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: label_loss_1
+      loss_index: 1
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: boundary_loss_0
+      loss_index: 0
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: boundary_loss_1
+      loss_index: 1
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: edt_loss_2
+      loss_index: 2
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: edt
 data:
   train_image: datasets/NucMM-Z/Image/train/img_*.h5
   train_label: datasets/NucMM-Z/Label/train/seg_*.h5
   train_resolution:
-  - 1.0
-  - 1.0
-  - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
   cache_rate: 1.0
   persistent_workers: true
   patch_size:
-  - 64
-  - 64
-  - 64
+    - 64
+    - 64
+    - 64
   pad_size:
-  - 16
-  - 16
-  - 16
+    - 16
+    - 16
+    - 16
   pad_mode: reflect
   label_transform:
     targets:
-    - name: binary
-    - name: instance_boundary
-      kwargs:
-        thickness: 5
-        edge_mode: seg-no-bg
-        mode: 3d
-    - name: instance_edt
-      kwargs:
-        mode: 3d
-        quantize: false
+      - name: binary
+      - name: instance_boundary
+        kwargs:
+          thickness: 5
+          edge_mode: seg-no-bg
+          mode: 3d
+      - name: instance_edt
+        kwargs:
+          mode: 3d
+          quantize: false
   augmentation:
     preset: all
 optimization:
@@ -112,29 +123,29 @@ test:
     test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
     test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
     test_resolution:
-    - 1.0
-    - 1.0
-    - 1.0
+      - 1.0
+      - 1.0
+      - 1.0
 inference:
   sliding_window:
     window_size:
-    - 64
-    - 64
-    - 64
+      - 64
+      - 64
+      - 64
     sw_batch_size: 8
     overlap: 0.5
     padding_mode: reflect
   test_time_augmentation:
-    flip_axes: null
+    flip_axes:
     channel_activations:
-    - - 0
-      - 2
-      - sigmoid
-    - - 2
-      - 3
-      - tanh
+      -   - 0
+          - 2
+          - sigmoid
+      -   - 2
+          - 3
+          - tanh
   evaluation:
     enabled: true
     metrics:
-    - jaccard
-    - dice
+      - jaccard
+      - dice

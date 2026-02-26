@@ -55,10 +55,22 @@ model:
     - {label_smoothing: 0.1}  # CrossEntropyLoss with label smoothing
 
 # Data - Using automatic 80/20 train/val split (DeepEM-style)
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, 1]
+      target_kind: class_index
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, 1]
+      target_kind: class_index
+      task_name: supervised
 data:
   # 2D data support
   do_2d: true                     # Enable 2D data processing (extract 2D slices from 3D volumes)
-  
   # Volume configuration
   train_image: /orcd/data/edboyden/002/shenb/PyTC/datasets/Dataset001_worm_image96/imagesTr/*.tif
   train_label: /orcd/data/edboyden/002/shenb/PyTC/datasets/Dataset001_worm_image96/labelsTr/*.tif
@@ -98,7 +110,7 @@ data:
       enabled: true
       shift_intensity_prob: 0.8
       shift_intensity_offset: 0.3
-    stripe: 
+    stripe:
       enabled: true
       prob: 0.5
       num_stripes_range: [1, 2]
@@ -114,7 +126,6 @@ optimization:
   gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
-  
   optimizer:
     name: AdamW
     lr: 0.002                            # Higher initial LR (will use warmup)
@@ -140,7 +151,7 @@ monitor:
       loss_every_n_steps: 10
       val_check_interval: 1.0
       benchmark: true
-    
+
     # visualization
     images:
       enabled: true
@@ -148,8 +159,7 @@ monitor:
       num_slices: 2
       log_every_n_epochs: 1                # Log every N epochs (default: 1)
       channel_mode: argmax                 # 'argmax', 'all', or 'selected'
-      selected_channels: null              # Only used when channel_mode='selected'
-  
+      selected_channels:                   # Only used when channel_mode='selected'
   # Checkpointing
   checkpoint:
     mode: min
@@ -161,7 +171,7 @@ monitor:
     use_timestamp: true       # Enable timestamped subdirectories (YYYYMMDD_HHMMSS)
 
   # Early stopping - More patient for better convergence
-  early_stopping: 
+  early_stopping:
     enabled: true
     monitor: train_loss_total_epoch
     patience: 300         # Increased patience (was 200)
@@ -182,7 +192,7 @@ inference:
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: null               # Disable sliding window for 2D data (use direct inference)
+    window_size:                    # Disable sliding window for 2D data (use direct inference)
     # sw_batch_size: automatically set from system.inference.batch_size (currently 32)
     overlap: 0.5                         # 50% overlap between patches
     blending: gaussian                   # Gaussian weighting for smooth blending

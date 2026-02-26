@@ -38,7 +38,7 @@ model:
   input_size: [64, 64, 64]               # 3D input (spatial_dims auto-inferred from input_size length)
   output_size: [64, 64, 64]
   in_channels: 1
-  out_channels: 1                      
+  out_channels: 1
 
   # UNet architecture configuration
   filters: [28, 36, 48, 64]      # Standard UNet channel progression
@@ -48,23 +48,33 @@ model:
   dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration - Dice for overlap, BCE for pixel-wise accuracy
-  loss_functions: [WeightedBCE, DiceLoss]
+  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss]
   loss_weights: [1.0, 1.0]             # Equal weighting for BCE and Dice
   loss_kwargs:
-  - {reduction: mean}
-  - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+    - {reduction: mean}
+    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
 
 # Data - Separate training and validation datasets
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
 data:
   # Training data
   train_image: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/volumes/*.tiff
   train_label: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/labels-original-backup/*.tiff
   train_resolution: [2, 0.8, 0.8]        # Resolution: z, y, x (applies to both train and val)
-  
   # Validation data (separate from training)
   val_image: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/volumes/*.tiff
   val_label: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/labels-original-backup/*.tiff
-  
+
   use_preloaded_cache: true            # Load volumes into memory for fast training
   # train_val_split: 0.8               # Not needed when using separate val_image/val_label
 
@@ -77,7 +87,6 @@ data:
 
   # Data transformation (applied to image/label/mask for spatial alignment)
   # NEW: Paired transforms ensure image and label stay aligned
-  
 
   # Image normalization (applied to image only)
   image_transform:
@@ -87,12 +96,11 @@ data:
   label_transform:
     targets:
       - name: binary  # Ensures labels are {0, 1}
-  
   # Augmentation - Enabled for better generalization
   augmentation:
     preset: some                        # Enable data augmentation
     flip:
-      enabled: true      
+      enabled: true
       spatial_axis: [0, 1, 2]  # Flip x/y/z
     rotate:
       enabled: true
@@ -105,7 +113,7 @@ data:
       enabled: true
       shift_intensity_prob: 0.8
       shift_intensity_offset: 0.3
-    
+
 
 # Optimizer - AdamW with optimized hyperparameters
 optimization:
@@ -114,7 +122,6 @@ optimization:
   gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
-  
   optimizer:
     name: AdamW
     lr: 0.001                            # Higher initial LR (will use warmup)
@@ -142,7 +149,7 @@ monitor:
       loss_every_n_steps: 10
       val_check_interval: 1.0
       benchmark: true
-    
+
     # visualization
     images:
       enabled: true
@@ -150,8 +157,7 @@ monitor:
       num_slices: 2
       log_every_n_epochs: 1                # Log every N epochs (default: 1)
       channel_mode: argmax                 # 'argmax', 'all', or 'selected'
-      selected_channels: null              # Only used when channel_mode='selected'
-  
+      selected_channels:                   # Only used when channel_mode='selected'
   # Checkpointing
   checkpoint:
     monitor: val_loss_total           # Save best model based on validation loss
@@ -179,12 +185,12 @@ inference:
   data:
     test_image: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/volumes/*.tiff
     test_label: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/labels-original-backup/*.tiff
-    test_resolution: [2, 0.8, 0.8] 
+    test_resolution: [2, 0.8, 0.8]
     output_path: /orcd/scratch/bcs/002/mansour/trailmap_data/outputs/monai_tsai/results/
 
   # MONAI SlidingWindowInferer parameters
   sliding_window:
-    window_size: null               # Disable sliding window for 2D data (use direct inference)
+    window_size:                    # Disable sliding window for 2D data (use direct inference)
     # sw_batch_size: automatically set from system.inference.batch_size (currently 32)
     overlap: 0.5                         # 50% overlap between patches
     blending: gaussian                   # Gaussian weighting for smooth blending

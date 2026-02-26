@@ -7,7 +7,7 @@ Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 
 from typing import Any, Dict, List, Set
 import torch
-from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, StepLR
+from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts, StepLR
 
 from .lr_scheduler import WarmupCosineLR
 
@@ -167,6 +167,18 @@ def _build_lr_scheduler_hydra(
         scheduler = CosineAnnealingLR(
             optimizer,
             T_max=t_max,
+            eta_min=eta_min,
+        )
+
+    elif scheduler_name in ("cosineannealingwarmrestarts", "cosinewarmrestarts"):
+        T_0 = sched_cfg.T_0 if hasattr(sched_cfg, "T_0") else 200
+        T_mult = sched_cfg.T_mult if hasattr(sched_cfg, "T_mult") else 1
+        eta_min = sched_cfg.min_lr if hasattr(sched_cfg, "min_lr") else 1e-5
+
+        scheduler = CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=T_0,
+            T_mult=T_mult,
             eta_min=eta_min,
         )
 

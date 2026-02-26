@@ -17,6 +17,7 @@ from .build import (
     create_focal_loss,
     list_available_losses,
 )
+from .metadata import LossMetadata, get_loss_metadata, get_loss_metadata_for_module
 
 # Connectomics-specific losses (for direct use if needed)
 from .losses import (
@@ -48,6 +49,9 @@ __all__ = [
     "create_focal_loss",
     # Utility
     "list_available_losses",
+    "LossMetadata",
+    "get_loss_metadata",
+    "get_loss_metadata_for_module",
     # Custom losses
     "WeightedMSELoss",
     "WeightedMAELoss",

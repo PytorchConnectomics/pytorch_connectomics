@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from connectomics.config import Config
-from connectomics.training.lit import ConnectomicsModule
+from connectomics.training.lightning import ConnectomicsModule
 
 
 def _stub_logging(module: ConnectomicsModule, sink: Optional[List[str]] = None) -> None:
@@ -42,6 +42,15 @@ def _base_config() -> Config:
     cfg = Config()
     cfg.model.loss_functions = ["DiceLoss"]
     cfg.model.loss_weights = [1.0]
+    cfg.model.loss_terms = [
+        {
+            "name": "seg",
+            "loss_index": 0,
+            "pred_slice": [0, 1],
+            "target_slice": [0, 1],
+            "task_name": "seg",
+        }
+    ]
     cfg.model.out_channels = 1
     return cfg
 
@@ -71,11 +80,11 @@ def test_training_step_uses_deep_supervision_branch():
     # Track that the deep supervision handler is invoked
     branch_called = {"used": False}
 
-    def fake_deep_supervision(outputs, labels, stage="train"):
+    def fake_deep_supervision(outputs, labels, stage="train", mask=None):
         branch_called["used"] = True
         return torch.tensor(0.0, requires_grad=True), {"train_loss_total": 0.0}
 
-    module.deep_supervision_handler.compute_deep_supervision_loss = fake_deep_supervision
+    module.loss_orchestrator.compute_deep_supervision_loss = fake_deep_supervision
 
     batch = {
         "image": torch.rand(1, 1, 6, 6, 6),

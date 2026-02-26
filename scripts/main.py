@@ -54,7 +54,7 @@ except AttributeError:
     pass
 
 # Import Lightning components and utilities
-from connectomics.training.lit import (
+from connectomics.training.lightning import (
     ConnectomicsModule,
     cleanup_run_directory,
     create_datamodule,
@@ -280,7 +280,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     if not output_dir_value or not test_image:
         return False
 
-    from connectomics.training.lit.path_utils import expand_file_paths
+    from connectomics.training.lightning.path_utils import expand_file_paths
     from connectomics.data.io import read_hdf5
     from connectomics.decoding import apply_decode_mode, resolve_decode_modes_from_cfg
     from connectomics.inference.postprocessing import apply_postprocessing
