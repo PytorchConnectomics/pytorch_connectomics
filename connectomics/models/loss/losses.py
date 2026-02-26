@@ -6,7 +6,9 @@ Only includes losses that are truly unique to connectomics use cases.
 """
 
 from __future__ import annotations
+
 from typing import Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -101,9 +103,9 @@ class WeightedMSELoss(nn.Module):
             Loss value (should be < 4 for range [-1, 1])
         """
         from ...utils.debug_utils import DEBUG_NORM, print_tensor_stats
-        
+
         # DEBUG: Print input to loss function (before tanh)
-        if DEBUG_NORM and not hasattr(self, '_debug_loss_printed'):
+        if DEBUG_NORM and not hasattr(self, "_debug_loss_printed"):
             self._debug_loss_printed = True
             print_tensor_stats(
                 pred,
@@ -113,25 +115,23 @@ class WeightedMSELoss(nn.Module):
                 extra_info={
                     "tanh_enabled": self.tanh,
                     "reduction": self.reduction,
-                    "weight_provided": weight is not None
-                }
+                    "weight_provided": weight is not None,
+                },
             )
             print_tensor_stats(
                 target,
                 stage_name="STAGE 7: LOSS FUNCTION INPUT (target)",
                 tensor_name="target",
                 print_once=False,
-                extra_info={
-                    "expected_range": "[-1, 1] for SDT"
-                }
+                extra_info={"expected_range": "[-1, 1] for SDT"},
             )
-        
+
         # Apply tanh activation if enabled (constrains pred to [-1, 1])
         if self.tanh:
             pred = torch.tanh(pred)
-            
+
             # DEBUG: Print after tanh activation
-            if DEBUG_NORM and not hasattr(self, '_debug_tanh_printed'):
+            if DEBUG_NORM and not hasattr(self, "_debug_tanh_printed"):
                 self._debug_tanh_printed = True
                 print_tensor_stats(
                     pred,
@@ -141,8 +141,8 @@ class WeightedMSELoss(nn.Module):
                     extra_info={
                         "activation_applied": "tanh",
                         "expected_range": "[-1, 1]",
-                        "note": "Should now match target range"
-                    }
+                        "note": "Should now match target range",
+                    },
                 )
 
         # Compute MSE (for range [-1,1], max error is (1-(-1))^2 = 4)
@@ -157,21 +157,21 @@ class WeightedMSELoss(nn.Module):
             loss_value = mse.sum()
         else:
             loss_value = mse
-        
+
         # DEBUG: Print loss output
-        if DEBUG_NORM and not hasattr(self, '_debug_loss_output_printed'):
+        if DEBUG_NORM and not hasattr(self, "_debug_loss_output_printed"):
             self._debug_loss_output_printed = True
-            print(f"\n{'='*80}")
-            print(f"[DEBUG NORM] STAGE 8: LOSS FUNCTION OUTPUT")
-            print(f"{'='*80}")
+            print(f"\n{'=' * 80}")
+            print("[DEBUG NORM] STAGE 8: LOSS FUNCTION OUTPUT")
+            print(f"{'=' * 80}")
             print(f"LOSS VALUE: {loss_value.item():.6f}")
-            print(f"  Expected range: [0, 4] for MSE with values in [-1, 1]")
+            print("  Expected range: [0, 4] for MSE with values in [-1, 1]")
             if loss_value.item() > 4:
-                print(f"  ⚠️  WARNING: Loss > 4 suggests tanh might not be working!")
+                print("  ⚠️  WARNING: Loss > 4 suggests tanh might not be working!")
             else:
-                print(f"  ✅ Loss is reasonable")
-            print(f"{'='*80}\n")
-        
+                print("  ✅ Loss is reasonable")
+            print(f"{'=' * 80}\n")
+
         return loss_value
 
 
