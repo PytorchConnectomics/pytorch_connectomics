@@ -178,6 +178,7 @@ class LossOrchestrator:
         stage: str,
         scale_idx: Optional[int],
         is_main_scale: bool,
+        mask: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, Dict[str, float]]:
         if not self.loss_term_specs:
             raise ValueError("Explicit loss term path requested but no loss terms are configured")
@@ -203,11 +204,12 @@ class LossOrchestrator:
                 target = labels if term.target_slice is None else self._slice_channels(labels, term.target_slice)
             else:
                 target = None
-            mask_tensor = (
+            term_mask_tensor = (
                 self._slice_channels(labels, term.mask_slice)
                 if term.mask_slice is not None
                 else None
             )
+            batch_mask_tensor = mask
 
             if pred is not None:
                 pred = torch.clamp(pred, min=self.clamp_min, max=self.clamp_max)
@@ -222,47 +224,86 @@ class LossOrchestrator:
                         pred,
                         target_kind=term.target_kind,
                     )
-                if mask_tensor is not None:
-                    mask_tensor = self._resize_tensor_for_output(mask_tensor, pred, target_kind="dense")
+                if term_mask_tensor is not None:
+                    term_mask_tensor = self._resize_tensor_for_output(
+                        term_mask_tensor,
+                        pred,
+                        target_kind="dense",
+                    )
+                if batch_mask_tensor is not None:
+                    batch_mask_tensor = self._resize_tensor_for_output(
+                        batch_mask_tensor,
+                        pred,
+                        target_kind="class_index",
+                    )
+
+            combined_mask_tensor: Optional[torch.Tensor] = None
+            if term_mask_tensor is not None and batch_mask_tensor is not None:
+                combined_mask_tensor = term_mask_tensor * batch_mask_tensor
+            elif term_mask_tensor is not None:
+                combined_mask_tensor = term_mask_tensor
+            elif batch_mask_tensor is not None:
+                combined_mask_tensor = batch_mask_tensor
 
             if call_kind == "pred_target":
                 if pred is None or target is None:
                     raise ValueError(f"Loss term '{term.name}' is missing pred/target tensors")
-                if spatial_weight_arg is not None and mask_tensor is None:
-                    mask_tensor = self._build_foreground_weight_tensor(target)
+                spatial_weight_tensor = term_mask_tensor
+                if spatial_weight_arg == "weight" and spatial_weight_tensor is None:
+                    spatial_weight_tensor = self._build_foreground_weight_tensor(target)
+                if batch_mask_tensor is not None:
+                    if spatial_weight_tensor is None:
+                        spatial_weight_tensor = batch_mask_tensor
+                    else:
+                        spatial_weight_tensor = spatial_weight_tensor * batch_mask_tensor
+
+                pred_for_loss = pred
+                target_for_loss = target
+                if spatial_weight_arg is None and combined_mask_tensor is not None:
+                    valid = combined_mask_tensor > 0
+                    if valid.shape != pred_for_loss.shape:
+                        valid = valid.expand_as(pred_for_loss)
+                    pred_for_loss = pred_for_loss.masked_fill(~valid, self.clamp_min)
+                    target_for_loss = target_for_loss * (combined_mask_tensor > 0).to(
+                        dtype=target_for_loss.dtype
+                    )
                 raw_loss = self._call_with_optional_spatial_weight(
                     loss_fn,
-                    pred,
-                    target,
+                    pred_for_loss,
+                    target_for_loss,
                     spatial_weight_arg=spatial_weight_arg,
-                    spatial_weight_tensor=mask_tensor,
+                    spatial_weight_tensor=spatial_weight_tensor,
                 )
-                tensor_map = {"Pred": pred, "Target": target}
+                tensor_map = {"Pred": pred_for_loss, "Target": target_for_loss}
+                if spatial_weight_tensor is not None:
+                    tensor_map["Mask"] = spatial_weight_tensor
             elif call_kind == "pred_only":
                 if pred is None:
                     raise ValueError(f"Loss term '{term.name}' is missing pred tensor")
+                spatial_weight_tensor = combined_mask_tensor
                 raw_loss = self._call_with_optional_spatial_weight(
                     loss_fn,
                     pred,
                     spatial_weight_arg=spatial_weight_arg,
-                    spatial_weight_tensor=mask_tensor,
+                    spatial_weight_tensor=spatial_weight_tensor,
                 )
                 tensor_map = {"Pred": pred}
-                if mask_tensor is not None:
-                    tensor_map["Mask"] = mask_tensor
+                if spatial_weight_tensor is not None:
+                    tensor_map["Mask"] = spatial_weight_tensor
             elif call_kind == "pred_pred":
                 if pred2 is None:
                     raise ValueError(f"Loss term '{term.name}' is missing pred/pred2 tensors")
+                spatial_weight_tensor = combined_mask_tensor
                 raw_loss = self._call_with_optional_spatial_weight(
                     loss_fn,
                     pred,
                     pred2,
                     spatial_weight_arg=spatial_weight_arg,
-                    spatial_weight_tensor=mask_tensor,
+                    spatial_weight_tensor=spatial_weight_tensor,
                 )
                 tensor_map = {"Pred": pred, "Pred2": pred2}
-                if mask_tensor is not None:
-                    tensor_map["Mask"] = mask_tensor
+                if spatial_weight_tensor is not None:
+                    tensor_map["Mask"] = spatial_weight_tensor
             else:
                 raise ValueError(
                     f"Unsupported call_kind {call_kind!r} for loss term '{term.name}' "
@@ -334,7 +375,12 @@ class LossOrchestrator:
         return total_loss, loss_dict
 
     def compute_loss_for_scale(
-        self, output: torch.Tensor, target: torch.Tensor, scale_idx: int, stage: str = "train"
+        self,
+        output: torch.Tensor,
+        target: torch.Tensor,
+        scale_idx: int,
+        stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """Compute explicit loss terms for one output scale."""
         loss_dict: Dict[str, float] = {}
@@ -344,6 +390,7 @@ class LossOrchestrator:
             stage=stage,
             scale_idx=scale_idx,
             is_main_scale=(scale_idx == 0),
+            mask=mask,
         )
         loss_dict.update(explicit_loss_dict)
 
@@ -351,7 +398,11 @@ class LossOrchestrator:
         return scale_loss, loss_dict
 
     def compute_deep_supervision_loss(
-        self, outputs: Dict[str, torch.Tensor], labels: torch.Tensor, stage: str = "train"
+        self,
+        outputs: Dict[str, torch.Tensor],
+        labels: torch.Tensor,
+        stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         main_output = outputs["output"]
         ds_outputs = [outputs[f"ds_{i}"] for i in range(1, 5) if f"ds_{i}" in outputs]
@@ -376,7 +427,7 @@ class LossOrchestrator:
         loss_dict: Dict[str, float] = {}
         for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
             scale_loss, scale_loss_dict = self.compute_loss_for_scale(
-                output, labels, scale_idx, stage
+                output, labels, scale_idx, stage, mask=mask
             )
             total_loss += scale_loss * ds_weight
             loss_dict.update(scale_loss_dict)
@@ -385,7 +436,11 @@ class LossOrchestrator:
         return total_loss, loss_dict
 
     def compute_standard_loss(
-        self, outputs: torch.Tensor, labels: torch.Tensor, stage: str = "train"
+        self,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         total_loss, loss_dict = self._compute_explicit_terms_for_output(
             outputs,
@@ -393,6 +448,7 @@ class LossOrchestrator:
             stage=stage,
             scale_idx=None,
             is_main_scale=True,
+            mask=mask,
         )
         loss_dict[f"{stage}_loss_total"] = total_loss.item()
         return total_loss, loss_dict

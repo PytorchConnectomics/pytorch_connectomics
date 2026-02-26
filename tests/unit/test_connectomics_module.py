@@ -80,7 +80,7 @@ def test_training_step_uses_deep_supervision_branch():
     # Track that the deep supervision handler is invoked
     branch_called = {"used": False}
 
-    def fake_deep_supervision(outputs, labels, stage="train"):
+    def fake_deep_supervision(outputs, labels, stage="train", mask=None):
         branch_called["used"] = True
         return torch.tensor(0.0, requires_grad=True), {"train_loss_total": 0.0}
 

@@ -483,6 +483,9 @@ class DataConfig:
     cached_sampling_foreground_threshold: float = (
         0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
     )
+    cached_sampling_crop_to_nonzero_mask: bool = (
+        False  # Restrict random crops to intersect the nonzero bounding box of the mask volume
+    )
 
     # Reject sampling configuration (for volumetric patch sampling)
     reject_sampling: Optional[Dict[str, Any]] = None  # Dict with 'size_thres' and 'p' keys
