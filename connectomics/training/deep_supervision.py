@@ -182,26 +182,23 @@ class DeepSupervisionHandler:
                 loss_fn = self.loss_functions[loss_idx]
                 weight = self.loss_weights[loss_idx]
 
-                # [D3] Pass foreground-weighted mask (and validity mask) to loss functions
+                # Build combined weight: foreground weighting merged with mask validity.
+                # weight=2 for foreground, weight=1 for background, weight=0 outside mask.
+                fg_weight = 2.0
+                combined_weight = torch.ones_like(task_label)
+                combined_weight[task_label > 0] = fg_weight
+                if mask is not None:
+                    combined_weight = combined_weight * (mask > 0).float()
+
                 if _loss_supports_weight(loss_fn):
-                    fg_weight = 2.0
-                    loss_weight_mask = torch.ones_like(task_label)
-                    loss_weight_mask[task_label > 0] = fg_weight
-                    if mask is not None:
-                        # Zero weight for voxels outside valid mask — excluded from gradient
-                        loss_weight_mask = loss_weight_mask * (mask > 0).float()
-                    loss = loss_fn(task_output, task_label, weight=loss_weight_mask)
+                    loss = loss_fn(task_output, task_label, weight=combined_weight)
                 else:
-                    if mask is not None:
-                        # For losses without per-voxel weight support (e.g. DiceLoss):
-                        # suppress output to large-negative (sigmoid≈0) and zero label
-                        # in invalid regions so they contribute ≈0 to numerator/denominator
-                        mask_bool = (mask > 0)
-                        task_output_m = task_output.masked_fill(~mask_bool, -20.0)
-                        task_label_m = task_label * mask_bool.float()
-                        loss = loss_fn(task_output_m, task_label_m)
-                    else:
-                        loss = loss_fn(task_output, task_label)
+                    # For losses without weight support, derive invalid mask from weight==0.
+                    valid = (combined_weight > 0)
+                    loss = loss_fn(
+                        task_output.masked_fill(~valid, -20.0),
+                        task_label * valid.float(),
+                    )
 
                 # Check for NaN/Inf
                 if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
@@ -305,20 +302,20 @@ class DeepSupervisionHandler:
                     loss_fn = self.loss_functions[loss_idx]
                     weight = self.loss_weights[loss_idx]
 
-                    if mask is not None and _loss_supports_weight(loss_fn):
-                        fg_weight = 2.0
-                        loss_weight_mask = torch.ones_like(task_target)
-                        loss_weight_mask[task_target > 0] = fg_weight
-                        loss_weight_mask = loss_weight_mask * (mask > 0).float()
-                        loss = loss_fn(task_output, task_target, weight=loss_weight_mask)
-                    elif mask is not None:
-                        mask_bool = (mask > 0)
-                        loss = loss_fn(
-                            task_output.masked_fill(~mask_bool, -20.0),
-                            task_target * mask_bool.float(),
-                        )
+                    fg_weight = 2.0
+                    combined_weight = torch.ones_like(task_target)
+                    combined_weight[task_target > 0] = fg_weight
+                    if mask is not None:
+                        combined_weight = combined_weight * (mask > 0).float()
+
+                    if _loss_supports_weight(loss_fn):
+                        loss = loss_fn(task_output, task_target, weight=combined_weight)
                     else:
-                        loss = loss_fn(task_output, task_target)
+                        valid = (combined_weight > 0)
+                        loss = loss_fn(
+                            task_output.masked_fill(~valid, -20.0),
+                            task_target * valid.float(),
+                        )
 
                     # Check for NaN/Inf (only in training mode)
                     if (
@@ -368,14 +365,20 @@ class DeepSupervisionHandler:
             output_clamped = torch.clamp(output, min=self.clamp_min, max=self.clamp_max)
 
             for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                # [D3] Pass foreground-weighted mask to loss functions that support it
+                fg_weight = 2.0
+                combined_weight = torch.ones_like(target)
+                combined_weight[target > 0] = fg_weight
+                if mask is not None:
+                    combined_weight = combined_weight * (mask > 0).float()
+
                 if _loss_supports_weight(loss_fn):
-                    fg_weight = 2.0
-                    loss_weight_mask = torch.ones_like(target)
-                    loss_weight_mask[target > 0] = fg_weight
-                    loss = loss_fn(output_clamped, target, weight=loss_weight_mask)
+                    loss = loss_fn(output_clamped, target, weight=combined_weight)
                 else:
-                    loss = loss_fn(output_clamped, target)
+                    valid = (combined_weight > 0)
+                    loss = loss_fn(
+                        output_clamped.masked_fill(~valid, -20.0),
+                        target * valid.float(),
+                    )
 
                 # Check for NaN/Inf (only in training mode)
                 if (
@@ -507,23 +510,20 @@ class DeepSupervisionHandler:
         else:
             # Standard single-scale loss: apply all losses to all outputs
             for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                # [D3] Pass foreground-weighted mask (and validity mask) to loss functions
+                fg_weight = 2.0
+                combined_weight = torch.ones_like(labels)
+                combined_weight[labels > 0] = fg_weight
+                if mask is not None:
+                    combined_weight = combined_weight * (mask > 0).float()
+
                 if _loss_supports_weight(loss_fn):
-                    fg_weight = 2.0
-                    loss_weight_mask = torch.ones_like(labels)
-                    loss_weight_mask[labels > 0] = fg_weight
-                    if mask is not None:
-                        loss_weight_mask = loss_weight_mask * (mask > 0).float()
-                    loss = loss_fn(outputs, labels, weight=loss_weight_mask)
+                    loss = loss_fn(outputs, labels, weight=combined_weight)
                 else:
-                    if mask is not None:
-                        mask_bool = (mask > 0)
-                        loss = loss_fn(
-                            outputs.masked_fill(~mask_bool, -20.0),
-                            labels * mask_bool.float(),
-                        )
-                    else:
-                        loss = loss_fn(outputs, labels)
+                    valid = (combined_weight > 0)
+                    loss = loss_fn(
+                        outputs.masked_fill(~valid, -20.0),
+                        labels * valid.float(),
+                    )
 
                 # Check for NaN/Inf (only in training mode)
                 if (
