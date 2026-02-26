@@ -114,6 +114,7 @@ class DeepSupervisionHandler:
         outputs: torch.Tensor,
         labels: torch.Tensor,
         stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
         Compute losses for multi-task learning where different output channels
@@ -181,15 +182,26 @@ class DeepSupervisionHandler:
                 loss_fn = self.loss_functions[loss_idx]
                 weight = self.loss_weights[loss_idx]
 
-                # [D3] Pass foreground-weighted mask to loss functions that support it
-                # (e.g., WeightedMSELoss, WeightedMAELoss, SmoothL1Loss)
+                # [D3] Pass foreground-weighted mask (and validity mask) to loss functions
                 if _loss_supports_weight(loss_fn):
                     fg_weight = 2.0
                     loss_weight_mask = torch.ones_like(task_label)
                     loss_weight_mask[task_label > 0] = fg_weight
+                    if mask is not None:
+                        # Zero weight for voxels outside valid mask — excluded from gradient
+                        loss_weight_mask = loss_weight_mask * (mask > 0).float()
                     loss = loss_fn(task_output, task_label, weight=loss_weight_mask)
                 else:
-                    loss = loss_fn(task_output, task_label)
+                    if mask is not None:
+                        # For losses without per-voxel weight support (e.g. DiceLoss):
+                        # suppress output to large-negative (sigmoid≈0) and zero label
+                        # in invalid regions so they contribute ≈0 to numerator/denominator
+                        mask_bool = (mask > 0)
+                        task_output_m = task_output.masked_fill(~mask_bool, -20.0)
+                        task_label_m = task_label * mask_bool.float()
+                        loss = loss_fn(task_output_m, task_label_m)
+                    else:
+                        loss = loss_fn(task_output, task_label)
 
                 # Check for NaN/Inf
                 if self.enable_nan_detection and (torch.isnan(loss) or torch.isinf(loss)):
@@ -246,7 +258,12 @@ class DeepSupervisionHandler:
         return total_loss, loss_dict
 
     def compute_loss_for_scale(
-        self, output: torch.Tensor, target: torch.Tensor, scale_idx: int, stage: str = "train"
+        self,
+        output: torch.Tensor,
+        target: torch.Tensor,
+        scale_idx: int,
+        stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
         Compute loss for a single scale with multi-task or standard loss.
@@ -288,7 +305,20 @@ class DeepSupervisionHandler:
                     loss_fn = self.loss_functions[loss_idx]
                     weight = self.loss_weights[loss_idx]
 
-                    loss = loss_fn(task_output, task_target)
+                    if mask is not None and _loss_supports_weight(loss_fn):
+                        fg_weight = 2.0
+                        loss_weight_mask = torch.ones_like(task_target)
+                        loss_weight_mask[task_target > 0] = fg_weight
+                        loss_weight_mask = loss_weight_mask * (mask > 0).float()
+                        loss = loss_fn(task_output, task_target, weight=loss_weight_mask)
+                    elif mask is not None:
+                        mask_bool = (mask > 0)
+                        loss = loss_fn(
+                            task_output.masked_fill(~mask_bool, -20.0),
+                            task_target * mask_bool.float(),
+                        )
+                    else:
+                        loss = loss_fn(task_output, task_target)
 
                     # Check for NaN/Inf (only in training mode)
                     if (
@@ -376,7 +406,11 @@ class DeepSupervisionHandler:
         return scale_loss, loss_dict
 
     def compute_deep_supervision_loss(
-        self, outputs: Dict[str, torch.Tensor], labels: torch.Tensor, stage: str = "train"
+        self,
+        outputs: Dict[str, torch.Tensor],
+        labels: torch.Tensor,
+        stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
         Compute multi-scale loss with deep supervision.
@@ -385,6 +419,7 @@ class DeepSupervisionHandler:
             outputs: Dictionary with 'output' and 'ds_i' keys for deep supervision
             labels: Ground truth labels
             stage: 'train' or 'val' for logging prefix
+            mask: Optional binary validity mask (B, 1, D, H, W); loss is zeroed outside mask
 
         Returns:
             Tuple of (total_loss, loss_dict)
@@ -419,9 +454,19 @@ class DeepSupervisionHandler:
             # Match target to output size
             target = match_target_to_output(labels, output)
 
+            # Downsample mask to match this scale using nearest interpolation
+            scale_mask = None
+            if mask is not None:
+                if mask.shape[2:] != output.shape[2:]:
+                    scale_mask = F.interpolate(
+                        mask.float(), size=output.shape[2:], mode="nearest"
+                    )
+                else:
+                    scale_mask = mask
+
             # Compute loss for this scale
             scale_loss, scale_loss_dict = self.compute_loss_for_scale(
-                output, target, scale_idx, stage
+                output, target, scale_idx, stage, mask=scale_mask
             )
 
             # Accumulate with deep supervision weight
@@ -432,7 +477,11 @@ class DeepSupervisionHandler:
         return total_loss, loss_dict
 
     def compute_standard_loss(
-        self, outputs: torch.Tensor, labels: torch.Tensor, stage: str = "train"
+        self,
+        outputs: torch.Tensor,
+        labels: torch.Tensor,
+        stage: str = "train",
+        mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
         Compute standard single-scale loss.
@@ -441,6 +490,7 @@ class DeepSupervisionHandler:
             outputs: Model outputs (B, C, D, H, W)
             labels: Ground truth labels (B, C, D, H, W)
             stage: 'train' or 'val' for logging prefix
+            mask: Optional binary validity mask (B, 1, D, H, W); loss is zeroed outside mask
 
         Returns:
             Tuple of (total_loss, loss_dict)
@@ -451,18 +501,29 @@ class DeepSupervisionHandler:
         # Check if multi-task learning is configured
         if self.is_multi_task:
             # Multi-task learning: apply specific losses to specific channels
-            total_loss, loss_dict = self.compute_multitask_loss(outputs, labels, stage=stage)
+            total_loss, loss_dict = self.compute_multitask_loss(
+                outputs, labels, stage=stage, mask=mask
+            )
         else:
             # Standard single-scale loss: apply all losses to all outputs
             for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-                # [D3] Pass foreground-weighted mask to loss functions that support it
+                # [D3] Pass foreground-weighted mask (and validity mask) to loss functions
                 if _loss_supports_weight(loss_fn):
                     fg_weight = 2.0
                     loss_weight_mask = torch.ones_like(labels)
                     loss_weight_mask[labels > 0] = fg_weight
+                    if mask is not None:
+                        loss_weight_mask = loss_weight_mask * (mask > 0).float()
                     loss = loss_fn(outputs, labels, weight=loss_weight_mask)
                 else:
-                    loss = loss_fn(outputs, labels)
+                    if mask is not None:
+                        mask_bool = (mask > 0)
+                        loss = loss_fn(
+                            outputs.masked_fill(~mask_bool, -20.0),
+                            labels * mask_bool.float(),
+                        )
+                    else:
+                        loss = loss_fn(outputs, labels)
 
                 # Check for NaN/Inf (only in training mode)
                 if (

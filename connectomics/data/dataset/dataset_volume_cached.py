@@ -165,6 +165,7 @@ class CachedVolumeDataset(Dataset):
         pad_mode: str = "reflect",
         max_attempts: int = 10,
         foreground_threshold: float = 0.05,
+        crop_to_nonzero_mask: bool = False,
     ):
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
@@ -200,6 +201,7 @@ class CachedVolumeDataset(Dataset):
         self._d2_last_report_step = 0
         self.max_attempts = max_attempts
         self.foreground_threshold = foreground_threshold
+        self.crop_to_nonzero_mask = crop_to_nonzero_mask
 
         # Load all volumes into memory
         print(f"  Loading {len(image_paths)} volumes into memory...")
@@ -292,6 +294,17 @@ class CachedVolumeDataset(Dataset):
         # Support both 2D and 3D: get last N dimensions matching patch_size
         ndim = len(self.patch_size)
         self.volume_sizes = [img.shape[-ndim:] for img in self.cached_images]  # (Z, Y, X) or (Y, X)
+
+        # Precompute mask bounding boxes for crop_to_nonzero_mask sampling
+        self.mask_bboxes: List[Optional[List[Tuple[int, int]]]] = []
+        if self.crop_to_nonzero_mask:
+            for mask in self.cached_masks:
+                self.mask_bboxes.append(self._compute_mask_bbox(mask))
+            print(
+                f"  [crop_to_nonzero_mask] Mask bboxes computed for {len(self.mask_bboxes)} volumes"
+            )
+        else:
+            self.mask_bboxes = [None] * len(self.cached_images)
 
         # [D2 DIAGNOSTIC] Print foreground sampling configuration
         if self.mode == "train":
@@ -459,9 +472,38 @@ class CachedVolumeDataset(Dataset):
             # Restore RNG state
             random.setstate(state)
 
+    def _compute_mask_bbox(
+        self, mask: Optional[np.ndarray]
+    ) -> Optional[List[Tuple[int, int]]]:
+        """Compute the axis-aligned bounding box of nonzero voxels in the mask.
+
+        Args:
+            mask: Mask array with shape (C, D, H, W) or (C, H, W). May be None.
+
+        Returns:
+            List of (start, end) pairs for each spatial dimension, or None if
+            the mask is None or entirely zero.
+        """
+        if mask is None:
+            return None
+        spatial = mask[0] > 0  # drop channel dim: (D, H, W) or (H, W)
+        if not spatial.any():
+            return None
+        ndim = spatial.ndim
+        bbox = []
+        for d in range(ndim):
+            axes = tuple(i for i in range(ndim) if i != d)
+            proj = spatial.any(axis=axes) if ndim > 1 else spatial
+            indices = np.where(proj)[0]
+            bbox.append((int(indices[0]), int(indices[-1]) + 1))
+        return bbox
+
     def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         """
         Get a random crop position for training (like v1 VolumeDataset).
+
+        When crop_to_nonzero_mask is True, restricts sampling so every crop
+        intersects the nonzero bounding box of the mask.
 
         Args:
             vol_idx: Volume index
@@ -471,18 +513,22 @@ class CachedVolumeDataset(Dataset):
         """
         vol_size = self.volume_sizes[vol_idx]
         patch_size = self.patch_size
+        mask_bbox = self.mask_bboxes[vol_idx] if self.crop_to_nonzero_mask else None
 
-        # Random position ensuring crop fits within volume
-        # Support both 2D and 3D
-        # Ensure max_start ensures we can crop at least patch_size
         positions = []
         for i in range(len(patch_size)):
-            max_start = max(0, vol_size[i] - patch_size[i])
-            # Safety check: if volume is smaller than patch_size, start at 0
-            # (crop_volume will handle padding)
-            if max_start < 0:
-                max_start = 0
-            positions.append(random.randint(0, max_start))
+            vol_max = max(0, vol_size[i] - patch_size[i])
+            if mask_bbox is not None:
+                # Intersection condition: crop [pos, pos+patch) overlaps [bbox_start, bbox_end)
+                # => pos < bbox_end  and  pos + patch > bbox_start
+                # => pos >= bbox_start - patch + 1  and  pos <= bbox_end - 1
+                min_start = max(0, mask_bbox[i][0] - patch_size[i] + 1)
+                max_start = min(vol_max, mask_bbox[i][1] - 1)
+                if min_start > max_start:  # bbox too small — fall back to full range
+                    min_start, max_start = 0, vol_max
+            else:
+                min_start, max_start = 0, vol_max
+            positions.append(random.randint(min_start, max_start))
         return tuple(positions)
 
     def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
