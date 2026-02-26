@@ -1,0 +1,197 @@
+_base_: bases/mednext.yaml
+experiment_name: fiber_mednext_bcs
+description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
+system:
+  training:
+    num_gpus: -1
+    num_workers: -1
+    batch_size: 4
+  inference:
+    num_workers: 1
+    batch_size: 8
+  seed: 42
+model:  
+  out_channels: 3
+  input_size:
+  - 32
+  - 128
+  - 128
+  output_size:
+  - 32
+  - 128
+  - 128
+  mednext_size: S
+  mednext_kernel_size: 3
+  deep_supervision: false
+  loss_functions:
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  - WeightedBCEWithLogitsLoss
+  - DiceLoss
+  - WeightedMSELoss
+  loss_weights:
+  - 1.0
+  - 0.5
+  - 1.0
+  - 0.5
+  - 2.0
+  loss_kwargs:
+  - reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+  - reduction: mean
+  - sigmoid: true
+    smooth_nr: 1e-5
+    smooth_dr: 1e-5
+  - tanh: true
+  multi_task_config:
+  - - 0
+    - 1
+    - binary
+    - - 0
+      - 1
+  - - 1
+    - 2
+    - instance_boundary
+    - - 2
+      - 3
+  - - 2
+    - 3
+    - instance_edt
+    - - 4
+data:
+  train_image: "datasets/bouton-lv/train/vol0_im.h5"
+  train_label: "datasets/bouton-lv/train/vol0_lv.h5"
+  train_mask: "datasets/bouton-lv/train/vol0_mask.h5"
+  train_resolution: [30, 8, 8]
+  
+  
+  use_preloaded_cache_train: true
+  persistent_workers: true
+  iter_num_per_epoch: 1000
+  cached_sampling_foreground_threshold: 0.1
+  cached_sampling_max_attempts: 10
+
+  patch_size: [32, 64, 64]
+  data_transform:
+    resize: [32, 128, 128]
+  
+  label_transform:
+    targets:
+    - name: binary
+      kwargs: {}
+    - name: instance_boundary
+      kwargs:
+        thickness: 1
+        edge_mode: all
+        mode: 2d
+    - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
+      kwargs:
+        mode: "2d"              # 2D EDT with per-instance bounding box optimization
+        
+  augmentation:
+    preset: some
+    flip:
+      enabled: true
+    rotate:
+      enabled: true
+      spatial_axes:
+      - 1
+      - 2    
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.1
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.5
+      contrast_range: [0.9, 1.1]
+optimization:
+  max_epochs: 500
+  gradient_clip_val: 1
+  accumulate_grad_batches: 1
+  precision: "16-mixed"
+  log_every_n_steps: 100  
+  optimizer:
+    lr: 0.0003
+    weight_decay: 0.01
+    eps: 1.0e-08
+  scheduler:
+    name: WarmupCosineLR
+    warmup_epochs: 3
+    warmup_start_lr: 1.0e-05
+    min_lr: 1.0e-06
+  ema:
+    enabled: true
+    decay: 0.999
+    validate_with_ema: true    
+monitor:
+  logging:
+    scalar:
+      loss:
+      - train_loss_total_epoch
+      loss_every_n_steps: 50      
+    images:
+      max_images: 2
+      num_slices: 4
+      log_every_n_epochs: 50
+  checkpoint:
+    save_top_k: 3
+    save_every_n_epochs: 10
+  early_stopping:
+    monitor: train_loss_total_epoch
+    patience: 100
+    min_delta: 1.0e-05
+    threshold: 0.01
+    divergence_threshold: 100.0
+
+test:
+  data:
+    test_image: "datasets/bouton-lv/train/vol0_im.h5"
+    test_label: "datasets/bouton-lv/train/vol0_lv.h5"
+    test_mask: "datasets/bouton-lv/train/vol0_mask.h5"
+    test_resolution: [30, 8, 8]
+    
+
+inference:
+  sliding_window:
+    window_size:
+    - 32
+    - 128
+    - 128
+    overlap: 0.5
+    blending: gaussian
+    sigma_scale: 0.25
+    padding_mode: reflect    
+  test_time_augmentation:
+    enabled: true
+    channel_activations:
+    - - 0
+      - 1
+      - sigmoid
+    - - 1
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
+  decoding:
+  - name: decode_binary_contour_distance_watershed
+    kwargs:
+      binary_threshold:
+      - 0.9
+      - 0.85
+      contour_threshold:
+      - 0.8
+      - 1.1
+      distance_threshold:
+      - 0.5
+      - -0.5
+      min_instance_size: 100
+      min_seed_size: 20
+      prediction_scale: 1
+  evaluation:
+    enabled: true
+    metrics:
+    - adapted_rand
