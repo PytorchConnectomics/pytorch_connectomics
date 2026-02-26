@@ -42,7 +42,6 @@ system:
 # Model Configuration
 model:
   architecture: rsunet  # Must match the pretrained model architecture
-  
   # ============================================================================
   # PRETRAINED MODEL LOADING
   # ============================================================================
@@ -50,7 +49,6 @@ model:
   # This loads only model weights (not optimizer/scheduler state)
   external_weights_path: "outputs/hydra-lv_rsunet/20251203_012234/checkpoints/last.ckpt"  # UPDATE THIS PATH
   external_weights_key_prefix: "model."  # Default prefix for Lightning checkpoints
-  
   # Model architecture must match pretrained model exactly
   input_size: [32, 128, 128]
   output_size: [32, 128, 128]
@@ -79,19 +77,38 @@ model:
   loss_balancing:
     strategy: uncertainty
 
-  multi_task_config:
-    - [0, 1, "label", [0, 1]]
-    - [1, 2, "boundary", [2, 3]]
-    - [2, 3, "edt", [4]]
-
-# Data - Fine-tuning dataset (UPDATE THESE PATHS)
+  loss_terms:
+    - name: label_loss_0
+      loss_index: 0
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: label_loss_1
+      loss_index: 1
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: boundary_loss_2
+      loss_index: 2
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: boundary_loss_3
+      loss_index: 3
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: edt_loss_4
+      loss_index: 4
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: edt
 data:
   # Fine-tuning data paths (replace with your new dataset)
   train_image: "datasets/bouton-lv/train/vol0_im.h5"  # UPDATE THIS
   train_label: "datasets/bouton-lv/train/vol0_lv.h5"  # UPDATE THIS
   train_mask: "datasets/bouton-lv/train/vol0_mask.h5"  # UPDATE THIS
   train_resolution: [30, 8, 8]  # Must match your data resolution
-  
   use_preloaded_cache: true
   cache_rate: 0.0
   persistent_workers: false
@@ -101,7 +118,6 @@ data:
   pad_size: [8, 24, 24]
   pad_mode: reflect
   iter_num_per_epoch: 1280  # Adjust based on dataset size
-  
   # Image normalization
   image_transform:
     normalize: "0-1"
@@ -210,15 +226,15 @@ monitor:
       loss_every_n_steps: 10
       val_check_interval: 1.0
       benchmark: true
-    
+
     images:
       enabled: true
       max_images: 2
       num_slices: 4
       log_every_n_epochs: 1
       channel_mode: all
-      selected_channels: null
-  
+      selected_channels:
+
   checkpoint:
     mode: min
     save_top_k: 3
@@ -247,9 +263,9 @@ inference:
     sigma_scale: 0.25
     padding_mode: replicate
 
-  test_time_augmentation:    
-    flip_axes: null
-    rotation90_axes: null
+  test_time_augmentation:
+    flip_axes:
+    rotation90_axes:
     select_channel: all
     channel_activations:
       - [0, 1, sigmoid]

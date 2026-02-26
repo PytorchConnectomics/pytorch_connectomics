@@ -62,6 +62,17 @@ model:
     - {reduction: mean}                                   # BCEWithLogitsLoss
 
 # Data Configuration
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
 data:
   # Dataset type - use 2D data
   do_2d: true              # Enable 2D data processing
@@ -194,7 +205,7 @@ inference:
     enabled: true
     flip_axes: [[1], [2], [1, 2]]  # H, W, and H+W flips (no Z flip)
     channel_activations: [[0, 1, 'sigmoid']]
-    select_channel: null
+    select_channel:
     ensemble_mode: mean
 
   # Save predictions
@@ -214,7 +225,7 @@ test:
       enabled: true
       crop_to_nonzero: true
       # Keep null to skip spacing resampling; set explicit spacing to match model plans.
-      target_spacing: null
+      target_spacing:
       normalization: zscore
       normalization_use_nonzero_mask: true
       restore_to_input_space: true

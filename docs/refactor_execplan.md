@@ -32,7 +32,7 @@ Baseline conclusion: current environment is missing runtime/dev dependencies req
 - Existing Hydra/OmegaConf structure and CLI override semantics for `system`, `data`, `model`, `optimization`, `monitor`, `inference`, `test`, and `tune`.
 - Current public imports from:
   - `connectomics.config`
-  - `connectomics.training.lit`
+  - `connectomics.training.lightning`
   - `connectomics.data.dataset`
 - Current run/checkpoint directory behavior and config save behavior for train/test/tune/tune-test modes.
 
@@ -41,10 +41,10 @@ Baseline conclusion: current environment is missing runtime/dev dependencies req
   - Static import graph found one cycle: `connectomics.data.dataset.build <-> connectomics.data.dataset.dataset_volume`.
   - `dataset_volume.py` imports `create_data_dicts_from_paths` from `build.py`, while `build.py` lazily imports volume datasets.
 - Duplicated utilities:
-  - `expand_file_paths` exists in both `connectomics/training/lit/config.py` and `connectomics/training/lit/utils.py`.
-  - Validation iteration auto-calculation logic appears in multiple branches of `connectomics/training/lit/config.py`.
+  - `expand_file_paths` exists in both `connectomics/training/lightning/config.py` and `connectomics/training/lightning/utils.py`.
+  - Validation iteration auto-calculation logic appears in multiple branches of `connectomics/training/lightning/config.py`.
 - Unclear module boundaries:
-  - `connectomics/training/lit/config.py` mixes dataset building, interactive dataset download prompting, datamodule wrappers, run directory creation, and checkpoint mutation in one file (~1000 LOC).
+  - `connectomics/training/lightning/config.py` mixes dataset building, interactive dataset download prompting, datamodule wrappers, run directory creation, and checkpoint mutation in one file (~1000 LOC).
   - `scripts/demo.py` duplicates training/datamodule/trainer assembly logic instead of reusing the same factories.
 - Configuration sprawl / compatibility drift:
   - Data location concepts are split across `data.*`, `test.data.*`, `tune.data.*`, and legacy-looking `inference.data` references in tutorial configs.
@@ -52,13 +52,13 @@ Baseline conclusion: current environment is missing runtime/dev dependencies req
   - Overlap in similarly named knobs (`data.pad_size`, `data.image_transform.pad_size`, `inference.sliding_window.pad_size`) increases ambiguity.
 
 ## Proposed Target Module Boundaries (Internal)
-- `connectomics/training/lit/cli.py`
+- `connectomics/training/lightning/cli.py`
   - CLI parse + high-level config assembly (`parse_args`, `setup_config`) only.
-- `connectomics/training/lit/data_factory.py`
+- `connectomics/training/lightning/data_factory.py`
   - Datamodule/dataset assembly and mode-specific dataset selection only.
-- `connectomics/training/lit/runtime.py`
+- `connectomics/training/lightning/runtime.py`
   - Run directory lifecycle and checkpoint state mutation only.
-- `connectomics/training/lit/utils.py`
+- `connectomics/training/lightning/utils.py`
   - Small pure helpers only (no orchestration).
 - `connectomics/data/dataset/data_dicts.py`
   - Shared data-dict constructors used by both builders and datasets (break cycle).
@@ -82,9 +82,9 @@ Verification commands:
 
 ### Milestone 2: Utility Deduplication (No Behavior Change)
 Files touched (planned):
-- `connectomics/training/lit/utils.py`
-- `connectomics/training/lit/config.py`
-- `connectomics/training/lit/path_utils.py` (new)
+- `connectomics/training/lightning/utils.py`
+- `connectomics/training/lightning/config.py`
+- `connectomics/training/lightning/path_utils.py` (new)
 - `tests/unit/test_lit_utils.py`
 
 Scope:
@@ -100,9 +100,9 @@ Verification commands:
 
 ### Milestone 3: Extract Runtime/Checkpoint Orchestration
 Files touched (planned):
-- `connectomics/training/lit/config.py`
-- `connectomics/training/lit/runtime.py` (new)
-- `connectomics/training/lit/__init__.py`
+- `connectomics/training/lightning/config.py`
+- `connectomics/training/lightning/runtime.py` (new)
+- `connectomics/training/lightning/__init__.py`
 - `scripts/main.py`
 - `tests/unit/test_run_directory_contract.py`
 
@@ -137,9 +137,9 @@ Verification commands:
 
 ### Milestone 5: DataFactory Boundary Cleanup in Lightning Layer
 Files touched (planned):
-- `connectomics/training/lit/config.py`
-- `connectomics/training/lit/data_factory.py` (new)
-- `connectomics/training/lit/__init__.py`
+- `connectomics/training/lightning/config.py`
+- `connectomics/training/lightning/data_factory.py` (new)
+- `connectomics/training/lightning/__init__.py`
 - `tests/unit/test_lit_utils.py`
 - `tests/integration/test_config_integration.py`
 

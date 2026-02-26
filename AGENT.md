@@ -61,7 +61,7 @@ Note: repository-wide `black --check connectomics/` is not currently clean.
 
 - Config system: `connectomics/config/`
 - Data pipeline: `connectomics/data/`
-- Lightning runtime: `connectomics/training/lit/`
+- Lightning runtime: `connectomics/training/lightning/`
 - Decoding/postprocess: `connectomics/decoding/`
 
 ## Safety

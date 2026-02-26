@@ -776,7 +776,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         6. Save best parameters to YAML file
 
     Example:
-        >>> from connectomics.training.lit import ConnectomicsModule, create_trainer
+        >>> from connectomics.training.lightning import ConnectomicsModule, create_trainer
         >>> from connectomics.decoding import run_tuning
         >>> model = ConnectomicsModule(cfg)
         >>> trainer = create_trainer(cfg)
@@ -814,7 +814,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
     import glob
 
     from connectomics.data.io import read_volume
-    from connectomics.training.lit import create_datamodule
+    from connectomics.training.lightning import create_datamodule
 
     print("\n[1/4] Running inference on tuning dataset...")
 

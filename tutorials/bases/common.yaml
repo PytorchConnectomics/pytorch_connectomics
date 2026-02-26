@@ -15,6 +15,17 @@ system:
 model:
   in_channels: 1
 
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
 data:
   image_transform:
     normalize: "0-1"
@@ -30,7 +41,7 @@ monitor:
       benchmark: true
     images:
       enabled: true
-      selected_channels: null
+      selected_channels:
   checkpoint:
     mode: min
     save_last: true

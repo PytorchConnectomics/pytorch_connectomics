@@ -4,8 +4,8 @@
 import pytest
 
 from connectomics.config import Config, from_dict, load_config
-from connectomics.training.lit import ConnectomicsModule, create_datamodule, create_trainer
-from connectomics.training.lit.data_factory import create_datamodule as create_datamodule_impl
+from connectomics.training.lightning import ConnectomicsModule, create_datamodule, create_trainer
+from connectomics.training.lightning.data_factory import create_datamodule as create_datamodule_impl
 
 
 def test_config_creation():

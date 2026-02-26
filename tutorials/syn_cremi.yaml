@@ -10,61 +10,72 @@ system:
 model:
   out_channels: 1
   filters:
-  - 32
-  - 64
-  - 96
-  - 128
-  - 160
+    - 32
+    - 64
+    - 96
+    - 128
+    - 160
   rsunet_norm: batch
   rsunet_activation: elu
   rsunet_num_groups: 8
   rsunet_down_factors:
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
+    -   - 1
+        - 2
+        - 2
+    -   - 1
+        - 2
+        - 2
+    -   - 1
+        - 2
+        - 2
+    -   - 1
+        - 2
+        - 2
   rsunet_depth_2d: 1
   rsunet_kernel_2d:
-  - 1
-  - 3
-  - 3
+    - 1
+    - 3
+    - 3
   deep_supervision: false
   loss_functions:
-  - WeightedBCEWithLogitsLoss
-  - DiceLoss
+    - WeightedBCEWithLogitsLoss
+    - DiceLoss
   loss_weights:
-  - 1.0
-  - 1.0
+    - 1.0
+    - 1.0
   loss_kwargs:
-  - reduction: mean
-  - sigmoid: true
-    smooth_nr: 1e-05
-    smooth_dr: 1e-05
+    - reduction: mean
+    - sigmoid: true
+      smooth_nr: 1e-05
+      smooth_dr: 1e-05
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
 data:
   train_image:
-  - datasets/corrected/im_A.h5
-  - datasets/corrected/im_B.h5
-  - datasets/corrected/im_C.h5
+    - datasets/corrected/im_A.h5
+    - datasets/corrected/im_B.h5
+    - datasets/corrected/im_C.h5
   train_label:
-  - datasets/corrected/syn_A.h5
-  - datasets/corrected/syn_B.h5
-  - datasets/corrected/syn_C.h5
+    - datasets/corrected/syn_A.h5
+    - datasets/corrected/syn_B.h5
+    - datasets/corrected/syn_C.h5
   patch_size:
-  - 18
-  - 256
-  - 256
+    - 18
+    - 256
+    - 256
   pad_size:
-  - 0
-  - 32
-  - 32
+    - 0
+    - 32
+    - 32
   pad_mode: reflect
   iter_num_per_epoch: 1280
   use_preloaded_cache: true
@@ -80,8 +91,8 @@ data:
       enabled: true
       prob: 0.5
       spatial_axis:
-      - 1
-      - 2
+        - 1
+        - 2
     rotate:
       enabled: true
       prob: 0.5
@@ -90,11 +101,11 @@ data:
       enabled: true
       prob: 0.3
       sigma_range:
-      - 5.0
-      - 8.0
+        - 5.0
+        - 8.0
       magnitude_range:
-      - 50.0
-      - 150.0
+        - 50.0
+        - 150.0
     intensity:
       enabled: true
       gaussian_noise_prob: 0.3
@@ -103,8 +114,8 @@ data:
       shift_intensity_offset: 0.1
       contrast_prob: 0.3
       contrast_range:
-      - 0.7
-      - 1.4
+        - 0.7
+        - 1.4
     misalignment:
       enabled: true
       prob: 0.5
@@ -137,8 +148,8 @@ optimization:
     lr: 0.001
     eps: 1.0e-08
     betas:
-    - 0.9
-    - 0.999
+      - 0.9
+      - 0.999
     weight_decay: 0.01
   scheduler:
     name: CosineAnnealingLR
@@ -155,7 +166,7 @@ monitor:
   logging:
     scalar:
       loss:
-      - train_loss_total_epoch
+        - train_loss_total_epoch
       loss_every_n_steps: 10
       val_check_interval: 1.0
     images:
@@ -174,22 +185,22 @@ test:
   data:
     # For local evaluation (labels available): use training volumes
     test_image:
-    - datasets/corrected/im_A.h5
-    - datasets/corrected/im_B.h5
-    - datasets/corrected/im_C.h5
+      - datasets/corrected/im_A.h5
+      - datasets/corrected/im_B.h5
+      - datasets/corrected/im_C.h5
     test_label:
-    - datasets/corrected/syn_A.h5
-    - datasets/corrected/syn_B.h5
-    - datasets/corrected/syn_C.h5
+      - datasets/corrected/syn_A.h5
+      - datasets/corrected/syn_B.h5
+      - datasets/corrected/syn_C.h5
     # For CREMI challenge submission (no labels): uncomment below, comment above
     # test_image:
     # - datasets/corrected/im_A+.h5
     # - datasets/corrected/im_B+.h5
     # - datasets/corrected/im_C+.h5
     test_resolution:
-    - 40
-    - 4
-    - 4
+      - 40
+      - 4
+      - 4
     output_path: outputs/rsunet_cremi_synapse_cleft/results/
     image_transform:
       normalize: "0-1"
@@ -198,14 +209,14 @@ test:
   evaluation:
     enabled: true
     metrics:
-    - cremi_distance
-    - jaccard
+      - cremi_distance
+      - jaccard
 inference:
   sliding_window:
     window_size:
-    - 18
-    - 256
-    - 256
+      - 18
+      - 256
+      - 256
     sw_batch_size: 4
     overlap: 0.5
     blending: gaussian
@@ -216,13 +227,13 @@ inference:
     flip_axes: all
     ensemble_mode: mean
     channel_activations:
-    - - 0
-      - 1
-      - sigmoid
-    select_channel: null
+      -   - 0
+          - 1
+          - sigmoid
+    select_channel:
   save_prediction:
     enabled: true
     intensity_scale: -1
     intensity_dtype: float32
     output_formats:
-    - h5
+      - h5

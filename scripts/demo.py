@@ -130,6 +130,15 @@ def create_demo_config():
             loss_functions=["DiceLoss"],
             loss_weights=[1.0],
             loss_kwargs=[{"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5}],
+            loss_terms=[
+                {
+                    "name": "seg",
+                    "loss_index": 0,
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "task_name": "seg",
+                }
+            ],
         ),
         data=DataConfig(
             train_image=None,  # Will be generated
@@ -265,7 +274,7 @@ def run_demo():
 
     # Create datamodule
     print("\n📊 Creating data loaders...")
-    from connectomics.training.lit import ConnectomicsDataModule
+    from connectomics.training.lightning import ConnectomicsDataModule
     from connectomics.data.augment.build import (
         build_train_transforms,
         build_val_transforms,
@@ -298,7 +307,7 @@ def run_demo():
 
     # Create model
     print(f"\n🏗️  Building model: {cfg.model.architecture}")
-    from connectomics.training.lit import ConnectomicsModule
+    from connectomics.training.lightning import ConnectomicsModule
 
     model = ConnectomicsModule(cfg)
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)

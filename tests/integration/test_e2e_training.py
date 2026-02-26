@@ -19,7 +19,7 @@ import tempfile
 import shutil
 
 from connectomics.config import from_dict
-from connectomics.training.lit import ConnectomicsModule, ConnectomicsDataModule, create_trainer
+from connectomics.training.lightning import ConnectomicsModule, ConnectomicsDataModule, create_trainer
 
 
 # ==================== Fixtures ====================

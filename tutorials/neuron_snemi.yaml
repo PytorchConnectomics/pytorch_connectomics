@@ -2,7 +2,7 @@ _base_: bases/rsunet.yaml
 experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 system:
-  training:    
+  training:
     num_gpus: -1
     num_workers: -1
     batch_size: 8
@@ -12,58 +12,69 @@ system:
 model:
   out_channels: 12
   loss_functions:
-  - WeightedBCEWithLogitsLoss
-  - DiceLoss
+    - WeightedBCEWithLogitsLoss
+    - DiceLoss
   loss_weights:
-  - 1.0
-  - 0.5
+    - 1.0
+    - 0.5
   loss_kwargs:
-  - pos_weight: 10.0
-    reduction: mean
-  - sigmoid: true
-    smooth_nr: 1e-05
-    smooth_dr: 1e-05
+    - pos_weight: 10.0
+      reduction: mean
+    - sigmoid: true
+      smooth_nr: 1e-05
+      smooth_dr: 1e-05
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
 data:
   train_image: datasets/SNEMI/train-input.tif
   train_label: datasets/SNEMI/train-labels.tif
   patch_size:
-  - 16
-  - 224
-  - 224
+    - 16
+    - 224
+    - 224
   pad_size:
-  - 4
-  - 64
-  - 64
+    - 4
+    - 64
+    - 64
   iter_num_per_epoch: 40
   use_preloaded_cache_train: true
   use_preloaded_cache_val: true
   label_transform:
     erosion: 1
     targets:
-    - name: affinity
-      kwargs:
-        offsets:
-        - 0-0-1
-        - 0-1-0
-        - 1-0-0
-        - 2-0-0
-        - 3-0-0
-        - 4-0-0
-        - 0-0-3
-        - 0-0-9
-        - 0-0-27
-        - 0-3-0
-        - 0-9-0
-        - 0-27-0
+      - name: affinity
+        kwargs:
+          offsets:
+            - 0-0-1
+            - 0-1-0
+            - 1-0-0
+            - 2-0-0
+            - 3-0-0
+            - 4-0-0
+            - 0-0-3
+            - 0-0-9
+            - 0-0-27
+            - 0-3-0
+            - 0-9-0
+            - 0-27-0
   augmentation:
     preset: some
     flip:
       enabled: true
       prob: 0.5
       spatial_axis:
-      - 0
-      - 1
-      - 2
+        - 0
+        - 1
+        - 2
     rotate:
       enabled: true
       prob: 0.5
@@ -72,11 +83,11 @@ data:
       enabled: true
       prob: 0.7
       sigma_range:
-      - 4.0
-      - 8.0
+        - 4.0
+        - 8.0
       magnitude_range:
-      - 8.0
-      - 16.0
+        - 8.0
+        - 16.0
     intensity:
       enabled: true
       gaussian_noise_prob: 0.3
@@ -85,8 +96,8 @@ data:
       shift_intensity_offset: 0.2
       contrast_prob: 0.7
       contrast_range:
-      - 0.5
-      - 1.5
+        - 0.5
+        - 1.5
     misalignment:
       enabled: true
       prob: 0.6
@@ -109,8 +120,8 @@ data:
       enabled: true
       prob: 0.2
       hole_range:
-      - 0.1
-      - 0.25
+        - 0.1
+        - 0.25
 optimization:
   max_epochs: 1000
   gradient_clip_val: 1.0
@@ -123,8 +134,8 @@ optimization:
     lr: 0.004
     eps: 1.0e-08
     betas:
-    - 0.9
-    - 0.999
+      - 0.9
+      - 0.999
     weight_decay: 0.0001
   scheduler:
     name: WarmupCosineLR
@@ -142,7 +153,7 @@ monitor:
   logging:
     scalar:
       loss:
-      - train_loss_total_epoch
+        - train_loss_total_epoch
       loss_every_n_steps: 10
     images:
       max_images: 8
@@ -160,12 +171,12 @@ monitor:
 test:
   data:
     test_path: datasets/SNEMI/
-    test_image: [train-input.tif, test-input_z29.h5] 
+    test_image: [train-input.tif, test-input_z29.h5]
     test_label: [train-labels.tif, test-labels.h5]
     test_resolution:
-    - 30
-    - 6
-    - 6
+      - 30
+      - 6
+      - 6
     output_path: outputs/neuron_snemi/results/
   # decoding:
   # - name: decode_abiss
@@ -188,23 +199,23 @@ test:
 inference:
   sliding_window:
     window_size:
-    - 16
-    - 224
-    - 224
+      - 16
+      - 224
+      - 224
     sw_batch_size: 2
     overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
     padding_mode: reflect
     pad_size:
-    - 4
-    - 64
-    - 64
+      - 4
+      - 64
+      - 64
   test_time_augmentation:
     enabled: true
     flip_axes: all
     ensemble_mode: min
-    select_channel: [0,1,2]
+    select_channel: [0, 1, 2]
     channel_activations: [[0, 3, sigmoid]]
   save_prediction:
     enabled: true
