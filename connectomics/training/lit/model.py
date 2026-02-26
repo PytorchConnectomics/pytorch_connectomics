@@ -469,10 +469,19 @@ class ConnectomicsModule(pl.LightningModule):
                 per_volume_metric = AdaptedRandError(return_all_stats=True).to(self.device)
                 per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
                 adapted_rand_value = per_volume_metric.compute()
-                print(f"  {volume_prefix}Adapted Rand Error: {adapted_rand_value.item():.6f}")
+                if isinstance(adapted_rand_value, dict):
+                    are_score = adapted_rand_value.get('adapted_rand_error', adapted_rand_value.get('are', list(adapted_rand_value.values())[0]))
+                    are_score = are_score.item() if hasattr(are_score, 'item') else float(are_score)
+                else:
+                    are_score = adapted_rand_value.item()
+                print(f"  {volume_prefix}Adapted Rand Error: {are_score:.6f}")
+                if isinstance(adapted_rand_value, dict):
+                    for k, v in adapted_rand_value.items():
+                        val = v.item() if hasattr(v, 'item') else float(v)
+                        print(f"  {volume_prefix}  {k}: {val:.6f}")
                 
                 # Collect metric
-                metrics_dict['adapted_rand_error'] = adapted_rand_value.item()
+                metrics_dict['adapted_rand_error'] = are_score
 
                 # Update running metric for epoch-level aggregation
                 self.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
