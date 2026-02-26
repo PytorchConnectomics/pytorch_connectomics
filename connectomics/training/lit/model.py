@@ -37,7 +37,7 @@ from ...models.solver import build_optimizer, build_lr_scheduler
 from ...config import Config
 
 # Import training/inference components
-from ..deep_supervision import DeepSupervisionHandler, match_target_to_output
+from ..loss_orchestrator import DeepSupervisionHandler, match_target_to_output
 from ..debugging import DebugManager
 from ..loss_balancing import build_loss_weighter
 from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
