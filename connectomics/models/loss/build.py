@@ -12,14 +12,11 @@ from typing import List, Dict, Optional
 import torch
 import torch.nn as nn
 
-from .specs import (
+from .metadata import (
     LossMetadata,
-    LossTermSpec,
     attach_loss_metadata,
-    compile_loss_terms_from_config,
     get_loss_metadata,
     get_loss_metadata_for_module,
-    infer_num_loss_tasks_from_config,
 )
 
 # Import MONAI losses
@@ -335,9 +332,6 @@ __all__ = [
     "create_focal_loss",
     "list_available_losses",
     "LossMetadata",
-    "LossTermSpec",
     "get_loss_metadata",
     "get_loss_metadata_for_module",
-    "compile_loss_terms_from_config",
-    "infer_num_loss_tasks_from_config",
 ]

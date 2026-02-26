@@ -29,7 +29,6 @@ model:
   kernel_size: 3
   norm: batch
   dropout: 0.1                           # Reduced dropout (was 0.15) to prevent underfitting on small objects
-  
   # Deep supervision clamping to prevent numerical instability
   deep_supervision_clamp_min: -15.0      # Tighter clamping (was -20.0)
   deep_supervision_clamp_max: 15.0       # Tighter clamping (was 20.0)
@@ -46,15 +45,39 @@ model:
     - {reduction: mean, tanh: true}                # EDT: WeightedMSE with tanh (constrains to [-1,1])
     - {reduction: mean, tanh: true}                # EDT: WeightedMAE with tanh (robust to outliers)
 
-  # Multi-task configuration
-  # Format: [[start_ch, end_ch, target_name, loss_indices], ...]
-  multi_task_config:
-    - [0, 1, "binary", [0, 1]]         # Original labels: Dice + BCE
-    - [1, 2, "boundary", [2, 3]]       # Boundary channel: Dice + BCE  
-    - [2, 3, "edt", [4, 5]]            # Distance channel: Dice + BCE  
-
-
-# Data - 2D fluorescence microscopy
+  # Multi-task loss terms (explicit channel/target routing)
+  # Format: list of {loss_index, pred_slice, target_slice, task_name, ...}
+  loss_terms:
+    - name: binary_loss_0
+      loss_index: 0
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: binary
+    - name: binary_loss_1
+      loss_index: 1
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: binary
+    - name: boundary_loss_2
+      loss_index: 2
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: boundary_loss_3
+      loss_index: 3
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: edt_loss_4
+      loss_index: 4
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: edt
+    - name: edt_loss_5
+      loss_index: 5
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: edt
 data:
   do_2d: true
 
@@ -158,7 +181,7 @@ monitor:
       num_slices: 1                      # 2D visualization
       log_every_n_epochs: 5
       channel_mode: argmax
-      selected_channels: null
+      selected_channels:
 
   # Checkpointing
   checkpoint:
@@ -193,14 +216,14 @@ inference:
   test_time_augmentation:
     enabled: false
     flip_axes: [[0], [1], [0, 1]]
-    channel_activations: null
-    select_channel: null
+    channel_activations:
+    select_channel:
     ensemble_mode: mean
 
   # Save intermediate predictions (pre-decoding)
   save_prediction:
     enabled: true
-    intensity_scale: -1.0    
+    intensity_scale: -1.0
 
 # Postprocessing - keep instance IDs
   postprocessing:
@@ -242,22 +265,22 @@ tune:
   study_name: zebrafish_neurons_tuning
   storage: "sqlite:///outputs/zebrafish_neurons/tuning/tuning.db"
   load_if_exists: true
-  
+
   sampler:
     name: TPE
     kwargs:
       n_startup_trials: 10
       multivariate: true
-  
+
   pruner:
     enabled: false
-  
+
   optimization:
     mode: single
     single_objective:
       metric: adapted_rand
       direction: minimize
-  
+
   data:
     tune_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/tuning_subset/images/*.tif
     tune_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/tuning_subset/labels/*.tif
@@ -265,7 +288,7 @@ tune:
       normalize: "0-1"
       clip_percentile_low: 0.01
       clip_percentile_high: 0.99
-  
+
   output:
     output_dir: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/outputs/zebrafish_neurons/tuning
     save_all_trials: false
@@ -275,57 +298,57 @@ tune:
       enabled: true
       top_n_trials: 10
       format: markdown
-  
+
   logging:
     verbose: true
     show_progress_bar: true
-  
+
   parameter_space:
     decoding:
       function_name: decode_instance_binary_contour_distance
       defaults:
-        binary_threshold: [0.6, 0.6]      
-        contour_threshold: [0.65, 0.85]     
+        binary_threshold: [0.6, 0.6]
+        contour_threshold: [0.65, 0.85]
         distance_threshold: [0.45, 0.35]
         min_seed_size: 22
       parameters:
         binary_threshold_seed:
           type: float
-          range: [0.50, 0.70]              
+          range: [0.50, 0.70]
           step: 0.05
           param_group: binary_threshold
           tuple_index: 0
         binary_threshold_foreground:
           type: float
-          range: [0.45, 0.60]               
+          range: [0.45, 0.60]
           step: 0.05
           param_group: binary_threshold
           tuple_index: 1
         contour_threshold_seed:
           type: float
-          range: [0.55, 0.85]              
+          range: [0.55, 0.85]
           step: 0.05
           param_group: contour_threshold
           tuple_index: 0
         contour_threshold_foreground:
           type: float
-          range: [0.85, 1.0]               
+          range: [0.85, 1.0]
           step: 0.05
           param_group: contour_threshold
           tuple_index: 1
         distance_threshold_seed:
           type: float
-          range: [0.35, 0.65]              
+          range: [0.35, 0.65]
           step: 0.05
           param_group: distance_threshold
           tuple_index: 0
         distance_threshold_foreground:
           type: float
-          range: [0.30, 0.50]               
+          range: [0.30, 0.50]
           step: 0.05
           param_group: distance_threshold
           tuple_index: 1
         min_seed_size:
           type: int
-          range: [12, 24]                   
+          range: [12, 24]
           step: 2

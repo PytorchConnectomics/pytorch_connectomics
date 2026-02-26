@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from connectomics.config import Config
-from connectomics.training.lit import ConnectomicsModule
+from connectomics.training.lightning import ConnectomicsModule
 
 
 def _stub_logging(module: ConnectomicsModule, sink: Optional[List[str]] = None) -> None:

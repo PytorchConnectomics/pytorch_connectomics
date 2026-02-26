@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from connectomics.models.loss import LossMetadata, create_loss
-from connectomics.training.loss_orchestrator import LossOrchestrator
+from connectomics.training.loss import LossOrchestrator
 
 
 def _cfg(loss_terms=None):

@@ -22,7 +22,7 @@ from connectomics.data.dataset import (
     create_volume_dataset,
     create_data_dicts_from_paths,
 )
-from connectomics.training.lit.data import VolumeDataModule
+from connectomics.training.lightning.data import VolumeDataModule
 import pytest
 
 

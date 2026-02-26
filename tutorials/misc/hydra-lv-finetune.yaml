@@ -82,12 +82,32 @@ model:
   loss_balancing:
     strategy: uncertainty  # Keep uncertainty weighting
 
-  multi_task_config:
-    - [0, 1, "label", [0, 1]]
-    - [1, 2, "boundary", [2, 3]]
-    - [2, 3, "edt", [4]]
-
-# Data Configuration
+  loss_terms:
+    - name: label_loss_0
+      loss_index: 0
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: label_loss_1
+      loss_index: 1
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+      task_name: label
+    - name: boundary_loss_2
+      loss_index: 2
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: boundary_loss_3
+      loss_index: 3
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+      task_name: boundary
+    - name: edt_loss_4
+      loss_index: 4
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
+      task_name: edt
 data:
   # Training data
   train_image: "datasets/bouton-lv/train/vol0_im.h5"
@@ -219,7 +239,7 @@ monitor:
       num_slices: 4
       log_every_n_epochs: 1
       channel_mode: all
-      selected_channels: null
+      selected_channels:
 
   checkpoint:
     mode: min

@@ -15,13 +15,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from omegaconf import DictConfig
 
-from ..config import Config
-from ..models.loss import (
+from ...config import Config
+from ...models.loss import (
     LossMetadata,
-    LossTermSpec,
-    compile_loss_terms_from_config,
     get_loss_metadata_for_module,
 )
+from .plan import LossTermSpec, compile_loss_terms_from_config
 
 
 class LossOrchestrator:

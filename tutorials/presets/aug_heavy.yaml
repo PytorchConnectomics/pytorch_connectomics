@@ -21,6 +21,17 @@ model:
     - DiceLoss
     - BCEWithLogitsLoss
   loss_weights: [1.0, 1.0]
+  loss_terms:
+    - name: loss_0
+      loss_index: 0
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
+    - name: loss_1
+      loss_index: 1
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+      task_name: supervised
 
 data:
   # Data paths (modify for your dataset)

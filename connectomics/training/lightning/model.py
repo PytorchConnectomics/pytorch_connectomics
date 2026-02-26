@@ -8,7 +8,7 @@ This module implements the Lightning interface with:
 - Automatic distributed training, mixed precision, checkpointing
 
 The implementation delegates to specialized modules:
-- connectomics.training.loss_orchestrator: Deep supervision and loss routing
+- connectomics.training.loss: Loss orchestration and weighting (PyTorch-only)
 - connectomics.inference: Sliding window inference and test-time augmentation
 - connectomics.training.debugging: NaN detection and debugging utilities
 """
@@ -32,14 +32,14 @@ DEBUG_D1 = os.environ.get("PYTC_DEBUG_D1", "0").lower() in {"1", "true", "yes", 
 
 # Import existing components
 from ...models import build_model
-from ...models.loss import create_loss, get_loss_metadata_for_module, infer_num_loss_tasks_from_config
-from ...models.solver import build_optimizer, build_lr_scheduler
+from ...models.loss import create_loss, get_loss_metadata_for_module
 from ...config import Config
 
 # Import training/inference components
-from ..loss_orchestrator import LossOrchestrator
+from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
 from ..debugging import DebugManager
-from ..loss_balancing import build_loss_weighter
+from ..model_weights import load_external_weights
+from ..optim import build_optimizer, build_lr_scheduler
 from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
 from ...inference import (
     InferenceManager,
@@ -131,7 +131,13 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _build_model(self, cfg) -> nn.Module:
         """Build model from configuration."""
-        return build_model(cfg)
+        model = build_model(cfg)
+        external_weights_path = getattr(cfg.model, "external_weights_path", None)
+        if external_weights_path:
+            print(f"\n  Loading external weights from: {external_weights_path}")
+            model = load_external_weights(model, cfg)
+            print("")
+        return model
 
     def _build_losses(self, cfg) -> nn.ModuleList:
         """Build loss functions from configuration."""

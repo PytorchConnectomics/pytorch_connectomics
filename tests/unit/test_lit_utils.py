@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 
 from connectomics.config import Config, save_config
-from connectomics.training.lit.config import expand_file_paths as config_expand_file_paths
-from connectomics.training.lit.data_factory import _calculate_validation_iter_num
-from connectomics.training.lit.path_utils import expand_file_paths as canonical_expand_file_paths
-from connectomics.training.lit.utils import (
+from connectomics.training.lightning.config import expand_file_paths as config_expand_file_paths
+from connectomics.training.lightning.data_factory import _calculate_validation_iter_num
+from connectomics.training.lightning.path_utils import expand_file_paths as canonical_expand_file_paths
+from connectomics.training.lightning.utils import (
     expand_file_paths,
     extract_best_score_from_checkpoint,
     setup_config,

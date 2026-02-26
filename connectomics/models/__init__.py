@@ -4,7 +4,7 @@ PyTorch Connectomics models module.
 Clean, modern interface using MONAI and nnUNet models.
 """
 
-from .build import build_model, update_state_dict
+from .build import build_model
 
 # Export loss functions
 from .loss import (
@@ -18,7 +18,6 @@ from .loss import (
 __all__ = [
     # Model building
     "build_model",
-    "update_state_dict",
     # Loss functions
     "create_loss",
     "create_combined_loss",
