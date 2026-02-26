@@ -624,16 +624,19 @@ class ConnectomicsModule(pl.LightningModule):
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
         from ...utils.debug_utils import print_tensor_stats
-        
+
         images = batch['image']
         labels = batch['label']
+        raw_mask = batch.get('mask', None)
+        # Binarize mask: (B, 1, D, H, W) float, 1 = valid, 0 = ignore
+        mask = (raw_mask > 0).float() if raw_mask is not None else None
 
         # Forward pass
         outputs = self(images)
 
         # Check if model outputs deep supervision
         is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
-        
+
         # DEBUG: Print model output (raw logits, before any activation)
         if batch_idx == 0:
             pred_for_debug = outputs['output'] if is_deep_supervision else outputs
@@ -648,14 +651,14 @@ class ConnectomicsModule(pl.LightningModule):
                 }
             )
 
-        # Compute loss using deep supervision handler
+        # Compute loss using the loss orchestrator
         if is_deep_supervision:
             total_loss, loss_dict = self.loss_orchestrator.compute_deep_supervision_loss(
-                outputs, labels, stage="train"
+                outputs, labels, stage="train", mask=mask
             )
         else:
             total_loss, loss_dict = self.loss_orchestrator.compute_standard_loss(
-                outputs, labels, stage="train"
+                outputs, labels, stage="train", mask=mask
             )
 
         # [D1] Training diagnostics: log prediction and target statistics to detect SDT collapse
@@ -707,6 +710,8 @@ class ConnectomicsModule(pl.LightningModule):
         """Validation step with deep supervision support."""
         images = batch['image']
         labels = batch['label']
+        raw_mask = batch.get('mask', None)
+        mask = (raw_mask > 0).float() if raw_mask is not None else None
 
         # Forward pass
         outputs = self(images)
@@ -714,14 +719,14 @@ class ConnectomicsModule(pl.LightningModule):
         # Check if model outputs deep supervision
         is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
 
-        # Compute loss using deep supervision handler
+        # Compute loss using the loss orchestrator
         if is_deep_supervision:
             total_loss, loss_dict = self.loss_orchestrator.compute_deep_supervision_loss(
-                outputs, labels, stage="val"
+                outputs, labels, stage="val", mask=mask
             )
         else:
             total_loss, loss_dict = self.loss_orchestrator.compute_standard_loss(
-                outputs, labels, stage="val"
+                outputs, labels, stage="val", mask=mask
             )
 
         # Compute evaluation metrics if enabled

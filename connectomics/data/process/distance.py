@@ -1,18 +1,17 @@
-from __future__ import print_function, division
-from typing import Optional, Tuple, Dict
+from typing import Dict, Optional, Tuple
 
-import numpy as np
 import kimimaro
-from scipy.ndimage import distance_transform_edt, binary_fill_holes
+import numpy as np
+from scipy.ndimage import binary_fill_holes, distance_transform_edt
+from skimage.filters import gaussian
 from skimage.morphology import (
-    remove_small_holes,
+    ball,
     binary_erosion,
     disk,
-    ball,
+    remove_small_holes,
 )
-from skimage.filters import gaussian
 
-from .bbox_processor import BBoxProcessorConfig, BBoxInstanceProcessor
+from .bbox_processor import BBoxInstanceProcessor, BBoxProcessorConfig
 from .quantize import energy_quantize
 
 __all__ = [
@@ -76,10 +75,11 @@ def _edt_binary_mask(mask, resolution, alpha):
 def edt_instance(
     label: np.ndarray,
     mode: str = "2d",
-    quantize: bool = True,
+    quantize: bool = False,
     resolution: Tuple[float] = (1.0, 1.0, 1.0),
     padding: bool = False,
     erosion: int = 0,
+    bg_value: float = -1.0,
 ):
     assert mode in ["2d", "3d"]
     if mode == "3d":
@@ -92,7 +92,7 @@ def edt_instance(
         return vol_distance
 
     # Optimized 2D mode: preallocate arrays instead of lists
-    vol_distance = np.zeros(label.shape, dtype=np.float32)
+    vol_distance = np.full(label.shape, bg_value, dtype=np.float32)
 
     # Process slices without copying (use view instead)
     for i in range(label.shape[0]):
@@ -155,7 +155,7 @@ def distance_transform(
     ) -> Optional[np.ndarray]:
         """Compute normalized EDT for a single instance within bbox."""
         # Extract instance mask
-        mask = binary_fill_holes((label_crop == instance_id))
+        mask = binary_fill_holes(label_crop == instance_id)
 
         # Apply erosion if requested
         if context["footprint"] is not None:
@@ -198,16 +198,16 @@ def signed_distance_transform(
     alpha: float = 8.0,
 ) -> np.ndarray:
     """Compute smooth signed distance transform for instance segmentation.
-    
+
     This function produces a true signed distance transform where both foreground
     and background have meaningful gradient information, solving the class imbalance
     problem of traditional EDT approaches.
-    
+
     Returns SDT in range [-1, 1]:
     - Positive values: inside instances (distance from boundary)
     - Negative values: outside instances (distance to nearest instance)
     - Zero: at instance boundaries
-    
+
     Args:
         label: Instance segmentation (H, W) or (D, H, W)
         resolution: Pixel/voxel resolution for anisotropic data (z, y, x)
@@ -216,10 +216,10 @@ def signed_distance_transform(
         alpha: Smoothness parameter for tanh normalization (default: 8.0)
                Higher values = sharper transitions at boundaries
                Lower values = smoother, more gradual transitions
-    
+
     Returns:
         Signed distance transform in range [-1, 1] with same shape as input
-        
+
     Example:
         >>> # 2D mitochondria segmentation
         >>> label_2d = np.array([[0, 0, 1, 1, 0],
@@ -227,10 +227,10 @@ def signed_distance_transform(
         ...                       [0, 0, 1, 0, 0]])
         >>> sdt_2d = signed_distance_transform(label_2d, resolution=(1.0, 1.0))
         >>> # sdt_2d will have positive values inside instance 1, negative outside
-        
+
         >>> # 3D volume with anisotropic resolution
         >>> sdt_3d = signed_distance_transform(label_3d, resolution=(40, 16, 16), alpha=8.0)
-    
+
     Notes:
         - This approach eliminates class imbalance by ensuring both foreground
           and background contribute meaningful gradients
@@ -243,32 +243,32 @@ def signed_distance_transform(
         resolution = resolution[-2:] if len(resolution) > 2 else resolution
     elif label.ndim == 3:
         resolution = resolution if len(resolution) == 3 else (1.0, 1.0, 1.0)
-    
+
     # Create binary masks
     foreground_mask = (label > 0).astype(np.uint8)
     background_mask = (label == 0).astype(np.uint8)
-    
+
     # Compute EDT for both foreground and background
     if foreground_mask.any():
         foreground_edt = distance_transform_edt(foreground_mask, sampling=resolution)
     else:
         # No foreground - return all negative
         return -np.ones_like(label, dtype=np.float32)
-    
+
     if background_mask.any():
         background_edt = distance_transform_edt(background_mask, sampling=resolution)
     else:
         # No background - return all positive
         return np.ones_like(label, dtype=np.float32)
-    
+
     # Combine into signed distance
     # Positive inside instances, negative outside
     sdt = np.where(foreground_mask, foreground_edt, -background_edt)
-    
+
     # Normalize to [-1, 1] using tanh
     # This provides smooth, bounded values suitable for regression
     sdt_normalized = np.tanh(sdt / alpha)
-    
+
     return sdt_normalized.astype(np.float32)
 
 
