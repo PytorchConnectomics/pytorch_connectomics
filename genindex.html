@@ -292,7 +292,6 @@
  | <a href="#P"><strong>P</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
- | <a href="#T"><strong>T</strong></a>
  | <a href="#U"><strong>U</strong></a>
  | <a href="#V"><strong>V</strong></a>
  | <a href="#W"><strong>W</strong></a>
@@ -302,8 +301,6 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/metrics.html#connectomics.metrics.adapted_rand">adapted_rand() (in module connectomics.metrics)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.allow_zero_length_dataloader_with_multiple_devices">allow_zero_length_dataloader_with_multiple_devices (connectomics.training.lit.ConnectomicsDataModule attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -336,8 +333,6 @@
       <li><a href="modules/metrics.html#connectomics.metrics.compute_skeleton_metrics">compute_skeleton_metrics() (in module connectomics.metrics)</a>
 </li>
       <li><a href="modules/data.html#connectomics.data.utils.compute_total_samples">compute_total_samples() (in module connectomics.data.utils)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.configure_optimizers">configure_optimizers() (connectomics.training.lit.ConnectomicsModule method)</a>
 </li>
       <li>
     connectomics.data.dataset
@@ -381,13 +376,9 @@
         <li><a href="modules/utils.html#module-connectomics.utils.visualizer">module</a>
 </li>
       </ul></li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule">ConnectomicsDataModule (class in connectomics.training.lit)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/model.html#connectomics.models.arch.ConnectomicsModel">ConnectomicsModel (class in connectomics.models.arch)</a>, <a href="modules/models.html#connectomics.models.arch.ConnectomicsModel">[1]</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule">ConnectomicsModule (class in connectomics.training.lit)</a>
 </li>
       <li><a href="modules/model.html#connectomics.models.loss.ContourDistanceConsistency">ContourDistanceConsistency (class in connectomics.models.loss)</a>, <a href="modules/models.html#connectomics.models.loss.ContourDistanceConsistency">[1]</a>
 </li>
@@ -414,8 +405,6 @@
       <li><a href="modules/data.html#connectomics.data.dataset.create_tile_data_dicts_from_json">create_tile_data_dicts_from_json() (in module connectomics.data.dataset)</a>
 </li>
       <li><a href="modules/data.html#connectomics.data.dataset.create_tile_dataset">create_tile_dataset() (in module connectomics.data.dataset)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.create_trainer">create_trainer() (in module connectomics.training.lit)</a>
 </li>
       <li><a href="modules/data.html#connectomics.data.dataset.create_volume_data_dicts">create_volume_data_dicts() (in module connectomics.data.dataset)</a>
 </li>
@@ -466,8 +455,6 @@
 </li>
         <li><a href="modules/model.html#connectomics.models.loss.WeightedMSELoss.forward">(connectomics.models.loss.WeightedMSELoss method)</a>, <a href="modules/models.html#connectomics.models.loss.WeightedMSELoss.forward">[1]</a>
 </li>
-        <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.forward">(connectomics.training.lit.ConnectomicsModule method)</a>
-</li>
       </ul></li>
   </ul></td>
 </tr></table>
@@ -483,9 +470,13 @@
 </li>
       <li><a href="modules/model.html#connectomics.models.arch.get_available_architectures">get_available_architectures() (in module connectomics.models.arch)</a>, <a href="modules/models.html#connectomics.models.arch.get_available_architectures">[1]</a>
 </li>
+      <li><a href="modules/metrics.html#connectomics.metrics.get_binary_jaccard">get_binary_jaccard() (in module connectomics.metrics)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/metrics.html#connectomics.metrics.get_binary_jaccard">get_binary_jaccard() (in module connectomics.metrics)</a>
+      <li><a href="modules/model.html#connectomics.models.loss.get_loss_metadata">get_loss_metadata() (in module connectomics.models.loss)</a>, <a href="modules/models.html#connectomics.models.loss.get_loss_metadata">[1]</a>
+</li>
+      <li><a href="modules/model.html#connectomics.models.loss.get_loss_metadata_for_module">get_loss_metadata_for_module() (in module connectomics.models.loss)</a>, <a href="modules/models.html#connectomics.models.loss.get_loss_metadata_for_module">[1]</a>
 </li>
       <li><a href="modules/model.html#connectomics.models.arch.ConnectomicsModel.get_model_info">get_model_info() (connectomics.models.arch.ConnectomicsModel method)</a>, <a href="modules/models.html#connectomics.models.arch.ConnectomicsModel.get_model_info">[1]</a>
 </li>
@@ -521,11 +512,13 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/utils.html#connectomics.utils.visualizer.LightningVisualizer">LightningVisualizer (class in connectomics.utils.visualizer)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/model.html#connectomics.models.arch.list_architectures">list_architectures() (in module connectomics.models.arch)</a>, <a href="modules/models.html#connectomics.models.arch.list_architectures">[1]</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/model.html#connectomics.models.loss.list_available_losses">list_available_losses() (in module connectomics.models.loss)</a>, <a href="modules/models.html#connectomics.models.loss.list_available_losses">[1]</a>
+</li>
+      <li><a href="modules/model.html#connectomics.models.loss.LossMetadata">LossMetadata (class in connectomics.models.loss)</a>, <a href="modules/models.html#connectomics.models.loss.LossMetadata">[1]</a>
 </li>
   </ul></td>
 </tr></table>
@@ -580,16 +573,10 @@
 <h2 id="O">O</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.on_test_end">on_test_end() (connectomics.training.lit.ConnectomicsModule method)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.on_test_start">on_test_start() (connectomics.training.lit.ConnectomicsModule method)</a>
+      <li><a href="modules/utils.html#connectomics.utils.visualizer.LightningVisualizer.on_train_batch_end">on_train_batch_end() (connectomics.utils.visualizer.LightningVisualizer method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/utils.html#connectomics.utils.visualizer.LightningVisualizer.on_train_batch_end">on_train_batch_end() (connectomics.utils.visualizer.LightningVisualizer method)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.on_train_epoch_end">on_train_epoch_end() (connectomics.training.lit.ConnectomicsModule method)</a>
-</li>
       <li><a href="modules/utils.html#connectomics.utils.visualizer.LightningVisualizer.on_validation_batch_end">on_validation_batch_end() (connectomics.utils.visualizer.LightningVisualizer method)</a>
 </li>
   </ul></td>
@@ -600,12 +587,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="modules/data.html#connectomics.data.utils.pad_volume_to_size">pad_volume_to_size() (in module connectomics.data.utils)</a>
 </li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.predict_dataloader">predict_dataloader() (connectomics.training.lit.ConnectomicsDataModule method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.prepare_data_per_node">prepare_data_per_node (connectomics.training.lit.ConnectomicsDataModule attribute)</a>
-</li>
       <li><a href="modules/model.html#connectomics.models.arch.print_available_architectures">print_available_architectures() (in module connectomics.models.arch)</a>, <a href="modules/models.html#connectomics.models.arch.print_available_architectures">[1]</a>
 </li>
   </ul></td>
@@ -626,35 +609,15 @@
 </li>
       <li><a href="modules/data.html#connectomics.data.dataset.MonaiCachedConnectomicsDataset.set_epoch">set_epoch() (connectomics.data.dataset.MonaiCachedConnectomicsDataset method)</a>
 </li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.setup">setup() (connectomics.training.lit.ConnectomicsDataModule method)</a>
+      <li><a href="modules/data.html#connectomics.data.utils.split_and_pad_volume">split_and_pad_volume() (in module connectomics.data.utils)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/data.html#connectomics.data.utils.split_and_pad_volume">split_and_pad_volume() (in module connectomics.data.utils)</a>
-</li>
       <li><a href="modules/data.html#connectomics.data.utils.split_volume_train_val">split_volume_train_val() (in module connectomics.data.utils)</a>
 </li>
       <li><a href="modules/data.html#connectomics.data.dataset.StratifiedConcatDataset">StratifiedConcatDataset (class in connectomics.data.dataset)</a>
 </li>
       <li><a href="modules/model.html#connectomics.models.arch.ConnectomicsModel.summary">summary() (connectomics.models.arch.ConnectomicsModel method)</a>, <a href="modules/models.html#connectomics.models.arch.ConnectomicsModel.summary">[1]</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="T">T</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.test_dataloader">test_dataloader() (connectomics.training.lit.ConnectomicsDataModule method)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.test_step">test_step() (connectomics.training.lit.ConnectomicsModule method)</a>
-</li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.train_dataloader">train_dataloader() (connectomics.training.lit.ConnectomicsDataModule method)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.training_step">training_step() (connectomics.training.lit.ConnectomicsModule method)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.transfer_batch_to_device">transfer_batch_to_device() (connectomics.training.lit.ConnectomicsModule method)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -674,14 +637,10 @@
 <h2 id="V">V</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsDataModule.val_dataloader">val_dataloader() (connectomics.training.lit.ConnectomicsDataModule method)</a>
-</li>
-      <li><a href="modules/lightning.html#connectomics.training.lit.ConnectomicsModule.validation_step">validation_step() (connectomics.training.lit.ConnectomicsModule method)</a>
+      <li><a href="modules/utils.html#connectomics.utils.visualizer.Visualizer.visualize">visualize() (connectomics.utils.visualizer.Visualizer method)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="modules/utils.html#connectomics.utils.visualizer.Visualizer.visualize">visualize() (connectomics.utils.visualizer.Visualizer method)</a>
-</li>
       <li><a href="modules/utils.html#connectomics.utils.visualizer.Visualizer.visualize_consecutive_slices">visualize_consecutive_slices() (connectomics.utils.visualizer.Visualizer method)</a>
 </li>
       <li><a href="modules/utils.html#connectomics.utils.visualizer.Visualizer">Visualizer (class in connectomics.utils.visualizer)</a>

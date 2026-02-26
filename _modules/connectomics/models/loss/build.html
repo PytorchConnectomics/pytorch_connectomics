@@ -288,6 +288,13 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LossMetadata</span><span class="p">,</span>
+    <span class="n">attach_loss_metadata</span><span class="p">,</span>
+    <span class="n">get_loss_metadata</span><span class="p">,</span>
+    <span class="n">get_loss_metadata_for_module</span><span class="p">,</span>
+<span class="p">)</span>
+
 <span class="c1"># Import MONAI losses</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">monai.losses</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">DiceLoss</span><span class="p">,</span>
@@ -369,7 +376,8 @@
         <span class="n">available</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">loss_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown loss: </span><span class="si">{</span><span class="n">loss_name</span><span class="si">}</span><span class="s2">. Available losses: </span><span class="si">{</span><span class="n">available</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">loss_registry</span><span class="p">[</span><span class="n">loss_name</span><span class="p">](</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+    <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">loss_registry</span><span class="p">[</span><span class="n">loss_name</span><span class="p">](</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">attach_loss_metadata</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">loss_name</span><span class="p">)</span></div>
 
 
 
@@ -620,6 +628,9 @@
     <span class="s2">&quot;create_multiclass_segmentation_loss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;create_focal_loss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;list_available_losses&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;LossMetadata&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_loss_metadata&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;get_loss_metadata_for_module&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
 

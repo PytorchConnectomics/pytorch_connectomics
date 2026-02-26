@@ -758,6 +758,22 @@ LSGAN needs no sigmoid. Vanilla GANs will handle it with BCEWithLogitsLoss.</p>
 </dd></dl>
 
 <dl class="py class">
+<dt class="sig sig-object py" id="connectomics.models.loss.LossMetadata">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">LossMetadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">call_kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pred_target'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_kind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dense'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spatial_weight_arg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/metadata.html#LossMetadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.LossMetadata" title="Link to this definition">¶</a></dt>
+<dd><p>Static metadata describing how to invoke a loss module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>call_kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>target_kind</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>spatial_weight_arg</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
 <dt class="sig sig-object py" id="connectomics.models.loss.NonOverlapRegularization">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">NonOverlapRegularization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cleft_masked</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#NonOverlapRegularization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.NonOverlapRegularization" title="Link to this definition">¶</a></dt>
 <dd><p>Regularization preventing overlapping predictions.</p>
@@ -1026,6 +1042,34 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.get_loss_metadata">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">get_loss_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/metadata.html#get_loss_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.get_loss_metadata" title="Link to this definition">¶</a></dt>
+<dd><p>Return registered metadata for a known loss name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>loss_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="models.html#connectomics.models.loss.LossMetadata" title="connectomics.models.loss.metadata.LossMetadata"><em>LossMetadata</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.models.loss.get_loss_metadata_for_module">
+<span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">get_loss_metadata_for_module</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/metadata.html#get_loss_metadata_for_module"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.get_loss_metadata_for_module" title="Link to this definition">¶</a></dt>
+<dd><p>Fetch metadata from an annotated module, or infer a safe fallback.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>loss_fn</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><em>Module</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="models.html#connectomics.models.loss.LossMetadata" title="connectomics.models.loss.metadata.LossMetadata"><em>LossMetadata</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="connectomics.models.loss.list_available_losses">
 <span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">list_available_losses</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/build.html#list_available_losses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.list_available_losses" title="Link to this definition">¶</a></dt>
 <dd><p>List all available loss functions.</p>
@@ -1129,6 +1173,7 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 <li><a class="reference internal" href="#connectomics.models.loss.GANLoss.get_target_tensor"><code class="docutils literal notranslate"><span class="pre">GANLoss.get_target_tensor()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#connectomics.models.loss.LossMetadata"><code class="docutils literal notranslate"><span class="pre">LossMetadata</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.NonOverlapRegularization"><code class="docutils literal notranslate"><span class="pre">NonOverlapRegularization</span></code></a><ul>
 <li><a class="reference internal" href="#connectomics.models.loss.NonOverlapRegularization.forward"><code class="docutils literal notranslate"><span class="pre">NonOverlapRegularization.forward()</span></code></a></li>
 </ul>
@@ -1147,6 +1192,8 @@ With both pred and target in [-1, 1], MSE should be &lt; 4.</p></li>
 <li><a class="reference internal" href="#connectomics.models.loss.create_loss"><code class="docutils literal notranslate"><span class="pre">create_loss()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.create_loss_from_config"><code class="docutils literal notranslate"><span class="pre">create_loss_from_config()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.create_multiclass_segmentation_loss"><code class="docutils literal notranslate"><span class="pre">create_multiclass_segmentation_loss()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.get_loss_metadata"><code class="docutils literal notranslate"><span class="pre">get_loss_metadata()</span></code></a></li>
+<li><a class="reference internal" href="#connectomics.models.loss.get_loss_metadata_for_module"><code class="docutils literal notranslate"><span class="pre">get_loss_metadata_for_module()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.models.loss.list_available_losses"><code class="docutils literal notranslate"><span class="pre">list_available_losses()</span></code></a></li>
 </ul>
 </li>
