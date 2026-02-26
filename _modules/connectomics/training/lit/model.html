@@ -873,16 +873,22 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">training_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">batch_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">STEP_OUTPUT</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Training step with deep supervision support.&quot;&quot;&quot;</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">...utils.debug_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_tensor_stats</span>
-        
+
         <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+        <span class="n">raw_mask</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mask&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Binarize mask: (B, 1, D, H, W) float, 1 = valid, 0 = ignore</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_mask</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span> <span class="k">if</span> <span class="n">raw_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">batch_idx</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_epoch</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">pdb</span><span class="p">;</span> <span class="n">pdb</span><span class="o">.</span><span class="n">set_trace</span><span class="p">()</span>
 
         <span class="c1"># Forward pass</span>
         <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
         <span class="c1"># Check if model outputs deep supervision</span>
         <span class="n">is_deep_supervision</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;ds_&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">outputs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-        
+
         <span class="c1"># DEBUG: Print model output (raw logits, before any activation)</span>
         <span class="k">if</span> <span class="n">batch_idx</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">pred_for_debug</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">is_deep_supervision</span> <span class="k">else</span> <span class="n">outputs</span>
@@ -900,11 +906,11 @@
         <span class="c1"># Compute loss using deep supervision handler</span>
         <span class="k">if</span> <span class="n">is_deep_supervision</span><span class="p">:</span>
             <span class="n">total_loss</span><span class="p">,</span> <span class="n">loss_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deep_supervision_handler</span><span class="o">.</span><span class="n">compute_deep_supervision_loss</span><span class="p">(</span>
-                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span>
+                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">total_loss</span><span class="p">,</span> <span class="n">loss_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deep_supervision_handler</span><span class="o">.</span><span class="n">compute_standard_loss</span><span class="p">(</span>
-                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span>
+                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span>
             <span class="p">)</span>
 
         <span class="c1"># [D1] Training diagnostics: log prediction and target statistics to detect SDT collapse</span>
@@ -959,6 +965,8 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validation step with deep supervision support.&quot;&quot;&quot;</span>
         <span class="n">images</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">]</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+        <span class="n">raw_mask</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mask&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">raw_mask</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span> <span class="k">if</span> <span class="n">raw_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
 
         <span class="c1"># Forward pass</span>
         <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
@@ -969,11 +977,11 @@
         <span class="c1"># Compute loss using deep supervision handler</span>
         <span class="k">if</span> <span class="n">is_deep_supervision</span><span class="p">:</span>
             <span class="n">total_loss</span><span class="p">,</span> <span class="n">loss_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deep_supervision_handler</span><span class="o">.</span><span class="n">compute_deep_supervision_loss</span><span class="p">(</span>
-                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;val&quot;</span>
+                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;val&quot;</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">total_loss</span><span class="p">,</span> <span class="n">loss_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deep_supervision_handler</span><span class="o">.</span><span class="n">compute_standard_loss</span><span class="p">(</span>
-                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;val&quot;</span>
+                <span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;val&quot;</span><span class="p">,</span> <span class="n">mask</span><span class="o">=</span><span class="n">mask</span>
             <span class="p">)</span>
 
         <span class="c1"># Compute evaluation metrics if enabled</span>
