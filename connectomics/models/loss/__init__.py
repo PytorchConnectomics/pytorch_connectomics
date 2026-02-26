@@ -16,6 +16,12 @@ from .build import (
     create_multiclass_segmentation_loss,
     create_focal_loss,
     list_available_losses,
+    LossMetadata,
+    LossTermSpec,
+    get_loss_metadata,
+    get_loss_metadata_for_module,
+    compile_loss_terms_from_config,
+    infer_num_loss_tasks_from_config,
 )
 
 # Connectomics-specific losses (for direct use if needed)
@@ -48,6 +54,12 @@ __all__ = [
     "create_focal_loss",
     # Utility
     "list_available_losses",
+    "LossMetadata",
+    "LossTermSpec",
+    "get_loss_metadata",
+    "get_loss_metadata_for_module",
+    "compile_loss_terms_from_config",
+    "infer_num_loss_tasks_from_config",
     # Custom losses
     "WeightedMSELoss",
     "WeightedMAELoss",
