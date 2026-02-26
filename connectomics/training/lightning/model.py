@@ -14,40 +14,40 @@ The implementation delegates to specialized modules:
 """
 
 from __future__ import annotations
-from typing import Dict, List, Any, Optional, Union
+
 import os
-import warnings
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
-from pytorch_lightning.utilities.types import STEP_OUTPUT
-from omegaconf import DictConfig
 import torchmetrics
-
+from omegaconf import DictConfig
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 DEBUG_D1 = os.environ.get("PYTC_DEBUG_D1", "0").lower() in {"1", "true", "yes", "on"}
+DEBUG_PDB = os.environ.get("PYTC_DEBUG_PDB", "0").lower() in {"1", "true", "yes", "on"}
 
 # Import existing components
-from ...models import build_model
-from ...models.loss import create_loss, get_loss_metadata_for_module
 from ...config import Config
-
-# Import training/inference components
-from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
-from ..debugging import DebugManager
-from ..model_weights import load_external_weights
-from ..optim import build_optimizer, build_lr_scheduler
 from ...decoding import apply_decode_mode, resolve_decode_modes_from_cfg
 from ...inference import (
     InferenceManager,
-    apply_save_prediction_transform,
     apply_postprocessing,
+    apply_save_prediction_transform,
     resolve_output_filenames,
     write_outputs,
 )
+from ...models import build_model
+from ...models.loss import create_loss, get_loss_metadata_for_module
+from ..debugging import DebugManager
+
+# Import training/inference components
+from ..loss import LossOrchestrator, build_loss_weighter, infer_num_loss_tasks_from_config
+from ..model_weights import load_external_weights
+from ..optim import build_lr_scheduler, build_optimizer
 
 
 class ConnectomicsModule(pl.LightningModule):
@@ -74,7 +74,7 @@ class ConnectomicsModule(pl.LightningModule):
     ):
         super().__init__()
         self.cfg = cfg
-        self.save_hyperparameters(ignore=['model'])
+        self.save_hyperparameters(ignore=["model"])
 
         # Build model
         self.model = model if model is not None else self._build_model(cfg)
@@ -83,23 +83,25 @@ class ConnectomicsModule(pl.LightningModule):
         self.loss_functions = self._build_losses(cfg)
         self.loss_weights = (
             cfg.model.loss_weights
-            if hasattr(cfg.model, 'loss_weights')
+            if hasattr(cfg.model, "loss_weights")
             else [1.0] * len(self.loss_functions)
         )
-        self.loss_metadata = [get_loss_metadata_for_module(loss_fn) for loss_fn in self.loss_functions]
+        self.loss_metadata = [
+            get_loss_metadata_for_module(loss_fn) for loss_fn in self.loss_functions
+        ]
 
         # Build adaptive loss weighter (for multi-task learning)
         num_tasks = infer_num_loss_tasks_from_config(cfg)
         self.loss_weighter = build_loss_weighter(cfg, num_tasks, model=self.model)
 
         # Enable inline NaN detection (can be disabled via config)
-        self.enable_nan_detection = getattr(cfg.model, 'enable_nan_detection', True)
-        self.debug_on_nan = getattr(cfg.model, 'debug_on_nan', True)
+        self.enable_nan_detection = getattr(cfg.model, "enable_nan_detection", True)
+        self.debug_on_nan = getattr(cfg.model, "debug_on_nan", True)
 
         # Activation clamping to prevent inf (can be configured)
-        self.clamp_activations = getattr(cfg.model, 'clamp_activations', False)
-        self.clamp_min = getattr(cfg.model, 'clamp_min', -10.0)
-        self.clamp_max = getattr(cfg.model, 'clamp_max', 10.0)
+        self.clamp_activations = getattr(cfg.model, "clamp_activations", False)
+        self.clamp_min = getattr(cfg.model, "clamp_min", -10.0)
+        self.clamp_max = getattr(cfg.model, "clamp_max", 10.0)
 
         # Initialize specialized handlers
         self.loss_orchestrator = LossOrchestrator(
@@ -141,8 +143,10 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _build_losses(self, cfg) -> nn.ModuleList:
         """Build loss functions from configuration."""
-        loss_names = cfg.model.loss_functions if hasattr(cfg.model, 'loss_functions') else ['DiceLoss']
-        if hasattr(cfg.model, 'loss_kwargs') and cfg.model.loss_kwargs is not None:
+        loss_names = (
+            cfg.model.loss_functions if hasattr(cfg.model, "loss_functions") else ["DiceLoss"]
+        )
+        if hasattr(cfg.model, "loss_kwargs") and cfg.model.loss_kwargs is not None:
             loss_kwargs_list = list(cfg.model.loss_kwargs)
         else:
             loss_kwargs_list = []
@@ -150,7 +154,7 @@ class ConnectomicsModule(pl.LightningModule):
         if len(loss_kwargs_list) < len(loss_names):
             loss_kwargs_list = loss_kwargs_list + [{}] * (len(loss_names) - len(loss_kwargs_list))
         elif len(loss_kwargs_list) > len(loss_names):
-            loss_kwargs_list = loss_kwargs_list[:len(loss_names)]
+            loss_kwargs_list = loss_kwargs_list[: len(loss_names)]
 
         losses = nn.ModuleList()
         for loss_name, kwargs in zip(loss_names, loss_kwargs_list):
@@ -209,46 +213,64 @@ class ConnectomicsModule(pl.LightningModule):
         if not self._is_test_evaluation_enabled():
             return
 
-        metrics = evaluation_config.get('metrics', None) if isinstance(evaluation_config, dict) else getattr(evaluation_config, 'metrics', None)
+        metrics = (
+            evaluation_config.get("metrics", None)
+            if isinstance(evaluation_config, dict)
+            else getattr(evaluation_config, "metrics", None)
+        )
         if metrics is None:
             return
 
-        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+        num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, "out_channels") else 2
 
         # Create only the specified metrics
-        if 'jaccard' in metrics:
+        if "jaccard" in metrics:
             if num_classes == 1:
                 # Binary segmentation - use binary metrics
-                self.test_jaccard = torchmetrics.JaccardIndex(task='binary').to(self.device)
+                self.test_jaccard = torchmetrics.JaccardIndex(task="binary").to(self.device)
             else:
                 # Multi-class segmentation
-                self.test_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
-        if 'dice' in metrics:
+                self.test_jaccard = torchmetrics.JaccardIndex(
+                    task="multiclass", num_classes=num_classes
+                ).to(self.device)
+        if "dice" in metrics:
             if num_classes == 1:
                 # Binary segmentation - use binary metrics
-                self.test_dice = torchmetrics.Dice(task='binary').to(self.device)
+                self.test_dice = torchmetrics.Dice(task="binary").to(self.device)
             else:
                 # Multi-class segmentation
-                self.test_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
-        if 'accuracy' in metrics:
+                self.test_dice = torchmetrics.Dice(num_classes=num_classes, average="macro").to(
+                    self.device
+                )
+        if "accuracy" in metrics:
             if num_classes == 1:
                 # Binary segmentation - use binary metrics
-                self.test_accuracy = torchmetrics.Accuracy(task='binary').to(self.device)
+                self.test_accuracy = torchmetrics.Accuracy(task="binary").to(self.device)
             else:
                 # Multi-class segmentation
-                self.test_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
-        if 'adapted_rand' in metrics:
+                self.test_accuracy = torchmetrics.Accuracy(
+                    task="multiclass", num_classes=num_classes
+                ).to(self.device)
+        if "adapted_rand" in metrics:
             from ...metrics.metrics_seg import AdaptedRandError
+
             self.test_adapted_rand = AdaptedRandError().to(self.device)
-        if 'voi' in metrics:
+        if "voi" in metrics:
             from ...metrics.metrics_seg import VariationOfInformation
+
             self.test_voi = VariationOfInformation().to(self.device)
-        if 'instance_accuracy' in metrics:
+        if "instance_accuracy" in metrics:
             from ...metrics.metrics_seg import InstanceAccuracy
-            self.test_instance_accuracy = InstanceAccuracy(thresh=0.5, criterion='iou').to(self.device)
-        if 'instance_accuracy_detail' in metrics:
+
+            self.test_instance_accuracy = InstanceAccuracy(thresh=0.5, criterion="iou").to(
+                self.device
+            )
+        if "instance_accuracy_detail" in metrics:
             from ...metrics.metrics_seg import InstanceAccuracySimple
-            self.test_instance_accuracy_detail = InstanceAccuracySimple(thresh=0.5, criterion='iou').to(self.device)
+
+            self.test_instance_accuracy_detail = InstanceAccuracySimple(
+                thresh=0.5, criterion="iou"
+            ).to(self.device)
 
     def _invert_save_prediction_transform(self, data: np.ndarray) -> np.ndarray:
         """
@@ -283,11 +305,15 @@ class ConnectomicsModule(pl.LightningModule):
             data = data / float(intensity_scale)
             print(f"  🔄 Inverted intensity scaling by {intensity_scale}")
         elif intensity_scale is not None and intensity_scale < 0:
-            print(f"  ℹ️  Intensity scaling was disabled (scale={intensity_scale}), no inversion needed")
+            print(
+                f"  ℹ️  Intensity scaling was disabled (scale={intensity_scale}), no inversion needed"
+            )
 
         return data
 
-    def _resolve_test_output_config(self, batch: Dict[str, Any]) -> tuple[str, Optional[str], str, List[str]]:
+    def _resolve_test_output_config(
+        self, batch: Dict[str, Any]
+    ) -> tuple[str, Optional[str], str, List[str]]:
         """Determine mode, output dir, cache suffix, and filenames for test/tune."""
         mode = "test"
         output_dir_value = None
@@ -323,6 +349,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         for filename in filenames:
             from connectomics.data.io import read_hdf5
+
             pred_file = output_dir / f"{filename}{cache_suffix}"
             if not pred_file.exists() and mode == "test" and cache_suffix != "_tta_prediction.h5":
                 tta_pred_file = output_dir / f"{filename}_tta_prediction.h5"
@@ -361,84 +388,104 @@ class ConnectomicsModule(pl.LightningModule):
     def _save_metrics_to_file(self, metrics_dict: Dict[str, Any]):
         """
         Save evaluation metrics to a text file in the output directory.
-        
+
         Args:
             metrics_dict: Dictionary containing metric names and values
         """
-        metric_keys = [k for k in metrics_dict.keys() if k != 'volume_name']
+        metric_keys = [k for k in metrics_dict.keys() if k != "volume_name"]
         if not metric_keys:
             return
 
         # Get output path from config
         output_path = None
-        if hasattr(self.cfg, 'test') and hasattr(self.cfg.test, 'data'):
-            output_path = getattr(self.cfg.test.data, 'output_path', None)
-        
+        if hasattr(self.cfg, "test") and hasattr(self.cfg.test, "data"):
+            output_path = getattr(self.cfg.test.data, "output_path", None)
+
         if output_path is None:
             print("  ⚠️  Cannot save metrics: output_path not found in config")
             return
-        
-        from pathlib import Path
+
         from datetime import datetime
-        
+        from pathlib import Path
+
         output_dir = Path(output_path)
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Create filename with volume name and timestamp
-        volume_name = metrics_dict.get('volume_name', 'unknown')
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        volume_name = metrics_dict.get("volume_name", "unknown")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         metrics_file = output_dir / f"evaluation_metrics_{volume_name}.txt"
-        
+
         # Write metrics to file
         try:
-            with open(metrics_file, 'w') as f:
+            with open(metrics_file, "w") as f:
                 f.write("=" * 80 + "\n")
                 f.write("EVALUATION METRICS\n")
                 f.write("=" * 80 + "\n")
                 f.write(f"Timestamp: {timestamp}\n")
                 f.write(f"Volume: {volume_name}\n")
                 f.write("=" * 80 + "\n\n")
-                
+
                 # Write instance segmentation metrics
-                if 'adapted_rand_error' in metrics_dict:
+                if "adapted_rand_error" in metrics_dict:
                     f.write("Instance Segmentation Metrics:\n")
                     f.write("-" * 80 + "\n")
-                    f.write(f"  Adapted Rand Error:           {metrics_dict['adapted_rand_error']:.6f}\n")
-                    
-                    if 'voi_split' in metrics_dict:
-                        f.write(f"  VOI Split:                    {metrics_dict['voi_split']:.6f}\n")
-                        f.write(f"  VOI Merge:                    {metrics_dict['voi_merge']:.6f}\n")
-                        f.write(f"  VOI Total:                    {metrics_dict['voi_total']:.6f}\n")
-                    
-                    if 'instance_accuracy' in metrics_dict:
-                        f.write(f"  Instance Accuracy:            {metrics_dict['instance_accuracy']:.6f}\n")
-                    
-                    if 'instance_accuracy_detail' in metrics_dict:
-                        f.write(f"\n  Instance Accuracy (Detail):   {metrics_dict['instance_accuracy_detail']:.6f}\n")
-                        f.write(f"    ├─ Precision:               {metrics_dict['instance_precision_detail']:.6f}\n")
-                        f.write(f"    ├─ Recall:                  {metrics_dict['instance_recall_detail']:.6f}\n")
-                        f.write(f"    └─ F1:                      {metrics_dict['instance_f1_detail']:.6f}\n")
+                    f.write(
+                        f"  Adapted Rand Error:           {metrics_dict['adapted_rand_error']:.6f}\n"
+                    )
+
+                    if "voi_split" in metrics_dict:
+                        f.write(
+                            f"  VOI Split:                    {metrics_dict['voi_split']:.6f}\n"
+                        )
+                        f.write(
+                            f"  VOI Merge:                    {metrics_dict['voi_merge']:.6f}\n"
+                        )
+                        f.write(
+                            f"  VOI Total:                    {metrics_dict['voi_total']:.6f}\n"
+                        )
+
+                    if "instance_accuracy" in metrics_dict:
+                        f.write(
+                            f"  Instance Accuracy:            {metrics_dict['instance_accuracy']:.6f}\n"
+                        )
+
+                    if "instance_accuracy_detail" in metrics_dict:
+                        f.write(
+                            f"\n  Instance Accuracy (Detail):   {metrics_dict['instance_accuracy_detail']:.6f}\n"
+                        )
+                        f.write(
+                            f"    ├─ Precision:               {metrics_dict['instance_precision_detail']:.6f}\n"
+                        )
+                        f.write(
+                            f"    ├─ Recall:                  {metrics_dict['instance_recall_detail']:.6f}\n"
+                        )
+                        f.write(
+                            f"    └─ F1:                      {metrics_dict['instance_f1_detail']:.6f}\n"
+                        )
                     f.write("\n")
-                
+
                 # Write binary/semantic segmentation metrics
-                if 'jaccard' in metrics_dict or 'dice' in metrics_dict:
+                if "jaccard" in metrics_dict or "dice" in metrics_dict:
                     f.write("Binary/Semantic Segmentation Metrics:\n")
                     f.write("-" * 80 + "\n")
-                    if 'jaccard' in metrics_dict:
+                    if "jaccard" in metrics_dict:
                         f.write(f"  Jaccard Index:                {metrics_dict['jaccard']:.6f}\n")
-                    if 'dice' in metrics_dict:
+                    if "dice" in metrics_dict:
                         f.write(f"  Dice Score:                   {metrics_dict['dice']:.6f}\n")
-                    if 'accuracy' in metrics_dict:
+                    if "accuracy" in metrics_dict:
                         f.write(f"  Accuracy:                     {metrics_dict['accuracy']:.6f}\n")
                     f.write("\n")
-                
+
                 f.write("=" * 80 + "\n")
-            
+
             print(f"  💾 Metrics saved to: {metrics_file}")
         except Exception as e:
             print(f"  ⚠️  Failed to save metrics to file: {e}")
-    
-    def _compute_test_metrics(self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None):
+
+    def _compute_test_metrics(
+        self, decoded_predictions: np.ndarray, labels: torch.Tensor, volume_name: str = None
+    ):
         """Update configured torchmetrics using decoded predictions and print per-volume metrics."""
         if not self._is_test_evaluation_enabled():
             return
@@ -463,24 +510,26 @@ class ConnectomicsModule(pl.LightningModule):
 
             # If still mismatched after dimension alignment, skip metrics
             if pred_tensor.shape != labels_tensor.shape:
-                print(f"  ❌ Cannot compute metrics: incompatible shapes after alignment")
+                print("  ❌ Cannot compute metrics: incompatible shapes after alignment")
                 print(f"     pred={pred_tensor.shape}, labels={labels_tensor.shape}")
                 return
 
         # Compute per-volume metrics (print immediately)
         volume_prefix = f"[{volume_name}] " if volume_name else ""
-        
+
         # Dictionary to collect all metrics for saving to file
         metrics_dict = {}
-        metrics_dict['volume_name'] = volume_name if volume_name else "unknown"
+        metrics_dict["volume_name"] = volume_name if volume_name else "unknown"
 
         # Determine if this is instance segmentation or binary/semantic segmentation
         # Instance segmentation: predictions have integer instance IDs (0, 1, 2, ..., N)
         # Binary/semantic segmentation: predictions are probabilities [0, 1] or logits
-        is_instance_segmentation = (
-            pred_tensor.dtype in [torch.int8, torch.int16, torch.int32, torch.int64]
-            or (pred_tensor.dtype == torch.float32 and pred_tensor.max() > 1.0)
-        )
+        is_instance_segmentation = pred_tensor.dtype in [
+            torch.int8,
+            torch.int16,
+            torch.int32,
+            torch.int64,
+        ] or (pred_tensor.dtype == torch.float32 and pred_tensor.max() > 1.0)
 
         if is_instance_segmentation:
             # For instance segmentation: use instance IDs directly
@@ -488,25 +537,31 @@ class ConnectomicsModule(pl.LightningModule):
             labels_instances = labels_tensor.long()
 
             # Adapted Rand Error is for instance segmentation
-            if hasattr(self, "test_adapted_rand") and isinstance(self.test_adapted_rand, torchmetrics.Metric):
+            if hasattr(self, "test_adapted_rand") and isinstance(
+                self.test_adapted_rand, torchmetrics.Metric
+            ):
                 from ...metrics.metrics_seg import AdaptedRandError
+
                 # Use return_all_stats=True to get precision and recall
                 per_volume_metric = AdaptedRandError(return_all_stats=True).to(self.device)
                 per_volume_metric.update(pred_instances.cpu(), labels_instances.cpu())
                 adapted_rand_value = per_volume_metric.compute()
                 if isinstance(adapted_rand_value, dict):
-                    are_score = adapted_rand_value.get('adapted_rand_error', adapted_rand_value.get('are', list(adapted_rand_value.values())[0]))
-                    are_score = are_score.item() if hasattr(are_score, 'item') else float(are_score)
+                    are_score = adapted_rand_value.get(
+                        "adapted_rand_error",
+                        adapted_rand_value.get("are", list(adapted_rand_value.values())[0]),
+                    )
+                    are_score = are_score.item() if hasattr(are_score, "item") else float(are_score)
                 else:
                     are_score = adapted_rand_value.item()
                 print(f"  {volume_prefix}Adapted Rand Error: {are_score:.6f}")
                 if isinstance(adapted_rand_value, dict):
                     for k, v in adapted_rand_value.items():
-                        val = v.item() if hasattr(v, 'item') else float(v)
+                        val = v.item() if hasattr(v, "item") else float(v)
                         print(f"  {volume_prefix}  {k}: {val:.6f}")
-                
+
                 # Collect metric
-                metrics_dict['adapted_rand_error'] = are_score
+                metrics_dict["adapted_rand_error"] = are_score
 
                 # Update running metric for epoch-level aggregation
                 self.test_adapted_rand.update(pred_instances.cpu(), labels_instances.cpu())
@@ -514,76 +569,173 @@ class ConnectomicsModule(pl.LightningModule):
                 # Log metrics - handle both dict and tensor return values
                 epoch_stats = self.test_adapted_rand.compute()
                 if isinstance(epoch_stats, dict):
-                    self.log("test_adapted_rand", epoch_stats['adapted_rand_error'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
-                    self.log("test_adapted_rand_precision", epoch_stats['adapted_rand_precision'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
-                    self.log("test_adapted_rand_recall", epoch_stats['adapted_rand_recall'], on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    self.log(
+                        "test_adapted_rand",
+                        epoch_stats["adapted_rand_error"],
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=True,
+                        logger=True,
+                    )
+                    self.log(
+                        "test_adapted_rand_precision",
+                        epoch_stats["adapted_rand_precision"],
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=True,
+                        logger=True,
+                    )
+                    self.log(
+                        "test_adapted_rand_recall",
+                        epoch_stats["adapted_rand_recall"],
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=True,
+                        logger=True,
+                    )
                 else:
-                    self.log("test_adapted_rand", epoch_stats, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                    self.log(
+                        "test_adapted_rand",
+                        epoch_stats,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=True,
+                        logger=True,
+                    )
 
             # VOI (Variation of Information) is for instance segmentation
             if hasattr(self, "test_voi") and isinstance(self.test_voi, torchmetrics.Metric):
                 from ...metrics.segmentation_numpy import voi
-                from ...metrics.metrics_seg import VariationOfInformation
-                
+
                 # Compute per-volume VOI for immediate feedback
                 split, merge = voi(pred_instances.cpu().numpy(), labels_instances.cpu().numpy())
                 print(f"  {volume_prefix}VOI Split: {split:.6f}")
                 print(f"  {volume_prefix}VOI Merge: {merge:.6f}")
                 print(f"  {volume_prefix}VOI Total: {split + merge:.6f}")
-                
+
                 # Collect metrics
-                metrics_dict['voi_split'] = split
-                metrics_dict['voi_merge'] = merge
-                metrics_dict['voi_total'] = split + merge
+                metrics_dict["voi_split"] = split
+                metrics_dict["voi_merge"] = merge
+                metrics_dict["voi_total"] = split + merge
 
                 # Update running metric for epoch-level aggregation
                 self.test_voi.update(pred_instances.cpu(), labels_instances.cpu())
-                self.log("test_voi", self.test_voi, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-                self.log("test_voi_split", self.test_voi.compute_split(), on_step=False, on_epoch=True, prog_bar=False, logger=True)
-                self.log("test_voi_merge", self.test_voi.compute_merge(), on_step=False, on_epoch=True, prog_bar=False, logger=True)
+                self.log(
+                    "test_voi",
+                    self.test_voi,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=True,
+                    logger=True,
+                )
+                self.log(
+                    "test_voi_split",
+                    self.test_voi.compute_split(),
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=False,
+                    logger=True,
+                )
+                self.log(
+                    "test_voi_merge",
+                    self.test_voi.compute_merge(),
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=False,
+                    logger=True,
+                )
 
             # Instance Accuracy (from instance_matching)
-            if hasattr(self, "test_instance_accuracy") and isinstance(self.test_instance_accuracy, torchmetrics.Metric):
+            if hasattr(self, "test_instance_accuracy") and isinstance(
+                self.test_instance_accuracy, torchmetrics.Metric
+            ):
                 from ...metrics.segmentation_numpy import instance_matching
-                from ...metrics.metrics_seg import InstanceAccuracy
-                
+
                 # Compute per-volume instance accuracy for immediate feedback
-                stats = instance_matching(labels_instances.cpu().numpy(), pred_instances.cpu().numpy(), 
-                                        thresh=0.5, criterion='iou')
+                stats = instance_matching(
+                    labels_instances.cpu().numpy(),
+                    pred_instances.cpu().numpy(),
+                    thresh=0.5,
+                    criterion="iou",
+                )
                 print(f"  {volume_prefix}Instance Accuracy: {stats['accuracy']:.6f}")
-                
+
                 # Collect metric
-                metrics_dict['instance_accuracy'] = stats['accuracy']
+                metrics_dict["instance_accuracy"] = stats["accuracy"]
 
                 # Update running metric for epoch-level aggregation
                 self.test_instance_accuracy.update(pred_instances.cpu(), labels_instances.cpu())
-                self.log("test_instance_accuracy", self.test_instance_accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                self.log(
+                    "test_instance_accuracy",
+                    self.test_instance_accuracy,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=True,
+                    logger=True,
+                )
 
             # Instance Accuracy Detail (relaxed, no Hungarian matching - for debugging only)
-            if hasattr(self, "test_instance_accuracy_detail") and isinstance(self.test_instance_accuracy_detail, torchmetrics.Metric):
+            if hasattr(self, "test_instance_accuracy_detail") and isinstance(
+                self.test_instance_accuracy_detail, torchmetrics.Metric
+            ):
                 from ...metrics.segmentation_numpy import instance_matching_simple
-                from ...metrics.metrics_seg import InstanceAccuracySimple
-                
+
                 # Compute per-volume relaxed instance accuracy for immediate feedback
-                stats_simple = instance_matching_simple(labels_instances.cpu().numpy(), pred_instances.cpu().numpy(), 
-                                                       thresh=0.5, criterion='iou')
-                print(f"  {volume_prefix}Instance Accuracy (Detail): {stats_simple['accuracy']:.6f} [relaxed, non-Hungarian]")
+                stats_simple = instance_matching_simple(
+                    labels_instances.cpu().numpy(),
+                    pred_instances.cpu().numpy(),
+                    thresh=0.5,
+                    criterion="iou",
+                )
+                print(
+                    f"  {volume_prefix}Instance Accuracy (Detail): {stats_simple['accuracy']:.6f} [relaxed, non-Hungarian]"
+                )
                 print(f"  {volume_prefix}  ├─ Precision: {stats_simple['precision']:.6f}")
                 print(f"  {volume_prefix}  ├─ Recall: {stats_simple['recall']:.6f}")
                 print(f"  {volume_prefix}  └─ F1: {stats_simple['f1']:.6f}")
-                
+
                 # Collect metrics
-                metrics_dict['instance_accuracy_detail'] = stats_simple['accuracy']
-                metrics_dict['instance_precision_detail'] = stats_simple['precision']
-                metrics_dict['instance_recall_detail'] = stats_simple['recall']
-                metrics_dict['instance_f1_detail'] = stats_simple['f1']
+                metrics_dict["instance_accuracy_detail"] = stats_simple["accuracy"]
+                metrics_dict["instance_precision_detail"] = stats_simple["precision"]
+                metrics_dict["instance_recall_detail"] = stats_simple["recall"]
+                metrics_dict["instance_f1_detail"] = stats_simple["f1"]
 
                 # Update running metric for epoch-level aggregation
-                self.test_instance_accuracy_detail.update(pred_instances.cpu(), labels_instances.cpu())
-                self.log("test_instance_accuracy_detail", self.test_instance_accuracy_detail, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-                self.log("test_instance_precision_detail", self.test_instance_accuracy_detail.compute_precision(), on_step=False, on_epoch=True, prog_bar=False, logger=True)
-                self.log("test_instance_recall_detail", self.test_instance_accuracy_detail.compute_recall(), on_step=False, on_epoch=True, prog_bar=False, logger=True)
-                self.log("test_instance_f1_detail", self.test_instance_accuracy_detail.compute_f1(), on_step=False, on_epoch=True, prog_bar=False, logger=True)
+                self.test_instance_accuracy_detail.update(
+                    pred_instances.cpu(), labels_instances.cpu()
+                )
+                self.log(
+                    "test_instance_accuracy_detail",
+                    self.test_instance_accuracy_detail,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=True,
+                    logger=True,
+                )
+                self.log(
+                    "test_instance_precision_detail",
+                    self.test_instance_accuracy_detail.compute_precision(),
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=False,
+                    logger=True,
+                )
+                self.log(
+                    "test_instance_recall_detail",
+                    self.test_instance_accuracy_detail.compute_recall(),
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=False,
+                    logger=True,
+                )
+                self.log(
+                    "test_instance_f1_detail",
+                    self.test_instance_accuracy_detail.compute_f1(),
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=False,
+                    logger=True,
+                )
 
         else:
             # For binary/semantic segmentation: binarize predictions
@@ -592,64 +744,78 @@ class ConnectomicsModule(pl.LightningModule):
             else:
                 pred_binary = (torch.sigmoid(pred_tensor) > 0.5).long()
 
-            labels_binary = (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
+            labels_binary = (
+                (labels_tensor > 0.5).long() if labels_tensor.max() <= 1.0 else labels_tensor.long()
+            )
 
             if hasattr(self, "test_jaccard") and self.test_jaccard is not None:
                 jaccard_value = torchmetrics.functional.jaccard_index(
-                    pred_binary, labels_binary, task='binary'
+                    pred_binary, labels_binary, task="binary"
                 )
                 print(f"  {volume_prefix}Jaccard: {jaccard_value.item():.6f}")
-                metrics_dict['jaccard'] = jaccard_value.item()
+                metrics_dict["jaccard"] = jaccard_value.item()
                 self.test_jaccard.update(pred_binary, labels_binary)
-                self.log("test_jaccard", self.test_jaccard, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                self.log(
+                    "test_jaccard",
+                    self.test_jaccard,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=True,
+                    logger=True,
+                )
 
             if hasattr(self, "test_dice") and self.test_dice is not None:
                 dice_value = torchmetrics.functional.dice(pred_binary, labels_binary)
                 print(f"  {volume_prefix}Dice: {dice_value.item():.6f}")
-                metrics_dict['dice'] = dice_value.item()
+                metrics_dict["dice"] = dice_value.item()
                 self.test_dice.update(pred_binary, labels_binary)
-                self.log("test_dice", self.test_dice, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+                self.log(
+                    "test_dice",
+                    self.test_dice,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=True,
+                    logger=True,
+                )
 
             if hasattr(self, "test_accuracy") and self.test_accuracy is not None:
                 accuracy_value = torchmetrics.functional.accuracy(
-                    pred_binary, labels_binary, task='binary'
+                    pred_binary, labels_binary, task="binary"
                 )
                 print(f"  {volume_prefix}Accuracy: {accuracy_value.item():.6f}")
-                metrics_dict['accuracy'] = accuracy_value.item()
+                metrics_dict["accuracy"] = accuracy_value.item()
                 self.test_accuracy.update(pred_binary, labels_binary)
-                self.log("test_accuracy", self.test_accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-        
+                self.log(
+                    "test_accuracy",
+                    self.test_accuracy,
+                    on_step=False,
+                    on_epoch=True,
+                    prog_bar=True,
+                    logger=True,
+                )
+
         # Save metrics to file
         self._save_metrics_to_file(metrics_dict)
+
     def training_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Training step with deep supervision support."""
-        from ...utils.debug_utils import print_tensor_stats
 
-        images = batch['image']
-        labels = batch['label']
-        raw_mask = batch.get('mask', None)
+        images = batch["image"]
+        labels = batch["label"]
+        raw_mask = batch.get("mask", None)
         # Binarize mask: (B, 1, D, H, W) float, 1 = valid, 0 = ignore
         mask = (raw_mask > 0).float() if raw_mask is not None else None
+
+        if DEBUG_PDB and batch_idx == 0 and self.current_epoch == 0:
+            import pdb; pdb.set_trace()
 
         # Forward pass
         outputs = self(images)
 
         # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
-
-        # DEBUG: Print model output (raw logits, before any activation)
-        if batch_idx == 0:
-            pred_for_debug = outputs['output'] if is_deep_supervision else outputs
-            print_tensor_stats(
-                pred_for_debug,
-                stage_name="STAGE 5: MODEL FORWARD OUTPUT (raw logits, BEFORE activation)",
-                tensor_name="model_output",
-                print_once=True,
-                extra_info={
-                    "deep_supervision": is_deep_supervision,
-                    "note": "Raw logits can be any range - activation applied in loss"
-                }
-            )
+        is_deep_supervision = isinstance(outputs, dict) and any(
+            k.startswith("ds_") for k in outputs.keys()
+        )
 
         # Compute loss using the loss orchestrator
         if is_deep_supervision:
@@ -666,33 +832,39 @@ class ConnectomicsModule(pl.LightningModule):
         if DEBUG_D1 and self.global_step % 50 == 0:
             with torch.no_grad():
                 # Get main output for diagnostics (use 'output' key for deep supervision, or outputs directly)
-                pred_raw = outputs['output'] if is_deep_supervision else outputs
-                
+                pred_raw = outputs["output"] if is_deep_supervision else outputs
+
                 # Apply tanh to match the loss function's behavior (predictions should be in [-1, 1])
                 pred_for_stats = torch.tanh(pred_raw)
-                
+
                 # Compute prediction statistics (after tanh)
                 pred_min = pred_for_stats.min().item()
                 pred_max = pred_for_stats.max().item()
                 pred_mean = pred_for_stats.mean().item()
                 pred_positive_frac = (pred_for_stats > 0).float().mean().item() * 100
                 pred_near_minus1_frac = (pred_for_stats < -0.98).float().mean().item() * 100
-                
+
                 # Also show raw logit range for debugging
                 pred_raw_min = pred_raw.min().item()
                 pred_raw_max = pred_raw.max().item()
-                
+
                 # Compute target statistics
                 target_min = labels.min().item()
                 target_max = labels.max().item()
                 target_mean = labels.mean().item()
                 target_positive_frac = (labels > 0).float().mean().item() * 100
-                
-                print(f"\n[D1 Step {self.global_step}] PRED (after tanh): min={pred_min:.3f}, max={pred_max:.3f}, "
-                      f"mean={pred_mean:.3f}, >0: {pred_positive_frac:.1f}%, <-0.98: {pred_near_minus1_frac:.1f}%")
-                print(f"[D1 Step {self.global_step}] PRED (raw logits): min={pred_raw_min:.3f}, max={pred_raw_max:.3f}")
-                print(f"[D1 Step {self.global_step}] TARGET: min={target_min:.3f}, max={target_max:.3f}, "
-                      f"mean={target_mean:.3f}, >0: {target_positive_frac:.1f}%")
+
+                print(
+                    f"\n[D1 Step {self.global_step}] PRED (after tanh): min={pred_min:.3f}, max={pred_max:.3f}, "
+                    f"mean={pred_mean:.3f}, >0: {pred_positive_frac:.1f}%, <-0.98: {pred_near_minus1_frac:.1f}%"
+                )
+                print(
+                    f"[D1 Step {self.global_step}] PRED (raw logits): min={pred_raw_min:.3f}, max={pred_raw_max:.3f}"
+                )
+                print(
+                    f"[D1 Step {self.global_step}] TARGET: min={target_min:.3f}, max={target_max:.3f}, "
+                    f"mean={target_mean:.3f}, >0: {target_positive_frac:.1f}%"
+                )
 
         # Keep full training curves in TensorBoard while avoiding console spam.
         self.log_dict(
@@ -708,16 +880,18 @@ class ConnectomicsModule(pl.LightningModule):
 
     def validation_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """Validation step with deep supervision support."""
-        images = batch['image']
-        labels = batch['label']
-        raw_mask = batch.get('mask', None)
+        images = batch["image"]
+        labels = batch["label"]
+        raw_mask = batch.get("mask", None)
         mask = (raw_mask > 0).float() if raw_mask is not None else None
 
         # Forward pass
         outputs = self(images)
 
         # Check if model outputs deep supervision
-        is_deep_supervision = isinstance(outputs, dict) and any(k.startswith('ds_') for k in outputs.keys())
+        is_deep_supervision = isinstance(outputs, dict) and any(
+            k.startswith("ds_") for k in outputs.keys()
+        )
 
         # Compute loss using the loss orchestrator
         if is_deep_supervision:
@@ -730,13 +904,13 @@ class ConnectomicsModule(pl.LightningModule):
             )
 
         # Compute evaluation metrics if enabled
-        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'evaluation'):
-            if getattr(self.cfg.inference.evaluation, 'enabled', False):
-                metrics = getattr(self.cfg.inference.evaluation, 'metrics', None)
+        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "evaluation"):
+            if getattr(self.cfg.inference.evaluation, "enabled", False):
+                metrics = getattr(self.cfg.inference.evaluation, "metrics", None)
                 if metrics is not None:
                     # Get the main output for metric computation
                     if is_deep_supervision:
-                        main_output = outputs['output']
+                        main_output = outputs["output"]
                     else:
                         main_output = outputs
 
@@ -761,41 +935,77 @@ class ConnectomicsModule(pl.LightningModule):
                         targets = labels.squeeze(1).long()  # (B, D, H, W)
 
                     # Compute and log metrics
-                    if 'jaccard' in metrics:
-                        if not hasattr(self, 'val_jaccard'):
-                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                    if "jaccard" in metrics:
+                        if not hasattr(self, "val_jaccard"):
+                            num_classes = (
+                                self.cfg.model.out_channels
+                                if hasattr(self.cfg.model, "out_channels")
+                                else 2
+                            )
                             if num_classes == 1:
                                 # Binary segmentation - use binary metrics
-                                self.val_jaccard = torchmetrics.JaccardIndex(task='binary').to(self.device)
+                                self.val_jaccard = torchmetrics.JaccardIndex(task="binary").to(
+                                    self.device
+                                )
                             else:
                                 # Multi-class segmentation
-                                self.val_jaccard = torchmetrics.JaccardIndex(task='multiclass', num_classes=num_classes).to(self.device)
+                                self.val_jaccard = torchmetrics.JaccardIndex(
+                                    task="multiclass", num_classes=num_classes
+                                ).to(self.device)
                         self.val_jaccard(preds, targets)
-                        self.log('val_jaccard', self.val_jaccard, on_step=False, on_epoch=True, prog_bar=True)
+                        self.log(
+                            "val_jaccard",
+                            self.val_jaccard,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=True,
+                        )
 
-                    if 'dice' in metrics:
-                        if not hasattr(self, 'val_dice'):
-                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                    if "dice" in metrics:
+                        if not hasattr(self, "val_dice"):
+                            num_classes = (
+                                self.cfg.model.out_channels
+                                if hasattr(self.cfg.model, "out_channels")
+                                else 2
+                            )
                             if num_classes == 1:
                                 # Binary segmentation - use binary metrics
-                                self.val_dice = torchmetrics.Dice(task='binary').to(self.device)
+                                self.val_dice = torchmetrics.Dice(task="binary").to(self.device)
                             else:
                                 # Multi-class segmentation
-                                self.val_dice = torchmetrics.Dice(num_classes=num_classes, average='macro').to(self.device)
+                                self.val_dice = torchmetrics.Dice(
+                                    num_classes=num_classes, average="macro"
+                                ).to(self.device)
                         self.val_dice(preds, targets)
-                        self.log('val_dice', self.val_dice, on_step=False, on_epoch=True, prog_bar=True)
+                        self.log(
+                            "val_dice", self.val_dice, on_step=False, on_epoch=True, prog_bar=True
+                        )
 
-                    if 'accuracy' in metrics:
-                        if not hasattr(self, 'val_accuracy'):
-                            num_classes = self.cfg.model.out_channels if hasattr(self.cfg.model, 'out_channels') else 2
+                    if "accuracy" in metrics:
+                        if not hasattr(self, "val_accuracy"):
+                            num_classes = (
+                                self.cfg.model.out_channels
+                                if hasattr(self.cfg.model, "out_channels")
+                                else 2
+                            )
                             if num_classes == 1:
                                 # Binary segmentation - use binary metrics
-                                self.val_accuracy = torchmetrics.Accuracy(task='binary').to(self.device)
+                                self.val_accuracy = torchmetrics.Accuracy(task="binary").to(
+                                    self.device
+                                )
                             else:
                                 # Multi-class segmentation
-                                self.val_accuracy = torchmetrics.Accuracy(task='multiclass', num_classes=num_classes).to(self.device)
+                                self.val_accuracy = torchmetrics.Accuracy(
+                                    task="multiclass", num_classes=num_classes
+                                ).to(self.device)
                         self.val_accuracy(preds, targets)
-                        self.log('val_accuracy', self.val_accuracy, on_step=False, on_epoch=True, prog_bar=True)
+                        self.log(
+                            "val_accuracy",
+                            self.val_accuracy,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=True,
+                        )
 
         # Show only validation total loss on the progress bar.
         if "val_loss_total" in loss_dict:
@@ -826,7 +1036,7 @@ class ConnectomicsModule(pl.LightningModule):
         self._setup_test_metrics()
 
         # Explicitly set eval mode if configured (Lightning does this by default, but be explicit)
-        if hasattr(self.cfg, 'inference') and getattr(self.cfg.inference, 'do_eval', True):
+        if hasattr(self.cfg, "inference") and getattr(self.cfg.inference, "do_eval", True):
             self.eval()
         else:
             # Keep in training mode (e.g., for Monte Carlo Dropout uncertainty estimation)
@@ -846,7 +1056,9 @@ class ConnectomicsModule(pl.LightningModule):
         # Logging here causes a Lightning warning since self.log() is not allowed in on_test_end.
         pass
 
-    def transfer_batch_to_device(self, batch: Any, device: torch.device, dataloader_idx: int) -> Any:
+    def transfer_batch_to_device(
+        self, batch: Any, device: torch.device, dataloader_idx: int
+    ) -> Any:
         """Keep large test/predict input volumes on CPU for MONAI sliding-window inference."""
         sliding_cfg = getattr(getattr(self.cfg, "inference", None), "sliding_window", None)
         keep_input_on_cpu = bool(getattr(sliding_cfg, "keep_input_on_cpu", False))
@@ -910,24 +1122,27 @@ class ConnectomicsModule(pl.LightningModule):
 
         # CASE 1: Final predictions exist → directly evaluate
         if loaded_final_predictions:
-            print(f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing")
+            print(
+                "  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+            )
             if labels is not None and self._is_test_evaluation_enabled():
                 self._compute_test_metrics(predictions_np, labels, volume_name=volume_name)
             return torch.tensor(0.0, device=self.device)
 
         # CASE 2: Intermediate predictions exist → decode and postprocess
         if loaded_intermediate_predictions:
-            print(f"  ✅ Loaded intermediate predictions from disk, skipping inference")
-            print(f"\n{'='*70}")
+            print("  ✅ Loaded intermediate predictions from disk, skipping inference")
+            print(f"\n{'=' * 70}")
             print(f"PROCESSING VOLUME: {volume_name}")
-            print(f"{'='*70}")
-            
+            print(f"{'=' * 70}")
+
             # Convert back from saved format to [0,1] predictions if needed
             predictions_np = self._invert_save_prediction_transform(predictions_np)
 
             # Decode and postprocess
             import time
-            print(f"\n  🔄 [STAGE: Decoding Instances]")
+
+            print("\n  🔄 [STAGE: Decoding Instances]")
             decode_start = time.time()
 
             has_decoding_cfg = bool(resolve_decode_modes_from_cfg(self.cfg))
@@ -940,7 +1155,7 @@ class ConnectomicsModule(pl.LightningModule):
                 postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
 
                 # Summary of decoded output
-                print(f"\n  📊 Decoded Segmentation Summary:")
+                print("\n  📊 Decoded Segmentation Summary:")
                 print(f"      Shape:      {decoded_predictions.shape}")
                 print(f"      Dtype:      {decoded_predictions.dtype}")
                 print(f"      Min:        {decoded_predictions.min()}")
@@ -948,10 +1163,10 @@ class ConnectomicsModule(pl.LightningModule):
                 print(f"      Instances:  {decoded_predictions.max()} (max label)")
                 unique_count = len(np.unique(decoded_predictions))
                 print(f"      Unique IDs: {unique_count}")
-                print(f"")
+                print("")
 
                 # Save final predictions
-                print(f"  💾 [STAGE: Saving Final Predictions]")
+                print("  💾 [STAGE: Saving Final Predictions]")
                 save_start = time.time()
 
                 write_outputs(
@@ -972,86 +1187,89 @@ class ConnectomicsModule(pl.LightningModule):
 
             # Evaluate if labels provided
             if labels is not None and self._is_test_evaluation_enabled():
-                print(f"\n  📈 [STAGE: Computing Evaluation Metrics]")
+                print("\n  📈 [STAGE: Computing Evaluation Metrics]")
                 eval_start = time.time()
-                
+
                 self._compute_test_metrics(decoded_predictions, labels, volume_name=volume_name)
-                
+
                 eval_duration = time.time() - eval_start
                 print(f"  ✅ Evaluation completed ({eval_duration:.1f}s)")
             elif labels is None:
-                print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
+                print("\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
             else:
-                print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
-            
-            print(f"\n{'='*70}")
+                print("\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
+
+            print(f"\n{'=' * 70}")
             print(f"VOLUME COMPLETE: {volume_name}")
-            print(f"{'='*70}\n")
-            
+            print(f"{'=' * 70}\n")
+
             return torch.tensor(0.0, device=self.device)
 
         # CASE 3: No cached predictions → run full inference pipeline
-        print(f"  🔄 No cached predictions found, running inference")
+        print("  🔄 No cached predictions found, running inference")
 
         # ============================================================
         # PART 1: Inference Plan Summary
         # ============================================================
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print(f"INFERENCE PLAN: {volume_name}")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"Input shape:       {tuple(images.shape)}")
         print(f"Input device:      {images.device}")
-        
+
         # Extract sliding window parameters if available
-        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'sliding_window'):
+        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "sliding_window"):
             sw_cfg = self.cfg.inference.sliding_window
-            roi_size = getattr(sw_cfg, 'roi_size', 'N/A')
-            overlap = getattr(sw_cfg, 'overlap', 'N/A')
-            sw_batch = getattr(sw_cfg, 'sw_batch_size', 'N/A')
-            blending = getattr(sw_cfg, 'blending', 'gaussian')
+            roi_size = getattr(sw_cfg, "roi_size", "N/A")
+            overlap = getattr(sw_cfg, "overlap", "N/A")
+            sw_batch = getattr(sw_cfg, "sw_batch_size", "N/A")
+            blending = getattr(sw_cfg, "blending", "gaussian")
             print(f"Sliding window ROI: {roi_size}")
             print(f"Overlap:            {overlap}")
             print(f"SW batch size:      {sw_batch}")
             print(f"Blending mode:      {blending}")
         else:
-            print(f"Sliding window:     [Direct inference, no sliding window]")
-        
+            print("Sliding window:     [Direct inference, no sliding window]")
+
         # TTA info
-        if hasattr(self.cfg, 'inference') and hasattr(self.cfg.inference, 'test_time_augmentation'):
+        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation"):
             tta_cfg = self.cfg.inference.test_time_augmentation
-            tta_enabled = getattr(tta_cfg, 'enabled', False) if tta_cfg else False
+            tta_enabled = getattr(tta_cfg, "enabled", False) if tta_cfg else False
             if tta_enabled:
-                transforms = getattr(tta_cfg, 'transforms', [])
+                transforms = getattr(tta_cfg, "transforms", [])
                 print(f"TTA:                Enabled ({len(transforms)} transforms)")
             else:
-                print(f"TTA:                Disabled")
-        print(f"{'='*70}\n")
+                print("TTA:                Disabled")
+        print(f"{'=' * 70}\n")
 
         # ============================================================
         # PART 2: Timed Sliding-Window Inference
         # ============================================================
         import time
+
         inference_start = time.time()
-        print(f"  ⏱️  Starting sliding-window inference...")
-        
+        print("  ⏱️  Starting sliding-window inference...")
+
         # Run inference (cfg.test used for data loading and transforms via datamodule)
         predictions = self.inference_manager.predict_with_tta(images, mask=mask)
         predictions_np = predictions.detach().cpu().float().numpy()
-        
+
         inference_end = time.time()
         inference_duration = inference_end - inference_start
-        print(f"  ✅ Inference completed in {inference_duration/60:.2f} minutes ({inference_duration:.1f}s)")
+        print(
+            f"  ✅ Inference completed in {inference_duration / 60:.2f} minutes ({inference_duration:.1f}s)"
+        )
 
         # ============================================================
         # PART 3: Prediction Tensor Summary
         # ============================================================
-        print(f"\n  📊 Prediction Summary:")
+        print("\n  📊 Prediction Summary:")
         print(f"      Shape:  {predictions_np.shape}")
         print(f"      Dtype:  {predictions_np.dtype}")
         print(f"      Min:    {predictions_np.min():.6f}")
         print(f"      Max:    {predictions_np.max():.6f}")
         print(f"      Mean:   {predictions_np.mean():.6f}")
-        print(f"")
+        print("")
 
         # Save intermediate predictions if configured
         save_intermediate = False
@@ -1059,9 +1277,9 @@ class ConnectomicsModule(pl.LightningModule):
             save_intermediate = getattr(self.cfg.inference.save_prediction, "enabled", False)
 
         if save_intermediate:
-            print(f"\n  💾 [STAGE: Saving Intermediate Predictions]")
+            print("\n  💾 [STAGE: Saving Intermediate Predictions]")
             save_start = time.time()
-            
+
             # Apply intensity scaling and dtype conversion before saving
             predictions_to_save = apply_save_prediction_transform(self.cfg, predictions_np)
             write_outputs(
@@ -1072,14 +1290,14 @@ class ConnectomicsModule(pl.LightningModule):
                 mode=mode,
                 batch_meta=batch.get("image_meta_dict"),
             )
-            
+
             save_duration = time.time() - save_start
             print(f"  ✅ Intermediate predictions saved ({save_duration:.1f}s)")
 
         # ============================================================
         # PART 4: Decoding Stage
         # ============================================================
-        print(f"\n  🔄 [STAGE: Decoding Instances]")
+        print("\n  🔄 [STAGE: Decoding Instances]")
         decode_start = time.time()
 
         has_decoding_cfg = bool(resolve_decode_modes_from_cfg(self.cfg))
@@ -1092,7 +1310,7 @@ class ConnectomicsModule(pl.LightningModule):
             postprocessed_predictions = apply_postprocessing(self.cfg, decoded_predictions)
 
             # Summary of decoded output
-            print(f"\n  📊 Decoded Segmentation Summary:")
+            print("\n  📊 Decoded Segmentation Summary:")
             print(f"      Shape:      {decoded_predictions.shape}")
             print(f"      Dtype:      {decoded_predictions.dtype}")
             print(f"      Min:        {decoded_predictions.min()}")
@@ -1100,12 +1318,12 @@ class ConnectomicsModule(pl.LightningModule):
             print(f"      Instances:  {decoded_predictions.max()} (max label)")
             unique_count = len(np.unique(decoded_predictions))
             print(f"      Unique IDs: {unique_count}")
-            print(f"")
+            print("")
 
             # ============================================================
             # PART 5: Saving Final Predictions
             # ============================================================
-            print(f"  💾 [STAGE: Saving Final Predictions]")
+            print("  💾 [STAGE: Saving Final Predictions]")
             final_save_start = time.time()
 
             write_outputs(
@@ -1133,21 +1351,21 @@ class ConnectomicsModule(pl.LightningModule):
         # ============================================================
         # Evaluate if labels provided
         if labels is not None and self._is_test_evaluation_enabled():
-            print(f"\n  📈 [STAGE: Computing Evaluation Metrics]")
+            print("\n  📈 [STAGE: Computing Evaluation Metrics]")
             eval_start = time.time()
-            
+
             self._compute_test_metrics(decoded_predictions, labels, volume_name=volume_name)
-            
+
             eval_duration = time.time() - eval_start
             print(f"  ✅ Evaluation completed ({eval_duration:.1f}s)")
         elif labels is None:
-            print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
+            print("\n  ⏭️  [STAGE: Evaluation] Skipped (no ground truth labels)")
         else:
-            print(f"\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
-        
-        print(f"\n{'='*70}")
+            print("\n  ⏭️  [STAGE: Evaluation] Skipped (evaluation disabled)")
+
+        print(f"\n{'=' * 70}")
         print(f"VOLUME COMPLETE: {volume_name}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         return torch.tensor(0.0, device=self.device)
 
@@ -1156,60 +1374,67 @@ class ConnectomicsModule(pl.LightningModule):
         optimizer = build_optimizer(self.cfg, self.model)
 
         # Build scheduler if configured (check both cfg.scheduler and cfg.optimization.scheduler)
-        has_scheduler = (
-            (hasattr(self.cfg, 'scheduler') and self.cfg.scheduler is not None) or
-            (hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler') and self.cfg.optimization.scheduler is not None)
+        has_scheduler = (hasattr(self.cfg, "scheduler") and self.cfg.scheduler is not None) or (
+            hasattr(self.cfg, "optimization")
+            and hasattr(self.cfg.optimization, "scheduler")
+            and self.cfg.optimization.scheduler is not None
         )
-        
+
         if has_scheduler:
             scheduler = build_lr_scheduler(self.cfg, optimizer)
 
             # Get scheduler interval from config (default: 'epoch')
             # Can be 'epoch' or 'step' to control when scheduler steps
-            scheduler_interval = 'epoch'  # default
+            scheduler_interval = "epoch"  # default
             scheduler_frequency = 1  # default
-            
-            if hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler'):
-                scheduler_interval = getattr(self.cfg.optimization.scheduler, 'interval', 'epoch')
-                scheduler_frequency = getattr(self.cfg.optimization.scheduler, 'frequency', 1)
-            elif hasattr(self.cfg, 'scheduler'):
-                scheduler_interval = getattr(self.cfg.scheduler, 'interval', 'epoch')
-                scheduler_frequency = getattr(self.cfg.scheduler, 'frequency', 1)
-            
+
+            if hasattr(self.cfg, "optimization") and hasattr(self.cfg.optimization, "scheduler"):
+                scheduler_interval = getattr(self.cfg.optimization.scheduler, "interval", "epoch")
+                scheduler_frequency = getattr(self.cfg.optimization.scheduler, "frequency", 1)
+            elif hasattr(self.cfg, "scheduler"):
+                scheduler_interval = getattr(self.cfg.scheduler, "interval", "epoch")
+                scheduler_frequency = getattr(self.cfg.scheduler, "frequency", 1)
+
             # Check if this is ReduceLROnPlateau (requires metric monitoring)
             scheduler_config = {
-                'scheduler': scheduler,
-                'interval': scheduler_interval,  # Now configurable!
-                'frequency': scheduler_frequency,
+                "scheduler": scheduler,
+                "interval": scheduler_interval,  # Now configurable!
+                "frequency": scheduler_frequency,
             }
-            
+
             # Print scheduler configuration for verification
-            print(f"  📅 Scheduler interval: '{scheduler_interval}' (frequency: {scheduler_frequency})")
-            if scheduler_interval == 'step':
+            print(
+                f"  📅 Scheduler interval: '{scheduler_interval}' (frequency: {scheduler_frequency})"
+            )
+            if scheduler_interval == "step":
                 print(f"  ℹ️  Scheduler will step every {scheduler_frequency} training step(s)")
             else:
                 print(f"  ℹ️  Scheduler will step every {scheduler_frequency} epoch(s)")
-            
+
             # ReduceLROnPlateau requires the 'monitor' key to pass the metric value
             if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
                 # Get monitor metric from scheduler config
                 monitor_metric = None
-                if hasattr(self.cfg, 'optimization') and hasattr(self.cfg.optimization, 'scheduler'):
-                    monitor_metric = getattr(self.cfg.optimization.scheduler, 'monitor', None)
-                elif hasattr(self.cfg, 'scheduler'):
-                    monitor_metric = getattr(self.cfg.scheduler, 'monitor', None)
-                
+                if hasattr(self.cfg, "optimization") and hasattr(
+                    self.cfg.optimization, "scheduler"
+                ):
+                    monitor_metric = getattr(self.cfg.optimization.scheduler, "monitor", None)
+                elif hasattr(self.cfg, "scheduler"):
+                    monitor_metric = getattr(self.cfg.scheduler, "monitor", None)
+
                 if monitor_metric:
-                    scheduler_config['monitor'] = monitor_metric
+                    scheduler_config["monitor"] = monitor_metric
                     print(f"  ✅ ReduceLROnPlateau will monitor: {monitor_metric}")
                 else:
                     # Default to validation loss
-                    scheduler_config['monitor'] = 'val_loss_total'
-                    print(f"  ⚠️  ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)")
+                    scheduler_config["monitor"] = "val_loss_total"
+                    print(
+                        "  ⚠️  ReduceLROnPlateau will monitor: val_loss_total (default, no monitor specified in config)"
+                    )
 
             return {
-                'optimizer': optimizer,
-                'lr_scheduler': scheduler_config,
+                "optimizer": optimizer,
+                "lr_scheduler": scheduler_config,
             }
         else:
             return optimizer
@@ -1221,8 +1446,8 @@ class ConnectomicsModule(pl.LightningModule):
             optimizer = self.optimizers()
             if isinstance(optimizer, list):
                 optimizer = optimizer[0]
-            lr = optimizer.param_groups[0]['lr']
-            self.log('lr', lr, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+            lr = optimizer.param_groups[0]["lr"]
+            self.log("lr", lr, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 
 
 def create_lightning_module(

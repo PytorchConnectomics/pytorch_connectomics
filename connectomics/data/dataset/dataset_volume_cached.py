@@ -7,8 +7,11 @@ in memory, avoiding repeated disk I/O.
 
 from __future__ import annotations
 
+import os
 import random  # Use random (not np.random) for thread safety
 from typing import Any, Dict, List, Optional, Tuple
+
+DEBUG_D2 = os.environ.get("PYTC_DEBUG_D2", "0").lower() in {"1", "true", "yes", "on"}
 
 import numpy as np
 from monai.data import Dataset
@@ -165,7 +168,8 @@ class CachedVolumeDataset(Dataset):
         pad_mode: str = "reflect",
         max_attempts: int = 10,
         foreground_threshold: float = 0.05,
-        crop_to_nonzero_mask: bool = False,
+        crop_to_nonzero_mask: bool = False,  # bbox-based: crop intersects mask bbox
+        sample_nonzero_mask: bool = False,  # voxel-based: center crop on nonzero voxel
     ):
         self.image_paths = image_paths
         self.label_paths = label_paths if label_paths else [None] * len(image_paths)
@@ -202,6 +206,7 @@ class CachedVolumeDataset(Dataset):
         self.max_attempts = max_attempts
         self.foreground_threshold = foreground_threshold
         self.crop_to_nonzero_mask = crop_to_nonzero_mask
+        self.sample_nonzero_mask = sample_nonzero_mask
 
         # Load all volumes into memory
         print(f"  Loading {len(image_paths)} volumes into memory...")
@@ -295,26 +300,46 @@ class CachedVolumeDataset(Dataset):
         ndim = len(self.patch_size)
         self.volume_sizes = [img.shape[-ndim:] for img in self.cached_images]  # (Z, Y, X) or (Y, X)
 
-        # Precompute mask bounding boxes for crop_to_nonzero_mask sampling
+        # Precompute mask bounding boxes for crop_to_nonzero_mask (bbox approach)
         self.mask_bboxes: List[Optional[List[Tuple[int, int]]]] = []
         if self.crop_to_nonzero_mask:
             for mask in self.cached_masks:
                 self.mask_bboxes.append(self._compute_mask_bbox(mask))
             print(
-                f"  [crop_to_nonzero_mask] Mask bboxes computed for {len(self.mask_bboxes)} volumes"
+                f"  [crop_to_nonzero_mask] Mask bboxes computed for "
+                f"{len(self.mask_bboxes)} volumes"
             )
         else:
             self.mask_bboxes = [None] * len(self.cached_images)
 
-        # [D2 DIAGNOSTIC] Print foreground sampling configuration
-        if self.mode == "train":
+        # Precompute nonzero mask voxel coordinates for sample_nonzero_mask (voxel approach)
+        self.mask_nonzero_coords: List[Optional[np.ndarray]] = []
+        if self.sample_nonzero_mask:
+            for mask in self.cached_masks:
+                if mask is not None:
+                    coords = np.argwhere(mask[0] > 0)  # drop channel dim -> (N, ndim)
+                    if len(coords) > 0:
+                        self.mask_nonzero_coords.append(coords)
+                    else:
+                        self.mask_nonzero_coords.append(None)
+                else:
+                    self.mask_nonzero_coords.append(None)
+            n_valid = sum(1 for c in self.mask_nonzero_coords if c is not None)
+            total_voxels = sum(len(c) for c in self.mask_nonzero_coords if c is not None)
+            print(
+                f"  [sample_nonzero_mask] {n_valid}/{len(self.mask_nonzero_coords)} volumes "
+                f"have nonzero mask ({total_voxels} total voxels)"
+            )
+        else:
+            self.mask_nonzero_coords = [None] * len(self.cached_images)
+
+        if self.mode == "train" and DEBUG_D2:
             if self.foreground_threshold > 0:
                 print("  [D2] Foreground sampling ENABLED:")
-                print(f"    - Minimum foreground threshold: {self.foreground_threshold * 100:.1f}%")
-                print(f"    - Max retry attempts: {self.max_attempts}")
-                print("    - Will report statistics every 100 batches")
+                print(f"    - Threshold: {self.foreground_threshold * 100:.1f}%")
+                print(f"    - Max attempts: {self.max_attempts}")
             else:
-                print("  [D2] Foreground sampling DISABLED (threshold <= 0)")
+                print("  [D2] Foreground sampling DISABLED")
 
     def _apply_padding(
         self, volume: np.ndarray, mode: Optional[str] = None, constant_values: float = 0
@@ -477,33 +502,30 @@ class CachedVolumeDataset(Dataset):
     ) -> Optional[List[Tuple[int, int]]]:
         """Compute the axis-aligned bounding box of nonzero voxels in the mask.
 
-        Args:
-            mask: Mask array with shape (C, D, H, W) or (C, H, W). May be None.
-
         Returns:
-            List of (start, end) pairs for each spatial dimension, or None if
-            the mask is None or entirely zero.
+            List of (start, end) pairs per spatial dim, or None.
         """
         if mask is None:
             return None
-        spatial = mask[0] > 0  # drop channel dim: (D, H, W) or (H, W)
+        spatial = mask[0] > 0  # drop channel dim
         if not spatial.any():
             return None
-        ndim = spatial.ndim
         bbox = []
-        for d in range(ndim):
-            axes = tuple(i for i in range(ndim) if i != d)
-            proj = spatial.any(axis=axes) if ndim > 1 else spatial
+        for d in range(spatial.ndim):
+            axes = tuple(i for i in range(spatial.ndim) if i != d)
+            proj = spatial.any(axis=axes) if spatial.ndim > 1 else spatial
             indices = np.where(proj)[0]
             bbox.append((int(indices[0]), int(indices[-1]) + 1))
         return bbox
 
     def _get_random_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
         """
-        Get a random crop position for training (like v1 VolumeDataset).
+        Get a random crop position for training.
 
-        When crop_to_nonzero_mask is True, restricts sampling so every crop
-        intersects the nonzero bounding box of the mask.
+        Strategies (checked in order, first enabled wins):
+        - sample_nonzero_mask: center crop on a random nonzero mask voxel
+        - crop_to_nonzero_mask: constrain crop to intersect mask bbox
+        - default: uniform random crop
 
         Args:
             vol_idx: Volume index
@@ -513,22 +535,38 @@ class CachedVolumeDataset(Dataset):
         """
         vol_size = self.volume_sizes[vol_idx]
         patch_size = self.patch_size
-        mask_bbox = self.mask_bboxes[vol_idx] if self.crop_to_nonzero_mask else None
 
+        # Strategy 1: direct voxel sampling (strongest guarantee)
+        coords = self.mask_nonzero_coords[vol_idx] if self.sample_nonzero_mask else None
+        if coords is not None:
+            idx = random.randint(0, len(coords) - 1)
+            center = coords[idx]
+            positions = []
+            for i in range(len(patch_size)):
+                vol_max = max(0, vol_size[i] - patch_size[i])
+                pos = int(center[i]) - patch_size[i] // 2
+                pos = max(0, min(pos, vol_max))
+                positions.append(pos)
+            return tuple(positions)
+
+        # Strategy 2: bbox constraint (weaker, faster)
+        mask_bbox = self.mask_bboxes[vol_idx] if self.crop_to_nonzero_mask else None
+        if mask_bbox is not None:
+            positions = []
+            for i in range(len(patch_size)):
+                vol_max = max(0, vol_size[i] - patch_size[i])
+                min_start = max(0, mask_bbox[i][0] - patch_size[i] + 1)
+                max_start = min(vol_max, mask_bbox[i][1] - 1)
+                if min_start > max_start:
+                    min_start, max_start = 0, vol_max
+                positions.append(random.randint(min_start, max_start))
+            return tuple(positions)
+
+        # Fallback: uniform random crop
         positions = []
         for i in range(len(patch_size)):
             vol_max = max(0, vol_size[i] - patch_size[i])
-            if mask_bbox is not None:
-                # Intersection condition: crop [pos, pos+patch) overlaps [bbox_start, bbox_end)
-                # => pos < bbox_end  and  pos + patch > bbox_start
-                # => pos >= bbox_start - patch + 1  and  pos <= bbox_end - 1
-                min_start = max(0, mask_bbox[i][0] - patch_size[i] + 1)
-                max_start = min(vol_max, mask_bbox[i][1] - 1)
-                if min_start > max_start:  # bbox too small — fall back to full range
-                    min_start, max_start = 0, vol_max
-            else:
-                min_start, max_start = 0, vol_max
-            positions.append(random.randint(min_start, max_start))
+            positions.append(random.randint(0, vol_max))
         return tuple(positions)
 
     def _get_center_crop_position(self, vol_idx: int) -> Tuple[int, ...]:
@@ -590,6 +628,11 @@ class CachedVolumeDataset(Dataset):
                 foreground_frac = (label_crop > 0).sum() / label_crop.size
                 final_foreground_frac = foreground_frac
 
+                # Reject if mask is present but entirely zero in this crop
+                if mask is not None and not (mask_crop > 0).any():
+                    self._d2_rejected_patches += 1
+                    continue
+
                 if foreground_frac >= foreground_threshold:
                     break
 
@@ -613,29 +656,15 @@ class CachedVolumeDataset(Dataset):
             else:
                 mask_crop = np.zeros_like(image_crop)
 
-        # [D2 DIAGNOSTIC] Record/report sampling stats only when enabled.
-        if use_foreground_sampling:
+        if use_foreground_sampling and DEBUG_D2:
             self._d2_total_samples += 1
             self._d2_total_attempts += attempts_used
-            self._d2_foreground_fracs.append(final_foreground_frac * 100)  # percentage
-
-        # [D2 DIAGNOSTIC] Print report every 100 samples (not too verbose)
-        if use_foreground_sampling and self._d2_total_samples % 100 == 0:
-            avg_attempts = self._d2_total_attempts / self._d2_total_samples
-            reject_rate = (self._d2_rejected_patches / self._d2_total_attempts) * 100
-            avg_fg = sum(self._d2_foreground_fracs) / len(self._d2_foreground_fracs)
-            min_fg = min(self._d2_foreground_fracs)
-            max_fg = max(self._d2_foreground_fracs)
-
-            print(f"[D2 Sampling Stats after {self._d2_total_samples} batches]")
-            print(f"  Avg attempts per patch: {avg_attempts:.2f}/{max_attempts}")
+            self._d2_foreground_fracs.append(final_foreground_frac * 100)
+            mask_frac = (mask_crop > 0).sum() / mask_crop.size * 100 if mask is not None else 0.0
             print(
-                f"  Patches rejected: {self._d2_rejected_patches}/{self._d2_total_attempts} ({reject_rate:.1f}%)"
-            )
-            print(f"  Final foreground %: avg={avg_fg:.1f}%, min={min_fg:.1f}%, max={max_fg:.1f}%")
-            print(
-                f"  Threshold: {foreground_threshold * 100:.1f}% "
-                f"({self.foreground_threshold * 100:.1f}% minimum)"
+                f"[D2 #{self._d2_total_samples}] attempts={attempts_used}/{max_attempts}, "
+                f"rejected={self._d2_rejected_patches}, "
+                f"fg={final_foreground_frac * 100:.1f}%, mask={mask_frac:.1f}%"
             )
 
         # Create data dict

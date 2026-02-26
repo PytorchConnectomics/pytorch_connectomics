@@ -484,7 +484,10 @@ class DataConfig:
         0.0  # Minimum (label > 0) fraction required for training crops; 0 disables foreground sampling
     )
     cached_sampling_crop_to_nonzero_mask: bool = (
-        False  # Restrict random crops to intersect the nonzero bounding box of the mask volume
+        False  # Bbox approach: constrain crops to intersect the nonzero mask bounding box
+    )
+    cached_sampling_sample_nonzero_mask: bool = (
+        False  # Voxel approach: center crops on random nonzero mask voxels (stronger guarantee)
     )
 
     # Reject sampling configuration (for volumetric patch sampling)

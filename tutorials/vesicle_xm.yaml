@@ -70,9 +70,9 @@ data:
   use_preloaded_cache_train: true
   persistent_workers: true
   iter_num_per_epoch: 1000
-  cached_sampling_foreground_threshold: 0.1
+  cached_sampling_foreground_threshold: 0.01
   cached_sampling_max_attempts: 10
-  cached_sampling_crop_to_nonzero_mask: true
+  cached_sampling_sample_nonzero_mask: true
 
   patch_size: [32, 64, 64]
   image_transform:

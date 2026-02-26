@@ -627,6 +627,7 @@ def create_datamodule(
             max_attempts=cfg.data.cached_sampling_max_attempts,
             foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
             crop_to_nonzero_mask=cfg.data.cached_sampling_crop_to_nonzero_mask,
+            sample_nonzero_mask=cfg.data.cached_sampling_sample_nonzero_mask,
         )
 
         preloaded_num_workers = num_workers
@@ -693,6 +694,7 @@ def create_datamodule(
                     max_attempts=cfg.data.cached_sampling_max_attempts,
                     foreground_threshold=cfg.data.cached_sampling_foreground_threshold,
                     crop_to_nonzero_mask=cfg.data.cached_sampling_crop_to_nonzero_mask,
+            sample_nonzero_mask=cfg.data.cached_sampling_sample_nonzero_mask,
                 )
             else:
                 from ...data.dataset import create_volume_dataset
