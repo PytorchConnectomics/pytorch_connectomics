@@ -112,9 +112,9 @@ def resolve_decode_modes_from_cfg(cfg: Any) -> Sequence[Any] | None:
     1. ``cfg.test.decoding``
     2. ``cfg.inference.decoding``
     """
-    if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding"):
+    if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding") and cfg.test.decoding:
         return cfg.test.decoding
-    if hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding"):
+    if hasattr(cfg, "inference") and hasattr(cfg.inference, "decoding") and cfg.inference.decoding:
         return cfg.inference.decoding
     return None
 
@@ -129,7 +129,12 @@ def apply_decode_mode(cfg: Any, data: np.ndarray, *, verbose: bool = True) -> np
 
     if verbose:
         source = "test.decoding"
-        if not (hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "decoding")):
+        if not (
+            hasattr(cfg, "test")
+            and cfg.test
+            and hasattr(cfg.test, "decoding")
+            and cfg.test.decoding
+        ):
             source = "inference.decoding"
         print(f"  Using {source}: {decode_modes}")
 

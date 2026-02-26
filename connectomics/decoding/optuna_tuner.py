@@ -18,7 +18,7 @@ from __future__ import annotations
 import warnings
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import h5py
 import numpy as np
@@ -74,19 +74,38 @@ class OptunaDecodingTuner:
     def __init__(
         self,
         cfg: DictConfig,
-        predictions: np.ndarray | str | Path,
-        ground_truth: np.ndarray | str | Path,
-        mask: Optional[np.ndarray | str | Path] = None,
+        predictions: Union[np.ndarray, List[np.ndarray], str, Path],
+        ground_truth: Union[np.ndarray, List[np.ndarray], str, Path],
+        mask: Optional[Union[np.ndarray, List[np.ndarray], str, Path]] = None,
     ):
         if not OPTUNA_AVAILABLE:
             raise ImportError("Optuna not available. Install with: pip install optuna")
 
         self.cfg = cfg
 
-        # Load data
-        self.predictions = self._load_data(predictions, "predictions")
-        self.ground_truth = self._load_data(ground_truth, "ground_truth")
-        self.mask = self._load_data(mask, "mask") if mask is not None else None
+        # Load data — supports lists of arrays for per-volume evaluation
+        if isinstance(predictions, list):
+            # Multi-volume mode: evaluate each volume independently and average
+            self.predictions_list = predictions
+            self.ground_truth_list = (
+                ground_truth if isinstance(ground_truth, list) else [ground_truth]
+            )
+            self.mask_list = (
+                mask
+                if isinstance(mask, list)
+                else ([mask] * len(self.predictions_list) if mask is not None else None)
+            )
+            self.multi_volume = True
+            print(f"  Multi-volume mode: {len(self.predictions_list)} volumes")
+        else:
+            # Single-volume mode (backward compatible)
+            loaded_pred = self._load_data(predictions, "predictions")
+            loaded_gt = self._load_data(ground_truth, "ground_truth")
+            loaded_mask = self._load_data(mask, "mask") if mask is not None else None
+            self.predictions_list = [loaded_pred]
+            self.ground_truth_list = [loaded_gt]
+            self.mask_list = [loaded_mask] if loaded_mask is not None else None
+            self.multi_volume = False
 
         # Validate data shapes
         self._validate_data()
@@ -123,58 +142,65 @@ class OptunaDecodingTuner:
             return f[first_key][:]
 
     def _validate_data(self):
-        """Validate data shapes and types."""
-        # Handle 2D data: (C, H, W) → (C, 1, H, W)
-        if self.predictions.ndim == 3:
-            expanded_shape = self.predictions.shape[:1] + (1,) + self.predictions.shape[1:]
-            print(
-                "  📐 2D data detected, expanding predictions: "
-                f"{self.predictions.shape} → {expanded_shape}"
-            )
-            self.predictions = self.predictions[:, np.newaxis, :, :]
+        """Validate data shapes and types for each volume in the list."""
+        for i in range(len(self.predictions_list)):
+            pred = self.predictions_list[i]
+            gt = self.ground_truth_list[i]
 
-        # Predictions should be (C, D, H, W)
-        if self.predictions.ndim != 4:
-            raise ValueError(
-                f"Predictions should be 4D (C, D, H, W), got shape {self.predictions.shape}"
-            )
-
-        # Handle 2D ground truth: (H, W) → (1, H, W)
-        if self.ground_truth.ndim == 2:
-            expanded_shape = (1,) + self.ground_truth.shape
-            print(
-                f"  📐 2D ground truth detected, expanding: {self.ground_truth.shape} → "
-                f"{expanded_shape}"
-            )
-            self.ground_truth = self.ground_truth[np.newaxis, :, :]
-
-        # Ground truth should be (D, H, W)
-        if self.ground_truth.ndim != 3:
-            raise ValueError(
-                f"Ground truth should be 3D (D, H, W), got shape {self.ground_truth.shape}"
-            )
-
-        # Check spatial dimensions match
-        if self.predictions.shape[1:] != self.ground_truth.shape:
-            raise ValueError(
-                f"Spatial dimensions mismatch: "
-                f"predictions {self.predictions.shape[1:]} vs "
-                f"ground_truth {self.ground_truth.shape}"
-            )
-
-        # Handle 2D mask if provided
-        if self.mask is not None:
-            if self.mask.ndim == 2:
+            # Handle 2D predictions: (C, H, W) → (C, 1, H, W)
+            if pred.ndim == 3:
+                expanded_shape = pred.shape[:1] + (1,) + pred.shape[1:]
                 print(
-                    f"  📐 2D mask detected, expanding: {self.mask.shape} → {(1,) + self.mask.shape}"
+                    f"  📐 Volume {i}: 2D data detected, expanding predictions: "
+                    f"{pred.shape} → {expanded_shape}"
                 )
-                self.mask = self.mask[np.newaxis, :, :]
+                pred = pred[:, np.newaxis, :, :]
+                self.predictions_list[i] = pred
 
-            if self.mask.shape != self.ground_truth.shape:
+            if pred.ndim != 4:
                 raise ValueError(
-                    f"Mask shape {self.mask.shape} doesn't match "
-                    f"ground truth shape {self.ground_truth.shape}"
+                    f"Volume {i}: Predictions should be 4D (C, D, H, W), got shape {pred.shape}"
                 )
+
+            # Handle 2D ground truth: (H, W) → (1, H, W)
+            if gt.ndim == 2:
+                expanded_shape = (1,) + gt.shape
+                print(
+                    f"  📐 Volume {i}: 2D ground truth detected, expanding: "
+                    f"{gt.shape} → {expanded_shape}"
+                )
+                gt = gt[np.newaxis, :, :]
+                self.ground_truth_list[i] = gt
+
+            if gt.ndim != 3:
+                raise ValueError(
+                    f"Volume {i}: Ground truth should be 3D (D, H, W), got shape {gt.shape}"
+                )
+
+            # Check spatial dimensions match
+            if pred.shape[1:] != gt.shape:
+                raise ValueError(
+                    f"Volume {i}: Spatial dimensions mismatch: "
+                    f"predictions {pred.shape[1:]} vs ground_truth {gt.shape}"
+                )
+
+            # Handle mask if provided
+            if self.mask_list is not None:
+                mask = self.mask_list[i]
+                if mask is not None:
+                    if mask.ndim == 2:
+                        print(
+                            f"  📐 Volume {i}: 2D mask detected, expanding: "
+                            f"{mask.shape} → {(1,) + mask.shape}"
+                        )
+                        mask = mask[np.newaxis, :, :]
+                        self.mask_list[i] = mask
+
+                    if mask.shape != gt.shape:
+                        raise ValueError(
+                            f"Volume {i}: Mask shape {mask.shape} doesn't match "
+                            f"ground truth shape {gt.shape}"
+                        )
 
     def optimize(self) -> optuna.Study:
         """
@@ -292,11 +318,14 @@ class OptunaDecodingTuner:
         """
         Objective function for Optuna optimization.
 
+        Evaluates each volume independently to avoid instance ID collisions
+        from concatenating unrelated volumes, then averages the metric.
+
         Args:
             trial: Optuna trial object
 
         Returns:
-            Metric value to optimize
+            Metric value to optimize (averaged over all volumes)
         """
         self.trial_count += 1
 
@@ -306,35 +335,35 @@ class OptunaDecodingTuner:
         # Reconstruct decoding parameters from sampled values
         decoding_params = self._reconstruct_decoding_params(params)
 
-        # Decode predictions
-        try:
-            segmentation = decode_instance_binary_contour_distance(
-                self.predictions, **decoding_params
-            )
-        except Exception as e:
-            import traceback
-
-            print(f"\n❌ Trial {self.trial_count} failed during decoding:")
-            print(f"   Parameters: {decoding_params}")
-            print(f"   Error: {e}")
-            print(f"   Traceback:\n{traceback.format_exc()}")
-            return (
-                float("-inf") if self._get_optimization_direction() == "maximize" else float("inf")
-            )
-
-        # Apply post-processing if enabled
+        # Reconstruct post-processing parameters if enabled
+        postproc_params = None
         if (
             hasattr(self.param_space_cfg, "postprocessing")
             and self.param_space_cfg.postprocessing.enabled
         ):
             postproc_params = self._reconstruct_postproc_params(params)
+
+        metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
+        metric_values = []
+        precision_values = []
+        recall_values = []
+
+        # Evaluate each volume independently
+        for vol_idx in range(len(self.predictions_list)):
+            pred_vol = self.predictions_list[vol_idx]
+            gt_vol = self.ground_truth_list[vol_idx]
+            mask_vol = self.mask_list[vol_idx] if self.mask_list else None
+
+            # Decode predictions for this volume
             try:
-                segmentation = remove_small_instances(segmentation, **postproc_params)
+                segmentation = decode_instance_binary_contour_distance(
+                    pred_vol, **decoding_params
+                )
             except Exception as e:
                 import traceback
 
-                print(f"\n❌ Trial {self.trial_count} failed during post-processing:")
-                print(f"   Parameters: {postproc_params}")
+                print(f"\n❌ Trial {self.trial_count} failed during decoding (vol {vol_idx}):")
+                print(f"   Parameters: {decoding_params}")
                 print(f"   Error: {e}")
                 print(f"   Traceback:\n{traceback.format_exc()}")
                 return (
@@ -343,28 +372,91 @@ class OptunaDecodingTuner:
                     else float("inf")
                 )
 
-        # Compute metric
-        metric_name = self.tune_cfg.optimization["single_objective"]["metric"]
-        try:
-            metric_value = self._compute_metric(segmentation, metric_name)
-        except Exception as e:
-            import traceback
+            # Apply post-processing if enabled
+            if postproc_params is not None:
+                try:
+                    segmentation = remove_small_instances(segmentation, **postproc_params)
+                except Exception as e:
+                    import traceback
 
-            print(f"\n❌ Trial {self.trial_count} failed during metric computation:")
-            print(f"   Metric: {metric_name}")
-            print(f"   Segmentation shape: {segmentation.shape}, dtype: {segmentation.dtype}")
-            print(f"   Unique labels in segmentation: {len(np.unique(segmentation))}")
-            print(f"   Error: {e}")
-            print(f"   Traceback:\n{traceback.format_exc()}")
-            return (
-                float("-inf") if self._get_optimization_direction() == "maximize" else float("inf")
+                    print(
+                        f"\n❌ Trial {self.trial_count} failed during post-processing "
+                        f"(vol {vol_idx}):"
+                    )
+                    print(f"   Parameters: {postproc_params}")
+                    print(f"   Error: {e}")
+                    print(f"   Traceback:\n{traceback.format_exc()}")
+                    return (
+                        float("-inf")
+                        if self._get_optimization_direction() == "maximize"
+                        else float("inf")
+                    )
+
+            # Compute metric for this volume
+            try:
+                if mask_vol is not None:
+                    gt_masked = gt_vol * mask_vol
+                    seg_masked = segmentation * mask_vol
+                else:
+                    gt_masked = gt_vol
+                    seg_masked = segmentation
+
+                if metric_name == "adapted_rand":
+                    are_val, prec_val, rec_val = adapted_rand(
+                        seg_masked, gt_masked, all_stats=True
+                    )
+                    metric_values.append(are_val)
+                    precision_values.append(prec_val)
+                    recall_values.append(rec_val)
+                else:
+                    raise ValueError(f"Unknown metric: {metric_name}")
+
+            except Exception as e:
+                import traceback
+
+                print(
+                    f"\n❌ Trial {self.trial_count} failed during metric computation "
+                    f"(vol {vol_idx}):"
+                )
+                print(f"   Metric: {metric_name}")
+                print(f"   Segmentation shape: {segmentation.shape}, dtype: {segmentation.dtype}")
+                print(f"   Unique labels in segmentation: {len(np.unique(segmentation))}")
+                print(f"   Error: {e}")
+                print(f"   Traceback:\n{traceback.format_exc()}")
+                return (
+                    float("-inf")
+                    if self._get_optimization_direction() == "maximize"
+                    else float("inf")
+                )
+
+        # Average metrics across volumes
+        avg_metric = float(np.mean(metric_values))
+        avg_precision = float(np.mean(precision_values)) if precision_values else 0.0
+        avg_recall = float(np.mean(recall_values)) if recall_values else 0.0
+
+        # Print progress with precision and recall
+        if getattr(self.tune_cfg.logging, "verbose", True):
+            per_vol_are = " ".join(f"{v:.3f}" for v in metric_values)
+            per_vol_prec = " ".join(f"{v:.3f}" for v in precision_values)
+            per_vol_rec = " ".join(f"{v:.3f}" for v in recall_values)
+            print(
+                f"Trial {self.trial_count:3d}: ARE={avg_metric:.4f} "
+                f"Prec={avg_precision:.4f} Rec={avg_recall:.4f} "
+                f"(per-vol ARE: [{per_vol_are}])"
+            )
+            print(
+                f"              Prec: [{per_vol_prec}]  "
+                f"Rec: [{per_vol_rec}]"
             )
 
-        # Print progress
-        if getattr(self.tune_cfg.logging, "verbose", True):
-            print(f"Trial {self.trial_count:3d}: {metric_name}={metric_value:.4f}")
+        # Store precision/recall as user attributes for later analysis
+        trial.set_user_attr("precision", avg_precision)
+        trial.set_user_attr("recall", avg_recall)
+        trial.set_user_attr("per_vol_are", metric_values)
+        trial.set_user_attr("per_vol_precision", precision_values)
+        trial.set_user_attr("per_vol_recall", recall_values)
 
-        return metric_value
+        return avg_metric
 
     def _sample_parameters(self, trial: optuna.Trial) -> Dict[str, Any]:
         """
@@ -469,13 +561,17 @@ class OptunaDecodingTuner:
         tuple_params: Dict[str, Dict[int, Any]] = defaultdict(dict)
         scalar_params: Dict[str, Any] = {}
 
+        # Collect postprocessing parameter names to skip them
+        postproc_param_names = set()
+        if (
+            hasattr(self.param_space_cfg, "postprocessing")
+            and self.param_space_cfg.postprocessing.enabled
+        ):
+            postproc_param_names = set(self.param_space_cfg.postprocessing.parameters.keys())
+
         for param_name, value in sampled_params.items():
             # Skip post-processing parameters
-            if (
-                param_name.startswith("min_instance_size")
-                and hasattr(self.param_space_cfg, "postprocessing")
-                and self.param_space_cfg.postprocessing.enabled
-            ):
+            if param_name in postproc_param_names:
                 continue
 
             # Check if this is part of a tuple parameter
@@ -561,7 +657,28 @@ class OptunaDecodingTuner:
         print(f"{'='*80}")
         print(f"Number of finished trials: {len(study.trials)}")
         print(f"\nBest trial: #{study.best_trial.number}")
-        print(f"  Value: {study.best_value:.4f}")
+        print(f"  ARE:       {study.best_value:.4f}")
+
+        # Print precision/recall from user attributes
+        best_trial = study.best_trial
+        best_prec = best_trial.user_attrs.get("precision", None)
+        best_rec = best_trial.user_attrs.get("recall", None)
+        if best_prec is not None:
+            print(f"  Precision: {best_prec:.4f}")
+        if best_rec is not None:
+            print(f"  Recall:    {best_rec:.4f}")
+
+        # Print per-volume breakdown
+        per_vol_are = best_trial.user_attrs.get("per_vol_are", None)
+        per_vol_prec = best_trial.user_attrs.get("per_vol_precision", None)
+        per_vol_rec = best_trial.user_attrs.get("per_vol_recall", None)
+        if per_vol_are:
+            print(f"\n  Per-volume ARE:  [{' '.join(f'{v:.3f}' for v in per_vol_are)}]")
+        if per_vol_prec:
+            print(f"  Per-volume Prec: [{' '.join(f'{v:.3f}' for v in per_vol_prec)}]")
+        if per_vol_rec:
+            print(f"  Per-volume Rec:  [{' '.join(f'{v:.3f}' for v in per_vol_rec)}]")
+
         print("\n  Params:")
 
         # Reconstruct and print parameters
@@ -591,12 +708,26 @@ class OptunaDecodingTuner:
         best_postproc_params = self._reconstruct_postproc_params(study.best_params)
 
         # Create YAML content
+        best_trial = study.best_trial
         params_dict = {
-            "best_trial": study.best_trial.number,
+            "best_trial": best_trial.number,
             "best_value": float(study.best_value),
+            "best_precision": float(best_trial.user_attrs.get("precision", 0.0)),
+            "best_recall": float(best_trial.user_attrs.get("recall", 0.0)),
             "metric": self.tune_cfg.optimization["single_objective"]["metric"],
             "decoding_params": best_decoding_params,
         }
+
+        # Add per-volume metrics if available
+        per_vol_are = best_trial.user_attrs.get("per_vol_are", None)
+        per_vol_prec = best_trial.user_attrs.get("per_vol_precision", None)
+        per_vol_rec = best_trial.user_attrs.get("per_vol_recall", None)
+        if per_vol_are:
+            params_dict["per_volume_are"] = [float(v) for v in per_vol_are]
+        if per_vol_prec:
+            params_dict["per_volume_precision"] = [float(v) for v in per_vol_prec]
+        if per_vol_rec:
+            params_dict["per_volume_recall"] = [float(v) for v in per_vol_rec]
 
         if best_postproc_params:
             params_dict["postprocessing_params"] = best_postproc_params
@@ -724,21 +855,15 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     print(f"  Found {len(pred_files)} prediction file(s)")
 
-    # Load and concatenate all prediction files
+    # Load all prediction files as a list (per-volume evaluation)
     all_predictions = []
     for pred_file in pred_files:
         pred = read_volume(pred_file)
         print(f"  ✓ Loaded {Path(pred_file).name}: shape {pred.shape}")
         all_predictions.append(pred)
 
-    # Concatenate along first spatial dimension (D)
-    # Predictions are saved as (C, D, H, W)
-    if len(all_predictions) == 1:
-        predictions = all_predictions[0]
-    else:
-        predictions = np.concatenate(all_predictions, axis=1)  # Concatenate along D dimension
-
-    print(f"✓ Total predictions shape: {predictions.shape}")
+    total_slices = sum(p.shape[1] for p in all_predictions)
+    print(f"✓ Loaded {len(all_predictions)} prediction volumes ({total_slices} total slices)")
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
@@ -762,23 +887,18 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     print(f"  Found {len(label_files)} label file(s)")
 
-    # Load and concatenate all label files
+    # Load all label files as a list (per-volume evaluation)
     all_labels = []
     for label_file in label_files:
         label = read_volume(label_file)
         print(f"  ✓ Loaded {Path(label_file).name}: shape {label.shape}")
         all_labels.append(label)
 
-    # Concatenate along first spatial dimension (D)
-    if len(all_labels) == 1:
-        ground_truth = all_labels[0]
-    else:
-        ground_truth = np.concatenate(all_labels, axis=0)  # Concatenate along D dimension
-
-    print(f"✓ Total ground truth shape: {ground_truth.shape}")
+    total_label_slices = sum(l.shape[0] for l in all_labels)
+    print(f"✓ Loaded {len(all_labels)} ground truth volumes ({total_label_slices} total slices)")
 
     # Load mask if available
-    mask = None
+    all_masks = None
     tune_mask_pattern = getattr(tune_data, "tune_mask", None)
     if tune_mask_pattern:
         # Handle both string patterns and pre-resolved lists
@@ -799,18 +919,24 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
                 print(f"  ✓ Loaded {Path(mask_file).name}: shape {m.shape}")
                 all_masks.append(m)
 
-            # Concatenate along first spatial dimension (D)
-            if len(all_masks) == 1:
-                mask = all_masks[0]
-            else:
-                mask = np.concatenate(all_masks, axis=0)
+            print(f"✓ Loaded {len(all_masks)} mask volumes")
 
-            print(f"✓ Total mask shape: {mask.shape}")
+    # Validate pred/label count match
+    if len(all_predictions) != len(all_labels):
+        raise ValueError(
+            f"Mismatch: {len(all_predictions)} prediction files vs "
+            f"{len(all_labels)} label files"
+        )
+    if all_masks is not None and len(all_masks) != len(all_predictions):
+        raise ValueError(
+            f"Mismatch: {len(all_predictions)} prediction files vs "
+            f"{len(all_masks)} mask files"
+        )
 
-    # Step 4: Create tuner and run optimization
+    # Step 4: Create tuner and run optimization (per-volume evaluation)
     print("\n[4/5] Creating Optuna tuner...")
     tuner = OptunaDecodingTuner(
-        cfg=cfg, predictions=predictions, ground_truth=ground_truth, mask=mask
+        cfg=cfg, predictions=all_predictions, ground_truth=all_labels, mask=all_masks
     )
 
     print("\n[5/5] Running optimization study...")
