@@ -7,7 +7,6 @@ including multi-task target routing and optional task weighting.
 
 from __future__ import annotations
 from typing import Dict, List, Tuple, Optional
-import inspect
 import warnings
 import pdb
 
@@ -17,35 +16,16 @@ import torch.nn.functional as F
 from omegaconf import DictConfig
 
 from ..config import Config
-
-
-def _loss_supports_weight(loss_fn: nn.Module) -> bool:
-    """Check if a loss function's forward method accepts a 'weight' keyword argument.
-
-    This is used to conditionally pass per-voxel weight masks only to loss
-    functions that support them (e.g., WeightedMSELoss, WeightedMAELoss,
-    SmoothL1Loss) while skipping the argument for standard losses that do
-    not (e.g., MONAI DiceLoss, BCEWithLogitsLoss).
-    """
-    try:
-        sig = inspect.signature(loss_fn.forward)
-        return "weight" in sig.parameters
-    except (ValueError, TypeError):
-        return False
-
-
-def _is_class_index_loss(loss_fn: nn.Module) -> bool:
-    """Return True if loss expects class-index labels (1 channel target).
-
-    Cross-entropy style losses consume dense logits [B, C, ...] and class-index
-    targets [B, 1, ...] or [B, ...], unlike BCE/MSE-style losses that require
-    channel-aligned dense targets [B, C, ...].
-    """
-    return loss_fn.__class__.__name__ in {"CrossEntropyLoss", "CrossEntropyLossWrapper"}
+from ..models.loss import (
+    LossMetadata,
+    LossTermSpec,
+    compile_loss_terms_from_config,
+    get_loss_metadata_for_module,
+)
 
 
 class LossOrchestrator:
-    """Orchestrates single-scale, multi-scale, and multi-task supervised losses."""
+    """Orchestrates single-scale and deep-supervision losses from explicit loss terms."""
 
     def __init__(
         self,
@@ -55,6 +35,7 @@ class LossOrchestrator:
         enable_nan_detection: bool = True,
         debug_on_nan: bool = True,
         loss_weighter: Optional[nn.Module] = None,
+        loss_metadata: Optional[List[LossMetadata]] = None,
     ):
         self.cfg = cfg
         self.loss_functions = loss_functions
@@ -62,12 +43,24 @@ class LossOrchestrator:
         self.enable_nan_detection = enable_nan_detection
         self.debug_on_nan = debug_on_nan
         self.loss_weighter = loss_weighter
+        self.loss_metadata = (
+            list(loss_metadata)
+            if loss_metadata is not None
+            else [get_loss_metadata_for_module(loss_fn) for loss_fn in self.loss_functions]
+        )
 
         self.clamp_min = getattr(cfg.model, "deep_supervision_clamp_min", -20.0)
         self.clamp_max = getattr(cfg.model, "deep_supervision_clamp_max", 20.0)
-        self.is_multi_task = (
-            hasattr(cfg.model, "multi_task_config") and cfg.model.multi_task_config is not None
+        self.loss_term_specs = compile_loss_terms_from_config(
+            cfg,
+            self.loss_functions,
+            self.loss_weights,
+            loss_metadata=self.loss_metadata,
         )
+        if not self.loss_term_specs:
+            raise ValueError(
+                "No loss terms were compiled. Configure explicit model.loss_terms."
+            )
 
     def _apply_task_weighting(
         self,
@@ -92,16 +85,20 @@ class LossOrchestrator:
         loss_weight_mask[target > 0] = fg_weight
         return loss_weight_mask
 
-    def _call_supervised_loss(
+    def _call_with_optional_spatial_weight(
         self,
         loss_fn: nn.Module,
-        pred: torch.Tensor,
-        target: torch.Tensor,
+        *args: torch.Tensor,
+        spatial_weight_arg: Optional[str] = None,
+        spatial_weight_tensor: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """Call a standard supervised loss, injecting foreground weighting if supported."""
-        if _loss_supports_weight(loss_fn):
-            return loss_fn(pred, target, weight=self._build_foreground_weight_tensor(target))
-        return loss_fn(pred, target)
+        if spatial_weight_arg is None or spatial_weight_tensor is None:
+            return loss_fn(*args)
+        if spatial_weight_arg == "weight":
+            return loss_fn(*args, weight=spatial_weight_tensor)
+        if spatial_weight_arg == "mask":
+            return loss_fn(*args, mask=spatial_weight_tensor)
+        raise ValueError(f"Unsupported spatial weight arg: {spatial_weight_arg}")
 
     def _check_loss_is_finite(
         self,
@@ -152,195 +149,204 @@ class LossOrchestrator:
             return target_resized.to(dtype=target.dtype)
         return target_resized.long()
 
-    def _iter_multitask_views(
+
+    def _slice_channels(
         self,
-        output: torch.Tensor,
-        labels: torch.Tensor,
+        tensor: torch.Tensor,
+        channel_slice: tuple[int, int],
+    ) -> torch.Tensor:
+        start_ch, end_ch = channel_slice
+        return tensor[:, start_ch:end_ch, ...]
+
+    def _resize_tensor_for_output(
+        self,
+        tensor: torch.Tensor,
+        output_like: torch.Tensor,
         *,
-        resize_targets_to_output: bool,
-    ):
-        """Yield per-task slices with consistent target routing for deep/non-deep paths."""
-        label_ch_offset = 0
+        target_kind: str = "dense",
+    ) -> torch.Tensor:
+        if tensor.shape[2:] == output_like.shape[2:]:
+            return tensor
+        if target_kind == "class_index":
+            return self._resize_class_index_target_to_output(tensor, output_like)
+        return match_target_to_output(tensor, output_like)
 
-        for task_config in self.cfg.model.multi_task_config:
-            start_ch, end_ch, task_name, loss_indices = task_config
-            task_output = output[:, start_ch:end_ch, ...]
-            task_output_channels = end_ch - start_ch
-
-            task_loss_fns = [self.loss_functions[idx] for idx in loss_indices]
-            uses_class_index_targets = any(_is_class_index_loss(fn) for fn in task_loss_fns)
-            uses_dense_targets = any(not _is_class_index_loss(fn) for fn in task_loss_fns)
-
-            if uses_class_index_targets and uses_dense_targets:
-                raise ValueError(
-                    f"Task '{task_name}' mixes class-index and dense target losses. "
-                    "Use either CE-style losses only, or dense losses only, per task."
-                )
-
-            num_label_channels = 1 if uses_class_index_targets else task_output_channels
-            if label_ch_offset + num_label_channels > labels.shape[1]:
-                raise ValueError(
-                    f"Label channel mismatch for task '{task_name}': expected "
-                    f"{num_label_channels} channel(s) at offset {label_ch_offset}, "
-                    f"but label tensor has {labels.shape[1]} total channels. "
-                    f"Task output slice is [{start_ch}:{end_ch}] "
-                    f"({task_output_channels} channel(s))."
-                )
-
-            task_target = labels[:, label_ch_offset:label_ch_offset + num_label_channels, ...]
-            label_ch_offset += num_label_channels
-
-            if resize_targets_to_output:
-                if uses_class_index_targets:
-                    task_target = self._resize_class_index_target_to_output(task_target, task_output)
-                else:
-                    task_target = match_target_to_output(task_target, task_output)
-
-            yield {
-                "task_name": task_name,
-                "start_ch": start_ch,
-                "end_ch": end_ch,
-                "loss_indices": loss_indices,
-                "task_output": task_output,
-                "task_target": task_target,
-            }
-
-    def _compute_multitask_task_losses(
+    def _compute_explicit_terms_for_output(
         self,
         output: torch.Tensor,
         labels: torch.Tensor,
         *,
         stage: str,
-        resize_targets_to_output: bool,
-        scale_idx: Optional[int] = None,
-        log_components: bool = False,
-    ) -> tuple[List[torch.Tensor], List[str], Dict[str, float]]:
+        scale_idx: Optional[int],
+        is_main_scale: bool,
+    ) -> tuple[torch.Tensor, Dict[str, float]]:
+        if not self.loss_term_specs:
+            raise ValueError("Explicit loss term path requested but no loss terms are configured")
+
         loss_dict: Dict[str, float] = {}
-        task_losses: List[torch.Tensor] = []
-        task_names: List[str] = []
+        task_losses_map: Dict[str, torch.Tensor] = {}
+        task_names_in_order: List[str] = []
 
-        for task_view in self._iter_multitask_views(
-            output,
-            labels,
-            resize_targets_to_output=resize_targets_to_output,
-        ):
-            task_name = task_view["task_name"]
-            start_ch = task_view["start_ch"]
-            end_ch = task_view["end_ch"]
-            loss_indices = task_view["loss_indices"]
-            task_output = torch.clamp(
-                task_view["task_output"],
-                min=self.clamp_min,
-                max=self.clamp_max,
+        for term in self.loss_term_specs:
+            if not is_main_scale and not term.apply_deep_supervision:
+                continue
+
+            loss_fn = self.loss_functions[term.loss_index]
+            meta = self.loss_metadata[term.loss_index]
+            call_kind = term.call_kind
+            spatial_weight_arg = term.spatial_weight_arg
+
+            pred = output if term.pred_slice is None else self._slice_channels(output, term.pred_slice)
+            pred2 = (
+                output if term.pred2_slice is None else self._slice_channels(output, term.pred2_slice)
             )
-            task_target = task_view["task_target"]
+            if call_kind == "pred_target":
+                target = labels if term.target_slice is None else self._slice_channels(labels, term.target_slice)
+            else:
+                target = None
+            mask_tensor = (
+                self._slice_channels(labels, term.mask_slice)
+                if term.mask_slice is not None
+                else None
+            )
 
-            task_loss_components: List[torch.Tensor] = []
-            for loss_idx in loss_indices:
-                loss_fn = self.loss_functions[loss_idx]
-                weight = self.loss_weights[loss_idx]
-                loss = self._call_supervised_loss(loss_fn, task_output, task_target)
+            if pred is not None:
+                pred = torch.clamp(pred, min=self.clamp_min, max=self.clamp_max)
+            if pred2 is not None:
+                pred2 = torch.clamp(pred2, min=self.clamp_min, max=self.clamp_max)
 
-                if scale_idx is None:
-                    title = "⚠️  NaN/Inf detected in multi-task loss!"
-                    error_message = (
-                        f"NaN/Inf in loss for task '{task_name}' with loss index {loss_idx}"
+            # Resize labels/masks per term for deep supervision scales.
+            if pred is not None:
+                if target is not None:
+                    target = self._resize_tensor_for_output(
+                        target,
+                        pred,
+                        target_kind=term.target_kind,
                     )
-                    info_lines = [
-                        f"Task: {task_name} (channels {start_ch}:{end_ch})",
-                        f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})",
-                    ]
-                    train_only = False
-                else:
-                    title = "⚠️  NaN/Inf detected in deep supervision multi-task loss!"
-                    error_message = (
-                        f"NaN/Inf in deep supervision loss at scale {scale_idx}, task {task_name}"
-                    )
-                    info_lines = [
-                        f"Scale: {scale_idx}, Task: {task_name} (channels {start_ch}:{end_ch})",
-                        f"Loss function: {loss_fn.__class__.__name__} (index {loss_idx})",
-                    ]
-                    train_only = True
+                if mask_tensor is not None:
+                    mask_tensor = self._resize_tensor_for_output(mask_tensor, pred, target_kind="dense")
 
-                self._check_loss_is_finite(
-                    loss,
-                    stage=stage,
-                    train_only=train_only,
-                    title=title,
-                    error_message=error_message,
-                    info_lines=info_lines,
-                    tensor_map={"Output": task_output, "Target": task_target},
+            if call_kind == "pred_target":
+                if pred is None or target is None:
+                    raise ValueError(f"Loss term '{term.name}' is missing pred/target tensors")
+                if spatial_weight_arg is not None and mask_tensor is None:
+                    mask_tensor = self._build_foreground_weight_tensor(target)
+                raw_loss = self._call_with_optional_spatial_weight(
+                    loss_fn,
+                    pred,
+                    target,
+                    spatial_weight_arg=spatial_weight_arg,
+                    spatial_weight_tensor=mask_tensor,
+                )
+                tensor_map = {"Pred": pred, "Target": target}
+            elif call_kind == "pred_only":
+                if pred is None:
+                    raise ValueError(f"Loss term '{term.name}' is missing pred tensor")
+                raw_loss = self._call_with_optional_spatial_weight(
+                    loss_fn,
+                    pred,
+                    spatial_weight_arg=spatial_weight_arg,
+                    spatial_weight_tensor=mask_tensor,
+                )
+                tensor_map = {"Pred": pred}
+                if mask_tensor is not None:
+                    tensor_map["Mask"] = mask_tensor
+            elif call_kind == "pred_pred":
+                if pred2 is None:
+                    raise ValueError(f"Loss term '{term.name}' is missing pred/pred2 tensors")
+                raw_loss = self._call_with_optional_spatial_weight(
+                    loss_fn,
+                    pred,
+                    pred2,
+                    spatial_weight_arg=spatial_weight_arg,
+                    spatial_weight_tensor=mask_tensor,
+                )
+                tensor_map = {"Pred": pred, "Pred2": pred2}
+                if mask_tensor is not None:
+                    tensor_map["Mask"] = mask_tensor
+            else:
+                raise ValueError(
+                    f"Unsupported call_kind {call_kind!r} for loss term '{term.name}' "
+                    f"(loss metadata: {meta.name})"
                 )
 
-                task_loss_components.append(loss * weight)
-                if log_components:
-                    loss_dict[f"{stage}_loss_{task_name}_loss{loss_idx}"] = loss.item()
+            if scale_idx is None:
+                title = "⚠️  NaN/Inf detected in explicit loss term!"
+                error_message = f"NaN/Inf in explicit loss term '{term.name}'"
+                info_lines = [
+                    f"Term: {term.name}",
+                    f"Loss function: {loss_fn.__class__.__name__} (index {term.loss_index})",
+                    f"Call kind: {call_kind}",
+                ]
+                train_only = False
+            else:
+                title = "⚠️  NaN/Inf detected in explicit deep supervision loss term!"
+                error_message = f"NaN/Inf in explicit loss term '{term.name}' at scale {scale_idx}"
+                info_lines = [
+                    f"Scale: {scale_idx}, Term: {term.name}",
+                    f"Loss function: {loss_fn.__class__.__name__} (index {term.loss_index})",
+                    f"Call kind: {call_kind}",
+                ]
+                train_only = True
 
-            task_loss = sum(task_loss_components)
-            task_losses.append(task_loss)
-            task_names.append(task_name)
-            if log_components:
-                loss_dict[f"{stage}_loss_{task_name}_unweighted"] = task_loss.item()
+            self._check_loss_is_finite(
+                raw_loss,
+                stage=stage,
+                train_only=train_only,
+                title=title,
+                error_message=error_message,
+                info_lines=info_lines,
+                tensor_map=tensor_map,
+            )
 
-        return task_losses, task_names, loss_dict
+            weighted_term_loss = raw_loss * term.coefficient
+            term_task_name = term.task_name or term.name
+            if term_task_name not in task_losses_map:
+                task_losses_map[term_task_name] = weighted_term_loss
+                task_names_in_order.append(term_task_name)
+            else:
+                task_losses_map[term_task_name] = task_losses_map[term_task_name] + weighted_term_loss
 
-    def compute_multitask_loss(
-        self,
-        outputs: torch.Tensor,
-        labels: torch.Tensor,
-        stage: str = "train",
-    ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        task_losses, task_names, loss_dict = self._compute_multitask_task_losses(
-            outputs,
-            labels,
-            stage=stage,
-            resize_targets_to_output=False,
-            log_components=True,
+            term_prefix = (
+                f"{stage}_loss_term_{term.name}"
+                if scale_idx is None
+                else f"{stage}_loss_scale_{scale_idx}_term_{term.name}"
+            )
+            loss_dict[f"{term_prefix}_raw"] = raw_loss.item()
+            loss_dict[f"{term_prefix}_coef"] = float(term.coefficient)
+            loss_dict[f"{term_prefix}_weighted"] = weighted_term_loss.item()
+
+        task_losses = [task_losses_map[name] for name in task_names_in_order]
+        if len(task_losses) == 0:
+            return torch.tensor(0.0, device=output.device), loss_dict
+        total_loss, task_weights, weighting_logs = self._apply_task_weighting(
+            task_losses, task_names_in_order, stage=stage
         )
+        for task_name, task_loss, task_weight in zip(task_names_in_order, task_losses, task_weights):
+            task_prefix = (
+                f"{stage}_loss_task_{task_name}"
+                if scale_idx is None
+                else f"{stage}_loss_scale_{scale_idx}_task_{task_name}"
+            )
+            loss_dict[f"{task_prefix}_weight"] = float(task_weight)
+            loss_dict[f"{task_prefix}_total"] = (task_loss * task_weight).item()
 
-        total_loss, weights, weighting_logs = self._apply_task_weighting(
-            task_losses, task_names, stage=stage
-        )
-        for task_name, task_loss, weight in zip(task_names, task_losses, weights):
-            loss_dict[f"{stage}_loss_{task_name}_weight"] = float(weight)
-            loss_dict[f"{stage}_loss_{task_name}_total"] = (task_loss * weight).item()
         loss_dict.update(weighting_logs)
-        loss_dict[f"{stage}_loss_total"] = total_loss.item()
         return total_loss, loss_dict
 
     def compute_loss_for_scale(
         self, output: torch.Tensor, target: torch.Tensor, scale_idx: int, stage: str = "train"
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        scale_loss = 0.0
+        """Compute explicit loss terms for one output scale."""
         loss_dict: Dict[str, float] = {}
-
-        if self.is_multi_task:
-            task_losses, task_names, _ = self._compute_multitask_task_losses(
-                output,
-                target,
-                stage=stage,
-                resize_targets_to_output=(target.shape[2:] != output.shape[2:]),
-                scale_idx=scale_idx,
-                log_components=False,
-            )
-            scale_loss, _, _ = self._apply_task_weighting(task_losses, task_names, stage)
-        else:
-            output_clamped = torch.clamp(output, min=self.clamp_min, max=self.clamp_max)
-            for loss_fn, weight in zip(self.loss_functions, self.loss_weights):
-                loss = self._call_supervised_loss(loss_fn, output_clamped, target)
-                self._check_loss_is_finite(
-                    loss,
-                    stage=stage,
-                    train_only=True,
-                    title="⚠️  NaN/Inf detected in loss computation!",
-                    error_message=f"NaN/Inf in loss at scale {scale_idx}",
-                    info_lines=[
-                        f"Loss function: {loss_fn.__class__.__name__}",
-                        f"Scale: {scale_idx}, Weight: {weight}",
-                    ],
-                    tensor_map={"Output": output, "Target": target},
-                )
-                scale_loss += loss * weight
+        scale_loss, explicit_loss_dict = self._compute_explicit_terms_for_output(
+            output,
+            target,
+            stage=stage,
+            scale_idx=scale_idx,
+            is_main_scale=(scale_idx == 0),
+        )
+        loss_dict.update(explicit_loss_dict)
 
         loss_dict[f"{stage}_loss_scale_{scale_idx}"] = scale_loss.item()
         return scale_loss, loss_dict
@@ -370,10 +376,8 @@ class LossOrchestrator:
         total_loss = 0.0
         loss_dict: Dict[str, float] = {}
         for scale_idx, (output, ds_weight) in enumerate(zip(all_outputs, ds_weights)):
-            # For multitask, resize per task to preserve CE-vs-dense target semantics.
-            target_for_scale = labels if self.is_multi_task else match_target_to_output(labels, output)
             scale_loss, scale_loss_dict = self.compute_loss_for_scale(
-                output, target_for_scale, scale_idx, stage
+                output, labels, scale_idx, stage
             )
             total_loss += scale_loss * ds_weight
             loss_dict.update(scale_loss_dict)
@@ -384,36 +388,15 @@ class LossOrchestrator:
     def compute_standard_loss(
         self, outputs: torch.Tensor, labels: torch.Tensor, stage: str = "train"
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        total_loss = 0.0
-        loss_dict: Dict[str, float] = {}
-
-        if self.is_multi_task:
-            return self.compute_multitask_loss(outputs, labels, stage=stage)
-
-        for i, (loss_fn, weight) in enumerate(zip(self.loss_functions, self.loss_weights)):
-            loss = self._call_supervised_loss(loss_fn, outputs, labels)
-            self._check_loss_is_finite(
-                loss,
-                stage=stage,
-                train_only=True,
-                title="⚠️  NaN/Inf detected in loss computation!",
-                error_message=f"NaN/Inf in loss at index {i}",
-                info_lines=[
-                    f"Loss function: {loss_fn.__class__.__name__}",
-                    f"Loss index: {i}, Weight: {weight}",
-                ],
-                tensor_map={"Output": outputs, "Label": labels},
-            )
-
-            total_loss += loss * weight
-            loss_dict[f"{stage}_loss_{i}"] = loss.item()
-
+        total_loss, loss_dict = self._compute_explicit_terms_for_output(
+            outputs,
+            labels,
+            stage=stage,
+            scale_idx=None,
+            is_main_scale=True,
+        )
         loss_dict[f"{stage}_loss_total"] = total_loss.item()
         return total_loss, loss_dict
-
-
-# Backward-compatible name while imports migrate to LossOrchestrator.
-DeepSupervisionHandler = LossOrchestrator
 
 
 def match_target_to_output(target: torch.Tensor, output: torch.Tensor) -> torch.Tensor:

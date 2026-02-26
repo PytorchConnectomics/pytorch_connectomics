@@ -39,31 +39,38 @@ def minimal_config():
     """Create minimal config for fast testing."""
     return from_dict({
         'system': {
-            'training': {
-                'num_gpus': 0,  # CPU-only for testing
-                'num_cpus': 2,
-                'num_workers': 0,
-                'batch_size': 1,
-            },
-            'inference': {
-                'num_gpus': 0,
-                'num_cpus': 1,
-                'num_workers': 0,
-                'batch_size': 1,
-            },
+                'training': {
+                    'num_gpus': 0,  # CPU-only for testing
+                    'num_workers': 0,
+                    'batch_size': 1,
+                },
+                'inference': {
+                    'num_gpus': 0,
+                    'num_workers': 0,
+                    'batch_size': 1,
+                },
             'seed': 42,
         },
-        'model': {
-            'architecture': 'monai_basic_unet3d',
-            'input_size': [16, 16, 16],
-            'in_channels': 1,
-            'out_channels': 1,
+            'model': {
+                'architecture': 'monai_basic_unet3d',
+                'input_size': [16, 16, 16],
+                'in_channels': 1,
+                'out_channels': 1,
             'norm': 'group',
             'num_groups': 1,
-            'filters': [8, 16],  # Very small for fast testing
-            'loss_functions': ['DiceLoss'],
-            'loss_weights': [1.0],
-        },
+                'filters': [8, 16],  # Very small for fast testing
+                'loss_functions': ['DiceLoss'],
+                'loss_weights': [1.0],
+                'loss_terms': [
+                    {
+                        'name': 'seg',
+                        'loss_index': 0,
+                        'pred_slice': [0, 1],
+                        'target_slice': [0, 1],
+                        'task_name': 'seg',
+                    }
+                ],
+            },
         'optimization': {
             'optimizer': {
                 'name': 'AdamW',
@@ -292,8 +299,8 @@ class TestCheckpointing:
 class TestMultiTask:
     """Test multi-task learning."""
 
-    def test_multi_task_config(self):
-        """Test multi-task configuration."""
+    def test_multi_task_loss_terms(self):
+        """Test multi-task explicit loss terms configuration."""
         cfg = from_dict({
             'system': {'training': {'num_gpus': 0}},
             'model': {
@@ -305,10 +312,36 @@ class TestMultiTask:
                 'num_groups': 1,
                 'loss_functions': ['DiceLoss', 'BCEWithLogitsLoss', 'MSELoss'],
                 'loss_weights': [1.0, 0.5, 1.0],
-                'multi_task_config': [
-                    [0, 1, 'binary', [0, 1]],
-                    [1, 2, 'boundary', [1]],
-                    [2, 3, 'edt', [2]],
+                'loss_terms': [
+                    {
+                        'name': 'binary_dice',
+                        'loss_index': 0,
+                        'pred_slice': [0, 1],
+                        'target_slice': [0, 1],
+                        'task_name': 'binary',
+                    },
+                    {
+                        'name': 'binary_bce',
+                        'loss_index': 1,
+                        'pred_slice': [0, 1],
+                        'target_slice': [0, 1],
+                        'task_name': 'binary',
+                        'coefficient': 0.5,
+                    },
+                    {
+                        'name': 'boundary_bce',
+                        'loss_index': 1,
+                        'pred_slice': [1, 2],
+                        'target_slice': [1, 2],
+                        'task_name': 'boundary',
+                    },
+                    {
+                        'name': 'edt_mse',
+                        'loss_index': 2,
+                        'pred_slice': [2, 3],
+                        'target_slice': [2, 3],
+                        'task_name': 'edt',
+                    },
                 ],
             },
             'optimization': {
@@ -319,8 +352,8 @@ class TestMultiTask:
 
         module = ConnectomicsModule(cfg)
         assert module is not None
-        assert module.multi_task_enabled
-        assert len(module.multi_task_config) == 3
+        task_names = {term.task_name for term in module.loss_orchestrator.loss_term_specs}
+        assert task_names == {'binary', 'boundary', 'edt'}
 
     def test_multi_task_forward(self):
         """Test multi-task forward pass."""
@@ -335,6 +368,36 @@ class TestMultiTask:
                 'num_groups': 1,
                 'loss_functions': ['DiceLoss', 'BCEWithLogitsLoss', 'MSELoss'],
                 'loss_weights': [1.0, 0.5, 1.0],
+                'loss_terms': [
+                    {
+                        'name': 'binary_dice',
+                        'loss_index': 0,
+                        'pred_slice': [0, 1],
+                        'target_slice': [0, 1],
+                        'task_name': 'binary',
+                    },
+                    {
+                        'name': 'binary_bce',
+                        'loss_index': 1,
+                        'pred_slice': [0, 1],
+                        'target_slice': [0, 1],
+                        'task_name': 'binary',
+                    },
+                    {
+                        'name': 'boundary_bce',
+                        'loss_index': 1,
+                        'pred_slice': [1, 2],
+                        'target_slice': [1, 2],
+                        'task_name': 'boundary',
+                    },
+                    {
+                        'name': 'edt_mse',
+                        'loss_index': 2,
+                        'pred_slice': [2, 3],
+                        'target_slice': [2, 3],
+                        'task_name': 'edt',
+                    },
+                ],
             },
             'optimization': {
                 'optimizer': {'name': 'Adam', 'lr': 1e-3},

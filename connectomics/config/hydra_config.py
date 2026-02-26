@@ -211,6 +211,9 @@ class ModelConfig:
     loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
     loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
     loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
+    # Explicit loss routing plan (required by LossOrchestrator for nontrivial setups)
+    # Each term declares a loss index plus pred/target/mask slices and task grouping.
+    loss_terms: Optional[List[Dict[str, Any]]] = None
     loss_balancing: LossBalancingConfig = field(default_factory=LossBalancingConfig)
 
     # Multi-task learning configuration
