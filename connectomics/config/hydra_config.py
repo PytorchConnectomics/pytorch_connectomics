@@ -106,6 +106,23 @@ class SystemConfig:
 
 
 @dataclass
+class SystemProfileConfig:
+    """Reusable system profile for stage-specific hardware settings."""
+
+    num_gpus: int = 1
+    num_workers: int = 1
+    batch_size: int = 1
+
+
+@dataclass
+class StageProfileRefConfig:
+    """Reference a named shared profile with optional per-stage overrides."""
+
+    profile: Optional[str] = None
+    overrides: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class LossBalancingConfig:
     """Configuration for adaptive loss weighting."""
 
@@ -373,6 +390,15 @@ class NNUNetPreprocessingConfig:
 
 
 @dataclass
+class DataTransformProfileConfig:
+    """Reusable profile for deterministic data preprocessing transforms."""
+
+    data_transform: Optional[DataTransformConfig] = None
+    image_transform: Optional[ImageTransformConfig] = None
+    nnunet_preprocessing: Optional[NNUNetPreprocessingConfig] = None
+
+
+@dataclass
 class DataConfig:
     """Dataset and data loading configuration.
 
@@ -467,6 +493,8 @@ class DataConfig:
     nnunet_preprocessing: NNUNetPreprocessingConfig = field(
         default_factory=NNUNetPreprocessingConfig
     )
+    transform_profile: Optional[str] = None
+    transform_overrides: Dict[str, Any] = field(default_factory=dict)
 
     # Sampling (for volumetric datasets)
     iter_num_per_epoch: Optional[int] = None  # Alias for iter_num (if set, overrides iter_num)
@@ -1156,6 +1184,22 @@ class InferenceConfig:
 
 
 @dataclass
+class SharedConfig:
+    """Shared profiles reused across train/test/tune stages."""
+
+    system_profiles: Dict[str, SystemProfileConfig] = field(default_factory=dict)
+    data_transform_profiles: Dict[str, DataTransformProfileConfig] = field(default_factory=dict)
+    inference_profiles: Dict[str, InferenceConfig] = field(default_factory=dict)
+
+
+@dataclass
+class TrainConfig:
+    """Train-stage profile selectors."""
+
+    system: StageProfileRefConfig = field(default_factory=StageProfileRefConfig)
+
+
+@dataclass
 class TestDataConfig:
     """Test data configuration."""
 
@@ -1169,6 +1213,8 @@ class TestDataConfig:
     test_transpose: Optional[List[int]] = None
     output_path: Optional[str] = None
     cache_suffix: str = "_prediction.h5"
+    transform_profile: Optional[str] = None
+    transform_overrides: Dict[str, Any] = field(default_factory=dict)
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
     nnunet_preprocessing: NNUNetPreprocessingConfig = field(
@@ -1183,6 +1229,8 @@ class TestConfig:
     """Test-specific configuration (data paths, decoding, evaluation)."""
 
     data: TestDataConfig = field(default_factory=TestDataConfig)
+    system: StageProfileRefConfig = field(default_factory=StageProfileRefConfig)
+    inference: StageProfileRefConfig = field(default_factory=StageProfileRefConfig)
     decoding: Optional[List[Dict[str, Any]]] = None
     evaluation: Optional[Dict[str, Any]] = field(default_factory=lambda: {"enabled": False})
 
@@ -1197,6 +1245,8 @@ class TuneDataConfig:
     tune_label: Any = None  # str, List[str], or None
     tune_mask: Any = None  # str, List[str], or None
     tune_resolution: Optional[List[int]] = None
+    transform_profile: Optional[str] = None
+    transform_overrides: Dict[str, Any] = field(default_factory=dict)
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
     nnunet_preprocessing: NNUNetPreprocessingConfig = field(
@@ -1280,6 +1330,8 @@ class TuneConfig:
             "single_objective": {"metric": "adapted_rand", "direction": "minimize"},
         }
     )
+    system: StageProfileRefConfig = field(default_factory=StageProfileRefConfig)
+    inference: StageProfileRefConfig = field(default_factory=StageProfileRefConfig)
     data: TuneDataConfig = field(default_factory=TuneDataConfig)
     output: TuneOutputConfig = field(default_factory=TuneOutputConfig)
     logging: Dict[str, Any] = field(default_factory=lambda: {"verbose": True})
@@ -1309,6 +1361,8 @@ class Config:
         description: Optional description of the experiment
         system: System configuration for hardware and parallelization
         model: Model architecture and loss configuration
+        shared: Shared profile registry (system/data-transform/inference)
+        train: Train-stage profile selectors
         data: Training data loading and preprocessing configuration
         optimization: Training optimization configuration
         monitor: Monitoring and logging configuration
@@ -1324,6 +1378,8 @@ class Config:
     # Core components
     system: SystemConfig = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
+    shared: SharedConfig = field(default_factory=SharedConfig)
+    train: TrainConfig = field(default_factory=TrainConfig)
     data: DataConfig = field(default_factory=DataConfig)
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
@@ -1385,15 +1441,22 @@ def configure_instance_segmentation(cfg: Config, boundary_thickness: int = 5) ->
 __all__ = [
     # Main configuration class
     "Config",
+    "SharedConfig",
+    "TrainConfig",
+    "StageProfileRefConfig",
     # System configuration
     "SystemConfig",
     "SystemTrainingConfig",
     "SystemInferenceConfig",
+    "SystemProfileConfig",
     # Model configuration
     "ModelConfig",
     # Data configuration
     "DataConfig",
+    "DataTransformConfig",
+    "DataTransformProfileConfig",
     "ImageTransformConfig",
+    "NNUNetPreprocessingConfig",
     "LabelTransformConfig",
     "AffinityConfig",
     "SkeletonDistanceConfig",

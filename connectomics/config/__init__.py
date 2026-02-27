@@ -16,6 +16,7 @@ from .hydra_utils import (
     get_config_hash,
     create_experiment_name,
     resolve_data_paths,
+    resolve_shared_profiles,
 )
 
 # Auto-configuration system
@@ -50,6 +51,7 @@ __all__ = [
     "get_config_hash",
     "create_experiment_name",
     "resolve_data_paths",
+    "resolve_shared_profiles",
     # Auto-configuration
     "auto_plan_config",
     "AutoConfigPlanner",
