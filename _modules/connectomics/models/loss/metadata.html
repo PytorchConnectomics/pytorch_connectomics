@@ -315,7 +315,9 @@
     <span class="s2">&quot;L1Loss&quot;</span><span class="p">:</span> <span class="n">LossMetadata</span><span class="p">(</span><span class="s2">&quot;L1Loss&quot;</span><span class="p">),</span>
     <span class="c1"># Custom supervised losses</span>
     <span class="s2">&quot;SmoothL1Loss&quot;</span><span class="p">:</span> <span class="n">LossMetadata</span><span class="p">(</span><span class="s2">&quot;SmoothL1Loss&quot;</span><span class="p">,</span> <span class="n">spatial_weight_arg</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span><span class="p">),</span>
-    <span class="s2">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p">:</span> <span class="n">LossMetadata</span><span class="p">(</span><span class="s2">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p">),</span>
+    <span class="s2">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p">:</span> <span class="n">LossMetadata</span><span class="p">(</span>
+        <span class="s2">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p">,</span> <span class="n">spatial_weight_arg</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span>
+    <span class="p">),</span>
     <span class="s2">&quot;WeightedMSELoss&quot;</span><span class="p">:</span> <span class="n">LossMetadata</span><span class="p">(</span><span class="s2">&quot;WeightedMSELoss&quot;</span><span class="p">,</span> <span class="n">spatial_weight_arg</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span><span class="p">),</span>
     <span class="s2">&quot;WeightedMAELoss&quot;</span><span class="p">:</span> <span class="n">LossMetadata</span><span class="p">(</span><span class="s2">&quot;WeightedMAELoss&quot;</span><span class="p">,</span> <span class="n">spatial_weight_arg</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span><span class="p">),</span>
     <span class="c1"># GAN is not compatible with the generic supervised orchestrator path</span>
