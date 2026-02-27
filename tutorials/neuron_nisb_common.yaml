@@ -23,25 +23,16 @@ model:
   mednext_checkpoint_style: outside_block
   deep_supervision: false
 
-  loss_functions:
-    - WeightedBCEWithLogitsLoss
-    - WeightedMSELoss
-  loss_weights: [1.0, 1.0]
-  loss_kwargs:
-    - {}
-    - {tanh: true}
-
-  loss_terms:
-    - name: affinity_loss_0
-      loss_index: 0
+  losses:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
       pred_slice: [0, 6]
       target_slice: [0, 6]
-      task_name: affinity
-    - name: sdt_loss_1
-      loss_index: 1
+    - function: WeightedMSELoss
+      weight: 1.0
+      kwargs: {tanh: true}
       pred_slice: [6, 7]
       target_slice: [6, 7]
-      task_name: sdt
 data:
   # BANIS command mapping:
   # --base_data_path /projects/weilab/dataset/nisb

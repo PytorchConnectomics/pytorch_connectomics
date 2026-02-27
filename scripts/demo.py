@@ -127,16 +127,13 @@ def create_demo_config():
             spatial_dims=3,
             filters=[16, 32, 64, 128],  # Smaller for demo
             dropout=0.1,
-            loss_functions=["DiceLoss"],
-            loss_weights=[1.0],
-            loss_kwargs=[{"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5}],
-            loss_terms=[
+            losses=[
                 {
-                    "name": "seg",
-                    "loss_index": 0,
+                    "function": "DiceLoss",
+                    "weight": 1.0,
+                    "kwargs": {"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
                     "pred_slice": [0, 1],
                     "target_slice": [0, 1],
-                    "task_name": "seg",
                 }
             ],
         ),

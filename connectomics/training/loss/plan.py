@@ -1,4 +1,4 @@
-"""Training loss-plan compilation for explicit loss terms."""
+"""Training loss-plan compilation from unified losses config."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ...models.loss.metadata import LossCallKind, LossMetadata, TargetKind, get_
 
 @dataclass(frozen=True)
 class LossTermSpec:
-    """Compiled explicit loss term used by the training loss orchestrator."""
+    """Compiled loss term used by the training loss orchestrator."""
 
     name: str
     loss_index: int
@@ -23,7 +23,6 @@ class LossTermSpec:
     target_slice: Optional[Tuple[int, int]] = None
     pred2_slice: Optional[Tuple[int, int]] = None
     mask_slice: Optional[Tuple[int, int]] = None
-    task_name: Optional[str] = None
     apply_deep_supervision: bool = True
     spatial_weight_arg: Optional[str] = None
 
@@ -62,51 +61,33 @@ def compile_loss_terms_from_config(
     *,
     loss_metadata: Optional[Sequence[LossMetadata]] = None,
 ) -> List[LossTermSpec]:
-    """Compile explicit `model.loss_terms` config to validated loss term specs."""
+    """Compile unified ``model.losses`` config to validated loss term specs.
+
+    Each entry in ``model.losses`` maps 1:1 to a loss function (by index)
+    and carries its own weight, channel slices, and routing info.
+    """
     model_cfg = _cfg_get(cfg, "model", None)
-    terms_cfg = _cfg_get(model_cfg, "loss_terms", None)
+    losses_cfg = _cfg_get(model_cfg, "losses", None)
     metas = list(loss_metadata) if loss_metadata is not None else [
         get_loss_metadata_for_module(loss_fn) for loss_fn in loss_functions
     ]
     compiled: List[LossTermSpec] = []
 
-    if terms_cfg is None:
+    if losses_cfg is None:
         raise ValueError(
-            "model.loss_terms is required. Configure explicit loss terms "
-            "(pred/target slices, task names, and optional masks)."
+            "model.losses is required. Configure a list of loss entries "
+            "with function, weight, pred_slice, and target_slice."
         )
 
-    terms_list = list(terms_cfg)
+    losses_list = list(losses_cfg)
+    if len(losses_list) != len(loss_functions):
+        raise ValueError(
+            f"model.losses has {len(losses_list)} entries but "
+            f"{len(loss_functions)} loss functions were built. These must match."
+        )
 
-    def _resolve_loss_index(term_cfg: Any, term_idx: int) -> int:
-        raw = _cfg_get(term_cfg, "loss_index", None)
-        if raw is None:
-            raw = _cfg_get(term_cfg, "loss", None)
-        if raw is None:
-            raise ValueError(f"loss_terms[{term_idx}] must define 'loss_index' (or integer 'loss')")
-        if isinstance(raw, str):
-            matches = [i for i, m in enumerate(metas) if m.name == raw]
-            if len(matches) == 1:
-                return matches[0]
-            if len(matches) == 0:
-                raise ValueError(
-                    f"loss_terms[{term_idx}] references unknown loss name {raw!r}. "
-                    "Use loss_index or include the loss in model.loss_functions."
-                )
-            raise ValueError(
-                f"loss_terms[{term_idx}] loss name {raw!r} matches multiple entries in "
-                "model.loss_functions. Use loss_index to disambiguate."
-            )
-        idx = int(raw)
-        if idx < 0 or idx >= len(loss_functions):
-            raise ValueError(
-                f"loss_terms[{term_idx}] loss_index {idx} out of range for "
-                f"{len(loss_functions)} configured losses"
-            )
-        return idx
-
-    for term_idx, term_cfg in enumerate(terms_list):
-        loss_index = _resolve_loss_index(term_cfg, term_idx)
+    for term_idx, term_cfg in enumerate(losses_list):
+        loss_index = term_idx  # 1:1 mapping
         base_meta = metas[loss_index]
 
         call_kind = str(
@@ -134,43 +115,41 @@ def compile_loss_terms_from_config(
 
         if call_kind == "unsupported":
             raise ValueError(
-                f"loss_terms[{term_idx}] uses unsupported generic loss '{base_meta.name}'. "
+                f"losses[{term_idx}] uses unsupported generic loss '{base_meta.name}'. "
                 "Wrap it in a custom training step path or custom loss term executor."
             )
         if call_kind not in {"pred_target", "pred_only", "pred_pred"}:
-            raise ValueError(f"Unsupported call_kind {call_kind!r} in loss_terms[{term_idx}]")
+            raise ValueError(f"Unsupported call_kind {call_kind!r} in losses[{term_idx}]")
 
         if call_kind == "pred_target":
             if pred_slice is None or target_slice is None:
                 raise ValueError(
-                    f"loss_terms[{term_idx}] pred_target terms require pred_slice and target_slice"
+                    f"losses[{term_idx}] pred_target terms require pred_slice and target_slice"
                 )
         elif call_kind == "pred_only":
             if pred_slice is None:
-                raise ValueError(f"loss_terms[{term_idx}] pred_only terms require pred_slice")
+                raise ValueError(f"losses[{term_idx}] pred_only terms require pred_slice")
             if target_kind != "none":
                 target_kind = "none"
         elif call_kind == "pred_pred":
             if pred_slice is None or pred2_slice is None:
                 raise ValueError(
-                    f"loss_terms[{term_idx}] pred_pred terms require pred_slice and pred2_slice"
+                    f"losses[{term_idx}] pred_pred terms require pred_slice and pred2_slice"
                 )
             if target_kind != "none":
                 target_kind = "none"
 
         if target_kind not in {"dense", "class_index", "none"}:
-            raise ValueError(f"Unsupported target_kind {target_kind!r} in loss_terms[{term_idx}]")
+            raise ValueError(f"Unsupported target_kind {target_kind!r} in losses[{term_idx}]")
 
         coefficient = float(
             _cfg_get(term_cfg, "coefficient", _cfg_get(term_cfg, "weight", loss_weights[loss_index]))
         )
-        task_name = _cfg_get(term_cfg, "task_name", _cfg_get(term_cfg, "task", None))
-        name = _cfg_get(term_cfg, "name", f"term_{term_idx}")
         apply_deep_supervision = bool(_cfg_get(term_cfg, "apply_deep_supervision", True))
 
         compiled.append(
             LossTermSpec(
-                name=str(name),
+                name=f"loss_{term_idx}",
                 loss_index=loss_index,
                 coefficient=coefficient,
                 call_kind=call_kind,
@@ -179,7 +158,6 @@ def compile_loss_terms_from_config(
                 target_slice=target_slice,
                 pred2_slice=pred2_slice,
                 mask_slice=mask_slice,
-                task_name=None if task_name is None else str(task_name),
                 apply_deep_supervision=apply_deep_supervision,
                 spatial_weight_arg=None if spatial_weight_arg is None else str(spatial_weight_arg),
             )
@@ -189,18 +167,14 @@ def compile_loss_terms_from_config(
 
 
 def infer_num_loss_tasks_from_config(cfg: Any) -> int:
-    """Infer task count for adaptive loss weighting from explicit loss terms."""
-    model_cfg = _cfg_get(cfg, "model", None)
-    terms_cfg = _cfg_get(model_cfg, "loss_terms", None)
-    if terms_cfg:
-        task_names = []
-        for term_idx, term_cfg in enumerate(list(terms_cfg)):
-            task_name = _cfg_get(term_cfg, "task_name", _cfg_get(term_cfg, "task", None))
-            if task_name is None:
-                task_name = _cfg_get(term_cfg, "name", f"term_{term_idx}")
-            task_names.append(str(task_name))
-        return max(1, len(set(task_names)))
+    """Infer task count for adaptive loss weighting from unified losses config.
 
+    Each loss entry is its own task (no task_name grouping).
+    """
+    model_cfg = _cfg_get(cfg, "model", None)
+    losses_cfg = _cfg_get(model_cfg, "losses", None)
+    if losses_cfg:
+        return max(1, len(list(losses_cfg)))
     return 1
 
 

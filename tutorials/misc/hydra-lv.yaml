@@ -104,47 +104,36 @@ model:
 
   # Multi-task loss configuration
   # Adaptive balancing with uncertainty weighting across binary / boundary / distance heads
-  loss_functions: [DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, TverskyLoss, SmoothL1Loss]
-  loss_weights: [1.0, 1.0, 1.0, 1.0, 1.0]       # Base weights; adaptive weighting will balance tasks
-  loss_kwargs:
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for binary
-    - {reduction: mean}                            # WeightedBCEWithLogitsLoss: average over batch
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss for boundary
-    - {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Tversky handles sparse contours
-    - {beta: 0.1, reduction: mean, tanh: true}                       # SmoothL1 for distance (with tanh activation)
+  losses:
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+    - function: TverskyLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+    - function: SmoothL1Loss
+      weight: 1.0
+      kwargs: {beta: 0.1, reduction: mean, tanh: true}
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
 
   # Adaptive loss balancing between heads
   loss_balancing:
     strategy: uncertainty           # Options: null, uncertainty, gradnorm
-
-  # Multi-task loss terms (explicit channel/target routing)
-  # Format: list of {loss_index, pred_slice, target_slice, task_name, ...}
-  loss_terms:
-    - name: label_loss_0
-      loss_index: 0
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
-      task_name: label
-    - name: label_loss_1
-      loss_index: 1
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
-      task_name: label
-    - name: boundary_loss_2
-      loss_index: 2
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
-      task_name: boundary
-    - name: boundary_loss_3
-      loss_index: 3
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
-      task_name: boundary
-    - name: edt_loss_4
-      loss_index: 4
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
-      task_name: edt
 data:
   # Volume configuration - supports multiple files via glob pattern or list
   train_image: "datasets/hydra-lv/vol*_im.h5"     # Training volumes

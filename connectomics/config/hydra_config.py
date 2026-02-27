@@ -207,22 +207,11 @@ class ModelConfig:
     enable_nan_detection: bool = True  # Detect NaN/Inf losses and print diagnostics
     debug_on_nan: bool = True  # Enter pdb on NaN/Inf detection (disable for non-interactive jobs)
 
-    # Loss configuration
-    loss_functions: List[str] = field(default_factory=lambda: ["DiceLoss", "BCEWithLogitsLoss"])
-    loss_weights: List[float] = field(default_factory=lambda: [1.0, 1.0])
-    loss_kwargs: List[dict] = field(default_factory=lambda: [{}, {}])  # Per-loss kwargs
-    # Explicit loss routing plan (required by LossOrchestrator for nontrivial setups)
-    # Each term declares a loss index plus pred/target/mask slices and task grouping.
-    loss_terms: Optional[List[Dict[str, Any]]] = None
+    # Loss configuration — unified list where each entry defines a loss function,
+    # its weight, kwargs, and channel routing (pred/target slices).
+    # When None, defaults to [DiceLoss + BCEWithLogitsLoss] applied to all channels.
+    losses: Optional[List[Dict[str, Any]]] = None
     loss_balancing: LossBalancingConfig = field(default_factory=LossBalancingConfig)
-
-    # Multi-task learning configuration
-    # Defines which output channels correspond to which targets
-    # Format: list of (start_ch, end_ch, target_name, loss_indices)
-    # Example: [[0, 1, "binary", [0]], [1, 2, "boundary", [1]], [2, 3, "edt", [2]]]
-    multi_task_config: Optional[List[List[Any]]] = (
-        None  # None = single task (apply all losses to all channels)
-    )
 
     # External model weights loading
     # For loading pretrained weights from external checkpoints (e.g., BANIS, nnUNet)

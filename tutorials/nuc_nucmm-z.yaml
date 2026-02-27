@@ -25,46 +25,30 @@ model:
   kernel_size: 3
   norm: batch
   dropout: 0.0
-  loss_functions:
-    - DiceLoss
-    - BCEWithLogitsLoss
-    - WeightedMSELoss
-  loss_weights:
-    - 1.0
-    - 0.5
-    - 2.0
-  loss_kwargs:
-    - sigmoid: true
-      smooth_nr: 1e-5
-      smooth_dr: 1e-5
-    - {}
-    - tanh: true
-  loss_terms:
-    - name: label_loss_0
-      loss_index: 0
+  losses:
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: label
-    - name: label_loss_1
-      loss_index: 1
+    - function: BCEWithLogitsLoss
+      weight: 0.5
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: label
-    - name: boundary_loss_0
-      loss_index: 0
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: boundary
-    - name: boundary_loss_1
-      loss_index: 1
+    - function: BCEWithLogitsLoss
+      weight: 0.5
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: boundary
-    - name: edt_loss_2
-      loss_index: 2
+    - function: WeightedMSELoss
+      weight: 2.0
+      kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
-      task_name: edt
 data:
   train_image: datasets/NucMM-Z/Image/train/img_*.h5
   train_label: datasets/NucMM-Z/Label/train/seg_*.h5

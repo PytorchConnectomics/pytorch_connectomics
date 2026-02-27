@@ -48,26 +48,18 @@ model:
   dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration - Dice for overlap, BCE for pixel-wise accuracy
-  loss_functions: [DiceLoss, CrossEntropyLoss]
-  loss_weights: [1.0, 0.5]             # Prioritize Dice (overlap) over BCE
-  loss_kwargs:
-    - {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss with smoothing
-    - {label_smoothing: 0.1}  # CrossEntropyLoss with label smoothing
-
-# Data - Using automatic 80/20 train/val split (DeepEM-style)
-  loss_terms:
-    - name: loss_0
-      loss_index: 0
+  losses:
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {include_background: false, softmax: true, to_onehot_y: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, 1]
+    - function: CrossEntropyLoss
+      weight: 0.5
+      kwargs: {label_smoothing: 0.1}
       target_kind: class_index
-      task_name: supervised
-    - name: loss_1
-      loss_index: 1
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, 1]
-      target_kind: class_index
-      task_name: supervised
 data:
   # 2D data support
   do_2d: true                     # Enable 2D data processing (extract 2D slices from 3D volumes)

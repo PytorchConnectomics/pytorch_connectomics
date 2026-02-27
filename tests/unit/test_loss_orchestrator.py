@@ -8,12 +8,12 @@ from connectomics.models.loss import LossMetadata, create_loss
 from connectomics.training.loss import LossOrchestrator
 
 
-def _cfg(loss_terms=None):
+def _cfg(losses=None):
     model = SimpleNamespace(
         deep_supervision_clamp_min=-20.0,
         deep_supervision_clamp_max=20.0,
         deep_supervision_weights=None,
-        loss_terms=loss_terms,
+        losses=losses,
     )
     return SimpleNamespace(model=model)
 
@@ -131,8 +131,8 @@ def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses(
     assert reg_meta.spatial_weight_arg == "mask"
 
 
-def test_loss_orchestrator_requires_explicit_loss_terms():
-    with pytest.raises(ValueError, match="model\\.loss_terms is required"):
+def test_loss_orchestrator_requires_explicit_losses():
+    with pytest.raises(ValueError, match="model\\.losses is required"):
         LossOrchestrator(
             cfg=_cfg(),
             loss_functions=nn.ModuleList([NoWeightSpyLoss()]),
@@ -147,21 +147,9 @@ def test_standard_loss_uses_foreground_weight_only_for_weight_aware_losses():
     no_weight_loss = NoWeightSpyLoss()
     orchestrator = LossOrchestrator(
         cfg=_cfg(
-            loss_terms=[
-                {
-                    "name": "weighted",
-                    "loss_index": 0,
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
-                    "task_name": "seg",
-                },
-                {
-                    "name": "plain",
-                    "loss_index": 1,
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
-                    "task_name": "seg",
-                },
+            losses=[
+                {"pred_slice": [0, 1], "target_slice": [0, 1], "weight": 1.0},
+                {"pred_slice": [0, 1], "target_slice": [0, 1], "weight": 1.0},
             ]
         ),
         loss_functions=nn.ModuleList([weighted_loss, no_weight_loss]),
@@ -190,21 +178,17 @@ def test_multitask_single_scale_routes_class_index_and_dense_targets():
     ce_loss = CrossEntropyLossWrapperSpy()
     reg_loss = WeightAwareSpyLoss()
     cfg = _cfg(
-        loss_terms=[
+        losses=[
             {
-                "name": "seg_ce",
-                "loss_index": 0,
                 "pred_slice": [0, 3],
                 "target_slice": [0, 1],
                 "target_kind": "class_index",
-                "task_name": "seg",
+                "weight": 1.0,
             },
             {
-                "name": "sdt_reg",
-                "loss_index": 1,
                 "pred_slice": [3, 4],
                 "target_slice": [1, 2],
-                "task_name": "sdt",
+                "weight": 1.0,
             },
         ]
     )
@@ -224,8 +208,8 @@ def test_multitask_single_scale_routes_class_index_and_dense_targets():
     total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
 
     assert torch.isfinite(total_loss)
-    assert "train_loss_task_seg_weight" in loss_dict
-    assert "train_loss_task_sdt_weight" in loss_dict
+    assert "train_loss_task_loss_0_weight" in loss_dict
+    assert "train_loss_task_loss_1_weight" in loss_dict
     assert ce_loss.target_shapes == [(1, 1, 4, 4, 4)]
     assert len(reg_loss.calls) == 1
     assert reg_loss.calls[0]["weight"] is not None
@@ -235,21 +219,17 @@ def test_deep_supervision_multitask_resizes_targets_per_task_and_applies_foregro
     ce_loss = CrossEntropyLossWrapperSpy()
     reg_loss = WeightAwareSpyLoss()
     cfg = _cfg(
-        loss_terms=[
+        losses=[
             {
-                "name": "seg_ce",
-                "loss_index": 0,
                 "pred_slice": [0, 3],
                 "target_slice": [0, 1],
                 "target_kind": "class_index",
-                "task_name": "seg",
+                "weight": 1.0,
             },
             {
-                "name": "sdt_reg",
-                "loss_index": 1,
                 "pred_slice": [3, 4],
                 "target_slice": [1, 2],
-                "task_name": "sdt",
+                "weight": 1.0,
             },
         ]
     )
@@ -308,21 +288,17 @@ def test_explicit_loss_terms_support_pred_only_pred_pred_and_mask_dispatch():
     )
 
     cfg = _cfg(
-        loss_terms=[
+        losses=[
             {
-                "name": "bin_reg",
-                "loss_index": 0,
                 "pred_slice": [0, 1],
                 "mask_slice": [0, 1],
-                "task_name": "reg",
+                "weight": 0.25,
             },
             {
-                "name": "consistency",
-                "loss_index": 1,
                 "pred_slice": [1, 2],
                 "pred2_slice": [2, 3],
                 "mask_slice": [1, 2],
-                "task_name": "cons",
+                "weight": 0.5,
             },
         ]
     )
@@ -345,10 +321,10 @@ def test_explicit_loss_terms_support_pred_only_pred_pred_and_mask_dispatch():
     assert len(pred_pred_loss.calls) == 1
     assert pred_only_loss.calls[0]["mask_shape"] == (1, 1, 4, 4, 4)
     assert pred_pred_loss.calls[0]["mask_shape"] == (1, 1, 4, 4, 4)
-    assert "train_loss_term_bin_reg_raw" in loss_dict
-    assert "train_loss_term_consistency_raw" in loss_dict
-    assert "train_loss_task_reg_weight" in loss_dict
-    assert "train_loss_task_cons_weight" in loss_dict
+    assert "train_loss_term_loss_0_raw" in loss_dict
+    assert "train_loss_term_loss_1_raw" in loss_dict
+    assert "train_loss_task_loss_0_weight" in loss_dict
+    assert "train_loss_task_loss_1_weight" in loss_dict
 
 
 def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_only_terms():
@@ -369,22 +345,18 @@ def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_on
     )
 
     cfg = _cfg(
-        loss_terms=[
+        losses=[
             {
-                "name": "main_only_reg",
-                "loss_index": 0,
                 "pred_slice": [0, 1],
                 "mask_slice": [0, 1],
                 "apply_deep_supervision": False,
-                "task_name": "mainreg",
+                "weight": 1.0,
             },
             {
-                "name": "ds_cons",
-                "loss_index": 1,
                 "pred_slice": [1, 2],
                 "pred2_slice": [2, 3],
                 "mask_slice": [1, 2],
-                "task_name": "cons",
+                "weight": 1.0,
             },
         ]
     )
@@ -410,5 +382,5 @@ def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_on
     assert len(pred_pred_loss.calls) == 2  # main + ds_1
     assert pred_pred_loss.calls[0]["mask_shape"] == (1, 1, 6, 6, 6)
     assert pred_pred_loss.calls[1]["mask_shape"] == (1, 1, 3, 3, 3)
-    assert "train_loss_scale_0_term_main_only_reg_raw" in loss_dict
-    assert "train_loss_scale_1_term_ds_cons_raw" in loss_dict
+    assert "train_loss_scale_0_term_loss_0_raw" in loss_dict
+    assert "train_loss_scale_1_term_loss_1_raw" in loss_dict

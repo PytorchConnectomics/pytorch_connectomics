@@ -59,16 +59,8 @@ def minimal_config():
             'norm': 'group',
             'num_groups': 1,
                 'filters': [8, 16],  # Very small for fast testing
-                'loss_functions': ['DiceLoss'],
-                'loss_weights': [1.0],
-                'loss_terms': [
-                    {
-                        'name': 'seg',
-                        'loss_index': 0,
-                        'pred_slice': [0, 1],
-                        'target_slice': [0, 1],
-                        'task_name': 'seg',
-                    }
+                'losses': [
+                    {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]}
                 ],
             },
         'optimization': {
@@ -310,38 +302,11 @@ class TestMultiTask:
                 'filters': [8, 16],
                 'norm': 'group',
                 'num_groups': 1,
-                'loss_functions': ['DiceLoss', 'BCEWithLogitsLoss', 'MSELoss'],
-                'loss_weights': [1.0, 0.5, 1.0],
-                'loss_terms': [
-                    {
-                        'name': 'binary_dice',
-                        'loss_index': 0,
-                        'pred_slice': [0, 1],
-                        'target_slice': [0, 1],
-                        'task_name': 'binary',
-                    },
-                    {
-                        'name': 'binary_bce',
-                        'loss_index': 1,
-                        'pred_slice': [0, 1],
-                        'target_slice': [0, 1],
-                        'task_name': 'binary',
-                        'coefficient': 0.5,
-                    },
-                    {
-                        'name': 'boundary_bce',
-                        'loss_index': 1,
-                        'pred_slice': [1, 2],
-                        'target_slice': [1, 2],
-                        'task_name': 'boundary',
-                    },
-                    {
-                        'name': 'edt_mse',
-                        'loss_index': 2,
-                        'pred_slice': [2, 3],
-                        'target_slice': [2, 3],
-                        'task_name': 'edt',
-                    },
+                'losses': [
+                    {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
+                    {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'coefficient': 0.5, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
+                    {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': [1, 2], 'target_slice': [1, 2]},
+                    {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': [2, 3], 'target_slice': [2, 3]},
                 ],
             },
             'optimization': {
@@ -352,8 +317,8 @@ class TestMultiTask:
 
         module = ConnectomicsModule(cfg)
         assert module is not None
-        task_names = {term.task_name for term in module.loss_orchestrator.loss_term_specs}
-        assert task_names == {'binary', 'boundary', 'edt'}
+        term_names = {term.name for term in module.loss_orchestrator.loss_term_specs}
+        assert term_names == {'loss_0', 'loss_1', 'loss_2', 'loss_3'}
 
     def test_multi_task_forward(self):
         """Test multi-task forward pass."""
@@ -366,37 +331,11 @@ class TestMultiTask:
                 'filters': [8, 16],
                 'norm': 'group',
                 'num_groups': 1,
-                'loss_functions': ['DiceLoss', 'BCEWithLogitsLoss', 'MSELoss'],
-                'loss_weights': [1.0, 0.5, 1.0],
-                'loss_terms': [
-                    {
-                        'name': 'binary_dice',
-                        'loss_index': 0,
-                        'pred_slice': [0, 1],
-                        'target_slice': [0, 1],
-                        'task_name': 'binary',
-                    },
-                    {
-                        'name': 'binary_bce',
-                        'loss_index': 1,
-                        'pred_slice': [0, 1],
-                        'target_slice': [0, 1],
-                        'task_name': 'binary',
-                    },
-                    {
-                        'name': 'boundary_bce',
-                        'loss_index': 1,
-                        'pred_slice': [1, 2],
-                        'target_slice': [1, 2],
-                        'task_name': 'boundary',
-                    },
-                    {
-                        'name': 'edt_mse',
-                        'loss_index': 2,
-                        'pred_slice': [2, 3],
-                        'target_slice': [2, 3],
-                        'task_name': 'edt',
-                    },
+                'losses': [
+                    {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
+                    {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
+                    {'function': 'BCEWithLogitsLoss', 'weight': 0.5, 'pred_slice': [1, 2], 'target_slice': [1, 2]},
+                    {'function': 'MSELoss', 'weight': 1.0, 'pred_slice': [2, 3], 'target_slice': [2, 3]},
                 ],
             },
             'optimization': {

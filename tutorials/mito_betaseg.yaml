@@ -53,27 +53,16 @@ model:
 
 
   # Multi-task loss configuration
-  loss_functions:
-    - WeightedBCEWithLogitsLoss       # Loss index 0: for affinity channels
-    - WeightedMSELoss                 # Loss index 1: for SDT channel
-  loss_weights: [1.0, 1.0]            # Equal weighting: loss = affinity_loss + sdt_loss
-  loss_kwargs:
-    - {}                              # BCEWithLogitsLoss: default (no pos_weight)
-    - {tanh: true}                    # WeightedMSELoss: tanh activation for [-1, 1] range
-
-  # Multi-task loss terms (explicit channel/target routing)
-  # This tells the training loop which channels/targets use which losses
-  loss_terms:
-    - name: affinity_loss_0
-      loss_index: 0
+  losses:
+    - function: WeightedBCEWithLogitsLoss  # for affinity channels
+      weight: 1.0
       pred_slice: [0, 6]
       target_slice: [0, 6]
-      task_name: affinity
-    - name: sdt_loss_1
-      loss_index: 1
+    - function: WeightedMSELoss            # for SDT channel
+      weight: 1.0
+      kwargs: {tanh: true}                 # tanh activation for [-1, 1] range
       pred_slice: [6, 7]
       target_slice: [6, 7]
-      task_name: sdt
 data:
   # Dataset configuration - BetaSeg training data
   train_path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
