@@ -1,11 +1,9 @@
+shared:
+  arch_profile: mednext_m
+
 _base_: mito_mitoEM_common.yaml
 
 experiment_name: mitoem30r_mednext_sdt
-system:
-  training:    
-    batch_size: 4
-  inference:
-    batch_size: 1
 data:
   train_image:
   - EM30-R/im_train.h5
@@ -23,3 +21,11 @@ test:
     test_image: /projects/weilab/dataset/mito/mitoEM/EM30-R/im_test.h5
     test_label: /projects/weilab/dataset/mito/mitoEM/EM30-R/mito_test-v2.h5
     output_path: outputs/mitoem30r_mednext_sdt/results/
+
+inference:
+  batch_size: 1
+
+train:
+  system:
+    overrides:
+      batch_size: 4

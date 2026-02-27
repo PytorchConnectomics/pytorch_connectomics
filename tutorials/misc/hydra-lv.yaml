@@ -1,78 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# Hydra Large Vesicle Segmentation with MONAI Residual UNet
-# Multi-task learning: Binary + Boundary + Distance
-#
-# ============================================================================
-# ARCHITECTURE SELECTION - Change 'architecture' to switch models:
-# ============================================================================
-#
-# monai_unet (recommended for MONAI)
-#   - MONAI's UNet with residual units
-#   - Supports any number of levels (uses filters directly)
-#   - No deep supervision
-#   - Recommended for: MONAI baseline, flexible architecture
-#
-# monai_basic_unet3d
-#   - MONAI's BasicUNet (always 6 levels, pads filters if < 6)
-#   - Simple, fast
-#   - Recommended for: Quick experiments
-#
-# rsunet
-#   - Residual Symmetric U-Net (EM-optimized)
-#   - No checkerboard artifacts (uses upsample+conv instead of transposed conv)
-#   - Anisotropic convolutions for EM data
-#   - Recommended for: Production EM segmentation, anisotropic data
-#
-# mednext
-#   - MedNeXt (MICCAI 2023, ConvNeXt-based)
-#   - State-of-the-art performance
-#   - Deep supervision for better training
-#   - Sizes: S (5.6M), B (10.5M), M (17.6M), L (61.8M) params
-#   - Recommended for: Best accuracy, sufficient GPU memory
-#
-# ============================================================================
-#
-# This config uses multi-task learning to predict:
-#   - Channel 0: Binary masks (sigmoid activation)
-#   - Channel 1: Boundary maps (sigmoid activation)
-#   - Channel 2: Distance transforms (tanh activation)
-#
-# Multi-task setup uses different loss functions for each channel:
-#   - Binary & Boundary: DiceLoss + BCEWithLogitsLoss
-#   - Distance: WeightedMSELoss
-#
-# Valid region masks (train_mask, val_mask):
-#   - Masks define valid regions for loss computation
-#   - Applied after same augmentation as labels (spatial consistency)
-#   - Loss is only computed in valid (mask=1) regions
-
+_base_: ../bases/common.yaml
 experiment_name: hydra-lv_rsunet
 description: Hydra large vesicle segmentation with RSUNet (EM-optimized) and multi-task learning
 
 # System
-system:
-  training:
-    num_gpus: 4
-    num_workers: 2                     # More workers for parallel data loading (6x speedup)
-    batch_size: 8                      # Reduced from 32 for larger patches (OPTION 3)
-  inference:
-    num_gpus: 1
-    num_workers: 1
-    batch_size: 1
-  seed: 42
-
-# Model Configuration
 model:
   # ========== CHANGE THIS LINE TO SWITCH ARCHITECTURES ==========
   architecture: rsunet  # Options: monai_unet, monai_basic_unet3d, rsunet, mednext
@@ -334,6 +264,9 @@ monitor:
 # Both stages use the same sliding window and TTA settings for consistency.
 # ============================================================================
 inference:
+  num_gpus: 1
+  num_workers: 1
+  batch_size: 1
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size: [32, 128, 128]        # Match training patch size (OPTION 3)
@@ -366,7 +299,6 @@ inference:
   save_prediction:
     enabled: true             # Save intermediate predictions (before decoding)
     intensity_scale: -1      # Scale predictions to [0, 255] for saving    
-
 
 # ============================================================================
 # PARAMETER TUNING CONFIGURATION (STAGE 1)
@@ -422,7 +354,6 @@ tune:
       normalize: "0-1"                   # Min-max normalization to [0, 1]
       clip_percentile_low: 0.0           # No clipping
       clip_percentile_high: 1.0
-
 
   # -------------------------------------------------------------------------
   # Output Configuration
@@ -537,7 +468,6 @@ tune:
           step: 4
           description: "Minimum size for watershed seeds (voxels)"
 
-
 # ============================================================================
 # INFERENCE (STAGE 2 - Final Testing on Bouton-LV Train Data)
 # ============================================================================
@@ -557,8 +487,6 @@ test:
       clip_percentile_low: 0.0           # No clipping
       clip_percentile_high: 1.0
 
-
-
   # Decoding configuration (instance segmentation postprocessing)
   # NOTE: These are initial values - will be replaced by Optuna optimized values
   decoding:
@@ -573,3 +501,11 @@ test:
   evaluation:
     enabled: true                        # Enable evaluation with ground truth
     metrics: [adapted_rand]             # Metrics to compute
+
+train:
+  system:
+    overrides:
+      num_gpus: 4
+      num_workers: 2
+      batch_size: 8
+      seed: 42

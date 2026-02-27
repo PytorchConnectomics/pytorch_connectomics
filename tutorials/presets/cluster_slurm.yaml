@@ -1,18 +1,4 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# SLURM Cluster Configuration Preset
-# Auto-configure cluster resources and partition preferences
-
+_base_: ../bases/common.yaml
 cluster:
   # Auto-detect SLURM partitions and resources
   auto_detect: true
@@ -38,11 +24,6 @@ cluster:
   available_only: true
 
 # System configuration for SLURM jobs
-system:
-  num_gpus: 1       # GPUs to request per job
-  seed: 42
-
-# Training configuration
 training:
   max_epochs: 100
   precision: "16-mixed"
@@ -74,3 +55,8 @@ logging:
 #    python scripts/main.py --config tutorials/your_config.yaml \
 #      cluster.partition_preferences=[gpu_a100,gpu_v100] \
 #      cluster.resource_constraints.min_gpus=2
+
+train:
+  system:
+    overrides:
+      seed: 42

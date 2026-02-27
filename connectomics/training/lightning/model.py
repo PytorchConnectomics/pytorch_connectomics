@@ -1095,6 +1095,61 @@ class ConnectomicsModule(pl.LightningModule):
 
         return moved_batch
 
+    @staticmethod
+    def _tta_cfg_len(value: Any) -> int:
+        """Return sequence length for TTA config lists (supports OmegaConf ListConfig)."""
+        if value is None or isinstance(value, str):
+            return 0
+        try:
+            return len(value)
+        except TypeError:
+            return 0
+
+    def _summarize_tta_plan(self, image_ndim: int) -> str:
+        """Build a concise, accurate TTA summary for inference logs."""
+        inference_cfg = getattr(self.cfg, "inference", None)
+        tta_cfg = getattr(inference_cfg, "test_time_augmentation", None)
+
+        if tta_cfg is None:
+            return "Disabled"
+
+        if not bool(getattr(tta_cfg, "enabled", False)):
+            return "Disabled"
+
+        flip_axes_cfg = getattr(tta_cfg, "flip_axes", None)
+        rotation90_axes_cfg = getattr(tta_cfg, "rotation90_axes", None)
+        channel_activations_cfg = getattr(tta_cfg, "channel_activations", None)
+
+        spatial_dims = 3 if image_ndim == 5 else 2 if image_ndim == 4 else 0
+
+        if flip_axes_cfg == "all" or flip_axes_cfg == []:
+            flip_variants = 2**spatial_dims if spatial_dims > 0 else 1
+        elif flip_axes_cfg is None:
+            flip_variants = 1
+        else:
+            flip_variants = 1 + self._tta_cfg_len(flip_axes_cfg)
+
+        if rotation90_axes_cfg == "all":
+            rotation_planes = 3 if image_ndim == 5 else 1 if image_ndim == 4 else 0
+        elif rotation90_axes_cfg is None:
+            rotation_planes = 0
+        else:
+            rotation_planes = self._tta_cfg_len(rotation90_axes_cfg)
+
+        passes_per_flip = 1 if rotation_planes == 0 else rotation_planes * 4
+        total_passes = flip_variants * passes_per_flip
+        geometric_transforms = max(total_passes - 1, 0)
+        channel_activation_groups = self._tta_cfg_len(channel_activations_cfg)
+
+        if geometric_transforms > 0:
+            return f"Enabled ({geometric_transforms} geometric transforms, {total_passes} passes)"
+        if channel_activation_groups > 0:
+            return (
+                f"Enabled (0 geometric transforms; channel_activations="
+                f"{channel_activation_groups})"
+            )
+        return "Enabled (0 transforms; single pass)"
+
     def test_step(self, batch: Dict[str, torch.Tensor], batch_idx: int) -> STEP_OUTPUT:
         """
         Test step with optional sliding-window inference and metrics computation.
@@ -1232,14 +1287,7 @@ class ConnectomicsModule(pl.LightningModule):
             print("Sliding window:     [Direct inference, no sliding window]")
 
         # TTA info
-        if hasattr(self.cfg, "inference") and hasattr(self.cfg.inference, "test_time_augmentation"):
-            tta_cfg = self.cfg.inference.test_time_augmentation
-            tta_enabled = getattr(tta_cfg, "enabled", False) if tta_cfg else False
-            if tta_enabled:
-                transforms = getattr(tta_cfg, "transforms", [])
-                print(f"TTA:                Enabled ({len(transforms)} transforms)")
-            else:
-                print("TTA:                Disabled")
+        print(f"TTA:                {self._summarize_tta_plan(images.ndim)}")
         print(f"{'=' * 70}\n")
 
         # ============================================================
@@ -1250,8 +1298,22 @@ class ConnectomicsModule(pl.LightningModule):
         inference_start = time.time()
         print("  ⏱️  Starting sliding-window inference...")
 
+        mask_align_to_image = False
+        if mode == "test" and hasattr(self.cfg, "test") and hasattr(self.cfg.test, "data"):
+            mask_transform_cfg = getattr(self.cfg.test.data, "mask_transform", None)
+            if mask_transform_cfg is not None:
+                mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
+        elif mode == "tune" and hasattr(self.cfg, "tune") and self.cfg.tune and hasattr(self.cfg.tune, "data"):
+            mask_transform_cfg = getattr(self.cfg.tune.data, "mask_transform", None)
+            if mask_transform_cfg is not None:
+                mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
+
         # Run inference (cfg.test used for data loading and transforms via datamodule)
-        predictions = self.inference_manager.predict_with_tta(images, mask=mask)
+        predictions = self.inference_manager.predict_with_tta(
+            images,
+            mask=mask,
+            mask_align_to_image=mask_align_to_image,
+        )
         predictions_np = predictions.detach().cpu().float().numpy()
 
         inference_end = time.time()

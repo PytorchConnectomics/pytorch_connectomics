@@ -1,35 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# Zebrafish Neuron Instance Segmentation (2D Fluorescence)
-# Small circular neurons (12-18 px diameter) with low SNR uint16 images (~180 max).
-# MONAI Residual UNet with contour channel + watershed decoding for instance IDs.
-
+_base_: ../bases/common.yaml
 experiment_name: zebrafish_neurons
 description: 2D zebrafish neuron instance segmentation with MONAI UNet and watershed decoding
 
 # System
-system:
-  training:
-    num_gpus: 1
-    num_workers: 16
-    batch_size: 128
-  inference:
-    num_gpus: 1
-    num_workers: 4
-    batch_size: 64
-  seed: 42
-
-# Model Configuration
 model:
   architecture: monai_unet
   input_size: [256, 256]
@@ -206,6 +179,9 @@ monitor:
 
 # Inference - Sliding window for full 1216x2048 images
 inference:
+  num_gpus: 1
+  num_workers: 4
+  batch_size: 64
   sliding_window:
     window_size: [256, 256]
     overlap: 0.5
@@ -352,3 +328,11 @@ tune:
           type: int
           range: [12, 24]
           step: 2
+
+train:
+  system:
+    overrides:
+      num_gpus: 1
+      num_workers: 16
+      batch_size: 128
+      seed: 42

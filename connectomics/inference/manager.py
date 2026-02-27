@@ -47,10 +47,17 @@ class InferenceManager:
         )
 
     def predict_with_tta(
-        self, images: torch.Tensor, mask: Optional[torch.Tensor] = None
+        self,
+        images: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        mask_align_to_image: bool = False,
     ) -> torch.Tensor:
         """Run prediction with optional TTA and sliding window."""
-        return self.tta.predict(images, mask=mask)
+        return self.tta.predict(
+            images,
+            mask=mask,
+            mask_align_to_image=mask_align_to_image,
+        )
 
 
 __all__ = ["InferenceManager"]

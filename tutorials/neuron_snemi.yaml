@@ -1,14 +1,9 @@
-_base_: bases/rsunet.yaml
+shared:
+  arch_profile: rsunet
+
+_base_: bases/arch_profiles.yaml
 experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
-system:
-  training:
-    num_gpus: -1
-    num_workers: -1
-    batch_size: 8
-  inference:
-    batch_size: 8
-  seed: 42
 model:
   out_channels: 12
   losses:
@@ -185,6 +180,7 @@ test:
   #   metrics:
   #   - adapted_rand
 inference:
+  batch_size: 8
   sliding_window:
     window_size:
       - 16
@@ -217,3 +213,11 @@ inference:
   #   enabled: false
   #   metrics:
   #   - adapted_rand
+
+train:
+  system:
+    overrides:
+      num_gpus: -1
+      num_workers: -1
+      batch_size: 8
+      seed: 42

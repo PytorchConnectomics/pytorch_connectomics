@@ -1,54 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# Hydra Large Vesicle Fine-tuning V2 - IMPROVED Configuration
-#
-# This config implements the improvements from HYDRA_LV_FINETUNE_IMPROVEMENT_PLAN.md
-# to fix poor performance (ARE=0.471, Recall=0.389)
-#
-# KEY CHANGES FROM V1:
-# ==================
-# 1. iter_num_per_epoch: 1280 → 5000 (4x more training)
-# 2. deep_supervision: false → true (CRITICAL for small objects)
-# 3. augmentation: "some" → "all" (maximum diversity)
-# 4. lr: 1e-4 → 3e-4 (3x higher, less conservative)
-# 5. loss_weights: rebalanced to emphasize binary/boundary
-# 6. max_epochs: 500 → 1000 (more training time)
-#
-# EXPECTED RESULTS:
-# ================
-# - Adapted Rand Error: < 0.1 (was: 0.471)
-# - Precision: > 0.95 (was: 0.828)
-# - Recall: > 0.95 (was: 0.389)
-# - Total Loss: < 0.2 (was: 0.555)
-#
-# ============================================================================
-
+_base_: ../bases/common.yaml
 experiment_name: hydra-lv_finetune_rsunet_v2
 description: Improved fine-tuning with deep supervision and aggressive training
 
 # System
-system:
-  training:
-    num_gpus: 4
-    num_workers: 2
-    batch_size: 4  # CHANGED FROM 8 (better gradient updates)
-  inference:
-    num_gpus: 1
-    num_workers: 1
-    batch_size: 1
-  seed: 42
-
-# Model Configuration
 model:
   architecture: rsunet
 
@@ -263,6 +217,9 @@ monitor:
 
 # Inference
 inference:
+  num_gpus: 1
+  num_workers: 1
+  batch_size: 1
   sliding_window:
     window_size: [32, 128, 128]
     sw_batch_size: 1
@@ -339,3 +296,11 @@ test:
 #    - Try MedNeXt architecture (see improvement plan)
 #
 # ============================================================================
+
+train:
+  system:
+    overrides:
+      num_gpus: 4
+      num_workers: 2
+      batch_size: 4
+      seed: 42

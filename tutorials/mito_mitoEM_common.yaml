@@ -1,16 +1,9 @@
-_base_: bases/mednext.yaml
+shared:
+  arch_profile: mednext_m
+
+_base_: bases/arch_profiles.yaml
 
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
-system:
-  training:
-    num_gpus: -1
-    num_workers: -1
-    batch_size: 4
-  inference:
-    num_gpus: 1
-    num_workers: 2
-    batch_size: 6
-  seed: 42
 model:
   input_size:
     - 32
@@ -135,6 +128,9 @@ test:
       - 8
       - 8
 inference:
+  num_gpus: 1
+  num_workers: 2
+  batch_size: 6
   sliding_window:
     window_size:
       - 32
@@ -175,3 +171,11 @@ inference:
     metrics:
       - adapted_rand
       - voi
+
+train:
+  system:
+    overrides:
+      num_gpus: -1
+      num_workers: -1
+      batch_size: 4
+      seed: 42

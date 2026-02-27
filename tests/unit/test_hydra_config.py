@@ -4,6 +4,7 @@ Test the new Hydra-based configuration system.
 
 import sys
 from pathlib import Path
+import numpy as np
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
@@ -24,6 +25,7 @@ from connectomics.config import (
     resolve_shared_profiles,
 )
 from connectomics.config.hydra_config import TestConfig as HydraTestConfig, TuneConfig
+from connectomics.data.augment.build import build_test_transforms
 
 
 def test_default_config_creation():
@@ -239,6 +241,11 @@ def test_shared_profile_resolution():
                 "clip_percentile_low": 0.1,
                 "clip_percentile_high": 0.9,
             },
+            "mask_transform": {
+                "resize": [1.0, 1.0, 1.0],
+                "binarize": True,
+                "threshold": 0.0,
+            },
             "nnunet_preprocessing": {"enabled": True},
         }
     }
@@ -256,9 +263,97 @@ def test_shared_profile_resolution():
     cfg = resolve_shared_profiles(cfg, mode="test")
     assert cfg.system.inference.num_workers == 4
     assert cfg.test.data.image_transform.normalize == "none"
+    assert cfg.test.data.mask_transform.resize == [1.0, 1.0, 1.0]
+    assert cfg.test.data.mask_transform.binarize is True
+    assert cfg.test.data.mask_transform.threshold == 0.0
     assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.sliding_window.overlap == 0.25
     print("✅ Shared profile resolution works")
+
+
+def test_yaml_shared_profile_selectors(tmp_path):
+    """Test YAML selector-only shared keys for arch/loss profiles."""
+    base_yaml = tmp_path / "base.yaml"
+    base_yaml.write_text(
+        """
+arch_profiles:
+  mednext:
+    model:
+      architecture: mednext
+loss_profiles:
+  loss_unit:
+    - function: DiceLoss
+      weight: 1.5
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+""".strip()
+    )
+
+    config_yaml = tmp_path / "config.yaml"
+    config_yaml.write_text(
+        f"""
+shared:
+  arch_profile: mednext
+  loss_profile: loss_unit
+_base_: {base_yaml.name}
+""".strip()
+    )
+
+    cfg = load_config(config_yaml)
+    assert cfg.shared.arch_profile == "mednext"
+    assert cfg.shared.loss_profile == "loss_unit"
+    assert cfg.model.architecture == "mednext"
+    assert cfg.model.losses is not None and len(cfg.model.losses) == 1
+    assert cfg.model.losses[0]["function"] == "DiceLoss"
+    print("✅ YAML shared profile selectors work")
+
+
+def test_build_test_transforms_with_mask_transform_resize_binarize():
+    """Test test-mode mask_transform resize+binarize pipeline creation."""
+    cfg = Config()
+    cfg.test = HydraTestConfig()
+    cfg.test.data.test_image = "dummy_image.h5"
+    cfg.test.data.test_mask = "dummy_mask.h5"
+    cfg.test.data.mask_transform.resize = [1, 2, 2]
+    cfg.test.data.mask_transform.binarize = True
+    cfg.test.data.mask_transform.threshold = 0.0
+
+    transforms = build_test_transforms(cfg)
+    transform_names = [type(t).__name__ for t in transforms.transforms]
+
+    assert "ResizeByFactord" in transform_names
+    assert "Lambdad" in transform_names
+    print("✅ Test transforms include mask resize+binarize")
+
+
+def test_mask_binarize_uses_strict_greater_than_threshold():
+    """Ensure mask binarization preserves zeros when threshold=0.0 (mask > 0)."""
+    cfg = Config()
+    cfg.data.patch_size = [0, 0, 0]  # Disable padding for this unit test.
+    cfg.test = HydraTestConfig()
+    cfg.test.data.test_image = "dummy_image.h5"
+    cfg.test.data.test_mask = "dummy_mask.h5"
+    cfg.test.data.image_transform.normalize = "none"
+    cfg.test.data.mask_transform.resize = None
+    cfg.test.data.mask_transform.binarize = True
+    cfg.test.data.mask_transform.threshold = 0.0
+
+    transforms = build_test_transforms(cfg)
+
+    sample = {
+        "image": np.zeros((1, 2, 2, 2), dtype=np.float32),
+        "mask": np.array([[[[0.0, 1.0], [2.0, 0.0]], [[0.0, 0.0], [3.0, 4.0]]]], dtype=np.float32),
+    }
+    out = transforms(sample)
+    mask = out["mask"].numpy()
+
+    assert mask.min() == 0.0
+    assert mask.max() == 1.0
+    # Zero-valued voxels must stay zero with strict > 0 binarization.
+    assert mask[0, 0, 0, 0] == 0.0
+    assert mask[0, 0, 1, 1] == 0.0
+    assert mask[0, 0, 0, 1] == 1.0
+    print("✅ Mask binarization uses strict > threshold semantics")
 
 
 def main():
@@ -282,6 +377,9 @@ def main():
 
     test_print_config()
     test_shared_profile_resolution()
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        test_yaml_shared_profile_selectors(Path(tmp_dir))
+    test_build_test_transforms_with_mask_transform_resize_binarize()
     
     print("\n" + "="*50)
     print("🎉 All Hydra config tests passed!")

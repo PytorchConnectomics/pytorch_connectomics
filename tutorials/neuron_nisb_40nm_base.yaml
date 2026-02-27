@@ -1,3 +1,6 @@
+shared:
+  arch_profile: mednext_b
+
 _base_: neuron_nisb_40nm_common.yaml
 
 experiment_name: neuron_nisb_base_40nm_mednext_b_sdt

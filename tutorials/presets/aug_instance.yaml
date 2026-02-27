@@ -1,27 +1,4 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# Instance Segmentation Augmentation Preset
-# Use case: Neuron instance segmentation, object detection
-# Training speed: Slower (copy-paste is expensive)
-# Model robustness: Excellent for instance segmentation
-
-system:
-  training:
-    num_gpus: 1
-    batch_size: 2
-    num_workers: 4
-  seed: 42
-
+_base_: ../bases/common.yaml
 model:
   architecture: monai_basic_unet3d
   in_channels: 1
@@ -110,3 +87,11 @@ monitor:
     mode: "min"
     save_top_k: 3
     save_last: true
+
+train:
+  system:
+    overrides:
+      num_gpus: 1
+      num_workers: 4
+      batch_size: 2
+      seed: 42

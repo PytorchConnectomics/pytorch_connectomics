@@ -112,6 +112,7 @@ class SystemProfileConfig:
     num_gpus: int = 1
     num_workers: int = 1
     batch_size: int = 1
+    seed: Optional[int] = None
 
 
 @dataclass
@@ -345,6 +346,11 @@ class DataTransformConfig:
     resize: Optional[List[float]] = (
         None  # Resize to target size [H, W] for 2D or [D, H, W] for 3D. None = no resize.
     )
+    align_to_image: bool = (
+        False  # For mask transforms: allow minor center pad/crop to match image/prediction size.
+    )
+    binarize: bool = False  # If True, convert values to {0,1} via `value > threshold`
+    threshold: float = 0.0  # Threshold used when binarize=True
 
 
 @dataclass
@@ -395,6 +401,7 @@ class DataTransformProfileConfig:
 
     data_transform: Optional[DataTransformConfig] = None
     image_transform: Optional[ImageTransformConfig] = None
+    mask_transform: Optional[DataTransformConfig] = None
     nnunet_preprocessing: Optional[NNUNetPreprocessingConfig] = None
 
 
@@ -1010,7 +1017,7 @@ class TestTimeAugmentationConfig:
     select_channel: Any = None  # Channel selection: null (all), [1] (foreground), -1 (all)
     # (applied even with null flip_axes)
     ensemble_mode: str = "mean"  # Ensemble mode for TTA: 'mean', 'min', 'max'
-    apply_mask: bool = False  # Multiply each channel by corresponding test_mask after ensemble
+    apply_mask: bool = True  # If test/tune mask exists, apply it to prediction output (set False to disable)
 
 
 @dataclass
@@ -1187,6 +1194,11 @@ class InferenceConfig:
 class SharedConfig:
     """Shared profiles reused across train/test/tune stages."""
 
+    # Profile selectors (set in experiment YAMLs).
+    arch_profile: Optional[str] = None
+    data_transform_profile: Optional[str] = None
+    loss_profile: Optional[str] = None
+
     system_profiles: Dict[str, SystemProfileConfig] = field(default_factory=dict)
     data_transform_profiles: Dict[str, DataTransformProfileConfig] = field(default_factory=dict)
     inference_profiles: Dict[str, InferenceConfig] = field(default_factory=dict)
@@ -1217,6 +1229,8 @@ class TestDataConfig:
     transform_overrides: Dict[str, Any] = field(default_factory=dict)
     # Image transformation (applied to test images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    # Mask transformation (same schema as training data_transform; applied to test masks only)
+    mask_transform: DataTransformConfig = field(default_factory=DataTransformConfig)
     nnunet_preprocessing: NNUNetPreprocessingConfig = field(
         default_factory=NNUNetPreprocessingConfig
     )
@@ -1249,6 +1263,8 @@ class TuneDataConfig:
     transform_overrides: Dict[str, Any] = field(default_factory=dict)
     # Image transformation (applied to tune images during inference)
     image_transform: ImageTransformConfig = field(default_factory=ImageTransformConfig)
+    # Mask transformation (same schema as training data_transform; applied to tune masks only)
+    mask_transform: DataTransformConfig = field(default_factory=DataTransformConfig)
     nnunet_preprocessing: NNUNetPreprocessingConfig = field(
         default_factory=NNUNetPreprocessingConfig
     )

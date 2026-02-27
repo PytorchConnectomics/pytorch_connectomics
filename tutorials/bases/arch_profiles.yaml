@@ -1,0 +1,38 @@
+# Select one of: mednext_s, mednext_b, mednext_m, mednext_l, monai_unet, rsunet
+
+arch_profiles:
+  mednext_s:
+    model:
+      architecture: mednext
+      mednext_size: S
+
+  mednext_b:
+    model:
+      architecture: mednext
+      mednext_size: B
+
+  mednext_m:
+    model:
+      architecture: mednext
+      mednext_size: M
+
+  mednext_l:
+    model:
+      architecture: mednext
+      mednext_size: L
+
+  monai_unet:
+    model:
+      architecture: monai_unet
+      filters: [32, 64, 128, 256]
+
+  rsunet:
+    model:
+      architecture: rsunet
+      filters: [36, 48, 64, 80]
+      rsunet_norm: batch
+      rsunet_activation: elu
+      rsunet_num_groups: 8
+      rsunet_down_factors: [[1, 2, 2], [1, 2, 2], [1, 2, 2]]
+      rsunet_depth_2d: 1
+      rsunet_kernel_2d: [1, 3, 3]

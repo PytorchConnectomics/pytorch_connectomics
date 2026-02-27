@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import is_dataclass
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from omegaconf import DictConfig, ListConfig, OmegaConf
@@ -74,6 +75,223 @@ def _load_config_with_bases(config_path: Path, loading_stack: Tuple[Path, ...] =
     return OmegaConf.merge(merged_base, yaml_conf)
 
 
+class YamlProfileApplier:
+    """Base strategy for applying a profile family to a merged YAML config."""
+
+    cleanup_keys: Tuple[str, ...] = ()
+
+    def apply(self, yaml_conf: DictConfig) -> None:
+        raise NotImplementedError
+
+
+def _merge_into_path(yaml_conf: DictConfig, target_path: str, profile_value: Any) -> None:
+    """Merge profile payload into target path, keeping explicit config overrides."""
+    existing = OmegaConf.select(yaml_conf, target_path)
+    if existing is None:
+        OmegaConf.update(yaml_conf, target_path, profile_value, force_add=True)
+        return
+
+    merged = OmegaConf.merge(profile_value, existing)
+    OmegaConf.update(yaml_conf, target_path, merged, force_add=True)
+
+
+class MappingProfileApplier(YamlProfileApplier):
+    """Apply selected profile mapping into one or more target config paths."""
+
+    def __init__(
+        self,
+        selector_paths: Union[str, List[str], Tuple[str, ...]],
+        profiles_key: str,
+        section_to_target: Dict[str, str],
+        cleanup_keys: Optional[Tuple[str, ...]] = None,
+    ) -> None:
+        if isinstance(selector_paths, str):
+            selector_paths = [selector_paths]
+        self.selector_paths = list(selector_paths)
+        self.profiles_key = profiles_key
+        self.section_to_target = section_to_target
+        self.cleanup_keys = cleanup_keys if cleanup_keys is not None else (profiles_key,)
+
+    def apply(self, yaml_conf: DictConfig) -> None:
+        selected = None
+        selected_path = None
+        for selector_path in self.selector_paths:
+            selected = OmegaConf.select(yaml_conf, selector_path)
+            if selected is not None:
+                selected_path = selector_path
+                break
+
+        profiles = yaml_conf.get(self.profiles_key, None)
+        if selected is None or profiles is None:
+            return
+
+        if selected not in profiles:
+            available = ", ".join(sorted(str(k) for k in profiles.keys()))
+            raise ValueError(
+                f"Unknown selector '{selected}' at '{selected_path}'. "
+                f"Available profiles: [{available}]"
+            )
+
+        selected_profile = profiles[selected]
+        for profile_section, target_path in self.section_to_target.items():
+            if profile_section in selected_profile:
+                _merge_into_path(yaml_conf, target_path, selected_profile[profile_section])
+
+
+class ReferenceProfileApplier(YamlProfileApplier):
+    """Resolve `${profiles_key.<name>}` references for specific target paths."""
+
+    def __init__(self, profiles_key: str, target_paths: List[str]) -> None:
+        self.profiles_key = profiles_key
+        self.target_paths = target_paths
+        self.cleanup_keys = (profiles_key,)
+
+    def apply(self, yaml_conf: DictConfig) -> None:
+        profiles = yaml_conf.get(self.profiles_key, None)
+        if profiles is None:
+            return
+
+        pattern = re.compile(rf"\$\{{{re.escape(self.profiles_key)}\.([A-Za-z0-9_\-]+)\}}")
+
+        for target_path in self.target_paths:
+            value = OmegaConf.select(yaml_conf, target_path)
+            if value is None:
+                continue
+
+            # Inline already-resolved interpolation payloads before helper cleanup.
+            try:
+                resolved_value = OmegaConf.to_container(value, resolve=True)
+                OmegaConf.update(yaml_conf, target_path, resolved_value, force_add=True)
+            except Exception:
+                pass
+
+            value = OmegaConf.select(yaml_conf, target_path)
+            if not isinstance(value, str):
+                continue
+
+            match = pattern.fullmatch(value)
+            if not match:
+                continue
+
+            profile_name = match.group(1)
+            if profile_name not in profiles:
+                available = ", ".join(sorted(str(k) for k in profiles.keys()))
+                raise ValueError(
+                    f"Unknown profile '{profile_name}' in {self.profiles_key}. "
+                    f"Available profiles: [{available}]"
+                )
+
+            OmegaConf.update(yaml_conf, target_path, profiles[profile_name], force_add=True)
+
+
+class ValueProfileApplier(YamlProfileApplier):
+    """Apply a selected profile value directly into a target path."""
+
+    def __init__(
+        self,
+        selector_paths: Union[str, List[str], Tuple[str, ...]],
+        profiles_key: str,
+        target_path: str,
+        merge_into_existing: bool = True,
+        cleanup_keys: Optional[Tuple[str, ...]] = None,
+    ) -> None:
+        if isinstance(selector_paths, str):
+            selector_paths = [selector_paths]
+        self.selector_paths = list(selector_paths)
+        self.profiles_key = profiles_key
+        self.target_path = target_path
+        self.merge_into_existing = merge_into_existing
+        self.cleanup_keys = cleanup_keys if cleanup_keys is not None else (profiles_key,)
+
+    def apply(self, yaml_conf: DictConfig) -> None:
+        selected = None
+        selected_path = None
+        for selector_path in self.selector_paths:
+            selected = OmegaConf.select(yaml_conf, selector_path)
+            if selected is not None:
+                selected_path = selector_path
+                break
+
+        profiles = yaml_conf.get(self.profiles_key, None)
+        if selected is None or profiles is None:
+            return
+
+        if selected not in profiles:
+            available = ", ".join(sorted(str(k) for k in profiles.keys()))
+            raise ValueError(
+                f"Unknown selector '{selected}' at '{selected_path}'. "
+                f"Available profiles: [{available}]"
+            )
+
+        if self.merge_into_existing:
+            _merge_into_path(yaml_conf, self.target_path, profiles[selected])
+        else:
+            OmegaConf.update(yaml_conf, self.target_path, profiles[selected], force_add=True)
+
+
+class YamlProfileEngine:
+    """Run a set of profile appliers and cleanup helper keys afterward."""
+
+    def __init__(self, appliers: List[YamlProfileApplier]) -> None:
+        self.appliers = appliers
+
+    def apply(self, yaml_conf: DictConfig) -> DictConfig:
+        if not isinstance(yaml_conf, DictConfig):
+            return yaml_conf
+
+        cleanup_keys: set[str] = set()
+        for applier in self.appliers:
+            applier.apply(yaml_conf)
+            cleanup_keys.update(applier.cleanup_keys)
+
+        for key in cleanup_keys:
+            if key in yaml_conf:
+                del yaml_conf[key]
+
+        return yaml_conf
+
+
+_YAML_PROFILE_ENGINE = YamlProfileEngine(
+    [
+        MappingProfileApplier(
+            selector_paths=["shared.arch_profile", "arch_profile"],
+            profiles_key="arch_profiles",
+            section_to_target={
+                "shared": "shared",
+                "system": "system",
+                "model": "model",
+                "data": "data",
+                "optimization": "optimization",
+                "monitor": "monitor",
+                "inference": "inference",
+            },
+            cleanup_keys=("arch_profile", "arch_profiles"),
+        ),
+        MappingProfileApplier(
+            selector_paths=["shared.data_transform_profile", "data_transform_profile"],
+            profiles_key="data_transform_profiles",
+            section_to_target={
+                "data_transform": "data.data_transform",
+                "image_transform": "data.image_transform",
+                "nnunet_preprocessing": "data.nnunet_preprocessing",
+            },
+            cleanup_keys=("data_transform_profile", "data_transform_profiles"),
+        ),
+        ValueProfileApplier(
+            selector_paths=["shared.loss_profile", "loss_profile"],
+            profiles_key="loss_profiles",
+            target_path="model.losses",
+            merge_into_existing=False,
+            cleanup_keys=("loss_profile", "loss_profiles"),
+        ),
+        ReferenceProfileApplier(
+            profiles_key="loss_profiles",
+            target_paths=["model.losses"],
+        ),
+    ]
+)
+
+
 def load_config(config_path: Union[str, Path]) -> Config:
     """
     Load configuration from YAML file.
@@ -86,6 +304,7 @@ def load_config(config_path: Union[str, Path]) -> Config:
     """
     config_path = Path(config_path).resolve()
     yaml_conf = _load_config_with_bases(config_path)
+    yaml_conf = _YAML_PROFILE_ENGINE.apply(yaml_conf)
 
     # Merge with structured config defaults
     default_conf = OmegaConf.structured(Config)
@@ -547,12 +766,21 @@ def resolve_shared_profiles(cfg: Config, mode: str = "train") -> Config:
         profile_overrides = getattr(selector, "overrides", {}) if selector else {}
 
         if profile_cfg is not None or profile_overrides:
+            merged_profile = _to_omegaconf(profile_cfg)
+            merged_profile = OmegaConf.merge(merged_profile, _to_omegaconf(profile_overrides))
+            profile_payload = OmegaConf.to_container(merged_profile, resolve=True)
+            if not isinstance(profile_payload, dict):
+                profile_payload = {}
+            profile_seed = profile_payload.pop("seed", None)
+
             target_cfg = getattr(cfg.system, target_attr)
             setattr(
                 cfg.system,
                 target_attr,
-                _merge_dataclass(target_cfg, profile_cfg, profile_overrides),
+                _merge_dataclass(target_cfg, profile_payload),
             )
+            if profile_seed is not None:
+                cfg.system.seed = int(profile_seed)
 
     # 2) Data transform profile resolution (stage-specific)
     data_profiles = getattr(shared, "data_transform_profiles", {}) or {}
@@ -573,10 +801,12 @@ def resolve_shared_profiles(cfg: Config, mode: str = "train") -> Config:
             profile_conf = _to_omegaconf(profile_cfg) if profile_cfg is not None else OmegaConf.create({})
             profile_data_transform = profile_conf.get("data_transform", None)
             profile_image_transform = profile_conf.get("image_transform", None)
+            profile_mask_transform = profile_conf.get("mask_transform", None)
             profile_nnunet_preprocessing = profile_conf.get("nnunet_preprocessing", None)
 
             data_transform_override = profile_overrides.get("data_transform", {})
             image_transform_override = profile_overrides.get("image_transform", {})
+            mask_transform_override = profile_overrides.get("mask_transform", {})
             nnunet_pre_override = profile_overrides.get("nnunet_preprocessing", {})
 
             if (
@@ -607,6 +837,21 @@ def resolve_shared_profiles(cfg: Config, mode: str = "train") -> Config:
                 stage_data_cfg.image_transform = _merge_dataclass(
                     stage_data_cfg.image_transform,
                     image_transform_override,
+                )
+
+            if (
+                hasattr(stage_data_cfg, "mask_transform")
+                and profile_mask_transform is not None
+            ):
+                stage_data_cfg.mask_transform = _merge_dataclass(
+                    stage_data_cfg.mask_transform,
+                    profile_mask_transform,
+                    mask_transform_override,
+                )
+            elif hasattr(stage_data_cfg, "mask_transform") and mask_transform_override:
+                stage_data_cfg.mask_transform = _merge_dataclass(
+                    stage_data_cfg.mask_transform,
+                    mask_transform_override,
                 )
 
             if (

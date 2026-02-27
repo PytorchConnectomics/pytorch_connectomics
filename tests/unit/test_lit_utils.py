@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from connectomics.config import Config, save_config
@@ -122,6 +123,30 @@ def test_calculate_validation_iter_num_uses_fallback_shape_without_clamp():
     )
 
     assert val_iter_num == 24384
+
+
+def test_calculate_validation_iter_num_handles_multipage_tiff(tmp_path):
+    tifffile = pytest.importorskip("tifffile")
+
+    tiff_path = tmp_path / "stack_pages.tif"
+    volume = np.random.randint(0, 255, size=(8, 20, 20), dtype=np.uint8)
+
+    # Write as separate pages/series to reproduce the real-world failure mode.
+    with tifffile.TiffWriter(tiff_path) as writer:
+        for z in range(volume.shape[0]):
+            writer.write(volume[z])
+
+    val_iter_num = _calculate_validation_iter_num(
+        val_data_dicts=[{"image": str(tiff_path)}],
+        patch_size=(2, 4, 4),
+        min_iter=1,
+        max_iter=None,
+        return_default_on_error=False,
+    )
+
+    # Expected from shape (8, 20, 20):
+    # stride=(1,2,2), patches=(7,9,9), total=567, 7.5%=42
+    assert val_iter_num == 42
 
 
 def test_extract_best_score_from_checkpoint():

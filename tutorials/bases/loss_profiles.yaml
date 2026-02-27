@@ -1,0 +1,30 @@
+loss_profiles:
+  loss_bcd:
+    - function: WeightedBCEWithLogitsLoss
+      foreground_weight: ratio
+      weight: 1.0
+      kwargs: {reduction: mean}
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+    - function: DiceLoss
+      weight: 0.5
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+    - function: WeightedBCEWithLogitsLoss
+      foreground_weight: ratio
+      weight: 1.0
+      kwargs: {reduction: mean}
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+    - function: DiceLoss
+      weight: 0.5
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+    - function: WeightedMSELoss
+      foreground_weight: ratio
+      weight: 2.0
+      kwargs: {tanh: true}
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
