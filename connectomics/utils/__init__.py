@@ -22,5 +22,5 @@ from .visualizer import *  # noqa: F403
 __all__ = [  # noqa: F405
     # Visualizer
     "Visualizer",
-    "LightningVisualizer",
+    "get_visualization_mask",
 ]

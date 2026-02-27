@@ -8,7 +8,6 @@ from .callbacks import (
     EMAWeightsCallback,
     NaNDetectionCallback,
     VisualizationCallback,
-    create_callbacks,
 )
 from .config import (
     expand_file_paths,
@@ -34,7 +33,6 @@ __all__ = [
     "VisualizationCallback",
     "NaNDetectionCallback",
     "EMAWeightsCallback",
-    "create_callbacks",
     "create_datamodule",
     "expand_file_paths",
     "setup_run_directory",
