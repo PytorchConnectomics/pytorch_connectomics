@@ -81,11 +81,7 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Build loss functions
         self.loss_functions = self._build_losses(cfg)
-        self.loss_weights = (
-            cfg.model.loss_weights
-            if hasattr(cfg.model, "loss_weights")
-            else [1.0] * len(self.loss_functions)
-        )
+        self.loss_weights = self._extract_loss_weights(cfg)
         self.loss_metadata = [
             get_loss_metadata_for_module(loss_fn) for loss_fn in self.loss_functions
         ]
@@ -141,27 +137,32 @@ class ConnectomicsModule(pl.LightningModule):
             print("")
         return model
 
+    @staticmethod
+    def _get_losses_list(cfg) -> list:
+        """Return the unified losses list from config, with defaults."""
+        losses = getattr(cfg.model, "losses", None)
+        if losses is not None:
+            return list(losses)
+        # Default: DiceLoss + BCEWithLogitsLoss applied to all channels
+        return [
+            {"function": "DiceLoss", "weight": 1.0},
+            {"function": "BCEWithLogitsLoss", "weight": 1.0},
+        ]
+
     def _build_losses(self, cfg) -> nn.ModuleList:
-        """Build loss functions from configuration."""
-        loss_names = (
-            cfg.model.loss_functions if hasattr(cfg.model, "loss_functions") else ["DiceLoss"]
-        )
-        if hasattr(cfg.model, "loss_kwargs") and cfg.model.loss_kwargs is not None:
-            loss_kwargs_list = list(cfg.model.loss_kwargs)
-        else:
-            loss_kwargs_list = []
+        """Build loss functions from unified losses configuration."""
+        losses_list = self._get_losses_list(cfg)
+        result = nn.ModuleList()
+        for entry in losses_list:
+            fn_name = entry["function"]
+            kwargs = dict(entry.get("kwargs", {}))
+            result.append(create_loss(fn_name, **kwargs))
+        return result
 
-        if len(loss_kwargs_list) < len(loss_names):
-            loss_kwargs_list = loss_kwargs_list + [{}] * (len(loss_names) - len(loss_kwargs_list))
-        elif len(loss_kwargs_list) > len(loss_names):
-            loss_kwargs_list = loss_kwargs_list[: len(loss_names)]
-
-        losses = nn.ModuleList()
-        for loss_name, kwargs in zip(loss_names, loss_kwargs_list):
-            loss_fn = create_loss(loss_name, **kwargs)
-            losses.append(loss_fn)
-
-        return losses
+    def _extract_loss_weights(self, cfg) -> list:
+        """Extract per-loss weights from unified losses configuration."""
+        losses_list = self._get_losses_list(cfg)
+        return [float(entry.get("weight", 1.0)) for entry in losses_list]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -196,12 +197,11 @@ class ConnectomicsModule(pl.LightningModule):
 
     def _has_multiple_supervised_loss_tasks(self) -> bool:
         """Infer multi-task supervised setup from compiled explicit loss terms."""
-        task_names = {
-            (term.task_name or term.name)
-            for term in self.loss_orchestrator.loss_term_specs
+        pred_target_terms = [
+            term for term in self.loss_orchestrator.loss_term_specs
             if term.call_kind == "pred_target"
-        }
-        return len(task_names) > 1
+        ]
+        return len(pred_target_terms) > 1
 
     def _setup_test_metrics(self):
         """Initialize test metrics based on test or inference config."""

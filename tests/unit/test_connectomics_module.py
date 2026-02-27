@@ -40,16 +40,8 @@ class SimpleModel(nn.Module):
 
 def _base_config() -> Config:
     cfg = Config()
-    cfg.model.loss_functions = ["DiceLoss"]
-    cfg.model.loss_weights = [1.0]
-    cfg.model.loss_terms = [
-        {
-            "name": "seg",
-            "loss_index": 0,
-            "pred_slice": [0, 1],
-            "target_slice": [0, 1],
-            "task_name": "seg",
-        }
+    cfg.model.losses = [
+        {"function": "DiceLoss", "weight": 1.0, "pred_slice": [0, 1], "target_slice": [0, 1]}
     ]
     cfg.model.out_channels = 1
     return cfg

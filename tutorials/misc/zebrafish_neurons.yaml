@@ -35,49 +35,37 @@ model:
 
   # Loss configuration - Optimized for small neurons with improved EDT handling
   # Binary/Boundary: BCE+Dice (standard), EDT: WeightedMSELoss with tanh activation
-  loss_functions: [WeightedBCEWithLogitsLoss, DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, WeightedMSELoss, WeightedMAELoss]
-  loss_weights: [0.5, 1.5, 0.5, 1.5, 1.0, 0.5]
-  loss_kwargs:
-    - {reduction: mean}                            # Binary: WeightedBCE
-    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Binary: Dice (higher weight for overlap)
-    - {reduction: mean}                            # Boundary: WeightedBCE
-    - {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # Boundary: Dice (higher weight)
-    - {reduction: mean, tanh: true}                # EDT: WeightedMSE with tanh (constrains to [-1,1])
-    - {reduction: mean, tanh: true}                # EDT: WeightedMAE with tanh (robust to outliers)
-
-  # Multi-task loss terms (explicit channel/target routing)
-  # Format: list of {loss_index, pred_slice, target_slice, task_name, ...}
-  loss_terms:
-    - name: binary_loss_0
-      loss_index: 0
+  losses:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 0.5
+      kwargs: {reduction: mean}
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: binary
-    - name: binary_loss_1
-      loss_index: 1
+    - function: DiceLoss
+      weight: 1.5
+      kwargs: {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: binary
-    - name: boundary_loss_2
-      loss_index: 2
+    - function: WeightedBCEWithLogitsLoss
+      weight: 0.5
+      kwargs: {reduction: mean}
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: boundary
-    - name: boundary_loss_3
-      loss_index: 3
+    - function: DiceLoss
+      weight: 1.5
+      kwargs: {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: boundary
-    - name: edt_loss_4
-      loss_index: 4
+    - function: WeightedMSELoss
+      weight: 1.0
+      kwargs: {reduction: mean, tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
-      task_name: edt
-    - name: edt_loss_5
-      loss_index: 5
+    - function: WeightedMAELoss
+      weight: 0.5
+      kwargs: {reduction: mean, tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
-      task_name: edt
 data:
   do_2d: true
 

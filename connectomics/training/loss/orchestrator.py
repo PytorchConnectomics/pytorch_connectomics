@@ -58,7 +58,7 @@ class LossOrchestrator:
         )
         if not self.loss_term_specs:
             raise ValueError(
-                "No loss terms were compiled. Configure explicit model.loss_terms."
+                "No loss terms were compiled. Configure model.losses."
             )
 
     def _apply_task_weighting(
@@ -340,12 +340,8 @@ class LossOrchestrator:
             )
 
             weighted_term_loss = raw_loss * term.coefficient
-            term_task_name = term.task_name or term.name
-            if term_task_name not in task_losses_map:
-                task_losses_map[term_task_name] = weighted_term_loss
-                task_names_in_order.append(term_task_name)
-            else:
-                task_losses_map[term_task_name] = task_losses_map[term_task_name] + weighted_term_loss
+            task_losses_map[term.name] = weighted_term_loss
+            task_names_in_order.append(term.name)
 
             term_prefix = (
                 f"{stage}_loss_term_{term.name}"

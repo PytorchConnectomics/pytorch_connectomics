@@ -259,10 +259,15 @@ def validate_config(cfg: Config) -> None:
             raise ValueError("optimization.ema.warmup_steps must be non-negative")
 
     # Loss validation
-    if len(cfg.model.loss_functions) != len(cfg.model.loss_weights):
-        raise ValueError("loss_functions and loss_weights must have same length")
-    if any(w < 0 for w in cfg.model.loss_weights):
-        raise ValueError("loss_weights must be non-negative")
+    if cfg.model.losses is not None:
+        for i, entry in enumerate(cfg.model.losses):
+            if not isinstance(entry, dict):
+                raise ValueError(f"model.losses[{i}] must be a dict")
+            if "function" not in entry:
+                raise ValueError(f"model.losses[{i}] must have a 'function' key")
+            w = entry.get("weight", 1.0)
+            if w < 0:
+                raise ValueError(f"model.losses[{i}].weight must be non-negative")
 
 
 def get_config_hash(cfg: Config) -> str:

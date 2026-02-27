@@ -16,42 +16,25 @@ model:
   mednext_kernel_size: 3
   mednext_dim: 2d
   deep_supervision: true
-  loss_functions:
-    - DiceLoss
-    - BCEWithLogitsLoss
-    - WeightedMSELoss
-  loss_weights:
-    - 1.0
-    - 0.5
-    - 1.0
-  loss_kwargs:
-    - include_background: false
-      sigmoid: true
-      smooth_nr: 1e-5
-      smooth_dr: 1e-5
-    - {}
-    - tanh: true
-  loss_terms:
-    - name: binary_loss_0
-      loss_index: 0
+  losses:
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {include_background: false, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: binary
-    - name: binary_loss_1
-      loss_index: 1
+    - function: BCEWithLogitsLoss
+      weight: 0.5
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: binary
-    - name: boundary_loss_1
-      loss_index: 1
+    - function: BCEWithLogitsLoss
+      weight: 0.5
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: boundary
-    - name: sdt_loss_2
-      loss_index: 2
+    - function: WeightedMSELoss
+      weight: 1.0
+      kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
-      task_name: sdt
 data:
   dataset_type: filename
   train_json: datasets/cem-mitolab/files.json

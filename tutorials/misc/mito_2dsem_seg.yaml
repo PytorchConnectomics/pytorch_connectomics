@@ -55,24 +55,17 @@ model:
   output_size: [512, 512]    # 2D output size
 
   # Loss configuration
-  loss_functions: [DiceLoss, BCEWithLogitsLoss]
-  loss_weights: [1.0, 1.0]
-  loss_kwargs:
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}  # DiceLoss
-    - {reduction: mean}                                   # BCEWithLogitsLoss
-
-# Data Configuration
-  loss_terms:
-    - name: loss_0
-      loss_index: 0
+  losses:
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
-      task_name: supervised
-    - name: loss_1
-      loss_index: 1
+    - function: BCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
-      task_name: supervised
 data:
   # Dataset type - use 2D data
   do_2d: true              # Enable 2D data processing

@@ -25,54 +25,32 @@ model:
   mednext_size: S
   mednext_kernel_size: 3
   deep_supervision: false
-  loss_functions:
-    - WeightedBCEWithLogitsLoss
-    - DiceLoss
-    - WeightedBCEWithLogitsLoss
-    - DiceLoss
-    - WeightedMSELoss
-  loss_weights:
-    - 1.0
-    - 0.5
-    - 1.0
-    - 0.5
-    - 4.0
-  loss_kwargs:
-    - reduction: mean
-    - sigmoid: true
-      smooth_nr: 1e-5
-      smooth_dr: 1e-5
-    - reduction: mean
-    - sigmoid: true
-      smooth_nr: 1e-5
-      smooth_dr: 1e-5
-    - tanh: true
-  loss_terms:
-    - name: binary_loss_0
-      loss_index: 0
+  losses:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: binary
-    - name: binary_loss_1
-      loss_index: 1
+    - function: DiceLoss
+      weight: 0.5
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, 1]
       target_slice: [0, 1]
-      task_name: binary
-    - name: instance_boundary_loss_2
-      loss_index: 2
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: instance_boundary
-    - name: instance_boundary_loss_3
-      loss_index: 3
+    - function: DiceLoss
+      weight: 0.5
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [1, 2]
       target_slice: [1, 2]
-      task_name: instance_boundary
-    - name: skeleton_aware_edt_loss_4
-      loss_index: 4
+    - function: WeightedMSELoss
+      weight: 4.0
+      kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
-      task_name: skeleton_aware_edt
 data:
   train_path: /projects/weilab/dataset/barcode/2026/PT37_round2/
   train_image:

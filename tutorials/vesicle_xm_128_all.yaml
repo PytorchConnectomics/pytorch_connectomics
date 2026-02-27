@@ -10,8 +10,7 @@ system:
     num_workers: 1
     batch_size: 8
   seed: 42
-model:  
-  out_channels: 3
+model:    
   input_size:
   - 32
   - 128
@@ -20,8 +19,11 @@ model:
   - 32
   - 128
   - 128
+  out_channels: 3
+  
   mednext_size: S
   mednext_kernel_size: 3
+
   deep_supervision: false
   # Route BCE+Dice to binary/boundary channels only, and MSE to the signed EDT channel.
   losses:
@@ -51,25 +53,22 @@ model:
     pred_slice: [2, 3]
     target_slice: [2, 3]
 data:
-  train_image: "datasets/bouton-lv/train/vol0_im.h5"
-  train_label: "datasets/bouton-lv/train/vol0_lv.h5"
-  train_mask: "datasets/bouton-lv/train/vol0_mask.h5"
+  train_image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
+  train_label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
+  train_mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
   train_resolution: [30, 8, 8]
   
   
   use_preloaded_cache_train: true
   persistent_workers: true
   iter_num_per_epoch: 1000
-  cached_sampling_foreground_threshold: 0.01
+  cached_sampling_foreground_threshold: 0.05
   cached_sampling_max_attempts: 10
   cached_sampling_sample_nonzero_mask: true
 
-  patch_size: [32, 64, 64]
+  patch_size: [32, 128, 128]
   image_transform:
     normalize: "0-1"    
-
-  data_transform:
-    resize: [32, 128, 128]
   
   label_transform:
     targets:

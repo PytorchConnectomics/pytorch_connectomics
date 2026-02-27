@@ -11,29 +11,17 @@ system:
   seed: 42
 model:
   out_channels: 12
-  loss_functions:
-    - WeightedBCEWithLogitsLoss
-    - DiceLoss
-  loss_weights:
-    - 1.0
-    - 0.5
-  loss_kwargs:
-    - pos_weight: 10.0
-      reduction: mean
-    - sigmoid: true
-      smooth_nr: 1e-05
-      smooth_dr: 1e-05
-  loss_terms:
-    - name: loss_0
-      loss_index: 0
+  losses:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {pos_weight: 10.0, reduction: mean}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
-      task_name: supervised
-    - name: loss_1
-      loss_index: 1
+    - function: DiceLoss
+      weight: 0.5
+      kwargs: {sigmoid: true, smooth_nr: 1e-05, smooth_dr: 1e-05}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
-      task_name: supervised
 data:
   train_image: datasets/SNEMI/train-input.tif
   train_label: datasets/SNEMI/train-labels.tif

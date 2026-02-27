@@ -65,44 +65,35 @@ model:
   rsunet_norm: batch
 
   # Loss configuration (same as pretrained for consistency)
-  loss_functions: [DiceLoss, WeightedBCEWithLogitsLoss, DiceLoss, TverskyLoss, SmoothL1Loss]
-  loss_weights: [1.0, 1.0, 1.0, 1.0, 1.0]
-  loss_kwargs:
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-    - {reduction: mean}
-    - {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-    - {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}
-    - {beta: 0.1, reduction: mean, tanh: true}
+  losses:
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
+      pred_slice: [0, 1]
+      target_slice: [0, 1]
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+    - function: TverskyLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, alpha: 0.7, beta: 0.3, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [1, 2]
+      target_slice: [1, 2]
+    - function: SmoothL1Loss
+      weight: 1.0
+      kwargs: {beta: 0.1, reduction: mean, tanh: true}
+      pred_slice: [2, 3]
+      target_slice: [2, 3]
 
   loss_balancing:
     strategy: uncertainty
-
-  loss_terms:
-    - name: label_loss_0
-      loss_index: 0
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
-      task_name: label
-    - name: label_loss_1
-      loss_index: 1
-      pred_slice: [0, 1]
-      target_slice: [0, 1]
-      task_name: label
-    - name: boundary_loss_2
-      loss_index: 2
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
-      task_name: boundary
-    - name: boundary_loss_3
-      loss_index: 3
-      pred_slice: [1, 2]
-      target_slice: [1, 2]
-      task_name: boundary
-    - name: edt_loss_4
-      loss_index: 4
-      pred_slice: [2, 3]
-      target_slice: [2, 3]
-      task_name: edt
 data:
   # Fine-tuning data paths (replace with your new dataset)
   train_image: "datasets/bouton-lv/train/vol0_im.h5"  # UPDATE THIS

@@ -55,16 +55,8 @@ def test_lightning_module_creation():
                 "in_channels": 1,
                 "out_channels": 2,
                 "filters": [8, 16],
-                "loss_functions": ["DiceLoss"],
-                "loss_weights": [1.0],
-                "loss_terms": [
-                    {
-                        "name": "seg",
-                        "loss_index": 0,
-                        "pred_slice": [0, 2],
-                        "target_slice": [0, 2],
-                        "task_name": "seg",
-                    }
+                "losses": [
+                    {"function": "DiceLoss", "weight": 1.0, "pred_slice": [0, 2], "target_slice": [0, 2]}
                 ],
             },
             "optimization": {"optimizer": {"name": "AdamW", "lr": 1e-4}, "max_epochs": 1},
