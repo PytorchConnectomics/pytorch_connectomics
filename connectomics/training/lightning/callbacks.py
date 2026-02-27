@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 import pdb
 import torch
 from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, LearningRateMonitor
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from ...utils.visualizer import Visualizer
 
@@ -634,9 +634,5 @@ def create_callbacks(cfg) -> list:
             verbose=True,
         )
         callbacks.append(early_stop_callback)
-
-    # Learning rate monitor
-    lr_monitor = LearningRateMonitor(logging_interval="step")
-    callbacks.append(lr_monitor)
 
     return callbacks
