@@ -21,7 +21,9 @@ from connectomics.config import (
     validate_config,
     get_config_hash,
     create_experiment_name,
+    resolve_shared_profiles,
 )
+from connectomics.config.hydra_config import TestConfig as HydraTestConfig, TuneConfig
 
 
 def test_default_config_creation():
@@ -220,6 +222,45 @@ def test_print_config():
     print("✅ Config printing works")
 
 
+def test_shared_profile_resolution():
+    """Test resolving shared profiles into train/test/tune runtime sections."""
+    cfg = Config()
+    cfg.test = HydraTestConfig()
+    cfg.tune = TuneConfig()
+
+    cfg.shared.system_profiles = {
+        "train_default": {"num_gpus": 2, "num_workers": 3, "batch_size": 7},
+        "infer_default": {"num_gpus": 1, "num_workers": 4, "batch_size": 1},
+    }
+    cfg.shared.data_transform_profiles = {
+        "default": {
+            "image_transform": {
+                "normalize": "none",
+                "clip_percentile_low": 0.1,
+                "clip_percentile_high": 0.9,
+            },
+            "nnunet_preprocessing": {"enabled": True},
+        }
+    }
+    cfg.shared.inference_profiles = {
+        "default": {
+            "test_time_augmentation": {"enabled": False},
+            "sliding_window": {"overlap": 0.25},
+        }
+    }
+
+    cfg = resolve_shared_profiles(cfg, mode="train")
+    assert cfg.system.training.batch_size == 7
+    assert cfg.data.image_transform.normalize == "none"
+
+    cfg = resolve_shared_profiles(cfg, mode="test")
+    assert cfg.system.inference.num_workers == 4
+    assert cfg.test.data.image_transform.normalize == "none"
+    assert cfg.inference.test_time_augmentation.enabled is False
+    assert cfg.inference.sliding_window.overlap == 0.25
+    print("✅ Shared profile resolution works")
+
+
 def main():
     """Run all tests."""
     print("Testing Hydra Config System\n")
@@ -233,13 +274,14 @@ def main():
     test_experiment_name_generation()
     test_augmentation_config()
     test_load_example_configs()
-    
+
     # Test with temp directory
     import tempfile
     with tempfile.TemporaryDirectory() as tmp_dir:
         test_config_save_load(Path(tmp_dir))
-    
+
     test_print_config()
+    test_shared_profile_resolution()
     
     print("\n" + "="*50)
     print("🎉 All Hydra config tests passed!")

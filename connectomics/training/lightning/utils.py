@@ -21,6 +21,7 @@ from ...config import (
     Config,
     load_config,
     resolve_data_paths,
+    resolve_shared_profiles,
     resolve_runtime_resource_sentinels,
     update_from_cli,
     validate_config,
@@ -187,6 +188,9 @@ def setup_config(args) -> Config:
     if args.overrides:
         print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
         cfg = update_from_cli(cfg, args.overrides)
+
+    # Resolve shared profiles into runtime sections (system/data/inference)
+    cfg = resolve_shared_profiles(cfg, mode=args.mode)
 
     # Override max_epochs if --reset-max-epochs is specified
     if args.reset_max_epochs is not None:

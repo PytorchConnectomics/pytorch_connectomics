@@ -1,3 +1,15 @@
+shared:
+  system_profiles:
+    train_default: ${oc.select:system.training,{}}
+    infer_default: ${oc.select:system.inference,{}}
+  data_transform_profiles:
+    default:
+      data_transform: ${oc.select:data.data_transform,null}
+      image_transform: ${oc.select:data.image_transform,null}
+      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
+  inference_profiles:
+    default: ${oc.select:inference,{}}
+
 # Shared tutorial defaults used by top-level tutorials/*.yaml.
 
 system:

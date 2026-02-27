@@ -6,6 +6,7 @@ Provides helpers for loading, saving, validating, and manipulating configs.
 
 from __future__ import annotations
 
+from dataclasses import is_dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -477,6 +478,184 @@ def resolve_data_paths(cfg: Config) -> Config:
     return cfg
 
 
+def _to_omegaconf(value: Any) -> DictConfig:
+    """Convert supported config objects into a mutable OmegaConf node."""
+    if value is None:
+        return OmegaConf.create({})
+    if isinstance(value, DictConfig):
+        return value
+    if isinstance(value, dict):
+        return OmegaConf.create(value)
+    if is_dataclass(value):
+        return OmegaConf.structured(value)
+    return OmegaConf.create(value)
+
+
+def _merge_dataclass(base_obj: Any, *overrides: Any) -> Any:
+    """Merge one or more override objects into a dataclass instance."""
+    merged = _to_omegaconf(base_obj)
+    for override in overrides:
+        if override is None:
+            continue
+        merged = OmegaConf.merge(merged, _to_omegaconf(override))
+    return OmegaConf.to_object(merged)
+
+
+def resolve_shared_profiles(cfg: Config, mode: str = "train") -> Config:
+    """Resolve shared stage profiles into runtime sections.
+
+    This keeps the existing runtime access pattern (cfg.system/cfg.data/cfg.inference)
+    while allowing YAMLs to define reusable profiles under ``shared``.
+    """
+    shared = getattr(cfg, "shared", None)
+    if shared is None:
+        return cfg
+
+    mode_normalized = mode.strip().lower()
+    if mode_normalized == "tune-test":
+        # tune-test first executes tuning, then test; prefer tune profile at setup stage.
+        mode_normalized = "tune"
+
+    # 1) System profile resolution
+    system_profiles = getattr(shared, "system_profiles", {}) or {}
+    if system_profiles:
+        if mode_normalized == "train":
+            selector = getattr(getattr(cfg, "train", None), "system", None)
+            target_attr = "training"
+            default_profile = "train_default"
+        elif mode_normalized == "test":
+            selector = (
+                getattr(cfg.test, "system", None)
+                if hasattr(cfg, "test") and cfg.test is not None
+                else None
+            )
+            target_attr = "inference"
+            default_profile = "infer_default"
+        else:  # tune
+            selector = (
+                getattr(cfg.tune, "system", None)
+                if hasattr(cfg, "tune") and cfg.tune is not None
+                else None
+            )
+            target_attr = "inference"
+            default_profile = "infer_default"
+
+        profile_name = getattr(selector, "profile", None) or (
+            default_profile if default_profile in system_profiles else None
+        )
+        profile_cfg = system_profiles.get(profile_name) if profile_name else None
+        profile_overrides = getattr(selector, "overrides", {}) if selector else {}
+
+        if profile_cfg is not None or profile_overrides:
+            target_cfg = getattr(cfg.system, target_attr)
+            setattr(
+                cfg.system,
+                target_attr,
+                _merge_dataclass(target_cfg, profile_cfg, profile_overrides),
+            )
+
+    # 2) Data transform profile resolution (stage-specific)
+    data_profiles = getattr(shared, "data_transform_profiles", {}) or {}
+    if data_profiles:
+        def _apply_data_profile(stage_data_cfg: Any) -> None:
+            if stage_data_cfg is None:
+                return
+
+            profile_name = getattr(stage_data_cfg, "transform_profile", None) or (
+                "default" if "default" in data_profiles else None
+            )
+            profile_cfg = data_profiles.get(profile_name) if profile_name else None
+            profile_overrides = getattr(stage_data_cfg, "transform_overrides", {}) or {}
+
+            if profile_cfg is None and not profile_overrides:
+                return
+
+            profile_conf = _to_omegaconf(profile_cfg) if profile_cfg is not None else OmegaConf.create({})
+            profile_data_transform = profile_conf.get("data_transform", None)
+            profile_image_transform = profile_conf.get("image_transform", None)
+            profile_nnunet_preprocessing = profile_conf.get("nnunet_preprocessing", None)
+
+            data_transform_override = profile_overrides.get("data_transform", {})
+            image_transform_override = profile_overrides.get("image_transform", {})
+            nnunet_pre_override = profile_overrides.get("nnunet_preprocessing", {})
+
+            if (
+                hasattr(stage_data_cfg, "data_transform")
+                and profile_data_transform is not None
+            ):
+                stage_data_cfg.data_transform = _merge_dataclass(
+                    stage_data_cfg.data_transform,
+                    profile_data_transform,
+                    data_transform_override,
+                )
+            elif hasattr(stage_data_cfg, "data_transform") and data_transform_override:
+                stage_data_cfg.data_transform = _merge_dataclass(
+                    stage_data_cfg.data_transform,
+                    data_transform_override,
+                )
+
+            if (
+                hasattr(stage_data_cfg, "image_transform")
+                and profile_image_transform is not None
+            ):
+                stage_data_cfg.image_transform = _merge_dataclass(
+                    stage_data_cfg.image_transform,
+                    profile_image_transform,
+                    image_transform_override,
+                )
+            elif hasattr(stage_data_cfg, "image_transform") and image_transform_override:
+                stage_data_cfg.image_transform = _merge_dataclass(
+                    stage_data_cfg.image_transform,
+                    image_transform_override,
+                )
+
+            if (
+                hasattr(stage_data_cfg, "nnunet_preprocessing")
+                and profile_nnunet_preprocessing is not None
+            ):
+                stage_data_cfg.nnunet_preprocessing = _merge_dataclass(
+                    stage_data_cfg.nnunet_preprocessing,
+                    profile_nnunet_preprocessing,
+                    nnunet_pre_override,
+                )
+            elif hasattr(stage_data_cfg, "nnunet_preprocessing") and nnunet_pre_override:
+                stage_data_cfg.nnunet_preprocessing = _merge_dataclass(
+                    stage_data_cfg.nnunet_preprocessing,
+                    nnunet_pre_override,
+                )
+
+        _apply_data_profile(getattr(cfg, "data", None))
+        _apply_data_profile(getattr(getattr(cfg, "test", None), "data", None))
+        _apply_data_profile(getattr(getattr(cfg, "tune", None), "data", None))
+
+    # 3) Inference profile resolution (test/tune only)
+    inference_profiles = getattr(shared, "inference_profiles", {}) or {}
+    if inference_profiles and mode_normalized in {"test", "tune"}:
+        if mode_normalized == "test":
+            selector = (
+                getattr(cfg.test, "inference", None)
+                if hasattr(cfg, "test") and cfg.test is not None
+                else None
+            )
+        else:  # tune
+            selector = (
+                getattr(cfg.tune, "inference", None)
+                if hasattr(cfg, "tune") and cfg.tune is not None
+                else None
+            )
+
+        profile_name = getattr(selector, "profile", None) or (
+            "default" if "default" in inference_profiles else None
+        )
+        profile_cfg = inference_profiles.get(profile_name) if profile_name else None
+        profile_overrides = getattr(selector, "overrides", {}) if selector else {}
+
+        if profile_cfg is not None or profile_overrides:
+            cfg.inference = _merge_dataclass(cfg.inference, profile_cfg, profile_overrides)
+
+    return cfg
+
+
 __all__ = [
     "load_config",
     "save_config",
@@ -489,4 +668,5 @@ __all__ = [
     "get_config_hash",
     "create_experiment_name",
     "resolve_data_paths",
+    "resolve_shared_profiles",
 ]

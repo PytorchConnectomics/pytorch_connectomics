@@ -1,3 +1,15 @@
+shared:
+  system_profiles:
+    train_default: ${oc.select:system.training,{}}
+    infer_default: ${oc.select:system.inference,{}}
+  data_transform_profiles:
+    default:
+      data_transform: ${oc.select:data.data_transform,null}
+      image_transform: ${oc.select:data.image_transform,null}
+      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
+  inference_profiles:
+    default: ${oc.select:inference,{}}
+
 # Zebrafish Neuron Instance Segmentation (2D Fluorescence)
 # Small circular neurons (12-18 px diameter) with low SNR uint16 images (~180 max).
 # MONAI Residual UNet with contour channel + watershed decoding for instance IDs.

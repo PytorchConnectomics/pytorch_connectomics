@@ -37,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import torch
 
 # Import Hydra config system
-from connectomics.config import Config, save_config
+from connectomics.config import Config, resolve_shared_profiles, save_config
 import connectomics.config.hydra_config as hydra_config
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
@@ -325,6 +325,12 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
             loaded_suffix = "_tta_prediction.h5"
 
     if loaded_suffix != "_tta_prediction.h5":
+        if _is_test_evaluation_enabled(cfg):
+            print(
+                f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
+            )
+            print("  ℹ️  Test evaluation is enabled; using trainer.test() for eval pipeline.")
+            return False
         print(
             f"  ✅ Loaded final predictions from disk, skipping inference/decoding/postprocessing"
         )
@@ -553,6 +559,9 @@ def main():
             print("🧪 RUNNING TEST")
             print("=" * 60)
 
+            # Re-resolve shared profiles for test stage in tune-test mode.
+            cfg = resolve_shared_profiles(cfg, mode="test")
+
             # Create datamodule
             datamodule = create_datamodule(cfg, mode="test")
 
@@ -580,13 +589,14 @@ def main():
                         f"  ℹ️  Cache preflight hit for {cache_count} volume(s); "
                         "skipping checkpoint weight restore for test."
                     )
-                # In plain test mode, fully skip only when final predictions already exist.
-                # If only intermediate predictions exist, we still need the test loop to
-                # decode/postprocess/save final outputs (and optionally evaluate).
+                # In plain test mode, fully skip only when final predictions already exist
+                # AND evaluation is not enabled.  If evaluation is enabled we still need
+                # the test loop so that metrics are computed against ground-truth labels.
                 if args.mode == "test" and cached_suffix != "_tta_prediction.h5":
-                    print("  ⏭️  Skipping trainer.test() entirely (cache preflight hit).")
-                    print("✅ Test completed successfully (cache-only preflight).")
-                    return
+                    if not _is_test_evaluation_enabled(cfg):
+                        print("  ⏭️  Skipping trainer.test() entirely (cache preflight hit).")
+                        print("✅ Test completed successfully (cache-only preflight).")
+                        return
 
                 test_ckpt_path = None
 
