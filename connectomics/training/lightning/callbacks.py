@@ -9,15 +9,13 @@ from typing import Dict, Any, Optional
 import pdb
 import torch
 from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
-from ...utils.visualizer import Visualizer
+from ...utils.visualizer import Visualizer, get_visualization_mask
 
 __all__ = [
     "VisualizationCallback",
     "NaNDetectionCallback",
     "EMAWeightsCallback",
-    "create_callbacks",
 ]
 
 
@@ -55,12 +53,8 @@ class VisualizationCallback(Callback):
         batch_idx: int,
     ):
         """Store first batch for epoch-end visualization."""
-        # Always store first batch for epoch-end visualization
         if batch_idx == 0:
-            self._last_train_batch = {
-                "image": batch["image"].detach(),
-                "label": batch["label"].detach(),
-            }
+            self._last_train_batch = self._build_cached_batch(batch)
 
     def on_validation_batch_end(
         self,
@@ -72,134 +66,125 @@ class VisualizationCallback(Callback):
         dataloader_idx: int = 0,
     ):
         """Store first batch for epoch-end visualization."""
-        # Store first validation batch for epoch-end visualization
         if batch_idx == 0:
-            self._last_val_batch = {
-                "image": batch["image"].detach(),
-                "label": batch["label"].detach(),
-            }
+            self._last_val_batch = self._build_cached_batch(batch)
 
     def on_train_epoch_end(self, trainer, pl_module):
         """Visualize at end of training epoch based on log_every_n_epochs."""
-        if self._last_train_batch is None or trainer.logger is None:
-            return
-
-        # Check if we should log this epoch
-        if trainer.current_epoch % self.log_every_n_epochs != 0:
-            return
-
-        try:
-            writer = trainer.logger.experiment
-
-            # Generate predictions for stored batch
-            with torch.no_grad():
-                pl_module.eval()
-                # Move batch to model's device before inference
-                image = self._last_train_batch["image"].to(pl_module.device)
-                pred = pl_module(image)
-                pl_module.train()
-
-                # Move all tensors to CPU for visualization to avoid device mismatch
-                image_cpu = image.cpu()
-                label_cpu = self._last_train_batch["label"].cpu()
-                pred_cpu = self._to_tensor(pred).cpu()
-                mask_cpu = self._last_train_batch.get("mask", None)
-                if mask_cpu is not None:
-                    mask_cpu = mask_cpu.cpu()
-
-            # Visualize - use epoch number as step for slider
-            if image_cpu.ndim == 5 and self.num_slices > 1:
-                # Use consecutive slices for 3D volumes
-                self.visualizer.visualize_consecutive_slices(
-                    volume=image_cpu,
-                    label=label_cpu,
-                    mask=mask_cpu,
-                    output=pred_cpu,
-                    writer=writer,
-                    iteration=trainer.current_epoch,  # Use epoch as step for slider
-                    prefix="train",
-                    num_slices=self.num_slices,
-                )
-            else:
-                # Use single slice for 2D or when num_slices=1
-                self.visualizer.visualize(
-                    volume=image_cpu,
-                    label=label_cpu,
-                    mask=mask_cpu,
-                    output=pred_cpu,
-                    iteration=trainer.current_epoch,  # Use epoch as step for slider
-                    writer=writer,
-                    prefix="train",  # Single tab name (no epoch prefix)
-                )
-
-            print(f"✓ Saved visualization for epoch {trainer.current_epoch}")
-        except Exception as e:
-            import traceback
-
-            print(f"Epoch-end visualization failed: {e}")
-            print(f"Error type: {type(e).__name__}")
-            if hasattr(e, "__traceback__"):
-                print("Traceback:")
-                traceback.print_exception(type(e), e, e.__traceback__)
+        self._log_cached_batch_visualization(
+            trainer=trainer,
+            pl_module=pl_module,
+            cached_batch=self._last_train_batch,
+            prefix="train",
+            restore_train_mode=True,
+        )
 
     def on_validation_epoch_end(self, trainer, pl_module):
         """Visualize at end of validation epoch based on log_every_n_epochs."""
-        if self._last_val_batch is None or trainer.logger is None:
-            return
+        self._log_cached_batch_visualization(
+            trainer=trainer,
+            pl_module=pl_module,
+            cached_batch=self._last_val_batch,
+            prefix="val",
+            restore_train_mode=False,
+        )
 
-        # Check if we should log this epoch
+    @staticmethod
+    def _build_cached_batch(batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        cached = {
+            "image": batch["image"].detach(),
+            "label": batch["label"].detach(),
+        }
+        mask = get_visualization_mask(batch)
+        if mask is not None:
+            cached["mask"] = mask.detach()
+        return cached
+
+    def _log_cached_batch_visualization(
+        self,
+        trainer,
+        pl_module,
+        cached_batch: Optional[Dict[str, torch.Tensor]],
+        prefix: str,
+        restore_train_mode: bool,
+    ) -> None:
+        """Run inference on cached batch and log visualization images."""
+        if cached_batch is None or trainer.logger is None:
+            return
         if trainer.current_epoch % self.log_every_n_epochs != 0:
             return
 
         try:
             writer = trainer.logger.experiment
-
-            # Generate predictions for stored batch
             with torch.no_grad():
-                # Move batch to model's device before inference
-                image = self._last_val_batch["image"].to(pl_module.device)
+                if restore_train_mode:
+                    pl_module.eval()
+
+                image = cached_batch["image"].to(pl_module.device)
                 pred = pl_module(image)
 
-                # Move all tensors to CPU for visualization to avoid device mismatch
+                if restore_train_mode:
+                    pl_module.train()
+
                 image_cpu = image.cpu()
-                label_cpu = self._last_val_batch["label"].cpu()
+                label_cpu = cached_batch["label"].cpu()
                 pred_cpu = self._to_tensor(pred).cpu()
-                mask_cpu = self._last_val_batch.get("mask", None)
+                mask_cpu = cached_batch.get("mask", None)
                 if mask_cpu is not None:
                     mask_cpu = mask_cpu.cpu()
 
-            # Visualize - use epoch number as step for slider
-            if image_cpu.ndim == 5 and self.num_slices > 1:
-                # Use consecutive slices for 3D volumes
-                self.visualizer.visualize_consecutive_slices(
-                    volume=image_cpu,
-                    label=label_cpu,
-                    mask=mask_cpu,
-                    output=pred_cpu,
-                    writer=writer,
-                    iteration=trainer.current_epoch,  # Use epoch as step for slider
-                    prefix="val",
-                    num_slices=self.num_slices,
-                )
-            else:
-                # Use single slice for 2D or when num_slices=1
-                self.visualizer.visualize(
-                    volume=image_cpu,
-                    label=label_cpu,
-                    mask=mask_cpu,
-                    output=pred_cpu,
-                    iteration=trainer.current_epoch,  # Use epoch as step for slider
-                    writer=writer,
-                    prefix="val",  # Single tab name (no epoch prefix)
-                )
+            self._log_visualization(
+                image=image_cpu,
+                label=label_cpu,
+                mask=mask_cpu,
+                pred=pred_cpu,
+                writer=writer,
+                iteration=trainer.current_epoch,
+                prefix=prefix,
+            )
+            if prefix == "train":
+                print(f"✓ Saved visualization for epoch {trainer.current_epoch}")
         except Exception as e:
             import traceback
 
-            print(f"Validation epoch-end visualization failed: {e}")
+            print(f"{prefix} epoch-end visualization failed: {e}")
             print(f"Error type: {type(e).__name__}")
             if hasattr(e, "__traceback__"):
                 print("Traceback:")
                 traceback.print_exception(type(e), e, e.__traceback__)
+
+    def _log_visualization(
+        self,
+        image: torch.Tensor,
+        label: torch.Tensor,
+        mask: Optional[torch.Tensor],
+        pred: torch.Tensor,
+        writer,
+        iteration: int,
+        prefix: str,
+    ) -> None:
+        """Log either consecutive-slice or single-slice visualization."""
+        if image.ndim == 5 and self.num_slices > 1:
+            self.visualizer.visualize_consecutive_slices(
+                volume=image,
+                label=label,
+                mask=mask,
+                output=pred,
+                writer=writer,
+                iteration=iteration,
+                prefix=prefix,
+                num_slices=self.num_slices,
+            )
+        else:
+            self.visualizer.visualize(
+                volume=image,
+                label=label,
+                mask=mask,
+                output=pred,
+                iteration=iteration,
+                writer=writer,
+                prefix=prefix,
+            )
 
     @staticmethod
     def _to_tensor(pred):
@@ -573,66 +558,3 @@ class EMAWeightsCallback(Callback):
 
         self._backup_state = None
         self._using_ema = False
-
-
-def create_callbacks(cfg) -> list:
-    """
-    Create PyTorch Lightning callbacks from config.
-
-    Args:
-        cfg: Hydra config object
-
-    Returns:
-        List of Lightning callbacks
-    """
-    callbacks = []
-
-    # Visualization callback
-    if hasattr(cfg, "visualization") and getattr(cfg.visualization, "enabled", True):
-        vis_callback = VisualizationCallback(
-            cfg,
-            max_images=getattr(cfg.visualization, "max_images", 8),
-            num_slices=getattr(cfg.visualization, "num_slices", 8),
-            log_every_n_epochs=getattr(cfg.visualization, "log_every_n_epochs", 1),
-        )
-        callbacks.append(vis_callback)
-    else:
-        # Default: add visualization with defaults
-        vis_callback = VisualizationCallback(cfg)
-        callbacks.append(vis_callback)
-
-    # Model checkpoint callback
-    if hasattr(cfg, "monitor") and hasattr(cfg.monitor, "checkpoint"):
-        monitor = getattr(cfg.monitor.checkpoint, "monitor", "val/loss")
-        filename = getattr(cfg.monitor.checkpoint, "filename", None)
-        if filename is None:
-            # Auto-generate filename from monitor metric
-            filename = f"epoch={{epoch:03d}}-{monitor}={{{monitor}:.4f}}"
-
-        checkpoint_callback = ModelCheckpoint(
-            monitor=monitor,
-            mode=getattr(cfg.monitor.checkpoint, "mode", "min"),
-            save_top_k=getattr(cfg.monitor.checkpoint, "save_top_k", 3),
-            save_last=getattr(cfg.monitor.checkpoint, "save_last", True),
-            dirpath=getattr(cfg.monitor.checkpoint, "dirpath", "checkpoints"),
-            filename=filename,
-            verbose=True,
-        )
-        callbacks.append(checkpoint_callback)
-
-    # Early stopping callback
-    if (
-        hasattr(cfg, "monitor")
-        and hasattr(cfg.monitor, "early_stopping")
-        and getattr(cfg.monitor.early_stopping, "enabled", False)
-    ):
-        early_stop_callback = EarlyStopping(
-            monitor=getattr(cfg.monitor.early_stopping, "monitor", "val/loss"),
-            patience=getattr(cfg.monitor.early_stopping, "patience", 10),
-            mode=getattr(cfg.monitor.early_stopping, "mode", "min"),
-            min_delta=getattr(cfg.monitor.early_stopping, "min_delta", 0.0),
-            verbose=True,
-        )
-        callbacks.append(early_stop_callback)
-
-    return callbacks

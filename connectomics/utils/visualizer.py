@@ -7,7 +7,7 @@ Provides TensorBoard visualization of training progress, predictions, and metric
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -21,7 +21,15 @@ try:
 except ImportError:
     HAS_TENSORBOARD = False
 
-__all__ = ["Visualizer", "LightningVisualizer"]
+__all__ = ["Visualizer", "get_visualization_mask"]
+
+
+def get_visualization_mask(batch: Dict[str, torch.Tensor]) -> Optional[torch.Tensor]:
+    """Select the best available valid-region mask for visualization."""
+    valid_mask = batch.get("valid_mask")
+    if valid_mask is not None:
+        return valid_mask
+    return batch.get("mask")
 
 
 class Visualizer:
@@ -39,20 +47,6 @@ class Visualizer:
         """
         self.cfg = cfg
         self.max_images = max_images
-        self.semantic_colors = {}
-
-        # Initialize color maps for semantic segmentation
-        self._init_color_maps()
-
-    def _init_color_maps(self):
-        """Initialize random colors for semantic segmentation visualization."""
-        # Default color map for binary segmentation
-        self.semantic_colors["default"] = torch.tensor(
-            [
-                [0.0, 0.0, 0.0],  # Background (black)
-                [1.0, 1.0, 1.0],  # Foreground (white)
-            ]
-        )
 
     def visualize(
         self,
@@ -475,99 +469,3 @@ class Visualizer:
             channel_mode,
             selected_channels,
         )
-
-
-class LightningVisualizer:
-    """
-    Lightning-compatible visualizer.
-
-    Designed to work with PyTorch Lightning callbacks.
-    """
-
-    def __init__(self, cfg, max_images: int = 16):
-        """
-        Args:
-            cfg: Hydra Config object
-            max_images: Maximum number of images to visualize
-        """
-        self.visualizer = Visualizer(cfg, max_images)
-        self.cfg = cfg
-
-    def on_train_batch_end(
-        self,
-        trainer,
-        pl_module,
-        outputs: Dict[str, Any],
-        batch: Dict[str, torch.Tensor],
-        batch_idx: int,
-    ):
-        """Called at the end of training batch."""
-        if not self._should_visualize(trainer, batch_idx):
-            return
-
-        if trainer.logger is None:
-            return
-
-        # Get tensorboard writer
-        writer = trainer.logger.experiment
-
-        # Get visualization options from config
-        channel_mode = getattr(self.cfg.monitor.logging.images, "channel_mode", "argmax")
-        selected_channels = getattr(self.cfg.monitor.logging.images, "selected_channels", None)
-
-        # Visualize
-        self.visualizer.visualize(
-            volume=batch["image"],
-            label=batch["label"],
-            mask=batch.get("mask", None),  # Include mask if present
-            output=outputs.get("pred", outputs.get("logits")),
-            iteration=trainer.global_step,
-            writer=writer,
-            prefix="train",
-            channel_mode=channel_mode,
-            selected_channels=selected_channels,
-        )
-
-    def on_validation_batch_end(
-        self,
-        trainer,
-        pl_module,
-        outputs: Dict[str, Any],
-        batch: Dict[str, torch.Tensor],
-        batch_idx: int,
-    ):
-        """Called at the end of validation batch."""
-        if batch_idx != 0:  # Only visualize first batch
-            return
-
-        if trainer.logger is None:
-            return
-
-        writer = trainer.logger.experiment
-
-        # Get visualization options from config
-        channel_mode = getattr(self.cfg.monitor.logging.images, "channel_mode", "argmax")
-        selected_channels = getattr(self.cfg.monitor.logging.images, "selected_channels", None)
-
-        self.visualizer.visualize(
-            volume=batch["image"],
-            label=batch["label"],
-            mask=batch.get("mask", None),  # Include mask if present
-            output=outputs.get("pred", outputs.get("logits")),
-            iteration=trainer.global_step,
-            writer=writer,
-            prefix="val",
-            channel_mode=channel_mode,
-            selected_channels=selected_channels,
-        )
-
-    def _should_visualize(self, trainer, batch_idx: int) -> bool:
-        """Determine if should visualize this batch."""
-        # Check if images are enabled
-        if not getattr(self.cfg.monitor.logging.images, "enabled", True):
-            return False
-
-        # Visualize every N steps (check optimization config)
-        log_every_n_steps = getattr(self.cfg.optimization, "vis_every_n_steps", 100)
-
-        return trainer.global_step % log_every_n_steps == 0 and batch_idx == 0
