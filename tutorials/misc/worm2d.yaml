@@ -1,50 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# 2D Worm Segmentation with MONAI Residual UNet
-# Electron microscopy (EM) dataset - 2D slices
-#
-# This config demonstrates 2D segmentation using MONAI's UNet with residual units.
-#
-# Key features for 2D training:
-# - Proper 2D architecture (spatial_dims=2, auto-inferred from input_size)
-# - NEW: data_transform for paired image/label transforms (resize, crop, etc.)
-# - image_transform for image-only processing (normalization, intensity)
-# - Optimized batch size and data loading for 2D slices
-# - Augmentation pipeline tuned for 2D EM data
-#
-# Transform pipeline explanation:
-#   data_transform  → Applied to BOTH image and label (keeps them aligned)
-#                     Example: resize, spatial augmentations
-#                     Uses bilinear for images, nearest-neighbor for labels
-#   image_transform → Applied to image ONLY (intensity/normalization)
-#                     Example: normalize to [0,1], clip percentiles
-
+_base_: ../bases/common.yaml
 experiment_name: monai2d_worm  # Will be overridden by YAML filename
 description: 2D worm segmentation using MONAI Residual UNet with paired data transforms
 
 # System - Optimized for 2D training
-system:
-  training:
-    num_gpus: 1                          # Single GPU
-    num_workers: 1                        # Parallel data loading (2D slices are lighter)
-    batch_size: 32                        # Higher batch size for 2D (vs 4 for 3D)
-  inference:
-    num_gpus: 1
-    num_workers: 4
-    batch_size: 32                       # Process multiple 2D slices in parallel
-  seed: 42                               # Reproducibility
-
-# Model - MONAI UNet with residual units (2D)
 model:
   architecture: monai_unet
   input_size: [384, 384]               # 2D input (spatial_dims auto-inferred from input_size length)
@@ -123,7 +81,6 @@ data:
       angle_range: [0, 180]
       mode: replace
 
-
 # Optimizer - AdamW with optimized hyperparameters
 optimization:
   max_epochs: 1000
@@ -187,6 +144,9 @@ monitor:
 
 # Inference - MONAI SlidingWindowInferer
 inference:
+  num_gpus: 1
+  num_workers: 4
+  batch_size: 32
   data:
     do_2d: true                     # Enable 2D data processing for inference
     test_image: /orcd/data/edboyden/002/shenb/wormbehavior/13/*.tif
@@ -248,3 +208,11 @@ inference:
   #   During training: batch_size controls how many random patches to load
   #   During inference: batch_size=1 means process one full volume at a time
   #   sw_batch_size (above) controls how many patches are processed per GPU forward pass
+
+train:
+  system:
+    overrides:
+      num_gpus: 1
+      num_workers: 1
+      batch_size: 32
+      seed: 42

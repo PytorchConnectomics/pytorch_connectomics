@@ -1,13 +1,9 @@
-_base_: bases/monai_unet.yaml
+shared:
+  arch_profile: monai_unet
+
+_base_: bases/arch_profiles.yaml
 experiment_name: lucchi++
 description: Mitochondria segmentation on Lucchi++ EM dataset
-system:
-  training:
-    num_gpus: -1
-    num_workers: -1
-    batch_size: 16
-  inference:
-    batch_size: 16
 model:
   input_size:
     - 112
@@ -121,6 +117,7 @@ monitor:
     threshold: 0.02
     divergence_threshold: 2.0
 inference:
+  batch_size: 16
   sliding_window:
     window_size:
       - 112
@@ -147,3 +144,10 @@ test:
     enabled: true
     metrics:
       - jaccard
+
+train:
+  system:
+    overrides:
+      num_gpus: -1
+      num_workers: -1
+      batch_size: 16

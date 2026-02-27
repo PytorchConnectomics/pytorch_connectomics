@@ -13,6 +13,7 @@ from ...data.augment.build import (
     build_val_transforms,
 )
 from ...data.dataset import create_data_dicts_from_paths
+from ...data.io import get_vol_shape
 from .data import ConnectomicsDataModule
 from .path_utils import expand_file_paths as _expand_file_paths
 
@@ -52,23 +53,11 @@ def _calculate_validation_iter_num(
 
         # Load volume to get shape
         if img_path.suffix in [".nii", ".gz"]:
-            # NIfTI file
-            import nibabel as nib
-
-            vol = nib.load(str(img_path))
-            vol_shape = vol.shape
+            vol_shape = get_vol_shape(str(img_path))
         elif img_path.suffix in [".h5", ".hdf5"]:
-            # HDF5 file
-            import h5py
-
-            with h5py.File(img_path, "r") as f:
-                vol_shape = f[list(f.keys())[0]].shape
+            vol_shape = get_vol_shape(str(img_path))
         elif img_path.suffix in [".tif", ".tiff"]:
-            # TIFF file
-            import tifffile
-
-            vol = tifffile.imread(img_path)
-            vol_shape = vol.shape
+            vol_shape = get_vol_shape(str(img_path))
         elif fallback_volume_shape is not None:
             vol_shape = fallback_volume_shape
         else:
@@ -217,19 +206,14 @@ def create_datamodule(
     # Check if automatic train/val split is enabled
     elif cfg.data.split_enabled and not cfg.data.val_image:
         print("🔀 Using automatic train/val split (DeepEM-style)")
-        # Load full volume
-        import h5py
-        import tifffile
 
         from ...data.utils.split import split_volume_train_val
 
         train_path = Path(cfg.data.train_image)
         if train_path.suffix in [".h5", ".hdf5"]:
-            with h5py.File(train_path, "r") as f:
-                volume_shape = f[list(f.keys())[0]].shape
+            volume_shape = get_vol_shape(str(train_path))
         elif train_path.suffix in [".tif", ".tiff"]:
-            volume = tifffile.imread(train_path)
-            volume_shape = volume.shape
+            volume_shape = get_vol_shape(str(train_path))
         else:
             raise ValueError(f"Unsupported file format: {train_path.suffix}")
 

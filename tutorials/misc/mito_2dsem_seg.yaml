@@ -1,55 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# Mitochondria 2D Semantic Segmentation - Pretrained nnUNet Model
-# Uses pretrained nnUNet model from /projects/weilab/liupeng/mito_2d_semantic_model/
-#
-# This config integrates the pretrained nnUNet model into the PyTorch Connectomics framework
-# using the nnunet_pretrained architecture wrapper.
-#
-# ============================================================================
-# USAGE:
-# ============================================================================
-#
-# Training (fine-tuning):
-#   python scripts/main.py --config tutorials/mito2dsem_nnunet.yaml
-#
-# Inference (testing):
-#   python scripts/main.py --config tutorials/mito2dsem_nnunet.yaml --mode test \
-#       --checkpoint path/to/checkpoint.ckpt
-#
-# Standalone Prediction (using nnUNet script directly):
-#   python /projects/weilab/liupeng/mito_2d_semantic_model/mito_2d_semantic.py \
-#       -i <input_folder> -o <output_folder> \
-#       --checkpoint /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
-#
-# ============================================================================
-
+_base_: ../bases/common.yaml
 experiment_name: mito2dsem_nnunet
 description: Mitochondria 2D semantic segmentation using pretrained nnUNet model integrated with PyTorch Connectomics
 
 # System Configuration
-system:
-  training:
-    num_gpus: 1
-    num_workers: 4           # Data loading workers
-    batch_size: 8            # Batch size for training (2D slices)
-  inference:
-    num_gpus: 1
-    num_workers: 2
-    batch_size: 1            # Process one volume at a time
-  seed: 42
-
-# Model Configuration - Using pretrained nnUNet
 model:
   # ========== nnUNet Pretrained Architecture ==========
   architecture: nnunet_2d_pretrained  # or nnunet_pretrained, nnunet_3d_pretrained
@@ -196,6 +149,9 @@ monitor:
 
 # Inference Configuration
 inference:
+  num_gpus: 1
+  num_workers: 2
+  batch_size: 1
   # MONAI SlidingWindowInferer for 2D
   sliding_window:
     window_size: [1, 512, 512]     # 2D window
@@ -272,3 +228,11 @@ test:
 #     -i <input_folder> -o <output_folder> \
 #     --checkpoint /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
 # ============================================================================
+
+train:
+  system:
+    overrides:
+      num_gpus: 1
+      num_workers: 4
+      batch_size: 8
+      seed: 42

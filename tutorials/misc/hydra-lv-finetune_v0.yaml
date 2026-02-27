@@ -1,57 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# Hydra Large Vesicle Segmentation - Fine-tuning Configuration
-# 
-# This config fine-tunes a pretrained model from hydra-lv.yaml on new data.
-# 
-# ============================================================================
-# USAGE:
-# ============================================================================
-#
-# Fine-tuning from pretrained checkpoint:
-#   python scripts/main.py --config tutorials/hydra-lv-finetune.yaml
-#
-# The pretrained checkpoint path is specified in model.external_weights_path
-# This loads only the model weights (not optimizer/scheduler), allowing you
-# to use new hyperparameters optimized for fine-tuning.
-#
-# ============================================================================
-# KEY DIFFERENCES FROM ORIGINAL CONFIG:
-# ============================================================================
-# 1. model.external_weights_path: Path to pretrained checkpoint
-# 2. Lower learning rate (typically 1e-4 to 1e-5 for fine-tuning)
-# 3. Fewer epochs (pretrained model needs less training)
-# 4. New data paths (your fine-tuning dataset)
-# 5. Optionally: Different augmentation strategy (lighter augmentations)
-#
-# ============================================================================
-
+_base_: ../bases/common.yaml
 experiment_name: hydra-lv_finetune_rsunet
 description: Fine-tuning hydra-lv pretrained model on new data
 
 # System
-system:
-  training:
-    num_gpus: 4
-    num_workers: 2
-    batch_size: 8
-  inference:
-    num_gpus: 1
-    num_workers: 1
-    batch_size: 1
-  seed: 42
-
-# Model Configuration
 model:
   architecture: rsunet  # Must match the pretrained model architecture
   # ============================================================================
@@ -258,6 +209,9 @@ monitor:
 
 # Inference configuration (same as pretrained)
 inference:
+  num_gpus: 1
+  num_workers: 1
+  batch_size: 1
   sliding_window:
     window_size: [32, 128, 128]
     sw_batch_size: 1
@@ -304,3 +258,11 @@ test:
   evaluation:
     enabled: true
     metrics: [adapted_rand]
+
+train:
+  system:
+    overrides:
+      num_gpus: 4
+      num_workers: 2
+      batch_size: 8
+      seed: 42

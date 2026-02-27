@@ -1,15 +1,9 @@
-_base_: bases/mednext.yaml
+shared:
+  arch_profile: mednext_s
+
+_base_: bases/arch_profiles.yaml
 experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
-system:
-  training:
-    num_gpus: -1
-    num_workers: -1
-    batch_size: 8
-  inference:
-    num_workers: 1
-    batch_size: 8
-  seed: 42
 model:
   debug_on_nan: false
   enable_nan_detection: true
@@ -159,6 +153,8 @@ test:
       - 16
       - 16
 inference:
+  num_workers: 1
+  batch_size: 8
   sliding_window:
     window_size:
       - 32
@@ -199,3 +195,11 @@ inference:
     enabled: true
     metrics:
       - adapted_rand
+
+train:
+  system:
+    overrides:
+      num_gpus: -1
+      num_workers: -1
+      batch_size: 8
+      seed: 42

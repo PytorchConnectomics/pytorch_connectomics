@@ -257,6 +257,63 @@ def write_pickle_file(filename: str, data: object) -> None:
 # =============================================================================
 
 
+def _tiff_series_are_stackable(tif) -> bool:
+    """Return True when multiple TIFF series can be stacked as a depth axis."""
+    if len(tif.series) <= 1:
+        return False
+
+    first_shape = tuple(tif.series[0].shape)
+    first_axes = tif.series[0].axes
+    for series in tif.series[1:]:
+        if tuple(series.shape) != first_shape or series.axes != first_axes:
+            return False
+    return True
+
+
+def _read_tiff_volume(filename: str) -> np.ndarray:
+    """Read TIFF volume data with robust multi-page handling."""
+    try:
+        import tifffile
+    except ModuleNotFoundError:
+        # Fallback for environments without tifffile.
+        return imageio.volread(filename).squeeze()
+
+    with tifffile.TiffFile(filename) as tif:
+        if len(tif.pages) == 0:
+            raise ValueError(f"TIFF file has no pages: {filename}")
+
+        # Some multi-page TIFFs are stored as many 2D series. In this case,
+        # tifffile's default imread/asarray returns only the first series/page.
+        # Explicit key=slice(None) stacks all pages into a depth dimension.
+        if len(tif.series) == 0:
+            data = tif.pages[0].asarray()
+        elif _tiff_series_are_stackable(tif):
+            data = tif.asarray(key=slice(None))
+        else:
+            data = tif.series[0].asarray()
+
+    return np.asarray(data).squeeze()
+
+
+def _get_tiff_volume_shape(filename: str) -> tuple:
+    """Get TIFF volume shape from metadata, supporting multi-page stacks."""
+    try:
+        import tifffile
+    except ModuleNotFoundError:
+        data = imageio.volread(filename).squeeze()
+        return tuple(data.shape)
+
+    with tifffile.TiffFile(filename) as tif:
+        if len(tif.pages) == 0:
+            raise ValueError(f"TIFF file has no pages: {filename}")
+
+        if len(tif.series) == 0:
+            return tuple(tif.pages[0].shape)
+        if _tiff_series_are_stackable(tif):
+            return (len(tif.series), *tuple(tif.series[0].shape))
+        return tuple(tif.series[0].shape)
+
+
 def read_volume(
     filename: str, dataset: Optional[str] = None, drop_channel: bool = False
 ) -> np.ndarray:
@@ -292,8 +349,7 @@ def read_volume(
             # Read each file and stack along depth dimension
             volumes = []
             for filepath in file_list:
-                vol = imageio.volread(filepath).squeeze()
-                # imageio.volread can return multi-page TIFF as (D, H, W) or single page as (H, W)
+                vol = _read_tiff_volume(filepath)
                 # Ensure all volumes have at least 3D (D, H, W)
                 if vol.ndim == 2:
                     vol = vol[np.newaxis, ...]  # Add depth dimension: (H, W) -> (1, H, W)
@@ -305,7 +361,7 @@ def read_volume(
             data = np.concatenate(volumes, axis=0)  # Stack along depth (first dimension)
         else:
             # Single file or multi-page TIFF
-            data = imageio.volread(filename).squeeze()
+            data = _read_tiff_volume(filename)
 
         if data.ndim == 4:
             # Convert (D, C, H, W) to (C, D, H, W) order
@@ -472,18 +528,7 @@ def get_vol_shape(filename: str, dataset: Optional[str] = None) -> tuple:
             return f[dataset].shape
 
     elif "tif" in image_suffix:
-        # TIFF: Use imageio to get metadata
-        import tifffile
-
-        with tifffile.TiffFile(filename) as tif:
-            # Get shape from first series
-            if hasattr(tif, "series"):
-                # Multi-page TIFF
-                shape = tif.series[0].shape
-            else:
-                # Single page TIFF
-                shape = tif.pages[0].shape
-            return shape
+        return _get_tiff_volume_shape(filename)
 
     elif "png" in image_suffix:
         # PNG stack: Count files and read one image for dimensions

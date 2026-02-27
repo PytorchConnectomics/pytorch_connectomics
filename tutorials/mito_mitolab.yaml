@@ -1,15 +1,9 @@
-_base_: bases/mednext.yaml
+shared:
+  arch_profile: mednext_s
+
+_base_: bases/arch_profiles.yaml
 experiment_name: cem-mitolab_mednext2d
 description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
-system:
-  training:
-    num_gpus: 1
-    num_workers: 0
-    batch_size: 16
-  inference:
-    num_workers: 4
-    batch_size: 32
-  seed: 42
 model:
   out_channels: 3
   mednext_size: S
@@ -114,6 +108,8 @@ test:
       - 5
     output_path: outputs/cem-mitolab_mednext2d/results/
 inference:
+  num_workers: 4
+  batch_size: 32
   test_time_augmentation:
     enabled: false
     channel_activations:
@@ -131,3 +127,11 @@ inference:
   evaluation:
     enabled: false
     metrics: []
+
+train:
+  system:
+    overrides:
+      num_gpus: 1
+      num_workers: 0
+      batch_size: 16
+      seed: 42

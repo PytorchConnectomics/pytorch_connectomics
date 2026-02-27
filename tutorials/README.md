@@ -24,9 +24,9 @@ python scripts/main.py --config tutorials/<config>.yaml
 Top-level configs now use inheritance via `_base_`:
 
 - `tutorials/bases/common.yaml`: Shared defaults across top-level tutorials.
-- `tutorials/bases/mednext.yaml`: MedNeXt-specific shared settings.
-- `tutorials/bases/monai_unet.yaml`: MONAI UNet shared settings.
-- `tutorials/bases/rsunet.yaml`: RSUNet shared settings.
+- `tutorials/bases/arch_profiles.yaml`: Architecture profile presets (`mednext_s`, `mednext_b`, `mednext_m`, `mednext_l`, `monai_unet`, `rsunet`).
+- `tutorials/bases/loss_profiles.yaml`: Reusable loss presets (for example `loss_bcd`).
+- Top-level tutorials should keep selector-only `shared` keys (for example `shared.arch_profile`, `shared.loss_profile`).
 
 `_base_` supports:
 

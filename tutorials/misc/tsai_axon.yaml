@@ -1,50 +1,8 @@
-shared:
-  system_profiles:
-    train_default: ${oc.select:system.training,{}}
-    infer_default: ${oc.select:system.inference,{}}
-  data_transform_profiles:
-    default:
-      data_transform: ${oc.select:data.data_transform,null}
-      image_transform: ${oc.select:data.image_transform,null}
-      nnunet_preprocessing: ${oc.select:data.nnunet_preprocessing,null}
-  inference_profiles:
-    default: ${oc.select:inference,{}}
-
-# 2D Worm Segmentation with MONAI Residual UNet
-# Electron microscopy (EM) dataset - 2D slices
-#
-# This config demonstrates 2D segmentation using MONAI's UNet with residual units.
-#
-# Key features for 2D training:
-# - Proper 2D architecture (spatial_dims=2, auto-inferred from input_size)
-# - NEW: data_transform for paired image/label transforms (resize, crop, etc.)
-# - image_transform for image-only processing (normalization, intensity)
-# - Optimized batch size and data loading for 2D slices
-# - Augmentation pipeline tuned for 2D EM data
-#
-# Transform pipeline explanation:
-#   data_transform  → Applied to BOTH image and label (keeps them aligned)
-#                     Example: resize, spatial augmentations
-#                     Uses bilinear for images, nearest-neighbor for labels
-#   image_transform → Applied to image ONLY (intensity/normalization)
-#                     Example: normalize to [0,1], clip percentiles
-
+_base_: ../bases/common.yaml
 experiment_name: monai_tsai  # Will be overridden by YAML filename
 description: 3D axon segmentation using MONAI Residual UNet with paired data transforms
 
 # System - Optimized for 2D training
-system:
-  training:
-    num_gpus: 1                          # Single GPU per task (SLURM handles multi-GPU via DDP)
-    num_workers: 8                        # Parallel data loading (2D slices are lighter)
-    batch_size: 8                        # Higher batch size for 2D (vs 4 for 3D)
-  inference:
-    num_gpus: 1
-    num_workers: 4
-    batch_size: 32                       # Process multiple 2D slices in parallel
-  seed: 42                               # Reproducibility
-
-# Model - MONAI UNet with residual units (2D)
 model:
   architecture: monai_unet
   input_size: [64, 64, 64]               # 3D input (spatial_dims auto-inferred from input_size length)
@@ -89,7 +47,6 @@ data:
   pad_mode: reflect                    # Reflection padding at boundaries
   iter_num_per_epoch: 1280             # 1280 random crops per epoch (training)
 
-
   # Data transformation (applied to image/label/mask for spatial alignment)
   # NEW: Paired transforms ensure image and label stay aligned
 
@@ -118,7 +75,6 @@ data:
       enabled: true
       shift_intensity_prob: 0.8
       shift_intensity_offset: 0.3
-
 
 # Optimizer - AdamW with optimized hyperparameters
 optimization:
@@ -187,6 +143,9 @@ monitor:
 
 # Inference - MONAI SlidingWindowInferer
 inference:
+  num_gpus: 1
+  num_workers: 4
+  batch_size: 32
   data:
     test_image: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/volumes/*.tiff
     test_label: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/labels-original-backup/*.tiff
@@ -214,7 +173,6 @@ inference:
     # NOTE: tta_act and tta_channel are applied even with null flip_axes (no ensemble, just activation + channel selection)
     # NOTE: If tta_channel selects specific channels, loss computation will be skipped (loss needs all class channels)
 
-
 # Decoding: predicted feature maps to segmetnation mask (semantic or instance segmentation)
   decoding:
     - name: binary_thresholding
@@ -226,14 +184,12 @@ inference:
           remove_small: 10                 # Remove small objects with size less than 10 pixels
           connectivity: 6                 # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
 
-
   # Postprocessing configuration (applied AFTER decoding)
   postprocessing:
 
     # Output format (intensity scaling and dtype conversion)
     intensity_scale: 255                 # Scale predictions to [0, 255] for saving
     intensity_dtype: uint8               # Save as uint8
-
 
   # Evaluation
   evaluation:
@@ -244,3 +200,11 @@ inference:
   #   During training: batch_size controls how many random patches to load
   #   During inference: batch_size=1 means process one full volume at a time
   #   sw_batch_size (above) controls how many patches are processed per GPU forward pass
+
+train:
+  system:
+    overrides:
+      num_gpus: 1
+      num_workers: 8
+      batch_size: 8
+      seed: 42

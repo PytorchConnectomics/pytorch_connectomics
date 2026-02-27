@@ -6,6 +6,7 @@ Modern replacement for monai_compose.py that works with the new Hydra config sys
 
 from __future__ import annotations
 from typing import Dict, Optional
+from functools import partial
 import torch
 from monai.transforms import (
     Compose,
@@ -20,6 +21,7 @@ from monai.transforms import (
     CenterSpatialCropd,
     SpatialPadd,
     Resized,
+    Lambdad,
     LoadImaged,  # For filename-based datasets (PNG, JPG, etc.)
     EnsureChannelFirstd,  # Ensure channel-first format for 2D/3D images
 )
@@ -40,9 +42,17 @@ from .monai_transforms import (
     RandStriped,
     NormalizeLabelsd,
     SmartNormalizeIntensityd,
+    ResizeByFactord,
     RandElasticd,
 )
 from ...config.hydra_config import Config, AugmentationConfig
+
+
+def _strict_binarize_mask(mask, threshold: float = 0.0):
+    """Binarize mask with strict greater-than semantics (mask > threshold)."""
+    if torch.is_tensor(mask):
+        return (mask > threshold).to(dtype=mask.dtype)
+    return (mask > threshold).astype(mask.dtype, copy=False)
 
 
 def build_train_transforms(
@@ -372,7 +382,7 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     # For test/tune mode, only use test.data.image_transform or
     # tune.data.image_transform (no fallback)
     # For val mode, use data.image_transform
-    resize_factors = None
+    image_resize_factors = None
     if mode == "test":
         if (
             hasattr(cfg, "test")
@@ -383,7 +393,7 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
                 hasattr(cfg.test.data.image_transform, "resize")
                 and cfg.test.data.image_transform.resize is not None
             ):
-                resize_factors = cfg.test.data.image_transform.resize
+                image_resize_factors = cfg.test.data.image_transform.resize
     elif mode == "tune":
         if (
             hasattr(cfg, "tune")
@@ -395,31 +405,102 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
                 hasattr(cfg.tune.data.image_transform, "resize")
                 and cfg.tune.data.image_transform.resize is not None
             ):
-                resize_factors = cfg.tune.data.image_transform.resize
+                image_resize_factors = cfg.tune.data.image_transform.resize
     else:  # mode == "val"
         if (
             hasattr(cfg.data.image_transform, "resize")
             and cfg.data.image_transform.resize is not None
         ):
-            resize_factors = cfg.data.image_transform.resize
+            image_resize_factors = cfg.data.image_transform.resize
 
-    if resize_factors is not None:
-        if resize_factors:
-            # Use bilinear for images, nearest for labels/masks
-            transforms.append(
-                Resized(keys=["image"], scale=resize_factors, mode="bilinear", align_corners=True)
+    mask_resize_factors = None
+    if mode == "test":
+        if (
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "mask_transform")
+            and hasattr(cfg.test.data.mask_transform, "resize")
+            and cfg.test.data.mask_transform.resize is not None
+        ):
+            mask_resize_factors = cfg.test.data.mask_transform.resize
+    elif mode == "tune":
+        if (
+            hasattr(cfg, "tune")
+            and cfg.tune
+            and hasattr(cfg.tune, "data")
+            and hasattr(cfg.tune.data, "mask_transform")
+            and hasattr(cfg.tune.data.mask_transform, "resize")
+            and cfg.tune.data.mask_transform.resize is not None
+        ):
+            mask_resize_factors = cfg.tune.data.mask_transform.resize
+
+    if image_resize_factors is not None and image_resize_factors:
+        transforms.append(
+            ResizeByFactord(
+                keys=["image"],
+                scale_factors=image_resize_factors,
+                mode="bilinear",
+                align_corners=True,
             )
-            # Resize labels and masks with nearest-neighbor
-            label_mask_keys = [k for k in keys if k in ["label", "mask"]]
-            if label_mask_keys:
-                transforms.append(
-                    Resized(
-                        keys=label_mask_keys,
-                        scale=resize_factors,
-                        mode="nearest",
-                        align_corners=None,
-                    )
+        )
+        if "label" in keys:
+            transforms.append(
+                ResizeByFactord(
+                    keys=["label"],
+                    scale_factors=image_resize_factors,
+                    mode="nearest",
+                    align_corners=None,
                 )
+            )
+        # By default, mask follows image resize unless mask_transform explicitly overrides it.
+        if "mask" in keys and mask_resize_factors is None:
+            transforms.append(
+                ResizeByFactord(
+                    keys=["mask"],
+                    scale_factors=image_resize_factors,
+                    mode="nearest",
+                    align_corners=None,
+                )
+            )
+
+    if mask_resize_factors is not None and mask_resize_factors and "mask" in keys:
+        transforms.append(
+            ResizeByFactord(
+                keys=["mask"],
+                scale_factors=mask_resize_factors,
+                mode="nearest",
+                align_corners=None,
+            )
+        )
+
+    # Optional mask binarization for test/tune masks (e.g., enforce mask > 0).
+    mask_binarize = False
+    mask_threshold = 0.0
+    if mode == "test":
+        if (
+            hasattr(cfg, "test")
+            and hasattr(cfg.test, "data")
+            and hasattr(cfg.test.data, "mask_transform")
+        ):
+            mask_binarize = bool(getattr(cfg.test.data.mask_transform, "binarize", False))
+            mask_threshold = float(getattr(cfg.test.data.mask_transform, "threshold", 0.0))
+    elif mode == "tune":
+        if (
+            hasattr(cfg, "tune")
+            and cfg.tune
+            and hasattr(cfg.tune, "data")
+            and hasattr(cfg.tune.data, "mask_transform")
+        ):
+            mask_binarize = bool(getattr(cfg.tune.data.mask_transform, "binarize", False))
+            mask_threshold = float(getattr(cfg.tune.data.mask_transform, "threshold", 0.0))
+
+    if "mask" in keys and mask_binarize:
+        transforms.append(
+            Lambdad(
+                keys=["mask"],
+                func=partial(_strict_binarize_mask, threshold=mask_threshold),
+            )
+        )
 
     patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, "patch_size") else None
     if patch_size and all(size > 0 for size in patch_size):

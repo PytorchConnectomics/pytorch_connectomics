@@ -11,6 +11,7 @@ from typing import Optional, Sequence
 import warnings
 
 import torch
+import torch.nn.functional as F
 from monai.transforms import Flip
 
 try:
@@ -191,7 +192,96 @@ class TTAPredictor:
                 return outputs["output"]
             return outputs
 
-    def predict(self, images: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def _validate_and_prepare_mask(
+        self,
+        mask: torch.Tensor,
+        prediction: torch.Tensor,
+        align_to_image: bool = False,
+    ) -> torch.Tensor:
+        """Validate mask shape against prediction and return a binarized mask tensor."""
+        if mask is None:
+            raise ValueError("Mask is None while mask application is enabled.")
+
+        if mask.device != prediction.device:
+            mask = mask.to(device=prediction.device, non_blocking=True)
+
+        # Normalize dimensions to match prediction tensor rank.
+        if mask.ndim == prediction.ndim - 1:
+            mask = mask.unsqueeze(1)
+        elif mask.ndim == prediction.ndim - 2:
+            mask = mask.unsqueeze(0).unsqueeze(0)
+
+        # Handle 2D inference case where prediction is 4D and mask may still be 5D with singleton depth.
+        if prediction.ndim == 4 and mask.ndim == 5 and mask.shape[2] == 1:
+            mask = mask.squeeze(2)
+
+        if mask.ndim != prediction.ndim:
+            raise ValueError(
+                f"Mask rank {mask.ndim} does not match prediction rank {prediction.ndim}. "
+                f"mask.shape={tuple(mask.shape)}, prediction.shape={tuple(prediction.shape)}"
+            )
+
+        # Batch handling: allow singleton mask batch to broadcast.
+        if mask.shape[0] != prediction.shape[0]:
+            if mask.shape[0] == 1:
+                expand_shape = (prediction.shape[0],) + tuple(mask.shape[1:])
+                mask = mask.expand(expand_shape)
+            else:
+                raise ValueError(
+                    f"Mask batch {mask.shape[0]} does not match prediction batch "
+                    f"{prediction.shape[0]}."
+                )
+
+        # Channel handling: allow single-channel mask or per-channel mask.
+        if mask.shape[1] not in (1, prediction.shape[1]):
+            raise ValueError(
+                f"Mask channels {mask.shape[1]} incompatible with prediction channels "
+                f"{prediction.shape[1]}. Expected C=1 or C={prediction.shape[1]}."
+            )
+
+        # Spatial handling is strict: mismatched shapes indicate a data/config bug.
+        if mask.shape[2:] != prediction.shape[2:]:
+            if align_to_image:
+                deltas = [t - s for s, t in zip(mask.shape[2:], prediction.shape[2:])]
+                # Center align by pad/crop mask to match prediction.
+                for spatial_idx, delta in enumerate(deltas):
+                    dim = 2 + spatial_idx
+                    if delta == 0:
+                        continue
+                    if delta < 0:
+                        # Crop mask if it's larger than prediction on this axis.
+                        target = prediction.shape[dim]
+                        start = (-delta) // 2
+                        end = start + target
+                        slices = [slice(None)] * mask.ndim
+                        slices[dim] = slice(start, end)
+                        mask = mask[tuple(slices)]
+                    else:
+                        # Pad mask if it's smaller than prediction on this axis.
+                        pad_before = delta // 2
+                        pad_after = delta - pad_before
+                        spatial_dims = mask.ndim - 2
+                        pad_pairs = [(0, 0)] * spatial_dims
+                        pad_pairs[spatial_idx] = (pad_before, pad_after)
+                        pad = []
+                        for before, after in reversed(pad_pairs):
+                            pad.extend([before, after])
+                        mask = F.pad(mask, tuple(pad), mode="constant", value=0)
+            else:
+                raise ValueError(
+                    "Mask spatial shape must exactly match prediction spatial shape. "
+                    f"Got mask.shape={tuple(mask.shape)} and prediction.shape={tuple(prediction.shape)}. "
+                    "Fix test/tune mask preprocessing so they produce identical spatial dimensions."
+                )
+
+        return (mask > 0).to(dtype=prediction.dtype)
+
+    def predict(
+        self,
+        images: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        mask_align_to_image: bool = False,
+    ) -> torch.Tensor:
         """
         Perform test-time augmentation using flips, rotations, and ensemble predictions.
 
@@ -199,6 +289,8 @@ class TTAPredictor:
             images: Input volume (B, C, D, H, W) or (B, D, H, W) or (D, H, W)
             mask: Optional mask to multiply with predictions after ensemble
                 (B, C, D, H, W) or (B, 1, D, H, W)
+            mask_align_to_image: If True, allow minor center pad/crop of mask to
+                match prediction shape.
         """
         if images.ndim == 3:
             images = images.unsqueeze(0).unsqueeze(0)
@@ -405,24 +497,17 @@ class TTAPredictor:
                     torch.cuda.empty_cache()
 
         apply_mask = (
-            getattr(self.cfg.inference.test_time_augmentation, "apply_mask", False)
+            getattr(self.cfg.inference.test_time_augmentation, "apply_mask", True)
             if hasattr(self.cfg, "inference")
             and hasattr(self.cfg.inference, "test_time_augmentation")
-            else False
+            else True
         )
         if apply_mask and mask is not None:
-            if mask.device != ensemble_result.device:
-                mask = mask.to(device=ensemble_result.device, non_blocking=True)
-            if mask.shape != ensemble_result.shape:
-                if not (mask.shape[1] == 1 and mask.shape[0] == ensemble_result.shape[0]):
-                    warnings.warn(
-                        f"Mask shape {mask.shape} does not match ensemble result "
-                        f"shape {ensemble_result.shape}. Expected mask with "
-                        f"C={ensemble_result.shape[1]} or C=1 channels. "
-                        f"Skipping mask application.",
-                        UserWarning,
-                    )
-                    return ensemble_result
+            mask = self._validate_and_prepare_mask(
+                mask,
+                ensemble_result,
+                align_to_image=mask_align_to_image,
+            )
 
             # Apply activation-aware masking: use minimum value for each activation type
             # - sigmoid/softmax: min=0 (masked regions should be 0)
@@ -430,17 +515,23 @@ class TTAPredictor:
             if self.channel_activation_types is not None and len(self.channel_activation_types) == ensemble_result.shape[1]:
                 # Per-channel masking with activation-aware values
                 for c, act_type in enumerate(self.channel_activation_types):
+                    # Use per-channel mask if provided, otherwise broadcast channel-0 mask.
+                    mask_channel = (
+                        mask[:, c : c + 1]
+                        if mask.shape[1] == ensemble_result.shape[1]
+                        else mask[:, 0:1]
+                    )
                     if act_type == "tanh":
                         # For tanh: mask * value + (1 - mask) * (-1)
                         # Where mask=1 keeps original value, mask=0 sets to -1
                         ensemble_result[:, c:c+1] = (
-                            mask[:, 0:1] * ensemble_result[:, c:c+1] +
-                            (1 - mask[:, 0:1]) * (-1.0)
+                            mask_channel * ensemble_result[:, c:c+1] +
+                            (1 - mask_channel) * (-1.0)
                         )
                     else:
                         # For sigmoid/softmax/others: mask * value + (1 - mask) * 0
                         # This is equivalent to: ensemble_result * mask
-                        ensemble_result[:, c:c+1] = mask[:, 0:1] * ensemble_result[:, c:c+1]
+                        ensemble_result[:, c:c+1] = mask_channel * ensemble_result[:, c:c+1]
             else:
                 # Fallback: simple multiplication (assumes all channels want 0 for masked regions)
                 ensemble_result = ensemble_result * mask

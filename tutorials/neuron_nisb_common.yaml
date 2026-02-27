@@ -1,18 +1,10 @@
-_base_: bases/mednext.yaml
+shared:
+  arch_profile: mednext_b
+
+_base_: bases/arch_profiles.yaml
 
 experiment_name: neuron_nisb_common_mednext_b_sdt
 description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
-
-system:
-  training:
-    num_gpus: -1
-    num_workers: -1
-    batch_size: 4
-  inference:
-    num_gpus: 1
-    num_workers: 4
-    batch_size: 4
-  seed: 42
 
 model:
   in_channels: 1
@@ -40,7 +32,6 @@ data:
 
   # BANIS data.zarr arrays are under each seed directory.
   iter_num_per_epoch: 200
-
 
   use_preloaded_cache_train: true
   use_preloaded_cache_val: true
@@ -78,7 +69,6 @@ data:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
-
 
 optimization:
   max_epochs: 500
@@ -138,6 +128,9 @@ test:
     enabled: false
 
 inference:
+  num_gpus: 1
+  num_workers: 4
+  batch_size: 4
   sliding_window:
     sw_batch_size: 4
     overlap: 0.5
@@ -164,3 +157,11 @@ inference:
     intensity_scale: -1.0
     intensity_dtype: float32
     output_formats: [h5]
+
+train:
+  system:
+    overrides:
+      num_gpus: -1
+      num_workers: -1
+      batch_size: 4
+      seed: 42
