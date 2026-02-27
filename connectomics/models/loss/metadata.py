@@ -36,7 +36,9 @@ _LOSS_METADATA_BY_NAME = {
     "L1Loss": LossMetadata("L1Loss"),
     # Custom supervised losses
     "SmoothL1Loss": LossMetadata("SmoothL1Loss", spatial_weight_arg="weight"),
-    "WeightedBCEWithLogitsLoss": LossMetadata("WeightedBCEWithLogitsLoss"),
+    "WeightedBCEWithLogitsLoss": LossMetadata(
+        "WeightedBCEWithLogitsLoss", spatial_weight_arg="weight"
+    ),
     "WeightedMSELoss": LossMetadata("WeightedMSELoss", spatial_weight_arg="weight"),
     "WeightedMAELoss": LossMetadata("WeightedMAELoss", spatial_weight_arg="weight"),
     # GAN is not compatible with the generic supervised orchestrator path

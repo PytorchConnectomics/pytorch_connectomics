@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import torch.nn as nn
 
@@ -25,6 +25,7 @@ class LossTermSpec:
     mask_slice: Optional[Tuple[int, int]] = None
     apply_deep_supervision: bool = True
     spatial_weight_arg: Optional[str] = None
+    foreground_weight: Optional[Union[float, str]] = None
 
 
 def _cfg_get(obj: Any, key: str, default: Any = None) -> Any:
@@ -86,6 +87,25 @@ def compile_loss_terms_from_config(
             f"{len(loss_functions)} loss functions were built. These must match."
         )
 
+    def _parse_foreground_weight(term_cfg: Any, term_idx: int) -> Optional[Union[float, str]]:
+        raw = _cfg_get(term_cfg, "foreground_weight", None)
+        if raw is None:
+            return None
+        if isinstance(raw, str):
+            mode = raw.strip().lower()
+            if mode != "ratio":
+                raise ValueError(
+                    f"losses[{term_idx}] foreground_weight must be a positive number "
+                    f"or 'ratio', got {raw!r}"
+                )
+            return "ratio"
+        value = float(raw)
+        if value <= 0:
+            raise ValueError(
+                f"losses[{term_idx}] foreground_weight must be > 0, got {value}"
+            )
+        return value
+
     for term_idx, term_cfg in enumerate(losses_list):
         loss_index = term_idx  # 1:1 mapping
         base_meta = metas[loss_index]
@@ -146,10 +166,16 @@ def compile_loss_terms_from_config(
             _cfg_get(term_cfg, "coefficient", _cfg_get(term_cfg, "weight", loss_weights[loss_index]))
         )
         apply_deep_supervision = bool(_cfg_get(term_cfg, "apply_deep_supervision", True))
+        foreground_weight = _parse_foreground_weight(term_cfg, term_idx)
+        if foreground_weight is not None and spatial_weight_arg != "weight":
+            raise ValueError(
+                f"losses[{term_idx}] foreground_weight is only supported for losses "
+                f"with spatial_weight_arg='weight' (got {base_meta.name})"
+            )
 
         compiled.append(
             LossTermSpec(
-                name=f"loss_{term_idx}",
+                name=f"term_{term_idx}",
                 loss_index=loss_index,
                 coefficient=coefficient,
                 call_kind=call_kind,
@@ -160,6 +186,7 @@ def compile_loss_terms_from_config(
                 mask_slice=mask_slice,
                 apply_deep_supervision=apply_deep_supervision,
                 spatial_weight_arg=None if spatial_weight_arg is None else str(spatial_weight_arg),
+                foreground_weight=foreground_weight,
             )
         )
 

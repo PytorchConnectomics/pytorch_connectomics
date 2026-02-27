@@ -18,7 +18,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import (
     ModelCheckpoint,
     EarlyStopping,
-    LearningRateMonitor,
 )
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.plugins.environments import LightningEnvironment
@@ -144,9 +143,6 @@ def create_trainer(
                 early_stop_callback.best_score = torch.tensor(best_score)
 
             callbacks.append(early_stop_callback)
-
-        # Learning rate monitor (training only)
-        callbacks.append(LearningRateMonitor(logging_interval="epoch"))
 
         # Visualization callback (training only, end-of-epoch only)
         if cfg.monitor.logging.images.enabled:

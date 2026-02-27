@@ -78,8 +78,46 @@ class LossOrchestrator:
         total_loss, weights, log_dict = self.loss_weighter.combine(task_losses, task_names, stage)
         return total_loss, weights, log_dict
 
-    def _build_foreground_weight_tensor(self, target: torch.Tensor) -> torch.Tensor:
-        fg_weight = 2.0
+    def _build_foreground_weight_tensor(
+        self,
+        target: torch.Tensor,
+        *,
+        foreground_weight: Optional[float | str] = None,
+        valid_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        if isinstance(foreground_weight, str):
+            if foreground_weight != "ratio":
+                raise ValueError(
+                    f"Unsupported foreground_weight mode: {foreground_weight!r}. "
+                    "Expected a positive number or 'ratio'."
+                )
+            if valid_mask is None:
+                valid = torch.ones_like(target, dtype=torch.bool)
+            else:
+                valid = valid_mask > 0
+
+            pos = (target > 0) & valid
+            neg = (target <= 0) & valid
+            pos_count = torch.count_nonzero(pos).item()
+            neg_count = torch.count_nonzero(neg).item()
+
+            loss_weight_mask = torch.ones_like(target)
+            if pos_count == 0 or neg_count == 0:
+                return loss_weight_mask
+
+            # Class-balanced ratio weights normalized to keep mean(valid weight)=1:
+            # w_fg / w_bg = neg/pos and (pos*w_fg + neg*w_bg)/(pos+neg) = 1.
+            valid_count = float(pos_count + neg_count)
+            bg_weight = valid_count / (2.0 * float(neg_count))
+            fg_weight = valid_count / (2.0 * float(pos_count))
+            loss_weight_mask.fill_(bg_weight)
+            loss_weight_mask[target > 0] = fg_weight
+            return loss_weight_mask
+
+        fg_weight = 2.0 if foreground_weight is None else float(foreground_weight)
+        if fg_weight <= 0:
+            raise ValueError(f"foreground_weight must be > 0, got {fg_weight}")
+
         loss_weight_mask = torch.ones_like(target)
         loss_weight_mask[target > 0] = fg_weight
         return loss_weight_mask
@@ -184,8 +222,9 @@ class LossOrchestrator:
             raise ValueError("Explicit loss term path requested but no loss terms are configured")
 
         loss_dict: Dict[str, float] = {}
-        task_losses_map: Dict[str, torch.Tensor] = {}
+        task_losses: List[torch.Tensor] = []
         task_names_in_order: List[str] = []
+        term_prefix_by_name: Dict[str, str] = {}
 
         for term in self.loss_term_specs:
             if not is_main_scale and not term.apply_deep_supervision:
@@ -250,7 +289,11 @@ class LossOrchestrator:
                     raise ValueError(f"Loss term '{term.name}' is missing pred/target tensors")
                 spatial_weight_tensor = term_mask_tensor
                 if spatial_weight_arg == "weight" and spatial_weight_tensor is None:
-                    spatial_weight_tensor = self._build_foreground_weight_tensor(target)
+                    spatial_weight_tensor = self._build_foreground_weight_tensor(
+                        target,
+                        foreground_weight=term.foreground_weight,
+                        valid_mask=batch_mask_tensor,
+                    )
                 if batch_mask_tensor is not None:
                     if spatial_weight_tensor is None:
                         spatial_weight_tensor = batch_mask_tensor
@@ -340,32 +383,29 @@ class LossOrchestrator:
             )
 
             weighted_term_loss = raw_loss * term.coefficient
-            task_losses_map[term.name] = weighted_term_loss
+            task_losses.append(weighted_term_loss)
             task_names_in_order.append(term.name)
 
             term_prefix = (
-                f"{stage}_loss_term_{term.name}"
+                f"{stage}_loss_{term.name}"
                 if scale_idx is None
-                else f"{stage}_loss_scale_{scale_idx}_term_{term.name}"
+                else f"{stage}_loss_scale_{scale_idx}_{term.name}"
             )
+            term_prefix_by_name[term.name] = term_prefix
             loss_dict[f"{term_prefix}_raw"] = raw_loss.item()
             loss_dict[f"{term_prefix}_coef"] = float(term.coefficient)
             loss_dict[f"{term_prefix}_weighted"] = weighted_term_loss.item()
 
-        task_losses = [task_losses_map[name] for name in task_names_in_order]
         if len(task_losses) == 0:
             return torch.tensor(0.0, device=output.device), loss_dict
         total_loss, task_weights, weighting_logs = self._apply_task_weighting(
             task_losses, task_names_in_order, stage=stage
         )
-        for task_name, task_loss, task_weight in zip(task_names_in_order, task_losses, task_weights):
-            task_prefix = (
-                f"{stage}_loss_task_{task_name}"
-                if scale_idx is None
-                else f"{stage}_loss_scale_{scale_idx}_task_{task_name}"
-            )
-            loss_dict[f"{task_prefix}_weight"] = float(task_weight)
-            loss_dict[f"{task_prefix}_total"] = (task_loss * task_weight).item()
+        if self.loss_weighter is not None:
+            for task_name, task_loss, task_weight in zip(task_names_in_order, task_losses, task_weights):
+                term_prefix = term_prefix_by_name[task_name]
+                loss_dict[f"{term_prefix}_balance_weight"] = float(task_weight)
+                loss_dict[f"{term_prefix}_balanced"] = (task_loss * task_weight).item()
 
         loss_dict.update(weighting_logs)
         return total_loss, loss_dict

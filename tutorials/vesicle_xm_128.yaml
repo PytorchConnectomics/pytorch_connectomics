@@ -80,6 +80,7 @@ data:
     - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
       kwargs:
         mode: "2d"              # 2D EDT with per-instance bounding box optimization
+        resolution: [30, 8, 8]
         
   augmentation:
     preset: some

@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 
 from connectomics.models.loss import LossMetadata, create_loss
+from connectomics.models.loss.losses import WeightedBCEWithLogitsLoss, WeightedMSELoss
 from connectomics.training.loss import LossOrchestrator
 
 
@@ -116,11 +117,17 @@ def _expected_foreground_weight(target: torch.Tensor) -> torch.Tensor:
 
 
 def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses():
+    weighted_bce = create_loss("WeightedBCEWithLogitsLoss")
     weighted_mse = create_loss("WeightedMSELoss")
     binary_reg = create_loss("BinaryRegularization")
 
+    weighted_bce_meta = weighted_bce._connectomics_loss_metadata
     weighted_meta = weighted_mse._connectomics_loss_metadata
     reg_meta = binary_reg._connectomics_loss_metadata
+
+    assert weighted_bce_meta.name == "WeightedBCEWithLogitsLoss"
+    assert weighted_bce_meta.call_kind == "pred_target"
+    assert weighted_bce_meta.spatial_weight_arg == "weight"
 
     assert weighted_meta.name == "WeightedMSELoss"
     assert weighted_meta.call_kind == "pred_target"
@@ -174,6 +181,131 @@ def test_standard_loss_uses_foreground_weight_only_for_weight_aware_losses():
     assert torch.equal(received_weight, _expected_foreground_weight(labels))
 
 
+def test_standard_loss_supports_constant_foreground_weight_from_config():
+    weighted_loss = WeightAwareSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                    "foreground_weight": 3.5,
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 2, 3)
+    labels = torch.tensor([[[[[-1.0, -1.0, -1.0], [0.0, 1.0, 2.0]]]]])
+    orchestrator.compute_standard_loss(outputs, labels, stage="train")
+
+    received_weight = weighted_loss.calls[0]["weight"]
+    expected = torch.ones_like(labels)
+    expected[labels > 0] = 3.5
+    assert torch.equal(received_weight, expected)
+
+
+def test_standard_loss_supports_ratio_foreground_weight_and_respects_mask():
+    weighted_loss = WeightAwareSpyLoss()
+    orchestrator = LossOrchestrator(
+        cfg=_cfg(
+            losses=[
+                {
+                    "pred_slice": [0, 1],
+                    "target_slice": [0, 1],
+                    "weight": 1.0,
+                    "foreground_weight": "ratio",
+                },
+            ]
+        ),
+        loss_functions=nn.ModuleList([weighted_loss]),
+        loss_weights=[1.0],
+        enable_nan_detection=False,
+        debug_on_nan=False,
+    )
+
+    outputs = torch.zeros(1, 1, 1, 2, 3)
+    labels = torch.tensor([[[[[-1.0, -1.0, -1.0], [0.0, 1.0, 2.0]]]]])
+    mask = torch.tensor([[[[[1.0, 1.0, 0.0], [1.0, 1.0, 0.0]]]]])
+    orchestrator.compute_standard_loss(outputs, labels, stage="train", mask=mask)
+
+    # Valid voxels by mask: negatives=3 (<=0), positives=1.
+    # Ratio weights are normalized so mean(weight | valid)=1.
+    received_weight = weighted_loss.calls[0]["weight"]
+    expected = torch.tensor([[[[[2.0 / 3.0, 2.0 / 3.0, 0.0], [2.0 / 3.0, 2.0, 0.0]]]]])
+    assert torch.allclose(received_weight, expected)
+
+    valid = mask > 0
+    assert torch.isclose(received_weight[valid].mean(), torch.tensor(1.0))
+
+
+def test_invalid_foreground_weight_raises_value_error():
+    with pytest.raises(ValueError, match="foreground_weight must be a positive number or 'ratio'"):
+        LossOrchestrator(
+            cfg=_cfg(
+                losses=[
+                    {
+                        "pred_slice": [0, 1],
+                        "target_slice": [0, 1],
+                        "weight": 1.0,
+                        "foreground_weight": "invalid",
+                    },
+                ]
+            ),
+            loss_functions=nn.ModuleList([WeightAwareSpyLoss()]),
+            loss_weights=[1.0],
+            enable_nan_detection=False,
+            debug_on_nan=False,
+        )
+
+
+def test_weighted_mse_mean_uses_only_positive_weight_voxels():
+    loss_fn = WeightedMSELoss(reduction="mean", tanh=False)
+    pred = torch.tensor([[[[[0.0, 0.0]]]]])
+    target = torch.tensor([[[[[1.0, 3.0]]]]])
+    weight = torch.tensor([[[[[2.0, 0.0]]]]])
+    loss = loss_fn(pred, target, weight=weight)
+    # Weighted errors = [2*(1^2), 0*(3^2)] = [2, 0]; mean over valid weights only -> 2.
+    assert torch.isclose(loss, torch.tensor(2.0))
+
+
+def test_weighted_mse_returns_zero_when_no_valid_weights():
+    loss_fn = WeightedMSELoss(reduction="mean", tanh=False)
+    pred = torch.tensor([[[[[0.0, 0.0]]]]])
+    target = torch.tensor([[[[[1.0, 3.0]]]]])
+    weight = torch.zeros_like(target)
+    loss = loss_fn(pred, target, weight=weight)
+    assert torch.isclose(loss, torch.tensor(0.0))
+
+
+def test_weighted_bce_mean_uses_only_positive_weight_voxels():
+    loss_fn = WeightedBCEWithLogitsLoss(reduction="mean")
+    pred = torch.tensor([[[[[0.0, 0.0]]]]])
+    target = torch.tensor([[[[[1.0, 0.0]]]]])
+    weight = torch.tensor([[[[[2.0, 0.0]]]]])
+
+    loss = loss_fn(pred, target, weight=weight)
+
+    expected = 2.0 * torch.log(torch.tensor(2.0))
+    assert torch.isclose(loss, expected)
+
+
+def test_weighted_bce_returns_zero_when_no_valid_weights():
+    loss_fn = WeightedBCEWithLogitsLoss(reduction="mean")
+    pred = torch.tensor([[[[[0.0, 0.0]]]]])
+    target = torch.tensor([[[[[1.0, 0.0]]]]])
+    weight = torch.zeros_like(target)
+
+    loss = loss_fn(pred, target, weight=weight)
+
+    assert torch.isclose(loss, torch.tensor(0.0))
+
+
 def test_multitask_single_scale_routes_class_index_and_dense_targets():
     ce_loss = CrossEntropyLossWrapperSpy()
     reg_loss = WeightAwareSpyLoss()
@@ -208,8 +340,8 @@ def test_multitask_single_scale_routes_class_index_and_dense_targets():
     total_loss, loss_dict = orchestrator.compute_standard_loss(outputs, labels, stage="train")
 
     assert torch.isfinite(total_loss)
-    assert "train_loss_task_loss_0_weight" in loss_dict
-    assert "train_loss_task_loss_1_weight" in loss_dict
+    assert "train_loss_term_0_weighted" in loss_dict
+    assert "train_loss_term_1_weighted" in loss_dict
     assert ce_loss.target_shapes == [(1, 1, 4, 4, 4)]
     assert len(reg_loss.calls) == 1
     assert reg_loss.calls[0]["weight"] is not None
@@ -321,10 +453,8 @@ def test_explicit_loss_terms_support_pred_only_pred_pred_and_mask_dispatch():
     assert len(pred_pred_loss.calls) == 1
     assert pred_only_loss.calls[0]["mask_shape"] == (1, 1, 4, 4, 4)
     assert pred_pred_loss.calls[0]["mask_shape"] == (1, 1, 4, 4, 4)
-    assert "train_loss_term_loss_0_raw" in loss_dict
-    assert "train_loss_term_loss_1_raw" in loss_dict
-    assert "train_loss_task_loss_0_weight" in loss_dict
-    assert "train_loss_task_loss_1_weight" in loss_dict
+    assert "train_loss_term_0_raw" in loss_dict
+    assert "train_loss_term_1_raw" in loss_dict
 
 
 def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_only_terms():
@@ -382,5 +512,5 @@ def test_explicit_loss_terms_deep_supervision_resizes_masks_and_respects_main_on
     assert len(pred_pred_loss.calls) == 2  # main + ds_1
     assert pred_pred_loss.calls[0]["mask_shape"] == (1, 1, 6, 6, 6)
     assert pred_pred_loss.calls[1]["mask_shape"] == (1, 1, 3, 3, 3)
-    assert "train_loss_scale_0_term_loss_0_raw" in loss_dict
-    assert "train_loss_scale_1_term_loss_1_raw" in loss_dict
+    assert "train_loss_scale_0_term_0_raw" in loss_dict
+    assert "train_loss_scale_1_term_1_raw" in loss_dict

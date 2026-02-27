@@ -14,6 +14,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def _reduce_weighted_tensor(
+    loss_tensor: torch.Tensor,
+    weight: torch.Tensor | None,
+    reduction: str,
+) -> torch.Tensor:
+    """Reduce weighted loss values while excluding invalid (weight<=0) voxels for mean."""
+    if reduction == "none":
+        return loss_tensor
+
+    if reduction == "sum":
+        return loss_tensor.sum()
+
+    # reduction == "mean"
+    if weight is None:
+        return loss_tensor.mean()
+
+    valid = weight > 0
+    if not torch.any(valid):
+        return loss_tensor.new_tensor(0.0)
+    return loss_tensor[valid].mean()
+
+
 class CrossEntropyLossWrapper(nn.Module):
     """
     Wrapper for CrossEntropyLoss that handles shape conversion.
@@ -151,12 +173,7 @@ class WeightedMSELoss(nn.Module):
         if weight is not None:
             mse = mse * weight
 
-        if self.reduction == "mean":
-            loss_value = mse.mean()
-        elif self.reduction == "sum":
-            loss_value = mse.sum()
-        else:
-            loss_value = mse
+        loss_value = _reduce_weighted_tensor(mse, weight, self.reduction)
 
         # DEBUG: Print loss output
         if DEBUG_NORM and not hasattr(self, "_debug_loss_output_printed"):
@@ -211,20 +228,34 @@ class WeightedBCEWithLogitsLoss(nn.Module):
         else:
             self.pos_weight = None
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        input: torch.Tensor,
+        target: torch.Tensor,
+        weight: torch.Tensor = None,
+    ) -> torch.Tensor:
         """
         Compute weighted BCE with logits loss.
 
         Args:
             input: Model output (logits) [B, C, ...]
             target: Ground truth [B, C, ...]
+            weight: Optional spatial weights/mask.
 
         Returns:
             Loss value
         """
-        return F.binary_cross_entropy_with_logits(
-            input, target, pos_weight=self.pos_weight, reduction=self.reduction
+        bce = F.binary_cross_entropy_with_logits(
+            input,
+            target,
+            pos_weight=self.pos_weight,
+            reduction="none",
         )
+
+        if weight is not None:
+            bce = bce * weight
+
+        return _reduce_weighted_tensor(bce, weight, self.reduction)
 
 
 class WeightedMAELoss(nn.Module):
@@ -271,12 +302,7 @@ class WeightedMAELoss(nn.Module):
         if weight is not None:
             mae = mae * weight
 
-        if self.reduction == "mean":
-            return mae.mean()
-        elif self.reduction == "sum":
-            return mae.sum()
-        else:
-            return mae
+        return _reduce_weighted_tensor(mae, weight, self.reduction)
 
 
 class SmoothL1Loss(nn.Module):
@@ -307,11 +333,7 @@ class SmoothL1Loss(nn.Module):
         if weight is not None:
             loss = loss * weight
 
-        if self.reduction == "mean":
-            return loss.mean()
-        elif self.reduction == "sum":
-            return loss.sum()
-        return loss
+        return _reduce_weighted_tensor(loss, weight, self.reduction)
 
 
 class GANLoss(nn.Module):

@@ -209,6 +209,12 @@ class ModelConfig:
 
     # Loss configuration — unified list where each entry defines a loss function,
     # its weight, kwargs, and channel routing (pred/target slices).
+    # Optional per-entry fields include:
+    # - foreground_weight: positive number or "ratio" (for weight-aware losses).
+    #   "ratio" computes class-balanced fg/bg spatial weights on the valid mask
+    #   and normalizes them so mean(weight | valid)=1.
+    # - mask_slice: [start, end] to restrict loss to specific label channels
+    # - apply_deep_supervision: bool
     # When None, defaults to [DiceLoss + BCEWithLogitsLoss] applied to all channels.
     losses: Optional[List[Dict[str, Any]]] = None
     loss_balancing: LossBalancingConfig = field(default_factory=LossBalancingConfig)

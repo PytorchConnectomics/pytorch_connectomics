@@ -20,7 +20,7 @@ model:
   - 128
   - 128
   out_channels: 3
-  
+
   mednext_size: S
   mednext_kernel_size: 3
 
@@ -28,6 +28,7 @@ model:
   # Route BCE+Dice to binary/boundary channels only, and MSE to the signed EDT channel.
   losses:
   - function: WeightedBCEWithLogitsLoss
+    foreground_weight: ratio 
     weight: 1.0
     kwargs: {reduction: mean}
     pred_slice: [0, 1]
@@ -38,6 +39,7 @@ model:
     pred_slice: [0, 1]
     target_slice: [0, 1]
   - function: WeightedBCEWithLogitsLoss
+    foreground_weight: ratio 
     weight: 1.0
     kwargs: {reduction: mean}
     pred_slice: [1, 2]
@@ -48,6 +50,7 @@ model:
     pred_slice: [1, 2]
     target_slice: [1, 2]
   - function: WeightedMSELoss
+    foreground_weight: ratio 
     weight: 2.0
     kwargs: {tanh: true}
     pred_slice: [2, 3]
