@@ -289,51 +289,6 @@
 <p>Updated for PyTorch Lightning + Hydra config system.
 Provides TensorBoard visualization of training progress, predictions, and metrics.</p>
 <dl class="py class">
-<dt class="sig sig-object py" id="connectomics.utils.visualizer.LightningVisualizer">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.utils.visualizer.</span></span><span class="sig-name descname"><span class="pre">LightningVisualizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/visualizer.html#LightningVisualizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.utils.visualizer.LightningVisualizer" title="Link to this definition">¶</a></dt>
-<dd><p>Lightning-compatible visualizer.</p>
-<p>Designed to work with PyTorch Lightning callbacks.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>cfg</strong> – Hydra Config object</p></li>
-<li><p><strong>max_images</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum number of images to visualize</p></li>
-</ul>
-</dd>
-</dl>
-<dl class="py method">
-<dt class="sig sig-object py" id="connectomics.utils.visualizer.LightningVisualizer.on_train_batch_end">
-<span class="sig-name descname"><span class="pre">on_train_batch_end</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trainer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pl_module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/visualizer.html#LightningVisualizer.on_train_batch_end"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.utils.visualizer.LightningVisualizer.on_train_batch_end" title="Link to this definition">¶</a></dt>
-<dd><p>Called at the end of training batch.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>)</p></li>
-<li><p><strong>batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a><em>]</em>)</p></li>
-<li><p><strong>batch_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="connectomics.utils.visualizer.LightningVisualizer.on_validation_batch_end">
-<span class="sig-name descname"><span class="pre">on_validation_batch_end</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">trainer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pl_module</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_idx</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/visualizer.html#LightningVisualizer.on_validation_batch_end"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.utils.visualizer.LightningVisualizer.on_validation_batch_end" title="Link to this definition">¶</a></dt>
-<dd><p>Called at the end of validation batch.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><em>Any</em></a><em>]</em>)</p></li>
-<li><p><strong>batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a><em>]</em>)</p></li>
-<li><p><strong>batch_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-</dd></dl>
-
-<dl class="py class">
 <dt class="sig sig-object py" id="connectomics.utils.visualizer.Visualizer">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.utils.visualizer.</span></span><span class="sig-name descname"><span class="pre">Visualizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_images</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/visualizer.html#Visualizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.utils.visualizer.Visualizer" title="Link to this definition">¶</a></dt>
 <dd><p>TensorBoard visualizer for displaying predictions during training.</p>
@@ -392,6 +347,20 @@ Provides TensorBoard visualization of training progress, predictions, and metric
 
 </dd></dl>
 
+<dl class="py function">
+<dt class="sig sig-object py" id="connectomics.utils.visualizer.get_visualization_mask">
+<span class="sig-prename descclassname"><span class="pre">connectomics.utils.visualizer.</span></span><span class="sig-name descname"><span class="pre">get_visualization_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/utils/visualizer.html#get_visualization_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.utils.visualizer.get_visualization_mask" title="Link to this definition">¶</a></dt>
+<dd><p>Select the best available valid-region mask for visualization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Dict" title="(in Python v3.14)"><em>Dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a><em>]</em>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>Tensor</em></a> | None</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 <section id="connectomics-utils-misc">
 <h2>connectomics.utils.misc<a class="headerlink" href="#connectomics-utils-misc" title="Link to this heading">¶</a></h2>
@@ -448,16 +417,12 @@ Provides TensorBoard visualization of training progress, predictions, and metric
 <li><a class="reference internal" href="#">connectomics.utils</a><ul>
 <li><a class="reference internal" href="#connectomics-utils-process">connectomics.utils.process</a></li>
 <li><a class="reference internal" href="#module-connectomics.utils.visualizer">connectomics.utils.visualizer</a><ul>
-<li><a class="reference internal" href="#connectomics.utils.visualizer.LightningVisualizer"><code class="docutils literal notranslate"><span class="pre">LightningVisualizer</span></code></a><ul>
-<li><a class="reference internal" href="#connectomics.utils.visualizer.LightningVisualizer.on_train_batch_end"><code class="docutils literal notranslate"><span class="pre">LightningVisualizer.on_train_batch_end()</span></code></a></li>
-<li><a class="reference internal" href="#connectomics.utils.visualizer.LightningVisualizer.on_validation_batch_end"><code class="docutils literal notranslate"><span class="pre">LightningVisualizer.on_validation_batch_end()</span></code></a></li>
-</ul>
-</li>
 <li><a class="reference internal" href="#connectomics.utils.visualizer.Visualizer"><code class="docutils literal notranslate"><span class="pre">Visualizer</span></code></a><ul>
 <li><a class="reference internal" href="#connectomics.utils.visualizer.Visualizer.visualize"><code class="docutils literal notranslate"><span class="pre">Visualizer.visualize()</span></code></a></li>
 <li><a class="reference internal" href="#connectomics.utils.visualizer.Visualizer.visualize_consecutive_slices"><code class="docutils literal notranslate"><span class="pre">Visualizer.visualize_consecutive_slices()</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#connectomics.utils.visualizer.get_visualization_mask"><code class="docutils literal notranslate"><span class="pre">get_visualization_mask()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#connectomics-utils-misc">connectomics.utils.misc</a></li>
