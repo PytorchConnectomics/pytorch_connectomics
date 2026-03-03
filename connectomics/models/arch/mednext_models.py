@@ -113,9 +113,9 @@ def build_mednext(cfg) -> ConnectomicsModel:
     Config parameters:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (required)
-        - model.mednext_size: Model size 'S', 'B', 'M', or 'L' (default: 'S')
-        - model.mednext_kernel_size: Kernel size 3, 5, or 7 (default: 3)
-        - model.deep_supervision: Enable deep supervision (default: False, RECOMMENDED: True)
+        - model.mednext.size: Model size 'S', 'B', 'M', or 'L' (default: 'S')
+        - model.mednext.kernel_size: Kernel size 3, 5, or 7 (default: 3)
+        - model.loss.deep_supervision: Enable deep supervision (default: False, RECOMMENDED: True)
 
     Important notes:
         - Deep supervision is RECOMMENDED for best performance
@@ -134,9 +134,11 @@ def build_mednext(cfg) -> ConnectomicsModel:
           architecture: mednext
           in_channels: 1
           out_channels: 2
-          mednext_size: S
-          mednext_kernel_size: 3
-          deep_supervision: true
+          mednext:
+            size: S
+            kernel_size: 3
+          loss:
+            deep_supervision: true
 
     See .claude/MEDNEXT.md for complete documentation.
     """
@@ -145,9 +147,10 @@ def build_mednext(cfg) -> ConnectomicsModel:
     # Extract config from Hydra/OmegaConf
     in_channels = cfg.model.in_channels
     out_channels = cfg.model.out_channels
-    model_size = getattr(cfg.model, "mednext_size", "S")
-    kernel_size = getattr(cfg.model, "mednext_kernel_size", 3)
-    deep_supervision = getattr(cfg.model, "deep_supervision", False)
+    model_size = getattr(cfg.model.mednext, "size", "S")
+    kernel_size = getattr(cfg.model.mednext, "kernel_size", 3)
+    loss_cfg = getattr(cfg.model, "loss", None)
+    deep_supervision = getattr(loss_cfg, "deep_supervision", False)
 
     # Validate model size
     if model_size not in ["S", "B", "M", "L"]:
@@ -190,19 +193,19 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
     Config parameters:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (required)
-        - model.mednext_base_channels: Base channel count (default: 32)
-        - model.mednext_exp_r: Expansion ratio, int or list (default: 4)
-        - model.mednext_kernel_size: Kernel size (default: 7)
-        - model.deep_supervision: Enable deep supervision (default: False)
-        - model.mednext_do_res: Residual connections in blocks (default: True)
-        - model.mednext_do_res_up_down: Residual in up/down blocks (default: True)
-        - model.mednext_block_counts: Blocks per level, list of 9 ints
+        - model.mednext.base_channels: Base channel count (default: 32)
+        - model.mednext.exp_r: Expansion ratio, int or list (default: 4)
+        - model.mednext.kernel_size: Kernel size (default: 7)
+        - model.loss.deep_supervision: Enable deep supervision (default: False)
+        - model.mednext.do_res: Residual connections in blocks (default: True)
+        - model.mednext.do_res_up_down: Residual in up/down blocks (default: True)
+        - model.mednext.block_counts: Blocks per level, list of 9 ints
           (default: [2,2,2,2,2,2,2,2,2])
-        - model.mednext_checkpoint_style: Gradient checkpointing, None or
+        - model.mednext.checkpoint_style: Gradient checkpointing, None or
           'outside_block' (default: None)
-        - model.mednext_norm: Normalization 'group' or 'layer' (default: 'group')
-        - model.mednext_dim: Dimension '2d' or '3d' (default: '3d')
-        - model.mednext_grn: Global Response Normalization (default: False)
+        - model.mednext.norm: Normalization 'group' or 'layer' (default: 'group')
+        - model.mednext.dim: Dimension '2d' or '3d' (default: '3d')
+        - model.mednext.grn: Global Response Normalization (default: False)
 
     Args:
         cfg: Hydra config object
@@ -215,12 +218,14 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
           architecture: mednext_custom
           in_channels: 1
           out_channels: 2
-          mednext_base_channels: 32
-          mednext_exp_r: [2, 3, 4, 4, 4, 4, 4, 3, 2]
-          mednext_kernel_size: 7
-          deep_supervision: true
-          mednext_block_counts: [3, 4, 4, 4, 4, 4, 4, 4, 3]
-          mednext_checkpoint_style: outside_block
+          mednext:
+            base_channels: 32
+            exp_r: [2, 3, 4, 4, 4, 4, 4, 3, 2]
+            kernel_size: 7
+          loss:
+            deep_supervision: true
+            block_counts: [3, 4, 4, 4, 4, 4, 4, 4, 3]
+            checkpoint_style: outside_block
 
     See .claude/MEDNEXT.md for complete parameter documentation.
     """
@@ -229,18 +234,18 @@ def build_mednext_custom(cfg) -> ConnectomicsModel:
     # Extract all custom parameters (Hydra only)
     params = {
         "in_channels": cfg.model.in_channels,
-        "n_channels": getattr(cfg.model, "mednext_base_channels", 32),
+        "n_channels": getattr(cfg.model.mednext, "base_channels", 32),
         "n_classes": cfg.model.out_channels,
-        "exp_r": getattr(cfg.model, "mednext_exp_r", 4),
-        "kernel_size": getattr(cfg.model, "mednext_kernel_size", 7),
-        "deep_supervision": getattr(cfg.model, "deep_supervision", False),
-        "do_res": getattr(cfg.model, "mednext_do_res", True),
-        "do_res_up_down": getattr(cfg.model, "mednext_do_res_up_down", True),
-        "block_counts": getattr(cfg.model, "mednext_block_counts", [2, 2, 2, 2, 2, 2, 2, 2, 2]),
-        "checkpoint_style": getattr(cfg.model, "mednext_checkpoint_style", None),
-        "norm_type": getattr(cfg.model, "mednext_norm", "group"),
-        "dim": getattr(cfg.model, "mednext_dim", "3d"),
-        "grn": getattr(cfg.model, "mednext_grn", False),
+        "exp_r": getattr(cfg.model.mednext, "exp_r", 4),
+        "kernel_size": getattr(cfg.model.mednext, "kernel_size", 7),
+        "deep_supervision": getattr(getattr(cfg.model, "loss", None), "deep_supervision", False),
+        "do_res": getattr(cfg.model.mednext, "do_res", True),
+        "do_res_up_down": getattr(cfg.model.mednext, "do_res_up_down", True),
+        "block_counts": getattr(cfg.model.mednext, "block_counts", [2, 2, 2, 2, 2, 2, 2, 2, 2]),
+        "checkpoint_style": getattr(cfg.model.mednext, "checkpoint_style", None),
+        "norm_type": getattr(cfg.model.mednext, "norm", "group"),
+        "dim": getattr(cfg.model.mednext, "dim", "3d"),
+        "grn": getattr(cfg.model.mednext, "grn", False),
     }
 
     # Validate parameters

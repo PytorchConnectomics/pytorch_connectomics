@@ -5,7 +5,8 @@ description: Hydra large vesicle segmentation with RSUNet (EM-optimized) and mul
 # System
 model:
   # ========== CHANGE THIS LINE TO SWITCH ARCHITECTURES ==========
-  architecture: rsunet  # Options: monai_unet, monai_basic_unet3d, rsunet, mednext
+  arch:
+    type: rsunet  # Options: monai_unet, monai_basic_unet3d, rsunet, mednext
   # ==============================================================
   # OPTION 2: Using RSUNet (EM-optimized architecture)
   #   - Optimized for anisotropic EM data (30nm Z, 8nm XY)
@@ -26,27 +27,15 @@ model:
   out_channels: 3                      # 3 channels: binary, boundary, distance
 
   # UNet architecture configuration (optimized for 32x128x128)
-  filters: [32, 64, 128, 256, 512]     # 5 filter stages (4 encoder + 1 bottleneck)
-  strides: [2, 2, 2]                   # 3×2 downsampling → minimum dimension: 4×16×16
-  num_res_units: 2                     # Residual units per block
-  kernel_size: 3                       # Convolution kernel size
-  norm: batch
-  dropout: 0.1                         # Dropout for regularization
 
   # MONAI BasicUNet-specific settings (ignored by other architectures)
-  upsample: nontrainable                # Use trilinear upsampling (no transposed conv)
 
   # RSUNet-specific settings (ignored by other architectures)
-  rsunet_norm: batch                    # Batch normalization for RSUNet
 
   # MedNeXt-specific settings (ignored by other architectures)
-  mednext_size: S                       # S (5.6M), B (10.5M), M (17.6M), L (61.8M)
-  mednext_kernel_size: 3                # 3, 5, or 7
-  deep_supervision: false               # Enable deep supervision for MedNeXt
-
-  # Multi-task loss configuration
-  # Adaptive balancing with uncertainty weighting across binary / boundary / distance heads
-  losses:
+  loss:
+    deep_supervision: false
+    losses:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
@@ -74,24 +63,29 @@ model:
       target_slice: [2, 3]
 
   # Adaptive loss balancing between heads
-  loss_balancing:
-    strategy: uncertainty           # Options: null, uncertainty, gradnorm
+    loss_balancing:
+      strategy: uncertainty         # Options: null, uncertainty, gradnorm
+  monai:
+    filters: [32, 64, 128, 256, 512]     # 5 filter stages (4 encoder + 1 bottleneck)
+    strides: [2, 2, 2]                   # 3×2 downsampling → minimum dimension: 4×16×16
+    num_res_units: 2                     # Residual units per block
+    kernel_size: 3                       # Convolution kernel size
+    norm: batch
+    dropout: 0.1                         # Dropout for regularization
+    upsample: nontrainable                # Use trilinear upsampling (no transposed conv)
+  mednext:
+    size: S                       # S (5.6M), B (10.5M), M (17.6M), L (61.8M)
+    kernel_size: 3                # 3, 5, or 7
+  rsunet:
+    norm: batch                    # Batch normalization for RSUNet
 data:
   # Volume configuration - supports multiple files via glob pattern or list
-  train_image: "datasets/hydra-lv/vol*_im.h5"     # Training volumes
-  train_label: "datasets/hydra-lv/vol*_vesicle_ins.h5"     # Training labels
-  train_mask: "datasets/hydra-lv/vol*_mask.h5"     # Training masks
-  train_resolution: [30, 8, 8]   # Hydra: 30nm (Z) x 8nm (XY) anisotropic resolution
   use_preloaded_cache: true           # Pre-load raw volumes into RAM for fast random cropping
-  cache_rate: 0.0                     # No MONAI caching (augmentation is on-the-fly, random crops change)
-  persistent_workers: true            # Keep workers alive between epochs (avoid restart overhead)
+  dataloader:
+    cache_rate: 0.0                   # No MONAI caching (augmentation is on-the-fly, random crops change)
+    persistent_workers: true          # Keep workers alive between epochs (avoid restart overhead)
 
   # Patch configuration
-  patch_size: [32, 128, 128]           # 32x128x128 training patches (OPTION 3 - larger for better context)
-  pad_size: [8, 24, 24]                # Reflection padding for context (scaled proportionally)
-  pad_mode: reflect                    # Reflection padding at boundaries
-  iter_num_per_epoch: 1280              # More iterations for smaller patches
-  # Image normalization
   image_transform:
     normalize: "0-1"                   # Min-max normalization to [0, 1]
     clip_percentile_low: 0.0           # No clipping
@@ -100,16 +94,16 @@ data:
   # Label transformation for multi-task learning
   label_transform:
     targets:
-      - name: binary                # Channel 0: foreground mask
-      - name: instance_boundary     # Channel 1: contour map
-        kwargs:
-          thickness: 1
-          edge_mode: "all"
-          mode: "2d"
-      - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
-        kwargs:
-          mode: "3d"              # 2D EDT with per-instance bounding box optimization
-          quantize: false
+    - name: binary                  # Channel 0: foreground mask
+    - name: instance_boundary       # Channel 1: contour map
+      kwargs:
+        thickness: 1
+        edge_mode: "all"
+        mode: "2d"
+    - name: instance_edt            # Channel 2: distance transform (bbox-optimized)
+      kwargs:
+        mode: "3d"                # 2D EDT with per-instance bounding box optimization
+        quantize: false
 
   # Augmentation - comprehensive set for large vesicle segmentation
   # Note: When enabled, augmentations (rotation, flip, etc.) are applied to:
@@ -167,8 +161,19 @@ data:
       kernel_size: 9  # Moderate blur
 
 # Optimizer - AdamW with improved hyperparameters
+  train:
+    image: "datasets/hydra-lv/vol*_im.h5"
+    label: "datasets/hydra-lv/vol*_vesicle_ins.h5"
+    mask: "datasets/hydra-lv/vol*_mask.h5"
+    resolution: [30, 8, 8] # Hydra: 30nm (Z) x 8nm (XY) anisotropic resolution
+  data_transform:
+    pad_size: [8, 24, 24]              # Reflection padding for context (scaled proportionally)
+    pad_mode: reflect
+  dataloader:
+    patch_size: [32, 128, 128]         # 32x128x128 training patches (OPTION 3 - larger for better context)
 optimization:
   max_epochs: 10000
+  iter_num_per_epoch: 1280
   gradient_clip_val: 0.5               # Conservative gradient clipping (from lucchi++)
   accumulate_grad_batches: 2           # Effective global batch ≈32 with 4 GPUs × bs=4
   precision: "bf16-mixed"              # BFloat16 mixed precision
@@ -264,8 +269,9 @@ monitor:
 # Both stages use the same sliding window and TTA settings for consistency.
 # ============================================================================
 inference:
-  num_gpus: 1
-  num_workers: 1
+  system:
+    num_gpus: 1
+    num_workers: 1
   batch_size: 1
   # MONAI SlidingWindowInferer parameters
   sliding_window:
@@ -290,9 +296,9 @@ inference:
     # Format: [[start_ch, end_ch, activation], ...]
     select_channel: all               # Use all channels
     channel_activations:
-      - [0, 1, sigmoid]                # Channel 0: binary segmentation (sigmoid)
-      - [1, 2, sigmoid]                # Channel 1: boundary (sigmoid)
-      - [2, 3, tanh]                   # Channel 2: EDT distance (tanh)
+    - [0, 1, sigmoid]                  # Channel 0: binary segmentation (sigmoid)
+    - [1, 2, sigmoid]                  # Channel 1: boundary (sigmoid)
+    - [2, 3, tanh]                     # Channel 2: EDT distance (tanh)
     ensemble_mode: mean              # Mean ensemble (smooth predictions)
     apply_mask: true                   # Multiply predictions by test_mask after ensemble
 
@@ -490,12 +496,12 @@ test:
   # Decoding configuration (instance segmentation postprocessing)
   # NOTE: These are initial values - will be replaced by Optuna optimized values
   decoding:
-    - name: decode_instance_binary_contour_distance
-      kwargs:
-        binary_threshold: [0.5, 0.1]
-        contour_threshold: [0.8, 1.1]
-        distance_threshold: [0.2, 0.0]
-        min_seed_size: 8
+  - name: decode_instance_binary_contour_distance
+    kwargs:
+      binary_threshold: [0.5, 0.1]
+      contour_threshold: [0.8, 1.1]
+      distance_threshold: [0.2, 0.0]
+      min_seed_size: 8
 
   # Evaluation
   evaluation:
@@ -504,8 +510,6 @@ test:
 
 train:
   system:
-    overrides:
-      num_gpus: 4
-      num_workers: 2
-      batch_size: 8
-      seed: 42
+    num_gpus: 4
+    num_workers: 2
+    seed: 42

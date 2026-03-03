@@ -219,12 +219,12 @@ def auto_download_if_missing(config_path: str, dataset_name: Optional[str] = Non
     cfg = load_config(config_path)
 
     # Check if train_image exists
-    if cfg.data.train_image and not Path(cfg.data.train_image).exists():
-        print(f"⚠️  Training data not found: {cfg.data.train_image}")
+    if cfg.data.train.image and not Path(cfg.data.train.image).exists():
+        print(f"⚠️  Training data not found: {cfg.data.train.image}")
 
         # Try to infer dataset name from path
         if dataset_name is None:
-            path_str = str(cfg.data.train_image).lower()
+            path_str = str(cfg.data.train.image).lower()
             for name in DATASETS.keys():
                 if name in path_str:
                     dataset_name = name

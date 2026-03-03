@@ -11,14 +11,6 @@ model:
   output_size: [192, 192, 192]
 
 data:
-  train_path: /projects/weilab/dataset/nisb/liconn/train
-  val_path: /projects/weilab/dataset/nisb/liconn/val
-
-  train_resolution: [12, 9, 9]
-  val_resolution: [12, 9, 9]  
-  patch_size: [192, 192, 192]
-  
-  
 
   image_transform:
     normalize: "0-1"
@@ -27,15 +19,24 @@ data:
 
   label_transform:
     targets:
-      - name: affinity
-        kwargs:
-          long_range: 3
-      - name: skeleton_aware_edt
-        kwargs:
-          resolution: [12, 9, 9]
-          alpha: 0.8
-          bg_value: -1.0
-          relabel: true
+    - name: affinity
+      kwargs:
+        long_range: 3
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution: [12, 9, 9]
+        alpha: 0.8
+        bg_value: -1.0
+        relabel: true
+  train:
+    path: /projects/weilab/dataset/nisb/liconn/train
+    resolution: [12, 9, 9]
+
+  val:
+    path: /projects/weilab/dataset/nisb/liconn/val
+    resolution: [12, 9, 9]
+  dataloader:
+    patch_size: [192, 192, 192]
 optimization:
   accumulate_grad_batches: 2
 
@@ -51,5 +52,3 @@ test:
 
 train:
   system:
-    overrides:
-      batch_size: 1

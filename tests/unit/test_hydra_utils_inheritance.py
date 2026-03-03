@@ -12,7 +12,8 @@ def test_load_config_with_base_relative_path(tmp_path: Path):
 system:
   seed: 123
 model:
-  architecture: monai_unet
+  arch:
+    type: monai_unet
 """
     )
 
@@ -27,7 +28,7 @@ system:
 
     cfg = load_config(child)
     assert cfg.system.seed == 42
-    assert cfg.model.architecture == "monai_unet"
+    assert cfg.model.arch.type == "monai_unet"
 
 
 def test_load_config_with_multiple_bases_order(tmp_path: Path):
@@ -37,7 +38,8 @@ def test_load_config_with_multiple_bases_order(tmp_path: Path):
 system:
   seed: 1
 model:
-  architecture: monai_unet
+  arch:
+    type: monai_unet
 """
     )
 
@@ -47,7 +49,8 @@ model:
 system:
   seed: 2
 model:
-  architecture: mednext
+  arch:
+    type: mednext
 """
     )
 
@@ -65,7 +68,7 @@ system:
     cfg = load_config(child)
     # Later bases override earlier ones, child overrides both.
     assert cfg.system.seed == 3
-    assert cfg.model.architecture == "mednext"
+    assert cfg.model.arch.type == "mednext"
 
 
 def test_load_config_with_cyclic_base_raises(tmp_path: Path):

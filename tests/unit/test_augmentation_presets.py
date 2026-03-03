@@ -19,8 +19,8 @@ def test_augmentation_presets_load(config_path: Path) -> None:
     """All augmentation presets should load with the current Hydra schema."""
     cfg = load_config(config_path)
 
-    assert cfg.system.training.batch_size > 0
-    assert cfg.system.training.num_workers >= 0
+    assert cfg.data.dataloader.batch_size > 0
+    assert cfg.system.num_workers >= 0
     assert cfg.data.augmentation.preset in {"none", "some", "all"}
 
     if config_path.name == "aug_heavy.yaml":

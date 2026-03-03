@@ -14,13 +14,9 @@ model:
   out_channels: 7                     # 6 affinity + 1 
 
   # MedNeXt architecture (optimized for instance segmentation)
-  mednext_size: S                     #  S (~20-30M params) - small model for efficient training
-  mednext_kernel_size: 3              # Using kernel size 3 (from nnUNet/BANIS baseline). Larger kernels (5 or 7) may improve context but increase memory usage.
-  mednext_dim: "3d"                   # 3D convolutions
-  deep_supervision: true              # CRITICAL for MedNeXt (5-scale deep supervision)
-
-  # Multi-task loss configuration
-  losses:
+  loss:
+    deep_supervision: true
+    losses:
     - function: WeightedBCEWithLogitsLoss  # for affinity channels
       weight: 1.0
       pred_slice: [0, 6]
@@ -30,37 +26,19 @@ model:
       kwargs: {tanh: true}                 # tanh activation for [-1, 1] range
       pred_slice: [6, 7]
       target_slice: [6, 7]
+  mednext:
+    size: S                     #  S (~20-30M params) - small model for efficient training
+    kernel_size: 3              # Using kernel size 3 (from nnUNet/BANIS baseline). Larger kernels (5 or 7) may improve context but increase memory usage.
+    dim: "3d"                   # 3D convolutions
 data:
   # Dataset configuration - BetaSeg training data
-  train_path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
-  # Training: 3 volumes (high_c1 moved to validation)
-  train_image:
-    - "high_c3_im.tiff"
-  train_label:
-    - "high_c3_mito.tiff"
-  train_resolution: [16, 16, 16]                      # 16nm x 16nm x 16nm isotropic
-  #  Validation: 1 volume (high_c1) - for monitoring generalization
-  val_path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
-  val_image:
-    - "high_c1_im.tiff"
-  val_label:
-    - "high_c1_mito.tiff"
-  # val_resolution defaults to train_resolution if not specified
-
-  # Data loading optimization
   use_preloaded_cache: false                        # Disabled to enable validation support
-  use_cache: true                                   # Use MONAI caching instead (still fast!)
-  cache_rate: 1.0                                   # Cache 100% of data
-  persistent_workers: true                          # Keep workers alive between epochs
+  dataloader:
+    use_cache: true                                 # Use MONAI caching instead (still fast!)
+    cache_rate: 1.0                                 # Cache 100% of data
+    persistent_workers: true                        # Keep workers alive between epochs
 
   # Patch configuration (isotropic cubic patches for isotropic data)
-  patch_size: [128, 128, 128]
-  pad_size: [16, 16, 16]                             # from resolution
-  pad_mode: reflect                                 # Reflection padding at boundaries
-  iter_num_per_epoch: 50
-  # val_iter_num: auto-calculated based on validation volume size and patch size
-
-  # Image normalization,  Input Normalization, If the training loss is unstable, It might be that there are too many outliers. Try to clip the outliers more: 0.005 → 0.01, 0.995 → 0.99
   image_transform:
     normalize: "0-1"                                # Min-max normalization to [0, 1]
     clip_percentile_low: 0.005                      # Clip bottom 0.5% outliers (reduces noise impact)
@@ -74,25 +52,25 @@ data:
   label_transform:
     targets:
       # Target 1: Affinity maps (6 channels: 3 short-range + 3 long-range)
-      - name: affinity
-        kwargs:
-          offsets:
+    - name: affinity
+      kwargs:
+        offsets:
             # Short-range affinities (offset = 1 voxel)
-            - "0-0-1"              # x-direction, distance 1
-            - "0-1-0"              # y-direction, distance 1
-            - "1-0-0"              # z-direction, distance 1
+        - "0-0-1"                  # x-direction, distance 1
+        - "0-1-0"                  # y-direction, distance 1
+        - "1-0-0"                  # z-direction, distance 1
             # Long-range affinities (offset = 10 voxels, matching BANIS --long_range 10)
-            - "0-0-10"             # x-direction, distance 10
-            - "0-10-0"             # y-direction, distance 10
-            - "10-0-0"             # z-direction, distance 10
+        - "0-0-10"                 # x-direction, distance 10
+        - "0-10-0"                 # y-direction, distance 10
+        - "10-0-0"                 # z-direction, distance 10
         # Total: 6 affinity channels (3 short + 3 long)
       # Target 2: Signed Distance Transform (1 channel)
-      - name: skeleton_aware_edt    # [1][skeleton_aware_edt]New Version of SDT; [2][signed_distance] TRUE Signed Distance Transform (solves class imbalance!); [3][instance_edt] for edt only
-        kwargs:
-          resolution: [16, 16, 16]     # Physical voxel resolution (z, y, x)
-          alpha: 0.8                     # Affinity-based (alpha=1 for skeleton-aware distance)
-          bg_value: -1.0               # Background value for distance map
-          relabel: true
+    - name: skeleton_aware_edt      # [1][skeleton_aware_edt]New Version of SDT; [2][signed_distance] TRUE Signed Distance Transform (solves class imbalance!); [3][instance_edt] for edt only
+      kwargs:
+        resolution: [16, 16, 16]       # Physical voxel resolution (z, y, x)
+        alpha: 0.8                       # Affinity-based (alpha=1 for skeleton-aware distance)
+        bg_value: -1.0                 # Background value for distance map
+        relabel: true
 
   # Augmentation - crucial for generalization
   augmentation:
@@ -137,8 +115,32 @@ data:
       prob: 0.3
 
 # Optimizer - MedNeXt recommended settings
+  train:
+    path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
+    image:
+    - "high_c3_im.tiff"
+    label:
+    - "high_c3_mito.tiff"
+
+  val:
+    path: /projects/weilab/liupeng/banis/data/mito_data/betaSeg
+    image:
+    - "high_c1_im.tiff"
+    label:
+    - "high_c1_mito.tiff"
+  # val_resolution defaults to train_resolution if not specified
+
+  # Data loading optimization
+    train_resolution: [16, 16, 16]                    # 16nm x 16nm x 16nm isotropic
+  #  Validation: 1 volume (high_c1) - for monitoring generalization
+  data_transform:
+    pad_size: [16, 16, 16]                           # from resolution
+    pad_mode: reflect
+  dataloader:
+    patch_size: [128, 128, 128]
 optimization:
   max_steps: 1000000
+  iter_num_per_epoch: 50
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"                 # FP16 mixed precision (better GPU compatibility than bf16)，"16-mixed"   
@@ -210,15 +212,15 @@ test:
       clip_percentile_high: 0.995                   # Clip top 0.5% outliers (same as training)
   # Decoding configuration (SDT → instances via watershed)
   decoding:
-    - name: decode_distance_watershed  # ← Changed from decode_instance_binary_contour_distance
-      kwargs:
-        distance_channels: [6]            # Use SDT channel only for now
-        distance_threshold: [0.5, 0]       # Seeds: SDT>0.5, Foreground: SDT>0
-        min_seed_size: 100
-        min_instance_size: 50
-        use_fast_edt: true                 # Enable fast EDT (10-50x speedup)
-        edt_parallel: 8                    # Use 8 CPU cores
-        edt_downsample_factor: 1           # Full resolution (use 2 for large volumes)
+  - name: decode_distance_watershed    # ← Changed from decode_instance_binary_contour_distance
+    kwargs:
+      distance_channels: [6]              # Use SDT channel only for now
+      distance_threshold: [0.5, 0]         # Seeds: SDT>0.5, Foreground: SDT>0
+      min_seed_size: 100
+      min_instance_size: 50
+      use_fast_edt: true                   # Enable fast EDT (10-50x speedup)
+      edt_parallel: 8                      # Use 8 CPU cores
+      edt_downsample_factor: 1             # Full resolution (use 2 for large volumes)
 
   # Evaluation
   evaluation:
@@ -226,8 +228,9 @@ test:
     metrics: [adapted_rand, voi, instance_accuracy, instance_accuracy_detail]          # Adapted Rand Score + VOI + Accuracy for instance segmentation
 
 inference:
-  num_gpus: 4
-  num_workers: 8
+  system:
+    num_gpus: 4
+    num_workers: 8
   batch_size: 1
   # MONAI SlidingWindowInferer parameters
   sliding_window:
@@ -243,8 +246,8 @@ inference:
     flip_axes:                          # Use all 8 flip augmentations (2^3 for xyz)
     rotation90_axes:                    # No 90-degree rotations
     channel_activations:
-      - [0, 6, sigmoid]               # Affinity channels: sigmoid activation
-      - [6, 7, tanh]
+    - [0, 6, sigmoid]                 # Affinity channels: sigmoid activation
+    - [6, 7, tanh]
     select_channel: all
     ensemble_mode: mean                 # Average predictions across augmentations
     apply_mask: false                   # No mask for BetaSeg
@@ -258,8 +261,6 @@ inference:
 
 train:
   system:
-    overrides:
-      num_gpus: 4
-      num_workers: 8
-      batch_size: 4
-      seed: 0
+    num_gpus: 4
+    num_workers: 8
+    seed: 0

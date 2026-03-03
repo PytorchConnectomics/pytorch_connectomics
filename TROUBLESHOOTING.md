@@ -139,7 +139,7 @@ conda install -c conda-forge cudnn
 
 **Solution 1 - Reduce batch size:**
 ```bash
-python scripts/main.py --config tutorials/lucchi.yaml system.training.batch_size=1
+python scripts/main.py --config tutorials/lucchi.yaml data.dataloader.batch_size=1
 ```
 
 **Solution 2 - Use gradient accumulation:**
@@ -173,10 +173,10 @@ data:
 **Solution:**
 ```bash
 # Reduce num_workers
-python scripts/main.py --config tutorials/lucchi.yaml system.training.num_workers=2
+python scripts/main.py --config tutorials/lucchi.yaml system.num_workers=2
 
 # Or disable workers entirely
-python scripts/main.py --config tutorials/lucchi.yaml system.training.num_workers=0
+python scripts/main.py --config tutorials/lucchi.yaml system.num_workers=0
 ```
 
 ---

@@ -90,9 +90,10 @@ class ConnectomicsModule(pl.LightningModule):
         num_tasks = infer_num_loss_tasks_from_config(cfg)
         self.loss_weighter = build_loss_weighter(cfg, num_tasks, model=self.model)
 
-        # Enable inline NaN detection (can be disabled via config)
-        self.enable_nan_detection = getattr(cfg.model, "enable_nan_detection", True)
-        self.debug_on_nan = getattr(cfg.model, "debug_on_nan", True)
+        # Enable inline NaN detection
+        nan_cfg = getattr(getattr(cfg, "monitor", None), "nan_detection", None)
+        self.enable_nan_detection = getattr(nan_cfg, "enabled", True)
+        self.debug_on_nan = getattr(nan_cfg, "debug_on_nan", True)
 
         # Activation clamping to prevent inf (can be configured)
         self.clamp_activations = getattr(cfg.model, "clamp_activations", False)
@@ -140,7 +141,8 @@ class ConnectomicsModule(pl.LightningModule):
     @staticmethod
     def _get_losses_list(cfg) -> list:
         """Return the unified losses list from config, with defaults."""
-        losses = getattr(cfg.model, "losses", None)
+        loss_cfg = getattr(cfg.model, "loss", None)
+        losses = getattr(loss_cfg, "losses", None)
         if losses is not None:
             return list(losses)
         # Default: DiceLoss + BCEWithLogitsLoss applied to all channels
@@ -1300,11 +1302,11 @@ class ConnectomicsModule(pl.LightningModule):
 
         mask_align_to_image = False
         if mode == "test" and hasattr(self.cfg, "test") and hasattr(self.cfg.test, "data"):
-            mask_transform_cfg = getattr(self.cfg.test.data, "mask_transform", None)
+            mask_transform_cfg = getattr(self.cfg.test.data, "data_transform", None)
             if mask_transform_cfg is not None:
                 mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
         elif mode == "tune" and hasattr(self.cfg, "tune") and self.cfg.tune and hasattr(self.cfg.tune, "data"):
-            mask_transform_cfg = getattr(self.cfg.tune.data, "mask_transform", None)
+            mask_transform_cfg = getattr(self.cfg.tune.data, "data_transform", None)
             if mask_transform_cfg is not None:
                 mask_align_to_image = bool(getattr(mask_transform_cfg, "align_to_image", False))
 

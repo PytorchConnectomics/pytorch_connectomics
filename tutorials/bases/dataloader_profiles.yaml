@@ -1,0 +1,5 @@
+dataloader_profiles:
+  cached:
+    use_preloaded_cache_train: true
+    use_preloaded_cache_val: true
+    persistent_workers: true

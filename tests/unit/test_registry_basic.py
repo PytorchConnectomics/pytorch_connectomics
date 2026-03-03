@@ -67,13 +67,10 @@ def test_build_model():
     # Create minimal config
     cfg = OmegaConf.create({
         'model': {
-            'architecture': 'monai_basic_unet3d',
+            'arch': {'type': 'monai_basic_unet3d'},
             'in_channels': 1,
             'out_channels': 2,
-            'filters': [32, 64, 128, 256, 512],
-            'dropout': 0.0,
-            'activation': 'relu',
-            'norm': 'batch',
+            'monai': {'filters': [32, 64, 128, 256, 512], 'dropout': 0.0, 'activation': 'relu', 'norm': 'batch'},
         }
     })
 
@@ -100,10 +97,10 @@ def test_forward_pass():
     # Create minimal config
     cfg = OmegaConf.create({
         'model': {
-            'architecture': 'monai_basic_unet3d',
+            'arch': {'type': 'monai_basic_unet3d'},
             'in_channels': 1,
             'out_channels': 2,
-            'filters': [16, 32, 64, 128, 256],  # Smaller for fast test
+            'monai': {'filters': [16, 32, 64, 128, 256]},  # Smaller for fast test
         }
     })
 

@@ -1,0 +1,9 @@
+decoding_profiles:
+  decoding_bcd:
+    - name: decode_instance_binary_contour_distance
+      kwargs:
+        binary_threshold: [0.9, 0.85]
+        contour_threshold: [0.8, 1.1]
+        distance_threshold: [0.5, -0.5]
+        min_instance_size: 30
+        min_seed_size: 5

@@ -1,0 +1,5 @@
+activation_profiles:
+  act_bcd:
+    - [0, 1, sigmoid]
+    - [1, 2, sigmoid]
+    - [2, 3, tanh]

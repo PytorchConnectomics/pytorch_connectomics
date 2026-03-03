@@ -4,21 +4,18 @@ description: 3D axon segmentation using MONAI Residual UNet with paired data tra
 
 # System - Optimized for 2D training
 model:
-  architecture: monai_unet
+  arch:
+    type: monai_unet
   input_size: [64, 64, 64]               # 3D input (spatial_dims auto-inferred from input_size length)
   output_size: [64, 64, 64]
   in_channels: 1
   out_channels: 1
 
   # UNet architecture configuration
-  filters: [28, 36, 48, 64]      # Standard UNet channel progression
-  num_res_units: 2                     # Residual units per block
-  kernel_size: 3                       # Convolution kernel size
-  norm: batch                          # Batch normalization
-  dropout: 0.1                         # Dropout for regularization
 
   # Loss configuration - Dice for overlap, BCE for pixel-wise accuracy
-  losses:
+  loss:
+    losses:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       kwargs: {reduction: mean}
@@ -29,35 +26,25 @@ model:
       kwargs: {include_background: true, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
+  monai:
+    filters: [28, 36, 48, 64]      # Standard UNet channel progression
+    num_res_units: 2                     # Residual units per block
+    kernel_size: 3                       # Convolution kernel size
+    norm: batch                          # Batch normalization
+    dropout: 0.1                         # Dropout for regularization
 data:
   # Training data
-  train_image: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/volumes/*.tiff
-  train_label: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/labels-original-backup/*.tiff
-  train_resolution: [2, 0.8, 0.8]        # Resolution: z, y, x (applies to both train and val)
-  # Validation data (separate from training)
-  val_image: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/volumes/*.tiff
-  val_label: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/labels-original-backup/*.tiff
-
   use_preloaded_cache: true            # Load volumes into memory for fast training
   # train_val_split: 0.8               # Not needed when using separate val_image/val_label
 
   # Patch configuration
-  patch_size: [64, 64, 64]          # Larger patches for better context
-  pad_size: [0, 0, 0]                 # Padding for valid convolutions
-  pad_mode: reflect                    # Reflection padding at boundaries
-  iter_num_per_epoch: 1280             # 1280 random crops per epoch (training)
-
-  # Data transformation (applied to image/label/mask for spatial alignment)
-  # NEW: Paired transforms ensure image and label stay aligned
-
-  # Image normalization (applied to image only)
   image_transform:
     normalize: "0-1"                     # Min-max normalization to [0, 1]
     clip_percentile_low: 0.05             # 5th percentile intensity clipping
     clip_percentile_high: 0.95             # 95th percentile intensity clipping
   label_transform:
     targets:
-      - name: binary  # Ensures labels are {0, 1}
+    - name: binary    # Ensures labels are {0, 1}
   # Augmentation - Enabled for better generalization
   augmentation:
     preset: some                        # Enable data augmentation
@@ -77,8 +64,23 @@ data:
       shift_intensity_offset: 0.3
 
 # Optimizer - AdamW with optimized hyperparameters
+  train:
+    image: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/volumes/*.tiff
+    label: /orcd/scratch/bcs/002/mansour/trailmap_data/training/training-original/labels-original-backup/*.tiff
+    resolution: [2, 0.8, 0.8]      # Resolution: z, y, x (applies to both train and val)
+
+  val:
+    image: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/volumes/*.tiff
+    label: /orcd/scratch/bcs/002/mansour/trailmap_data/validation/validation-original/labels-original-backup/*.tiff
+  # Validation data (separate from training)
+  data_transform:
+    pad_size: [0, 0, 0]               # Padding for valid convolutions
+    pad_mode: reflect
+  dataloader:
+    patch_size: [64, 64, 64]        # Larger patches for better context
 optimization:
   max_epochs: 1000
+  iter_num_per_epoch: 1280
   val_check_interval: 1.0
   gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
   accumulate_grad_batches: 1
@@ -143,8 +145,9 @@ monitor:
 
 # Inference - MONAI SlidingWindowInferer
 inference:
-  num_gpus: 1
-  num_workers: 4
+  system:
+    num_gpus: 1
+    num_workers: 4
   batch_size: 32
   data:
     test_image: /orcd/scratch/bcs/002/mansour/trailmap_data/testing/testing-original/volumes/*.tiff
@@ -155,7 +158,7 @@ inference:
   # MONAI SlidingWindowInferer parameters
   sliding_window:
     window_size:                    # Disable sliding window for 2D data (use direct inference)
-    # sw_batch_size: automatically set from system.inference.batch_size (currently 32)
+    # sw_batch_size: automatically set from data.dataloader.batch_size (currently 32)
     overlap: 0.5                         # 50% overlap between patches
     blending: gaussian                   # Gaussian weighting for smooth blending
     sigma_scale: 0.25                   # Gaussian sigma scale (larger = smoother blending, default: 0.125)
@@ -175,14 +178,14 @@ inference:
 
 # Decoding: predicted feature maps to segmetnation mask (semantic or instance segmentation)
   decoding:
-    - name: binary_thresholding
-      kwargs:
-        threshold_range: [0.5, 1]          # binary thresholding range
-        opening_iterations: 2              # Morphological opening (erosion + dilation) to remove small noise
-        connected_components:
-          enabled: true                    # Enable connected components filtering
-          remove_small: 10                 # Remove small objects with size less than 10 pixels
-          connectivity: 6                 # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
+  - name: binary_thresholding
+    kwargs:
+      threshold_range: [0.5, 1]            # binary thresholding range
+      opening_iterations: 2                # Morphological opening (erosion + dilation) to remove small noise
+      connected_components:
+        enabled: true                      # Enable connected components filtering
+        remove_small: 10                   # Remove small objects with size less than 10 pixels
+        connectivity: 6                   # Face connectivity (4=4-connected for 2D, 6=6-connected for 3D)
 
   # Postprocessing configuration (applied AFTER decoding)
   postprocessing:
@@ -203,8 +206,6 @@ inference:
 
 train:
   system:
-    overrides:
-      num_gpus: 1
-      num_workers: 8
-      batch_size: 8
-      seed: 42
+    num_gpus: 1
+    num_workers: 8
+    seed: 42

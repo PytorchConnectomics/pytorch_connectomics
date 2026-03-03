@@ -59,9 +59,9 @@ class CUDAOutOfMemoryError(ConnectomicsError):
     def __init__(self, original_error: Exception):
         message = "GPU out of memory"
         suggestions = [
-            "Reduce batch size: data.batch_size=1",
+            "Reduce batch size: data.dataloader.batch_size=1",
             "Use mixed precision: optimization.precision='16-mixed'",
-            "Reduce patch size: data.patch_size=[64, 64, 64]",
+            "Reduce patch size: data.dataloader.patch_size=[64, 64, 64]",
             "Enable gradient accumulation: optimization.accumulate_grad_batches=4",
             "Use CPU-only: system.num_gpus=0",
         ]
@@ -206,7 +206,7 @@ def handle_training_error(error: Exception) -> ConnectomicsError:
             suggestions=[
                 "Reduce num_workers: system.num_workers=2",
                 "Disable workers: system.num_workers=0",
-                "Reduce batch size: data.batch_size=1",
+                "Reduce batch size: data.dataloader.batch_size=1",
                 "Check system memory: free -h",
             ],
         )
@@ -227,12 +227,12 @@ def preflight_check(cfg) -> list:
     issues = []
 
     # Check data files exist (supports glob patterns and lists)
-    if cfg.data.train_image:
+    if cfg.data.train.image:
         from glob import glob
 
         # Handle list of files
-        if isinstance(cfg.data.train_image, list):
-            for img_path in cfg.data.train_image:
+        if isinstance(cfg.data.train.image, list):
+            for img_path in cfg.data.train.image:
                 if "*" in img_path or "?" in img_path:
                     matched_files = glob(img_path)
                     if not matched_files:
@@ -242,22 +242,22 @@ def preflight_check(cfg) -> list:
         # Handle single file/pattern
         else:
             # Check if pattern contains wildcards
-            if "*" in cfg.data.train_image or "?" in cfg.data.train_image:
+            if "*" in cfg.data.train.image or "?" in cfg.data.train.image:
                 # Expand glob pattern
-                matched_files = glob(cfg.data.train_image)
+                matched_files = glob(cfg.data.train.image)
                 if not matched_files:
                     issues.append(
-                        f"❌ Training image pattern matched no files: {cfg.data.train_image}"
+                        f"❌ Training image pattern matched no files: {cfg.data.train.image}"
                     )
-            elif not Path(cfg.data.train_image).exists():
-                issues.append(f"❌ Training image not found: {cfg.data.train_image}")
+            elif not Path(cfg.data.train.image).exists():
+                issues.append(f"❌ Training image not found: {cfg.data.train.image}")
 
-    if cfg.data.train_label:
+    if cfg.data.train.label:
         from glob import glob
 
         # Handle list of files
-        if isinstance(cfg.data.train_label, list):
-            for lbl_path in cfg.data.train_label:
+        if isinstance(cfg.data.train.label, list):
+            for lbl_path in cfg.data.train.label:
                 if "*" in lbl_path or "?" in lbl_path:
                     matched_files = glob(lbl_path)
                     if not matched_files:
@@ -267,36 +267,36 @@ def preflight_check(cfg) -> list:
         # Handle single file/pattern
         else:
             # Check if pattern contains wildcards
-            if "*" in cfg.data.train_label or "?" in cfg.data.train_label:
+            if "*" in cfg.data.train.label or "?" in cfg.data.train.label:
                 # Expand glob pattern
-                matched_files = glob(cfg.data.train_label)
+                matched_files = glob(cfg.data.train.label)
                 if not matched_files:
                     issues.append(
-                        f"❌ Training label pattern matched no files: {cfg.data.train_label}"
+                        f"❌ Training label pattern matched no files: {cfg.data.train.label}"
                     )
-            elif not Path(cfg.data.train_label).exists():
-                issues.append(f"❌ Training label not found: {cfg.data.train_label}")
+            elif not Path(cfg.data.train.label).exists():
+                issues.append(f"❌ Training label not found: {cfg.data.train.label}")
 
     # Check GPU availability
-    if cfg.system.training.num_gpus > 0 and not torch.cuda.is_available():
-        issues.append(f"❌ {cfg.system.training.num_gpus} GPU(s) requested but CUDA not available")
+    if cfg.system.num_gpus > 0 and not torch.cuda.is_available():
+        issues.append(f"❌ {cfg.system.num_gpus} GPU(s) requested but CUDA not available")
 
     # Check GPU count
-    if cfg.system.training.num_gpus > torch.cuda.device_count():
+    if cfg.system.num_gpus > torch.cuda.device_count():
         issues.append(
-            f"❌ {cfg.system.training.num_gpus} GPU(s) requested but only "
+            f"❌ {cfg.system.num_gpus} GPU(s) requested but only "
             f"{torch.cuda.device_count()} available"
         )
 
     # Estimate memory requirements
-    if torch.cuda.is_available() and cfg.system.training.num_gpus > 0:
+    if torch.cuda.is_available() and cfg.system.num_gpus > 0:
         try:
             # Rough estimate: batch_size * patch_size * channels * 4 bytes * 10 (model overhead)
             import numpy as np
 
-            patch_volume = np.prod(cfg.data.patch_size)
+            patch_volume = np.prod(cfg.data.dataloader.patch_size)
             estimated_gb = (
-                cfg.system.training.batch_size * patch_volume * cfg.model.in_channels * 4 * 10 / 1e9
+                cfg.data.dataloader.batch_size * patch_volume * cfg.model.in_channels * 4 * 10 / 1e9
             )
 
             available_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
@@ -311,8 +311,8 @@ def preflight_check(cfg) -> list:
             pass  # Skip memory estimation if it fails
 
     # Check patch size vs expected volume size
-    if cfg.data.patch_size:
-        patch_size = cfg.data.patch_size
+    if cfg.data.dataloader.patch_size:
+        patch_size = cfg.data.dataloader.patch_size
         if min(patch_size) < 16:
             issues.append(
                 f"⚠️  Very small patch size: {patch_size} (may not capture enough context)"

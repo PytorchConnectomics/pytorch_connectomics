@@ -62,13 +62,14 @@ def compile_loss_terms_from_config(
     *,
     loss_metadata: Optional[Sequence[LossMetadata]] = None,
 ) -> List[LossTermSpec]:
-    """Compile unified ``model.losses`` config to validated loss term specs.
+    """Compile unified ``model.loss.losses`` config to validated loss term specs.
 
-    Each entry in ``model.losses`` maps 1:1 to a loss function (by index)
+    Each entry in ``model.loss.losses`` maps 1:1 to a loss function (by index)
     and carries its own weight, channel slices, and routing info.
     """
     model_cfg = _cfg_get(cfg, "model", None)
-    losses_cfg = _cfg_get(model_cfg, "losses", None)
+    loss_cfg = _cfg_get(model_cfg, "loss", None)
+    losses_cfg = _cfg_get(loss_cfg, "losses", None)
     metas = list(loss_metadata) if loss_metadata is not None else [
         get_loss_metadata_for_module(loss_fn) for loss_fn in loss_functions
     ]
@@ -76,14 +77,14 @@ def compile_loss_terms_from_config(
 
     if losses_cfg is None:
         raise ValueError(
-            "model.losses is required. Configure a list of loss entries "
+            "model.loss.losses is required. Configure a list of loss entries "
             "with function, weight, pred_slice, and target_slice."
         )
 
     losses_list = list(losses_cfg)
     if len(losses_list) != len(loss_functions):
         raise ValueError(
-            f"model.losses has {len(losses_list)} entries but "
+            f"model.loss.losses has {len(losses_list)} entries but "
             f"{len(loss_functions)} loss functions were built. These must match."
         )
 
@@ -199,7 +200,8 @@ def infer_num_loss_tasks_from_config(cfg: Any) -> int:
     Each loss entry is its own task (no task_name grouping).
     """
     model_cfg = _cfg_get(cfg, "model", None)
-    losses_cfg = _cfg_get(model_cfg, "losses", None)
+    loss_cfg = _cfg_get(model_cfg, "loss", None)
+    losses_cfg = _cfg_get(loss_cfg, "losses", None)
     if losses_cfg:
         return max(1, len(list(losses_cfg)))
     return 1

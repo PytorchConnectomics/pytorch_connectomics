@@ -4,7 +4,8 @@ description: Improved fine-tuning with deep supervision and aggressive training
 
 # System
 model:
-  architecture: rsunet
+  arch:
+    type: rsunet
 
   # PRETRAINED MODEL LOADING
   external_weights_path: "outputs/hydra-lv_rsunet/20251203_012234/checkpoints/last.ckpt"
@@ -17,25 +18,11 @@ model:
   out_channels: 3  # binary, boundary, distance
 
   # Architecture settings
-  filters: [32, 64, 128, 256, 512]
-  strides: [2, 2, 2]
-  num_res_units: 2
-  kernel_size: 3
-  norm: batch
-  dropout: 0.1
-  rsunet_norm: batch
 
   # ⭐⭐⭐ CRITICAL FIX: Enable deep supervision for small objects
-  deep_supervision: true  # CHANGED FROM: false
-
-  # Loss configuration - REBALANCED to emphasize binary and boundary
-  # Breakdown:
-  #   - DiceLoss (binary): 2.0 ← emphasize object detection
-  #   - WeightedBCE (binary): 2.0 ← emphasize object detection
-  #   - DiceLoss (boundary): 1.0
-  #   - TverskyLoss (boundary): 1.0
-  #   - SmoothL1Loss (EDT): 0.5 ← reduce (already converged)
-  losses:
+  loss:
+    deep_supervision: true
+    losses:
     - function: DiceLoss
       weight: 2.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
@@ -62,28 +49,26 @@ model:
       pred_slice: [2, 3]
       target_slice: [2, 3]
 
-  loss_balancing:
-    strategy: uncertainty  # Keep uncertainty weighting
+    loss_balancing:
+      strategy: uncertainty # Keep uncertainty weighting
+  monai:
+    filters: [32, 64, 128, 256, 512]
+    strides: [2, 2, 2]
+    num_res_units: 2
+    kernel_size: 3
+    norm: batch
+    dropout: 0.1
+  rsunet:
+    norm: batch
 data:
   # Training data
-  train_image: "datasets/bouton-lv/train/vol0_im.h5"
-  train_label: "datasets/bouton-lv/train/vol0_lv.h5"
-  train_mask: "datasets/bouton-lv/train/vol0_mask.h5"
-  train_resolution: [30, 8, 8]
 
   use_preloaded_cache: true
-  cache_rate: 0.0
-  persistent_workers: false
+  dataloader:
+    cache_rate: 0.0
+    persistent_workers: false
 
   # Patch configuration
-  patch_size: [32, 128, 128]
-  pad_size: [8, 24, 24]
-  pad_mode: reflect
-
-  # ⭐⭐⭐ CRITICAL FIX: 4x more iterations per epoch
-  iter_num_per_epoch: 5000  # CHANGED FROM: 1280 (severe undertraining)
-
-  # Image normalization
   image_transform:
     normalize: "0-1"
     clip_percentile_low: 0.0
@@ -92,16 +77,16 @@ data:
   # Label transformation
   label_transform:
     targets:
-      - name: binary
-      - name: instance_boundary
-        kwargs:
-          thickness: 1
-          edge_mode: "all"
-          mode: "2d"
-      - name: instance_edt
-        kwargs:
-          mode: "3d"
-          quantize: false
+    - name: binary
+    - name: instance_boundary
+      kwargs:
+        thickness: 1
+        edge_mode: "all"
+        mode: "2d"
+    - name: instance_edt
+      kwargs:
+        mode: "3d"
+        quantize: false
 
   # ⭐⭐⭐ CRITICAL FIX: Maximum augmentation for small dataset
   augmentation:
@@ -151,8 +136,19 @@ data:
       kernel_size: 9
 
 # Optimization - IMPROVED settings
+  train:
+    image: "datasets/bouton-lv/train/vol0_im.h5"
+    label: "datasets/bouton-lv/train/vol0_lv.h5"
+    mask: "datasets/bouton-lv/train/vol0_mask.h5"
+    resolution: [30, 8, 8]
+  data_transform:
+    pad_size: [8, 24, 24]
+    pad_mode: reflect
+  dataloader:
+    patch_size: [32, 128, 128]
 optimization:
   max_epochs: 1000  # INCREASED FROM: 500 (need more time to converge)
+  iter_num_per_epoch: 5000
   gradient_clip_val: 0.5
   accumulate_grad_batches: 2
   precision: "bf16-mixed"
@@ -217,8 +213,9 @@ monitor:
 
 # Inference
 inference:
-  num_gpus: 1
-  num_workers: 1
+  system:
+    num_gpus: 1
+    num_workers: 1
   batch_size: 1
   sliding_window:
     window_size: [32, 128, 128]
@@ -234,9 +231,9 @@ inference:
     rotation90_axes: [[1, 2]]  # CHANGED FROM: null
     select_channel: all
     channel_activations:
-      - [0, 1, sigmoid]
-      - [1, 2, sigmoid]
-      - [2, 3, tanh]
+    - [0, 1, sigmoid]
+    - [1, 2, sigmoid]
+    - [2, 3, tanh]
     ensemble_mode: mean
     apply_mask: true
 
@@ -258,12 +255,12 @@ test:
 
   # ⭐ IMPROVEMENT: More sensitive thresholds for better recall
   decoding:
-    - name: decode_instance_binary_contour_distance
-      kwargs:
-        binary_threshold: [0.3, 0.7]  # CHANGED FROM: [0.5, 0.7] (lower = more sensitive)
-        contour_threshold: [0.5, 13.1]  # CHANGED FROM: [0.8, 13.1] (lower = allow weaker boundaries)
-        distance_threshold: [0.5, -0.5]
-        min_seed_size: 8  # CHANGED FROM: 4 (filter more noise)
+  - name: decode_instance_binary_contour_distance
+    kwargs:
+      binary_threshold: [0.3, 0.7]    # CHANGED FROM: [0.5, 0.7] (lower = more sensitive)
+      contour_threshold: [0.5, 13.1]    # CHANGED FROM: [0.8, 13.1] (lower = allow weaker boundaries)
+      distance_threshold: [0.5, -0.5]
+      min_seed_size: 8    # CHANGED FROM: 4 (filter more noise)
 
   evaluation:
     enabled: true
@@ -299,8 +296,6 @@ test:
 
 train:
   system:
-    overrides:
-      num_gpus: 4
-      num_workers: 2
-      batch_size: 4
-      seed: 42
+    num_gpus: 4
+    num_workers: 2
+    seed: 42

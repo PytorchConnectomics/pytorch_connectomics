@@ -74,7 +74,7 @@ def build_train_transforms(
         # Auto-detect keys based on config
         keys = ["image", "label"]
         # Add mask to keys if it's specified in the config
-        if hasattr(cfg.data, "train_mask") and cfg.data.train_mask is not None:
+        if hasattr(cfg.data, "train") and hasattr(cfg.data.train, "mask") and cfg.data.train.mask is not None:
             keys.append("mask")
 
     transforms = []
@@ -82,7 +82,11 @@ def build_train_transforms(
     # Load images first (unless using pre-cached dataset)
     if not skip_loading:
         # Use appropriate loader based on dataset type
-        dataset_type = getattr(cfg.data, "dataset_type", "volume")
+        dataset_type = (
+            getattr(cfg.data.train, "dataset_type", None)
+            or getattr(cfg.data.val, "dataset_type", None)
+            or "volume"
+        )
 
         if dataset_type == "filename":
             # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
@@ -91,7 +95,9 @@ def build_train_transforms(
             transforms.append(EnsureChannelFirstd(keys=keys))
         else:
             # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
-            train_transpose = cfg.data.train_transpose if cfg.data.train_transpose else []
+            train_transpose = (
+                cfg.data.data_transform.train_transpose if cfg.data.data_transform.train_transpose else []
+            )
             transforms.append(
                 LoadVolumed(keys=keys, transpose_axes=train_transpose if train_transpose else None)
             )
@@ -100,7 +106,7 @@ def build_train_transforms(
     nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
     if not skip_loading and nnunet_pre_enabled:
         source_spacing = (
-            getattr(nnunet_pre_cfg, "source_spacing", None) or getattr(cfg.data, "train_resolution", None)
+            getattr(nnunet_pre_cfg, "source_spacing", None) or getattr(cfg.data.train, "resolution", None)
         )
         transforms.append(
             NNUNetPreprocessd(
@@ -163,7 +169,11 @@ def build_train_transforms(
 
     # Ensure target patch size is respected (unless using pre-cached dataset)
     if not skip_loading:
-        patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, "patch_size") else None
+        patch_size = (
+            tuple(cfg.data.dataloader.patch_size)
+            if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "patch_size")
+            else None
+        )
         if patch_size and all(size > 0 for size in patch_size):
             # Pad smaller volumes so random crops always succeed
             transforms.append(
@@ -202,7 +212,7 @@ def build_train_transforms(
 
     if augmentation_enabled:
         # Pass do_2d flag to augmentation builder
-        do_2d = getattr(cfg.data, "do_2d", False)
+        do_2d = getattr(cfg.data.input, "do_2d", False)
         transforms.extend(_build_augmentations(cfg.data.augmentation, keys, do_2d=do_2d))
 
     # Normalize labels to 0-1 range if enabled
@@ -257,8 +267,8 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             # Validation: default to image+label
             keys = ["image", "label"]
             # Add mask if val_mask or train_mask exists
-            if (hasattr(cfg.data, "val_mask") and cfg.data.val_mask is not None) or (
-                hasattr(cfg.data, "train_mask") and cfg.data.train_mask is not None
+            if (hasattr(cfg.data, "val") and hasattr(cfg.data.val, "mask") and cfg.data.val.mask is not None) or (
+                hasattr(cfg.data, "train") and hasattr(cfg.data.train, "mask") and cfg.data.train.mask is not None
             ):
                 keys.append("mask")
         else:  # mode == "test"
@@ -268,14 +278,13 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             has_test_label = (
                 hasattr(cfg, "test")
                 and hasattr(cfg.test, "data")
-                and hasattr(cfg.test.data, "test_label")
-                and cfg.test.data.test_label is not None
+                and cfg.test.data.val.label is not None
             )
             has_tune_label = (
                 hasattr(cfg, "tune")
                 and cfg.tune is not None
                 and hasattr(cfg.tune, "data")
-                and cfg.tune.data.tune_label is not None
+                and cfg.tune.data.val.label is not None
             )
             if has_test_label or has_tune_label:
                 keys.append("label")
@@ -284,14 +293,13 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             has_test_mask = (
                 hasattr(cfg, "test")
                 and hasattr(cfg.test, "data")
-                and hasattr(cfg.test.data, "test_mask")
-                and cfg.test.data.test_mask is not None
+                and cfg.test.data.val.mask is not None
             )
             has_tune_mask = (
                 hasattr(cfg, "tune")
                 and cfg.tune is not None
                 and hasattr(cfg.tune, "data")
-                and cfg.tune.data.tune_mask is not None
+                and cfg.tune.data.val.mask is not None
             )
             if has_test_mask or has_tune_mask:
                 keys.append("mask")
@@ -301,7 +309,11 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     # Load images first - use appropriate loader based on dataset type
     # Skip loading if using pre-cached datasets
     if not skip_loading:
-        dataset_type = getattr(cfg.data, "dataset_type", "volume")
+        dataset_type = (
+            getattr(cfg.data.train, "dataset_type", None)
+            or getattr(cfg.data.val, "dataset_type", None)
+            or "volume"
+        )
 
         if dataset_type == "filename":
             # For filename-based datasets (PNG, JPG, etc.), use MONAI's LoadImaged
@@ -312,17 +324,18 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             # For volume-based datasets (HDF5, TIFF volumes), use custom LoadVolumed
             # Get transpose axes based on mode
             if mode == "val":
-                transpose_axes = cfg.data.val_transpose if cfg.data.val_transpose else []
+                transpose_axes = (
+                    cfg.data.data_transform.val_transpose if cfg.data.data_transform.val_transpose else []
+                )
             else:  # mode == "test"
-                # Use test.data.test_transpose
+                # Use test.data.data_transform.val_transpose
                 transpose_axes = []
                 if (
                     hasattr(cfg, "test")
                     and hasattr(cfg.test, "data")
-                    and hasattr(cfg.test.data, "test_transpose")
-                    and cfg.test.data.test_transpose
+                    and cfg.test.data.data_transform.val_transpose
                 ):
-                    transpose_axes = cfg.test.data.test_transpose
+                    transpose_axes = cfg.test.data.data_transform.val_transpose
 
             transforms.append(
                 LoadVolumed(keys=keys, transpose_axes=transpose_axes if transpose_axes else None)
@@ -333,19 +346,19 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     if mode == "test":
         if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
             nnunet_pre_cfg = getattr(cfg.test.data, "nnunet_preprocessing", None)
-            source_spacing = getattr(cfg.test.data, "test_resolution", None)
+            source_spacing = getattr(cfg.test.data.val, "resolution", None)
     elif mode == "tune":
         if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
             nnunet_pre_cfg = getattr(cfg.tune.data, "nnunet_preprocessing", None)
-            source_spacing = getattr(cfg.tune.data, "tune_resolution", None)
+            source_spacing = getattr(cfg.tune.data.val, "resolution", None)
     elif mode == "val":
         nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
         source_spacing = (
-            getattr(cfg.data, "val_resolution", None) or getattr(cfg.data, "train_resolution", None)
+            getattr(cfg.data.val, "resolution", None) or getattr(cfg.data.train, "resolution", None)
         )
     else:
         nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
-        source_spacing = getattr(cfg.data, "train_resolution", None)
+        source_spacing = getattr(cfg.data.train, "resolution", None)
 
     nnunet_pre_enabled = bool(getattr(nnunet_pre_cfg, "enabled", False))
     if not skip_loading and nnunet_pre_enabled:
@@ -418,21 +431,19 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         if (
             hasattr(cfg, "test")
             and hasattr(cfg.test, "data")
-            and hasattr(cfg.test.data, "mask_transform")
-            and hasattr(cfg.test.data.mask_transform, "resize")
-            and cfg.test.data.mask_transform.resize is not None
+            and hasattr(cfg.test.data.data_transform, "resize")
+            and cfg.test.data.data_transform.resize is not None
         ):
-            mask_resize_factors = cfg.test.data.mask_transform.resize
+            mask_resize_factors = cfg.test.data.data_transform.resize
     elif mode == "tune":
         if (
             hasattr(cfg, "tune")
             and cfg.tune
             and hasattr(cfg.tune, "data")
-            and hasattr(cfg.tune.data, "mask_transform")
-            and hasattr(cfg.tune.data.mask_transform, "resize")
-            and cfg.tune.data.mask_transform.resize is not None
+            and hasattr(cfg.tune.data.data_transform, "resize")
+            and cfg.tune.data.data_transform.resize is not None
         ):
-            mask_resize_factors = cfg.tune.data.mask_transform.resize
+            mask_resize_factors = cfg.tune.data.data_transform.resize
 
     if image_resize_factors is not None and image_resize_factors:
         transforms.append(
@@ -480,19 +491,17 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
         if (
             hasattr(cfg, "test")
             and hasattr(cfg.test, "data")
-            and hasattr(cfg.test.data, "mask_transform")
         ):
-            mask_binarize = bool(getattr(cfg.test.data.mask_transform, "binarize", False))
-            mask_threshold = float(getattr(cfg.test.data.mask_transform, "threshold", 0.0))
+            mask_binarize = bool(getattr(cfg.test.data.data_transform, "binarize", False))
+            mask_threshold = float(getattr(cfg.test.data.data_transform, "threshold", 0.0))
     elif mode == "tune":
         if (
             hasattr(cfg, "tune")
             and cfg.tune
             and hasattr(cfg.tune, "data")
-            and hasattr(cfg.tune.data, "mask_transform")
         ):
-            mask_binarize = bool(getattr(cfg.tune.data.mask_transform, "binarize", False))
-            mask_threshold = float(getattr(cfg.tune.data.mask_transform, "threshold", 0.0))
+            mask_binarize = bool(getattr(cfg.tune.data.data_transform, "binarize", False))
+            mask_threshold = float(getattr(cfg.tune.data.data_transform, "threshold", 0.0))
 
     if "mask" in keys and mask_binarize:
         transforms.append(
@@ -502,7 +511,11 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             )
         )
 
-    patch_size = tuple(cfg.data.patch_size) if hasattr(cfg.data, "patch_size") else None
+    patch_size = (
+        tuple(cfg.data.dataloader.patch_size)
+        if hasattr(cfg.data, "data_transform") and hasattr(cfg.data.data_transform, "patch_size")
+        else None
+    )
     if patch_size and all(size > 0 for size in patch_size):
         transforms.append(
             SpatialPadd(

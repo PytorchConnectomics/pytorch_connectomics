@@ -867,10 +867,10 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Step 3: Load ground truth
     print("\n[3/4] Loading ground truth labels...")
-    tune_label_pattern = getattr(tune_data, "tune_label", None)
+    tune_label_pattern = getattr(getattr(tune_data, "val", None), "label", None)
 
     if tune_label_pattern is None:
-        raise ValueError("Missing tune.data.tune_label in configuration")
+        raise ValueError("Missing tune.data.val.label in configuration")
 
     # Handle both string patterns and pre-resolved lists
     if isinstance(tune_label_pattern, list):
@@ -880,7 +880,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         # Glob pattern - expand it
         label_files = sorted(glob.glob(tune_label_pattern))
     else:
-        raise TypeError(f"tune_label must be string or list, got {type(tune_label_pattern)}")
+        raise TypeError(f"tune.data.val.label must be string or list, got {type(tune_label_pattern)}")
 
     if not label_files:
         raise FileNotFoundError(f"No label files found matching pattern: {tune_label_pattern}")
@@ -899,7 +899,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
 
     # Load mask if available
     all_masks = None
-    tune_mask_pattern = getattr(tune_data, "tune_mask", None)
+    tune_mask_pattern = getattr(getattr(tune_data, "val", None), "mask", None)
     if tune_mask_pattern:
         # Handle both string patterns and pre-resolved lists
         if isinstance(tune_mask_pattern, list):
@@ -907,7 +907,7 @@ def run_tuning(model, trainer, cfg, checkpoint_path=None):
         elif isinstance(tune_mask_pattern, str):
             mask_files = sorted(glob.glob(tune_mask_pattern))
         else:
-            raise TypeError(f"tune_mask must be string or list, got {type(tune_mask_pattern)}")
+            raise TypeError(f"tune.data.val.mask must be string or list, got {type(tune_mask_pattern)}")
 
         if not mask_files:
             print(f"  ⚠️  No mask files found matching pattern: {tune_mask_pattern}")

@@ -24,9 +24,9 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     cfg = load_config(config_path)
     cfg = resolve_data_paths(cfg)
     print(f"Config: {config_path}")
-    print(f"Batch size: {cfg.system.training.batch_size}")
-    print(f"Num workers: {cfg.system.training.num_workers}")
-    print(f"Iter num per epoch: {cfg.data.iter_num_per_epoch}")
+    print(f"Batch size: {cfg.data.dataloader.batch_size}")
+    print(f"Num workers: {cfg.system.num_workers}")
+    print(f"Iter num per epoch: {cfg.optimization.iter_num_per_epoch}")
     print()
 
     # Create datamodule
@@ -79,9 +79,7 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     print(f"Min batch time: {min(batch_times):.3f}s")
     print(f"Max batch time: {max(batch_times):.3f}s")
     print(f"Throughput: {num_batches / total_time:.2f} batches/sec")
-    print(
-        f"Samples/sec: {num_batches * cfg.system.training.batch_size / total_time:.2f}"
-    )
+    print(f"Samples/sec: {num_batches * cfg.data.dataloader.batch_size / total_time:.2f}")
     print()
 
     # Recommendations
@@ -94,16 +92,14 @@ def profile_dataloader(config_path: str, num_batches: int = 10):
     if avg_time > 1.0:
         print("⚠️  SLOW: Average batch time > 1s")
         print("   Recommendations:")
-        print(
-            f"   - Increase num_workers (current: {cfg.system.training.num_workers})"
-        )
+        print(f"   - Increase num_workers (current: {cfg.system.num_workers})")
         print("   - Enable caching if possible")
         print("   - Check disk I/O performance")
         print("   - Simplify transform pipeline")
     elif avg_time > 0.5:
         print("⚠️  MODERATE: Average batch time 0.5-1.0s")
         print("   Could be improved with:")
-        print(f"   - More workers (current: {cfg.system.training.num_workers})")
+        print(f"   - More workers (current: {cfg.system.num_workers})")
         print("   - Caching strategy")
     else:
         print("✓ GOOD: Average batch time < 0.5s")

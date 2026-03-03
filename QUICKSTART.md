@@ -141,7 +141,7 @@ pip install -e . --no-build-isolation
 
 **Solution:** Reduce batch size in config:
 ```bash
-python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=1
+python scripts/main.py --config tutorials/lucchi.yaml data.dataloader.batch_size=1
 ```
 
 ### Issue: "Could not find CUDA"

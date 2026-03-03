@@ -6,23 +6,19 @@ experiment_name: nucmm_zebrafish_monai_unet
 description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
 model:
   input_size:
-    - 64
-    - 64
-    - 64
+  - 64
+  - 64
+  - 64
   output_size:
-    - 64
-    - 64
-    - 64
+  - 64
+  - 64
+  - 64
   out_channels: 3
-  strides:
-    - 2
-    - 2
-    - 2
-  num_res_units: 2
-  kernel_size: 3
-  norm: batch
-  dropout: 0.0
-  losses:
+  - 2
+  - 2
+  - 2
+  loss:
+    losses:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
@@ -46,38 +42,47 @@ model:
       kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
+  monai:
+    strides:
+    num_res_units: 2
+    kernel_size: 3
+    norm: batch
+    dropout: 0.0
 data:
-  train_image: datasets/NucMM-Z/Image/train/img_*.h5
-  train_label: datasets/NucMM-Z/Label/train/seg_*.h5
-  train_resolution:
-    - 1.0
-    - 1.0
-    - 1.0
-  cache_rate: 1.0
-  persistent_workers: true
-  patch_size:
-    - 64
-    - 64
-    - 64
-  pad_size:
-    - 16
-    - 16
-    - 16
-  pad_mode: reflect
+  dataloader:
+    cache_rate: 1.0
+    persistent_workers: true
+    patch_size:
+      - 64
+      - 64
+      - 64
   label_transform:
     targets:
-      - name: binary
-      - name: instance_boundary
-        kwargs:
-          thickness: 5
-          edge_mode: seg-no-bg
-          mode: 3d
-      - name: instance_edt
-        kwargs:
-          mode: 3d
-          quantize: false
+    - name: binary
+    - name: instance_boundary
+      kwargs:
+        thickness: 5
+        edge_mode: seg-no-bg
+        mode: 3d
+    - name: instance_edt
+      kwargs:
+        mode: 3d
+        quantize: false
   augmentation:
     preset: all
+  train:
+    image: datasets/NucMM-Z/Image/train/img_*.h5
+    label: datasets/NucMM-Z/Label/train/seg_*.h5
+    resolution:
+    - 1.0
+    - 1.0
+    - 1.0
+  data_transform:
+    pad_size:
+    - 16
+    - 16
+    - 16
+    pad_mode: reflect
 optimization:
   gradient_clip_val: 1.0
   optimizer:
@@ -104,36 +109,32 @@ test:
     test_image: datasets/NucMM-Z/Image/val/img_0000_0640_0896.h5
     test_label: datasets/NucMM-Z/Label/val/seg_0000_0640_0896.h5
     test_resolution:
-      - 1.0
-      - 1.0
-      - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
 inference:
-  num_workers: 4
+  system:
+    num_workers: 4
   batch_size: 4
   sliding_window:
     window_size:
-      - 64
-      - 64
-      - 64
+    - 64
+    - 64
+    - 64
     sw_batch_size: 8
     overlap: 0.5
     padding_mode: reflect
   test_time_augmentation:
     flip_axes:
     channel_activations:
-      -   - 0
-          - 2
-          - sigmoid
-      -   - 2
-          - 3
-          - tanh
+    - - 0
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
   evaluation:
     enabled: true
     metrics:
-      - jaccard
-      - dice
-
-train:
-  system:
-    overrides:
-      batch_size: 32
+    - jaccard
+    - dice

@@ -4,7 +4,8 @@ description: Fine-tuning hydra-lv pretrained model on new data
 
 # System
 model:
-  architecture: rsunet  # Must match the pretrained model architecture
+  arch:
+    type: rsunet  # Must match the pretrained model architecture
   # ============================================================================
   # PRETRAINED MODEL LOADING
   # ============================================================================
@@ -19,16 +20,10 @@ model:
   out_channels: 3  # Must match: binary, boundary, distance
 
   # Architecture settings (must match pretrained model)
-  filters: [32, 64, 128, 256, 512]
-  strides: [2, 2, 2]
-  num_res_units: 2
-  kernel_size: 3
-  norm: batch
-  dropout: 0.1
-  rsunet_norm: batch
 
   # Loss configuration (same as pretrained for consistency)
-  losses:
+  loss:
+    losses:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
@@ -55,24 +50,25 @@ model:
       pred_slice: [2, 3]
       target_slice: [2, 3]
 
-  loss_balancing:
-    strategy: uncertainty
+    loss_balancing:
+      strategy: uncertainty
+  monai:
+    filters: [32, 64, 128, 256, 512]
+    strides: [2, 2, 2]
+    num_res_units: 2
+    kernel_size: 3
+    norm: batch
+    dropout: 0.1
+  rsunet:
+    norm: batch
 data:
   # Fine-tuning data paths (replace with your new dataset)
-  train_image: "datasets/bouton-lv/train/vol0_im.h5"  # UPDATE THIS
-  train_label: "datasets/bouton-lv/train/vol0_lv.h5"  # UPDATE THIS
-  train_mask: "datasets/bouton-lv/train/vol0_mask.h5"  # UPDATE THIS
-  train_resolution: [30, 8, 8]  # Must match your data resolution
   use_preloaded_cache: true
-  cache_rate: 0.0
-  persistent_workers: false
+  dataloader:
+    cache_rate: 0.0
+    persistent_workers: false
 
   # Patch configuration (should match pretrained model)
-  patch_size: [32, 128, 128]
-  pad_size: [8, 24, 24]
-  pad_mode: reflect
-  iter_num_per_epoch: 1280  # Adjust based on dataset size
-  # Image normalization
   image_transform:
     normalize: "0-1"
     clip_percentile_low: 0.0
@@ -81,16 +77,16 @@ data:
   # Label transformation (must match pretrained model)
   label_transform:
     targets:
-      - name: binary
-      - name: instance_boundary
-        kwargs:
-          thickness: 1
-          edge_mode: "all"
-          mode: "2d"
-      - name: instance_edt
-        kwargs:
-          mode: "3d"
-          quantize: false
+    - name: binary
+    - name: instance_boundary
+      kwargs:
+        thickness: 1
+        edge_mode: "all"
+        mode: "2d"
+    - name: instance_edt
+      kwargs:
+        mode: "3d"
+        quantize: false
 
   # Augmentation - can use lighter augmentations for fine-tuning
   augmentation:
@@ -140,8 +136,19 @@ data:
       kernel_size: 9
 
 # Optimization - Fine-tuning specific settings
+  train:
+    image: "datasets/bouton-lv/train/vol0_im.h5"
+    label: "datasets/bouton-lv/train/vol0_lv.h5"
+    mask: "datasets/bouton-lv/train/vol0_mask.h5"
+    resolution: [30, 8, 8] # Must match your data resolution
+  data_transform:
+    pad_size: [8, 24, 24]
+    pad_mode: reflect
+  dataloader:
+    patch_size: [32, 128, 128]
 optimization:
   max_epochs: 500  # Fewer epochs than pretraining (pretrained model needs less training)
+  iter_num_per_epoch: 1280
   gradient_clip_val: 0.5
   accumulate_grad_batches: 2
   precision: "bf16-mixed"
@@ -209,8 +216,9 @@ monitor:
 
 # Inference configuration (same as pretrained)
 inference:
-  num_gpus: 1
-  num_workers: 1
+  system:
+    num_gpus: 1
+    num_workers: 1
   batch_size: 1
   sliding_window:
     window_size: [32, 128, 128]
@@ -225,9 +233,9 @@ inference:
     rotation90_axes:
     select_channel: all
     channel_activations:
-      - [0, 1, sigmoid]
-      - [1, 2, sigmoid]
-      - [2, 3, tanh]
+    - [0, 1, sigmoid]
+    - [1, 2, sigmoid]
+    - [2, 3, tanh]
     ensemble_mode: mean
     apply_mask: true
 
@@ -248,12 +256,12 @@ test:
       clip_percentile_high: 1.0
 
   decoding:
-    - name: decode_instance_binary_contour_distance
-      kwargs:
-        binary_threshold: [0.5, 0.7]
-        contour_threshold: [0.8, 13.1]
-        distance_threshold: [0.5, -0.5]
-        min_seed_size: 4
+  - name: decode_instance_binary_contour_distance
+    kwargs:
+      binary_threshold: [0.5, 0.7]
+      contour_threshold: [0.8, 13.1]
+      distance_threshold: [0.5, -0.5]
+      min_seed_size: 4
 
   evaluation:
     enabled: true
@@ -261,8 +269,6 @@ test:
 
 train:
   system:
-    overrides:
-      num_gpus: 4
-      num_workers: 2
-      batch_size: 8
-      seed: 42
+    num_gpus: 4
+    num_workers: 2
+    seed: 42

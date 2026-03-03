@@ -1,0 +1,11 @@
+_base_:
+  - arch_profiles.yaml
+  - loss_profiles.yaml
+  - label_profiles.yaml
+  - system_profiles.yaml
+  - decoding_profiles.yaml
+  - activation_profiles.yaml
+  - augmentation_profiles.yaml
+  - dataloader_profiles.yaml
+  - optimizer_profiles.yaml
+  - pipeline_profiles.yaml

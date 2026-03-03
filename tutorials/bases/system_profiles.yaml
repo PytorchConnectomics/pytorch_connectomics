@@ -1,0 +1,7 @@
+system_profiles:
+  single-gpu-cpu:
+    num_gpus: 1
+    num_workers: 1
+  all-gpu-cpu:
+    num_gpus: -1
+    num_workers: -1

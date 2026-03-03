@@ -467,44 +467,44 @@ def build_rsunet(cfg) -> RSUNet:
           architecture: rsunet
           in_channels: 1
           out_channels: 2
-          filters: [16, 32, 64, 128]
-          rsunet_norm: batch           # batch/group/instance/none
-          rsunet_activation: relu      # relu/leakyrelu/prelu/elu
-          rsunet_num_groups: 8         # For group norm
-          rsunet_down_factors: [[1,2,2], [1,2,2], [1,2,2]]  # Anisotropic
-          deep_supervision: false      # Enable multi-scale outputs
-          rsunet_depth_2d: 0           # Number of 2D layers (hybrid mode)
-          rsunet_kernel_2d: [1, 3, 3]  # Kernel for 2D layers
+          rsunet:
+            width: [16, 32, 64, 128]
+            norm: batch
+            activation: relu
+            num_groups: 8
+            down_factors: [[1,2,2], [1,2,2], [1,2,2]]
+          loss:
+            deep_supervision: false    # Enable multi-scale outputs
+            depth_2d: 0
+            kernel_2d: [1, 3, 3]
     """
-    width = list(cfg.model.filters) if hasattr(cfg.model, "filters") else [16, 32, 64, 128]
+    width = list(getattr(cfg.model.rsunet, "width", [16, 32, 64, 128]))
 
     # Parse down factors
     down_factors = None
-    if hasattr(cfg.model, "rsunet_down_factors") and cfg.model.rsunet_down_factors is not None:
-        down_factors = [tuple(f) for f in cfg.model.rsunet_down_factors]
+    if getattr(cfg.model.rsunet, "down_factors", None) is not None:
+        down_factors = [tuple(f) for f in cfg.model.rsunet.down_factors]
 
     # Parse kernel for 2D
     kernel_2d = (1, 3, 3)
-    if hasattr(cfg.model, "rsunet_kernel_2d") and cfg.model.rsunet_kernel_2d is not None:
-        kernel_2d = tuple(cfg.model.rsunet_kernel_2d)
+    if getattr(cfg.model.rsunet, "kernel_2d", None) is not None:
+        kernel_2d = tuple(cfg.model.rsunet.kernel_2d)
 
     # Activation kwargs
     act_kwargs = {}
-    if hasattr(cfg.model, "rsunet_act_negative_slope"):
-        act_kwargs["negative_slope"] = cfg.model.rsunet_act_negative_slope
-    if hasattr(cfg.model, "rsunet_act_init"):
-        act_kwargs["init"] = cfg.model.rsunet_act_init
+    act_kwargs["negative_slope"] = getattr(cfg.model.rsunet, "act_negative_slope", 0.01)
+    act_kwargs["init"] = getattr(cfg.model.rsunet, "act_init", 0.25)
 
     return RSUNet(
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         width=width,
-        norm=getattr(cfg.model, "rsunet_norm", "batch"),
-        activation=getattr(cfg.model, "rsunet_activation", "relu"),
-        num_groups=getattr(cfg.model, "rsunet_num_groups", 8),
-        deep_supervision=getattr(cfg.model, "deep_supervision", False),
+        norm=getattr(cfg.model.rsunet, "norm", "batch"),
+        activation=getattr(cfg.model.rsunet, "activation", "relu"),
+        num_groups=getattr(cfg.model.rsunet, "num_groups", 8),
+        deep_supervision=getattr(getattr(cfg.model, "loss", None), "deep_supervision", False),
         down_factors=down_factors,
-        depth_2d=getattr(cfg.model, "rsunet_depth_2d", 0),
+        depth_2d=getattr(cfg.model.rsunet, "depth_2d", 0),
         kernel_2d=kernel_2d,
         **act_kwargs,
     )
@@ -517,7 +517,7 @@ def build_rsunet_iso(cfg) -> RSUNet:
 
     Convenience builder that sets down_factors to (2,2,2).
     """
-    width = list(cfg.model.filters) if hasattr(cfg.model, "filters") else [16, 32, 64, 128]
+    width = list(getattr(cfg.model.rsunet, "width", [16, 32, 64, 128]))
     depth = len(width) - 1
 
     return RSUNet(
@@ -525,10 +525,10 @@ def build_rsunet_iso(cfg) -> RSUNet:
         out_channels=cfg.model.out_channels,
         width=width,
         down_factors=[(2, 2, 2)] * depth,  # Isotropic
-        norm=getattr(cfg.model, "rsunet_norm", "batch"),
-        activation=getattr(cfg.model, "rsunet_activation", "relu"),
-        num_groups=getattr(cfg.model, "rsunet_num_groups", 8),
-        deep_supervision=getattr(cfg.model, "deep_supervision", False),
+        norm=getattr(cfg.model.rsunet, "norm", "batch"),
+        activation=getattr(cfg.model.rsunet, "activation", "relu"),
+        num_groups=getattr(cfg.model.rsunet, "num_groups", 8),
+        deep_supervision=getattr(getattr(cfg.model, "loss", None), "deep_supervision", False),
     )
 
 

@@ -1,0 +1,19 @@
+optimizer_profiles:
+  warmup_cosine_lr:
+    gradient_clip_val: 1
+    accumulate_grad_batches: 1
+    precision: "16-mixed"
+    log_every_n_steps: 100
+    optimizer:
+      lr: 0.0003
+      weight_decay: 0.01
+      eps: 1.0e-08
+    scheduler:
+      name: WarmupCosineLR
+      warmup_epochs: 3
+      warmup_start_lr: 1.0e-05
+      min_lr: 1.0e-06
+    ema:
+      enabled: true
+      decay: 0.999
+      validate_with_ema: true

@@ -1,12 +1,12 @@
-_base_: ../bases/common.yaml
+_base_: ../bases/all_profiles.yaml
 model:
-  architecture: monai_basic_unet3d
+  arch:
+    type: monai_basic_unet3d
   in_channels: 1
   out_channels: 2
-  filters: [32, 64, 128, 256, 512]
-  dropout: 0.1
 
-  losses:
+  loss:
+    losses:
     - function: DiceLoss
       weight: 1.0
       pred_slice: [0, '${model.out_channels}']
@@ -16,16 +16,11 @@ model:
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
 
+  monai:
+    filters: [32, 64, 128, 256, 512]
+    dropout: 0.1
 data:
   # Data paths (modify for your dataset)
-  train_image: "datasets/lucchi/train_image.h5"
-  train_label: "datasets/lucchi/train_label.h5"
-  val_image: "datasets/lucchi/val_image.h5"
-  val_label: "datasets/lucchi/val_label.h5"
-
-  patch_size: [128, 128, 128]
-
-  # Super-resolution focused augmentation
   augmentation:
     preset: some
     # CutBlur (primary augmentation for super-resolution)
@@ -56,6 +51,16 @@ data:
       gaussian_noise_prob: 0.3
       gaussian_noise_std: 0.05  # Lower noise
 
+  train:
+    image: "datasets/lucchi/train_image.h5"
+    label: "datasets/lucchi/train_label.h5"
+
+  val:
+    image: "datasets/lucchi/val_image.h5"
+    label: "datasets/lucchi/val_label.h5"
+  dataloader:
+    batch_size: 2
+    patch_size: [128, 128, 128]
 optimization:
   max_epochs: 100
   precision: "16-mixed"
@@ -78,8 +83,6 @@ monitor:
 
 train:
   system:
-    overrides:
-      num_gpus: 1
-      num_workers: 4
-      batch_size: 2
-      seed: 42
+    num_gpus: 1
+    num_workers: 4
+    seed: 42

@@ -85,7 +85,7 @@ def resolve_runtime_resource_sentinels(
     print_results: bool = True,
 ) -> DictConfig:
     """
-    Resolve runtime resource sentinels in system.{training,inference}.
+    Resolve runtime resource sentinels in system.
 
     Sentinel convention:
       - num_gpus = -1 -> use all GPUs visible to this run
@@ -100,36 +100,27 @@ def resolve_runtime_resource_sentinels(
     available_gpus = gpu_info["num_gpus"] if gpu_info["cuda_available"] else 0
     available_cpus = _available_cpus_for_current_run()
 
-    for section_name in ("training", "inference"):
-        section = getattr(config.system, section_name, None)
-        if section is None:
-            continue
+    if getattr(config.system, "num_gpus", None) == -1:
+        config.system.num_gpus = available_gpus
+        if print_results:
+            print(f"🔧 Auto-detected system.num_gpus: -1 → {config.system.num_gpus}")
 
-        if getattr(section, "num_gpus", None) == -1:
-            section.num_gpus = available_gpus
-            if print_results:
-                print(
-                    f"🔧 Auto-detected system.{section_name}.num_gpus: "
-                    f"-1 → {section.num_gpus}"
-                )
-
-        if getattr(section, "num_workers", None) == -1:
-            process_count = _infer_local_process_count(
-                requested_num_gpus=getattr(section, "num_gpus", 0),
-                available_gpus=available_gpus,
+    if getattr(config.system, "num_workers", None) == -1:
+        process_count = _infer_local_process_count(
+            requested_num_gpus=getattr(config.system, "num_gpus", 0),
+            available_gpus=available_gpus,
+        )
+        config.system.num_workers = max(1, available_cpus // process_count)
+        if print_results:
+            print(
+                f"🔧 Auto-detected system.num_workers: -1 → {config.system.num_workers} "
+                f"(available_cpus={available_cpus}, local_processes={process_count})"
             )
-            section.num_workers = max(1, available_cpus // process_count)
-            if print_results:
-                print(
-                    f"🔧 Auto-detected system.{section_name}.num_workers: "
-                    f"-1 → {section.num_workers} "
-                    f"(available_cpus={available_cpus}, local_processes={process_count})"
-                )
 
-        if getattr(section, "num_gpus", 0) < -1:
-            raise ValueError(f"system.{section_name}.num_gpus must be >= -1")
-        if getattr(section, "num_workers", 0) < -1:
-            raise ValueError(f"system.{section_name}.num_workers must be >= -1")
+    if getattr(config.system, "num_gpus", 0) < -1:
+        raise ValueError("system.num_gpus must be >= -1")
+    if getattr(config.system, "num_workers", 0) < -1:
+        raise ValueError("system.num_workers must be >= -1")
 
     return config
 
@@ -461,39 +452,31 @@ def auto_plan_config(
     Returns:
         Updated config with auto-planned parameters
     """
-    # Check if auto-planning is disabled
-    if hasattr(config, "system") and hasattr(config.system, "auto_plan"):
-        if not config.system.auto_plan:
-            print("ℹ️  Auto-planning disabled in config")
-            return config
-
     # Extract relevant config values
-    architecture = config.model.architecture if hasattr(config.model, "architecture") else "mednext"
+    architecture = config.model.arch.type if hasattr(config.model, "arch") else "mednext"
     in_channels = config.model.in_channels if hasattr(config.model, "in_channels") else 1
     out_channels = config.model.out_channels if hasattr(config.model, "out_channels") else 2
-    deep_supervision = (
-        config.model.deep_supervision if hasattr(config.model, "deep_supervision") else False
-    )
+    loss_cfg = getattr(config.model, "loss", None)
+    deep_supervision = getattr(loss_cfg, "deep_supervision", False)
 
     # Get target spacing and median shape if provided
     target_spacing = None
-    if hasattr(config, "data") and hasattr(config.data, "target_spacing"):
-        target_spacing = config.data.target_spacing
+    if hasattr(config, "data") and hasattr(config.data, "data_transform"):
+        target_spacing = config.data.data_transform.target_spacing
 
     median_shape = None
-    if hasattr(config, "data") and hasattr(config.data, "median_shape"):
-        median_shape = config.data.median_shape
+    if hasattr(config, "data") and hasattr(config.data, "data_transform"):
+        median_shape = config.data.data_transform.median_shape
 
     # Collect manual overrides (values explicitly set in config)
     manual_overrides = {}
-    training_cfg = getattr(config.system, "training", None) if hasattr(config, "system") else None
     if hasattr(config, "data"):
-        if training_cfg and getattr(training_cfg, "batch_size", None) is not None:
-            manual_overrides["batch_size"] = training_cfg.batch_size
-        if training_cfg and getattr(training_cfg, "num_workers", None) is not None:
-            manual_overrides["num_workers"] = training_cfg.num_workers
-        if hasattr(config.data, "patch_size") and config.data.patch_size is not None:
-            manual_overrides["patch_size"] = config.data.patch_size
+        if hasattr(config.data, "dataloader") and getattr(config.data.dataloader, "batch_size", None) is not None:
+            manual_overrides["batch_size"] = config.data.dataloader.batch_size
+        if hasattr(config, "system") and getattr(config.system, "num_workers", None) is not None:
+            manual_overrides["num_workers"] = config.system.num_workers
+        if hasattr(config.data, "data_transform") and config.data.dataloader.patch_size is not None:
+            manual_overrides["patch_size"] = config.data.dataloader.patch_size
 
     if hasattr(config, "optimization"):
         if getattr(config.optimization, "precision", None) is not None:
@@ -530,12 +513,12 @@ def auto_plan_config(
     # Update config with planned values (if not manually overridden)
     OmegaConf.set_struct(config, False)  # Allow adding new fields
 
-    if "batch_size" not in manual_overrides and training_cfg is not None:
-        training_cfg.batch_size = result.batch_size
-    if "num_workers" not in manual_overrides and training_cfg is not None:
-        training_cfg.num_workers = result.num_workers
+    if "batch_size" not in manual_overrides and hasattr(config, "data"):
+        config.data.dataloader.batch_size = result.batch_size
+    if "num_workers" not in manual_overrides and hasattr(config, "system"):
+        config.system.num_workers = result.num_workers
     if "patch_size" not in manual_overrides:
-        config.data.patch_size = result.patch_size
+        config.data.dataloader.patch_size = result.patch_size
 
     if "precision" not in manual_overrides:
         config.optimization.precision = result.precision
@@ -560,14 +543,16 @@ if __name__ == "__main__":
 
     # Create test config
     cfg = OmegaConf.structured(Config())
-    cfg.model.architecture = "mednext"
-    cfg.model.deep_supervision = True
+    cfg.model.arch.type = "mednext"
+    if not hasattr(cfg.model, "loss") or cfg.model.loss is None:
+        cfg.model.loss = OmegaConf.create({})
+    cfg.model.loss.deep_supervision = True
 
     # Auto plan
     cfg = auto_plan_config(cfg, print_results=True)
 
     print("\nFinal Config Values:")
-    print(f"  batch_size: {cfg.system.training.batch_size}")
-    print(f"  patch_size: {cfg.data.patch_size}")
+    print(f"  batch_size: {cfg.data.dataloader.batch_size}")
+    print(f"  patch_size: {cfg.data.dataloader.patch_size}")
     print(f"  precision: {cfg.optimization.precision}")
     print(f"  lr: {cfg.optimization.optimizer.lr}")

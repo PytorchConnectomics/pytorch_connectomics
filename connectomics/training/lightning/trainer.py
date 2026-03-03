@@ -26,8 +26,6 @@ from pytorch_lightning.strategies import DDPStrategy
 from ...config import Config
 from ...config.hydra_config import (
     SystemConfig,
-    SystemTrainingConfig,
-    SystemInferenceConfig,
     ModelConfig,
     DataConfig,
     OptimizationConfig,
@@ -46,8 +44,6 @@ try:
         [
             Config,
             SystemConfig,
-            SystemTrainingConfig,
-            SystemInferenceConfig,
             ModelConfig,
             DataConfig,
             OptimizationConfig,
@@ -210,8 +206,7 @@ def create_trainer(
             )
 
     # Create trainer
-    # Select system config based on mode
-    system_cfg = cfg.system.training if mode == "train" else cfg.system.inference
+    system_cfg = cfg.system
 
     # Check if GPU is actually available
     use_gpu = system_cfg.num_gpus > 0 and torch.cuda.is_available()
@@ -226,9 +221,10 @@ def create_trainer(
     strategy = "auto"  # Default strategy
     if system_cfg.num_gpus > 1:
         # Multi-GPU training: configure DDP
-        deep_supervision_enabled = getattr(cfg.model, "deep_supervision", False)
+        loss_cfg = getattr(cfg.model, "loss", None)
+        deep_supervision_enabled = getattr(loss_cfg, "deep_supervision", False)
         ddp_find_unused_params = getattr(cfg.model, "ddp_find_unused_parameters", False)
-        architecture = getattr(cfg.model, "architecture", "")
+        architecture = getattr(getattr(cfg.model, "arch", None), "type", "")
         is_mednext = architecture.startswith("mednext")
 
         # MedNeXt always creates deep supervision layers internally (even when disabled)

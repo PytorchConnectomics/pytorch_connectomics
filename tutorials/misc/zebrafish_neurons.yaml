@@ -4,23 +4,17 @@ description: 2D zebrafish neuron instance segmentation with MONAI UNet and water
 
 # System
 model:
-  architecture: monai_unet
+  arch:
+    type: monai_unet
   input_size: [256, 256]
   output_size: [256, 256]
   in_channels: 1
   out_channels: 3                        # binary + boundary + edt (3 channels for multi-task)
-  filters: [24, 48, 96, 192]
-  num_res_units: 2
-  kernel_size: 3
-  norm: batch
-  dropout: 0.1                           # Reduced dropout (was 0.15) to prevent underfitting on small objects
   # Deep supervision clamping to prevent numerical instability
-  deep_supervision_clamp_min: -15.0      # Tighter clamping (was -20.0)
-  deep_supervision_clamp_max: 15.0       # Tighter clamping (was 20.0)
-
-  # Loss configuration - Optimized for small neurons with improved EDT handling
-  # Binary/Boundary: BCE+Dice (standard), EDT: WeightedMSELoss with tanh activation
-  losses:
+  loss:
+    deep_supervision_clamp_min: -15.0
+    deep_supervision_clamp_max: 15.0
+    losses:
     - function: WeightedBCEWithLogitsLoss
       weight: 0.5
       kwargs: {reduction: mean}
@@ -51,28 +45,21 @@ model:
       kwargs: {reduction: mean, tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
+  monai:
+    filters: [24, 48, 96, 192]
+    num_res_units: 2
+    kernel_size: 3
+    norm: batch
+    dropout: 0.1                           # Reduced dropout (was 0.15) to prevent underfitting on small objects
 data:
-  do_2d: true
-
-  # Image/label locations - YOUR PATHS
-  train_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/train/images/*.tif
-  train_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/train/labels/*.tif
-  train_resolution: [0.365, 0.365]        # micrometers: y, x
-  val_image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/images/*.tif
-  val_label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/labels/*.tif
   use_preloaded_cache: false              # Dataset too large for full in-memory cache
-  use_cache: true                         # Partial cache for faster IO
-  cache_rate: 0.06
-  pin_memory: true
-  persistent_workers: true
+  dataloader:
+    use_cache: true                       # Partial cache for faster IO
+    cache_rate: 0.06
+    persistent_workers: true
 
   # Patch sampling
-  patch_size: [256, 256]
-  pad_size: [0, 0]
-  pad_mode: reflect
-  iter_num_per_epoch: 25600
-
-  # Image normalization
+    pin_memory: true
   image_transform:
     normalize: "0-1"
     clip_percentile_low: 0.01
@@ -81,15 +68,15 @@ data:
   # Label processing: binary + boundary + distance for multi-task learning
   label_transform:
     targets:
-      - name: binary                     # Channel 0: Binary foreground
-      - name: instance_boundary          # Channel 1: Instance boundaries
-        kwargs:
-          thickness: 1
-          edge_mode: all
-          mode: 2d
-      - name: instance_edt               # Channel 2: Instance Euclidean Distance Transform
-        kwargs:
-          mode: 2d
+    - name: binary                       # Channel 0: Binary foreground
+    - name: instance_boundary            # Channel 1: Instance boundaries
+      kwargs:
+        thickness: 1
+        edge_mode: all
+        mode: 2d
+    - name: instance_edt                 # Channel 2: Instance Euclidean Distance Transform
+      kwargs:
+        mode: 2d
 
   # Augmentation - optimized for small neurons with low SNR
   augmentation:
@@ -113,8 +100,23 @@ data:
       contrast_range: [0.9, 1.1]         # Wider range (was [0.95, 1.05])
 
 # Optimizer - AdamW with improved settings for small object segmentation
+  train:
+    do_2d: true
+    image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/train/images/*.tif
+    label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/train/labels/*.tif
+    resolution: [0.365, 0.365]      # micrometers: y, x
+
+  val:
+    image: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/images/*.tif
+    label: /orcd/scratch/bcs/002/mansour/zebrafish_seg_dataset/val/labels/*.tif
+  data_transform:
+    pad_size: [0, 0]
+    pad_mode: reflect
+  dataloader:
+    patch_size: [256, 256]
 optimization:
   max_epochs: 600                    # Increased from 500 for better convergence
+  iter_num_per_epoch: 25600
   val_check_interval: 1.0
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
@@ -179,8 +181,9 @@ monitor:
 
 # Inference - Sliding window for full 1216x2048 images
 inference:
-  num_gpus: 1
-  num_workers: 4
+  system:
+    num_gpus: 1
+    num_workers: 4
   batch_size: 64
   sliding_window:
     window_size: [256, 256]
@@ -219,15 +222,15 @@ test:
 
   # Decoding: foreground + contour -> instance labels
   decoding:
-    - name: decode_instance_binary_contour_distance
-      kwargs:
-        binary_channels: [0]                # Channel 0: binary foreground
-        contour_channels: [1]               # Channel 1: instance boundaries
-        distance_channels: [2]              # Channel 2: distance transform
-        binary_threshold: [0.5, 0.4]
-        contour_threshold: [0.6, 0.9]
-        distance_threshold: [0.4, 0.1]
-        min_seed_size: 6
+  - name: decode_instance_binary_contour_distance
+    kwargs:
+      binary_channels: [0]                  # Channel 0: binary foreground
+      contour_channels: [1]                 # Channel 1: instance boundaries
+      distance_channels: [2]                # Channel 2: distance transform
+      binary_threshold: [0.5, 0.4]
+      contour_threshold: [0.6, 0.9]
+      distance_threshold: [0.4, 0.1]
+      min_seed_size: 6
 
   # Evaluation
   evaluation:
@@ -331,8 +334,6 @@ tune:
 
 train:
   system:
-    overrides:
-      num_gpus: 1
-      num_workers: 16
-      batch_size: 128
-      seed: 42
+    num_gpus: 1
+    num_workers: 16
+    seed: 42

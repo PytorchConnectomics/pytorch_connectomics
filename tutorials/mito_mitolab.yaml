@@ -6,11 +6,9 @@ experiment_name: cem-mitolab_mednext2d
 description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
 model:
   out_channels: 3
-  mednext_size: S
-  mednext_kernel_size: 3
-  mednext_dim: 2d
-  deep_supervision: true
-  losses:
+  loss:
+    deep_supervision: true
+    losses:
     - function: DiceLoss
       weight: 1.0
       kwargs: {include_background: false, sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
@@ -29,43 +27,50 @@ model:
       kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
+  mednext:
+    size: S
+    kernel_size: 3
+    dim: 2d
 data:
-  dataset_type: filename
-  train_json: datasets/cem-mitolab/files.json
-  train_image_key: images
-  train_label_key: masks
-  train_val_split: 0.9
-  train_resolution:
-    - 0
-    - 5
-    - 5
-  patch_size:
-    - 224
-    - 224
-  pad_size:
-    - 0
-    - 0
-  iter_num_per_epoch: -1
   use_preloaded_cache: false
   image_transform:
     clip_percentile_low: 0.0
     clip_percentile_high: 1.0
   label_transform:
     targets:
-      - name: binary
-      - name: instance_boundary
-        kwargs:
-          thickness: 1
-          edge_mode: seg-all
-          mode: 2d
-      - name: instance_edt
-        kwargs:
-          mode: 2d
-          quantize: false
+    - name: binary
+    - name: instance_boundary
+      kwargs:
+        thickness: 1
+        edge_mode: seg-all
+        mode: 2d
+    - name: instance_edt
+      kwargs:
+        mode: 2d
+        quantize: false
   augmentation:
     preset: all
+  train:
+    dataset_type: filename
+    json: datasets/cem-mitolab/files.json
+    image_key: images
+    label_key: masks
+    val_split: 0.9
+    resolution:
+    - 0
+    - 5
+    - 5
+  data_transform:
+    pad_size:
+    - 0
+    - 0
+  dataloader:
+    patch_size:
+      - 224
+      - 224
 optimization:
   max_epochs: 100
+  iter_num_per_epoch: -1
   accumulate_grad_batches: 1
   precision: bf16-mixed
   optimizer:
@@ -80,7 +85,7 @@ monitor:
   logging:
     scalar:
       loss:
-        - train_loss_total_epoch
+      - train_loss_total_epoch
       loss_every_n_steps: 50
     images:
       max_images: 16
@@ -103,22 +108,23 @@ test:
     test_image: datasets/cem-mitolab/test.json
     test_label:
     test_resolution:
-      - 0
-      - 5
-      - 5
+    - 0
+    - 5
+    - 5
     output_path: outputs/cem-mitolab_mednext2d/results/
 inference:
-  num_workers: 4
+  system:
+    num_workers: 4
   batch_size: 32
   test_time_augmentation:
     enabled: false
     channel_activations:
-      -   - 0
-          - 2
-          - sigmoid
-      -   - 2
-          - 3
-          - tanh
+    - - 0
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
     select_channel:
   save_prediction:
     enabled: true
@@ -130,8 +136,6 @@ inference:
 
 train:
   system:
-    overrides:
-      num_gpus: 1
-      num_workers: 0
-      batch_size: 16
-      seed: 42
+    num_gpus: 1
+    num_workers: 0
+    seed: 42

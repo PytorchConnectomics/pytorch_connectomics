@@ -5,21 +5,18 @@ _base_: bases/arch_profiles.yaml
 experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
 model:
-  debug_on_nan: false
-  enable_nan_detection: true
   out_channels: 3
   input_size:
-    - 32
-    - 128
-    - 128
+  - 32
+  - 128
+  - 128
   output_size:
-    - 32
-    - 128
-    - 128
-  mednext_size: S
-  mednext_kernel_size: 3
-  deep_supervision: false
-  losses:
+  - 32
+  - 128
+  - 128
+  loss:
+    deep_supervision: false
+    losses:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       kwargs: {reduction: mean}
@@ -45,20 +42,14 @@ model:
       kwargs: {tanh: true}
       pred_slice: [2, 3]
       target_slice: [2, 3]
+  mednext:
+    size: S
+    kernel_size: 3
 data:
-  train_path: /projects/weilab/dataset/barcode/2026/PT37_round2/
-  train_image:
-    - "*raw.tif"
-  train_label:
-    - "*mask.tif"
-  train_resolution:
-    - 40
-    - 16
-    - 16
   use_preloaded_cache_train: true
-  persistent_workers: true
-  patch_size: [32, 128, 128]
-  iter_num_per_epoch: 1000
+  dataloader:
+    persistent_workers: true
+    patch_size: [32, 128, 128]
   nnunet_preprocessing:
     enabled: true
     crop_to_nonzero: true
@@ -69,22 +60,22 @@ data:
 
   label_transform:
     targets:
-      - name: binary
-        kwargs: {}
-      - name: instance_boundary
-        kwargs:
-          thickness: 1
-          edge_mode: all
-          mode: 2d
-      - name: skeleton_aware_edt
-        kwargs:
-          resolution:
-            - 40
-            - 16
-            - 16
-          alpha: 1
-          bg_value: -1.0
-          relabel: true
+    - name: binary
+      kwargs: {}
+    - name: instance_boundary
+      kwargs:
+        thickness: 1
+        edge_mode: all
+        mode: 2d
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution:
+        - 40
+        - 16
+        - 16
+        alpha: 1
+        bg_value: -1.0
+        relabel: true
   augmentation:
     preset: some
     flip:
@@ -92,8 +83,8 @@ data:
     rotate:
       enabled: true
       spatial_axes:
-        - 1
-        - 2
+      - 1
+      - 2
     intensity:
       enabled: true
       gaussian_noise_prob: 0
@@ -102,8 +93,19 @@ data:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
+  train:
+    path: /projects/weilab/dataset/barcode/2026/PT37_round2/
+    image:
+    - "*raw.tif"
+    label:
+    - "*mask.tif"
+    resolution:
+    - 40
+    - 16
+    - 16
 optimization:
   max_epochs: 500
+  iter_num_per_epoch: 1000
   gradient_clip_val: 0.5
   accumulate_grad_batches: 1
   precision: "16-mixed"
@@ -122,10 +124,13 @@ optimization:
     decay: 0.999
     validate_with_ema: true
 monitor:
+  nan_detection:
+    enabled: true
+    debug_on_nan: false
   logging:
     scalar:
       loss:
-        - train_loss_total_epoch
+      - train_loss_total_epoch
       loss_every_n_steps: 10
     images:
       max_images: 2
@@ -145,21 +150,22 @@ test:
   data:
     test_path: /projects/weilab/dataset/barcode/2026/PT37_round2/
     test_image:
-      - "*raw.tif"
+    - "*raw.tif"
     test_label:
-      - "*mask.tif"
+    - "*mask.tif"
     test_resolution:
-      - 40
-      - 16
-      - 16
+    - 40
+    - 16
+    - 16
 inference:
-  num_workers: 1
+  system:
+    num_workers: 1
   batch_size: 8
   sliding_window:
     window_size:
-      - 32
-      - 128
-      - 128
+    - 32
+    - 128
+    - 128
     overlap: 0.5
     blending: gaussian
     sigma_scale: 0.25
@@ -167,39 +173,37 @@ inference:
   test_time_augmentation:
     enabled: true
     channel_activations:
-      -   - 0
-          - 1
-          - sigmoid
-      -   - 1
-          - 2
-          - sigmoid
-      -   - 2
-          - 3
-          - tanh
+    - - 0
+      - 1
+      - sigmoid
+    - - 1
+      - 2
+      - sigmoid
+    - - 2
+      - 3
+      - tanh
   decoding:
-    - name: decode_binary_contour_distance_watershed
-      kwargs:
-        binary_threshold:
-          - 0.9
-          - 0.85
-        contour_threshold:
-          - 0.8
-          - 1.1
-        distance_threshold:
-          - 0.5
-          - -0.5
-        min_instance_size: 100
-        min_seed_size: 20
-        prediction_scale: 1
+  - name: decode_binary_contour_distance_watershed
+    kwargs:
+      binary_threshold:
+      - 0.9
+      - 0.85
+      contour_threshold:
+      - 0.8
+      - 1.1
+      distance_threshold:
+      - 0.5
+      - -0.5
+      min_instance_size: 100
+      min_seed_size: 20
+      prediction_scale: 1
   evaluation:
     enabled: true
     metrics:
-      - adapted_rand
+    - adapted_rand
 
 train:
   system:
-    overrides:
-      num_gpus: -1
-      num_workers: -1
-      batch_size: 8
-      seed: 42
+    num_gpus: -1
+    num_workers: -1
+    seed: 42

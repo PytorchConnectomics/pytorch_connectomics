@@ -43,14 +43,14 @@ def _make_args(
 
 def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
     cfg = Config()
-    cfg.system.training.num_workers = 2  # ensure override happens
+    cfg.system.num_workers = 2  # ensure override happens
 
     cfg_path = tmp_path / "config.yaml"
     save_config(cfg, cfg_path)
 
     args = _make_args(
         cfg_path,
-        overrides=["optimization.optimizer.lr=0.01", "system.training.batch_size=2"],
+        overrides=["optimization.optimizer.lr=0.01", "data.dataloader.batch_size=2"],
         fast_dev_run=1,
     )
 
@@ -60,8 +60,8 @@ def test_setup_config_applies_overrides_and_fast_dev_run(tmp_path):
     assert Path(updated.monitor.checkpoint.dirpath).as_posix() == expected_dir
     assert updated.optimization.optimizer.lr == 0.01
     assert updated.optimization.max_epochs == 5
-    assert updated.system.training.batch_size == 2
-    assert updated.system.training.num_workers == 0  # forced by fast-dev-run
+    assert updated.data.dataloader.batch_size == 2
+    assert updated.system.num_workers == 0  # forced by fast-dev-run
 
 
 def test_setup_config_enables_nnunet_preprocess_from_cli_switch(tmp_path):

@@ -185,10 +185,12 @@ def build_loss_weighter(
     Returns:
         Loss weighter module or None (for static weights).
     """
-    if not hasattr(cfg, "model") or not hasattr(cfg.model, "loss_balancing"):
+    if not hasattr(cfg, "model") or not hasattr(cfg.model, "loss"):
         return None
 
-    lb_cfg = cfg.model.loss_balancing
+    lb_cfg = getattr(cfg.model, "loss", None)
+    if lb_cfg is None:
+        return None
     strategy = getattr(lb_cfg, "strategy", None)
     if strategy is None:
         return None

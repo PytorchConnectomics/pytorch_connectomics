@@ -47,9 +47,10 @@ class LossOrchestrator:
             if loss_metadata is not None
             else [get_loss_metadata_for_module(loss_fn) for loss_fn in self.loss_functions]
         )
+        self.loss_cfg = getattr(cfg.model, "loss", None)
 
-        self.clamp_min = getattr(cfg.model, "deep_supervision_clamp_min", -20.0)
-        self.clamp_max = getattr(cfg.model, "deep_supervision_clamp_max", 20.0)
+        self.clamp_min = getattr(self.loss_cfg, "deep_supervision_clamp_min", -20.0)
+        self.clamp_max = getattr(self.loss_cfg, "deep_supervision_clamp_max", 20.0)
         self.loss_term_specs = compile_loss_terms_from_config(
             cfg,
             self.loss_functions,
@@ -58,7 +59,7 @@ class LossOrchestrator:
         )
         if not self.loss_term_specs:
             raise ValueError(
-                "No loss terms were compiled. Configure model.losses."
+                "No loss terms were compiled. Configure model.loss.losses."
             )
 
     def _apply_task_weighting(
@@ -444,10 +445,11 @@ class LossOrchestrator:
         ds_outputs = [outputs[f"ds_{i}"] for i in range(1, 5) if f"ds_{i}" in outputs]
 
         if (
-            hasattr(self.cfg.model, "deep_supervision_weights")
-            and self.cfg.model.deep_supervision_weights is not None
+            self.loss_cfg is not None
+            and hasattr(self.loss_cfg, "deep_supervision_weights")
+            and self.loss_cfg.deep_supervision_weights is not None
         ):
-            ds_weights = self.cfg.model.deep_supervision_weights
+            ds_weights = self.loss_cfg.deep_supervision_weights
             if len(ds_weights) < len(ds_outputs) + 1:
                 warnings.warn(
                     f"deep_supervision_weights has {len(ds_weights)} weights but "
