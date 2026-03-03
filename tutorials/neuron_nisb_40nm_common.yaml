@@ -13,34 +13,37 @@ model:
 
 
 data:
-  train_image: seed*/data.zarr/img_40-36-36nm.h5
-  train_label: seed*/data.zarr/seg_40-36-36nm.h5
-  val_image: seed*/data.zarr/img_40-36-36nm.h5
-  val_label: seed*/data.zarr/seg_40-36-36nm.h5
 
-  train_resolution: [36, 36, 40]
-  val_resolution: [36, 36, 40]
-
-  patch_size: [128, 128, 128]
 
 
   label_transform:
     targets:
-      - name: affinity
-        kwargs:
-          long_range: 3
-      - name: skeleton_aware_edt
-        kwargs:
-          resolution: [36, 36, 40]
-          alpha: 0.8
-          bg_value: -1.0
-          relabel: true
+    - name: affinity
+      kwargs:
+        long_range: 3
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution: [36, 36, 40]
+        alpha: 0.8
+        bg_value: -1.0
+        relabel: true
 
-  
+
+  train:
+    image: seed*/data.zarr/img_40-36-36nm.h5
+    label: seed*/data.zarr/seg_40-36-36nm.h5
+    resolution: [36, 36, 40]
+
+  val:
+    image: seed*/data.zarr/img_40-36-36nm.h5
+    label: seed*/data.zarr/seg_40-36-36nm.h5
+    resolution: [36, 36, 40]
+  dataloader:
+    patch_size: [128, 128, 128]
 monitor:
   checkpoint:
     dirpath: outputs/neuron_nisb_base_40nm_mednext_b_sdt/checkpoints/
-  
+
 test:
   data:
     test_image: seed101/data.zarr/img_40-36-36nm.h5

@@ -26,16 +26,16 @@ def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
         if output_size:
             roi_size = tuple(int(v) for v in output_size)
             # For 2D models with do_2d=True, convert to 3D ROI size
-            if getattr(cfg.data, "do_2d", False) and len(roi_size) == 2:
+            if getattr(cfg.data.input, "do_2d", False) and len(roi_size) == 2:
                 roi_size = (1,) + roi_size  # Add depth dimension
             return roi_size
 
-    if hasattr(cfg, "data") and hasattr(cfg.data, "patch_size"):
-        patch_size = getattr(cfg.data, "patch_size", None)
+    if hasattr(cfg, "data") and hasattr(cfg.data, "data_transform"):
+        patch_size = getattr(cfg.data.data_transform, "patch_size", None)
         if patch_size:
             roi_size = tuple(int(v) for v in patch_size)
             # For 2D models with do_2d=True, convert to 3D ROI size
-            if getattr(cfg.data, "do_2d", False) and len(roi_size) == 2:
+            if getattr(cfg.data.input, "do_2d", False) and len(roi_size) == 2:
                 roi_size = (1,) + roi_size  # Add depth dimension
             return roi_size
 
@@ -86,14 +86,13 @@ def build_sliding_inferer(cfg):
         return None
 
     overlap = resolve_inferer_overlap(cfg, roi_size)
-    # Use system.inference.batch_size as default, fall back to
-    # sliding_window.sw_batch_size if specified
-    system_batch_cfg = getattr(getattr(cfg, "system", None), "inference", None)
-    system_batch_value = getattr(system_batch_cfg, "batch_size", 1) if system_batch_cfg else 1
+    # Use data.dataloader.batch_size as default, fall back to sliding_window.sw_batch_size if specified.
+    data_cfg = getattr(cfg, "data", None)
+    data_batch_value = getattr(data_cfg, "batch_size", 1) if data_cfg else 1
     sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
     config_sw_batch_size = getattr(sliding_cfg, "sw_batch_size", None) if sliding_cfg else None
     sw_batch_size = max(
-        1, int(config_sw_batch_size if config_sw_batch_size is not None else system_batch_value)
+        1, int(config_sw_batch_size if config_sw_batch_size is not None else data_batch_value)
     )
     mode = getattr(sliding_cfg, "blending", "gaussian") if sliding_cfg else "gaussian"
     sigma_scale = float(getattr(sliding_cfg, "sigma_scale", 0.125)) if sliding_cfg else 0.125

@@ -110,7 +110,7 @@ source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc
 python scripts/main.py --config tutorials/lucchi.yaml
 
 # Override config from CLI
-python scripts/main.py --config tutorials/lucchi.yaml data.batch_size=8 training.max_epochs=200
+python scripts/main.py --config tutorials/lucchi.yaml data.dataloader.batch_size=8 optimization.max_epochs=200
 
 # Testing mode
 python scripts/main.py --config tutorials/lucchi.yaml --mode test --checkpoint path/to/checkpoint.ckpt
@@ -287,7 +287,7 @@ from connectomics.config import load_config, print_config
 cfg = load_config("tutorials/lucchi.yaml")
 
 # Override from CLI or code
-cfg.data.batch_size = 8
+cfg.data.dataloader.batch_size = 8
 
 # Print config
 print_config(cfg)
@@ -777,15 +777,15 @@ pip install -e /projects/weilab/weidf/lib/MedNeXt
 - Verify OmegaConf is installed (`pip install omegaconf>=2.1.0`)
 
 ### GPU Memory Issues
-- Reduce `data.batch_size`
+- Reduce `data.dataloader.batch_size`
 - Enable gradient checkpointing (model-specific)
 - Use mixed precision (`training.precision: "16-mixed"`)
-- Try smaller patch sizes in `data.patch_size`
+- Try smaller patch sizes in `data.dataloader.patch_size`
 
 ### Data Loading Issues
-- Increase `data.num_workers` for faster loading
-- Use `data.use_cache` for small datasets
-- Check `data.persistent_workers: true` for efficiency
+- Increase `system.num_workers` for faster loading
+- Use `data.dataloader.use_cache` for small datasets
+- Check `data.dataloader.persistent_workers: true` for efficiency
 - Verify HDF5 files exist and are accessible (`h5py` installed)
 
 ### Version Compatibility

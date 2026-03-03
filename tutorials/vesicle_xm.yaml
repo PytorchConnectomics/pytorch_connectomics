@@ -1,176 +1,70 @@
-shared:
-  arch_profile: mednext_s
-  loss_profile: loss_bcd
+experiment_name: vesicle_xm_mednext_bcd
+description: Vesicle segmentation with MedNeXt and multi-task learning (Binary + Contour + DT)
 
 _base_:
-  - bases/arch_profiles.yaml
-  - bases/loss_profiles.yaml
-experiment_name: fiber_mednext_bcs
-description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
+  - bases/all_profiles.yaml
 
-model:    
-  input_size:
-  - 32
-  - 128
-  - 128
-  output_size:
-  - 32
-  - 128
-  - 128
-  out_channels: 3
+shared:
+  pipeline_profile: bcd
+  system:
+    profile: all-gpu-cpu
+  arch_profile: mednext_s
+  dataloader_profile: cached
+  augmentation_profile: aug_basic
+  optimizer_profile: warmup_cosine_lr
+  model:
+    input_size: [32, 128, 128]
+    output_size: [32, 128, 128]
+  data:
+    dataloader:
+      batch_size: 4
+      patch_size: [32, 128, 128]
+    image_transform:
+      normalize: "0-1"
+  inference:
+    sliding_window:
+      window_size: [32, 128, 128]
+    evaluation:
+      metrics:
+        - adapted_rand
 
-  mednext_size: S
-  mednext_kernel_size: 3
-
-  deep_supervision: false
-data:
-  train_image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
-  train_label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
-  train_mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
-  train_resolution: [30, 8, 8]
-  
-  use_preloaded_cache_train: true
-  persistent_workers: true
-  iter_num_per_epoch: 1000
-  cached_sampling_foreground_threshold: 0.05
-  cached_sampling_max_attempts: 10
-  cached_sampling_sample_nonzero_mask: true
-
-  patch_size: [32, 128, 128]
-  image_transform:
-    normalize: "0-1"    
-  
-  label_transform:
-    targets:
-    - name: binary
-      kwargs: {}
-    - name: instance_boundary
-      kwargs:
-        thickness: 1
-        edge_mode: all
-        mode: 2d
-    - name: instance_edt          # Channel 2: distance transform (bbox-optimized)
-      kwargs:
-        mode: "2d"              # 2D EDT with per-instance bounding box optimization
-        
-  augmentation:
-    preset: some
-    flip:
-      enabled: true
-    rotate:
-      enabled: true
-      spatial_axes:
-      - 1
-      - 2    
-    intensity:
-      enabled: true
-      gaussian_noise_prob: 0.5
-      gaussian_noise_std: 0.1
-      shift_intensity_prob: 0.5
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.5
-      contrast_range: [0.9, 1.1]
-optimization:
-  max_epochs: 500
-  gradient_clip_val: 1
-  accumulate_grad_batches: 1
-  precision: "16-mixed"
-  log_every_n_steps: 100  
-  optimizer:
-    lr: 0.0003
-    weight_decay: 0.01
-    eps: 1.0e-08
-  scheduler:
-    name: WarmupCosineLR
-    warmup_epochs: 3
-    warmup_start_lr: 1.0e-05
-    min_lr: 1.0e-06
-  ema:
-    enabled: true
-    decay: 0.999
-    validate_with_ema: true    
-monitor:
-  logging:
-    scalar:
-      loss:
-      - train_loss_total_epoch
-      loss_every_n_steps: 50      
-    images:
-      max_images: 2
-      num_slices: 4
-      log_every_n_epochs: 5
-  checkpoint:
-    save_top_k: 3
-    save_every_n_epochs: 10  
+train:
+  model:
+    loss:
+      deep_supervision: false
+  data:
+    train:
+      path: "/projects/weilab/dataset/xiaomeng/vesicle/"
+      image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
+      label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
+      mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
+      resolution: [30, 8, 8]
+    # make sure samples have enough foreground for masked sampling
+    dataloader:
+      cached_sampling_foreground_threshold: 0.05
+      cached_sampling_sample_nonzero_mask: true
+  optimization:
+    iter_num_per_epoch: 1000
+    max_epochs: 500
+  monitor:
+    logging:
+      scalar:
+        loss_every_n_steps: 50
+      images:
+        log_every_n_epochs: 10
+    checkpoint:
+      save_top_k: 3
+      save_every_n_epochs: 10
 
 test:
   data:
-    # test_image: ["datasets/bouton-lv/train/vol0_im.h5", "datasets/hydra-lv/vol*_im.h5"]
-    # test_label: ["datasets/bouton-lv/train/vol0_lv.h5", "datasets/hydra-lv/vol*_vesicle_ins.h5"]
-    # test_mask: ["datasets/bouton-lv/train/vol0_mask.h5", "datasets/hydra-lv/vol*_mask.h5"]
-    test_path: "/projects/weilab/dataset/xiaomeng/vesicle/"
-    test_image: "im/Bouton_100_EM.tif"        
-    test_mask: "mask/Bouton_100_em_mask.tif"
-    test_resolution: [30, 8, 8]
-    image_transform:
-      normalize: "0-1"    
-    mask_transform:
+    val:
+      path: "/projects/weilab/dataset/xiaomeng/vesicle/"
+      image: "im/Bouton_100_EM.tif"
+      mask: "mask/Bouton_100_em_mask.tif"
+      resolution: [30, 8, 8]
+    # fix: the exported mask is 2x downsampled, so we need to upsample it to the original size
+    data_transform:
       resize: [1, 2, 2]
       align_to_image: true
       binarize: true
-
-  # evaluation:
-  #   enabled: true
-  #   metrics:
-  #   - adapted_rand
-    
-inference:
-  num_workers: 1
-  batch_size: 8
-  sliding_window:
-    window_size:
-    - 32
-    - 128
-    - 128
-    overlap: 0.5
-    blending: gaussian
-    sigma_scale: 0.25
-    padding_mode: reflect    
-  test_time_augmentation:
-    enabled: true
-    channel_activations:
-    - - 0
-      - 1
-      - sigmoid
-    - - 1
-      - 2
-      - sigmoid
-    - - 2
-      - 3
-      - tanh
-  decoding:
-  - name: decode_instance_binary_contour_distance
-    kwargs:
-      binary_threshold:
-      - 0.9
-      - 0.85
-      contour_threshold:
-      - 0.8
-      - 1.1
-      distance_threshold:
-      - 0.5
-      - -0.5
-      min_instance_size: 30
-      min_seed_size: 20
-  evaluation:
-    enabled: true
-    metrics:
-    - adapted_rand
-
-train:
-  system:
-    overrides:
-      num_gpus: -1
-      num_workers: -1
-      batch_size: 4
-      seed: 42

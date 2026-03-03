@@ -9,13 +9,9 @@ description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, aff
 model:
   in_channels: 1
   out_channels: 7
-  mednext_size: B
-  mednext_kernel_size: 3
-  mednext_dim: 3d
-  mednext_checkpoint_style: outside_block
-  deep_supervision: false
-
-  losses:
+  loss:
+    deep_supervision: false
+    losses:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       pred_slice: [0, 6]
@@ -25,18 +21,21 @@ model:
       kwargs: {tanh: true}
       pred_slice: [6, 7]
       target_slice: [6, 7]
+  mednext:
+    size: B
+    kernel_size: 3
+    dim: 3d
+    checkpoint_style: outside_block
 data:
   # BANIS command mapping:
   # --base_data_path /projects/weilab/dataset/nisb
   # --data_setting base
 
-  # BANIS data.zarr arrays are under each seed directory.
-  iter_num_per_epoch: 200
-
   use_preloaded_cache_train: true
   use_preloaded_cache_val: true
-  use_cache: false
-  persistent_workers: true
+  dataloader:
+    use_cache: false
+    persistent_workers: true
 
   image_transform:
     normalize: "0-1"
@@ -72,6 +71,7 @@ data:
 
 optimization:
   max_epochs: 500
+  iter_num_per_epoch: 200
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"
@@ -120,16 +120,17 @@ test:
   data:
 
   decoding:
-    - name: decode_affinity_cc
-      kwargs:
-        threshold: 0.95
+  - name: decode_affinity_cc
+    kwargs:
+      threshold: 0.95
 
   evaluation:
     enabled: false
 
 inference:
-  num_gpus: 1
-  num_workers: 4
+  system:
+    num_gpus: 1
+    num_workers: 4
   batch_size: 4
   sliding_window:
     sw_batch_size: 4
@@ -146,8 +147,8 @@ inference:
     flip_axes:
     rotation90_axes:
     channel_activations:
-      - [0, 6, sigmoid]
-      - [6, 7, tanh]
+    - [0, 6, sigmoid]
+    - [6, 7, tanh]
     select_channel: [0, 1, 2, 6]
     ensemble_mode: mean
     apply_mask: false
@@ -160,8 +161,6 @@ inference:
 
 train:
   system:
-    overrides:
-      num_gpus: -1
-      num_workers: -1
-      batch_size: 4
-      seed: 42
+    num_gpus: -1
+    num_workers: -1
+    seed: 42

@@ -462,32 +462,31 @@ def load_volumes_from_config(
 
     # Get resolution from config
     train_resolution = None
-    if hasattr(cfg.data, "train_resolution") and cfg.data.train_resolution:
-        train_resolution = tuple(cfg.data.train_resolution)
+    if hasattr(cfg.data, "train") and cfg.data.train.resolution:
+        train_resolution = tuple(cfg.data.train.resolution)
         print(f"Using train resolution from config: {train_resolution} nm (z, y, x)")
 
     test_resolution = None
-    # Check test.data.test_resolution first, then fall back to data.test_resolution
+    # Check test.data.val.resolution first, then fall back to data.val.resolution
     if (
         hasattr(cfg, "test")
         and hasattr(cfg.test, "data")
-        and hasattr(cfg.test.data, "test_resolution")
-        and cfg.test.data.test_resolution
+        and cfg.test.data.val.resolution
     ):
-        test_resolution = tuple(cfg.test.data.test_resolution)
+        test_resolution = tuple(cfg.test.data.val.resolution)
         print(f"Using test resolution from test config: {test_resolution} nm (z, y, x)")
-    elif hasattr(cfg.data, "test_resolution") and cfg.data.test_resolution:
-        test_resolution = tuple(cfg.data.test_resolution)
+    elif hasattr(cfg.data, "val") and cfg.data.val.resolution:
+        test_resolution = tuple(cfg.data.val.resolution)
         print(f"Using test resolution from data config: {test_resolution} nm (z, y, x)")
 
     # Training data
     if mode in ["train", "both"]:
-        if hasattr(cfg.data, "train_image") and cfg.data.train_image:
-            print(f"Loading train images: {cfg.data.train_image}")
+        if hasattr(cfg.data, "train") and hasattr(cfg.data.train, "image") and cfg.data.train.image:
+            print(f"Loading train images: {cfg.data.train.image}")
 
             # Handle list of files (apply selection)
-            if isinstance(cfg.data.train_image, list):
-                files_to_load = apply_selection(cfg.data.train_image, select)
+            if isinstance(cfg.data.train.image, list):
+                files_to_load = apply_selection(cfg.data.train.image, select)
                 for idx, img_file in enumerate(files_to_load):
                     print(f"  [{idx+1}/{len(files_to_load)}] Loading: {img_file}")
                     try:
@@ -509,7 +508,7 @@ def load_volumes_from_config(
                         print(f"      Error loading {img_file}: {e}")
             else:
                 # Single file
-                data = read_volume(cfg.data.train_image)
+                data = read_volume(cfg.data.train.image)
                 if data is not None:
                     # Convert 2D to 3D if needed
                     if data.ndim == 2:
@@ -524,12 +523,12 @@ def load_volumes_from_config(
                     data = apply_image_transform(data, cfg)
                     volumes["train_image"] = (data, "image", train_resolution, None)
 
-        if hasattr(cfg.data, "train_label") and cfg.data.train_label:
-            print(f"Loading train labels: {cfg.data.train_label}")
+        if hasattr(cfg.data, "train") and hasattr(cfg.data.train, "label") and cfg.data.train.label:
+            print(f"Loading train labels: {cfg.data.train.label}")
 
             # Handle list of files (apply selection)
-            if isinstance(cfg.data.train_label, list):
-                files_to_load = apply_selection(cfg.data.train_label, select)
+            if isinstance(cfg.data.train.label, list):
+                files_to_load = apply_selection(cfg.data.train.label, select)
                 for idx, lbl_file in enumerate(files_to_load):
                     print(f"  [{idx+1}/{len(files_to_load)}] Loading: {lbl_file}")
                     try:
@@ -548,7 +547,7 @@ def load_volumes_from_config(
                         print(f"      Error loading {lbl_file}: {e}")
             else:
                 # Single file
-                data = read_volume(cfg.data.train_label)
+                data = read_volume(cfg.data.train.label)
                 if data is not None:
                     # Convert 2D to 3D if needed
                     if data.ndim == 2:
@@ -565,10 +564,9 @@ def load_volumes_from_config(
         if (
             hasattr(cfg, "test")
             and hasattr(cfg.test, "data")
-            and hasattr(cfg.test.data, "test_image")
-            and cfg.test.data.test_image
+            and cfg.test.data.val.image
         ):
-            test_image_path = cfg.test.data.test_image
+            test_image_path = cfg.test.data.val.image
 
             # Apply selection if it's a list (from glob expansion)
             if isinstance(test_image_path, list):
@@ -624,10 +622,9 @@ def load_volumes_from_config(
         if (
             hasattr(cfg, "test")
             and hasattr(cfg.test, "data")
-            and hasattr(cfg.test.data, "test_label")
-            and cfg.test.data.test_label
+            and cfg.test.data.val.label
         ):
-            test_label_path = cfg.test.data.test_label
+            test_label_path = cfg.test.data.val.label
 
             # Apply selection if it's a list (from glob expansion)
             if isinstance(test_label_path, list):

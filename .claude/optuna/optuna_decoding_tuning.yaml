@@ -50,7 +50,8 @@ model:
   checkpoint: "outputs/hydra_lv_rsunet/checkpoints/best_model.ckpt"
 
   # Architecture (must match trained model)
-  architecture: rsunet
+  arch:
+    type: rsunet
   in_channels: 1
   out_channels: 3  # Binary + Boundary + Distance
 

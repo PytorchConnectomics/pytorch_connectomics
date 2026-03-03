@@ -5,13 +5,10 @@ description: Mitochondria 2D semantic segmentation using pretrained nnUNet model
 # System Configuration
 model:
   # ========== nnUNet Pretrained Architecture ==========
-  architecture: nnunet_2d_pretrained  # or nnunet_pretrained, nnunet_3d_pretrained
+  arch:
+    type: nnunet_2d_pretrained  # or nnunet_pretrained, nnunet_3d_pretrained
 
   # Pretrained model paths (REQUIRED)
-  nnunet_checkpoint: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
-  nnunet_plans: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/plans.json
-  nnunet_dataset: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/dataset.json
-  nnunet_device: cuda        # 'cuda' or 'cpu'
 
   # Model I/O (these will be auto-configured from nnUNet files)
   in_channels: 1             # Grayscale input
@@ -20,7 +17,8 @@ model:
   output_size: [512, 512]    # 2D output size
 
   # Loss configuration
-  losses:
+  loss:
+    losses:
     - function: DiceLoss
       weight: 1.0
       kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
@@ -31,24 +29,13 @@ model:
       kwargs: {reduction: mean}
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
+  nnunet:
+    checkpoint: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/mito_semantic_2d.pth
+    plans: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/plans.json
+    dataset: /projects/weilab/liupeng/mito_2d_semantic_model/checkpoints/dataset.json
+    device: cuda        # 'cuda' or 'cpu'
 data:
   # Dataset type - use 2D data
-  do_2d: true              # Enable 2D data processing
-
-  # Training data paths (UPDATE THESE)
-  train_image: datasets/mito2d/train_images.h5
-  train_label: datasets/mito2d/train_labels.h5
-
-  # Validation data paths (UPDATE THESE)
-  val_image: datasets/mito2d/val_images.h5
-  val_label: datasets/mito2d/val_labels.h5
-
-  # Patch configuration for 2D
-  patch_size: [1, 512, 512]   # [D, H, W] - D=1 for 2D slices
-  pad_size: [0, 0, 0]         # No padding
-
-  # Sampling
-  iter_num_per_epoch: 1000    # Number of random crops per epoch
   use_preloaded_cache: true   # Load volumes into memory
 
   # Image normalization
@@ -92,10 +79,24 @@ data:
       shift_intensity_offset: 0.1
       contrast_prob: 0.4
       contrast_range: [0.8, 1.2]
+  train:
+    do_2d: true
+    image: datasets/mito2d/train_images.h5
+    label: datasets/mito2d/train_labels.h5
+
+  val:
+    image: datasets/mito2d/val_images.h5
+    label: datasets/mito2d/val_labels.h5
 
 # Optimization
+  data_transform:
+    pad_size: [0, 0, 0]       # No padding
+
+  dataloader:
+    patch_size: [1, 512, 512] # [D, H, W] - D=1 for 2D slices
 optimization:
   max_epochs: 100             # Training epochs
+  iter_num_per_epoch: 1000
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "bf16-mixed"     # Mixed precision training
@@ -149,8 +150,9 @@ monitor:
 
 # Inference Configuration
 inference:
-  num_gpus: 1
-  num_workers: 2
+  system:
+    num_gpus: 1
+    num_workers: 2
   batch_size: 1
   # MONAI SlidingWindowInferer for 2D
   sliding_window:
@@ -231,8 +233,6 @@ test:
 
 train:
   system:
-    overrides:
-      num_gpus: 1
-      num_workers: 4
-      batch_size: 8
-      seed: 42
+    num_gpus: 1
+    num_workers: 4
+    seed: 42

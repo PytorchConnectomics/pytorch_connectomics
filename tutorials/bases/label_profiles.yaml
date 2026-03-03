@@ -1,0 +1,13 @@
+label_profiles:
+  label_bcd:
+    targets:
+      - name: binary
+        kwargs: {}
+      - name: instance_boundary
+        kwargs:
+          thickness: 1
+          edge_mode: all
+          mode: 2d
+      - name: instance_edt
+        kwargs:
+          mode: "2d"

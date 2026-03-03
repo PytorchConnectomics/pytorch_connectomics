@@ -246,8 +246,8 @@ def write_outputs(
         if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "output"):
             output_dir_value = cfg.tune.output.output_pred
     else:
-        if hasattr(cfg, "test") and hasattr(cfg.test, "data") and hasattr(cfg.test.data, "output_path"):
-            output_dir_value = cfg.test.data.output_path
+        if hasattr(cfg, "test") and hasattr(cfg.test, "output_path"):
+            output_dir_value = cfg.test.output_path
 
     if not output_dir_value:
         return

@@ -20,7 +20,7 @@ Usage:
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run 2  # Run 2 batches
 
     # Override config parameters
-    python scripts/main.py --config tutorials/mito_lucchi++.yaml data.batch_size=8 optimization.max_epochs=200
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml data.dataloader.batch_size=8 optimization.max_epochs=200
 
     # Resume training with different max_epochs
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
@@ -90,7 +90,7 @@ def suppress_nonzero_rank_stdout() -> None:
 
 def configure_matmul_precision(cfg: Config) -> None:
     """Enable Tensor Core matmul precision when supported by available CUDA devices."""
-    requested_gpus = max(cfg.system.training.num_gpus, cfg.system.inference.num_gpus)
+    requested_gpus = cfg.system.num_gpus
     if requested_gpus <= 0 or not torch.cuda.is_available():
         return
 
@@ -186,7 +186,7 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
     if not hasattr(cfg, "test") or cfg.test is None or not hasattr(cfg.test, "data"):
         return False, None, 0
 
-    output_dir_value = getattr(cfg.test.data, "output_path", None)
+    output_dir_value = getattr(cfg.test, "output_path", None)
     if not output_dir_value:
         return False, None, 0
 
@@ -194,7 +194,7 @@ def preflight_test_cache_hit(cfg: Config, datamodule) -> tuple[bool, str | None,
     if not test_data_dicts:
         return False, None, 0
 
-    cache_suffix = getattr(cfg.test.data, "cache_suffix", "_prediction.h5")
+    cache_suffix = getattr(cfg.test, "cache_suffix", "_prediction.h5")
     output_dir = Path(output_dir_value)
 
     filenames = []
@@ -275,8 +275,8 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
     if not hasattr(cfg, "test") or cfg.test is None or not hasattr(cfg.test, "data"):
         return False
 
-    output_dir_value = getattr(cfg.test.data, "output_path", None)
-    test_image = getattr(cfg.test.data, "test_image", None)
+    output_dir_value = getattr(cfg.test, "output_path", None)
+    test_image = getattr(cfg.test.data.val, "image", None)
     if not output_dir_value or not test_image:
         return False
 
@@ -296,7 +296,7 @@ def try_cache_only_test_execution(cfg: Config, mode: str) -> bool:
         return False
 
     output_dir = Path(output_dir_value)
-    cache_suffix = getattr(cfg.test.data, "cache_suffix", "_prediction.h5")
+    cache_suffix = getattr(cfg.test, "cache_suffix", "_prediction.h5")
     filenames = [Path(str(p)).stem for p in test_image_paths]
 
     # Check whether all outputs are present and what type they are.
@@ -447,10 +447,10 @@ def main():
                 if cfg.test is not None:
                     print(f"🔍 cfg.test.data is None: {cfg.test.data is None}")
                     if cfg.test.data is not None:
-                        cfg.test.data.output_path = results_path
-                        cfg.test.data.cache_suffix = cfg.tune.output.cache_suffix
-                        print(f"📋 Test output: {cfg.test.data.output_path}")
-                        print(f"📋 Test cache suffix: {cfg.test.data.cache_suffix}")
+                        cfg.test.output_path = results_path
+                        cfg.test.cache_suffix = cfg.tune.output.cache_suffix
+                        print(f"📋 Test output: {cfg.test.output_path}")
+                        print(f"📋 Test cache suffix: {cfg.test.cache_suffix}")
                     else:
                         print(f"❌ cfg.test.data is None, cannot set cache_suffix!")
                 else:
@@ -467,7 +467,7 @@ def main():
             dirpath = results_path
             # Override test output directory in config
             if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-                cfg.test.data.output_path = results_path
+                cfg.test.output_path = results_path
 
         run_dir = setup_run_directory(args.mode, cfg, dirpath)
         print(f"📂 Output base: {output_base}")
@@ -487,7 +487,7 @@ def main():
         return
 
     # Create model
-    print(f"Creating model: {cfg.model.architecture}")
+    print(f"Creating model: {cfg.model.arch.type}")
     model = ConnectomicsModule(cfg)
 
     # Count parameters

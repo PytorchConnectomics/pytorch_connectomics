@@ -194,7 +194,7 @@ def create_loss_from_config(cfg) -> nn.Module:
     Create loss function from Hydra config.
 
     Args:
-        cfg: Hydra Config object with model.losses list
+        cfg: Hydra Config object with model.loss.losses list
 
     Returns:
         Initialized loss function
@@ -204,7 +204,8 @@ def create_loss_from_config(cfg) -> nn.Module:
         >>> cfg = load_config('config.yaml')
         >>> loss = create_loss_from_config(cfg)
     """
-    losses = getattr(cfg.model, "losses", None)
+    loss_cfg = getattr(cfg.model, "loss", None)
+    losses = getattr(loss_cfg, "losses", None)
     if losses is None:
         losses = [
             {"function": "DiceLoss", "weight": 1.0},

@@ -387,32 +387,30 @@ class TestAutoPlanConfig:
 
         # Create test config
         cfg = OmegaConf.structured(Config())
-        cfg.system.auto_plan = True
-        cfg.model.architecture = 'mednext'
-        cfg.model.deep_supervision = True
+        cfg.model.arch.type = 'mednext'
+        cfg.model.loss.deep_supervision = True
 
         # Auto-plan
         cfg = auto_plan_config(cfg, print_results=False)
 
         # Check that values were set
-        assert cfg.system.training.batch_size > 0
-        assert cfg.system.training.num_workers > 0
-        assert len(cfg.data.patch_size) == 3
+        assert cfg.data.dataloader.batch_size > 0
+        assert cfg.system.num_workers > 0
+        assert len(cfg.data.dataloader.patch_size) == 3
         assert cfg.optimization.precision in ['32', '16-mixed', 'bf16-mixed']
 
     def test_auto_plan_config_disabled(self):
-        """Test that planning respects disabled flag."""
+        """Test that explicit manual values are preserved."""
         from connectomics.config import Config, auto_plan_config
         from omegaconf import OmegaConf
 
         cfg = OmegaConf.structured(Config())
-        cfg.system.auto_plan = False
+        cfg.data.dataloader.batch_size = 11
 
-        original_batch_size = cfg.system.training.batch_size
+        original_batch_size = cfg.data.dataloader.batch_size
         cfg = auto_plan_config(cfg, print_results=False)
 
-        # Should not change
-        assert cfg.system.training.batch_size == original_batch_size
+        assert cfg.data.dataloader.batch_size == original_batch_size
 
     def test_auto_plan_config_respects_overrides(self):
         """Test that planning respects manual config values."""
@@ -420,14 +418,13 @@ class TestAutoPlanConfig:
         from omegaconf import OmegaConf
 
         cfg = OmegaConf.structured(Config())
-        cfg.system.auto_plan = True
-        cfg.system.training.batch_size = 16  # Manual override
+        cfg.data.dataloader.batch_size = 16  # Manual override
         cfg.optimization.optimizer.lr = 2e-3  # Manual override
 
         cfg = auto_plan_config(cfg, print_results=False)
 
         # Manual values should be preserved
-        assert cfg.system.training.batch_size == 16
+        assert cfg.data.dataloader.batch_size == 16
         assert cfg.optimization.optimizer.lr == 2e-3
 
 
@@ -479,19 +476,18 @@ class TestIntegration:
 
         # Create config
         cfg = OmegaConf.structured(Config())
-        cfg.system.auto_plan = True
-        cfg.model.architecture = 'mednext'
+        cfg.model.arch.type = 'mednext'
         cfg.model.in_channels = 1
         cfg.model.out_channels = 6
-        cfg.model.deep_supervision = True
+        cfg.model.loss.deep_supervision = True
 
         # Auto-plan
         cfg = auto_plan_config(cfg, print_results=False)
 
         # Verify all required fields are set
-        assert cfg.system.training.batch_size > 0
-        assert cfg.system.training.num_workers > 0
-        assert cfg.data.patch_size is not None
+        assert cfg.data.dataloader.batch_size > 0
+        assert cfg.system.num_workers > 0
+        assert cfg.data.dataloader.patch_size is not None
         assert cfg.optimization.precision is not None
         assert cfg.optimization.optimizer.lr > 0
 
@@ -501,14 +497,13 @@ class TestIntegration:
         from omegaconf import OmegaConf
 
         cfg = OmegaConf.structured(Config())
-        cfg.system.auto_plan = True
-        cfg.data.target_spacing = [1.0, 1.0, 1.0]
-        cfg.data.median_shape = [128, 256, 256]
+        cfg.data.data_transform.target_spacing = [1.0, 1.0, 1.0]
+        cfg.data.data_transform.median_shape = [128, 256, 256]
 
         cfg = auto_plan_config(cfg, print_results=False)
 
         # Should use provided dataset properties
-        assert cfg.data.patch_size is not None
+        assert cfg.data.dataloader.patch_size is not None
 
     def test_planning_with_real_gpu(self):
         """Test planning with real GPU (if available)."""
@@ -516,9 +511,8 @@ class TestIntegration:
         from omegaconf import OmegaConf
 
         cfg = OmegaConf.structured(Config())
-        cfg.system.auto_plan = True
-        cfg.model.architecture = 'mednext'
-        cfg.model.deep_supervision = True
+        cfg.model.arch.type = 'mednext'
+        cfg.model.loss.deep_supervision = True
 
         fake_gpu_info = {
             "cuda_available": True,
@@ -533,4 +527,4 @@ class TestIntegration:
 
         # With GPU, planner should consider mixed precision or keep safe default
         assert cfg.optimization.precision in ['16-mixed', 'bf16-mixed', '32']
-        assert cfg.system.training.batch_size > 0
+        assert cfg.data.dataloader.batch_size > 0

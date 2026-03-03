@@ -49,7 +49,7 @@ download-list:
 # Training Commands
 # ============================================================================
 
-# Train (e.g., just train fiber, just train lucchi++ -- system.training.num_gpus=1)
+# Train (e.g., just train fiber, just train lucchi++ -- system.num_gpus=1)
 # Uses architecture specified in tutorials/{{dataset}}.yaml
 train dataset *ARGS='':
     python scripts/main.py --config tutorials/{{dataset}}.yaml {{ARGS}}

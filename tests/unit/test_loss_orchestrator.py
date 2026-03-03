@@ -10,12 +10,13 @@ from connectomics.training.loss import LossOrchestrator
 
 
 def _cfg(losses=None):
-    model = SimpleNamespace(
+    loss = SimpleNamespace(
         deep_supervision_clamp_min=-20.0,
         deep_supervision_clamp_max=20.0,
         deep_supervision_weights=None,
         losses=losses,
     )
+    model = SimpleNamespace(loss=loss)
     return SimpleNamespace(model=model)
 
 
@@ -139,7 +140,7 @@ def test_create_loss_attaches_metadata_for_supervised_and_regularization_losses(
 
 
 def test_loss_orchestrator_requires_explicit_losses():
-    with pytest.raises(ValueError, match="model\\.losses is required"):
+    with pytest.raises(ValueError, match="model\\.loss\\.losses is required"):
         LossOrchestrator(
             cfg=_cfg(),
             loss_functions=nn.ModuleList([NoWeightSpyLoss()]),

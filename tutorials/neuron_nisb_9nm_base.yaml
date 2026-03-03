@@ -11,13 +11,9 @@ model:
   output_size: [32, 256, 256]
   in_channels: 1
   out_channels: 7
-  mednext_size: B
-  mednext_kernel_size: 3
-  mednext_dim: 3d
-  mednext_checkpoint_style: outside_block
-  deep_supervision: false
-
-  losses:
+  loss:
+    deep_supervision: false
+    losses:
     - function: WeightedBCEWithLogitsLoss
       weight: 1.0
       pred_slice: [0, 6]
@@ -27,33 +23,24 @@ model:
       kwargs: {tanh: true}
       pred_slice: [6, 7]
       target_slice: [6, 7]
+  mednext:
+    size: B
+    kernel_size: 3
+    dim: 3d
+    checkpoint_style: outside_block
 data:
   # BANIS command mapping:
   # --base_data_path /projects/weilab/dataset/nisb
   # --data_setting base
-  train_path: /projects/weilab/dataset/nisb/base/train
-  val_path: /projects/weilab/dataset/nisb/base/val
-
-  # BANIS data.zarr arrays are under each seed directory.
-  train_image: seed*/data.zarr/img
-  train_label: seed*/data.zarr/seg
-  val_image: seed*/data.zarr/img
-  val_label: seed*/data.zarr/seg
-  iter_num_per_epoch: 200
-
-  train_resolution: [20, 9, 9]
-  val_resolution: [20, 9, 9]
   # NISB zarr arrays are stored as XYZ; model/data pipeline expects ZYX.
-  train_transpose: [2, 1, 0]
-  val_transpose: [2, 1, 0]
-
-  patch_size: [32, 256, 256]
   use_preloaded_cache_train: false
   use_preloaded_cache_val: false
   use_lazy_zarr: true
-  use_cache: false
-  persistent_workers: true
+  dataloader:
+    use_cache: false
+    persistent_workers: true
 
+    patch_size: [32, 256, 256]
   image_transform:
     normalize: "0-1"
     clip_percentile_low: 0.0
@@ -61,15 +48,15 @@ data:
 
   label_transform:
     targets:
-      - name: affinity
-        kwargs:
-          long_range: 10
-      - name: skeleton_aware_edt
-        kwargs:
-          resolution: [20, 9, 9]
-          alpha: 0.8
-          bg_value: -1.0
-          relabel: true
+    - name: affinity
+      kwargs:
+        long_range: 10
+    - name: skeleton_aware_edt
+      kwargs:
+        resolution: [20, 9, 9]
+        alpha: 0.8
+        bg_value: -1.0
+        relabel: true
 
   augmentation:
     preset: some
@@ -97,9 +84,24 @@ data:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
+  train:
+    path: /projects/weilab/dataset/nisb/base/train
+    image: seed*/data.zarr/img
+    label: seed*/data.zarr/seg
+    resolution: [20, 9, 9]
+
+  val:
+    path: /projects/weilab/dataset/nisb/base/val
+    image: seed*/data.zarr/img
+    label: seed*/data.zarr/seg
+    resolution: [20, 9, 9]
+  data_transform:
+    train_transpose: [2, 1, 0]
+    val_transpose: [2, 1, 0]
 
 optimization:
   max_epochs: 500
+  iter_num_per_epoch: 200
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"
@@ -154,16 +156,17 @@ test:
     output_path: outputs/neuron_nisb_base_40nm_mednext_b_sdt/results/
 
   decoding:
-    - name: decode_affinity_cc
-      kwargs:
-        threshold: 0.5
+  - name: decode_affinity_cc
+    kwargs:
+      threshold: 0.5
 
   evaluation:
     enabled: false
 
 inference:
-  num_gpus: 1
-  num_workers: 8
+  system:
+    num_gpus: 1
+    num_workers: 8
   batch_size: 1
   sliding_window:
     window_size: [32, 256, 256]
@@ -178,8 +181,8 @@ inference:
     flip_axes:
     rotation90_axes:
     channel_activations:
-      - [0, 6, sigmoid]
-      - [6, 7, tanh]
+    - [0, 6, sigmoid]
+    - [6, 7, tanh]
     select_channel: all
     ensemble_mode: mean
     apply_mask: false
@@ -192,8 +195,6 @@ inference:
 
 train:
   system:
-    overrides:
-      num_gpus: -1
-      num_workers: -1
-      batch_size: 2
-      seed: 42
+    num_gpus: -1
+    num_workers: -1
+    seed: 42

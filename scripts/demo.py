@@ -91,8 +91,6 @@ def create_demo_config():
     from connectomics.config import Config
     from connectomics.config.hydra_config import (
         SystemConfig,
-        SystemTrainingConfig,
-        SystemInferenceConfig,
         ModelConfig,
         DataConfig,
         OptimizationConfig,
@@ -109,16 +107,8 @@ def create_demo_config():
     cfg = Config(
         system=SystemConfig(
             seed=42,
-            training=SystemTrainingConfig(
-                num_gpus=1 if torch.cuda.is_available() else 0,
-                batch_size=2,
-                num_workers=0,  # 0 for demo to avoid multiprocessing issues
-            ),
-            inference=SystemInferenceConfig(
-                num_gpus=1 if torch.cuda.is_available() else 0,
-                batch_size=2,
-                num_workers=0,
-            ),
+            num_gpus=1 if torch.cuda.is_available() else 0,
+            num_workers=0,  # 0 for demo to avoid multiprocessing issues
         ),
         model=ModelConfig(
             architecture="monai_unet",
@@ -142,9 +132,9 @@ def create_demo_config():
             train_label=None,
             val_image=None,
             val_label=None,
+            batch_size=2,
             patch_size=[32, 64, 64],  # Small for demo
             stride=[16, 32, 32],
-            iter_num_per_epoch=10,  # Just 10 iterations per epoch
             use_cache=False,
             use_preloaded_cache_train=False,
             use_preloaded_cache_val=False,
@@ -153,6 +143,7 @@ def create_demo_config():
         ),
         optimization=OptimizationConfig(
             max_epochs=5,  # Quick demo
+            iter_num_per_epoch=10,  # Just 10 iterations per epoch
             precision="32",  # Use FP32 for stability
             gradient_clip_val=1.0,
             accumulate_grad_batches=1,
@@ -264,10 +255,10 @@ def run_demo():
     print("   ✓ val_label.h5")
 
     # Update config with file paths
-    cfg.data.train_image = str(train_image_path)
-    cfg.data.train_label = str(train_label_path)
-    cfg.data.val_image = str(val_image_path)
-    cfg.data.val_label = str(val_label_path)
+    cfg.data.train.image = str(train_image_path)
+    cfg.data.train.label = str(train_label_path)
+    cfg.data.val.image = str(val_image_path)
+    cfg.data.val.label = str(val_label_path)
 
     # Create datamodule
     print("\n📊 Creating data loaders...")
@@ -293,17 +284,17 @@ def run_demo():
         val_data_dicts=val_data_dicts,
         transforms={"train": train_transforms, "val": val_transforms},
         dataset_type="standard",
-        batch_size=cfg.system.training.batch_size,
-        num_workers=cfg.system.training.num_workers,
-        pin_memory=cfg.data.pin_memory,
+        batch_size=cfg.data.dataloader.batch_size,
+        num_workers=cfg.system.num_workers,
+        pin_memory=cfg.data.dataloader.pin_memory,
         persistent_workers=False,
-        iter_num=cfg.data.iter_num_per_epoch,
-        sample_size=tuple(cfg.data.patch_size),
+        iter_num=cfg.optimization.iter_num_per_epoch,
+        sample_size=tuple(cfg.data.dataloader.patch_size),
     )
     datamodule.setup(stage="fit")
 
     # Create model
-    print(f"\n🏗️  Building model: {cfg.model.architecture}")
+    print(f"\n🏗️  Building model: {cfg.model.arch.type}")
     from connectomics.training.lightning import ConnectomicsModule
 
     model = ConnectomicsModule(cfg)
@@ -341,8 +332,8 @@ def run_demo():
 
     trainer = pl.Trainer(
         max_epochs=cfg.optimization.max_epochs,
-        accelerator="gpu" if cfg.system.training.num_gpus > 0 else "cpu",
-        devices=cfg.system.training.num_gpus if cfg.system.training.num_gpus > 0 else 1,
+        accelerator="gpu" if cfg.system.num_gpus > 0 else "cpu",
+        devices=cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1,
         precision=cfg.optimization.precision,
         callbacks=callbacks,
         logger=demo_logger,
@@ -353,7 +344,7 @@ def run_demo():
     )
 
     print(f"   Max epochs: {cfg.optimization.max_epochs}")
-    print(f"   Device: {'GPU' if cfg.system.training.num_gpus > 0 else 'CPU'}")
+    print(f"   Device: {'GPU' if cfg.system.num_gpus > 0 else 'CPU'}")
     print(f"   Precision: {cfg.optimization.precision}")
 
     # Train

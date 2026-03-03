@@ -144,22 +144,23 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
 
     Config parameters:
         Required:
-            - model.nnunet_checkpoint: Path to .pth checkpoint file
-            - model.nnunet_plans: Path to plans.json file
-            - model.nnunet_dataset: Path to dataset.json file
+            - model.nnunet.checkpoint: Path to .pth checkpoint file
+            - model.nnunet.plans: Path to plans.json file
+            - model.nnunet.dataset: Path to dataset.json file
 
         Optional:
-            - model.nnunet_device: Device to load model on ('cuda' or 'cpu', default: 'cuda')
+            - model.nnunet.device: Device to load model on ('cuda' or 'cpu', default: 'cuda')
             - model.in_channels: Override input channels (default: from dataset.json)
             - model.out_channels: Override output channels (default: from plans)
 
     Example config:
         model:
           architecture: nnunet_pretrained
-          nnunet_checkpoint: /path/to/checkpoint.pth
-          nnunet_plans: /path/to/plans.json
-          nnunet_dataset: /path/to/dataset.json
-          nnunet_device: cuda
+          nnunet:
+            checkpoint: /path/to/checkpoint.pth
+            plans: /path/to/plans.json
+            dataset: /path/to/dataset.json
+            device: cuda
 
     Args:
         cfg: Hydra config object
@@ -175,9 +176,17 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
     _check_nnunet_available()
 
     # Extract paths from config
-    checkpoint_path = Path(cfg.model.nnunet_checkpoint)
-    plans_path = Path(cfg.model.nnunet_plans)
-    dataset_path = Path(cfg.model.nnunet_dataset)
+    checkpoint_raw = getattr(cfg.model.nnunet, "checkpoint", None)
+    plans_raw = getattr(cfg.model.nnunet, "plans", None)
+    dataset_raw = getattr(cfg.model.nnunet, "dataset", None)
+    if checkpoint_raw is None or plans_raw is None or dataset_raw is None:
+        raise ValueError(
+            "Missing nnUNet model paths. Set model.nnunet.checkpoint, "
+            "model.nnunet.plans, and model.nnunet.dataset."
+        )
+    checkpoint_path = Path(checkpoint_raw)
+    plans_path = Path(plans_raw)
+    dataset_path = Path(dataset_raw)
 
     # Validate paths
     if not checkpoint_path.exists():
@@ -188,7 +197,7 @@ def build_nnunet_pretrained(cfg) -> ConnectomicsModel:
         raise FileNotFoundError(f"Dataset file not found: {dataset_path}")
 
     # Get device
-    device_str = getattr(cfg.model, "nnunet_device", "cuda")
+    device_str = getattr(cfg.model.nnunet, "device", "cuda")
     device = torch.device(device_str if torch.cuda.is_available() else "cpu")
 
     print("Loading nnUNet pretrained model...")

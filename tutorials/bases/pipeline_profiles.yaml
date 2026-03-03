@@ -1,0 +1,8 @@
+pipeline_profiles:
+  bcd:
+    loss_profile: loss_bcd
+    label_profile: label_bcd
+    decoding_profile: decoding_bcd
+    activation_profile: act_bcd
+    model:
+      out_channels: 3

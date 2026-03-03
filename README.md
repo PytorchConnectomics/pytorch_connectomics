@@ -216,7 +216,7 @@ python scripts/main.py --config my_config.yaml
 
 Override from CLI:
 ```bash
-python scripts/main.py --config my_config.yaml data.batch_size=4 optimization.max_epochs=200
+python scripts/main.py --config my_config.yaml data.dataloader.batch_size=4 optimization.max_epochs=200
 ```
 
 ---

@@ -135,7 +135,7 @@ def parse_args():
     parser.add_argument(
         "overrides",
         nargs="*",
-        help="Config overrides in key=value format (e.g., data.batch_size=8)",
+        help="Config overrides in key=value format (e.g., data.dataloader.batch_size=8)",
     )
 
     return parser.parse_args()
@@ -172,11 +172,11 @@ def setup_config(args) -> Config:
 
     # Update test output path only if test section exists and output_path not provided
     if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
-        if not getattr(cfg.test.data, "output_path", None):
-            cfg.test.data.output_path = str(Path(output_folder) / "results")
+        if not getattr(cfg.test, "output_path", None):
+            cfg.test.output_path = str(Path(output_folder) / "results")
         else:
-            cfg.test.data.output_path = str(Path(cfg.test.data.output_path))
-        print(f"📂 Test output directory: {cfg.test.data.output_path}")
+            cfg.test.output_path = str(Path(cfg.test.output_path))
+        print(f"📂 Test output directory: {cfg.test.output_path}")
 
     # Note: We handle timestamping manually in main() to create run directories
     # Set this to False to prevent PyTorch Lightning from adding its own timestamp
@@ -207,9 +207,9 @@ def setup_config(args) -> Config:
     if args.fast_dev_run:
         fast_dev_num_gpus = 1 if torch.cuda.is_available() else 0
         print("🔧 Fast-dev-run mode: Overriding config for debugging")
-        print(f"   - num_gpus: {cfg.system.training.num_gpus} → {fast_dev_num_gpus}")
+        print(f"   - num_gpus: {cfg.system.num_gpus} → {fast_dev_num_gpus}")
         print(
-            f"   - num_workers: {cfg.system.training.num_workers} → 0 "
+            f"   - num_workers: {cfg.system.num_workers} → 0 "
             "(avoid multiprocessing in debug mode)"
         )
         print(
@@ -217,16 +217,14 @@ def setup_config(args) -> Config:
         )
         print("   - input patch: 64^3 for lightweight debug")
         print("   - MedNeXt size: S for lightweight debug")
-        cfg.system.training.num_gpus = fast_dev_num_gpus
-        cfg.system.training.num_workers = 0
-        cfg.system.inference.num_gpus = fast_dev_num_gpus
-        cfg.system.inference.num_workers = 0
+        cfg.system.num_gpus = fast_dev_num_gpus
+        cfg.system.num_workers = 0
         if hasattr(cfg.model, "input_size"):
             cfg.model.input_size = [64, 64, 64]
         if hasattr(cfg.model, "output_size"):
             cfg.model.output_size = [64, 64, 64]
-        if hasattr(cfg.model, "mednext_size"):
-            cfg.model.mednext_size = "S"
+        if hasattr(cfg.model, "mednext"):
+            cfg.model.mednext.size = "S"
         # Keep CellMap shapes in sync with the smaller debug patch
         if getattr(cfg.data, "cellmap", None):
             cfg.data.cellmap["input_array_info"]["shape"] = [64, 64, 64]
@@ -235,36 +233,16 @@ def setup_config(args) -> Config:
     # Resolve -1 sentinels (auto-max resources for current runtime allocation).
     cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
 
-    # Apply inference-specific overrides if in test/tune mode
-    if args.mode in ["test", "tune", "tune-test"]:
-        if cfg.inference.num_gpus >= 0:
-            print(f"🔧 Inference override: num_gpus={cfg.inference.num_gpus}")
-            cfg.system.training.num_gpus = cfg.inference.num_gpus
-        if cfg.inference.batch_size >= 0:
-            print(f"🔧 Inference override: batch_size={cfg.inference.batch_size}")
-            cfg.system.inference.batch_size = cfg.inference.batch_size
-        if cfg.inference.num_workers >= 0:
-            print(f"🔧 Inference override: num_workers={cfg.inference.num_workers}")
-            cfg.system.inference.num_workers = cfg.inference.num_workers
-
     # CPU-only fallback after all overrides: ensure no CUDA-only settings remain.
     if not torch.cuda.is_available():
-        if cfg.system.training.num_gpus > 0:
-            print("🔧 CUDA not available, setting training num_gpus=0")
-            cfg.system.training.num_gpus = 0
-        if cfg.system.inference.num_gpus > 0:
-            print("🔧 CUDA not available, setting inference num_gpus=0")
-            cfg.system.inference.num_gpus = 0
-        if cfg.system.training.num_workers > 0:
+        if cfg.system.num_gpus > 0:
+            print("🔧 CUDA not available, setting num_gpus=0")
+            cfg.system.num_gpus = 0
+        if cfg.system.num_workers > 0:
             print(
-                "🔧 CUDA not available, setting training num_workers=0 to avoid dataloader crashes"
+                "🔧 CUDA not available, setting num_workers=0 to avoid dataloader crashes"
             )
-            cfg.system.training.num_workers = 0
-        if cfg.system.inference.num_workers > 0:
-            print(
-                "🔧 CUDA not available, setting inference num_workers=0 to avoid dataloader crashes"
-            )
-            cfg.system.inference.num_workers = 0
+            cfg.system.num_workers = 0
 
     # Optional convenience toggle to enable nnU-Net preprocessing via CLI
     if getattr(args, "nnunet_preprocess", False):
@@ -277,16 +255,6 @@ def setup_config(args) -> Config:
         if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
             if hasattr(cfg.tune.data, "nnunet_preprocessing"):
                 cfg.tune.data.nnunet_preprocessing.enabled = True
-
-    # Auto-planning (if enabled)
-    if hasattr(cfg.system, "auto_plan") and cfg.system.auto_plan:
-        print("🤖 Running automatic configuration planning...")
-        from ...config import auto_plan_config
-
-        print_results = (
-            cfg.system.print_auto_plan if hasattr(cfg.system, "print_auto_plan") else True
-        )
-        cfg = auto_plan_config(cfg, print_results=print_results)
 
     # Validate configuration
     print("✅ Validating configuration...")

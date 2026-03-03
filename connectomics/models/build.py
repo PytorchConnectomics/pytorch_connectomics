@@ -33,11 +33,10 @@ def build_model(cfg):
     Example:
         cfg = OmegaConf.create({
             'model': {
-                'architecture': 'mednext',
+                'arch': {'type': 'mednext'},
                 'in_channels': 1,
                 'out_channels': 2,
-                'mednext_size': 'S',
-                'kernel_size': 3,
+                'mednext': {'size': 'S', 'kernel_size': 3},
                 'deep_supervision': True,
             }
         })
@@ -48,7 +47,7 @@ def build_model(cfg):
         print_available_architectures()
     """
     # Get architecture name
-    model_arch = cfg.model.architecture
+    model_arch = cfg.model.arch.type
 
     # Get builder from registry
     try:

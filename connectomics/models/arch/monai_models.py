@@ -133,11 +133,11 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         - model.out_channels: Number of output classes (default: 1)
         - model.spatial_dims: Spatial dimensions, 2 or 3 (default: auto-inferred from input_size)
         - model.input_size: Input patch size [H, W] for 2D or [D, H, W] for 3D
-        - model.filters: Feature map sizes for each level (default: [32, 64, 128, 256, 512])
-        - model.dropout: Dropout rate (default: 0.0)
-        - model.activation: Activation function (default: 'relu')
-        - model.norm: Normalization type (default: 'batch')
-        - model.upsample: Upsampling mode (default: 'deconv')
+        - model.monai.filters: Feature map sizes for each level
+        - model.monai.dropout: Dropout rate
+        - model.monai.activation: Activation function
+        - model.monai.norm: Normalization type
+        - model.monai.upsample: Upsampling mode
             - 'deconv': Transposed convolution (default)
             - 'nontrainable': Interpolation + Conv (upsample then conv)
             - 'pixelshuffle': Pixel shuffle upsampling
@@ -157,20 +157,20 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
     if hasattr(cfg.model, "input_size") and cfg.model.input_size:
         spatial_dims = len(cfg.model.input_size)
     else:
-        spatial_dims = getattr(cfg.model, "spatial_dims", 3)
+        spatial_dims = getattr(cfg.model.monai, "spatial_dims", 3)
 
     # BasicUNet requires exactly 6 feature levels
     # Pad with last value repeated (not doubled) to keep memory usage low
     base_features = (
-        list(cfg.model.filters) if hasattr(cfg.model, "filters") else [32, 64, 128, 256, 512, 1024]
+        list(getattr(cfg.model.monai, "filters", [32, 64, 128, 256, 512, 1024]))
     )
     while len(base_features) < 6:
         base_features.append(base_features[-1])  # Repeat last value instead of doubling
     features = tuple(base_features[:6])
 
-    norm_type = getattr(cfg.model, "norm", "batch")
+    norm_type = getattr(cfg.model.monai, "norm", "batch")
     if norm_type == "group":
-        num_groups = getattr(cfg.model, "num_groups", 8)
+        num_groups = getattr(cfg.model.monai, "num_groups", 8)
         norm = ("group", {"num_groups": num_groups})
     else:
         norm = norm_type
@@ -180,10 +180,10 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         in_channels=in_channels,
         out_channels=out_channels,
         features=features,
-        dropout=getattr(cfg.model, "dropout", 0.0),
-        act=getattr(cfg.model, "activation", "relu"),
+        dropout=getattr(cfg.model.monai, "dropout", 0.0),
+        act=getattr(cfg.model.monai, "activation", "relu"),
         norm=norm,
-        upsample=getattr(cfg.model, "upsample", "deconv"),
+        upsample=getattr(cfg.model.monai, "upsample", "deconv"),
     )
 
     return MONAIModelWrapper(model)
@@ -202,16 +202,14 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         - model.out_channels: Number of output classes (default: 1)
         - model.spatial_dims: Spatial dimensions, 2 or 3 (default: auto-inferred from input_size)
         - model.input_size: Input patch size [H, W] for 2D or [D, H, W] for 3D
-        - model.filters: Feature map sizes for each level (default: [32, 64, 128, 256, 512])
-        - model.num_res_units: Number of residual units per block (default: 2)
-        - model.kernel_size: Kernel size for convolutions (default: 3)
-        - model.norm: Normalization type (default: 'batch')
-        - model.dropout: Dropout rate (default: 0.0)
-        - model.upsample_mode: Upsampling mode ('deconv' default, or
-          'nontrainable'/'pixelshuffle'/'deconvgroup')
-        - model.upsample_interp_mode: Interpolation mode when upsample_mode='nontrainable'
-          (default: 'linear')
-        - model.upsample_align_corners: align_corners flag for nontrainable upsample (default: True)
+        - model.monai.filters: Feature map sizes for each level
+        - model.monai.num_res_units: Number of residual units per block
+        - model.monai.kernel_size: Kernel size for convolutions
+        - model.monai.norm: Normalization type
+        - model.monai.dropout: Dropout rate
+        - model.monai.upsample_mode: Upsampling mode
+        - model.monai.upsample_interp_mode: Interpolation mode for nontrainable upsample
+        - model.monai.upsample_align_corners: align_corners for nontrainable upsample
 
     Args:
         cfg: Hydra config object
@@ -225,22 +223,22 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
     if hasattr(cfg.model, "input_size") and cfg.model.input_size:
         spatial_dims = len(cfg.model.input_size)
     else:
-        spatial_dims = getattr(cfg.model, "spatial_dims", 3)
-    channels = list(cfg.model.filters) if hasattr(cfg.model, "filters") else [32, 64, 128, 256, 512]
+        spatial_dims = getattr(cfg.model.monai, "spatial_dims", 3)
+    channels = list(getattr(cfg.model.monai, "filters", [32, 64, 128, 256, 512]))
     strides = [2] * (len(channels) - 1)  # 2x downsampling at each level
 
     # Handle normalization type and parameters
-    norm_type = getattr(cfg.model, "norm", "batch")
+    norm_type = getattr(cfg.model.monai, "norm", "batch")
     if norm_type == "group":
         # For GroupNorm, we need to specify num_groups
-        num_groups = getattr(cfg.model, "num_groups", 8)
+        num_groups = getattr(cfg.model.monai, "num_groups", 8)
         norm = ("group", {"num_groups": num_groups})
     else:
         norm = norm_type
 
-    upsample_mode = getattr(cfg.model, "upsample_mode", "deconv")
-    upsample_interp_mode = getattr(cfg.model, "upsample_interp_mode", "linear")
-    upsample_align_corners = getattr(cfg.model, "upsample_align_corners", True)
+    upsample_mode = getattr(cfg.model.monai, "upsample_mode", "deconv")
+    upsample_interp_mode = getattr(cfg.model.monai, "upsample_interp_mode", "linear")
+    upsample_align_corners = getattr(cfg.model.monai, "upsample_align_corners", True)
 
     model = UpsampleModeUNet(
         spatial_dims=spatial_dims,
@@ -248,10 +246,10 @@ def build_monai_unet(cfg) -> ConnectomicsModel:
         out_channels=cfg.model.out_channels,
         channels=channels,
         strides=strides,
-        num_res_units=getattr(cfg.model, "num_res_units", 2),
-        kernel_size=getattr(cfg.model, "kernel_size", 3),
+        num_res_units=getattr(cfg.model.monai, "num_res_units", 2),
+        kernel_size=getattr(cfg.model.monai, "kernel_size", 3),
         norm=norm,
-        dropout=getattr(cfg.model, "dropout", 0.0),
+        dropout=getattr(cfg.model.monai, "dropout", 0.0),
         upsample_mode=upsample_mode,
         upsample_interp_mode=upsample_interp_mode,
         upsample_align_corners=upsample_align_corners,
@@ -272,13 +270,13 @@ def build_unetr(cfg) -> ConnectomicsModel:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (default: 1)
         - model.input_size: Input patch size [D, H, W] (required)
-        - model.feature_size: Base feature size (default: 16)
-        - model.hidden_size: Transformer hidden size (default: 768)
-        - model.mlp_dim: MLP dimension in transformer (default: 3072)
-        - model.num_heads: Number of attention heads (default: 12)
-        - model.pos_embed: Position embedding type (default: 'perceptron')
-        - model.norm: Normalization type (default: 'instance')
-        - model.dropout: Dropout rate (default: 0.0)
+        - model.transformer.feature_size: Base feature size
+        - model.transformer.hidden_size: Transformer hidden size
+        - model.transformer.mlp_dim: MLP dimension in transformer
+        - model.transformer.num_heads: Number of attention heads
+        - model.transformer.pos_embed: Position embedding type
+        - model.transformer.norm: Normalization type
+        - model.transformer.dropout: Dropout rate
 
     Args:
         cfg: Hydra config object
@@ -292,13 +290,13 @@ def build_unetr(cfg) -> ConnectomicsModel:
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
         img_size=cfg.model.input_size,
-        feature_size=getattr(cfg.model, "feature_size", 16),
-        hidden_size=getattr(cfg.model, "hidden_size", 768),
-        mlp_dim=getattr(cfg.model, "mlp_dim", 3072),
-        num_heads=getattr(cfg.model, "num_heads", 12),
-        pos_embed=getattr(cfg.model, "pos_embed", "perceptron"),
-        norm_name=getattr(cfg.model, "norm", "instance"),
-        dropout_rate=getattr(cfg.model, "dropout", 0.0),
+        feature_size=getattr(cfg.model.transformer, "feature_size", 16),
+        hidden_size=getattr(cfg.model.transformer, "hidden_size", 768),
+        mlp_dim=getattr(cfg.model.transformer, "mlp_dim", 3072),
+        num_heads=getattr(cfg.model.transformer, "num_heads", 12),
+        pos_embed=getattr(cfg.model.transformer, "pos_embed", "perceptron"),
+        norm_name=getattr(cfg.model.transformer, "norm", "instance"),
+        dropout_rate=getattr(cfg.model.transformer, "dropout", 0.0),
     )
 
     return MONAIModelWrapper(model)
@@ -316,11 +314,11 @@ def build_swin_unetr(cfg) -> ConnectomicsModel:
         - model.in_channels: Number of input channels (default: 1)
         - model.out_channels: Number of output classes (default: 1)
         - model.input_size: Input patch size [D, H, W] (required)
-        - model.feature_size: Base feature size (default: 48)
-        - model.use_checkpoint: Use gradient checkpointing (default: False)
-        - model.dropout: Dropout rate (default: 0.0)
-        - model.attn_drop_rate: Attention dropout rate (default: 0.0)
-        - model.dropout_path_rate: Stochastic depth rate (default: 0.0)
+        - model.transformer.feature_size: Base feature size
+        - model.transformer.use_checkpoint: Use gradient checkpointing
+        - model.transformer.dropout: Dropout rate
+        - model.transformer.attn_drop_rate: Attention dropout rate
+        - model.transformer.dropout_path_rate: Stochastic depth rate
 
     Args:
         cfg: Hydra config object
@@ -334,11 +332,11 @@ def build_swin_unetr(cfg) -> ConnectomicsModel:
         img_size=cfg.model.input_size,
         in_channels=cfg.model.in_channels,
         out_channels=cfg.model.out_channels,
-        feature_size=getattr(cfg.model, "feature_size", 48),
-        use_checkpoint=getattr(cfg.model, "use_checkpoint", False),
-        drop_rate=getattr(cfg.model, "dropout", 0.0),
-        attn_drop_rate=getattr(cfg.model, "attn_drop_rate", 0.0),
-        dropout_path_rate=getattr(cfg.model, "dropout_path_rate", 0.0),
+        feature_size=getattr(cfg.model.transformer, "feature_size", 48),
+        use_checkpoint=getattr(cfg.model.transformer, "use_checkpoint", False),
+        drop_rate=getattr(cfg.model.transformer, "dropout", 0.0),
+        attn_drop_rate=getattr(cfg.model.transformer, "attn_drop_rate", 0.0),
+        dropout_path_rate=getattr(cfg.model.transformer, "dropout_path_rate", 0.0),
     )
 
     return MONAIModelWrapper(model)

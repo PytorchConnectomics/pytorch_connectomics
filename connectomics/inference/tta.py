@@ -311,7 +311,7 @@ class TTAPredictor:
                 f"(B, D, H, W), or (B, C, D, H, W)"
             )
 
-        if getattr(self.cfg.data, "do_2d", False) and images.size(2) == 1:
+        if getattr(self.cfg.data.input, "do_2d", False) and images.size(2) == 1:
             images = images.squeeze(2)
 
         # Get TTA configuration (respect enabled flag for augmentations)
