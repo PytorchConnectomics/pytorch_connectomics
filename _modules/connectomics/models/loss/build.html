@@ -478,7 +478,7 @@
 <span class="sd">    Create loss function from Hydra config.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        cfg: Hydra Config object with model.losses list</span>
+<span class="sd">        cfg: Hydra Config object with model.loss.losses list</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Initialized loss function</span>
@@ -488,7 +488,8 @@
 <span class="sd">        &gt;&gt;&gt; cfg = load_config(&#39;config.yaml&#39;)</span>
 <span class="sd">        &gt;&gt;&gt; loss = create_loss_from_config(cfg)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">losses</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;losses&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">loss_cfg</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;loss&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">losses</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">loss_cfg</span><span class="p">,</span> <span class="s2">&quot;losses&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">losses</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">losses</span> <span class="o">=</span> <span class="p">[</span>
             <span class="p">{</span><span class="s2">&quot;function&quot;</span><span class="p">:</span> <span class="s2">&quot;DiceLoss&quot;</span><span class="p">,</span> <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">},</span>
