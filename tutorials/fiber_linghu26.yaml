@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_s
+default:
+  model:
+    arch:
+      profile: mednext_s
 
 _base_: bases/arch_profiles.yaml
 experiment_name: fiber_mednext_bcs
@@ -105,7 +107,7 @@ data:
     - 16
 optimization:
   max_epochs: 500
-  iter_num_per_epoch: 1000
+  n_steps_per_epoch: 1000
   gradient_clip_val: 0.5
   accumulate_grad_batches: 1
   precision: "16-mixed"

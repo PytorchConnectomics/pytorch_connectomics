@@ -3,8 +3,8 @@ Modern Hydra-based configuration system for PyTorch Connectomics.
 """
 
 # New Hydra config system (primary)
-from .hydra_config import Config
-from .hydra_utils import (
+from .schema import Config
+from .config_io import (
     load_config,
     save_config,
     merge_configs,
@@ -16,8 +16,8 @@ from .hydra_utils import (
     get_config_hash,
     create_experiment_name,
     resolve_data_paths,
-    resolve_shared_profiles,
 )
+from .stage_resolver import resolve_default_profiles
 
 # Auto-configuration system
 from .auto_config import (
@@ -51,7 +51,7 @@ __all__ = [
     "get_config_hash",
     "create_experiment_name",
     "resolve_data_paths",
-    "resolve_shared_profiles",
+    "resolve_default_profiles",
     # Auto-configuration
     "auto_plan_config",
     "AutoConfigPlanner",

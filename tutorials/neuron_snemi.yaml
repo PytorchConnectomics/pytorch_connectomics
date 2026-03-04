@@ -1,5 +1,7 @@
-shared:
-  arch_profile: rsunet
+default:
+  model:
+    arch:
+      profile: rsunet
 
 _base_: bases/arch_profiles.yaml
 experiment_name: rsunet_snemi_lee2017_modern
@@ -110,7 +112,7 @@ data:
       - 224
 optimization:
   max_epochs: 1000
-  iter_num_per_epoch: 40
+  n_steps_per_epoch: 40
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: bf16-mixed

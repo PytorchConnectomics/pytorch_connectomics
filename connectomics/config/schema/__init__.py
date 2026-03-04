@@ -60,11 +60,11 @@ from .monitor import (
 from .optimization import OptimizationConfig, OptimizerConfig, SchedulerConfig
 from .root import Config
 from .stages import (
+    DefaultConfig,
     DecodingParameterSpace,
     ParameterConfig,
     ParameterSpaceConfig,
     PostprocessingParameterSpace,
-    SharedConfig,
     TestConfig,
     TrainConfig,
     TuneConfig,
@@ -75,7 +75,7 @@ from .system import SystemConfig
 __all__ = [
     # Main configuration class
     "Config",
-    "SharedConfig",
+    "DefaultConfig",
     "TrainConfig",
     # System configuration
     "SystemConfig",

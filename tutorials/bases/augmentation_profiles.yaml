@@ -33,3 +33,42 @@ augmentation_profiles:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
+
+  aug_strong:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+      spatial_axis: 0
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes: [1, 2]
+    affine:
+      enabled: true
+      prob: 0.3
+      rotate_range: [0.1, 0.1, 0.1]
+      scale_range: [0.05, 0.05, 0.05]
+      shear_range: [0.05, 0.05, 0.05]
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.2
+      gaussian_noise_std: 0.03
+      shift_intensity_prob: 0.4
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.4
+      contrast_range: [0.8, 1.2]
+    misalignment:
+      enabled: true
+      prob: 0.4
+      displacement: 8
+      rotate_ratio: 0.3
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 2
+    motion_blur:
+      enabled: false
+      prob: 0.3
+      sections: [1, 2]
+      kernel_size: 9

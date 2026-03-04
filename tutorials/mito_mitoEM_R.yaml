@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_m
+default:
+  model:
+    arch:
+      profile: mednext_m
 
 _base_: mito_mitoEM_common.yaml
 

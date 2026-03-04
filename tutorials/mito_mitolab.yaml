@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_s
+default:
+  model:
+    arch:
+      profile: mednext_s
 
 _base_: bases/arch_profiles.yaml
 experiment_name: cem-mitolab_mednext2d
@@ -70,7 +72,7 @@ data:
       - 224
 optimization:
   max_epochs: 100
-  iter_num_per_epoch: -1
+  n_steps_per_epoch: -1
   accumulate_grad_batches: 1
   precision: bf16-mixed
   optimizer:
@@ -79,8 +81,9 @@ optimization:
     eps: 1.0e-08
   scheduler:
     name: StepLR
-    step_size: 100000
-    gamma: 1.0
+    params:
+      step_size: 100000
+      gamma: 1.0
 monitor:
   logging:
     scalar:

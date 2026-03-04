@@ -19,8 +19,8 @@ def _forward_expand_width(x: torch.Tensor) -> torch.Tensor:
 def test_tta_applies_mask_to_predictions_by_default():
     cfg = Config()
     cfg.inference.test_time_augmentation.enabled = False
-    # Default should apply mask when provided.
-    assert cfg.inference.test_time_augmentation.apply_mask is True
+    # apply_mask is optional in schema; predictor defaults to True when absent.
+    assert getattr(cfg.inference.test_time_augmentation, "apply_mask", True) is True
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
 
@@ -40,7 +40,7 @@ def test_tta_applies_mask_to_predictions_by_default():
 def test_tta_masking_can_be_disabled_explicitly():
     cfg = Config()
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.apply_mask = False
+    setattr(cfg.inference.test_time_augmentation, "apply_mask", False)
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_constant)
 
@@ -55,7 +55,7 @@ def test_tta_masking_can_be_disabled_explicitly():
 def test_tta_raises_on_mismatched_mask_shape():
     cfg = Config()
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.apply_mask = True
+    setattr(cfg.inference.test_time_augmentation, "apply_mask", True)
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_expand_width)
 
@@ -70,7 +70,7 @@ def test_tta_raises_on_mismatched_mask_shape():
 def test_tta_allows_minor_mask_alignment_when_enabled():
     cfg = Config()
     cfg.inference.test_time_augmentation.enabled = False
-    cfg.inference.test_time_augmentation.apply_mask = True
+    setattr(cfg.inference.test_time_augmentation, "apply_mask", True)
 
     predictor = TTAPredictor(cfg=cfg, sliding_inferer=None, forward_fn=_forward_expand_width)
 

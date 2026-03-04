@@ -79,7 +79,7 @@ def test_write_outputs_restores_to_input_space(tmp_path):
     pre_shape = result["image"].shape[1:]
     predictions = np.ones((1, 1, *pre_shape), dtype=np.float32)
 
-    from connectomics.config.hydra_config import TestConfig as HydraTestConfig
+    from connectomics.config.schema import TestConfig as HydraTestConfig
 
     cfg = Config()
     cfg.test = HydraTestConfig()

@@ -23,29 +23,83 @@ def expand_file_paths(path_or_pattern) -> List[str]:
     return _expand_file_paths(path_or_pattern)
 
 
-def _calculate_validation_iter_num(
+def _maybe_prepare_random_data(cfg: Config, mode: str) -> None:
+    """Generate random train/val H5 data when config requests random://."""
+    if mode != "train":
+        return
+
+    train_image = cfg.data.train.image
+    if not isinstance(train_image, str) or not train_image.startswith("random://"):
+        return
+
+    import h5py
+    import numpy as np
+
+    seed = int(getattr(cfg.system, "seed", 42))
+    rng = np.random.default_rng(seed)
+    patch_size = tuple(int(v) for v in cfg.data.dataloader.patch_size)
+    vol_shape = (
+        max(64, patch_size[0] * 2),
+        max(128, patch_size[1] * 2),
+        max(128, patch_size[2] * 2),
+    )
+
+    data_root = Path("outputs") / "minimal" / "random_data"
+    data_root.mkdir(parents=True, exist_ok=True)
+
+    train_image_path = data_root / "train_image.h5"
+    train_label_path = data_root / "train_label.h5"
+    val_image_path = data_root / "val_image.h5"
+    val_label_path = data_root / "val_label.h5"
+
+    if not all(
+        p.exists()
+        for p in [train_image_path, train_label_path, val_image_path, val_label_path]
+    ):
+        def _write_pair(image_path: Path, label_path: Path) -> None:
+            image = rng.random(vol_shape, dtype=np.float32)
+            label = (rng.random(vol_shape) > 0.85).astype(np.uint8)
+            with h5py.File(image_path, "w") as f:
+                f.create_dataset("main", data=image, compression="gzip")
+            with h5py.File(label_path, "w") as f:
+                f.create_dataset("main", data=label, compression="gzip")
+
+        print("🎲 Generating random demo data...")
+        _write_pair(train_image_path, train_label_path)
+        _write_pair(val_image_path, val_label_path)
+        print(f"  Random demo data saved to: {data_root}")
+    else:
+        print(f"  Using existing random demo data: {data_root}")
+
+    cfg.data.train.image = str(train_image_path)
+    cfg.data.train.label = str(train_label_path)
+    cfg.data.val.image = str(val_image_path)
+    cfg.data.val.label = str(val_label_path)
+
+
+def _calculate_validation_steps_per_epoch(
     val_data_dicts: List[dict],
     patch_size: tuple[int, int, int],
-    min_iter: int = 50,
-    max_iter: Optional[int] = 200,
-    default_iter_num: int = 100,
+    min_steps: int = 50,
+    max_steps: Optional[int] = 200,
+    default_steps: int = 100,
     fallback_volume_shape: Optional[tuple[int, int, int]] = None,
     return_default_on_error: bool = True,
 ) -> int:
     """
-    Calculate validation iter_num based on validation volume size and patch size.
+    Calculate validation steps per epoch based on validation volume size and patch size.
 
     Args:
         val_data_dicts: Validation data dictionaries
         patch_size: Patch size (D, H, W)
-        min_iter: Minimum iterations per epoch
-        max_iter: Maximum iterations per epoch
-        default_iter_num: Default iter_num when calculation fails
+        min_steps: Minimum steps per epoch
+        max_steps: Maximum steps per epoch
+        default_steps: Default steps per epoch when calculation fails
         fallback_volume_shape: Volume shape fallback for unknown file formats
-        return_default_on_error: Return default_iter_num on errors instead of raising
+        return_default_on_error: Return default_steps on errors instead of raising
 
     Returns:
-        Calculated validation iter_num
+        Calculated validation steps per epoch
     """
     try:
         # Get first validation volume size
@@ -64,9 +118,9 @@ def _calculate_validation_iter_num(
             # Unknown format, use default
             print(
                 f"  ⚠️  Unknown file format {img_path.suffix}, "
-                f"using default val_iter_num={default_iter_num}"
+                f"using default validation steps={default_steps}"
             )
-            return default_iter_num
+            return default_steps
 
         # Handle channel dimension if present
         if len(vol_shape) == 4:
@@ -81,27 +135,27 @@ def _calculate_validation_iter_num(
             num_patches_per_dim[0] * num_patches_per_dim[1] * num_patches_per_dim[2]
         )
 
-        # Calculate validation iter_num as a fraction of possible patches
-        val_iter_num = int(total_possible_patches * 0.075)  # 7.5% of possible patches
-        val_iter_num = max(min_iter, val_iter_num)
-        if max_iter is not None:
-            val_iter_num = min(max_iter, val_iter_num)
+        # Calculate validation steps as a fraction of possible patches
+        val_steps = int(total_possible_patches * 0.075)  # 7.5% of possible patches
+        val_steps = max(min_steps, val_steps)
+        if max_steps is not None:
+            val_steps = min(max_steps, val_steps)
 
         print(f"    Validation volume shape: {vol_shape}")
         print(f"    Patch size: {patch_size}")
         print(f"    Stride (50% overlap): {stride}")
         print(f"    Possible patches per dim: {num_patches_per_dim}")
         print(f"    Total possible patches: {total_possible_patches}")
-        print(f"    Using 7.5% of patches: {val_iter_num}")
+        print(f"    Using 7.5% of patches: {val_steps}")
 
-        return val_iter_num
+        return val_steps
 
     except Exception as e:
         if not return_default_on_error:
             raise
-        print(f"  ⚠️  Error calculating validation iter_num: {e}")
-        print(f"  ℹ️  Using default val_iter_num={default_iter_num}")
-        return default_iter_num
+        print(f"  ⚠️  Error calculating validation steps: {e}")
+        print(f"  ℹ️  Using default validation steps={default_steps}")
+        return default_steps
 
 
 def create_datamodule(
@@ -119,6 +173,7 @@ def create_datamodule(
         ConnectomicsDataModule instance
     """
     print("Creating datasets...")
+    _maybe_prepare_random_data(cfg, mode)
 
     # Auto-download tutorial data if missing
     if mode == "train" and cfg.data.train.image:
@@ -363,64 +418,65 @@ def create_datamodule(
                     mask_paths=val_mask_paths,
                 )
 
+    def _eval_split(data_cfg):
+        """Prefer data.test when set; otherwise use data.val."""
+        test_split = getattr(data_cfg, "test", None)
+        if test_split is not None and getattr(test_split, "image", None):
+            return test_split
+        return data_cfg.val
+
     # Create test data dicts if in test or tune mode
     test_data_dicts = None
     if mode == "test":
+        split = _eval_split(cfg.test.data) if hasattr(cfg.test, "data") else None
         if (
             not hasattr(cfg, "test")
             or cfg.test is None
             or not hasattr(cfg.test, "data")
-            or not cfg.test.data.val.image
+            or split is None
+            or not split.image
         ):
             test_image_val = (
-                cfg.test.data.val.image
+                split.image if split is not None else "N/A"
                 if hasattr(cfg, "test") and cfg.test and hasattr(cfg.test, "data")
                 else "N/A"
             )
             raise ValueError(
-                f"Test mode requires test.data.val.image to be set in config.\n"
-                f"Current config has: test.data.val.image = {test_image_val}"
+                "Test mode requires test.data.test.image or test.data.val.image to be set.\n"
+                f"Current resolved image = {test_image_val}"
             )
-        print(f"  🧪 Creating test dataset from: {cfg.test.data.val.image}")
+        print(f"  🧪 Creating test dataset from: {split.image}")
 
         # Expand glob patterns for test data (same as train data)
-        test_image_paths = expand_file_paths(cfg.test.data.val.image)
-        test_label_paths = (
-            expand_file_paths(cfg.test.data.val.label) if cfg.test.data.val.label else None
-        )
-        test_mask_paths = (
-            expand_file_paths(cfg.test.data.val.mask)
-            if cfg.test.data.val.mask
-            else None
-        )
+        test_image_paths = expand_file_paths(split.image)
+        test_label_paths = expand_file_paths(split.label) if split.label else None
+        test_mask_paths = expand_file_paths(split.mask) if split.mask else None
     elif mode == "tune":
+        split = _eval_split(cfg.tune.data) if hasattr(cfg.tune, "data") else None
         # For tune mode, read from cfg.tune.data
         if (
             not hasattr(cfg, "tune")
             or cfg.tune is None
             or not hasattr(cfg.tune, "data")
-            or not cfg.tune.data.val.image
+            or split is None
+            or not split.image
         ):
             tune_image_val = (
-                cfg.tune.data.val.image
+                split.image if split is not None else "N/A"
                 if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data")
                 else "N/A"
             )
             raise ValueError(
-                f"Tune mode requires tune.data.val.image to be set in config.\n"
-                f"Current config has tune.data.val.image: {tune_image_val}"
+                "Tune mode requires tune.data.test.image or tune.data.val.image to be set.\n"
+                f"Current resolved image = {tune_image_val}"
             )
 
-        print(f"  🎯 Creating tune dataset from: {cfg.tune.data.val.image}")
+        print(f"  🎯 Creating tune dataset from: {split.image}")
 
         # Expand glob patterns for tune data
-        test_image_paths = expand_file_paths(cfg.tune.data.val.image)
-        test_label_paths = (
-            expand_file_paths(cfg.tune.data.val.label) if cfg.tune.data.val.label else None
-        )
-        test_mask_paths = (
-            expand_file_paths(cfg.tune.data.val.mask) if cfg.tune.data.val.mask else None
-        )
+        test_image_paths = expand_file_paths(split.image)
+        test_label_paths = expand_file_paths(split.label) if split.label else None
+        test_mask_paths = expand_file_paths(split.mask) if split.mask else None
 
     # Common printing and data dict creation for test and tune modes
     if mode in ["test", "tune"]:
@@ -450,18 +506,18 @@ def create_datamodule(
             print(f"  Val dataset size: {len(val_data_dicts)}")
 
     # Auto-compute iter_num from volume size if not specified (only for training).
-    # IMPORTANT: cfg.optimization.iter_num_per_epoch is interpreted as optimizer steps/epoch.
+    # IMPORTANT: cfg.optimization.n_steps_per_epoch is interpreted as optimizer steps/epoch.
     # Dataset iter_num is sample-count based, so we convert steps -> samples.
     iter_num = None
     if mode == "train":
-        iter_num_cfg = cfg.optimization.iter_num_per_epoch
+        iter_num_cfg = cfg.optimization.n_steps_per_epoch
         if iter_num_cfg > 0:
             # Convert requested steps/epoch to per-epoch sample count expected by datasets.
             # Account for per-device batch size and number of training devices.
             num_devices = cfg.system.num_gpus if cfg.system.num_gpus > 0 else 1
             iter_num = int(iter_num_cfg * cfg.data.dataloader.batch_size * num_devices)
             print(
-                f"  Requested iter_num_per_epoch={iter_num_cfg} steps -> "
+                f"  Requested n_steps_per_epoch={iter_num_cfg} steps -> "
                 f"dataset samples={iter_num} "
                 f"(batch_size={cfg.data.dataloader.batch_size}, devices={num_devices})"
             )
@@ -552,8 +608,8 @@ def create_datamodule(
                 return None
 
             if split == "val":
-                source_spacing = getattr(cfg.data.input, "val_resolution", None) or getattr(
-                    cfg.data.input, "train_resolution", None
+                source_spacing = getattr(cfg.data.val, "resolution", None) or getattr(
+                    cfg.data.train, "resolution", None
                 )
             else:
                 source_spacing = getattr(cfg.data.train, "resolution", None)
@@ -638,26 +694,22 @@ def create_datamodule(
             val_only_transforms = build_val_transforms(cfg, skip_loading=True)
             val_pre_cache_transforms = _build_preloaded_nnunet_preprocess("val")
 
-            # Get validation iter_num (auto-calculate if not specified)
-            val_iter_num = (
-                cfg.data.val_iter_num
-                if hasattr(cfg.data, "val_iter_num") and cfg.data.val_iter_num
-                else None
-            )
+            # Get validation steps/epoch (auto-calculate if not specified)
+            val_steps_per_epoch = cfg.optimization.val_steps_per_epoch
 
-            if val_iter_num is None:
-                # Auto-calculate validation iter_num from volume size
-                print("  📊 Auto-calculating validation iter_num from volume size...")
-                val_iter_num = _calculate_validation_iter_num(
+            if val_steps_per_epoch is None:
+                # Auto-calculate validation steps from volume size
+                print("  📊 Auto-calculating validation steps from volume size...")
+                val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                     val_data_dicts=val_data_dicts,
                     patch_size=tuple(cfg.data.dataloader.patch_size),
-                    min_iter=1,
-                    max_iter=None,
-                    default_iter_num=100,
+                    min_steps=1,
+                    max_steps=None,
+                    default_steps=100,
                     fallback_volume_shape=(100, 4096, 4096),
                     return_default_on_error=False,
                 )
-                print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
+                print(f"  ✅ Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
             # Create validation dataset
             if val_preload_cfg:
@@ -666,7 +718,7 @@ def create_datamodule(
                     label_paths=[d.get("label") for d in val_data_dicts],
                     mask_paths=[d.get("mask") for d in val_data_dicts],
                     patch_size=tuple(cfg.data.dataloader.patch_size),
-                    iter_num=val_iter_num,
+                    iter_num=val_steps_per_epoch,
                     transforms=val_only_transforms,
                     pre_cache_transforms=val_pre_cache_transforms,
                     mode="val",
@@ -696,7 +748,7 @@ def create_datamodule(
                     cache_rate=cfg.data.dataloader.cache_rate,
                     sample_size=tuple(cfg.data.dataloader.patch_size),
                     mode="val",
-                    iter_num=val_iter_num,
+                    iter_num=val_steps_per_epoch,
                 )
 
             # Create validation dataloader
@@ -708,7 +760,7 @@ def create_datamodule(
                 pin_memory=cfg.data.dataloader.pin_memory,
                 persistent_workers=preloaded_num_workers > 0,
             )
-            print(f"  ✅ Validation dataloader created with {val_iter_num} iterations")
+            print(f"  ✅ Validation dataloader created with {val_steps_per_epoch} steps")
 
         # Create data module wrapper that inherits from LightningDataModule
         class SimpleDataModule(pl.LightningDataModule):
@@ -791,23 +843,23 @@ def create_datamodule(
                 )
 
             val_transforms_lazy = build_val_transforms(cfg, skip_loading=True)
-            val_iter_num = getattr(cfg.data, "val_iter_num", None)
-            if val_iter_num is None:
-                print("  📊 Auto-calculating validation iter_num from volume size...")
-                val_iter_num = _calculate_validation_iter_num(
+            val_steps_per_epoch = cfg.optimization.val_steps_per_epoch
+            if val_steps_per_epoch is None:
+                print("  📊 Auto-calculating validation steps from volume size...")
+                val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                     val_data_dicts=val_data_dicts,
                     patch_size=tuple(cfg.data.dataloader.patch_size),
-                    min_iter=50,
-                    max_iter=200,
+                    min_steps=50,
+                    max_steps=200,
                 )
-                print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
+                print(f"  ✅ Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
             val_dataset = LazyZarrVolumeDataset(
                 image_paths=val_images,
                 label_paths=None if all(p is None for p in val_labels) else val_labels,
                 mask_paths=None if all(p is None for p in val_masks) else val_masks,
                 patch_size=tuple(cfg.data.dataloader.patch_size),
-                iter_num=val_iter_num,
+                iter_num=val_steps_per_epoch,
                 transforms=val_transforms_lazy,
                 mode="val",
                 max_attempts=cfg.data.dataloader.cached_sampling_max_attempts,
@@ -825,7 +877,7 @@ def create_datamodule(
                 pin_memory=cfg.data.dataloader.pin_memory,
                 persistent_workers=lazy_num_workers > 0,
             )
-            print(f"  ✅ Validation dataloader created with {val_iter_num} iterations")
+            print(f"  ✅ Validation dataloader created with {val_steps_per_epoch} steps")
 
         class SimpleDataModule(pl.LightningDataModule):
             def __init__(self, train_loader, val_loader=None):
@@ -862,7 +914,7 @@ def create_datamodule(
             train_transforms=train_transforms,
             val_transforms=val_transforms,
             train_val_split=(
-                cfg.data.train.split_ratio if hasattr(cfg.data.input, "train_val_split") else 0.9
+                cfg.data.train.split_ratio if getattr(cfg.data.train, "split_ratio", None) else 0.9
             ),
             random_seed=cfg.system.seed if hasattr(cfg.system, "seed") else 42,
             images_key=cfg.data.train.image_key,
@@ -933,18 +985,18 @@ def create_datamodule(
         # Note: transpose_axes handled in transform builders (build_train/val/test_transforms)
         # They embed the transpose in LoadVolumed, so no need to pass it here
 
-        # Get validation iter_num (separate from training iter_num)
-        val_iter_num = getattr(cfg.data, "val_iter_num", None)
-        if val_iter_num is None and val_data_dicts:
-            # Auto-calculate validation iter_num based on volume size and patch size
-            print("  📊 Auto-calculating validation iter_num from volume size...")
-            val_iter_num = _calculate_validation_iter_num(
+        # Get validation steps/epoch (separate from training n_steps_per_epoch)
+        val_steps_per_epoch = cfg.optimization.val_steps_per_epoch
+        if val_steps_per_epoch is None and val_data_dicts:
+            # Auto-calculate validation steps based on volume size and patch size
+            print("  📊 Auto-calculating validation steps from volume size...")
+            val_steps_per_epoch = _calculate_validation_steps_per_epoch(
                 val_data_dicts=val_data_dicts,
                 patch_size=tuple(cfg.data.dataloader.patch_size),
-                min_iter=50,
-                max_iter=200,
+                min_steps=50,
+                max_steps=200,
             )
-            print(f"  ✅ Validation iter_num: {val_iter_num} (auto-calculated)")
+            print(f"  ✅ Validation steps: {val_steps_per_epoch} (auto-calculated)")
 
         datamodule = ConnectomicsDataModule(
             train_data_dicts=train_data_dicts,
@@ -962,7 +1014,7 @@ def create_datamodule(
             persistent_workers=persistent_workers_cfg,
             cache_rate=cfg.data.dataloader.cache_rate if use_cache else 0.0,
             iter_num=iter_num_for_dataset,
-            val_iter_num=val_iter_num,
+            val_steps_per_epoch=val_steps_per_epoch,
             seed=cfg.system.seed,  # [FIX 1] Pass seed for validation reseeding
             sample_size=tuple(cfg.data.dataloader.patch_size),
             do_2d=bool(
@@ -988,5 +1040,5 @@ def create_datamodule(
 
 __all__ = [
     "create_datamodule",
-    "_calculate_validation_iter_num",
+    "_calculate_validation_steps_per_epoch",
 ]

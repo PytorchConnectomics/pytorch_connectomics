@@ -72,7 +72,7 @@ Since testing on training data, we MUST achieve near-perfect performance (ARE < 
 
 ```yaml
 data:
-  iter_num_per_epoch: 5000  # UP FROM: 1280 (increase 4x)
+  n_steps_per_epoch: 5000  # UP FROM: 1280 (increase 4x)
 ```
 
 **Impact:** Model sees 5000 patches/epoch instead of 320 → better convergence
@@ -290,7 +290,7 @@ test:
    # In hydra-lv-finetune.yaml
 
    data:
-     iter_num_per_epoch: 5000  # 4x more iterations
+     n_steps_per_epoch: 5000  # 4x more iterations
      augmentation:
        preset: "all"  # Maximum augmentation
 
@@ -399,7 +399,7 @@ The model is **undertrained**, not overfitted. Loss=0.555 on 51 instances is una
 ## Priority Ranking
 
 **MUST DO (Phase 1):**
-1. ⭐⭐⭐ Increase `iter_num_per_epoch` to 5000
+1. ⭐⭐⭐ Increase `n_steps_per_epoch` to 5000
 2. ⭐⭐⭐ Enable `deep_supervision: true`
 3. ⭐⭐⭐ Change augmentation to `preset: "all"`
 

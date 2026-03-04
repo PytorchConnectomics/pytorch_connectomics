@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_m
+default:
+  model:
+    arch:
+      profile: mednext_m
 
 _base_: bases/arch_profiles.yaml
 
@@ -84,7 +86,7 @@ data:
     - 8
 optimization:
   max_epochs: 500
-  iter_num_per_epoch: 200
+  n_steps_per_epoch: 200
   accumulate_grad_batches: 1
   val_check_interval: 5
   num_sanity_val_steps: 0

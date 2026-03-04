@@ -137,7 +137,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         - model.monai.dropout: Dropout rate
         - model.monai.activation: Activation function
         - model.monai.norm: Normalization type
-        - model.monai.upsample: Upsampling mode
+        - model.monai.upsample_mode: Upsampling mode
             - 'deconv': Transposed convolution (default)
             - 'nontrainable': Interpolation + Conv (upsample then conv)
             - 'pixelshuffle': Pixel shuffle upsampling
@@ -183,7 +183,7 @@ def build_basic_unet(cfg) -> ConnectomicsModel:
         dropout=getattr(cfg.model.monai, "dropout", 0.0),
         act=getattr(cfg.model.monai, "activation", "relu"),
         norm=norm,
-        upsample=getattr(cfg.model.monai, "upsample", "deconv"),
+        upsample=getattr(cfg.model.monai, "upsample_mode", "deconv"),
     )
 
     return MONAIModelWrapper(model)

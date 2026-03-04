@@ -3,15 +3,22 @@ from __future__ import annotations
 import importlib
 import inspect
 from dataclasses import dataclass, field, is_dataclass
-from typing import Optional
+from typing import Optional, Set
 
 from .data import DataConfig
 from .inference import InferenceConfig
 from .model import ModelConfig
 from .monitor import MonitorConfig
 from .optimization import OptimizationConfig
-from .stages import SharedConfig, TestConfig, TrainConfig, TuneConfig
+from .stages import DefaultConfig, TestConfig, TrainConfig, TuneConfig
 from .system import SystemConfig
+
+
+@dataclass
+class MergeContext:
+    """Internal merge bookkeeping for YAML explicit path tracking."""
+
+    explicit_field_paths: Set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -28,7 +35,7 @@ class Config:
         data: Training dataset loading and preprocessing
         optimization: Training parameters and schedulers
         monitor: Logging, checkpointing, and monitoring
-        inference: Shared inference settings (sliding window, TTA, decoding, postprocessing)
+        inference: Global inference settings (sliding window, TTA, decoding, postprocessing)
         test: Test-specific configuration (test data paths, decoding, evaluation)
         tune: Parameter tuning configuration (tuning data paths, optimization settings)
 
@@ -37,12 +44,12 @@ class Config:
         description: Optional description of the experiment
         system: System configuration for hardware and parallelization
         model: Model architecture and loss configuration
-        shared: Shared profile registry (system/data-transform/inference)
+        default: Default-stage profile registry (system/data-transform/inference)
         train: Train-stage profile selectors
         data: Training data loading and preprocessing configuration
         optimization: Training optimization configuration
         monitor: Monitoring and logging configuration
-        inference: Shared inference settings (no data paths)
+        inference: Global inference settings (no data paths)
         test: Test-specific configuration (includes test.data as DataConfig)
         tune: Parameter tuning configuration (includes tune.data as DataConfig)
     """
@@ -56,7 +63,7 @@ class Config:
         default_factory=lambda: SystemConfig(num_gpus=1, num_workers=8, seed=42)
     )
     model: ModelConfig = field(default_factory=ModelConfig)
-    shared: SharedConfig = field(default_factory=SharedConfig)
+    default: DefaultConfig = field(default_factory=DefaultConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
     data: DataConfig = field(default_factory=DataConfig)
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
@@ -68,6 +75,15 @@ class Config:
 
     # Optional: Parameter tuning configuration (tuning data paths, optimization settings)
     tune: Optional[TuneConfig] = None
+
+    # Internal runtime merge context; excluded from structured config serialization.
+    _merge_context: MergeContext = field(
+        default_factory=MergeContext,
+        init=False,
+        repr=False,
+        compare=False,
+        metadata={"omegaconf_ignore": True},
+    )
 
 
 def _register_torch_safe_globals() -> None:
@@ -113,4 +129,3 @@ def _register_torch_safe_globals() -> None:
 
 # Register safe globals on import.
 _register_torch_safe_globals()
-

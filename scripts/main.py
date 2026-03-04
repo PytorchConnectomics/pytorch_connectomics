@@ -19,8 +19,14 @@ Usage:
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --fast-dev-run 2  # Run 2 batches
 
+    # Demo mode (uses tutorials/minimal.yaml + fast-dev-run)
+    python scripts/main.py --demo
+
     # Override config parameters
     python scripts/main.py --config tutorials/mito_lucchi++.yaml data.dataloader.batch_size=8 optimization.max_epochs=200
+
+    # Print fully resolved runtime config
+    python scripts/main.py --config tutorials/mito_lucchi++.yaml --debug-config
 
     # Resume training with different max_epochs
     python scripts/main.py --config tutorials/mito_lucchi++.yaml --checkpoint path/to/ckpt.ckpt --reset-max-epochs 500
@@ -37,15 +43,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import torch
 
 # Import Hydra config system
-from connectomics.config import Config, resolve_shared_profiles, save_config
-import connectomics.config.hydra_config as hydra_config
+from connectomics.config import Config, resolve_default_profiles, save_config
+import connectomics.config.schema as config_schema
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
 # Allowlist all Config dataclasses used inside Lightning checkpoints
 try:
     _config_classes = [
         obj
-        for obj in hydra_config.__dict__.values()
+        for obj in config_schema.__dict__.values()
         if isinstance(obj, type) and obj.__name__.endswith("Config")
     ]
     torch.serialization.add_safe_globals(_config_classes)
@@ -384,12 +390,19 @@ def main():
     # Parse arguments
     args = parse_args()
 
-    # Handle demo mode
+    # Handle demo mode: route to canonical minimal config workflow.
     if args.demo:
-        from scripts.demo import run_demo
-
-        run_demo()
-        return
+        minimal_config = Path(__file__).parent.parent / "tutorials" / "minimal.yaml"
+        if not minimal_config.exists():
+            print(f"❌ Demo config not found: {minimal_config}")
+            sys.exit(1)
+        if not args.config:
+            args.config = str(minimal_config)
+        if args.fast_dev_run == 0:
+            args.fast_dev_run = 1
+        if args.mode != "train":
+            args.mode = "train"
+        print(f"🎯 Demo mode: using minimal config {args.config}")
 
     # Validate that config is provided for non-demo modes
     if not args.config:
@@ -559,8 +572,8 @@ def main():
             print("🧪 RUNNING TEST")
             print("=" * 60)
 
-            # Re-resolve shared profiles for test stage in tune-test mode.
-            cfg = resolve_shared_profiles(cfg, mode="test")
+            # Re-resolve default-stage profiles for test stage in tune-test mode.
+            cfg = resolve_default_profiles(cfg, mode="test")
 
             # Create datamodule
             datamodule = create_datamodule(cfg, mode="test")

@@ -83,7 +83,7 @@ data:
     resolution: [5, 5]      # Lucchi EM: 5nm isotropic resolution
 optimization:
   max_epochs: 1000
-  iter_num_per_epoch: 1280
+  n_steps_per_epoch: 1280
   gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
   accumulate_grad_batches: 1
   precision: "bf16-mixed"              # BFloat16 mixed precision
@@ -100,7 +100,8 @@ optimization:
     warmup_epochs: 10                    # Longer warmup for stability with higher LR
     warmup_start_lr: 1.0e-4              # Start very small to avoid early instability
     min_lr: 1.0e-6                       # Minimum LR (same as warmup start for symmetry)
-    t_max: 950                           # 1000 - 50 = 950 epochs for cosine decay
+    params:
+      t_max: 950                         # 1000 - 50 = 950 epochs for cosine decay
 
 monitor:
   # Loss monitoring and validation frequency  

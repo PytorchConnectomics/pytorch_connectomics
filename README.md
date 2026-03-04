@@ -26,10 +26,10 @@
 
 **Automatic segmentation of neural structures in electron microscopy images** 🔬🧠
 
-PyTorch Connectomics (PyTC) helps neuroscientists:
-- ✅ **Segment** mitochondria, synapses, and neurons in 3D EM volumes
-- ✅ **Train models** without deep ML expertise
-- ✅ **Process** large-scale connectomics datasets efficiently
+PyTorch Connectomics (PyTC) helps neuroscientists and biologists:
+- ✅ **Initial run:** Ready-to-use segmentation models for strong initial segmentation
+- ✅ **Development:** Easy to build and adapt models to your annotated data
+- ✅ **Deployment:** Scales from a single GPU to large-scale clusters
 
 **Built on:** [PyTorch Lightning](https://lightning.ai/) + [MONAI](https://monai.io/) + [nnU-Net](https://github.com/MIC-DKFZ/nnUNet) for modern, scalable deep learning.
 

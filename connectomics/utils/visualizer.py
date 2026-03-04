@@ -413,11 +413,12 @@ class Visualizer:
         iteration: int,
         prefix: str = "train",
         num_slices: int = 8,
+        slice_sampling: str = "uniform",
         channel_mode: str = "argmax",
         selected_channels: Optional[List[int]] = None,
     ):
         """
-        Visualize consecutive slices from 3D volume.
+        Visualize selected slices from a 3D volume.
 
         Args:
             volume: Input volume (B, C, D, H, W)
@@ -427,7 +428,8 @@ class Visualizer:
             writer: TensorBoard writer
             iteration: Current iteration
             prefix: Logging prefix
-            num_slices: Number of consecutive slices to show
+            num_slices: Number of slices to show
+            slice_sampling: "uniform" (distributed) or "consecutive" (middle block)
         """
         if volume.ndim != 5:
             return  # Not 3D
@@ -442,16 +444,27 @@ class Visualizer:
 
         output = output[0]
 
-        # Select middle slices
+        # Select slice indices.
         depth = volume.shape[1]
-        start_idx = max(0, depth // 2 - num_slices // 2)
-        end_idx = min(depth, start_idx + num_slices)
+        num = max(1, min(int(num_slices), int(depth)))
+        if slice_sampling == "uniform":
+            slice_indices = np.linspace(0, depth - 1, num=num, dtype=int)
+            slice_indices = np.unique(slice_indices)
+        elif slice_sampling == "consecutive":
+            start_idx = max(0, depth // 2 - num // 2)
+            end_idx = min(depth, start_idx + num)
+            slice_indices = np.arange(start_idx, end_idx, dtype=int)
+        else:
+            raise ValueError(
+                f"Unknown slice_sampling mode: {slice_sampling}. "
+                "Use 'uniform' or 'consecutive'."
+            )
 
         # Extract slices
-        vol_slices = volume[:, start_idx:end_idx, :, :]  # (C, num_slices, H, W)
-        lab_slices = label[:, start_idx:end_idx, :, :]
-        out_slices = output[:, start_idx:end_idx, :, :]
-        mask_slices = mask[:, start_idx:end_idx, :, :] if mask is not None else None
+        vol_slices = volume[:, slice_indices, :, :]  # (C, num_slices, H, W)
+        lab_slices = label[:, slice_indices, :, :]
+        out_slices = output[:, slice_indices, :, :]
+        mask_slices = mask[:, slice_indices, :, :] if mask is not None else None
         # Reshape to (num_slices, C, H, W)
         vol_slices = vol_slices.permute(1, 0, 2, 3)
         lab_slices = lab_slices.permute(1, 0, 2, 3)

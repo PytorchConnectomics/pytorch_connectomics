@@ -1,8 +1,22 @@
 pipeline_profiles:
+  binary:
+    model:
+      out_channels: 1
+      loss:
+        profile: loss_binary
+    inference:
+      test_time_augmentation:
+        activation_profile: act_binary
+
   bcd:
-    loss_profile: loss_bcd
-    label_profile: label_bcd
-    decoding_profile: decoding_bcd
-    activation_profile: act_bcd
     model:
       out_channels: 3
+      loss:
+        profile: loss_bcd
+    data:
+      label_transform:
+        profile: label_bcd
+    inference:
+      decoding_profile: decoding_bcd
+      test_time_augmentation:
+        activation_profile: act_bcd

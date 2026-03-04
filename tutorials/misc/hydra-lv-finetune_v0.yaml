@@ -148,7 +148,7 @@ data:
     patch_size: [32, 128, 128]
 optimization:
   max_epochs: 500  # Fewer epochs than pretraining (pretrained model needs less training)
-  iter_num_per_epoch: 1280
+  n_steps_per_epoch: 1280
   gradient_clip_val: 0.5
   accumulate_grad_batches: 2
   precision: "bf16-mixed"

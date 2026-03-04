@@ -5,6 +5,7 @@ Supports Hydra/OmegaConf configurations.
 Code adapted from Detectron2 (https://github.com/facebookresearch/detectron2)
 """
 
+from collections.abc import Mapping
 from typing import Any, Dict, List, Set
 import torch
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, CosineAnnealingWarmRestarts, StepLR
@@ -13,6 +14,23 @@ from .lr_scheduler import WarmupCosineLR
 
 
 __all__ = ["build_optimizer", "build_lr_scheduler"]
+
+
+def _scheduler_param(sched_cfg: Any, key: str, default: Any) -> Any:
+    """Resolve scheduler parameters from `scheduler.params` first, then direct fields."""
+    params = getattr(sched_cfg, "params", None)
+    if isinstance(params, Mapping) and key in params and params[key] is not None:
+        return params[key]
+    value = getattr(sched_cfg, key, default)
+    return default if value is None else value
+
+
+def _scheduler_specific_param(sched_cfg: Any, key: str, default: Any) -> Any:
+    """Resolve scheduler-specific parameters from `scheduler.params` only."""
+    params = getattr(sched_cfg, "params", None)
+    if isinstance(params, Mapping) and key in params and params[key] is not None:
+        return params[key]
+    return default
 
 
 def build_optimizer(cfg, model: torch.nn.Module) -> torch.optim.Optimizer:
@@ -151,18 +169,17 @@ def _build_lr_scheduler_hydra(
         raise ValueError("Config must have 'optimization.scheduler' section")
 
     # Extract scheduler name
-    scheduler_name = sched_cfg.name.lower() if hasattr(sched_cfg, "name") else "cosineannealinglr"
+    scheduler_name = _scheduler_param(sched_cfg, "name", "cosineannealinglr").lower()
 
     if scheduler_name == "cosineannealinglr":
         # Get max epochs from training config or default
-        if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs"):
-            t_max = cfg.optimization.max_epochs
-        elif hasattr(sched_cfg, "t_max"):
-            t_max = sched_cfg.t_max
-        else:
-            t_max = 100
-
-        eta_min = sched_cfg.min_lr if hasattr(sched_cfg, "min_lr") else 1e-6
+        default_t_max = (
+            cfg.optimization.max_epochs
+            if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs")
+            else 100
+        )
+        t_max = _scheduler_specific_param(sched_cfg, "t_max", default_t_max)
+        eta_min = _scheduler_param(sched_cfg, "min_lr", 1e-6)
 
         scheduler = CosineAnnealingLR(
             optimizer,
@@ -171,9 +188,9 @@ def _build_lr_scheduler_hydra(
         )
 
     elif scheduler_name in ("cosineannealingwarmrestarts", "cosinewarmrestarts"):
-        T_0 = sched_cfg.T_0 if hasattr(sched_cfg, "T_0") else 200
-        T_mult = sched_cfg.T_mult if hasattr(sched_cfg, "T_mult") else 1
-        eta_min = sched_cfg.min_lr if hasattr(sched_cfg, "min_lr") else 1e-5
+        T_0 = _scheduler_specific_param(sched_cfg, "T_0", 200)
+        T_mult = _scheduler_specific_param(sched_cfg, "T_mult", 1)
+        eta_min = _scheduler_param(sched_cfg, "min_lr", 1e-5)
 
         scheduler = CosineAnnealingWarmRestarts(
             optimizer,
@@ -183,8 +200,8 @@ def _build_lr_scheduler_hydra(
         )
 
     elif scheduler_name == "steplr":
-        step_size = sched_cfg.step_size if hasattr(sched_cfg, "step_size") else 30
-        gamma = sched_cfg.gamma if hasattr(sched_cfg, "gamma") else 0.1
+        step_size = _scheduler_specific_param(sched_cfg, "step_size", 30)
+        gamma = _scheduler_specific_param(sched_cfg, "gamma", 0.1)
 
         scheduler = StepLR(
             optimizer,
@@ -193,10 +210,8 @@ def _build_lr_scheduler_hydra(
         )
 
     elif scheduler_name == "multisteplr":
-        milestones = (
-            list(sched_cfg.milestones) if hasattr(sched_cfg, "milestones") else [30, 60, 90]
-        )
-        gamma = sched_cfg.gamma if hasattr(sched_cfg, "gamma") else 0.1
+        milestones = list(_scheduler_specific_param(sched_cfg, "milestones", [30, 60, 90]))
+        gamma = _scheduler_specific_param(sched_cfg, "gamma", 0.1)
 
         scheduler = MultiStepLR(
             optimizer,
@@ -205,33 +220,36 @@ def _build_lr_scheduler_hydra(
         )
 
     elif scheduler_name == "reducelronplateau":
-        mode = sched_cfg.mode if hasattr(sched_cfg, "mode") else "min"
-        factor = sched_cfg.factor if hasattr(sched_cfg, "factor") else 0.1
-        patience = sched_cfg.patience if hasattr(sched_cfg, "patience") else 10
-        min_lr = sched_cfg.min_lr if hasattr(sched_cfg, "min_lr") else 1e-6
+        mode = _scheduler_param(sched_cfg, "mode", "min")
+        factor = _scheduler_param(sched_cfg, "factor", 0.1)
+        patience = _scheduler_param(sched_cfg, "patience", 10)
+        threshold = _scheduler_param(sched_cfg, "threshold", 1e-4)
+        cooldown = _scheduler_param(sched_cfg, "cooldown", 0)
+        eps = _scheduler_param(sched_cfg, "eps", 1e-8)
+        min_lr = _scheduler_param(sched_cfg, "min_lr", 1e-6)
 
         scheduler = ReduceLROnPlateau(
             optimizer,
             mode=mode,
             factor=factor,
             patience=patience,
+            threshold=threshold,
+            cooldown=cooldown,
+            eps=eps,
             min_lr=min_lr,
         )
 
     elif scheduler_name == "warmupcosine" or scheduler_name == "warmupcosinelr":
         # Get max iterations
-        if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs"):
-            max_iter = cfg.optimization.max_epochs
-        elif hasattr(sched_cfg, "max_iter"):
-            max_iter = sched_cfg.max_iter
-        else:
-            max_iter = 100
-
-        warmup_iters = sched_cfg.warmup_epochs if hasattr(sched_cfg, "warmup_epochs") else 5
-        warmup_factor = (
-            sched_cfg.warmup_start_lr if hasattr(sched_cfg, "warmup_start_lr") else 0.001
+        default_max_iter = (
+            cfg.optimization.max_epochs
+            if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs")
+            else 100
         )
-        eta_min = sched_cfg.min_lr if hasattr(sched_cfg, "min_lr") else 0.0
+        max_iter = _scheduler_specific_param(sched_cfg, "max_iter", default_max_iter)
+        warmup_iters = _scheduler_param(sched_cfg, "warmup_epochs", 5)
+        warmup_factor = _scheduler_param(sched_cfg, "warmup_start_lr", 0.001)
+        eta_min = _scheduler_param(sched_cfg, "min_lr", 0.0)
 
         scheduler = WarmupCosineLR(
             optimizer,
@@ -255,11 +273,14 @@ def _build_lr_scheduler_hydra(
 
     else:
         # Default to CosineAnnealingLR
-        if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs"):
-            t_max = cfg.optimization.max_epochs
-        else:
-            t_max = 100
-        scheduler = CosineAnnealingLR(optimizer, T_max=t_max, eta_min=1e-6)
+        t_max = (
+            cfg.optimization.max_epochs
+            if hasattr(cfg, "optimization") and hasattr(cfg.optimization, "max_epochs")
+            else 100
+        )
+        t_max = _scheduler_specific_param(sched_cfg, "t_max", t_max)
+        eta_min = _scheduler_param(sched_cfg, "min_lr", 1e-6)
+        scheduler = CosineAnnealingLR(optimizer, T_max=t_max, eta_min=eta_min)
 
     print(f"LR Scheduler: {scheduler.__class__.__name__}")
     return scheduler

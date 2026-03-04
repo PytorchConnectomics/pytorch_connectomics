@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -14,7 +14,9 @@ class CheckpointConfig:
     save_last: bool = True
     dirpath: Optional[str] = None
     filename: Optional[str] = None
-    every_n_epochs: Optional[int] = 1
+    checkpoint_filename: str = "{epoch:03d}-{train_loss_total_epoch:.4f}"
+    save_every_n_epochs: int = 1
+    use_timestamp: bool = True
 
 
 @dataclass
@@ -24,8 +26,11 @@ class EarlyStoppingConfig:
     enabled: bool = False
     monitor: str = "val_loss"
     mode: str = "min"
-    patience: int = 20
-    min_delta: float = 0.0
+    patience: int = 100
+    min_delta: float = 0.0001
+    check_finite: bool = True
+    threshold: Optional[float] = 0.02
+    divergence_threshold: Optional[float] = 2.0
 
 
 @dataclass
@@ -34,6 +39,8 @@ class ScalarLoggingConfig:
 
     enabled: bool = True
     interval: str = "step"  # "step" or "epoch"
+    loss: Optional[List[str]] = None
+    loss_every_n_steps: int = 100
 
 
 @dataclass
@@ -43,6 +50,9 @@ class ImageLoggingConfig:
     enabled: bool = False
     interval: str = "epoch"  # "step" or "epoch"
     max_images: int = 4
+    num_slices: int = 4
+    slice_sampling: str = "uniform"  # "uniform" or "consecutive"
+    log_every_n_epochs: int = 1
     channels: Optional[Tuple[int, ...]] = None
 
 
@@ -61,7 +71,7 @@ class LoggingConfig:
     """Logging behavior configuration."""
 
     scalar: ScalarLoggingConfig = field(default_factory=ScalarLoggingConfig)
-    image: ImageLoggingConfig = field(default_factory=ImageLoggingConfig)
+    images: ImageLoggingConfig = field(default_factory=ImageLoggingConfig)
     prediction_saving: PredictionSavingConfig = field(default_factory=PredictionSavingConfig)
 
 
@@ -69,7 +79,7 @@ class LoggingConfig:
 class NaNDetectionConfig:
     """NaN/Inf detection and debugging configuration."""
 
-    enable_nan_detection: bool = True
+    enabled: bool = True
     debug_on_nan: bool = True
 
 
@@ -77,7 +87,7 @@ class NaNDetectionConfig:
 class WandbConfig:
     """Weights & Biases backend configuration."""
 
-    enabled: bool = False
+    use_wandb: bool = False
     project: str = "connectomics"
     entity: Optional[str] = None
     tags: Optional[Tuple[str, ...]] = None
@@ -97,3 +107,4 @@ class MonitorConfig:
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     nan_detection: NaNDetectionConfig = field(default_factory=NaNDetectionConfig)
     wandb: WandbConfig = field(default_factory=WandbConfig)
+    detect_anomaly: bool = False

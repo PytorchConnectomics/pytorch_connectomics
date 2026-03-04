@@ -70,7 +70,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         train_transpose_axes: Optional[List[int]] = None,
         val_transpose_axes: Optional[List[int]] = None,
         test_transpose_axes: Optional[List[int]] = None,
-        val_iter_num: Optional[int] = None,
+        val_steps_per_epoch: Optional[int] = None,
         seed: int = 0,
         **dataset_kwargs,
     ):
@@ -95,7 +95,7 @@ class ConnectomicsDataModule(pl.LightningDataModule):
         self.persistent_workers = persistent_workers
         self.cache_rate = cache_rate
         self.cache_dir = cache_dir
-        self.val_iter_num = val_iter_num
+        self.val_steps_per_epoch = val_steps_per_epoch
         self.seed = seed  # [FIX 1] Store seed for validation reseeding
         self.dataset_kwargs = dataset_kwargs
 
@@ -159,10 +159,10 @@ class ConnectomicsDataModule(pl.LightningDataModule):
             **self.dataset_kwargs,
         }
 
-        # Use separate iter_num for validation if specified
-        # This MUST come after unpacking dataset_kwargs to override the training iter_num
-        if mode == "val" and self.val_iter_num is not None:
-            dataset_args["iter_num"] = self.val_iter_num
+        # Use separate validation steps per epoch if specified.
+        # This must come after unpacking dataset_kwargs to override training iter_num.
+        if mode == "val" and self.val_steps_per_epoch is not None:
+            dataset_args["iter_num"] = self.val_steps_per_epoch
 
         # Note: transpose_axes should be embedded in the transforms (via LoadVolumed)
         # and NOT passed as a dataset parameter. The transform builders handle this.

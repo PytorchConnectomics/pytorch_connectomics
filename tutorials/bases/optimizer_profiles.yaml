@@ -1,19 +1,111 @@
 optimizer_profiles:
   warmup_cosine_lr:
-    gradient_clip_val: 1
-    accumulate_grad_batches: 1
-    precision: "16-mixed"
-    log_every_n_steps: 100
     optimizer:
+      name: AdamW
       lr: 0.0003
       weight_decay: 0.01
+      betas: [0.9, 0.999]
       eps: 1.0e-08
     scheduler:
       name: WarmupCosineLR
+      interval: epoch
+      frequency: 1
       warmup_epochs: 3
       warmup_start_lr: 1.0e-05
       min_lr: 1.0e-06
+      params:
+        warmup_epochs: 3
+        warmup_start_lr: 1.0e-05
+        min_lr: 1.0e-06
     ema:
       enabled: true
+      decay: 0.999
+      validate_with_ema: true
+
+  cosine_annealing_lr:
+    optimizer:
+      name: AdamW
+      lr: 0.0003
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-08
+    scheduler:
+      name: CosineAnnealingLR
+      interval: epoch
+      frequency: 1
+      min_lr: 1.0e-06
+      params:
+        t_max: 200
+        min_lr: 1.0e-06
+    ema:
+      enabled: true
+      decay: 0.999
+      validate_with_ema: true
+
+  reduce_on_plateau:
+    optimizer:
+      name: AdamW
+      lr: 0.0003
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-08
+    scheduler:
+      name: ReduceLROnPlateau
+      interval: epoch
+      frequency: 1
+      monitor: val/loss
+      mode: min
+      factor: 0.2
+      patience: 10
+      threshold: 1.0e-04
+      cooldown: 2
+      min_lr: 1.0e-06
+      params:
+        mode: min
+        factor: 0.2
+        patience: 10
+        threshold: 1.0e-04
+        cooldown: 2
+        min_lr: 1.0e-06
+    ema:
+      enabled: true
+      decay: 0.999
+      validate_with_ema: true
+
+  step_lr:
+    optimizer:
+      name: AdamW
+      lr: 0.0003
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-08
+    scheduler:
+      name: StepLR
+      interval: epoch
+      frequency: 1
+      params:
+        step_size: 30
+        gamma: 0.1
+    ema:
+      enabled: false
+      decay: 0.999
+      validate_with_ema: true
+
+  multistep_lr:
+    optimizer:
+      name: AdamW
+      lr: 0.0003
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+      eps: 1.0e-08
+    scheduler:
+      name: MultiStepLR
+      interval: epoch
+      frequency: 1
+      params:
+        milestones: [80, 140, 180]
+        gamma: 0.2
+    ema:
+      enabled: false
       decay: 0.999
       validate_with_ema: true

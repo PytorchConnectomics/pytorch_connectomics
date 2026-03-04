@@ -143,7 +143,7 @@ slurm partition num_cpu num_gpu cmd constraint='' mem='32G' nodelist='':
            --time=$time_limit \
            $constraint_flag \
            $nodelist_flag \
-           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} {{cmd}}"
+           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just NCCL_SOCKET_FAMILY=AF_INET && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --cpu-bind=none --ntasks=1 --gpus-per-task={{num_gpu}} --cpus-per-task={{num_cpu}} {{cmd}}"
 
 # Generic CPU-only multi-task launcher (single node, no GPU).
 # Example:
@@ -178,7 +178,7 @@ slurm-cpu-parallel partition num_tasks='7' cpu_per_task='4' cmd='' constraint=''
            --mem={{mem}} \
            --time=$time_limit \
            $constraint_flag \
-           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --ntasks={{num_tasks}} --gpus-per-task=0 --cpus-per-task={{cpu_per_task}} bash -c '$cmd_value'"
+           --wrap="mkdir -p \$HOME/.just && export JUST_TEMPDIR=\$HOME/.just TMPDIR=\$HOME/.just && unset SLURM_CPU_BIND && source /projects/weilab/weidf/lib/miniconda3/bin/activate pytc && cd $PWD && srun --cpu-bind=none --ntasks={{num_tasks}} --gpus-per-task=0 --cpus-per-task={{cpu_per_task}} bash -c '$cmd_value'"
 
 # Generic CPU-only multi-task launcher for sharded scripts.
 # Automatically appends:

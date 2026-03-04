@@ -80,7 +80,7 @@ data:
     patch_size: [64, 64, 64]        # Larger patches for better context
 optimization:
   max_epochs: 1000
-  iter_num_per_epoch: 1280
+  n_steps_per_epoch: 1280
   val_check_interval: 1.0
   gradient_clip_val: 1.0               # Higher clip (0.5 was too aggressive)
   accumulate_grad_batches: 1

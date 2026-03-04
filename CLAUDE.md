@@ -15,6 +15,12 @@ The codebase follows a clean separation of concerns:
 
 **Key Principle:** Lightning is the outer shell, MONAI is the inner toolbox. No reimplementation of training loops or domain-specific tools.
 
+## Agent Design Principles
+
+- **Ecosystem-first, no reinvention**: Leverage proven frameworks (PyTorch, Lightning, MONAI, nnU-Net) to keep the codebase modern, minimal, and scalable.
+- **Config-first reproducibility**: Use Hydra/OmegaConf YAML composition + CLI overrides so experiments are declarative, reproducible, and easy to customize across datasets/benchmarks.
+- **Modular + extensible connectomics workflows**: Separate concerns cleanly (config, data, training, inference/decoding), expose registry-style extension points, and support large-volume EM workloads (tiling, sliding-window, multi-GPU) for both novices and agentic workflows.
+
 ## Installation
 
 ### Prerequisites

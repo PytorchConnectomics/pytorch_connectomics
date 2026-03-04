@@ -226,6 +226,10 @@ def preflight_check(cfg) -> list:
     """
     issues = []
 
+    def _is_virtual_data_path(path_value: str) -> bool:
+        """Return True for non-filesystem paths resolved later at runtime."""
+        return isinstance(path_value, str) and path_value.startswith("random://")
+
     # Check data files exist (supports glob patterns and lists)
     if cfg.data.train.image:
         from glob import glob
@@ -233,6 +237,8 @@ def preflight_check(cfg) -> list:
         # Handle list of files
         if isinstance(cfg.data.train.image, list):
             for img_path in cfg.data.train.image:
+                if _is_virtual_data_path(img_path):
+                    continue
                 if "*" in img_path or "?" in img_path:
                     matched_files = glob(img_path)
                     if not matched_files:
@@ -241,8 +247,10 @@ def preflight_check(cfg) -> list:
                     issues.append(f"❌ Training image not found: {img_path}")
         # Handle single file/pattern
         else:
+            if _is_virtual_data_path(cfg.data.train.image):
+                pass
             # Check if pattern contains wildcards
-            if "*" in cfg.data.train.image or "?" in cfg.data.train.image:
+            elif "*" in cfg.data.train.image or "?" in cfg.data.train.image:
                 # Expand glob pattern
                 matched_files = glob(cfg.data.train.image)
                 if not matched_files:
@@ -258,6 +266,8 @@ def preflight_check(cfg) -> list:
         # Handle list of files
         if isinstance(cfg.data.train.label, list):
             for lbl_path in cfg.data.train.label:
+                if _is_virtual_data_path(lbl_path):
+                    continue
                 if "*" in lbl_path or "?" in lbl_path:
                     matched_files = glob(lbl_path)
                     if not matched_files:
@@ -266,8 +276,10 @@ def preflight_check(cfg) -> list:
                     issues.append(f"❌ Training label not found: {lbl_path}")
         # Handle single file/pattern
         else:
+            if _is_virtual_data_path(cfg.data.train.label):
+                pass
             # Check if pattern contains wildcards
-            if "*" in cfg.data.train.label or "?" in cfg.data.train.label:
+            elif "*" in cfg.data.train.label or "?" in cfg.data.train.label:
                 # Expand glob pattern
                 matched_files = glob(cfg.data.train.label)
                 if not matched_files:

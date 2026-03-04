@@ -26,17 +26,26 @@ class VisualizationCallback(Callback):
     Visualizes input images, ground truth, and predictions at the end of each epoch.
     """
 
-    def __init__(self, cfg, max_images: int = 8, num_slices: int = 8, log_every_n_epochs: int = 1):
+    def __init__(
+        self,
+        cfg,
+        max_images: int = 8,
+        num_slices: int = 8,
+        slice_sampling: str = "uniform",
+        log_every_n_epochs: int = 1,
+    ):
         """
         Args:
             cfg: Hydra config object
             max_images: Maximum number of images to visualize per batch
-            num_slices: Number of consecutive slices to show for 3D volumes
+            num_slices: Number of slices to show for 3D volumes
+            slice_sampling: Slice selection mode ("uniform" or "consecutive")
             log_every_n_epochs: Log visualization every N epochs (default: 1)
         """
         super().__init__()
         self.visualizer = Visualizer(cfg, max_images=max_images)
         self.num_slices = num_slices
+        self.slice_sampling = slice_sampling
         self.log_every_n_epochs = log_every_n_epochs
         self.cfg = cfg
 
@@ -174,6 +183,7 @@ class VisualizationCallback(Callback):
                 iteration=iteration,
                 prefix=prefix,
                 num_slices=self.num_slices,
+                slice_sampling=self.slice_sampling,
             )
         else:
             self.visualizer.visualize(

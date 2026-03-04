@@ -475,7 +475,7 @@ def auto_plan_config(
             manual_overrides["batch_size"] = config.data.dataloader.batch_size
         if hasattr(config, "system") and getattr(config.system, "num_workers", None) is not None:
             manual_overrides["num_workers"] = config.system.num_workers
-        if hasattr(config.data, "data_transform") and config.data.dataloader.patch_size is not None:
+        if hasattr(config.data, "dataloader") and config.data.dataloader.patch_size is not None:
             manual_overrides["patch_size"] = config.data.dataloader.patch_size
 
     if hasattr(config, "optimization"):

@@ -53,9 +53,11 @@ def minimal_config():
                 'input_size': [16, 16, 16],
                 'in_channels': 1,
                 'out_channels': 1,
-                'norm': 'group',
-                'num_groups': 1,
-                'monai': {'filters': [8, 16]},  # Very small for fast testing
+                'monai': {
+                    'filters': [8, 16],  # Very small for fast testing
+                    'norm': 'group',
+                    'num_groups': 1,
+                },
                 'loss': {
                     'losses': [
                         {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]}
@@ -298,9 +300,7 @@ class TestMultiTask:
                 'arch': {'type': 'monai_basic_unet3d'},
                 'in_channels': 1,
                 'out_channels': 3,  # Multi-task: binary, boundary, EDT
-                'monai': {'filters': [8, 16]},
-                'norm': 'group',
-                'num_groups': 1,
+                'monai': {'filters': [8, 16], 'norm': 'group', 'num_groups': 1},
                 'loss': {
                     'losses': [
                         {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]},
@@ -332,9 +332,7 @@ class TestMultiTask:
                 'arch': {'type': 'monai_basic_unet3d'},
                 'in_channels': 1,
                 'out_channels': 3,
-                'monai': {'filters': [8, 16]},
-                'norm': 'group',
-                'num_groups': 1,
+                'monai': {'filters': [8, 16], 'norm': 'group', 'num_groups': 1},
                 'loss': {
                     'losses': [
                         {'function': 'DiceLoss', 'weight': 1.0, 'pred_slice': [0, 1], 'target_slice': [0, 1]},

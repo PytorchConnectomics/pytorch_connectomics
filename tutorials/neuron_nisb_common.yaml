@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_b
+default:
+  model:
+    arch:
+      profile: mednext_b
 
 _base_: bases/arch_profiles.yaml
 
@@ -71,7 +73,7 @@ data:
 
 optimization:
   max_epochs: 500
-  iter_num_per_epoch: 200
+  n_steps_per_epoch: 200
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"
@@ -88,9 +90,10 @@ optimization:
 
   scheduler:
     name: CosineAnnealingLR
-    t_max: 50000
     interval: step
     frequency: 1
+    params:
+      t_max: 50000
 
 monitor:
   logging:
