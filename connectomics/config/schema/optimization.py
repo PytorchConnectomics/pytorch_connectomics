@@ -84,6 +84,7 @@ class OptimizationConfig:
 
     # Training loop
     max_epochs: int = 200
+    max_steps: Optional[int] = None  # Optional step-based training cap
     n_steps_per_epoch: int = -1  # Optimizer steps per epoch (-1 = auto from dataset size)
     val_steps_per_epoch: Optional[int] = None  # Validation steps per epoch (auto-calculated if None)
     gradient_clip_val: float = 1.0
@@ -95,3 +96,6 @@ class OptimizationConfig:
 
     # Logging
     log_every_n_steps: int = 100
+    num_sanity_val_steps: int = 2
+    deterministic: Optional[bool] = None
+    benchmark: Optional[bool] = None

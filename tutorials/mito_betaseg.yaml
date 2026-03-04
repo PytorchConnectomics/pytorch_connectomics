@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_s
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 experiment_name: betaseg_mednext_s_sdt_affinity
 description: BetaSeg 3D mitochondria instance segmentation with MedNeXt using SDT+affinity (1+6 channels)
 
@@ -34,11 +35,13 @@ model:
     dim: "3d"                   # 3D convolutions
 data:
   # Dataset configuration - BetaSeg training data
-  use_preloaded_cache: false                        # Disabled to enable validation support
   dataloader:
+    use_preloaded_cache_train: false                # Disabled to enable validation support
+    use_preloaded_cache_val: false
     use_cache: true                                 # Use MONAI caching instead (still fast!)
     cache_rate: 1.0                                 # Cache 100% of data
     persistent_workers: true                        # Keep workers alive between epochs
+    patch_size: [128, 128, 128]
 
   # Patch configuration (isotropic cubic patches for isotropic data)
   image_transform:
@@ -138,8 +141,6 @@ data:
   data_transform:
     pad_size: [16, 16, 16]                           # from resolution
     pad_mode: reflect
-  dataloader:
-    patch_size: [128, 128, 128]
 optimization:
   max_steps: 1000000
   n_steps_per_epoch: 50

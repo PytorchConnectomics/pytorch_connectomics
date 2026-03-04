@@ -21,7 +21,7 @@ default:
     image_transform:
       normalize: "0-1"
     augmentation:
-      profile: aug_basic
+      profile: aug_light
   inference:
     sliding_window:
       window_size: [32, 128, 128]
@@ -63,7 +63,7 @@ train:
 
 test:
   data:
-    val:
+    test:
       path: "/projects/weilab/dataset/xiaomeng/vesicle/"
       image: "im/Bouton_100_EM.tif"
       mask: "mask/Bouton_100_em_mask.tif"

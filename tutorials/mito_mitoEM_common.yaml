@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_m
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 
 description: MitoEM 3D mitochondria instance segmentation with MedNeXt using SDT + affinity (multi-target loss)
 model:
@@ -34,10 +35,10 @@ model:
     dim: 3d
     checkpoint_style: outside_block
 data:
-  use_preloaded_cache_train: true
-  use_preloaded_cache_val: true
-  cached_sampling_foreground_threshold: 0
   dataloader:
+    use_preloaded_cache_train: true
+    use_preloaded_cache_val: true
+    cached_sampling_foreground_threshold: 0
     use_cache: false  # keep false so every batch gets fresh random crop + augmentation
     persistent_workers: true
     patch_size:

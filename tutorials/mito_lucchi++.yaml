@@ -21,11 +21,14 @@ default:
       patch_size: [112, 112, 112]
       batch_size: 8
     augmentation:
-      profile: aug_strong
+      profile: aug_standard
   inference:
     batch_size: 16
     sliding_window:
       window_size: [112, 112, 112]      
+    test_time_augmentation:
+      enabled: true
+      flip_axes: all      
     evaluation:
       enabled: true
       metrics: [jaccard]
@@ -39,7 +42,7 @@ train:
   optimization:
     profile: warmup_cosine_lr
     n_steps_per_epoch: 1000
-    max_epochs: 500
+    max_epochs: 100
 
   monitor:
     logging:

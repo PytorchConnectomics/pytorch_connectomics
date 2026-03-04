@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_s
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 experiment_name: fiber_mednext_bcs
 description: Fiber segmentation with MedNeXt and multi-task learning (Binary + Contour + SDT)
 model:
@@ -48,8 +49,8 @@ model:
     size: S
     kernel_size: 3
 data:
-  use_preloaded_cache_train: true
   dataloader:
+    use_preloaded_cache_train: true
     persistent_workers: true
     patch_size: [32, 128, 128]
   nnunet_preprocessing:

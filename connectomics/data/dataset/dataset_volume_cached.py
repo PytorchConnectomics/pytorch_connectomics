@@ -623,7 +623,7 @@ class CachedVolumeDataset(Dataset):
                 if mask is not None:
                     mask_crop = crop_volume(mask, self.patch_size, pos)
                 else:
-                    mask_crop = np.zeros_like(image_crop)
+                    mask_crop = None
 
                 foreground_frac = (label_crop > 0).sum() / label_crop.size
                 final_foreground_frac = foreground_frac
@@ -654,13 +654,13 @@ class CachedVolumeDataset(Dataset):
             if mask is not None:
                 mask_crop = crop_volume(mask, self.patch_size, pos)
             else:
-                mask_crop = np.zeros_like(image_crop)
+                mask_crop = None
 
         if use_foreground_sampling and DEBUG_D2:
             self._d2_total_samples += 1
             self._d2_total_attempts += attempts_used
             self._d2_foreground_fracs.append(final_foreground_frac * 100)
-            mask_frac = (mask_crop > 0).sum() / mask_crop.size * 100 if mask is not None else 0.0
+            mask_frac = (mask_crop > 0).sum() / mask_crop.size * 100 if mask_crop is not None else 0.0
             print(
                 f"[D2 #{self._d2_total_samples}] attempts={attempts_used}/{max_attempts}, "
                 f"rejected={self._d2_rejected_patches}, "
@@ -671,8 +671,9 @@ class CachedVolumeDataset(Dataset):
         data = {
             "image": image_crop,
             "label": label_crop,
-            "mask": mask_crop,
         }
+        if mask_crop is not None:
+            data["mask"] = mask_crop
 
         # Apply additional transforms if provided (augmentation, normalization, etc.)
         if self.transforms:

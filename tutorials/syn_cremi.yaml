@@ -3,31 +3,12 @@ default:
     arch:
       profile: rsunet
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 experiment_name: rsunet_cremi_synapse_cleft
 description: CREMI synapse cleft detection (binary semantic segmentation with RSUNet, anisotropic)
 model:
   out_channels: 1
-  - 32
-  - 64
-  - 96
-  - 128
-  - 160
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  - - 1
-    - 2
-    - 2
-  - 1
-  - 3
-  - 3
   loss:
     deep_supervision: false
     losses:
@@ -42,16 +23,19 @@ model:
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
   monai:
-    filters:
+    filters: [32, 64, 96, 128, 160]
   rsunet:
     norm: batch
     activation: elu
     num_groups: 8
     down_factors:
+    - [1, 2, 2]
+    - [1, 2, 2]
+    - [1, 2, 2]
+    - [1, 2, 2]
     depth_2d: 1
-    kernel_2d:
+    kernel_2d: [1, 3, 3]
 data:
-  use_preloaded_cache: true
   reject_sampling:
     size_thres: 1000
     p: 0.95
@@ -125,6 +109,8 @@ data:
     - 32
     pad_mode: reflect
   dataloader:
+    use_preloaded_cache_train: true
+    use_preloaded_cache_val: true
     patch_size:
       - 18
       - 256

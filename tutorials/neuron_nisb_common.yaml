@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_b
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 
 experiment_name: neuron_nisb_common_mednext_b_sdt
 description: NISB neuron instance segmentation (BANIS-style) with MedNeXt-B, affinity + SDT (40nm)
@@ -33,9 +34,9 @@ data:
   # --base_data_path /projects/weilab/dataset/nisb
   # --data_setting base
 
-  use_preloaded_cache_train: true
-  use_preloaded_cache_val: true
   dataloader:
+    use_preloaded_cache_train: true
+    use_preloaded_cache_val: true
     use_cache: false
     persistent_workers: true
 

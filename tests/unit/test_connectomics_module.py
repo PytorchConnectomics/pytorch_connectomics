@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import List, Optional
 
 import torch
@@ -108,3 +109,50 @@ def test_validation_step_logs_metrics_when_enabled():
     assert torch.isfinite(loss)
     # At least one of the requested metrics should be logged
     assert any(name.startswith("val_") for name in logged_names)
+
+
+def test_resolve_test_output_config_uses_root_test_output_path(monkeypatch):
+    """Test-mode output path should come from cfg.test.output_path/cache_suffix."""
+    cfg = SimpleNamespace(
+        tune=None,
+        test=SimpleNamespace(output_path="/tmp/test_results", cache_suffix="_prediction.h5"),
+    )
+    dummy = SimpleNamespace(cfg=cfg, global_step=0)
+
+    monkeypatch.setattr(
+        "connectomics.training.lightning.model.resolve_output_filenames",
+        lambda _cfg, _batch, global_step=0: ["sample_a"],
+    )
+
+    mode, output_dir, cache_suffix, filenames = ConnectomicsModule._resolve_test_output_config(
+        dummy, batch={}
+    )
+
+    assert mode == "test"
+    assert output_dir == "/tmp/test_results"
+    assert cache_suffix == "_prediction.h5"
+    assert filenames == ["sample_a"]
+
+
+def test_save_metrics_to_file_uses_tune_output_path_when_available(tmp_path):
+    """Metrics should be written under the same output path used for tune predictions."""
+    cfg = SimpleNamespace(
+        tune=SimpleNamespace(
+            output=SimpleNamespace(
+                output_pred=str(tmp_path),
+                cache_suffix="_tta_prediction.h5",
+            )
+        ),
+        test=SimpleNamespace(output_path=str(tmp_path / "unused"), cache_suffix="_prediction.h5"),
+    )
+    dummy = SimpleNamespace(cfg=cfg)
+
+    ConnectomicsModule._save_metrics_to_file(
+        dummy,
+        {
+            "volume_name": "vol0",
+            "jaccard": 0.5,
+        },
+    )
+
+    assert (tmp_path / "evaluation_metrics_vol0.txt").exists()

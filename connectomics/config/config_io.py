@@ -670,6 +670,13 @@ def resolve_data_paths(cfg: Config) -> Config:
     # Resolve test data paths (cfg.test.data.{val,test}.*)
     if cfg.test is not None:
         test_data = cfg.test.data
+        # Legacy alias materialization: test_data.test_* -> test_data.test.*
+        if getattr(test_data.test, "image", None) is None and getattr(test_data, "test_image", None) is not None:
+            test_data.test.image = test_data.test_image
+            test_data.test.label = getattr(test_data, "test_label", None)
+            test_data.test.mask = getattr(test_data, "test_mask", None)
+            test_data.test.path = getattr(test_data, "test_path", "") or ""
+            test_data.test.resolution = getattr(test_data, "test_resolution", None)
         _resolve_split_paths(test_data.val)
         if hasattr(test_data, "test"):
             _resolve_split_paths(test_data.test)
@@ -677,6 +684,12 @@ def resolve_data_paths(cfg: Config) -> Config:
     # Resolve tuning data paths (cfg.tune.data.{val,test}.*)
     if cfg.tune is not None:
         tune_data = cfg.tune.data
+        if getattr(tune_data.test, "image", None) is None and getattr(tune_data, "test_image", None) is not None:
+            tune_data.test.image = tune_data.test_image
+            tune_data.test.label = getattr(tune_data, "test_label", None)
+            tune_data.test.mask = getattr(tune_data, "test_mask", None)
+            tune_data.test.path = getattr(tune_data, "test_path", "") or ""
+            tune_data.test.resolution = getattr(tune_data, "test_resolution", None)
         _resolve_split_paths(tune_data.val)
         if hasattr(tune_data, "test"):
             _resolve_split_paths(tune_data.test)

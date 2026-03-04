@@ -27,7 +27,7 @@ class DefaultConfig:
 class TrainConfig:
     """Train-stage profile selectors."""
 
-    system: SystemConfig = field(default_factory=SystemConfig)
+    system: Optional[SystemConfig] = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     data: DataConfig = field(default_factory=DataConfig)
     optimization: OptimizationConfig = field(default_factory=OptimizationConfig)
@@ -40,8 +40,10 @@ class TestConfig:
 
     system: SystemConfig = field(default_factory=SystemConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
-    data: DataConfig = field(default_factory=DataConfig)
+    data: Optional[DataConfig] = field(default_factory=DataConfig)
     inference: InferenceConfig = field(default_factory=InferenceConfig)
+    decoding: Optional[List[Dict[str, Any]]] = None
+    evaluation: Optional[Dict[str, Any]] = None
 
     output_path: Optional[str] = None
     cache_suffix: str = "_prediction.h5"

@@ -267,6 +267,14 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     def _eval_split(data_cfg):
         """Prefer data.test when set; otherwise use data.val."""
         test_split = getattr(data_cfg, "test", None)
+        if test_split is not None and getattr(test_split, "image", None) is None:
+            legacy_image = getattr(data_cfg, "test_image", None)
+            if legacy_image is not None:
+                test_split.image = legacy_image
+                test_split.label = getattr(data_cfg, "test_label", None)
+                test_split.mask = getattr(data_cfg, "test_mask", None)
+                test_split.path = getattr(data_cfg, "test_path", "") or ""
+                test_split.resolution = getattr(data_cfg, "test_resolution", None)
         if test_split is not None and getattr(test_split, "image", None):
             return test_split
         return data_cfg.val

@@ -15,10 +15,6 @@ model:
 
 
 data:
-  use_lazy_zarr: true
-  use_preloaded_cache_train: false
-  use_preloaded_cache_val: false
-
   label_transform:
     targets:
     - name: affinity
@@ -44,6 +40,9 @@ data:
     train_transpose: [2, 1, 0]
     val_transpose: [2, 1, 0]
   dataloader:
+    use_lazy_zarr: true
+    use_preloaded_cache_train: false
+    use_preloaded_cache_val: false
     patch_size: [32, 256, 256]
 monitor:
   checkpoint:
