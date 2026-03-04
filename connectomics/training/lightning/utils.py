@@ -20,8 +20,9 @@ import torch
 from ...config import (
     Config,
     load_config,
+    print_config,
     resolve_data_paths,
-    resolve_shared_profiles,
+    resolve_default_profiles,
     resolve_runtime_resource_sentinels,
     update_from_cli,
     validate_config,
@@ -45,7 +46,12 @@ def parse_args():
     parser.add_argument(
         "--demo",
         action="store_true",
-        help="Run quick demo with synthetic data (30 seconds, no config needed)",
+        help="Run quick demo with tutorials/minimal.yaml (auto fast-dev-run=1)",
+    )
+    parser.add_argument(
+        "--debug-config",
+        action="store_true",
+        help="Print fully resolved runtime config (after default/mode/profile merging)",
     )
     parser.add_argument(
         "--mode",
@@ -189,8 +195,8 @@ def setup_config(args) -> Config:
         print(f"⚙️  Applying {len(args.overrides)} CLI overrides")
         cfg = update_from_cli(cfg, args.overrides)
 
-    # Resolve shared profiles into runtime sections (system/data/inference)
-    cfg = resolve_shared_profiles(cfg, mode=args.mode)
+    # Resolve default-stage profiles into runtime sections (system/data/inference)
+    cfg = resolve_default_profiles(cfg, mode=args.mode)
 
     # Override max_epochs if --reset-max-epochs is specified
     if args.reset_max_epochs is not None:
@@ -223,6 +229,8 @@ def setup_config(args) -> Config:
             cfg.model.input_size = [64, 64, 64]
         if hasattr(cfg.model, "output_size"):
             cfg.model.output_size = [64, 64, 64]
+        if hasattr(cfg.data, "dataloader") and hasattr(cfg.data.dataloader, "patch_size"):
+            cfg.data.dataloader.patch_size = [64, 64, 64]
         if hasattr(cfg.model, "mednext"):
             cfg.model.mednext.size = "S"
         # Keep CellMap shapes in sync with the smaller debug patch
@@ -259,6 +267,12 @@ def setup_config(args) -> Config:
     # Validate configuration
     print("✅ Validating configuration...")
     validate_config(cfg)
+
+    if getattr(args, "debug_config", False):
+        print("\n========================")
+        print("RESOLVED CONFIG (DEBUG)")
+        print("========================")
+        print_config(cfg, resolve=True)
 
     # Note: Output directory will be created later in main() with timestamp
     # (see lines around "Create run directory only for training mode")

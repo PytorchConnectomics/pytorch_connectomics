@@ -7,6 +7,12 @@ This file provides instructions for Codex and similar coding agents working in t
 PyTorch Connectomics (PyTC) is a Hydra/OmegaConf + PyTorch Lightning + MONAI codebase for EM segmentation.
 Primary entry point: `scripts/main.py`.
 
+## Design Principles
+
+- **Ecosystem-first, no reinvention**: Leverage proven frameworks (PyTorch, Lightning, MONAI, nnU-Net) to keep the codebase modern, minimal, and scalable.
+- **Config-first reproducibility**: Use Hydra/OmegaConf YAML composition + CLI overrides so experiments are declarative, reproducible, and easy to customize across datasets/benchmarks.
+- **Modular + extensible connectomics workflows**: Separate concerns cleanly (config, data, training, inference/decoding), expose registry-style extension points, and support large-volume EM workloads (tiling, sliding-window, multi-GPU) for both novices and agentic workflows.
+
 ## Mandatory Guardrails
 
 - Preserve user-facing behavior unless explicitly requested.

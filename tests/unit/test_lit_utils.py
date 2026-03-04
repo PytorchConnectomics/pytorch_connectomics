@@ -6,7 +6,7 @@ import pytest
 
 from connectomics.config import Config, save_config
 from connectomics.training.lightning.config import expand_file_paths as config_expand_file_paths
-from connectomics.training.lightning.data_factory import _calculate_validation_iter_num
+from connectomics.training.lightning.data_factory import _calculate_validation_steps_per_epoch
 from connectomics.training.lightning.path_utils import expand_file_paths as canonical_expand_file_paths
 from connectomics.training.lightning.utils import (
     expand_file_paths,
@@ -25,6 +25,7 @@ def _make_args(
     return argparse.Namespace(
         config=str(config_path),
         demo=False,
+        debug_config=False,
         mode=mode,
         checkpoint=None,
         reset_optimizer=False,
@@ -98,11 +99,11 @@ def test_expand_file_paths_handles_globs_and_lists(tmp_path):
         canonical_expand_file_paths(str(data_dir / "*.missing"))
 
 
-def test_calculate_validation_iter_num_unknown_suffix_defaults():
+def test_calculate_validation_steps_per_epoch_unknown_suffix_defaults():
     val_data_dicts = [{"image": "dummy.unknown"}]
 
     assert (
-        _calculate_validation_iter_num(
+        _calculate_validation_steps_per_epoch(
             val_data_dicts=val_data_dicts,
             patch_size=(16, 16, 16),
         )
@@ -110,22 +111,22 @@ def test_calculate_validation_iter_num_unknown_suffix_defaults():
     )
 
 
-def test_calculate_validation_iter_num_uses_fallback_shape_without_clamp():
+def test_calculate_validation_steps_per_epoch_uses_fallback_shape_without_clamp():
     val_data_dicts = [{"image": "dummy.unknown"}]
 
-    val_iter_num = _calculate_validation_iter_num(
+    val_steps = _calculate_validation_steps_per_epoch(
         val_data_dicts=val_data_dicts,
         patch_size=(32, 32, 32),
-        min_iter=1,
-        max_iter=None,
+        min_steps=1,
+        max_steps=None,
         fallback_volume_shape=(100, 4096, 4096),
         return_default_on_error=False,
     )
 
-    assert val_iter_num == 24384
+    assert val_steps == 24384
 
 
-def test_calculate_validation_iter_num_handles_multipage_tiff(tmp_path):
+def test_calculate_validation_steps_per_epoch_handles_multipage_tiff(tmp_path):
     tifffile = pytest.importorskip("tifffile")
 
     tiff_path = tmp_path / "stack_pages.tif"
@@ -136,17 +137,17 @@ def test_calculate_validation_iter_num_handles_multipage_tiff(tmp_path):
         for z in range(volume.shape[0]):
             writer.write(volume[z])
 
-    val_iter_num = _calculate_validation_iter_num(
+    val_steps = _calculate_validation_steps_per_epoch(
         val_data_dicts=[{"image": str(tiff_path)}],
         patch_size=(2, 4, 4),
-        min_iter=1,
-        max_iter=None,
+        min_steps=1,
+        max_steps=None,
         return_default_on_error=False,
     )
 
     # Expected from shape (8, 20, 20):
     # stride=(1,2,2), patches=(7,9,9), total=567, 7.5%=42
-    assert val_iter_num == 42
+    assert val_steps == 42
 
 
 def test_extract_best_score_from_checkpoint():

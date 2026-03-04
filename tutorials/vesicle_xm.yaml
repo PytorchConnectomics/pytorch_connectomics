@@ -4,23 +4,24 @@ description: Vesicle segmentation with MedNeXt and multi-task learning (Binary +
 _base_:
   - bases/all_profiles.yaml
 
-shared:
+default:
   pipeline_profile: bcd
   system:
-    profile: all-gpu-cpu
-  arch_profile: mednext_s
-  dataloader_profile: cached
-  augmentation_profile: aug_basic
-  optimizer_profile: warmup_cosine_lr
+    profile: all-gpu-cpu  
   model:
+    arch:
+      profile: mednext_s
     input_size: [32, 128, 128]
     output_size: [32, 128, 128]
   data:
     dataloader:
+      profile: cached      
       batch_size: 4
-      patch_size: [32, 128, 128]
+      patch_size: [32, 128, 128]      
     image_transform:
       normalize: "0-1"
+    augmentation:
+      profile: aug_basic
   inference:
     sliding_window:
       window_size: [32, 128, 128]
@@ -44,17 +45,21 @@ train:
       cached_sampling_foreground_threshold: 0.05
       cached_sampling_sample_nonzero_mask: true
   optimization:
-    iter_num_per_epoch: 1000
+    profile: warmup_cosine_lr
+    n_steps_per_epoch: 1000
     max_epochs: 500
+    
   monitor:
     logging:
       scalar:
         loss_every_n_steps: 50
       images:
         log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
     checkpoint:
       save_top_k: 3
-      save_every_n_epochs: 10
+      monitor: train_loss_total_epoch
 
 test:
   data:

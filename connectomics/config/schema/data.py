@@ -231,15 +231,6 @@ class DataInputConfig:
     # Voxel resolution (physical dimensions in nm)
     resolution: Optional[List[float]] = None  # Data resolution [z, y, x] in nm
 
-    # # Train/Val Split (inspired by DeepEM)
-    # # If enabled, splits single volume into train/val regions
-    # split_enabled: bool = False  # Enable automatic train/val split (default: False)
-    # split_train_range: List[float] = field(default_factory=lambda: [0.0, 0.8])  # Train: 0-80%
-    # split_val_range: List[float] = field(default_factory=lambda: [0.8, 1.0])  # Val: 80-100%
-    # split_axis: int = 0  # Axis to split along (0=Z, 1=Y, 2=X)
-    # split_pad_val: bool = True  # Pad validation to patch_size if smaller
-    # split_pad_mode: str = "reflect"  # Padding mode: 'reflect', 'replicate', 'constant'
-
 
 @dataclass
 class FlipConfig:
@@ -456,6 +447,9 @@ class DataConfig:
     # Structured train/val input configuration
     train: DataInputConfig = field(default_factory=DataInputConfig)
     val: DataInputConfig = field(default_factory=DataInputConfig)
+    # Optional explicit test split for inference-mode datasets.
+    # If left empty, runtime falls back to `val`.
+    test: DataInputConfig = field(default_factory=DataInputConfig)
 
     # Data loading
     dataloader: DataloaderConfig = field(default_factory=DataloaderConfig)
@@ -475,4 +469,4 @@ class DataConfig:
     label_transform: LabelTransformConfig = field(default_factory=LabelTransformConfig)
 
     # Augmentation configuration (nested under data in YAML)
-    augmentation: AugmentationConfig = field(default_factory=lambda: AugmentationConfig())
+    augmentation: AugmentationConfig = field(default_factory=AugmentationConfig)

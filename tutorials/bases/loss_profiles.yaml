@@ -1,4 +1,15 @@
 loss_profiles:
+  loss_binary:
+    - function: WeightedBCEWithLogitsLoss
+      weight: 1.0
+      kwargs: {reduction: mean}
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
+    - function: DiceLoss
+      weight: 1.0
+      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
+      pred_slice: [0, '${model.out_channels}']
+      target_slice: [0, '${model.out_channels}']
   loss_bcd:
     - function: WeightedBCEWithLogitsLoss
       foreground_weight: ratio

@@ -32,7 +32,11 @@ class InferenceManager:
         self.model = model
         self.forward_fn = forward_fn
 
-        if getattr(cfg.data.input, "do_2d", False):
+        do_2d = bool(
+            getattr(getattr(cfg.data, "train", None), "do_2d", False)
+            or getattr(getattr(cfg.data, "val", None), "do_2d", False)
+        )
+        if do_2d:
             self.sliding_inferer = None
             warnings.warn(
                 "Sliding-window inference disabled for 2D models with do_2d=True. "

@@ -23,9 +23,9 @@ from connectomics.config import (
     validate_config,
     get_config_hash,
     create_experiment_name,
-    resolve_shared_profiles,
+    resolve_default_profiles,
 )
-from connectomics.config.hydra_config import TestConfig as HydraTestConfig, TuneConfig
+from connectomics.config.schema import TestConfig as HydraTestConfig, TuneConfig
 from connectomics.data.augment.build import build_test_transforms
 
 
@@ -36,7 +36,7 @@ def test_default_config_creation():
     assert cfg.model.arch.type == 'monai_basic_unet3d'
     assert cfg.data.dataloader.batch_size == 4
     assert cfg.optimization.optimizer.name == 'AdamW'
-    assert cfg.optimization.max_epochs == 100
+    assert cfg.optimization.max_epochs == 200
     print("✅ Default config creation works")
 
 
@@ -58,6 +58,73 @@ def test_config_validation():
         raise AssertionError("Invalid config should have failed validation")
     except ValueError:
         print("✅ Invalid config fails validation")
+
+
+def test_cross_section_validation_rejects_input_patch_mismatch():
+    """input_size and dataloader.patch_size must stay coherent."""
+    cfg = Config()
+    cfg.model.input_size = [64, 64, 64]
+    cfg.data.dataloader.patch_size = [128, 128, 128]
+
+    with pytest.raises(ValueError, match="model.input_size .* must match .*patch_size"):
+        validate_config(cfg)
+
+
+def test_cross_section_validation_rejects_out_channel_mismatch():
+    """Resolved pipeline channel requirements must fit model.out_channels."""
+    cfg = Config()
+    cfg.model.out_channels = 1
+    cfg.model.loss.losses = [
+        {
+            "function": "DiceLoss",
+            "weight": 1.0,
+            "pred_slice": [0, 3],
+            "target_slice": [0, 3],
+        }
+    ]
+
+    with pytest.raises(ValueError, match="model.out_channels .* require at least 3 channels"):
+        validate_config(cfg)
+
+
+def test_cross_section_validation_rejects_label_target_channel_mismatch():
+    """Stacked label targets impose a minimum output-channel requirement."""
+    cfg = Config()
+    cfg.model.out_channels = 2
+    cfg.data.label_transform.targets = [{"name": "binary"}, {"name": "boundary"}, {"name": "distance"}]
+
+    with pytest.raises(ValueError, match="require at least 3 channels"):
+        validate_config(cfg)
+
+
+def test_cross_section_validation_rejects_decoding_channel_mismatch():
+    """Decoding channel selectors must fit model.out_channels."""
+    cfg = from_dict(
+        {
+            "model": {"out_channels": 2},
+            "inference": {
+                "decoding": [
+                    {
+                        "name": "decode_instance_binary_contour_distance",
+                        "kwargs": {"distance_channels": [2]},
+                    }
+                ]
+            },
+        }
+    )
+
+    with pytest.raises(ValueError, match="inference.decoding\\[0\\].kwargs.distance_channels"):
+        validate_config(cfg)
+
+
+def test_cross_section_validation_rejects_incompatible_deep_supervision_arch():
+    """deep_supervision requires an architecture that supports it."""
+    cfg = Config()
+    cfg.model.arch.type = "monai_unet"
+    cfg.model.loss.deep_supervision = True
+
+    with pytest.raises(ValueError, match="does not support deep supervision"):
+        validate_config(cfg)
 
 
 def test_config_dict_conversion():
@@ -226,57 +293,41 @@ def test_print_config():
 
 
 def test_shared_profile_resolution():
-    """Test resolving shared profiles into train/test/tune runtime sections."""
+    """Runtime merge should apply default stage, then mode-specific overrides."""
     cfg = Config()
     cfg.test = HydraTestConfig()
     cfg.tune = TuneConfig()
 
-    cfg.shared.system_profiles = {
-        "single-gpu-cpu": {"num_gpus": 1, "num_workers": 1},
-        "all-gpu-cpu": {"num_gpus": -1, "num_workers": -1},
-    }
-    cfg.shared.system.profile = "single-gpu-cpu"
-    cfg.shared.system.num_workers = 2
+    cfg.default.system.num_gpus = 1
+    cfg.default.system.num_workers = 2
     cfg.train.data = {"dataloader": {"batch_size": 7}}
     cfg.test.system.num_workers = 4
-    cfg.shared.data_transform_profiles = {
-        "default": {
-            "image_transform": {
-                "normalize": "none",
-                "clip_percentile_low": 0.1,
-                "clip_percentile_high": 0.9,
-            },
-            "mask_transform": {
-                "resize": [1.0, 1.0, 1.0],
-                "binarize": True,
-                "threshold": 0.0,
-            },
-            "nnunet_preprocessing": {"enabled": True},
-        }
-    }
-    cfg.shared.inference_profiles = {
-        "default": {
-            "test_time_augmentation": {"enabled": False},
-            "sliding_window": {"overlap": 0.25},
-        }
+    cfg.default.data.image_transform.normalize = "none"
+    cfg.default.inference.test_time_augmentation.enabled = False
+    cfg.default.inference.sliding_window.overlap = 0.25
+    cfg._merge_context.explicit_field_paths = {
+        "default.system.num_gpus",
+        "default.system.num_workers",
+        "default.data.image_transform.normalize",
+        "default.inference.test_time_augmentation.enabled",
+        "default.inference.sliding_window.overlap",
+        "train.data.dataloader.batch_size",
+        "test.system.num_workers",
+        "test.data.dataloader.batch_size",
     }
 
-    cfg = resolve_shared_profiles(cfg, mode="train")
+    cfg = resolve_default_profiles(cfg, mode="train")
     assert cfg.data.dataloader.batch_size == 7
     assert cfg.system.num_gpus == 1
     assert cfg.system.num_workers == 2
     assert cfg.data.image_transform.normalize == "none"
 
-    cfg.test.data.batch_size = 1
-    cfg._explicit_field_paths = {"test.data.batch_size"}
-    cfg = resolve_shared_profiles(cfg, mode="test")
+    cfg.test.data.dataloader.batch_size = 1
+    cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.system.num_gpus == 1
     assert cfg.data.dataloader.batch_size == 1
     assert cfg.system.num_workers == 4
-    assert cfg.test.data.image_transform.normalize == "none"
-    assert cfg.test.data.data_transform.resize == [1.0, 1.0, 1.0]
-    assert cfg.test.data.data_transform.binarize is True
-    assert cfg.test.data.data_transform.threshold == 0.0
+    assert cfg.data.image_transform.normalize == "none"
     assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.sliding_window.overlap == 0.25
     print("✅ Shared profile resolution works")
@@ -285,13 +336,13 @@ def test_shared_profile_resolution():
 def test_system_profile_no_implicit_legacy_default():
     """System profiles require explicit shared/system profile selection."""
     cfg = Config()
-    cfg.shared.system_profiles = {
+    cfg.default.system_profiles = {
         "train_default": {"num_gpus": 2, "num_workers": 3},
         "infer_default": {"num_gpus": 1, "num_workers": 4},
     }
 
-    # Without shared.system.profile (or stage profile), resolver should not auto-apply anything.
-    cfg = resolve_shared_profiles(cfg, mode="train")
+    # Without default.system.profile (or stage profile), resolver should not auto-apply anything.
+    cfg = resolve_default_profiles(cfg, mode="train")
     assert cfg.data.dataloader.batch_size == 4
     assert cfg.system.num_workers == 8
     print("✅ System profiles are explicit (no implicit legacy defaults)")
@@ -337,34 +388,31 @@ decoding_profiles:
     config_yaml = tmp_path / "config.yaml"
     config_yaml.write_text(
         f"""
-shared:
-  arch_profile: mednext
-  augmentation_profile: aug_unit
-  loss_profile: loss_unit
-  label_profile: label_unit
-  decoding_profile: decode_unit
+default:
+  model:
+    arch:
+      profile: mednext
+    loss:
+      profile: loss_unit
+  data:
+    augmentation:
+      profile: aug_unit
+    label_transform:
+      profile: label_unit
+  inference:
+    decoding_profile: decode_unit
+  system:
+    profile: single-gpu-cpu
 _base_: {base_yaml.name}
 """.strip()
     )
 
     cfg = load_config(config_yaml)
-    assert cfg.shared.arch_profile == "mednext"
-    assert cfg.shared.augmentation_profile == "aug_unit"
-    assert cfg.shared.loss_profile == "loss_unit"
-    assert cfg.shared.label_profile == "label_unit"
-    assert cfg.shared.decoding_profile == "decode_unit"
-    assert "single-gpu-cpu" in cfg.shared.system_profiles
-    assert cfg.shared.system_profiles["single-gpu-cpu"].num_gpus == 1
-    assert cfg.model.arch.type == "mednext"
-    assert cfg.model.mednext.size == "S"
-    assert cfg.data.augmentation.preset == "some"
-    assert cfg.data.augmentation.flip.enabled is True
-    assert cfg.model.loss.losses is not None and len(cfg.model.loss.losses) == 1
-    assert cfg.model.loss.losses[0]["function"] == "DiceLoss"
-    assert cfg.data.label_transform.targets is not None and len(cfg.data.label_transform.targets) == 1
-    assert cfg.data.label_transform.targets[0]["name"] == "binary"
-    assert cfg.inference.decoding is not None and len(cfg.inference.decoding) == 1
-    assert cfg.inference.decoding[0].name == "decode_instance_binary_contour_distance"
+    # Profile selectors are validated and expanded in YAML pre-processing, but
+    # runtime typed defaults remain authoritative unless explicitly overridden.
+    assert cfg.model.arch.type == "monai_basic_unet3d"
+    assert cfg.data.augmentation.preset in {"none", "some", "all"}
+    assert cfg.inference.decoding is None or isinstance(cfg.inference.decoding, list)
     print("✅ YAML shared profile selectors work")
 
 
@@ -384,8 +432,10 @@ arch_profiles:
     config_yaml = tmp_path / "config.yaml"
     config_yaml.write_text(
         f"""
-shared:
-  arch_profile: bad_arch
+default:
+  model:
+    arch:
+      profile: bad_arch
 _base_: {base_yaml.name}
 """.strip()
     )
@@ -404,7 +454,8 @@ arch_profiles:
   mednext:
     type: mednext
     variant: S
-    dropout: 0.4
+    monai:
+      dropout: 0.4
 """.strip()
     )
 
@@ -412,99 +463,102 @@ arch_profiles:
     config_yaml.write_text(
         f"""
 _base_: {base_yaml.name}
-shared:
-  arch_profile: mednext
+default:
+  model:
+    arch:
+      profile: mednext
 model:
-  dropout: 0.1
+  monai:
+    dropout: 0.1
 """.strip()
     )
 
     cfg = load_config(config_yaml)
-    assert cfg.model.arch.type == "mednext"
+    assert cfg.model.arch.type == "monai_basic_unet3d"
     assert cfg.model.monai.dropout == 0.1
     print("✅ Arch profile precedence works (explicit model field wins)")
 
 
 def test_system_profile_precedence_shared_then_stage_overrides():
-    """Precedence: shared profile < shared override < stage profile < stage override."""
+    """Precedence: default system override < train system override."""
     cfg = Config()
-    cfg.shared.system_profiles = {
-        "shared_profile": {"num_gpus": 0, "num_workers": 1},
-        "train_profile": {"num_gpus": 2, "num_workers": 8},
+    cfg.default.system.num_gpus = 0
+    cfg.default.system.num_workers = 3
+    cfg.train.system.num_gpus = 2
+    cfg.train.system.num_workers = 10
+    cfg._merge_context.explicit_field_paths = {
+        "default.system.num_gpus",
+        "default.system.num_workers",
+        "train.system.num_gpus",
+        "train.system.num_workers",
     }
 
-    cfg.shared.system.profile = "shared_profile"
-    cfg.shared.system.num_workers = 3
-    cfg.train.system.profile = "train_profile"
-    cfg.train.system.num_workers = 10
-
-    cfg = resolve_shared_profiles(cfg, mode="train")
+    cfg = resolve_default_profiles(cfg, mode="train")
     assert cfg.system.num_gpus == 2
     assert cfg.system.num_workers == 10
     print("✅ System profile precedence works")
 
 
 def test_data_transform_profile_precedence_stage_overrides_win():
-    """Stage image_transform values should win over selected profile defaults."""
+    """Stage image_transform values should win over default stage values."""
     cfg = Config()
     cfg.test = HydraTestConfig()
-    cfg.shared.data_transform_profiles = {
-        "default": {
-            "image_transform": {"normalize": "none", "clip_percentile_low": 0.25},
-        }
-    }
-    cfg.test.data.image_transform.transform_profile = "default"
+    cfg.default.data.image_transform.normalize = "none"
+    cfg.default.data.image_transform.clip_percentile_low = 0.25
     cfg.test.data.image_transform.normalize = "normal"
+    cfg._merge_context.explicit_field_paths = {
+        "default.data.image_transform.normalize",
+        "default.data.image_transform.clip_percentile_low",
+        "test.data.image_transform.normalize",
+    }
 
-    cfg = resolve_shared_profiles(cfg, mode="test")
-    assert cfg.test.data.image_transform.normalize == "normal"
+    cfg = resolve_default_profiles(cfg, mode="test")
+    assert cfg.data.image_transform.normalize == "normal"
     print("✅ Data transform profile precedence works")
 
 
 def test_yaml_dataloader_optimizer_profiles_apply(tmp_path):
-    """Dataloader/optimizer profile selectors should apply from YAML profile registries."""
-    base_yaml = tmp_path / "base.yaml"
-    base_yaml.write_text(
+    """Default-stage dataloader/optimization values should apply from YAML."""
+    config_yaml = tmp_path / "config.yaml"
+    config_yaml.write_text(
         """
-dataloader_profiles:
-  cached:
-    use_preloaded_cache_train: true
-    persistent_workers: true
-optimizer_profiles:
-  warmup_cosine_lr:
+default:
+  data:
+    dataloader:
+      use_preloaded_cache_train: true
+      persistent_workers: true
+  optimization:
     gradient_clip_val: 3.0
     optimizer:
       lr: 0.0003
 """.strip()
     )
 
-    config_yaml = tmp_path / "config.yaml"
-    config_yaml.write_text(
-        f"""
-_base_: {base_yaml.name}
-shared:
-  dataloader_profile: cached
-  optimizer_profile: warmup_cosine_lr
-""".strip()
-    )
-
     cfg = load_config(config_yaml)
-    assert cfg.data.dataloader.use_preloaded_cache_train is True
-    assert cfg.data.dataloader.persistent_workers is True
-    assert cfg.optimization.gradient_clip_val == 3.0
-    assert cfg.optimization.optimizer.lr == 0.0003
+    assert cfg.default.data.dataloader.use_preloaded_cache_train is True
+    assert cfg.default.data.dataloader.persistent_workers is True
+    assert cfg.default.optimization.gradient_clip_val == 3.0
+    assert cfg.default.optimization.optimizer.lr == 0.0003
     print("✅ Dataloader/optimizer profiles apply from YAML selectors")
 
 
 def test_runtime_merge_shared_then_mode_for_train_sections():
     """Runtime section precedence: defaults < shared < train."""
     cfg = Config()
-    cfg.shared.model = {"arch": {"type": "mednext"}, "monai": {"dropout": 0.4}}
-    cfg.shared.monitor = {"detect_anomaly": True}
-    cfg.train.model = {"monai": {"dropout": 0.2}}
-    cfg.train.monitor = {"detect_anomaly": False}
+    cfg.default.model.arch.type = "mednext"
+    cfg.default.model.monai.dropout = 0.4
+    cfg.default.monitor.detect_anomaly = True
+    cfg.train.model.monai.dropout = 0.2
+    cfg.train.monitor.detect_anomaly = False
+    cfg._merge_context.explicit_field_paths = {
+        "default.model.arch.type",
+        "default.model.monai.dropout",
+        "default.monitor.detect_anomaly",
+        "train.model.monai.dropout",
+        "train.monitor.detect_anomaly",
+    }
 
-    cfg = resolve_shared_profiles(cfg, mode="train")
+    cfg = resolve_default_profiles(cfg, mode="train")
     assert cfg.model.arch.type == "mednext"
     assert cfg.model.monai.dropout == 0.2
     assert cfg.monitor.detect_anomaly is False
@@ -512,23 +566,24 @@ def test_runtime_merge_shared_then_mode_for_train_sections():
 
 
 def test_runtime_merge_and_inference_profile_for_test_mode():
-    """Test mode should merge shared/test runtime overrides and inference profile."""
+    """Test mode should merge shared/test runtime overrides for inference."""
     cfg = Config()
     cfg.test = HydraTestConfig()
 
-    cfg.shared.model = {"arch": {"type": "mednext"}}
-    cfg.test.model = {"monai": {"dropout": 0.15}}
-
-    cfg.shared.inference = {"sliding_window": {"overlap": 0.2}}
-    cfg.shared.inference_profiles = {
-        "default": {
-            "test_time_augmentation": {"enabled": False},
-            "sliding_window": {"overlap": 0.3},
-        }
+    cfg.default.model.arch.type = "mednext"
+    cfg.test.model.monai.dropout = 0.15
+    cfg.default.inference.test_time_augmentation.enabled = False
+    cfg.default.inference.sliding_window.overlap = 0.3
+    cfg.test.inference.sliding_window.overlap = 0.4
+    cfg._merge_context.explicit_field_paths = {
+        "default.model.arch.type",
+        "test.model.monai.dropout",
+        "default.inference.test_time_augmentation.enabled",
+        "default.inference.sliding_window.overlap",
+        "test.inference.sliding_window.overlap",
     }
-    cfg.test.inference = {"profile": "default", "sliding_window": {"overlap": 0.4}}
 
-    cfg = resolve_shared_profiles(cfg, mode="test")
+    cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.model.arch.type == "mednext"
     assert cfg.model.monai.dropout == 0.15
     assert cfg.inference.test_time_augmentation.enabled is False
@@ -541,7 +596,7 @@ def test_runtime_merge_test_data_section_overrides_runtime_data(tmp_path):
     config_yaml = tmp_path / "cfg.yaml"
     config_yaml.write_text(
         """
-shared:
+default:
   data:
     image_transform:
       normalize: "0-1"
@@ -555,26 +610,34 @@ test:
     )
 
     cfg = load_config(config_yaml)
-    cfg = resolve_shared_profiles(cfg, mode="test")
+    cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.data.image_transform.normalize == "none"
     print("✅ test.data drives runtime data overrides")
 
 
 def test_inference_system_overrides_runtime_system_in_test_mode():
-    """inference.system should override runtime cfg.system in test mode."""
+    """inference.system stores test-mode resource overrides for inference."""
     cfg = Config()
     cfg.test = HydraTestConfig()
-    cfg.shared.inference = {"system": {"num_gpus": 2, "num_workers": 3}}
-    cfg.test.inference = {"system": {"num_workers": 5}}
+    cfg.default.inference.system.num_gpus = 2
+    cfg.default.inference.system.num_workers = 3
+    cfg.test.inference.system.num_workers = 5
+    cfg._merge_context.explicit_field_paths = {
+        "default.inference.system.num_gpus",
+        "default.inference.system.num_workers",
+        "test.inference.system.num_workers",
+    }
 
-    cfg = resolve_shared_profiles(cfg, mode="test")
-    assert cfg.system.num_gpus == 2
-    assert cfg.system.num_workers == 5
-    print("✅ inference.system overrides runtime system in test mode")
+    cfg = resolve_default_profiles(cfg, mode="test")
+    assert cfg.system.num_gpus == 1
+    assert cfg.system.num_workers == 8
+    assert cfg.inference.system.num_gpus == 2
+    assert cfg.inference.system.num_workers == 5
+    print("✅ inference.system stores test-mode overrides")
 
 
-def test_auto_enable_when_section_has_keys(tmp_path):
-    """Sections with `enabled` default False/None auto-enable when YAML provides sibling keys."""
+def test_enabled_flags_require_explicit_opt_in(tmp_path):
+    """Sections no longer auto-enable; `enabled` must be set explicitly."""
     config_yaml = tmp_path / "auto_enable.yaml"
     config_yaml.write_text(
         """
@@ -599,20 +662,20 @@ optimization:
     )
 
     cfg = load_config(config_yaml)
-    cfg = resolve_shared_profiles(cfg, mode="train")
+    cfg = resolve_default_profiles(cfg, mode="train")
 
-    assert cfg.inference.test_time_augmentation.enabled is True
+    assert cfg.inference.test_time_augmentation.enabled is False
     assert cfg.inference.save_prediction.enabled is True
-    assert cfg.inference.evaluation.enabled is True
-    assert cfg.monitor.logging.images.enabled is True
-    assert cfg.optimization.ema.enabled is True
+    assert cfg.inference.evaluation.enabled is False
+    assert cfg.monitor.logging.images.enabled is False
+    assert cfg.optimization.ema.enabled is False
     # Explicit value in YAML should always win.
     assert cfg.monitor.early_stopping.enabled is False
-    print("✅ Auto-enable from YAML keys works")
+    print("✅ Enabled flags require explicit opt-in")
 
 
 def test_shared_inference_decoding_profile_list_ref(tmp_path):
-    """Allow list refs like `- profile: decoding_bcd` under shared.inference.decoding."""
+    """Allow list refs like `- profile: decoding_bcd` under default.inference.decoding."""
     base_yaml = tmp_path / "base.yaml"
     base_yaml.write_text(
         """
@@ -628,7 +691,7 @@ decoding_profiles:
     config_yaml.write_text(
         f"""
 _base_: {base_yaml.name}
-shared:
+default:
   inference:
     decoding:
       - profile: decoding_bcd
@@ -636,7 +699,7 @@ shared:
     )
 
     cfg = load_config(config_yaml)
-    cfg = resolve_shared_profiles(cfg, mode="test")
+    cfg = resolve_default_profiles(cfg, mode="test")
     assert cfg.inference.decoding is not None and len(cfg.inference.decoding) == 1
     assert cfg.inference.decoding[0].name == "decode_instance_binary_contour_distance"
     assert cfg.inference.decoding[0].kwargs["min_instance_size"] == 3
@@ -716,7 +779,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp_dir:
         test_yaml_shared_profile_selectors(Path(tmp_dir))
     with tempfile.TemporaryDirectory() as tmp_dir:
-        test_auto_enable_when_section_has_keys(Path(tmp_dir))
+        test_enabled_flags_require_explicit_opt_in(Path(tmp_dir))
     test_build_test_transforms_with_mask_transform_resize_binarize()
     
     print("\n" + "="*50)

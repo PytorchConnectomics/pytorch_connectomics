@@ -72,7 +72,7 @@ model:
     kernel_size: 3                       # Convolution kernel size
     norm: batch
     dropout: 0.1                         # Dropout for regularization
-    upsample: nontrainable                # Use trilinear upsampling (no transposed conv)
+    upsample_mode: nontrainable          # Use trilinear upsampling (no transposed conv)
   mednext:
     size: S                       # S (5.6M), B (10.5M), M (17.6M), L (61.8M)
     kernel_size: 3                # 3, 5, or 7
@@ -173,7 +173,7 @@ data:
     patch_size: [32, 128, 128]         # 32x128x128 training patches (OPTION 3 - larger for better context)
 optimization:
   max_epochs: 10000
-  iter_num_per_epoch: 1280
+  n_steps_per_epoch: 1280
   gradient_clip_val: 0.5               # Conservative gradient clipping (from lucchi++)
   accumulate_grad_batches: 2           # Effective global batch ≈32 with 4 GPUs × bs=4
   precision: "bf16-mixed"              # BFloat16 mixed precision

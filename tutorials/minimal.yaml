@@ -1,0 +1,52 @@
+experiment_name: minimal_demo
+description: Minimal training config for quick startup and UX onboarding.
+
+model:
+  arch:
+    type: monai_unet
+  in_channels: 1
+  out_channels: 1
+  input_size: [32, 64, 64]
+  output_size: [32, 64, 64]
+  monai:
+    filters: [16, 32, 64]
+    num_res_units: 1
+    kernel_size: 3
+    dropout: 0.0
+  loss:
+    losses:
+      - function: DiceLoss
+        weight: 1.0
+        pred_slice: [0, 1]
+        target_slice: [0, 1]
+
+data:
+  train:
+    image: random://minimal/train_image
+    label: random://minimal/train_label
+  val:
+    image: random://minimal/val_image
+    label: random://minimal/val_label
+  dataloader:
+    batch_size: 1
+    patch_size: [32, 64, 64]
+
+optimization:
+  max_epochs: 1
+  n_steps_per_epoch: 1
+  precision: "32"
+  optimizer:
+    name: AdamW
+    lr: 1e-4
+
+monitor:
+  checkpoint:
+    dirpath: outputs/minimal/checkpoints
+    save_top_k: 1
+    save_last: true
+
+train:
+  system:
+    num_gpus: 1
+    num_workers: 2
+    seed: 42

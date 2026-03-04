@@ -45,7 +45,7 @@ from .monai_transforms import (
     ResizeByFactord,
     RandElasticd,
 )
-from ...config.hydra_config import Config, AugmentationConfig
+from ...config.schema import Config, AugmentationConfig
 
 
 def _strict_binarize_mask(mask, threshold: float = 0.0):
@@ -212,7 +212,10 @@ def build_train_transforms(
 
     if augmentation_enabled:
         # Pass do_2d flag to augmentation builder
-        do_2d = getattr(cfg.data.input, "do_2d", False)
+        do_2d = bool(
+            getattr(getattr(cfg.data, "train", None), "do_2d", False)
+            or getattr(getattr(cfg.data, "val", None), "do_2d", False)
+        )
         transforms.extend(_build_augmentations(cfg.data.augmentation, keys, do_2d=do_2d))
 
     # Normalize labels to 0-1 range if enabled
@@ -261,6 +264,13 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     Returns:
         Composed MONAI transforms (no augmentation)
     """
+    def _eval_split(data_cfg):
+        """Prefer data.test when set; otherwise use data.val."""
+        test_split = getattr(data_cfg, "test", None)
+        if test_split is not None and getattr(test_split, "image", None):
+            return test_split
+        return data_cfg.val
+
     if keys is None:
         # Auto-detect keys based on mode
         if mode == "val":
@@ -275,31 +285,24 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
             # Test/inference: default to image only
             keys = ["image"]
             # Only add label if test_label or tune_label is explicitly specified
-            has_test_label = (
-                hasattr(cfg, "test")
-                and hasattr(cfg.test, "data")
-                and cfg.test.data.val.label is not None
-            )
+            test_split = _eval_split(cfg.test.data) if hasattr(cfg, "test") and hasattr(cfg.test, "data") else None
+            has_test_label = test_split is not None and test_split.label is not None
             has_tune_label = (
                 hasattr(cfg, "tune")
                 and cfg.tune is not None
                 and hasattr(cfg.tune, "data")
-                and cfg.tune.data.val.label is not None
+                and _eval_split(cfg.tune.data).label is not None
             )
             if has_test_label or has_tune_label:
                 keys.append("label")
 
             # Add mask if test_mask or tune_mask is explicitly specified
-            has_test_mask = (
-                hasattr(cfg, "test")
-                and hasattr(cfg.test, "data")
-                and cfg.test.data.val.mask is not None
-            )
+            has_test_mask = test_split is not None and test_split.mask is not None
             has_tune_mask = (
                 hasattr(cfg, "tune")
                 and cfg.tune is not None
                 and hasattr(cfg.tune, "data")
-                and cfg.tune.data.val.mask is not None
+                and _eval_split(cfg.tune.data).mask is not None
             )
             if has_test_mask or has_tune_mask:
                 keys.append("mask")
@@ -346,11 +349,11 @@ def _build_eval_transforms_impl(cfg: Config, mode: str = "val", keys: list[str] 
     if mode == "test":
         if hasattr(cfg, "test") and hasattr(cfg.test, "data"):
             nnunet_pre_cfg = getattr(cfg.test.data, "nnunet_preprocessing", None)
-            source_spacing = getattr(cfg.test.data.val, "resolution", None)
+            source_spacing = getattr(_eval_split(cfg.test.data), "resolution", None)
     elif mode == "tune":
         if hasattr(cfg, "tune") and cfg.tune and hasattr(cfg.tune, "data"):
             nnunet_pre_cfg = getattr(cfg.tune.data, "nnunet_preprocessing", None)
-            source_spacing = getattr(cfg.tune.data.val, "resolution", None)
+            source_spacing = getattr(_eval_split(cfg.tune.data), "resolution", None)
     elif mode == "val":
         nnunet_pre_cfg = getattr(cfg.data, "nnunet_preprocessing", None)
         source_spacing = (

@@ -89,10 +89,16 @@ def create_demo_config():
         Config object for demo training
     """
     from connectomics.config import Config
-    from connectomics.config.hydra_config import (
+    from connectomics.config.schema import (
         SystemConfig,
         ModelConfig,
+        ModelArchConfig,
+        MonaiConfig,
+        LossConfig,
         DataConfig,
+        DataInputConfig,
+        DataloaderConfig,
+        DataTransformConfig,
         OptimizationConfig,
         OptimizerConfig,
         SchedulerConfig,
@@ -111,46 +117,50 @@ def create_demo_config():
             num_workers=0,  # 0 for demo to avoid multiprocessing issues
         ),
         model=ModelConfig(
-            architecture="monai_unet",
+            arch=ModelArchConfig(type="monai_unet"),
             in_channels=1,
             out_channels=1,  # Single channel binary segmentation
-            spatial_dims=3,
-            filters=[16, 32, 64, 128],  # Smaller for demo
-            dropout=0.1,
-            losses=[
-                {
-                    "function": "DiceLoss",
-                    "weight": 1.0,
-                    "kwargs": {"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
-                    "pred_slice": [0, 1],
-                    "target_slice": [0, 1],
-                }
-            ],
+            input_size=[32, 64, 64],
+            output_size=[32, 64, 64],
+            monai=MonaiConfig(
+                spatial_dims=3,
+                filters=(16, 32, 64, 128),  # Smaller for demo
+                dropout=0.1,
+            ),
+            loss=LossConfig(
+                losses=[
+                    {
+                        "function": "DiceLoss",
+                        "weight": 1.0,
+                        "kwargs": {"sigmoid": True, "smooth_nr": 1e-5, "smooth_dr": 1e-5},
+                        "pred_slice": [0, 1],
+                        "target_slice": [0, 1],
+                    }
+                ]
+            ),
         ),
         data=DataConfig(
-            train_image=None,  # Will be generated
-            train_label=None,
-            val_image=None,
-            val_label=None,
-            batch_size=2,
-            patch_size=[32, 64, 64],  # Small for demo
-            stride=[16, 32, 32],
-            use_cache=False,
-            use_preloaded_cache_train=False,
-            use_preloaded_cache_val=False,
-            pin_memory=False,
-            persistent_workers=False,
+            train=DataInputConfig(image=None, label=None),  # Will be generated
+            val=DataInputConfig(image=None, label=None),
+            dataloader=DataloaderConfig(
+                batch_size=2,
+                patch_size=[32, 64, 64],  # Small for demo
+                use_cache=False,
+                use_preloaded_cache_train=False,
+                use_preloaded_cache_val=False,
+                pin_memory=False,
+                persistent_workers=False,
+            ),
+            data_transform=DataTransformConfig(stride=[16, 32, 32]),
         ),
         optimization=OptimizationConfig(
             max_epochs=5,  # Quick demo
-            iter_num_per_epoch=10,  # Just 10 iterations per epoch
+            n_steps_per_epoch=10,  # Just 10 iterations per epoch
             precision="32",  # Use FP32 for stability
             gradient_clip_val=1.0,
             accumulate_grad_batches=1,
             val_check_interval=1.0,
             log_every_n_steps=1,
-            deterministic=False,
-            benchmark=True,
             optimizer=OptimizerConfig(name="AdamW", lr=1e-3, weight_decay=1e-4),
             scheduler=SchedulerConfig(name="ConstantLR", warmup_epochs=0),
         ),
@@ -182,9 +192,8 @@ def create_demo_config():
             ),
         ),
         inference=InferenceConfig(
-            num_gpus=-1,
+            system=SystemConfig(num_gpus=-1, num_workers=-1),
             batch_size=-1,
-            num_workers=-1,
         ),
     )
 
@@ -288,7 +297,7 @@ def run_demo():
         num_workers=cfg.system.num_workers,
         pin_memory=cfg.data.dataloader.pin_memory,
         persistent_workers=False,
-        iter_num=cfg.optimization.iter_num_per_epoch,
+        iter_num=cfg.optimization.n_steps_per_epoch,
         sample_size=tuple(cfg.data.dataloader.patch_size),
     )
     datamodule.setup(stage="fit")

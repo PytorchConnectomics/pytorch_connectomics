@@ -96,7 +96,7 @@ data:
     patch_size: [1, 512, 512] # [D, H, W] - D=1 for 2D slices
 optimization:
   max_epochs: 100             # Training epochs
-  iter_num_per_epoch: 1000
+  n_steps_per_epoch: 1000
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "bf16-mixed"     # Mixed precision training

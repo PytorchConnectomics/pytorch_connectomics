@@ -14,6 +14,16 @@ import torch
 from monai.inferers import SlidingWindowInferer
 
 
+def _is_2d_mode(cfg) -> bool:
+    """Return True when data config indicates 2D mode."""
+    train_cfg = getattr(getattr(cfg, "data", None), "train", None)
+    val_cfg = getattr(getattr(cfg, "data", None), "val", None)
+    return bool(
+        getattr(train_cfg, "do_2d", False)
+        or getattr(val_cfg, "do_2d", False)
+    )
+
+
 def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
     """Determine the ROI size for sliding-window inference."""
     if hasattr(cfg, "inference") and hasattr(cfg.inference, "sliding_window"):
@@ -26,7 +36,7 @@ def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
         if output_size:
             roi_size = tuple(int(v) for v in output_size)
             # For 2D models with do_2d=True, convert to 3D ROI size
-            if getattr(cfg.data.input, "do_2d", False) and len(roi_size) == 2:
+            if _is_2d_mode(cfg) and len(roi_size) == 2:
                 roi_size = (1,) + roi_size  # Add depth dimension
             return roi_size
 
@@ -35,7 +45,7 @@ def resolve_inferer_roi_size(cfg) -> Optional[Tuple[int, ...]]:
         if patch_size:
             roi_size = tuple(int(v) for v in patch_size)
             # For 2D models with do_2d=True, convert to 3D ROI size
-            if getattr(cfg.data.input, "do_2d", False) and len(roi_size) == 2:
+            if _is_2d_mode(cfg) and len(roi_size) == 2:
                 roi_size = (1,) + roi_size  # Add depth dimension
             return roi_size
 
@@ -88,7 +98,8 @@ def build_sliding_inferer(cfg):
     overlap = resolve_inferer_overlap(cfg, roi_size)
     # Use data.dataloader.batch_size as default, fall back to sliding_window.sw_batch_size if specified.
     data_cfg = getattr(cfg, "data", None)
-    data_batch_value = getattr(data_cfg, "batch_size", 1) if data_cfg else 1
+    data_loader_cfg = getattr(data_cfg, "dataloader", None) if data_cfg else None
+    data_batch_value = getattr(data_loader_cfg, "batch_size", 1) if data_loader_cfg else 1
     sliding_cfg = getattr(getattr(cfg, "inference", None), "sliding_window", None)
     config_sw_batch_size = getattr(sliding_cfg, "sw_batch_size", None) if sliding_cfg else None
     sw_batch_size = max(

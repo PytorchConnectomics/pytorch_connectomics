@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 
 @dataclass
@@ -18,23 +18,37 @@ class OptimizerConfig:
 
 @dataclass
 class SchedulerConfig:
-    """Learning rate scheduler configuration."""
+    """Learning rate scheduler configuration.
 
+    Follows the same extensible pattern as ModelArchConfig:
+    - ``name`` selects the scheduler implementation
+    - ``params`` carries scheduler-specific arguments
+    - typed shared fields remain available for discoverability
+    """
+
+    profile: Optional[str] = None
     name: str = "CosineAnnealingLR"
+    params: Dict[str, Any] = field(default_factory=dict)
+
+    # Shared scheduler controls
+    monitor: Optional[str] = None
+    mode: str = "min"
+    factor: float = 0.1
+    patience: int = 10
+    threshold: float = 1e-4
+    cooldown: int = 0
+    eps: float = 1e-8
+
+    # Warmup controls
     warmup_epochs: int = 10
     warmup_start_lr: float = 0.0001
+
+    # Minimum LR floor
     min_lr: float = 0.00001
 
     # Scheduler interval control
     interval: str = "epoch"  # "epoch" or "step" - controls when scheduler steps
     frequency: int = 1  # How often to step the scheduler
-
-    # CosineAnnealing-specific
-    t_max: Optional[int] = None
-
-    # CosineAnnealingWarmRestarts-specific
-    T_0: int = 200
-    T_mult: int = 1
 
 
 @dataclass
@@ -43,7 +57,10 @@ class EMAConfig:
 
     enabled: bool = False
     decay: float = 0.999
+    warmup_steps: int = 0
     validate_with_ema: bool = True
+    device: Optional[str] = None
+    copy_buffers: bool = True
 
 
 @dataclass
@@ -67,8 +84,8 @@ class OptimizationConfig:
 
     # Training loop
     max_epochs: int = 200
-    iter_num: Union[int, float] = 20000  # Absolute iterations or epochs if float<=1000 heuristic in data factory
-    val_iter_num: Optional[int] = None  # Validation iterations per epoch (auto-calculated if None)
+    n_steps_per_epoch: int = -1  # Optimizer steps per epoch (-1 = auto from dataset size)
+    val_steps_per_epoch: Optional[int] = None  # Validation steps per epoch (auto-calculated if None)
     gradient_clip_val: float = 1.0
     accumulate_grad_batches: int = 1
     precision: str = "16-mixed"  # "32", "16-mixed", "bf16-mixed"

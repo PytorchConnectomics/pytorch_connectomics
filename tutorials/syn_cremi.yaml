@@ -1,5 +1,7 @@
-shared:
-  arch_profile: rsunet
+default:
+  model:
+    arch:
+      profile: rsunet
 
 _base_: bases/arch_profiles.yaml
 experiment_name: rsunet_cremi_synapse_cleft
@@ -129,7 +131,7 @@ data:
       - 256
 optimization:
   max_steps: 150000
-  iter_num_per_epoch: 1280
+  n_steps_per_epoch: 1280
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: bf16-mixed
@@ -145,10 +147,11 @@ optimization:
     weight_decay: 0.01
   scheduler:
     name: CosineAnnealingLR
-    t_max: 150000
     min_lr: 1.0e-05
     interval: step
     frequency: 1
+    params:
+      t_max: 150000
   ema:
     enabled: true
     decay: 0.999

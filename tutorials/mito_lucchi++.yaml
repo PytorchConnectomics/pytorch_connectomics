@@ -1,155 +1,61 @@
-shared:
-  arch_profile: monai_unet
+experiment_name: mito_lucchi++
+description: Binary mitochondria segmentation on Lucchi++ EM dataset
 
-_base_: bases/arch_profiles.yaml
-experiment_name: lucchi++
-description: Mitochondria segmentation on Lucchi++ EM dataset
-model:
-  input_size:
-  - 112
-  - 112
-  - 112
-  output_size:
-  - 112
-  - 112
-  - 112
-  out_channels: 1
-  loss:
-    losses:
-    - function: WeightedBCEWithLogitsLoss
-      weight: 1.0
-      kwargs: {reduction: mean}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
-    - function: DiceLoss
-      weight: 1.0
-      kwargs: {sigmoid: true, smooth_nr: 1e-5, smooth_dr: 1e-5}
-      pred_slice: [0, '${model.out_channels}']
-      target_slice: [0, '${model.out_channels}']
-  monai:
-    dropout: 0.1
-    upsample: deconv
-data:
-  augmentation:
-    preset: some
-    flip:
-      enabled: true
-      prob: 0.5
-      spatial_axis:
-      - 0
-      - 1
-      - 2
-    rotate:
-      enabled: true
-      prob: 0.5
-      spatial_axes:
-      - 0
-      - 1
-      - 2
-    affine:
-      enabled: true
-      prob: 0.3
-      rotate_range:
-      - 0.1
-      - 0.1
-      - 0.1
-      scale_range:
-      - 0.05
-      - 0.05
-      - 0.05
-      shear_range:
-      - 0.05
-      - 0.05
-      - 0.05
-    intensity:
-      enabled: true
-      gaussian_noise_prob: 0.2
-      gaussian_noise_std: 0.03
-      shift_intensity_prob: 0.4
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.4
-      contrast_range:
-      - 0.8
-      - 1.2
-    misalignment:
-      enabled: true
-      prob: 0.4
-      displacement: 8
-      rotate_ratio: 0.3
-    missing_section:
-      enabled: true
-      prob: 0.3
-      num_sections: 2
-    motion_blur:
-      enabled: true
-      prob: 0.3
-      sections: 2
-      kernel_size: 9
-  train:
-    image: datasets/lucchi++/train_im.h5
-    label: datasets/lucchi++/train_mito.h5
-    resolution:
-    - 5
-    - 5
-    - 5
-  dataloader:
-    patch_size:
-      - 112
-      - 112
-      - 112
-optimization:
-  gradient_clip_val: 0.5
-  optimizer:
-    name: Adam
-    weight_decay: 0.0
-  scheduler:
-    name: ReduceLROnPlateau
-    mode: min
-    factor: 0.5
-    patience: 50
-    threshold: 0.0001
-    monitor: train_loss_total_epoch
-monitor:
-  logging:
-    images:
-      max_images: 8
-      num_slices: 2
-      channel_mode: argmax
-  early_stopping:
-    patience: 100
-    min_delta: 0.0001
-    threshold: 0.02
-    divergence_threshold: 2.0
-inference:
-  batch_size: 16
-  sliding_window:
-    window_size:
-    - 112
-    - 112
-    - 112
-    sw_batch_size: 1
-    overlap: 0.25
-    padding_mode: replicate
-  test_time_augmentation:
-    flip_axes: all
-    channel_activations:
-    - - 0
-      - 1
-      - sigmoid
-test:
+_base_:
+  - bases/all_profiles.yaml
+
+default:
+  pipeline_profile: binary
+  system:
+    profile: all-gpu-cpu
+  model:
+    arch:
+      profile: monai_unet
+    input_size: [112, 112, 112]
+    output_size: [112, 112, 112]
+    monai:
+      dropout: 0.1
   data:
-    test_image: datasets/lucchi++/test_im.h5
-    test_label: datasets/lucchi++/test_mito.h5
-    test_resolution:
-    - 5
-    - 5
-    - 5
-  evaluation:
-    enabled: true
-    metrics:
-    - jaccard
+    dataloader:
+      profile: cached
+      patch_size: [112, 112, 112]
+      batch_size: 8
+    augmentation:
+      profile: aug_strong
+  inference:
+    batch_size: 16
+    sliding_window:
+      window_size: [112, 112, 112]      
+    evaluation:
+      enabled: true
+      metrics: [jaccard]
 
 train:
-  system:
-    num_gpus: -1
-    num_workers: -1
+  data:
+    train:
+      image: datasets/lucchi++/train_im.h5
+      label: datasets/lucchi++/train_mito.h5
+      resolution: [5, 5, 5]
+  optimization:
+    profile: warmup_cosine_lr
+    n_steps_per_epoch: 1000
+    max_epochs: 500
+
+  monitor:
+    logging:
+      scalar:
+        loss_every_n_steps: 50
+      images:
+        log_every_n_epochs: 10
+        max_images: 8
+        num_slices: 2
+    checkpoint:
+      save_top_k: 3
+      monitor: train_loss_total_epoch
+    
+test:
+  data:
+    test:
+      image: datasets/lucchi++/test_im.h5
+      label: datasets/lucchi++/test_mito.h5
+      resolution: [5, 5, 5]

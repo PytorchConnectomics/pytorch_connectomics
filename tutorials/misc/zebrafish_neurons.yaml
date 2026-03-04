@@ -116,7 +116,7 @@ data:
     patch_size: [256, 256]
 optimization:
   max_epochs: 600                    # Increased from 500 for better convergence
-  iter_num_per_epoch: 25600
+  n_steps_per_epoch: 25600
   val_check_interval: 1.0
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1

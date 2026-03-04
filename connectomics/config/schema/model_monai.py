@@ -17,8 +17,6 @@ class MonaiConfig:
     num_res_units: int = 2
     kernel_size: int = 3
     strides: Optional[List[int]] = None
-    act: str = "relu"
-    upsample: str = "deconv"
     upsample_mode: str = "deconv"
     upsample_interp_mode: str = "linear"
     upsample_align_corners: bool = True

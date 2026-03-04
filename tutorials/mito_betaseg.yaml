@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_s
+default:
+  model:
+    arch:
+      profile: mednext_s
 
 _base_: bases/arch_profiles.yaml
 experiment_name: betaseg_mednext_s_sdt_affinity
@@ -140,7 +142,7 @@ data:
     patch_size: [128, 128, 128]
 optimization:
   max_steps: 1000000
-  iter_num_per_epoch: 50
+  n_steps_per_epoch: 50
   gradient_clip_val: 1.0
   accumulate_grad_batches: 1
   precision: "16-mixed"                 # FP16 mixed precision (better GPU compatibility than bf16)，"16-mixed"   

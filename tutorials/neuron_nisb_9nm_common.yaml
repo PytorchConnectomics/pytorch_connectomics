@@ -1,5 +1,7 @@
-shared:
-  arch_profile: mednext_b
+default:
+  model:
+    arch:
+      profile: mednext_b
 
 _base_: neuron_nisb_common.yaml
 

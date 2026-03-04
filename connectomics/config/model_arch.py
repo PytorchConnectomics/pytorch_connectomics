@@ -16,7 +16,7 @@ from typing import Any, Dict, Optional, Type
 
 from omegaconf import DictConfig, OmegaConf
 
-from .hydra_config import ModelConfig
+from .schema import ModelConfig
 
 
 def _to_plain_dict(value: Any) -> Dict[str, Any]:
@@ -185,8 +185,6 @@ class MonaiUNetSpec(BaseArchSpec):
             "num_res_units",
             "kernel_size",
             "strides",
-            "act",
-            "upsample",
             "upsample_mode",
             "upsample_interp_mode",
             "upsample_align_corners",
@@ -267,4 +265,3 @@ def resolve_arch_profile_model_patch(profile_name: str, profile_value: Any) -> D
         )
 
     return spec.build_model_patch(profile_name, profile)
-

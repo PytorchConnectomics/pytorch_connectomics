@@ -148,7 +148,7 @@ data:
     patch_size: [32, 128, 128]
 optimization:
   max_epochs: 1000  # INCREASED FROM: 500 (need more time to converge)
-  iter_num_per_epoch: 5000
+  n_steps_per_epoch: 5000
   gradient_clip_val: 0.5
   accumulate_grad_batches: 2
   precision: "bf16-mixed"

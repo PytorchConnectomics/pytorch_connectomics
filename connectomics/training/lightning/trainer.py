@@ -24,7 +24,7 @@ from pytorch_lightning.plugins.environments import LightningEnvironment
 from pytorch_lightning.strategies import DDPStrategy
 
 from ...config import Config
-from ...config.hydra_config import (
+from ...config.schema import (
     SystemConfig,
     ModelConfig,
     DataConfig,
@@ -146,6 +146,7 @@ def create_trainer(
                 cfg=cfg,
                 max_images=cfg.monitor.logging.images.max_images,
                 num_slices=cfg.monitor.logging.images.num_slices,
+                slice_sampling=cfg.monitor.logging.images.slice_sampling,
                 log_every_n_epochs=cfg.monitor.logging.images.log_every_n_epochs,
             )
             callbacks.append(vis_callback)
@@ -291,7 +292,6 @@ def create_trainer(
     trainer = pl.Trainer(
         max_epochs=max_epochs,
         max_steps=max_steps,
-        num_sanity_val_steps=cfg.optimization.num_sanity_val_steps,
         accelerator="gpu" if use_gpu else "cpu",
         devices=system_cfg.num_gpus if use_gpu else 1,
         strategy=strategy,
@@ -303,8 +303,6 @@ def create_trainer(
         log_every_n_steps=cfg.optimization.log_every_n_steps,
         callbacks=callbacks,
         logger=logger,
-        deterministic=cfg.optimization.deterministic,
-        benchmark=cfg.optimization.benchmark,
         fast_dev_run=bool(fast_dev_run),
         detect_anomaly=detect_anomaly,
         enable_progress_bar=True,

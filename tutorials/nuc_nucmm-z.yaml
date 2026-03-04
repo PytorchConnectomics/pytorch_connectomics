@@ -1,5 +1,7 @@
-shared:
-  arch_profile: monai_unet
+default:
+  model:
+    arch:
+      profile: monai_unet
 
 _base_: bases/arch_profiles.yaml
 experiment_name: nucmm_zebrafish_monai_unet
@@ -92,7 +94,8 @@ optimization:
     name: CosineAnnealingLR
     warmup_epochs: 5
     warmup_start_lr: 1.0e-05
-    t_max: 995
+    params:
+      t_max: 995
 monitor:
   logging:
     images:
