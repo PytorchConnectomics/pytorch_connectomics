@@ -106,6 +106,7 @@ All recommendations from the original review plus all cleanup items have been im
 | **Fix unnecessary lambda** in `DataConfig.augmentation` | Done |
 | **Table-drive `_collect_stage_overrides()`** (replaced 3 repetitive branches with `_MODE_SECTIONS` lookup) | Done |
 | **Update all imports** (`stage_resolver.py`, `config_io.py` import from `.schema` not `.hydra_config`) | Done |
+| **Redesign augmentation profiles** (5 systematic profiles replacing 4 ad-hoc + 5 standalone presets) | Done |
 
 ### Verification
 
@@ -133,7 +134,26 @@ All recommendations from the original review plus all cleanup items have been im
 
 **Overall: 8.8/10 — Production ready.**
 
-### 3.2 What Works Well
+### 3.2 Augmentation Profile Library
+
+The augmentation profiles (`tutorials/bases/augmentation_profiles.yaml`) provide a systematic library of 5 profiles organized by use case:
+
+| Profile | Augmentations | Use case |
+|---------|--------------|----------|
+| `aug_light` | flip, rotate, mild intensity | Quick experiments, clean data, fine-tuning |
+| `aug_standard` | light + misalignment, missing_section | Default for most 3D EM tasks (RECOMMENDED) |
+| `aug_strong` | standard + affine, elastic, motion_blur, missing_parts, cut_noise, strong intensity | Small datasets, overfitting prevention |
+| `aug_instance` | standard + copy_paste, mixup | Instance segmentation (neuron, mito, synapse) |
+| `aug_superres` | light + cut_blur, motion_blur | Super-resolution / multi-scale learning |
+
+Design principles:
+- **Self-contained**: each profile is complete — pick one, optionally override fields
+- **Strength-ordered**: light → standard → strong follows a clear intensity progression
+- **Task-specific**: instance and superres address specific segmentation needs
+- **Derived from real usage**: parameters match patterns from 14 tutorial configs
+- **No standalone preset files**: removed `tutorials/presets/` (was 5 standalone experiment configs that duplicated model/optimizer/data alongside augmentation)
+
+### 3.4 What Works Well
 
 - **No re-export facades**: `__init__.py` imports directly from real modules. `schema/__init__.py` is the single source of truth for schema exports.
 - **No field aliases**: Each concept has exactly one field name. `n_steps_per_epoch` is the only name for steps-per-epoch. `activation` is the only name for activation function. `upsample_mode` is the only name for upsample mode.

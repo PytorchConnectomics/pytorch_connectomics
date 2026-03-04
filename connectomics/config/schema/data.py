@@ -227,9 +227,11 @@ class DataInputConfig:
     image_key: str = "images"  # Key in JSON for image files
     label_key: str = "masks"  # Key in JSON for label files
     split_ratio: Optional[float] = None  # Auto split ratio (e.g., 0.9 = 90% train, 10% val)
+    val_split: Optional[float] = None  # Legacy alias for split_ratio
 
     # Voxel resolution (physical dimensions in nm)
     resolution: Optional[List[float]] = None  # Data resolution [z, y, x] in nm
+    train_resolution: Optional[List[float]] = None  # Legacy alias for resolution
 
 
 @dataclass
@@ -238,7 +240,7 @@ class FlipConfig:
 
     enabled: bool = True
     prob: float = 0.5
-    spatial_axis: int = 0
+    spatial_axis: Any = 0
 
 
 @dataclass
@@ -259,6 +261,7 @@ class RotateConfig:
     enabled: bool = True
     prob: float = 0.5
     spatial_axes: Tuple[int, int] = (1, 2)
+    max_angle: Optional[float] = None  # Legacy single-angle alias
 
 
 @dataclass
@@ -309,7 +312,7 @@ class MotionBlurConfig:
 
     enabled: bool = False
     prob: float = 0.0
-    sections: Tuple[int, int] = (1, 3)
+    sections: Any = (1, 3)
     kernel_size: int = 9
 
 
@@ -340,7 +343,7 @@ class MissingPartsConfig:
 
     enabled: bool = False
     prob: float = 0.0
-    hole_range: Tuple[int, int] = (8, 32)
+    hole_range: Tuple[float, float] = (8, 32)
 
 
 @dataclass
@@ -450,6 +453,17 @@ class DataConfig:
     # Optional explicit test split for inference-mode datasets.
     # If left empty, runtime falls back to `val`.
     test: DataInputConfig = field(default_factory=DataInputConfig)
+    # Legacy test-data aliases (kept for backward compatibility).
+    test_path: Optional[str] = None
+    test_image: Any = None
+    test_label: Any = None
+    test_mask: Any = None
+    test_resolution: Optional[List[float]] = None
+    test_transpose: Optional[List[int]] = None
+    output_path: Optional[str] = None
+    # Legacy nested data.checkpoint blocks are ignored by runtime.
+    checkpoint: Optional[Dict[str, Any]] = None
+    reject_sampling: Optional[Dict[str, Any]] = None
 
     # Data loading
     dataloader: DataloaderConfig = field(default_factory=DataloaderConfig)

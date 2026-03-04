@@ -3,7 +3,8 @@ default:
     arch:
       profile: rsunet
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 experiment_name: rsunet_snemi_lee2017_modern
 description: SNEMI3D neuron affinity learning (2017-style short-range setup with modern optimization and stability tricks)
 model:
@@ -21,8 +22,6 @@ model:
       pred_slice: [0, '${model.out_channels}']
       target_slice: [0, '${model.out_channels}']
 data:
-  use_preloaded_cache_train: true
-  use_preloaded_cache_val: true
   label_transform:
     erosion: 1
     targets:
@@ -106,6 +105,8 @@ data:
     - 64
     - 64
   dataloader:
+    use_preloaded_cache_train: true
+    use_preloaded_cache_val: true
     patch_size:
       - 16
       - 224
@@ -167,24 +168,7 @@ test:
     - 6
     - 6
     output_path: outputs/neuron_snemi/results/
-  # decoding:
-  # - name: decode_abiss
-  #   kwargs:
-  #     command:
-  #       - python
-  #       - scripts/run_abiss_single.py
-  #       - --input
-  #       - "{input_h5}"
-  #       - --input-dataset
-  #       - "{input_dataset}"
-  #       - --output
-  #       - "{output_h5}"
-  #       - --output-dataset
-  #       - "{output_dataset}"
-  # evaluation:
-  #   enabled: true
-  #   metrics:
-  #   - adapted_rand
+
 inference:
   batch_size: 8
   sliding_window:
@@ -211,10 +195,10 @@ inference:
     enabled: true
     intensity_scale: -1.0
     intensity_dtype: float32
-  # decoding:  
-  # - name: decode_abiss
-  #   kwargs:
-  #     command: "python scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
+  decoding:  
+  - name: decode_abiss
+    kwargs:
+      command: "python scripts/run_abiss_single.py --input {input_h5} --output {output_h5}"
   # evaluation:
   #   enabled: false
   #   metrics:

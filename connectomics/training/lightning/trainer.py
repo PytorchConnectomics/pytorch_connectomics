@@ -183,9 +183,10 @@ def create_trainer(
         callbacks.append(validation_reseeding_callback)
         print(f"  Validation Reseeding: Enabled (base_seed={cfg.system.seed})")
 
-    # Setup logger (training only - in run_dir/logs/)
-    # Always create a logger for training to avoid warnings about missing logger
-    logger = None
+    # Setup logger.
+    # Train: keep TensorBoard logs in run_dir/logs.
+    # Test/tune: disable logger so no logs/ folder is created in results output directories.
+    logger = False
     if mode == "train":
         if run_dir is None:
             raise ValueError("run_dir is required when mode='train'")
@@ -196,15 +197,6 @@ def create_trainer(
             version="logs",  # Logs go directly to run_dir/logs/
         )
         print(f"  Logger: TensorBoard (logs saved to {run_dir}/logs/)")
-    else:
-        # For test/predict mode, create a minimal logger to avoid warnings
-        # if validation metrics are logged
-        if run_dir is not None:
-            logger = TensorBoardLogger(
-                save_dir=str(run_dir),
-                name="",
-                version="logs",
-            )
 
     # Create trainer
     system_cfg = cfg.system

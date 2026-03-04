@@ -618,27 +618,47 @@ scheduler:
 - **Test coverage**: 62% unit tests passing (38/61), integration tests need updates
 
 ### Known Technical Debt
-1. **lit_model.py size**: 1,830 lines (should be split into smaller modules)
-2. ~~**Code duplication**: Training/validation steps share deep supervision logic (~140 lines)~~ ✅ **FIXED**
-3. ~~**NotImplementedError**: `create_tile_data_dicts_from_json()` not implemented~~ ✅ **FIXED**
-4. **Hardcoded values**: Output clamping, deep supervision weights, interpolation bounds
-5. **Dummy validation dataset**: Masks configuration errors instead of proper handling
 
-### Overall Assessment: **8.5/10 - Production Ready**
+#### Bugs
+1. **Mutable default in loss kwargs** (`models/loss/build.py:146`): `[{}] * len(loss_names)` creates shared dict references. All loss kwargs point to the same dict object. Fix: use `[{} for _ in range(len(loss_names))]`.
+2. **Undefined variable `lr`** (`training/lightning/callbacks.py:421`): `lr` is only assigned inside `if optimizer:` but used outside the block. Causes `NameError` when `optimizer` is None.
+
+#### Dead Code to Remove
+3. **Legacy backward-compat fields** (`config/schema/data.py:456-466`): 9 fields (`test_path`, `test_image`, `test_label`, `test_mask`, `test_resolution`, `test_transpose`, `checkpoint`, `reject_sampling`) explicitly marked as legacy/ignored. Remove them.
+4. **Legacy alias materialization** (`config/config_io.py:673-695`): ~20 lines mapping old `test_data.test_*` flat fields to new `test_data.test.*` nested fields. Remove with the legacy fields above.
+5. **Dead module `utils/analysis.py`**: 5 functions (`voxel_instance_size`, `distance_nn`, `pixel_intensity`, `pi_pd`, `diff_segm`) with zero imports anywhere in the codebase. Delete entire file.
+6. **Empty callback method** (`training/lightning/callbacks.py:289-299`): `NaNDetectionCallback.on_train_batch_end()` has no implementation (only a comment). Remove it.
+7. **Legacy `inference` fallbacks in `scripts/main.py`**: `_is_test_evaluation_enabled()` (line 249) and `_invert_save_prediction_transform()` (line 280) fall back to `cfg.inference.*` despite migration being complete. Remove fallbacks.
+
+#### Code Duplication
+8. **3x `expand_file_paths()` wrappers**: Identical pass-through wrappers in `training/lightning/config.py:54-64`, `training/lightning/data_factory.py:21-23`, and `training/lightning/utils.py:283-293`. Consolidate to one location.
+9. **Tile dataset duplication** (`data/dataset/dataset_tile.py`): `MonaiTileDataset` and `MonaiCachedTileDataset` duplicate 4 methods (~100 lines): `_load_tile_metadata`, `_calculate_chunk_indices`, `_create_chunk_data_dicts`, `_create_default_transforms`. Extract to a shared base class or mixin.
+10. **`_calculate_chunk_indices` triple copy**: Same algorithm in `dataset_tile.py` (2x) and `data/dataset/build.py:199-246`.
+11. **Dual cache-only test paths** (`scripts/main.py`): `preflight_test_cache_hit()` (lines 195-240) and `try_cache_only_test_execution()` (lines 296-405) have overlapping logic. Consolidate.
+
+#### Unnecessary Complexity
+12. **13x `hasattr(cfg, "test")` checks** (`scripts/main.py`): The config uses type-safe dataclasses, so `cfg.test` is always present. Remove all defensive `hasattr` checks.
+13. **Over-defensive `seed_everything` import** (`training/lightning/config.py:24-51`): Triple try/except for Lightning version compat. Since Lightning 2.0+ is required, simplify to a single import.
+14. **Debug prints in production code**: `dataset_volume_cached.py` (D2 debug prints at lines 336-342, 659-668), `dataset_base.py:278-280`, `dataset_filename.py:146-151, 237-240`, `scripts/main.py:479-492` (diagnostic emoji prints), `training/lightning/validation_callbacks/validation_reseeding.py:95-167` (verbose `print()` logging with `=`*80 separators). Replace with proper `logging` module or remove.
+15. **Hardcoded values**: Output clamping bounds (-20/20) in `training/loss/orchestrator.py:52-53`, magic numbers in `decoding/postprocess.py` (0.5, 6 connectivity), and `decoding/segmentation.py` (seed connectivity 26/6).
+
+### Overall Assessment: **7.5/10 - Functional but needs cleanup**
 - ✅ Modern architecture (Lightning + MONAI + Hydra)
 - ✅ Clean separation of concerns
 - ✅ Comprehensive feature set
-- ✅ Good documentation
-- ✅ No code duplication (refactored)
-- ✅ All legacy code removed
-- ✅ No NotImplementedError functions (all implemented)
+- ⚠️ 2 bugs (mutable default, undefined variable)
+- ⚠️ Legacy backward-compat code still present despite "100% migration"
+- ⚠️ Significant code duplication in tile datasets and utility wrappers
+- ⚠️ Debug print statements scattered in production code
 - ⚠️ Integration tests need API v2.0 migration
 
 ## Migration Notes
 
 ### From Legacy System
-The codebase has **fully migrated** from legacy systems:
-- ✅ YACS configs → Hydra/OmegaConf configs (100% complete, all legacy removed)
+The codebase has migrated from legacy systems, but cleanup is incomplete:
+- ✅ YACS configs → Hydra/OmegaConf configs (config files migrated)
+- ⚠️ Legacy backward-compat fields remain in schema (`config/schema/data.py:456-466`) and materialization code (`config/config_io.py:673-695`)
+- ⚠️ Legacy `inference.*` fallbacks remain in `scripts/main.py`
 - ✅ Custom trainer → PyTorch Lightning (100% complete)
 - ✅ Custom models → MONAI native models (100% complete)
 - ✅ `scripts/build.py` → `scripts/main.py` (legacy script removed)

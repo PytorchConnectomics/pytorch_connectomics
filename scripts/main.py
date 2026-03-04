@@ -43,7 +43,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import torch
 
 # Import Hydra config system
-from connectomics.config import Config, resolve_default_profiles, save_config
+from connectomics.config import (
+    Config,
+    resolve_default_profiles,
+    resolve_runtime_resource_sentinels,
+    save_config,
+)
 import connectomics.config.schema as config_schema
 
 # Register safe globals for PyTorch 2.6+ checkpoint loading
@@ -249,6 +254,23 @@ def _is_test_evaluation_enabled(cfg: Config) -> bool:
     if isinstance(evaluation_cfg, dict):
         return bool(evaluation_cfg.get("enabled", False))
     return bool(getattr(evaluation_cfg, "enabled", False))
+
+
+def resolve_test_stage_runtime(cfg: Config) -> Config:
+    """Switch runtime config to test stage and re-resolve resource sentinels."""
+    cfg = resolve_default_profiles(cfg, mode="test")
+    cfg = resolve_runtime_resource_sentinels(cfg, print_results=True)
+
+    # Keep runtime behavior consistent with setup_config() for CPU-only environments.
+    if not torch.cuda.is_available():
+        if cfg.system.num_gpus > 0:
+            print("🔧 CUDA not available, setting num_gpus=0")
+            cfg.system.num_gpus = 0
+        if cfg.system.num_workers > 0:
+            print("🔧 CUDA not available, setting num_workers=0 to avoid dataloader crashes")
+            cfg.system.num_workers = 0
+
+    return cfg
 
 
 def _invert_save_prediction_transform(cfg: Config, data):
@@ -572,8 +594,8 @@ def main():
             print("🧪 RUNNING TEST")
             print("=" * 60)
 
-            # Re-resolve default-stage profiles for test stage in tune-test mode.
-            cfg = resolve_default_profiles(cfg, mode="test")
+            # Re-resolve test-stage runtime overrides after tuning, including sentinels.
+            cfg = resolve_test_stage_runtime(cfg)
 
             # Create datamodule
             datamodule = create_datamodule(cfg, mode="test")

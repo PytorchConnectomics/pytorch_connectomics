@@ -1,14 +1,56 @@
+# Augmentation Profile Library
+#
+# Usage:  data.augmentation.profile: aug_standard
+#
+# Profiles are organized by strength. Each is self-contained:
+# pick ONE profile, then override individual fields as needed.
+#
+# Choosing a profile:
+#   aug_light     — Fast training, clean data, fine-tuning
+#   aug_standard  — Default for most 3D EM tasks (RECOMMENDED)
+#   aug_strong    — Small datasets, overfitting prevention
+#   aug_instance  — Instance segmentation (adds copy-paste + mixup)
+#   aug_superres  — Super-resolution / multi-scale learning
+
 augmentation_profiles:
-  aug_basic_geo:
+
+  # ---------------------------------------------------------------------------
+  # aug_light: Flip + rotate + mild intensity
+  # ---------------------------------------------------------------------------
+  # Use for: quick experiments, clean datasets, fine-tuning pretrained models.
+  # Overhead: minimal. No EM artifact simulation.
+  aug_light:
     preset: some
     flip:
       enabled: true
+      prob: 0.5
     rotate:
       enabled: true
+      prob: 0.5
       spatial_axes: [1, 2]
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05
+      shift_intensity_prob: 0.3
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.3
+      contrast_range: [0.9, 1.1]
 
-  aug_basic_app:
+  # ---------------------------------------------------------------------------
+  # aug_standard: Light + EM artifact simulation
+  # ---------------------------------------------------------------------------
+  # Use for: most 3D EM segmentation tasks. Good balance of regularization
+  # and training speed. Covers the augmentations used by ~80% of tutorials.
+  aug_standard:
     preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes: [1, 2]
     intensity:
       enabled: true
       gaussian_noise_prob: 0.5
@@ -17,29 +59,28 @@ augmentation_profiles:
       shift_intensity_offset: 0.1
       contrast_prob: 0.5
       contrast_range: [0.9, 1.1]
+    misalignment:
+      enabled: true
+      prob: 0.4
+      displacement: 10
+      rotate_ratio: 0.0
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 2
 
-  aug_basic:
-    preset: some
-    flip:
-      enabled: true
-    rotate:
-      enabled: true
-      spatial_axes: [1, 2]
-    intensity:
-      enabled: true
-      gaussian_noise_prob: 0.5
-      gaussian_noise_std: 0.1
-      shift_intensity_prob: 0.5
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.5
-      contrast_range: [0.9, 1.1]
-
+  # ---------------------------------------------------------------------------
+  # aug_strong: Maximum regularization
+  # ---------------------------------------------------------------------------
+  # Use for: small datasets, severe overfitting, long training schedules.
+  # Adds affine, elastic, motion blur, missing parts, and cut noise.
+  # Increase max_epochs ~50% when using this profile.
   aug_strong:
     preset: some
     flip:
       enabled: true
       prob: 0.5
-      spatial_axis: 0
+      spatial_axis: [0, 1, 2]
     rotate:
       enabled: true
       prob: 0.5
@@ -50,25 +91,117 @@ augmentation_profiles:
       rotate_range: [0.1, 0.1, 0.1]
       scale_range: [0.05, 0.05, 0.05]
       shear_range: [0.05, 0.05, 0.05]
+    elastic:
+      enabled: true
+      prob: 0.3
+      sigma_range: [5.0, 8.0]
+      magnitude_range: [50.0, 150.0]
     intensity:
       enabled: true
-      gaussian_noise_prob: 0.2
-      gaussian_noise_std: 0.03
-      shift_intensity_prob: 0.4
-      shift_intensity_offset: 0.1
-      contrast_prob: 0.4
-      contrast_range: [0.8, 1.2]
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.1
+      shift_intensity_prob: 0.7
+      shift_intensity_offset: 0.2
+      contrast_prob: 0.7
+      contrast_range: [0.7, 1.4]
     misalignment:
       enabled: true
-      prob: 0.4
-      displacement: 8
+      prob: 0.5
+      displacement: 16
       rotate_ratio: 0.3
     missing_section:
       enabled: true
-      prob: 0.3
-      num_sections: 2
+      prob: 0.4
+      num_sections: 3
     motion_blur:
-      enabled: false
+      enabled: true
       prob: 0.3
+      sections: [1, 3]
+      kernel_size: 11
+    missing_parts:
+      enabled: true
+      prob: 0.2
+      hole_range: [0.1, 0.25]
+    cut_noise:
+      enabled: true
+      prob: 0.3
+      length_ratio: [0.1, 0.25]
+      noise_scale: [0.05, 0.15]
+
+  # ---------------------------------------------------------------------------
+  # aug_instance: Standard + copy-paste + mixup
+  # ---------------------------------------------------------------------------
+  # Use for: instance segmentation (neuron, mitochondria, synapse).
+  # Copy-paste creates synthetic training pairs; mixup regularizes small datasets.
+  # Requires batch_size > 1 for mixup.
+  aug_instance:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes: [1, 2]
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.5
+      gaussian_noise_std: 0.1
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.5
+      contrast_range: [0.9, 1.1]
+    misalignment:
+      enabled: true
+      prob: 0.4
+      displacement: 16
+      rotate_ratio: 0.5
+    missing_section:
+      enabled: true
+      prob: 0.3
+      num_sections: 1
+    copy_paste:
+      enabled: true
+      prob: 0.6
+      max_obj_ratio: 0.7
+      rotation_angles: [30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
+      border: 3
+    mixup:
+      enabled: true
+      prob: 0.3
+      alpha_range: [0.7, 0.9]
+
+  # ---------------------------------------------------------------------------
+  # aug_superres: CutBlur-centric for multi-scale learning
+  # ---------------------------------------------------------------------------
+  # Use for: super-resolution, denoising, or tasks that benefit from
+  # learning across resolution scales. CutBlur forces the model to handle
+  # degraded (low-res) regions alongside high-res regions.
+  aug_superres:
+    preset: some
+    flip:
+      enabled: true
+      prob: 0.5
+    rotate:
+      enabled: true
+      prob: 0.5
+      spatial_axes: [1, 2]
+    intensity:
+      enabled: true
+      gaussian_noise_prob: 0.3
+      gaussian_noise_std: 0.05
+      shift_intensity_prob: 0.5
+      shift_intensity_offset: 0.1
+      contrast_prob: 0.3
+      contrast_range: [0.9, 1.1]
+    cut_blur:
+      enabled: true
+      prob: 0.8
+      length_ratio: [0.3, 0.5]
+      down_ratio_range: [2.0, 8.0]
+      downsample_z: false
+    motion_blur:
+      enabled: true
+      prob: 0.4
       sections: [1, 2]
-      kernel_size: 9
+      kernel_size: 7

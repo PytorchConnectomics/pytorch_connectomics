@@ -3,7 +3,8 @@ default:
     arch:
       profile: monai_unet
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 experiment_name: nucmm_zebrafish_monai_unet
 description: Zebrafish nucleus segmentation on NucMM dataset using MONAI Residual UNet with multi-task learning
 model:
@@ -16,9 +17,6 @@ model:
   - 64
   - 64
   out_channels: 3
-  - 2
-  - 2
-  - 2
   loss:
     losses:
     - function: DiceLoss
@@ -45,7 +43,7 @@ model:
       pred_slice: [2, 3]
       target_slice: [2, 3]
   monai:
-    strides:
+    strides: [2, 2, 2]
     num_res_units: 2
     kernel_size: 3
     norm: batch

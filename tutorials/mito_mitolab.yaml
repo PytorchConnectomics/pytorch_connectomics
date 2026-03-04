@@ -3,7 +3,8 @@ default:
     arch:
       profile: mednext_s
 
-_base_: bases/arch_profiles.yaml
+_base_:
+  - bases/all_profiles.yaml
 experiment_name: cem-mitolab_mednext2d
 description: Mitochondria segmentation on CEM-MitoLab dataset using MedNeXt 2D
 model:
@@ -34,7 +35,6 @@ model:
     kernel_size: 3
     dim: 2d
 data:
-  use_preloaded_cache: false
   image_transform:
     clip_percentile_low: 0.0
     clip_percentile_high: 1.0
@@ -67,6 +67,8 @@ data:
     - 0
     - 0
   dataloader:
+    use_preloaded_cache_train: false
+    use_preloaded_cache_val: false
     patch_size:
       - 224
       - 224

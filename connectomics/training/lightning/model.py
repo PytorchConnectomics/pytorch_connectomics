@@ -330,9 +330,9 @@ class ConnectomicsModule(pl.LightningModule):
             mode = "tune"
             output_dir_value = self.cfg.tune.output.output_pred
             cache_suffix = self.cfg.tune.output.cache_suffix
-        elif hasattr(self.cfg, "test") and hasattr(self.cfg.test, "data"):
-            output_dir_value = getattr(self.cfg.test.data, "output_path", None)
-            cache_suffix = getattr(self.cfg.test.data, "cache_suffix", "_prediction.h5")
+        elif hasattr(self.cfg, "test") and self.cfg.test is not None:
+            output_dir_value = getattr(self.cfg.test, "output_path", None)
+            cache_suffix = getattr(self.cfg.test, "cache_suffix", "_prediction.h5")
 
         filenames = resolve_output_filenames(self.cfg, batch, global_step=self.global_step)
         return mode, output_dir_value, cache_suffix, filenames
@@ -400,8 +400,15 @@ class ConnectomicsModule(pl.LightningModule):
 
         # Get output path from config
         output_path = None
-        if hasattr(self.cfg, "test") and hasattr(self.cfg.test, "data"):
-            output_path = getattr(self.cfg.test.data, "output_path", None)
+        if (
+            hasattr(self.cfg, "tune")
+            and self.cfg.tune
+            and hasattr(self.cfg.tune, "output")
+            and self.cfg.tune.output.output_pred is not None
+        ):
+            output_path = self.cfg.tune.output.output_pred
+        elif hasattr(self.cfg, "test") and self.cfg.test is not None:
+            output_path = getattr(self.cfg.test, "output_path", None)
 
         if output_path is None:
             print("  ⚠️  Cannot save metrics: output_path not found in config")
