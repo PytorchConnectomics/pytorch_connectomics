@@ -435,16 +435,10 @@
     <span class="c1"># Handle channel dimension</span>
     <span class="n">has_channel</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span>
     <span class="k">if</span> <span class="n">has_channel</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">is_tensor</span><span class="p">:</span>
-            <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">spatial_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">is_tensor</span><span class="p">:</span>
-            <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span> <span class="o">=</span> <span class="n">volume</span><span class="o">.</span><span class="n">shape</span>
         <span class="n">spatial_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">w</span><span class="p">)</span>
 
     <span class="c1"># Calculate padding needed</span>
@@ -580,8 +574,12 @@
     <span class="p">)</span>
 
     <span class="c1"># Split volume</span>
-    <span class="n">train_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">train_slices</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_channel</span> <span class="k">else</span> <span class="n">volume</span><span class="p">[:][</span><span class="n">train_slices</span><span class="p">]</span>
-    <span class="n">val_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">val_slices</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">has_channel</span> <span class="k">else</span> <span class="n">volume</span><span class="p">[:][</span><span class="n">val_slices</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">has_channel</span><span class="p">:</span>
+        <span class="n">train_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[(</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),)</span> <span class="o">+</span> <span class="n">train_slices</span><span class="p">]</span>
+        <span class="n">val_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[(</span><span class="nb">slice</span><span class="p">(</span><span class="kc">None</span><span class="p">),)</span> <span class="o">+</span> <span class="n">val_slices</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">train_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">train_slices</span><span class="p">]</span>
+        <span class="n">val_volume</span> <span class="o">=</span> <span class="n">volume</span><span class="p">[</span><span class="n">val_slices</span><span class="p">]</span>
 
     <span class="c1"># Pad validation if target size specified</span>
     <span class="k">if</span> <span class="n">target_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

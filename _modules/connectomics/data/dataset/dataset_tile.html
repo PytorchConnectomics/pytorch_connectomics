@@ -283,13 +283,18 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">monai.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">CacheDataset</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span><span class="p">,</span> <span class="n">EnsureChannelFirstd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">monai.transforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">Compose</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">monai.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_tuple_rep</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">.dataset_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">MonaiConnectomicsDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.tile_utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">calculate_chunk_indices</span><span class="p">,</span>
+    <span class="n">create_chunk_data_dicts</span><span class="p">,</span>
+    <span class="n">create_default_tile_transforms</span><span class="p">,</span>
+    <span class="n">load_tile_metadata</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">..io</span><span class="w"> </span><span class="kn">import</span> <span class="n">TileLoaderd</span>
 
 
@@ -336,9 +341,9 @@
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="c1"># Load tile metadata</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_tile_metadata</span><span class="p">(</span><span class="n">volume_json</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_tile_metadata</span><span class="p">(</span><span class="n">label_json</span><span class="p">)</span> <span class="k">if</span> <span class="n">label_json</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_tile_metadata</span><span class="p">(</span><span class="n">mask_json</span><span class="p">)</span> <span class="k">if</span> <span class="n">mask_json</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span> <span class="o">=</span> <span class="n">load_tile_metadata</span><span class="p">(</span><span class="n">volume_json</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span> <span class="o">=</span> <span class="n">load_tile_metadata</span><span class="p">(</span><span class="n">label_json</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span> <span class="o">=</span> <span class="n">load_tile_metadata</span><span class="p">(</span><span class="n">mask_json</span><span class="p">)</span>
 
         <span class="c1"># Store tile-specific parameters</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span> <span class="o">=</span> <span class="n">ensure_tuple_rep</span><span class="p">(</span><span class="n">chunk_num</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
@@ -349,14 +354,22 @@
 
         <span class="c1"># Calculate chunk coordinates if not provided</span>
         <span class="k">if</span> <span class="n">chunk_indices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_chunk_indices</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span> <span class="o">=</span> <span class="n">calculate_chunk_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">)</span>
 
         <span class="c1"># Create data dictionaries for chunks</span>
-        <span class="n">data_dicts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_chunk_data_dicts</span><span class="p">()</span>
+        <span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_chunk_data_dicts</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span><span class="p">,</span>
+            <span class="n">volume_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">,</span>
+            <span class="n">label_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">,</span>
+            <span class="n">mask_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">,</span>
+        <span class="p">)</span>
 
         <span class="c1"># Create transforms if not provided</span>
         <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_default_transforms</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">)</span>
+            <span class="n">transforms</span> <span class="o">=</span> <span class="n">create_default_tile_transforms</span><span class="p">(</span>
+                <span class="n">label_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">,</span>
+                <span class="n">mask_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="c1"># Initialize base dataset</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
@@ -366,99 +379,7 @@
             <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
             <span class="n">iter_num</span><span class="o">=</span><span class="n">iter_num</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
-        <span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_load_tile_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load tile metadata from JSON file.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">json_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_chunk_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate chunk indices based on chunk_num and volume dimensions.&quot;&quot;&quot;</span>
-        <span class="c1"># Get volume dimensions from metadata</span>
-        <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span>
-        <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span>
-        <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
-
-        <span class="c1"># Calculate chunk sizes</span>
-        <span class="n">chunk_z</span> <span class="o">=</span> <span class="n">depth</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">chunk_y</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">chunk_x</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-
-        <span class="n">chunk_indices</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-            <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
-                    <span class="c1"># Calculate chunk boundaries</span>
-                    <span class="n">z_start</span> <span class="o">=</span> <span class="n">z</span> <span class="o">*</span> <span class="n">chunk_z</span>
-                    <span class="n">z_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">z</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_z</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
-                    <span class="n">y_start</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">chunk_y</span>
-                    <span class="n">y_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_y</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
-                    <span class="n">x_start</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">chunk_x</span>
-                    <span class="n">x_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_x</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
-
-                    <span class="n">chunk_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="p">{</span>
-                            <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span>
-                            <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">z_start</span><span class="p">,</span> <span class="n">z_end</span><span class="p">,</span> <span class="n">y_start</span><span class="p">,</span> <span class="n">y_end</span><span class="p">,</span> <span class="n">x_start</span><span class="p">,</span> <span class="n">x_end</span><span class="p">),</span>
-                        <span class="p">}</span>
-                    <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">chunk_indices</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_chunk_data_dicts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create MONAI data dictionaries for each chunk.&quot;&quot;&quot;</span>
-        <span class="n">data_dicts</span> <span class="o">=</span> <span class="p">[]</span>
-
-        <span class="k">for</span> <span class="n">chunk_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span><span class="p">:</span>
-            <span class="n">chunk_id</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s2">&quot;chunk_id&quot;</span><span class="p">]</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">]</span>
-
-            <span class="n">data_dict</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="p">{</span>
-                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
-                <span class="p">},</span>
-            <span class="p">}</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">:</span>
-                <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
-                <span class="p">}</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">:</span>
-                <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
-                <span class="p">}</span>
-
-            <span class="n">data_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_dict</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">data_dicts</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_default_transforms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Compose</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create default MONAI transforms for tile data.&quot;&quot;&quot;</span>
-        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">:</span>
-            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">:</span>
-            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span><span class="p">)</span>
-
-        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="c1"># Custom tile loader</span>
-            <span class="n">TileLoaderd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">),</span>
-            <span class="c1"># Ensure channel first format</span>
-            <span class="n">EnsureChannelFirstd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">),</span>
-        <span class="p">]</span>
-
-        <span class="k">return</span> <span class="n">Compose</span><span class="p">(</span><span class="n">transforms</span><span class="p">)</span></div>
+        <span class="p">)</span></div>
 
 
 
@@ -490,9 +411,9 @@
         <span class="n">transforms</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;transforms&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 
         <span class="c1"># Load metadata</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_tile_metadata</span><span class="p">(</span><span class="n">volume_json</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_tile_metadata</span><span class="p">(</span><span class="n">label_json</span><span class="p">)</span> <span class="k">if</span> <span class="n">label_json</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_load_tile_metadata</span><span class="p">(</span><span class="n">mask_json</span><span class="p">)</span> <span class="k">if</span> <span class="n">mask_json</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span> <span class="o">=</span> <span class="n">load_tile_metadata</span><span class="p">(</span><span class="n">volume_json</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span> <span class="o">=</span> <span class="n">load_tile_metadata</span><span class="p">(</span><span class="n">label_json</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span> <span class="o">=</span> <span class="n">load_tile_metadata</span><span class="p">(</span><span class="n">mask_json</span><span class="p">)</span>
 
         <span class="c1"># Set tile-specific parameters</span>
         <span class="n">chunk_num</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;chunk_num&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
@@ -501,14 +422,22 @@
 
         <span class="c1"># Calculate chunk coordinates if not provided</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_chunk_indices</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span> <span class="o">=</span> <span class="n">calculate_chunk_indices</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">)</span>
 
         <span class="c1"># Create data dictionaries</span>
-        <span class="n">data_dicts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_chunk_data_dicts</span><span class="p">()</span>
+        <span class="n">data_dicts</span> <span class="o">=</span> <span class="n">create_chunk_data_dicts</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span><span class="p">,</span>
+            <span class="n">volume_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">,</span>
+            <span class="n">label_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">,</span>
+            <span class="n">mask_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">,</span>
+        <span class="p">)</span>
 
         <span class="c1"># Create transforms if not provided</span>
         <span class="k">if</span> <span class="n">transforms</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">transforms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_default_transforms</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mode&quot;</span><span class="p">,</span> <span class="s2">&quot;train&quot;</span><span class="p">))</span>
+            <span class="n">transforms</span> <span class="o">=</span> <span class="n">create_default_tile_transforms</span><span class="p">(</span>
+                <span class="n">label_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">,</span>
+                <span class="n">mask_metadata</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="c1"># Initialize as MONAI CacheDataset</span>
         <span class="n">CacheDataset</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
@@ -533,96 +462,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">iter_num</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_dicts</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_load_tile_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">json_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load tile metadata from JSON file.&quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="n">json_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">json_path</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_chunk_indices</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate chunk indices based on chunk_num and volume dimensions.&quot;&quot;&quot;</span>
-        <span class="c1"># Get volume dimensions from metadata</span>
-        <span class="n">depth</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span>
-        <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span>
-        <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
-
-        <span class="c1"># Calculate chunk sizes</span>
-        <span class="n">chunk_z</span> <span class="o">=</span> <span class="n">depth</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">chunk_y</span> <span class="o">=</span> <span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">chunk_x</span> <span class="o">=</span> <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
-
-        <span class="n">chunk_indices</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-            <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
-                <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chunk_num</span><span class="p">[</span><span class="mi">2</span><span class="p">]):</span>
-                    <span class="c1"># Calculate chunk boundaries</span>
-                    <span class="n">z_start</span> <span class="o">=</span> <span class="n">z</span> <span class="o">*</span> <span class="n">chunk_z</span>
-                    <span class="n">z_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">z</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_z</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
-                    <span class="n">y_start</span> <span class="o">=</span> <span class="n">y</span> <span class="o">*</span> <span class="n">chunk_y</span>
-                    <span class="n">y_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">y</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_y</span><span class="p">,</span> <span class="n">height</span><span class="p">)</span>
-                    <span class="n">x_start</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="n">chunk_x</span>
-                    <span class="n">x_end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">((</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">chunk_x</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
-
-                    <span class="n">chunk_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                        <span class="p">{</span>
-                            <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span>
-                            <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">z_start</span><span class="p">,</span> <span class="n">z_end</span><span class="p">,</span> <span class="n">y_start</span><span class="p">,</span> <span class="n">y_end</span><span class="p">,</span> <span class="n">x_start</span><span class="p">,</span> <span class="n">x_end</span><span class="p">),</span>
-                        <span class="p">}</span>
-                    <span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">chunk_indices</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_chunk_data_dicts</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create MONAI data dictionaries for each chunk.&quot;&quot;&quot;</span>
-        <span class="n">data_dicts</span> <span class="o">=</span> <span class="p">[]</span>
-
-        <span class="k">for</span> <span class="n">chunk_info</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_indices</span><span class="p">:</span>
-            <span class="n">chunk_id</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s2">&quot;chunk_id&quot;</span><span class="p">]</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="n">chunk_info</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">]</span>
-
-            <span class="n">data_dict</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s2">&quot;image&quot;</span><span class="p">:</span> <span class="p">{</span>
-                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume_metadata</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
-                <span class="p">},</span>
-            <span class="p">}</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">:</span>
-                <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;label&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
-                <span class="p">}</span>
-
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">:</span>
-                <span class="n">data_dict</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span>
-                    <span class="s2">&quot;chunk_id&quot;</span><span class="p">:</span> <span class="n">chunk_id</span><span class="p">,</span>
-                <span class="p">}</span>
-
-            <span class="n">data_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data_dict</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">data_dicts</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_default_transforms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Compose</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create default MONAI transforms for tile data.&quot;&quot;&quot;</span>
-        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;image&quot;</span><span class="p">]</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">label_metadata</span><span class="p">:</span>
-            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_metadata</span><span class="p">:</span>
-            <span class="n">keys</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;mask&quot;</span><span class="p">)</span>
-
-        <span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">TileLoaderd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">),</span>
-            <span class="n">EnsureChannelFirstd</span><span class="p">(</span><span class="n">keys</span><span class="o">=</span><span class="n">keys</span><span class="p">),</span>
-        <span class="p">]</span>
-
-        <span class="k">return</span> <span class="n">Compose</span><span class="p">(</span><span class="n">transforms</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_length</span></div>

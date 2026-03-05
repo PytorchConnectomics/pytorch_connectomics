@@ -329,12 +329,9 @@
     <span class="n">_MEDNEXT_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
 
 <span class="c1"># Import RSUNet models (always available - pure PyTorch)</span>
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">rsunet</span>  <span class="c1"># noqa: F401</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.</span><span class="w"> </span><span class="kn">import</span> <span class="n">rsunet</span>  <span class="c1"># noqa: F401</span>
 
-    <span class="n">_RSUNET_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
-    <span class="n">_RSUNET_AVAILABLE</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="n">_RSUNET_AVAILABLE</span> <span class="o">=</span> <span class="kc">True</span>
 
 <span class="c1"># Import nnUNet models to trigger registration</span>
 <span class="k">try</span><span class="p">:</span>

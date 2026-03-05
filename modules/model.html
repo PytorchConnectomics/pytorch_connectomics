@@ -524,12 +524,15 @@ native implementations, with additional connectomics-specific losses.</p>
 <p>Design pattern follows transforms/augment/ for consistency.</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="connectomics.models.loss.BinaryRegularization">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">BinaryRegularization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#BinaryRegularization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.BinaryRegularization" title="Link to this definition">¶</a></dt>
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">connectomics.models.loss.</span></span><span class="sig-name descname"><span class="pre">BinaryRegularization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">min_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apply_sigmoid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/connectomics/models/loss/regularization.html#BinaryRegularization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#connectomics.models.loss.BinaryRegularization" title="Link to this definition">¶</a></dt>
 <dd><p>Regularization encouraging outputs to be binary (close to 0 or 1).</p>
 <p>Penalizes predictions that are close to 0.5 (uncertain).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>min_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum threshold for clamping (default: 1e-2)</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>min_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum threshold for clamping (default: 1e-2)</p></li>
+<li><p><strong>apply_sigmoid</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
 </dd>
 </dl>
 <p class="rubric">Example</p>

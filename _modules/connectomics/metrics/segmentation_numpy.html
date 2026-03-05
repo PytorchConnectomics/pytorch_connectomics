@@ -280,6 +280,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="n">linear_sum_assignment</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">namedtuple</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">skimage.segmentation</span><span class="w"> </span><span class="kn">import</span> <span class="n">relabel_sequential</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">connectomics.utils.label_overlap</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_label_overlap</span>
 
 <span class="n">matching_criteria</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
 
@@ -318,34 +319,6 @@
 <span class="sd">    ----------</span>
 <span class="sd">    [1]: http://brainiac2.mit.edu/SNEMI3D/evaluation</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># DEBUG: Print input to evaluation metrics</span>
-    <span class="k">try</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">..utils.debug_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">print_tensor_stats</span>
-        <span class="n">print_tensor_stats</span><span class="p">(</span>
-            <span class="n">seg</span><span class="p">,</span>
-            <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 10: INPUT TO EVALUATION METRICS&quot;</span><span class="p">,</span>
-            <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;predicted_segmentation&quot;</span><span class="p">,</span>
-            <span class="n">print_once</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
-                <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;unique_instances&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">seg</span><span class="p">)),</span>
-                <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Instance IDs after decoding&quot;</span>
-            <span class="p">}</span>
-        <span class="p">)</span>
-        <span class="n">print_tensor_stats</span><span class="p">(</span>
-            <span class="n">gt</span><span class="p">,</span>
-            <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 10: INPUT TO EVALUATION METRICS&quot;</span><span class="p">,</span>
-            <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;ground_truth_segmentation&quot;</span><span class="p">,</span>
-            <span class="n">print_once</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
-                <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="s2">&quot;adapted_rand&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;unique_instances&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">gt</span><span class="p">)),</span>
-                <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Ground truth instance IDs&quot;</span>
-            <span class="p">}</span>
-        <span class="p">)</span>
-    <span class="k">except</span><span class="p">:</span>
-        <span class="k">pass</span>  <span class="c1"># Silently skip if debug utils not available</span>
-    
     <span class="c1"># Validate shapes match</span>
     <span class="k">if</span> <span class="n">seg</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">gt</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -845,12 +818,7 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_label_overlap</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
-    <span class="n">overlap</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">y</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">uint</span><span class="p">)</span>
-    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)):</span>
-        <span class="n">overlap</span><span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">+=</span> <span class="mi">1</span>
-    <span class="k">return</span> <span class="n">overlap</span>
+    <span class="k">return</span> <span class="n">compute_label_overlap</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_safe_divide</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">):</span>
@@ -991,7 +959,8 @@
 
     <span class="n">overlap</span> <span class="o">=</span> <span class="n">label_overlap</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">scores</span> <span class="o">=</span> <span class="n">matching_criteria</span><span class="p">[</span><span class="n">criterion</span><span class="p">](</span><span class="n">overlap</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scores must be in [0, 1], got range [</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
 
     <span class="c1"># ignoring background</span>
     <span class="n">scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span>
@@ -1125,7 +1094,8 @@
     
     <span class="n">overlap</span> <span class="o">=</span> <span class="n">label_overlap</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">scores</span> <span class="o">=</span> <span class="n">matching_criteria</span><span class="p">[</span><span class="n">criterion</span><span class="p">](</span><span class="n">overlap</span><span class="p">)</span>
-    <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scores must be in [0, 1], got range [</span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
     
     <span class="c1"># ignoring background</span>
     <span class="n">scores</span> <span class="o">=</span> <span class="n">scores</span><span class="p">[</span><span class="mi">1</span><span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span>
@@ -1155,25 +1125,6 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">wrapper_matching_dataset_lazy</span><span class="p">(</span><span class="n">stats_all</span><span class="p">,</span> <span class="n">thresh</span><span class="p">,</span> <span class="n">criterion</span><span class="o">=</span><span class="s2">&quot;iou&quot;</span><span class="p">,</span> <span class="n">by_image</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-    <span class="nb">set</span><span class="p">(</span>
-        <span class="p">(</span>
-            <span class="s2">&quot;fp&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;tp&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;fn&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;precision&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;recall&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;accuracy&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;f1&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;criterion&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;thresh&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;n_true&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;n_pred&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;mean_true_score&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;mean_matched_score&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;panoptic_quality&quot;</span><span class="p">,</span>
-        <span class="p">)</span>
-    <span class="p">)</span>
-
     <span class="c1"># accumulate results over all images for each threshold separately</span>
     <span class="n">n_images</span><span class="p">,</span> <span class="n">n_threshs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">stats_all</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">thresh</span><span class="p">)</span>
     <span class="n">single_thresh</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">n_threshs</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="kc">False</span>

@@ -325,26 +325,37 @@
 <span class="p">)</span>
 
 
-<div class="viewcode-block" id="create_loss">
-<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.create_loss">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">create_loss</span><span class="p">(</span><span class="n">loss_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Create a single loss function by name.</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CombinedLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Weighted combination of multiple loss functions.&quot;&quot;&quot;</span>
 
-<span class="sd">    Args:</span>
-<span class="sd">        loss_name: Name of the loss function</span>
-<span class="sd">        **kwargs: Loss-specific parameters</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">loss_fns</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">],</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+        <span class="n">loss_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_fns</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span><span class="n">loss_fns</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_names</span> <span class="o">=</span> <span class="n">loss_names</span>
 
-<span class="sd">    Returns:</span>
-<span class="sd">        Initialized loss function</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute weighted sum of losses.&quot;&quot;&quot;</span>
+        <span class="n">total_loss</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">):</span>
+            <span class="n">total_loss</span> <span class="o">+=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">total_loss</span>
 
-<span class="sd">    Examples:</span>
-<span class="sd">        &gt;&gt;&gt; loss = create_loss(&#39;DiceLoss&#39;, include_background=False)</span>
-<span class="sd">        &gt;&gt;&gt; loss = create_loss(&#39;DiceCELoss&#39;, to_onehot_y=True, softmax=True)</span>
-<span class="sd">        &gt;&gt;&gt; loss = create_loss(&#39;FocalLoss&#39;, gamma=2.0)</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Map loss names to MONAI/custom loss classes</span>
-    <span class="n">loss_registry</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loss_str</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">(weight=</span><span class="si">{</span><span class="n">w</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">)&quot;</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)]</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;CombinedLoss(</span><span class="si">{</span><span class="n">loss_str</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_loss_registry</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">type</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the canonical mapping of loss names to constructors.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span>
         <span class="c1"># MONAI Dice variants</span>
         <span class="s2">&quot;DiceLoss&quot;</span><span class="p">:</span> <span class="n">DiceLoss</span><span class="p">,</span>
         <span class="s2">&quot;DiceCELoss&quot;</span><span class="p">:</span> <span class="n">DiceCELoss</span><span class="p">,</span>
@@ -371,6 +382,27 @@
         <span class="s2">&quot;ForegroundContourConsistency&quot;</span><span class="p">:</span> <span class="n">ForegroundContourConsistency</span><span class="p">,</span>
         <span class="s2">&quot;NonOverlapRegularization&quot;</span><span class="p">:</span> <span class="n">NonOverlapRegularization</span><span class="p">,</span>
     <span class="p">}</span>
+
+
+<div class="viewcode-block" id="create_loss">
+<a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.create_loss">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_loss</span><span class="p">(</span><span class="n">loss_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a single loss function by name.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        loss_name: Name of the loss function</span>
+<span class="sd">        **kwargs: Loss-specific parameters</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Initialized loss function</span>
+
+<span class="sd">    Examples:</span>
+<span class="sd">        &gt;&gt;&gt; loss = create_loss(&#39;DiceLoss&#39;, include_background=False)</span>
+<span class="sd">        &gt;&gt;&gt; loss = create_loss(&#39;DiceCELoss&#39;, to_onehot_y=True, softmax=True)</span>
+<span class="sd">        &gt;&gt;&gt; loss = create_loss(&#39;FocalLoss&#39;, gamma=2.0)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">loss_registry</span> <span class="o">=</span> <span class="n">_get_loss_registry</span><span class="p">()</span>
 
     <span class="k">if</span> <span class="n">loss_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">loss_registry</span><span class="p">:</span>
         <span class="n">available</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">loss_registry</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
@@ -424,7 +456,7 @@
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">loss_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">loss_kwargs</span> <span class="o">=</span> <span class="p">[{}]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">loss_names</span><span class="p">)</span>
+        <span class="n">loss_kwargs</span> <span class="o">=</span> <span class="p">[{}</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">loss_names</span><span class="p">))]</span>
 
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loss_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">loss_kwargs</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -436,38 +468,12 @@
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">loss_names</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">create_loss</span><span class="p">(</span><span class="n">loss_names</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">**</span><span class="n">loss_kwargs</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-    <span class="c1"># Multiple losses - create combined loss</span>
-    <span class="k">class</span><span class="w"> </span><span class="nc">CombinedLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Weighted combination of multiple loss functions.&quot;&quot;&quot;</span>
-
-        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loss_fns</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">],</span> <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]):</span>
-            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fns</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span><span class="n">loss_fns</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">loss_names</span> <span class="o">=</span> <span class="n">loss_names</span>
-
-        <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pred</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">            </span><span class="sd">&quot;&quot;&quot;Compute weighted sum of losses.&quot;&quot;&quot;</span>
-            <span class="n">total_loss</span> <span class="o">=</span> <span class="mf">0.0</span>
-
-            <span class="k">for</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fns</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_names</span><span class="p">):</span>
-                <span class="n">individual_loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-                <span class="n">total_loss</span> <span class="o">+=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">individual_loss</span>
-
-            <span class="k">return</span> <span class="n">total_loss</span>
-
-        <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="n">loss_str</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-                <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">(weight=</span><span class="si">{</span><span class="n">w</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">)&quot;</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_names</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">)]</span>
-            <span class="p">)</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;CombinedLoss(</span><span class="si">{</span><span class="n">loss_str</span><span class="si">}</span><span class="s2">)&quot;</span>
-
     <span class="c1"># Create individual loss functions</span>
     <span class="n">loss_fns</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">loss_name</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">loss_names</span><span class="p">,</span> <span class="n">loss_kwargs</span><span class="p">):</span>
         <span class="n">loss_fns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">create_loss</span><span class="p">(</span><span class="n">loss_name</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
 
-    <span class="k">return</span> <span class="n">CombinedLoss</span><span class="p">(</span><span class="n">loss_fns</span><span class="p">,</span> <span class="n">loss_weights</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">CombinedLoss</span><span class="p">(</span><span class="n">loss_fns</span><span class="p">,</span> <span class="n">loss_weights</span><span class="p">,</span> <span class="n">loss_names</span><span class="p">)</span></div>
 
 
 
@@ -597,30 +603,7 @@
 <a class="viewcode-back" href="../../../../modules/models.html#connectomics.models.loss.list_available_losses">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">list_available_losses</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;List all available loss functions.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="p">[</span>
-        <span class="c1"># MONAI losses</span>
-        <span class="s2">&quot;DiceLoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;DiceCELoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;DiceFocalLoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;GeneralizedDiceLoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;FocalLoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;TverskyLoss&quot;</span><span class="p">,</span>
-        <span class="c1"># PyTorch losses</span>
-        <span class="s2">&quot;BCEWithLogitsLoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;CrossEntropyLoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;MSELoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;L1Loss&quot;</span><span class="p">,</span>
-        <span class="c1"># Custom losses</span>
-        <span class="s2">&quot;WeightedMSELoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;WeightedMAELoss&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;GANLoss&quot;</span><span class="p">,</span>
-        <span class="c1"># Regularization losses</span>
-        <span class="s2">&quot;BinaryRegularization&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;ForegroundDistanceConsistency&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;ContourDistanceConsistency&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;ForegroundContourConsistency&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;NonOverlapRegularization&quot;</span><span class="p">,</span>
-    <span class="p">]</span></div>
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">_get_loss_registry</span><span class="p">()</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span></div>
 
 
 

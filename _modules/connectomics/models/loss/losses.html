@@ -404,48 +404,9 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            Loss value (should be &lt; 4 for range [-1, 1])</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">...utils.debug_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEBUG_NORM</span><span class="p">,</span> <span class="n">print_tensor_stats</span>
-
-        <span class="c1"># DEBUG: Print input to loss function (before tanh)</span>
-        <span class="k">if</span> <span class="n">DEBUG_NORM</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_debug_loss_printed&quot;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_debug_loss_printed</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">print_tensor_stats</span><span class="p">(</span>
-                <span class="n">pred</span><span class="p">,</span>
-                <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 7: LOSS FUNCTION INPUT (before tanh)&quot;</span><span class="p">,</span>
-                <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;pred&quot;</span><span class="p">,</span>
-                <span class="n">print_once</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
-                    <span class="s2">&quot;tanh_enabled&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tanh</span><span class="p">,</span>
-                    <span class="s2">&quot;reduction&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span><span class="p">,</span>
-                    <span class="s2">&quot;weight_provided&quot;</span><span class="p">:</span> <span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
-                <span class="p">},</span>
-            <span class="p">)</span>
-            <span class="n">print_tensor_stats</span><span class="p">(</span>
-                <span class="n">target</span><span class="p">,</span>
-                <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 7: LOSS FUNCTION INPUT (target)&quot;</span><span class="p">,</span>
-                <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;target&quot;</span><span class="p">,</span>
-                <span class="n">print_once</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;expected_range&quot;</span><span class="p">:</span> <span class="s2">&quot;[-1, 1] for SDT&quot;</span><span class="p">},</span>
-            <span class="p">)</span>
-
         <span class="c1"># Apply tanh activation if enabled (constrains pred to [-1, 1])</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tanh</span><span class="p">:</span>
             <span class="n">pred</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tanh</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
-
-            <span class="c1"># DEBUG: Print after tanh activation</span>
-            <span class="k">if</span> <span class="n">DEBUG_NORM</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_debug_tanh_printed&quot;</span><span class="p">):</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_debug_tanh_printed</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">print_tensor_stats</span><span class="p">(</span>
-                    <span class="n">pred</span><span class="p">,</span>
-                    <span class="n">stage_name</span><span class="o">=</span><span class="s2">&quot;STAGE 6: PREDICTION AFTER TANH&quot;</span><span class="p">,</span>
-                    <span class="n">tensor_name</span><span class="o">=</span><span class="s2">&quot;pred_after_tanh&quot;</span><span class="p">,</span>
-                    <span class="n">print_once</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                    <span class="n">extra_info</span><span class="o">=</span><span class="p">{</span>
-                        <span class="s2">&quot;activation_applied&quot;</span><span class="p">:</span> <span class="s2">&quot;tanh&quot;</span><span class="p">,</span>
-                        <span class="s2">&quot;expected_range&quot;</span><span class="p">:</span> <span class="s2">&quot;[-1, 1]&quot;</span><span class="p">,</span>
-                        <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Should now match target range&quot;</span><span class="p">,</span>
-                    <span class="p">},</span>
-                <span class="p">)</span>
 
         <span class="c1"># Compute MSE (for range [-1,1], max error is (1-(-1))^2 = 4)</span>
         <span class="n">mse</span> <span class="o">=</span> <span class="p">(</span><span class="n">pred</span> <span class="o">-</span> <span class="n">target</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
@@ -454,21 +415,6 @@
             <span class="n">mse</span> <span class="o">=</span> <span class="n">mse</span> <span class="o">*</span> <span class="n">weight</span>
 
         <span class="n">loss_value</span> <span class="o">=</span> <span class="n">_reduce_weighted_tensor</span><span class="p">(</span><span class="n">mse</span><span class="p">,</span> <span class="n">weight</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span><span class="p">)</span>
-
-        <span class="c1"># DEBUG: Print loss output</span>
-        <span class="k">if</span> <span class="n">DEBUG_NORM</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_debug_loss_output_printed&quot;</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_debug_loss_output_printed</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">80</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;[DEBUG NORM] STAGE 8: LOSS FUNCTION OUTPUT&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">80</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;LOSS VALUE: </span><span class="si">{</span><span class="n">loss_value</span><span class="o">.</span><span class="n">item</span><span class="p">()</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Expected range: [0, 4] for MSE with values in [-1, 1]&quot;</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">loss_value</span><span class="o">.</span><span class="n">item</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ⚠️  WARNING: Loss &gt; 4 suggests tanh might not be working!&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  ✅ Loss is reasonable&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="s1">&#39;=&#39;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">80</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">loss_value</span></div>
 </div>
 
@@ -476,35 +422,33 @@
 
 <span class="k">class</span><span class="w"> </span><span class="nc">WeightedBCEWithLogitsLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Wrapper for BCEWithLogitsLoss with support for pos_weight (class rebalancing).</span>
+<span class="sd">    Wrapper for BCEWithLogitsLoss with optional class and spatial weighting.</span>
 
-<span class="sd">    Useful for handling class imbalance in binary segmentation, especially</span>
-<span class="sd">    for affinity prediction in connectomics where foreground is often sparse.</span>
+<span class="sd">    Supports static ``pos_weight`` (configured once) and optional per-call</span>
+<span class="sd">    ``pos_weight`` override (used by auto class-ratio mode in orchestration).</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        pos_weight: Weight for positive class (tensor or float)</span>
-<span class="sd">                   Set to neg_samples/pos_samples for balanced loss</span>
-<span class="sd">                   If None, no rebalancing is applied</span>
+<span class="sd">        pos_weight: Optional positive-class weight (scalar or tensor)</span>
 <span class="sd">        reduction: Reduction method (&#39;mean&#39;, &#39;sum&#39;, &#39;none&#39;)</span>
-
-<span class="sd">    Examples:</span>
-<span class="sd">        # Auto-calculate from data</span>
-<span class="sd">        pos_weight = (target == 0).sum() / (target == 1).sum()</span>
-<span class="sd">        loss_fn = WeightedBCEWithLogitsLoss(pos_weight=pos_weight)</span>
-
-<span class="sd">        # Manual weight (e.g., 10x weight for positive class)</span>
-<span class="sd">        loss_fn = WeightedBCEWithLogitsLoss(pos_weight=10.0)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">pos_weight</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">pos_weight</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">unexpected</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unexpected argument(s) for WeightedBCEWithLogitsLoss: </span><span class="si">{</span><span class="n">unexpected</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
-
-        <span class="c1"># Convert float to tensor if needed</span>
         <span class="k">if</span> <span class="n">pos_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;pos_weight&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="n">pos_weight</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;pos_weight must be &gt; 0, got </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;pos_weight&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([</span><span class="nb">float</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">)]))</span>
         <span class="k">elif</span> <span class="n">pos_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;pos_weight&quot;</span><span class="p">,</span> <span class="n">pos_weight</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
@@ -515,6 +459,7 @@
         <span class="nb">input</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">target</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">weight</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pos_weight</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute weighted BCE with logits loss.</span>
@@ -523,14 +468,30 @@
 <span class="sd">            input: Model output (logits) [B, C, ...]</span>
 <span class="sd">            target: Ground truth [B, C, ...]</span>
 <span class="sd">            weight: Optional spatial weights/mask.</span>
+<span class="sd">            pos_weight: Optional per-call positive-class weight override.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Loss value</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">pos_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;pos_weight must be &gt; 0, got </span><span class="si">{</span><span class="nb">float</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">effective_pos_weight</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span>
+                <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">pos_weight</span><span class="p">)],</span>
+                <span class="n">device</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">pos_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">effective_pos_weight</span> <span class="o">=</span> <span class="n">pos_weight</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">effective_pos_weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pos_weight</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">input</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">effective_pos_weight</span> <span class="o">=</span> <span class="kc">None</span>
+
         <span class="n">bce</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">binary_cross_entropy_with_logits</span><span class="p">(</span>
             <span class="nb">input</span><span class="p">,</span>
             <span class="n">target</span><span class="p">,</span>
-            <span class="n">pos_weight</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pos_weight</span><span class="p">,</span>
+            <span class="n">pos_weight</span><span class="o">=</span><span class="n">effective_pos_weight</span><span class="p">,</span>
             <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -720,8 +681,11 @@
 
 
 <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;CrossEntropyLossWrapper&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;WeightedBCEWithLogitsLoss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;WeightedMSELoss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;WeightedMAELoss&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;SmoothL1Loss&quot;</span><span class="p">,</span>
     <span class="s2">&quot;GANLoss&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 </pre></div>
